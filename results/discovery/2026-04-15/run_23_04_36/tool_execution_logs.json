@@ -1,0 +1,343 @@
+[
+  {
+    "timestamp": "2026-04-15T23:06:02.034342",
+    "type": "tool",
+    "node": "filter",
+    "step": "Check average volume (batch)",
+    "tool": "get_average_volume_batch",
+    "parameters": {
+      "symbols": [
+        "RVMD",
+        "BETR",
+        "CHPT",
+        "ABX",
+        "ACHC",
+        "AI",
+        "ARCT",
+        "ANAB",
+        "DTST",
+        "KOPN",
+        "SLG",
+        "CCEL",
+        "ANGO",
+        "GIPR",
+        "PXED",
+        "BEEM",
+        "RPM",
+        "ARAI",
+        "CAR",
+        "ORCL",
+        "PAYC",
+        "CINF",
+        "CMCSA",
+        "CTRA",
+        "COP",
+        "SVRE",
+        "SMC",
+        "SG",
+        "HTO",
+        "RPAY",
+        "GF",
+        "MNR",
+        "ACET",
+        "WKSP",
+        "CNXC",
+        "SVBL",
+        "FROPX",
+        "FRBBX",
+        "PYPL",
+        "COIN",
+        "AXP",
+        "COF",
+        "SYF",
+        "NVDA",
+        "IRDM",
+        "SYNX",
+        "AME",
+        "FAT",
+        "CARM",
+        "GRDX",
+        "MTB",
+        "OLOX",
+        "BPTH",
+        "HOMB",
+        "CLSD",
+        "LFLY",
+        "HOLX",
+        "EXAS",
+        "NI",
+        "AVB",
+        "EA",
+        "TSLA",
+        "META",
+        "MSFT",
+        "AAPL",
+        "PLTR",
+        "AMD",
+        "GOOGL",
+        "INTC",
+        "AMZN",
+        "GOOG",
+        "ABT",
+        "WMT",
+        "AMS",
+        "US"
+      ],
+      "lookback_days": 10,
+      "curr_date": "2026-04-15",
+      "cache_key": "default"
+    },
+    "context": "",
+    "output": "{\"RVMD\": {\"symbol\": \"RVMD\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"BETR\": {\"symbol\": \"BETR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CHPT\": {\"symbol\": \"CHPT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ABX\": {\"symbol\": \"ABX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ACHC\": {\"symbol\": \"ACHC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AI\": {\"symbol\": \"AI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ARCT\": {\"symbol\": \"ARCT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ANAB\": {\"symbol\": \"ANAB\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"DTST\": {\"symbol\": \"DTST\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"KOPN\": {\"symbol\": \"KOPN\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SLG\": {\"symbol\": \"SLG\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CCEL\": {\"symbol\": \"CCEL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ANGO\": {\"symbol\": \"ANGO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"GIPR\": {\"symbol\": \"GIPR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"PXED\": {\"symbol\": \"PXED\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"BEEM\": {\"symbol\": \"BEEM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"RPM\": {\"symbol\": \"RPM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ARAI\": {\"symbol\": \"ARAI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CAR\": {\"symbol\": \"CAR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ORCL\": {\"symbol\": \"ORCL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"PAYC\": {\"symbol\": \"PAYC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CINF\": {\"symbol\": \"CINF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CMCSA\": {\"symbol\": \"CMCSA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CTRA\": {\"symbol\": \"CTRA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"COP\": {\"symbol\": \"COP\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SVRE\": {\"symbol\": \"SVRE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SMC\": {\"symbol\": \"SMC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SG\": {\"symbol\": \"SG\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"HTO\": {\"symbol\": \"HTO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"RPAY\": {\"symbol\": \"RPAY\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"GF\": {\"symbol\": \"GF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"MNR\": {\"symbol\": \"MNR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ACET\": {\"symbol\": \"ACET\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"WKSP\": {\"symbol\": \"WKSP\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CNXC\": {\"symbol\": \"CNXC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SVBL\": {\"symbol\": \"SVBL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"FROPX\": {\"symbol\": \"FROPX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"FRBBX\": {\"symbol\": \"FRBBX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"PYPL\": {\"symbol\": \"PYPL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"COIN\": {\"symbol\": \"COIN\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AXP\": {\"symbol\": \"AXP\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"COF\": {\"symbol\": \"COF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SYF\": {\"symbol\": \"SYF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"NVDA\": {\"symbol\": \"NVDA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"IRDM\": {\"symbol\": \"IRDM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"SYNX\": {\"symbol\": \"SYNX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AME\": {\"symbol\": \"AME\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"FAT\": {\"symbol\": \"FAT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CARM\": {\"symbol\": \"CARM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"GRDX\": {\"symbol\": \"GRDX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"MTB\": {\"symbol\": \"MTB\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"OLOX\": {\"symbol\": \"OLOX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"BPTH\": {\"symbol\": \"BPTH\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"HOMB\": {\"symbol\": \"HOMB\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"CLSD\": {\"symbol\": \"CLSD\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"LFLY\": {\"symbol\": \"LFLY\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"HOLX\": {\"symbol\": \"HOLX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"EXAS\": {\"symbol\": \"EXAS\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"NI\": {\"symbol\": \"NI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AVB\": {\"symbol\": \"AVB\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"EA\": {\"symbol\": \"EA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"TSLA\": {\"symbol\": \"TSLA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"META\": {\"symbol\": \"META\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"MSFT\": {\"symbol\": \"MSFT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AAPL\": {\"symbol\": \"AAPL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"PLTR\": {\"symbol\": \"PLTR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AMD\": {\"symbol\": \"AMD\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"GOOGL\": {\"symbol\": \"GOOGL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"INTC\": {\"symbol\": \"INTC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AMZN\": {\"symbol\": \"AMZN\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"GOOG\": {\"symbol\": \"GOOG\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"ABT\": {\"symbol\": \"ABT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"WMT\": {\"symbol\": \"WMT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"AMS\": {\"symbol\": \"AMS\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}, \"US\": {\"symbol\": \"US\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": null, \"error\": \"No volume data found\"}}",
+    "output_length": 12771,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:33.556813",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "BEEM",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for BEEM\n**Date:** 2026-04-15\n**Current Price:** $1.50\n\n## Price Action\n- **Daily Change:** +0.67%\n- **5-Day Change:** -3.85%\n\n## RSI (14)\n- **Value:** 49.9 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 0.003\n- **Signal Line:** -0.007\n- **Histogram:** 0.010 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $1.50 (+0.1% from price)\n- **200 SMA:** $2.08 (-27.7% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $1.60\n- **Middle:** $1.48\n- **Lower:** $1.36\n- **Band Position:** 60%\n- **Bandwidth:** 16.3% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $0.09 (5.9% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $1.37 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 50.4\n- **%D:** 63.0\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.2 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $1.50 (+0.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 104.8M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $1.50\n- **Current vs VWAP:** +0.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $1.67\n- **Recent Low:** $1.34\n- **Next Resistance:** $1.50 (50.0%)\n- **Next Support:** $1.46 (61.8%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1494,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:33.616258",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "BEEM"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for BEEM: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:33.722471",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "BEEM"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for BEEM\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 10\n\n**Sentiment**: 90.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 10\n\n**Sentiment**: 90.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 711,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:33.765742",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "BEEM",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for BEEM: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:37.411850",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "COIN",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for COIN\n**Date:** 2026-04-15\n**Current Price:** $184.41\n\n## Price Action\n- **Daily Change:** +5.66%\n- **5-Day Change:** +5.32%\n\n## RSI (14)\n- **Value:** 52.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -4.035\n- **Signal Line:** -4.576\n- **Histogram:** 0.541 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $178.87 (+3.1% from price)\n- **200 SMA:** $275.24 (-33.0% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $209.47\n- **Middle:** $180.55\n- **Lower:** $151.62\n- **Band Position:** 57%\n- **Bandwidth:** 32.0% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $11.30 (6.1% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $167.46 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 53.0\n- **%D:** 42.2\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 10.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $178.44 (+3.3% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -138.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** BEARISH DIVERGENCE \u26a0\ufe0f (distribution)\n\n## VWAP (20-period)\n- **VWAP:** $182.16\n- **Current vs VWAP:** +1.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $213.50\n- **Recent Low:** $139.36\n- **Next Resistance:** $185.18 (38.2%)\n- **Next Support:** $176.43 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1544,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:37.466691",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "COIN"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for COIN: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:37.543038",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "COIN"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for COIN\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 0\n- **Strong Sell**: 2\n- **Total Analysts**: 43\n\n**Sentiment**: 65.1% Bullish, 4.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 11\n- **Buy**: 18\n- **Hold**: 12\n- **Sell**: 0\n- **Strong Sell**: 2\n- **Total Analysts**: 43\n\n**Sentiment**: 67.4% Bullish, 4.7% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 11\n- **Buy**: 19\n- **Hold**: 12\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 43\n\n**Sentiment**: 69.8% Bullish, 2.3% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 14\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 42\n\n**Sentiment**: 64.3% Bullish, 2.4% Bearish\n\n",
+    "output_length": 723,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:37.589357",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "COIN",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for COIN: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:44.250366",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "TSLA",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for TSLA\n**Date:** 2026-04-15\n**Current Price:** $364.20\n\n## Price Action\n- **Daily Change:** +3.34%\n- **5-Day Change:** +6.10%\n\n## RSI (14)\n- **Value:** 45.9 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -12.446\n- **Signal Line:** -12.884\n- **Histogram:** 0.438 (Weakening \u2193)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $391.70 (-7.0% from price)\n- **200 SMA:** $397.67 (-8.4% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f (DEATH CROSS \u26a0\ufe0f)\n\n## Bollinger Bands (20,2)\n- **Upper:** $400.84\n- **Middle:** $367.34\n- **Lower:** $333.85\n- **Band Position:** 45%\n- **Bandwidth:** 18.2% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $14.33 (3.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $342.71 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 36.3\n- **%D:** 27.6\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 20.0 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $366.49 (-0.6% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 848.5M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $367.03\n- **Current vs VWAP:** -0.8%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $436.35\n- **Recent Low:** $337.24\n- **Next Resistance:** $375.10 (61.8%)\n- **Next Support:** $358.45 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1575,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:44.305784",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "TSLA"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for TSLA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:44.396799",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "TSLA"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for TSLA\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 60\n\n**Sentiment**: 48.3% Bullish, 16.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 8\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 47.5% Bullish, 16.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 8\n- **Buy**: 19\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 58\n\n**Sentiment**: 46.6% Bullish, 17.2% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 9\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 45.8% Bullish, 18.6% Bearish\n\n",
+    "output_length": 723,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:44.444453",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "TSLA",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for TSLA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:45.506963",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "GOOGL",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for GOOGL\n**Date:** 2026-04-15\n**Current Price:** $332.91\n\n## Price Action\n- **Daily Change:** +3.61%\n- **5-Day Change:** +4.91%\n\n## RSI (14)\n- **Value:** 69.6 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 4.472\n- **Signal Line:** -0.430\n- **Histogram:** 4.903 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $307.80 (+8.2% from price)\n- **200 SMA:** $269.81 (+23.4% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $333.29\n- **Middle:** $301.62\n- **Lower:** $269.94\n- **Band Position:** 99%\n- **Bandwidth:** 21.0% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $8.66 (2.6% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $319.92 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 93.5\n- **%D:** 85.2\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 23.1 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $307.01 (+8.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 930.5M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $298.98\n- **Current vs VWAP:** +11.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $348.75\n- **Recent Low:** $272.11\n- **Next Resistance:** $348.75 (0.0% (High))\n- **Next Support:** $330.67 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1564,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:45.562516",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "GOOGL"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for GOOGL: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 100,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:45.637516",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "GOOGL"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for GOOGL\n\n### 2026-04-01\n- **Strong Buy**: 19\n- **Buy**: 41\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 68\n\n**Sentiment**: 88.2% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 19\n- **Buy**: 41\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 69\n\n**Sentiment**: 87.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 19\n- **Buy**: 40\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 69\n\n**Sentiment**: 85.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 19\n- **Buy**: 41\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 70\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n",
+    "output_length": 722,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:07:45.683729",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "GOOGL",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for GOOGL: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 96,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T23:08:11.852959",
+    "type": "llm",
+    "node": "ranker",
+    "step": "Rank candidates",
+    "model": "gemini-3-pro-preview",
+    "prompt": "You are a professional stock analyst selecting the best short-term trading opportunities from a pre-filtered candidate list.\n\nCURRENT DATE: 2026-04-15\n\nGOAL: Select UP TO 15 stocks with the highest probability of generating >5.0% returns within 1-7 days. If fewer than 15 candidates meet the quality bar, return only the ones that do. Quality over quantity \u2014 never pad the list with weak picks.\n\nMINIMUM QUALITY BAR:\n- Only include candidates where you have genuine conviction (final_score >= 65).\n- If a candidate lacks a clear catalyst or has contradictory signals, SKIP it.\n- It is better to return 5 excellent picks than 15 mediocre ones.\n\nSTRATEGY-SPECIFIC EVALUATION CRITERIA:\nEach candidate was discovered by a specific scanner. Evaluate them using the criteria most relevant to their strategy:\n- **insider_buying**: Focus on insider transaction SIZE relative to market cap, insider ROLE (CEO/CFO > Director), number of distinct insiders buying, and whether the stock is near support. Large cluster buys are strongest.\n- **options_flow**: Focus on put/call ratio, absolute call VOLUME vs open interest, premium size, and whether flow aligns with the technical trend. Unusually low P/C ratios (<0.1) with high volume are strongest.\n- **momentum / technical_breakout**: Focus on volume confirmation (>2x average), trend alignment (above key SMAs), and whether momentum is accelerating or fading. Avoid chasing extended moves (RSI >80).\n- **earnings_play**: Focus on short interest (squeeze potential), pre-earnings accumulation signals, analyst estimate trends, and historical earnings surprise rate. Binary risk must be acknowledged.\n- **social_dd**: Has shown 55% 30d win rate \u2014 strongest long-hold scanner. These setups combine social sentiment WITH technical confirmation (OBV, short interest, MACD). Score based on quality of technical/fundamental corroboration. A strong OBV + high short interest + bullish MACD warrants 65-75. DO NOT conflate with social_hype.\n- **social_hype**: Treat as SPECULATIVE (14.3% 7d win rate, -4.84% avg 7d return). Require strong corroborating evidence. Pure social sentiment without data backing should score below 50.\n- **short_squeeze**: Focus on short interest %, days to cover, cost to borrow, and whether a catalyst exists to trigger covering. High SI alone is not enough.\n- **contrarian_value**: Focus on oversold technicals (RSI <30), fundamental support (earnings stability), and a clear reason why the selloff is overdone.\n- **news_catalyst**: **AVOID by default** \u2014 0% historical 7d win rate (-8.37% avg 7d return, n=8). Only score \u226555 if the catalyst is (1) not yet reflected in the intraday move, (2) mechanistic and specific (FDA decision, contract win, regulatory approval), NOT macroeconomic framing ('geopolitical tension', 'oil price', 'rate expectations'). Macro news_catalyst setups should score <50.\n- **sector_rotation**: Focus on relative strength vs sector ETF, whether the stock is a laggard in an accelerating sector.\n- **minervini**: Focus on the RS Rating (top 30% = RS>=70, top 10% = RS>=90) as the primary signal. Verify all 6 trend template conditions are met (price structure above rising SMAs). Strongest setups combine RS>=85 with price consolidating near highs (within 10-15% of 52w high) \u2014 these have minimal overhead supply. Penalize if RS Rating is borderline (70-75) without other confirming signals.\n- **ml_signal**: Use the ML Win Probability as a strong quantitative signal. Scores above 65% deserve significant weight.\n\nHISTORICAL INSIGHTS:\n\"Historical 1-day win rate: 39.1% (603 tracked)\\nHistorical 7-day win rate: 44.1% (596 tracked)\\nHistorical 30-day win rate: 36.8% (495 tracked)\\n\\nBest performing strategies (7-day):\\n  - short_squeeze: 60.0% win rate, avg +2.1% return (10 samples)\\n  - analyst_upgrade: 55.9% win rate, avg +0.2% return (34 samples)\\n  - insider_buying: 47.4% win rate, avg -0.2% return (173 samples)\\n\\nWORST performing strategies (7-day) \\u2014 penalize these heavily in scoring:\\n  - pre_earnings_accumulation: 28.6% win rate, avg -1.9% return (7 samples)\\n  - social_hype: 18.2% win rate, avg -4.1% return (22 samples)\\n  - news_catalyst: 0.0% win rate, avg -9.1% return (8 samples)\"\n\nCANDIDATES FOR REVIEW:\n### BEEM (Priority: CRITICAL)\n- **Strategy Match**: pead_drift\n- **Sources**: earnings_beat | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $1.54 | **Current Price (numeric)**: 1.5399999618530273 | **Intraday**: +2.7% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings beat 6d ago: actual $-0.07 vs est $-0.20 (+65.3% surprise) \u2014 PEAD drift window open\n- **Business**: BEEM - Business description not available.\n- **News**: No specific news found for this ticker during the April 14-15, 2026 period.\n\n**Technical Analysis**:\n# Technical Analysis for BEEM\n**Date:** 2026-04-15\n**Current Price:** $1.50\n\n## Price Action\n- **Daily Change:** +0.67%\n- **5-Day Change:** -3.85%\n\n## RSI (14)\n- **Value:** 49.9 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 0.003\n- **Signal Line:** -0.007\n- **Histogram:** 0.010 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $1.50 (+0.1% from price)\n- **200 SMA:** $2.08 (-27.7% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $1.60\n- **Middle:** $1.48\n- **Lower:** $1.36\n- **Band Position:** 60%\n- **Bandwidth:** 16.3% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $0.09 (5.9% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $1.37 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 50.4\n- **%D:** 63.0\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.2 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $1.50 (+0.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 104.8M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $1.50\n- **Current vs VWAP:** +0.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $1.67\n- **Recent Low:** $1.34\n- **Next Resistance:** $1.50 (50.0%)\n- **Next Support:** $1.46 (61.8%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for BEEM: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for BEEM\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 10\n\n**Sentiment**: 90.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 10\n\n**Sentiment**: 90.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 7\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for BEEM: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 29 days (2026-05-14): EPS Est $-0.18, Rev Est $8,295,996\n\n### COIN (Priority: LOW)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $195.90 | **Current Price (numeric)**: 195.89999389648438 | **Intraday**: +6.2% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Analyst upgrade: PayPal (NASDAQ:PYPL) Shares Up 3.3% - Here's Why | \u26a0\ufe0f Recent move: +12.1% over 7d\n- **Business**: COIN - Business description not available.\n- **News**: Coinbase shares were affected by a landmark SEC ruling that overhauled Pattern Day Trader rules, allowing more retail participation in active trading.\n\n**Technical Analysis**:\n# Technical Analysis for COIN\n**Date:** 2026-04-15\n**Current Price:** $184.41\n\n## Price Action\n- **Daily Change:** +5.66%\n- **5-Day Change:** +5.32%\n\n## RSI (14)\n- **Value:** 52.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -4.035\n- **Signal Line:** -4.576\n- **Histogram:** 0.541 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $178.87 (+3.1% from price)\n- **200 SMA:** $275.24 (-33.0% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $209.47\n- **Middle:** $180.55\n- **Lower:** $151.62\n- **Band Position:** 57%\n- **Bandwidth:** 32.0% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $11.30 (6.1% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $167.46 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 53.0\n- **%D:** 42.2\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 10.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $178.44 (+3.3% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -138.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** BEARISH DIVERGENCE \u26a0\ufe0f (distribution)\n\n## VWAP (20-period)\n- **VWAP:** $182.16\n- **Current vs VWAP:** +1.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $213.50\n- **Recent Low:** $139.36\n- **Next Resistance:** $185.18 (38.2%)\n- **Next Support:** $176.43 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for COIN: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for COIN\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 0\n- **Strong Sell**: 2\n- **Total Analysts**: 43\n\n**Sentiment**: 65.1% Bullish, 4.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 11\n- **Buy**: 18\n- **Hold**: 12\n- **Sell**: 0\n- **Strong Sell**: 2\n- **Total Analysts**: 43\n\n**Sentiment**: 67.4% Bullish, 4.7% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 11\n- **Buy**: 19\n- **Hold**: 12\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 43\n\n**Sentiment**: 69.8% Bullish, 2.3% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 14\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 42\n\n**Sentiment**: 64.3% Bullish, 2.4% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for COIN: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 22 days (2026-05-07): EPS Est $0.41, Rev Est $1,613,843,306\n\n### TSLA (Priority: LOW)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $391.95 | **Current Price (numeric)**: 391.95001220703125 | **Intraday**: +7.6% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 117 strikes across 3 exp, P/C=999.00 (bearish), 60 unusual calls / 57 unusual puts | \u26a0\ufe0f Recent move: +11.1% over 7d\n- **Business**: TSLA - Business description not available.\n- **News**: Tesla was upgraded to Neutral by UBS as market focus shifted toward its record energy storage deployments and its $2 billion investment in xAI.\n\n**Technical Analysis**:\n# Technical Analysis for TSLA\n**Date:** 2026-04-15\n**Current Price:** $364.20\n\n## Price Action\n- **Daily Change:** +3.34%\n- **5-Day Change:** +6.10%\n\n## RSI (14)\n- **Value:** 45.9 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -12.446\n- **Signal Line:** -12.884\n- **Histogram:** 0.438 (Weakening \u2193)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $391.70 (-7.0% from price)\n- **200 SMA:** $397.67 (-8.4% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f (DEATH CROSS \u26a0\ufe0f)\n\n## Bollinger Bands (20,2)\n- **Upper:** $400.84\n- **Middle:** $367.34\n- **Lower:** $333.85\n- **Band Position:** 45%\n- **Bandwidth:** 18.2% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $14.33 (3.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $342.71 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 36.3\n- **%D:** 27.6\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 20.0 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $366.49 (-0.6% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 848.5M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $367.03\n- **Current vs VWAP:** -0.8%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $436.35\n- **Recent Low:** $337.24\n- **Next Resistance:** $375.10 (61.8%)\n- **Next Support:** $358.45 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for TSLA: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for TSLA\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 60\n\n**Sentiment**: 48.3% Bullish, 16.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 8\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 47.5% Bullish, 16.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 8\n- **Buy**: 19\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 58\n\n**Sentiment**: 46.6% Bullish, 17.2% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 9\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 45.8% Bullish, 18.6% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for TSLA: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 7 days (2026-04-22): EPS Est $0.39, Rev Est $23,167,158,805\n\n### GOOGL (Priority: LOW)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $337.12 | **Current Price (numeric)**: 337.1199951171875 | **Intraday**: +1.3% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 8 strikes across 3 exp, P/C=999.00 (bearish), 5 unusual calls / 3 unusual puts | \u26a0\ufe0f Recent move: +12.4% over 7d\n- **Business**: GOOGL - Business description not available.\n- **News**: No specific news found for this ticker during the April 14-15, 2026 period.\n\n**Technical Analysis**:\n# Technical Analysis for GOOGL\n**Date:** 2026-04-15\n**Current Price:** $332.91\n\n## Price Action\n- **Daily Change:** +3.61%\n- **5-Day Change:** +4.91%\n\n## RSI (14)\n- **Value:** 69.6 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 4.472\n- **Signal Line:** -0.430\n- **Histogram:** 4.903 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $307.80 (+8.2% from price)\n- **200 SMA:** $269.81 (+23.4% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $333.29\n- **Middle:** $301.62\n- **Lower:** $269.94\n- **Band Position:** 99%\n- **Bandwidth:** 21.0% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $8.66 (2.6% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $319.92 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 93.5\n- **%D:** 85.2\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 23.1 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $307.01 (+8.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 930.5M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $298.98\n- **Current vs VWAP:** +11.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $348.75\n- **Recent Low:** $272.11\n- **Next Resistance:** $348.75 (0.0% (High))\n- **Next Support:** $330.67 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for GOOGL: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for GOOGL\n\n### 2026-04-01\n- **Strong Buy**: 19\n- **Buy**: 41\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 68\n\n**Sentiment**: 88.2% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 19\n- **Buy**: 41\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 69\n\n**Sentiment**: 87.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 19\n- **Buy**: 40\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 69\n\n**Sentiment**: 85.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 19\n- **Buy**: 41\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 70\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for GOOGL: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 14 days (2026-04-29): EPS Est $2.76, Rev Est $110,084,530,694\n\n\nRANKING INSTRUCTIONS:\n1. Evaluate each candidate through the lens of its specific strategy (see criteria above).\n2. Cross-reference the strategy signal with Technicals, Fundamentals, and Options data for confirmation.\n3. Use the Quantitative Pre-Score as an objective baseline \u2014 scores above 50 indicate strong multi-factor alignment.\n4. The ML Win Probability is a trained model's estimate of hitting +5.0% within 7 days. Treat >60% as strong confirmation, >70% as very strong.\n5. Prioritize LEADING indicators (Insider Buying, Pre-Earnings Accumulation, Options Flow) over lagging ones (momentum chasing, social hype).\n6. Penalize contradictory signals: e.g., bullish options but heavy insider SELLING, or strong momentum but overbought RSI with declining volume.\n7. Use ONLY the information provided in the candidates section. Do NOT invent catalysts, prices, or metrics that are not explicitly stated.\n8. If a data field is missing, note it as N/A \u2014 do not fabricate values.\n9. Only rank tickers from the candidates list.\n10. Each reason MUST cite at least two specific data points from the candidate context (e.g., \"P/C ratio of 0.02\", \"Director purchased $5.2M\").\n\nOUTPUT FORMAT \u2014 JSON object with a 'rankings' list. Each item:\n- rank: sequential from 1\n- ticker: stock symbol (must be from candidate list)\n- company_name: company name\n- current_price: numeric price from candidate data\n- strategy_match: the candidate's strategy (use the value from the candidate, do not change it)\n- final_score: 0-100 (your holistic assessment: 65+ = included, 80+ = high conviction, 90+ = exceptional)\n- confidence: 1-10 (how confident are you in THIS specific trade)\n- risk_level: one of \"low\", \"moderate\", \"high\", \"speculative\"\n- reason: Investment thesis in 4-6 sentences. Structure: (1) What is the edge/catalyst, (2) Why NOW \u2014 what makes the timing urgent, (3) Risk/reward profile, (4) Key risk or what could invalidate the thesis. Cite specific numbers.\n- description: One-sentence company description\n\nIMPORTANT: Return ONLY valid JSON. No markdown wrapping, no commentary outside the JSON. All numeric fields must be numbers, not strings.",
+    "prompt_length": 19914,
+    "output": "```json\n{\n  \"rankings\": []\n}\n```",
+    "output_length": 32,
+    "error": ""
+  }
+]
