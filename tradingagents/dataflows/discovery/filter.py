@@ -8,6 +8,7 @@ import pandas as pd
 from tradingagents.dataflows.data_cache.ohlcv_cache import download_ohlcv_cached
 from tradingagents.dataflows.discovery.candidate import Candidate
 from tradingagents.dataflows.discovery.discovery_config import DiscoveryConfig
+from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY
 from tradingagents.dataflows.discovery.utils import (
     PRIORITY_ORDER,
     Strategy,
@@ -479,7 +480,6 @@ class CandidateFilter:
 
                         if reaction.get("status") == "lagging":
                             # Mean-reversion candidates are expected to have moved — exempt them
-                            from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY
                             source = cand.get("source", "")
                             scanner_cls = SCANNER_REGISTRY.scanners.get(source)
                             scanner_pipeline = getattr(scanner_cls, "pipeline", None)
@@ -979,8 +979,6 @@ class CandidateFilter:
 
     def _assign_strategy(self, cand: Dict[str, Any]):
         """Assign strategy by looking up the scanner's declared strategy from the registry."""
-        from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY
-
         source = cand.get("source", "")
         scanner_class = SCANNER_REGISTRY.scanners.get(source)
         if scanner_class and getattr(scanner_class, "strategy", None):
