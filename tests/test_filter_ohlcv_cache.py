@@ -3,15 +3,21 @@ import pandas as pd
 import pytest
 from unittest.mock import MagicMock, patch
 
+# 200-day SMA lookback + 10-day buffer — minimum rows needed for filter checks
+_BASELINE_ROWS = 210
+
 
 def _make_ohlcv(closes: list[float]) -> pd.DataFrame:
     """Build a minimal OHLCV DataFrame from a list of closing prices."""
     dates = pd.date_range("2026-01-01", periods=len(closes), freq="B")
+    opens = [c * 0.995 for c in closes]
+    highs = [c * 1.005 for c in closes]
+    lows = [c * 0.990 for c in closes]
     return pd.DataFrame(
         {
-            "Open": closes,
-            "High": closes,
-            "Low": closes,
+            "Open": opens,
+            "High": highs,
+            "Low": lows,
             "Close": closes,
             "Volume": [1_000_000] * len(closes),
         },
@@ -76,7 +82,7 @@ def _make_filter(config_overrides=None):
 
 def test_current_price_comes_from_ohlcv_cache():
     """current_price on the candidate should be the last close from the OHLCV cache."""
-    closes = [100.0] * 210 + [123.45]  # last close = 123.45
+    closes = [100.0] * _BASELINE_ROWS + [123.45]  # last close = 123.45
     ohlcv_data = {"AAPL": _make_ohlcv(closes)}
 
     f = _make_filter()
@@ -86,7 +92,7 @@ def test_current_price_comes_from_ohlcv_cache():
 
 def test_intraday_check_from_cache_not_moved():
     """intraday check: <10% day-over-day change → already_moved=False."""
-    closes = [100.0] * 210 + [105.0]  # +5% last day — under threshold
+    closes = [100.0] * _BASELINE_ROWS + [105.0]  # +5% last day — under threshold
     ohlcv_data = {"AAPL": _make_ohlcv(closes)}
 
     f = _make_filter()
@@ -97,7 +103,7 @@ def test_intraday_check_from_cache_not_moved():
 
 def test_intraday_check_from_cache_moved():
     """intraday check: >10% day-over-day change → already_moved=True."""
-    closes = [100.0] * 210 + [115.0]  # +15% last day — over threshold
+    closes = [100.0] * _BASELINE_ROWS + [115.0]  # +15% last day — over threshold
     ohlcv_data = {"AAPL": _make_ohlcv(closes)}
 
     f = _make_filter()
@@ -108,7 +114,7 @@ def test_intraday_check_from_cache_moved():
 
 def test_recent_move_check_from_cache_leading():
     """recent-move check: <10% change over 7 days → status=leading."""
-    closes = [100.0] * 205 + [103.0] * 7  # flat last 7 days
+    closes = [100.0] * (_BASELINE_ROWS - 5) + [103.0] * 7  # +3% change within the 7-day lookback window — under the 10% threshold
     ohlcv_data = {"AAPL": _make_ohlcv(closes)}
 
     f = _make_filter()
@@ -119,12 +125,13 @@ def test_recent_move_check_from_cache_leading():
 
 def test_recent_move_check_from_cache_lagging():
     """recent-move check: >10% change over 7 days → status=lagging."""
-    closes = [100.0] * 205 + [100.0] * 6 + [115.0]  # +15% in last day within window
+    closes = [100.0] * (_BASELINE_ROWS - 5) + [100.0] * 6 + [115.0]  # +15% in last day within window
     ohlcv_data = {"AAPL": _make_ohlcv(closes)}
 
     f = _make_filter()
     result = f._recent_move_from_cache("AAPL", ohlcv_data, lookback_days=7, threshold=10.0)
     assert result["status"] == "lagging"
+    assert result["price_change_pct"] == pytest.approx(15.0)
 
 
 def test_cache_miss_returns_none():
