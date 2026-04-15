@@ -25,6 +25,9 @@ class NormalizedChatBedrockConverse(ChatBedrockConverse):
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
 
+    async def ainvoke(self, input, config=None, **kwargs):
+        return normalize_content(await super().ainvoke(input, config, **kwargs))
+
 
 class BedrockClient(BaseLLMClient):
     """Client for Amazon Bedrock models via ChatBedrockConverse."""
@@ -38,6 +41,8 @@ class BedrockClient(BaseLLMClient):
             "model_id": self.model,
             "config": BotoConfig(read_timeout=300, retries={"max_attempts": 3}),
         }
+        if self.base_url and "openai.com" not in self.base_url:
+            llm_kwargs["endpoint_url"] = self.base_url
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
