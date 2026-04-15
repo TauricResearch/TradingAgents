@@ -121,7 +121,7 @@ DEFAULT_CONFIG = {
         "scanner_execution": {
             "concurrent": True,  # Run scanners in parallel
             "max_workers": 8,  # Max concurrent scanner threads
-            "timeout_seconds": 30,  # Timeout per scanner
+            "timeout_seconds": 120,  # Timeout per scanner (raised — cache load alone ~28s for 1003 tickers)
         },
         # ========================================
         # SCANNERS (each with scanner-specific settings)
@@ -167,11 +167,11 @@ DEFAULT_CONFIG = {
                 "enabled": True,
                 "pipeline": "momentum",
                 "limit": 10,
-                "lookback_days": 20,          # Days to measure price/OBV change over
-                "min_obv_pct_gain": 8.0,      # Min OBV gain as % of avg_vol × lookback_days
+                "lookback_days": 20,  # Days to measure price/OBV change over
+                "min_obv_pct_gain": 8.0,  # Min OBV gain as % of avg_vol × lookback_days
                 "max_price_change_pct": 2.0,  # Max price change % over lookback (divergence window)
-                "volume_cache_key": "default", # Shares cache with volume_accumulation scanner
-                "max_tickers": 2000,          # Universe size cap
+                "volume_cache_key": "default",  # Shares cache with volume_accumulation scanner
+                "max_tickers": 2000,  # Universe size cap
             },
             "market_movers": {
                 "enabled": False,
@@ -249,13 +249,13 @@ DEFAULT_CONFIG = {
                 "sma_200_slope_days": 20,  # Days back to check SMA200 slope
                 "min_pct_off_low": 30,  # Must be 30%+ above 52w low
                 "max_pct_from_high": 25,  # Must be within 25% of 52w high
-                "max_tickers": 50,  # Cap universe to keep download under scanner timeout (~75s for 50 tickers x 1y)
+                "max_tickers": 0,  # 0 = no cap (nightly cache makes full universe fast)
             },
             "high_52w_breakout": {
                 "enabled": True,
                 "pipeline": "momentum",
                 "limit": 10,
-                "max_tickers": 150,  # Cap universe for scan speed
+                "max_tickers": 0,  # 0 = no cap (nightly cache makes full universe fast)
                 "min_volume_multiple": 1.5,  # Min volume vs 20d avg to confirm breakout
                 "vol_avg_days": 20,  # Days for volume average baseline
                 "freshness_days": 5,  # Max days since 52w high was set
