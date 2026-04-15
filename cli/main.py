@@ -1176,6 +1176,20 @@ def run_analysis():
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
+    # Prompt to publish to Notion
+    notion_choice = typer.prompt("\nPublish to Notion?", default="N").strip().upper()
+    if notion_choice in ("Y", "YES"):
+        try:
+            from cli.notion_publisher import publish_to_notion
+            page_url = publish_to_notion(
+                final_state,
+                selections["ticker"],
+                selections["analysis_date"],
+            )
+            console.print(f"[green]✓ Published to Notion:[/green] {page_url}")
+        except (EnvironmentError, RuntimeError) as e:
+            console.print(f"[red]Notion publish failed:[/red] {e}")
+
     # Prompt to display full report
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
     if display_choice in ("Y", "YES", ""):
