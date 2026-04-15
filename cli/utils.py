@@ -240,6 +240,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("Amazon Bedrock", "bedrock", None),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
     ]
@@ -322,6 +323,25 @@ def ask_gemini_thinking_config() -> str | None:
             ("selected", "fg:green noinherit"),
             ("highlighted", "fg:green noinherit"),
             ("pointer", "fg:green noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_bedrock_region() -> str:
+    """Ask for AWS Bedrock region."""
+    return questionary.select(
+        "Select AWS Region:",
+        choices=[
+            questionary.Choice("US East 1 (N. Virginia) - default", "us-east-1"),
+            questionary.Choice("US West 2 (Oregon)", "us-west-2"),
+            questionary.Choice("EU West 1 (Ireland)", "eu-west-1"),
+            questionary.Choice("AP Northeast 1 (Tokyo)", "ap-northeast-1"),
+            questionary.Choice("AP Southeast 1 (Singapore)", "ap-southeast-1"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
 

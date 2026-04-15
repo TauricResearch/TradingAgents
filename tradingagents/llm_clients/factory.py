@@ -5,6 +5,7 @@ from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .google_client import GoogleClient
 from .azure_client import AzureOpenAIClient
+from .bedrock_client import BedrockClient
 
 # Providers that use the OpenAI-compatible chat completions API
 _OPENAI_COMPATIBLE = (
@@ -45,5 +46,8 @@ def create_llm_client(
 
     if provider_lower == "azure":
         return AzureOpenAIClient(model, base_url, **kwargs)
+
+    if provider_lower == "bedrock":
+        return BedrockClient(model, base_url, **kwargs)
 
     raise ValueError(f"Unsupported LLM provider: {provider}")
