@@ -299,9 +299,7 @@ class CandidateFilter:
             f"Priority breakdown: {critical_priority} critical, {high_priority} high, {medium_priority} medium, {low_priority} low"
         )
 
-    def _price_from_cache(
-        self, ticker: str, ohlcv_data: Dict[str, Any]
-    ) -> Any:
+    def _price_from_cache(self, ticker: str, ohlcv_data: Dict[str, Any]) -> Any:
         """Return last closing price from OHLCV cache, or None if ticker missing."""
         df = ohlcv_data.get(ticker.upper())
         if df is None or df.empty or "Close" not in df.columns:
