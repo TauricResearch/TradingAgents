@@ -478,22 +478,30 @@ class CandidateFilter:
                         cand["recent_move_status"] = reaction.get("status")
 
                         if reaction.get("status") == "lagging":
-                            if self.recent_mover_action == "filter":
-                                filtered_reasons["recent_moved"] += 1
-                                change_pct = reaction.get("price_change_pct", 0)
-                                logger.info(
-                                    f"Filtered {ticker}: Already moved {change_pct:+.1f}% in last "
-                                    f"{self.recent_movement_lookback_days} days"
-                                )
-                                continue
-                            if self.recent_mover_action == "deprioritize":
-                                cand["priority"] = "low"
-                                existing_context = cand.get("context", "")
-                                change_pct = reaction.get("price_change_pct", 0)
-                                cand["context"] = (
-                                    f"{existing_context} | ⚠️ Recent move: {change_pct:+.1f}% "
-                                    f"over {self.recent_movement_lookback_days}d"
-                                )
+                            # Mean-reversion candidates are expected to have moved — exempt them
+                            from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY
+                            source = cand.get("source", "")
+                            scanner_cls = SCANNER_REGISTRY.scanners.get(source)
+                            scanner_pipeline = getattr(scanner_cls, "pipeline", None)
+                            is_mean_reversion = scanner_pipeline == "mean_reversion"
+
+                            if not is_mean_reversion:
+                                if self.recent_mover_action == "filter":
+                                    filtered_reasons["recent_moved"] += 1
+                                    change_pct = reaction.get("price_change_pct", 0)
+                                    logger.info(
+                                        f"Filtered {ticker}: Already moved {change_pct:+.1f}% in last "
+                                        f"{self.recent_movement_lookback_days} days"
+                                    )
+                                    continue
+                                if self.recent_mover_action == "deprioritize":
+                                    cand["priority"] = "low"
+                                    existing_context = cand.get("context", "")
+                                    change_pct = reaction.get("price_change_pct", 0)
+                                    cand["context"] = (
+                                        f"{existing_context} | ⚠️ Recent move: {change_pct:+.1f}% "
+                                        f"over {self.recent_movement_lookback_days}d"
+                                    )
 
                 # Liquidity filter based on average volume
                 if self.min_average_volume:

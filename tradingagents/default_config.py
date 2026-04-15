@@ -63,7 +63,7 @@ DEFAULT_CONFIG = {
             "filter_recent_movers": True,  # Enable/disable filter
             "recent_movement_lookback_days": 7,  # Days to check for recent moves
             "recent_movement_threshold": 10.0,  # % change threshold
-            "recent_mover_action": "filter",  # "filter" or "deprioritize"
+            "recent_mover_action": "deprioritize",  # "filter" or "deprioritize"
             # Volume / compression detection
             "volume_cache_key": "default",  # Cache key for volume data
             "min_market_cap": 0,  # Minimum market cap in billions (0 = no filter)
