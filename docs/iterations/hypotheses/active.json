@@ -14,11 +14,12 @@
       "hypothesis_type": "implementation",
       "created_at": "2026-04-10",
       "min_days": 14,
-      "days_elapsed": 3,
+      "days_elapsed": 4,
       "picks_log": [
         "2026-04-10",
         "2026-04-13",
-        "2026-04-14"
+        "2026-04-14",
+        "2026-04-15"
       ],
       "baseline_scanner": "insider_buying",
       "conclusion": null
