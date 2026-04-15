@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List
 
 import pandas as pd
 
-from tradingagents.dataflows.data_cache.ohlcv_cache import download_ohlcv_cached
 from tradingagents.dataflows.discovery.candidate import Candidate
 from tradingagents.dataflows.discovery.discovery_config import DiscoveryConfig
 from tradingagents.dataflows.discovery.utils import (
@@ -172,7 +171,13 @@ class CandidateFilter:
 
         volume_by_ticker = self._fetch_batch_volume(state, candidates)
         news_by_ticker = self._fetch_batch_news(start_date, end_date, candidates)
-        price_by_ticker = self._fetch_batch_prices(candidates)
+
+        # Load OHLCV cache for candidate tickers — replaces per-ticker yfinance calls
+        cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
+        candidate_tickers = [c["ticker"].upper() for c in candidates if c.get("ticker")]
+        logger.info(f"Loading OHLCV cache for {len(candidate_tickers)} candidate tickers...")
+        ohlcv_data = download_ohlcv_cached(candidate_tickers, period="1y", cache_dir=cache_dir)
+        logger.info(f"OHLCV cache loaded for {len(ohlcv_data)}/{len(candidate_tickers)} tickers")
 
         (
             filtered_candidates,
@@ -184,7 +189,7 @@ class CandidateFilter:
             candidates=candidates,
             volume_by_ticker=volume_by_ticker,
             news_by_ticker=news_by_ticker,
-            price_by_ticker=price_by_ticker,
+            ohlcv_data=ohlcv_data,
             end_date=end_date,
         )
 
@@ -472,7 +477,7 @@ class CandidateFilter:
         candidates: List[Dict[str, Any]],
         volume_by_ticker: Dict[str, Any],
         news_by_ticker: Dict[str, Any],
-        price_by_ticker: Dict[str, float],
+        ohlcv_data: Dict[str, Any],
         end_date: str,
     ):
         filtered_candidates = []
@@ -498,14 +503,10 @@ class CandidateFilter:
             try:
                 # Same-day mover filter (check intraday movement first)
                 if self.filter_same_day_movers:
-                    from tradingagents.dataflows.y_finance import check_intraday_movement
-
-                    try:
-                        intraday_check = check_intraday_movement(
-                            ticker=ticker, movement_threshold=self.intraday_movement_threshold
-                        )
-
-                        # Skip if already moved significantly today
+                    intraday_check = self._intraday_from_cache(
+                        ticker, ohlcv_data, self.intraday_movement_threshold
+                    )
+                    if intraday_check is not None:
                         if intraday_check.get("already_moved"):
                             filtered_reasons["intraday_moved"] += 1
                             intraday_pct = intraday_check.get("intraday_change_pct", 0)
@@ -513,24 +514,17 @@ class CandidateFilter:
                                 f"Filtered {ticker}: Already moved {intraday_pct:+.1f}% today (stale)"
                             )
                             continue
-
-                        # Add intraday data to candidate metadata for ranking
                         cand["intraday_change_pct"] = intraday_check.get("intraday_change_pct", 0)
-
-                    except Exception as e:
-                        # Don't filter out if check fails, just log
-                        logger.warning(f"Could not check intraday movement for {ticker}: {e}")
 
                 # Recent multi-day mover filter (avoid stocks that already ran)
                 if self.filter_recent_movers:
-                    from tradingagents.dataflows.y_finance import check_if_price_reacted
-
-                    try:
-                        reaction = check_if_price_reacted(
-                            ticker=ticker,
-                            lookback_days=self.recent_movement_lookback_days,
-                            reaction_threshold=self.recent_movement_threshold,
-                        )
+                    reaction = self._recent_move_from_cache(
+                        ticker,
+                        ohlcv_data,
+                        self.recent_movement_lookback_days,
+                        self.recent_movement_threshold,
+                    )
+                    if reaction is not None:
                         cand["recent_change_pct"] = reaction.get("price_change_pct")
                         cand["recent_move_status"] = reaction.get("status")
 
@@ -551,8 +545,6 @@ class CandidateFilter:
                                     f"{existing_context} | ⚠️ Recent move: {change_pct:+.1f}% "
                                     f"over {self.recent_movement_lookback_days}d"
                                 )
-                    except Exception as e:
-                        logger.warning(f"Could not check recent movement for {ticker}: {e}")
 
                 # Liquidity filter based on average volume
                 if self.min_average_volume:
@@ -580,8 +572,8 @@ class CandidateFilter:
                 try:
                     from tradingagents.dataflows.y_finance import get_fundamentals, get_stock_price
 
-                    # Get current price — prefer batch result, fall back to per-ticker
-                    current_price = price_by_ticker.get(ticker.upper())
+                    # Get current price — prefer OHLCV cache, fall back to per-ticker yfinance
+                    current_price = self._price_from_cache(ticker, ohlcv_data)
                     if current_price is None:
                         current_price = get_stock_price(ticker)
                     cand["current_price"] = current_price
