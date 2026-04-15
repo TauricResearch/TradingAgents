@@ -1,0 +1,280 @@
+# Discovery Analysis - 2026-04-15
+
+**LLM Provider**: GOOGLE
+**Models**: Shallow=gemini-2.5-flash-lite, Deep=gemini-3-pro-preview
+
+## Top Investment Opportunities
+
+### #1: ANAB
+
+**Company:** AnaptysBio
+
+**Current Price:** $70.22
+
+**Strategy:** short_squeeze
+
+**Score:** 95 | **Confidence:** 9/10 | **Risk:** High
+
+**Description:**
+
+> Clinical-stage biopharmaceutical company focused on immunology and inflammation therapeutics.
+
+**Investment Thesis:**
+
+ANAB perfectly aligns a hard fundamental catalyst with an extreme short squeeze setup.
+
+The company's spin-off into First Tracks Biotherapeutics is effective April 20 (in 5 days), providing an urgent mechanism to force covering of the 30.6% short interest (9.8 days to cover).
+
+Technicals heavily support the upside, featuring a MACD bullish crossover, rising OBV (16.3M), and the price holding a strong 19.8% above its 50 SMA.
+
+The primary risk is high volatility (ATR of $4.18) and the potential for a 'sell the news' reaction post-spin-off.
+
+---
+
+### #2: ORCL
+
+**Company:** Oracle Corporation
+
+**Current Price:** $163.00
+
+**Strategy:** technical_breakout
+
+**Score:** 88 | **Confidence:** 8/10 | **Risk:** Moderate
+
+**Description:**
+
+> Multinational computer technology corporation known for its enterprise software, cloud computing, and database products.
+
+**Investment Thesis:**
+
+ORCL recently broke out, closing 2.9% above its 20-day high on 2.5x average volume following news of an AI utility platform and a Bloom Energy partnership.
+
+The technical posture is highly robust, trading 8.8% above its 50 SMA with a fresh MACD bullish crossover and rising on-balance volume.
+
+The fundamental catalyst of AI monetization combined with heavy volume confirmation signals strong institutional sponsorship.
+
+The main risk is short-term mean reversion as it currently trades near the upper Bollinger Band (109% position).
+
+---
+
+### #3: RPAY
+
+**Company:** Repay Holdings
+
+**Current Price:** $3.07
+
+**Strategy:** insider_buying
+
+**Score:** 82 | **Confidence:** 8/10 | **Risk:** Moderate
+
+**Description:**
+
+> Provider of integrated payment processing solutions to industry-specific markets.
+
+**Investment Thesis:**
+
+RPAY presents a compelling alignment of insider buying and activist pressure, with 10% owner Forager Fund recently purchasing $2.4M in stock.
+
+This coincides with the company adopting a poison pill to defend against activist accumulation, creating a strong fundamental floor and catalyst for value realization.
+
+Technicals show a supportive base with a MACD bullish crossover, rising OBV, and price trading 3.6% above the 50 SMA.
+
+Given its low share price, volatility is inherent, but the activist narrative heavily skews the risk/reward to the upside.
+
+---
+
+### #4: ARCT
+
+**Company:** Arcturus Therapeutics
+
+**Current Price:** $8.68
+
+**Strategy:** short_squeeze
+
+**Score:** 78 | **Confidence:** 7/10 | **Risk:** High
+
+**Description:**
+
+> Clinical-stage mRNA medicines and vaccines company.
+
+**Investment Thesis:**
+
+ARCT screens exceptionally well for a short squeeze, heavily burdened with 31.5% of its float sold short and a massive 12.7 days to cover.
+
+Technical confirmation is highly present as the stock remains in a confirmed uptrend, trading 15.5% above its 50 SMA with rising on-balance volume and a bullish RSI of 67.1.
+
+Because of the extended days-to-cover ratio, any positive PR could ignite a rapid covering cycle.
+
+Binary biotech risks and a high ATR (5.5% of price) warrant careful position sizing.
+
+---
+
+### #5: SG
+
+**Company:** Sweetgreen
+
+**Current Price:** $6.20
+
+**Strategy:** insider_buying
+
+**Score:** 76 | **Confidence:** 7/10 | **Risk:** High
+
+**Description:**
+
+> Fast-casual restaurant chain specializing in custom salads and warm bowls.
+
+**Investment Thesis:**
+
+SG saw heavy institutional conviction with Goldman Sachs acquiring $3.38M in stock, a massive signal for a company of this market cap.
+
+The technical setup strongly confirms this accumulation, featuring a MACD bullish crossover, rising OBV, and a strong uptrend (+11.1% above 50 SMA).
+
+The 8% intraday move indicates momentum is already aggressively accelerating.
+
+The primary risk is chasing the extended move near the upper Bollinger Band (97% position), which could lead to short-term pullbacks.
+
+---
+
+### #6: RPM
+
+**Company:** RPM International
+
+**Current Price:** $108.67
+
+**Strategy:** pead_drift
+
+**Score:** 74 | **Confidence:** 7/10 | **Risk:** Low
+
+**Description:**
+
+> Manufacturer of specialty coatings, sealants, building materials, and related services.
+
+**Investment Thesis:**
+
+RPM delivered a massive 59.9% earnings surprise 7 days ago, leaving the window wide open for post-earnings announcement drift (PEAD).
+
+While the price has remained relatively flat over the last 5 days (-0.05%), the OBV is showing a bullish divergence (rising to 1.7M), indicating quiet institutional accumulation.
+
+The stock remains in a steady uptrend above its 50 SMA with low volatility (3.3% ATR).
+
+A failure to break near-term Fibonacci resistance at $110.76 could stall momentum, but downside appears limited.
+
+---
+
+### #7: NI
+
+**Company:** NiSource Inc.
+
+**Current Price:** $47.22
+
+**Strategy:** volume_divergence
+
+**Score:** 72 | **Confidence:** 7/10 | **Risk:** Low
+
+**Description:**
+
+> Energy holding company providing natural gas and electricity.
+
+**Investment Thesis:**
+
+NI exhibits a classic multi-week accumulation setup, with OBV running +24.2% above average volume despite a relatively flat 20-day price trend.
+
+Technicals confirm the underlying institutional buying, showing a bullish OBV divergence (133.2M) and price holding 2.0% above the 50 SMA.
+
+This low-volatility (1.8% ATR) setup provides a safe, asymmetric entry for a defensive stock.
+
+The primary risk is macroeconomic sector rotation away from utilities if bond yields spike.
+
+---
+
+### #8: SRPT
+
+**Company:** Sarepta Therapeutics
+
+**Current Price:** $22.15
+
+**Strategy:** social_dd
+
+**Score:** 70 | **Confidence:** 6/10 | **Risk:** Moderate
+
+**Description:**
+
+> Commercial-stage biopharmaceutical company focused on precision genetic medicine.
+
+**Investment Thesis:**
+
+SRPT combines strong social sentiment with excellent technical confirmation, trading in a steady uptrend 17.2% above its 50 SMA.
+
+Momentum indicators are heavily supportive, with a bullish MACD, rising OBV (52.8M), and price holding comfortably above the 20 EMA.
+
+The 'social_dd' scanner's 55% historical 30-day win rate adds statistical edge to the setup.
+
+As with any biotech, unforeseen clinical or regulatory developments remain the primary downside risk.
+
+---
+
+### #9: RELL
+
+**Company:** Richardson Electronics
+
+**Current Price:** $13.56
+
+**Strategy:** pead_drift
+
+**Score:** 68 | **Confidence:** 6/10 | **Risk:** High
+
+**Description:**
+
+> Distributor of electronic components and enterprise computing solutions.
+
+**Investment Thesis:**
+
+RELL is in the midst of a strong PEAD move after beating earnings estimates by 52.5% 7 days ago.
+
+The stock is up 15.3% over the last 5 days, supported by rising OBV (4.0M) and a bullish MACD, and is trading firmly above its 50 SMA (+12.5%).
+
+While the momentum is powerful, the stock is trading near its upper Bollinger Band (92% position) with high volatility (6.5% ATR), which warrants caution against sudden mean-reversion pullbacks.
+
+---
+
+### #10: DTE
+
+**Company:** DTE Energy
+
+**Current Price:** $147.74
+
+**Strategy:** volume_divergence
+
+**Score:** 68 | **Confidence:** 6/10 | **Risk:** Low
+
+**Description:**
+
+> Diversified energy company involved in the development and management of energy-related businesses.
+
+**Investment Thesis:**
+
+DTE shares a highly similar setup to NI, showing a clear bullish OBV divergence (+23.9% of avg vol) against a flat 20-day price trend.
+
+The technical posture is resilient, with the stock in a strong uptrend and trading 2.4% above its 50 SMA.
+
+With earnings approaching in 8 days, this quiet accumulation suggests institutions are positioning for a strong print.
+
+The extremely low ATR (1.7%) makes this a defensive play, though the impending earnings date introduces binary event risk.
+
+---
+
+
+## All Candidates Analyzed
+
+Total candidates analyzed: 10
+
+- **ANAB** (short_squeeze)
+- **ORCL** (technical_breakout)
+- **RPAY** (insider_buying)
+- **ARCT** (short_squeeze)
+- **SG** (insider_buying)
+- **RPM** (pead_drift)
+- **NI** (volume_divergence)
+- **SRPT** (social_dd)
+- **RELL** (pead_drift)
+- **DTE** (volume_divergence)
