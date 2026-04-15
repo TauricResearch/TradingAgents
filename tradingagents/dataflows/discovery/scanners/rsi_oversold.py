@@ -39,7 +39,7 @@ class RSIOversoldScanner(BaseScanner):
     """
 
     name = "rsi_oversold"
-    pipeline = "momentum"
+    pipeline = "mean_reversion"
     strategy = "mean_reversion_bounce"
 
     def __init__(self, config: Dict[str, Any]):

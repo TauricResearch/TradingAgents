@@ -110,6 +110,12 @@ DEFAULT_CONFIG = {
                 "deep_dive_budget": 5,
             },
             "events": {"enabled": True, "priority": 5, "deep_dive_budget": 3},
+            "mean_reversion": {
+                "enabled": True,
+                "priority": 6,
+                "ranker_prompt": "mean_reversion_ranker.txt",
+                "deep_dive_budget": 5,
+            },
         },
         # ========================================
         # OHLCV CACHE (populated nightly by prefetch workflow)
@@ -273,7 +279,7 @@ DEFAULT_CONFIG = {
             },
             "rsi_oversold": {
                 "enabled": True,
-                "pipeline": "momentum",
+                "pipeline": "mean_reversion",
                 "limit": 10,
                 "max_tickers": 0,  # 0 = no cap (nightly cache makes full universe fast)
                 "rsi_period": 2,  # Connors RSI(2): most sensitive to short-term pullbacks
