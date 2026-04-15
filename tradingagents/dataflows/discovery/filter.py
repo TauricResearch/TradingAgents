@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List
 
 import pandas as pd
 
+from tradingagents.dataflows.data_cache.ohlcv_cache import download_ohlcv_cached
 from tradingagents.dataflows.discovery.candidate import Candidate
 from tradingagents.dataflows.discovery.discovery_config import DiscoveryConfig
 from tradingagents.dataflows.discovery.utils import (
