@@ -1,5 +1,5 @@
 {
-  "total_recommendations": 641,
+  "total_recommendations": 651,
   "by_strategy": {
     "momentum": {
       "count": 136,
@@ -32,7 +32,7 @@
       "win_rate_30d": 31.2
     },
     "insider_buying": {
-      "count": 186,
+      "count": 188,
       "wins_1d": 68,
       "losses_1d": 108,
       "wins_7d": 82,
@@ -107,7 +107,7 @@
       "win_rate_30d": 20.0
     },
     "short_squeeze": {
-      "count": 13,
+      "count": 15,
       "wins_1d": 5,
       "losses_1d": 5,
       "wins_7d": 6,
@@ -182,7 +182,7 @@
       "win_rate_30d": 14.3
     },
     "social_dd": {
-      "count": 28,
+      "count": 29,
       "wins_1d": 13,
       "losses_1d": 13,
       "wins_7d": 12,
@@ -209,6 +209,42 @@
       "avg_return_30d": 0,
       "win_rate_1d": 100.0,
       "win_rate_7d": 100.0
+    },
+    "technical_breakout": {
+      "count": 1,
+      "wins_1d": 0,
+      "losses_1d": 0,
+      "wins_7d": 0,
+      "losses_7d": 0,
+      "wins_30d": 0,
+      "losses_30d": 0,
+      "avg_return_1d": 0,
+      "avg_return_7d": 0,
+      "avg_return_30d": 0
+    },
+    "pead_drift": {
+      "count": 2,
+      "wins_1d": 0,
+      "losses_1d": 0,
+      "wins_7d": 0,
+      "losses_7d": 0,
+      "wins_30d": 0,
+      "losses_30d": 0,
+      "avg_return_1d": 0,
+      "avg_return_7d": 0,
+      "avg_return_30d": 0
+    },
+    "volume_divergence": {
+      "count": 2,
+      "wins_1d": 0,
+      "losses_1d": 0,
+      "wins_7d": 0,
+      "losses_7d": 0,
+      "wins_30d": 0,
+      "losses_30d": 0,
+      "avg_return_1d": 0,
+      "avg_return_7d": 0,
+      "avg_return_30d": 0
     }
   },
   "overall_1d": {
