@@ -1,8 +1,10 @@
+from tradingagents.agents.utils.agent_utils import build_custom_prompt_context
 
 
 def create_aggressive_debator(llm):
     def aggressive_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
+        custom_prompt_context = build_custom_prompt_context(state.get("custom_prompt"))
         history = risk_debate_state.get("history", "")
         aggressive_history = risk_debate_state.get("aggressive_history", "")
 
@@ -26,6 +28,7 @@ Market Research Report: {market_research_report}
 Social Media Sentiment Report: {sentiment_report}
 Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
+{custom_prompt_context}
 Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_conservative_response} Here are the last arguments from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
 Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting."""

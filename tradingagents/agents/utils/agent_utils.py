@@ -18,6 +18,10 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.custom_prompt import (
+    CUSTOM_PROMPT_CONTEXT_FOOTER,
+    CUSTOM_PROMPT_CONTEXT_HEADER,
+)
 
 
 def get_language_instruction() -> str:
@@ -32,6 +36,14 @@ def get_language_instruction() -> str:
     if lang.strip().lower() == "english":
         return ""
     return f" Write your entire response in {lang}."
+
+
+def build_custom_prompt_context(custom_prompt: str | None) -> str:
+    """Format optional run-specific instructions supplied by the user."""
+    prompt = (custom_prompt or "").strip()
+    if not prompt:
+        return ""
+    return f"{CUSTOM_PROMPT_CONTEXT_HEADER}\n{prompt}\n{CUSTOM_PROMPT_CONTEXT_FOOTER}"
 
 
 def build_instrument_context(ticker: str) -> str:
