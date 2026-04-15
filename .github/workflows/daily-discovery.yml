@@ -91,7 +91,9 @@ jobs:
             echo "No new recommendations to commit"
           else
             git commit -m "chore: daily discovery ${{ steps.date.outputs.analysis_date }}"
+            git stash || true
             git pull --rebase origin ${{ github.ref_name }}
+            git stash pop || true
             git push origin ${{ github.ref_name }}
           fi
 
@@ -110,7 +112,9 @@ jobs:
             echo "No performance updates"
           else
             git commit -m "chore: update performance tracking ${{ steps.date.outputs.analysis_date }}"
+            git stash || true
             git pull --rebase origin ${{ github.ref_name }}
+            git stash pop || true
             git push origin ${{ github.ref_name }}
           fi
 
@@ -131,7 +135,9 @@ jobs:
             echo "No position updates"
           else
             git commit -m "chore: update positions ${{ steps.date.outputs.analysis_date }}"
+            git stash || true
             git pull --rebase origin ${{ github.ref_name }}
+            git stash pop || true
             git push origin ${{ github.ref_name }}
           fi
 
