@@ -70,3 +70,19 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+
+# Import Pydantic validation helpers (Issue #434)
+try:
+    from tradingagents.agents.utils.pydantic_validation import (
+        AnalystReport,
+        InvestDebateStateValidated,
+        RiskDebateStateValidated,
+        TradeDecision,
+        AgentInput,
+        validate_agent_output,
+        safe_validate_agent_output,
+    )
+    HAS_PYDANTIC_VALIDATION = True
+except ImportError:
+    HAS_PYDANTIC_VALIDATION = False
