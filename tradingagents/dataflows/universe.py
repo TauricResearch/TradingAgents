@@ -100,15 +100,6 @@ def _load_russell1000() -> List[str]:
             "LENB": "LEN-B",
             "UHALB": "UHAL-B",
             "CWENA": "CWEN-A",
-            "FWONA": "FWON-A",
-            "LBTYA": "LBTY-A",
-            "LBTYK": "LBTY-K",
-            "LLYVA": "LLYV-A",
-            "LBRDA": "LBRD-A",
-            "LBRDK": "LBRD-K",
-            "GLIBA": "GLIB-A",
-            "NWSA": "NWS-A",
-            "FOXA": "FOX-A",
         }
 
         tickers = []
