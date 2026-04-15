@@ -1,0 +1,742 @@
+[
+  {
+    "timestamp": "2026-04-15T14:25:25.061531",
+    "type": "tool",
+    "node": "filter",
+    "step": "Check average volume (batch)",
+    "tool": "get_average_volume_batch",
+    "parameters": {
+      "symbols": [
+        "RVMD",
+        "BETR",
+        "CHPT",
+        "DTST",
+        "KOPN",
+        "CCEL",
+        "ANGO",
+        "GIPR",
+        "PXED",
+        "BEEM",
+        "RPM",
+        "ARAI",
+        "NEOG",
+        "CAR",
+        "ORCL",
+        "CINF",
+        "PAYC",
+        "NI",
+        "CTRA",
+        "CMS",
+        "SMC",
+        "SG",
+        "HTO",
+        "RPAY",
+        "GF",
+        "MNR",
+        "ACET",
+        "WKSP",
+        "CNXC",
+        "SVBL",
+        "FROPX",
+        "FRBBX",
+        "SWZ",
+        "AME",
+        "CTAS",
+        "ETN",
+        "CAMP",
+        "JBL",
+        "WMT",
+        "COST",
+        "TGT",
+        "FAT",
+        "CARM",
+        "GRDX",
+        "MTB",
+        "OLOX",
+        "BPTH",
+        "HOMB",
+        "CLSD",
+        "LFLY",
+        "AR",
+        "HOLX",
+        "EXAS",
+        "V",
+        "SRE",
+        "SEE",
+        "POWER",
+        "RACE",
+        "QSI",
+        "IV",
+        "SRPT"
+      ],
+      "lookback_days": 10,
+      "curr_date": "2026-04-15",
+      "cache_key": "default"
+    },
+    "context": "",
+    "output": "{\"ORCL\": {\"symbol\": \"ORCL\", \"average_volume\": 26919193.6, \"latest_volume\": 14779036.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CINF\": {\"symbol\": \"CINF\", \"average_volume\": 544556.1, \"latest_volume\": 31961.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"PAYC\": {\"symbol\": \"PAYC\", \"average_volume\": 906898.6, \"latest_volume\": 65986.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"NI\": {\"symbol\": \"NI\", \"average_volume\": 2775824.6, \"latest_volume\": 316346.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CTRA\": {\"symbol\": \"CTRA\", \"average_volume\": 6403870.7, \"latest_volume\": 562407.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CMS\": {\"symbol\": \"CMS\", \"average_volume\": 2374981.5, \"latest_volume\": 155915.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"AME\": {\"symbol\": \"AME\", \"average_volume\": 950418.4, \"latest_volume\": 76984.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CTAS\": {\"symbol\": \"CTAS\", \"average_volume\": 2023953.5, \"latest_volume\": 155135.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"ETN\": {\"symbol\": \"ETN\", \"average_volume\": 1761010.6, \"latest_volume\": 406306.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"JBL\": {\"symbol\": \"JBL\", \"average_volume\": 851029.5, \"latest_volume\": 82595.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"WMT\": {\"symbol\": \"WMT\", \"average_volume\": 13630892.4, \"latest_volume\": 2677924.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"COST\": {\"symbol\": \"COST\", \"average_volume\": 1714553.6, \"latest_volume\": 248636.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"TGT\": {\"symbol\": \"TGT\", \"average_volume\": 4049326.4, \"latest_volume\": 620264.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"MTB\": {\"symbol\": \"MTB\", \"average_volume\": 825279.9, \"latest_volume\": 385099.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"HOMB\": {\"symbol\": \"HOMB\", \"average_volume\": 1063484.7, \"latest_volume\": 131047.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"HOLX\": {\"symbol\": \"HOLX\", \"average_volume\": 12273089.2, \"latest_volume\": 0.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"EXAS\": {\"symbol\": \"EXAS\", \"average_volume\": 3743537.9, \"latest_volume\": 0.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"V\": {\"symbol\": \"V\", \"average_volume\": 5210930.6, \"latest_volume\": 873506.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"SRE\": {\"symbol\": \"SRE\", \"average_volume\": 2620655.1, \"latest_volume\": 200251.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"SEE\": {\"symbol\": \"SEE\", \"average_volume\": 3048100.0, \"latest_volume\": 0.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"RVMD\": {\"symbol\": \"RVMD\", \"average_volume\": 3707246.3, \"latest_volume\": 3387063.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"BETR\": {\"symbol\": \"BETR\", \"average_volume\": 711061.2, \"latest_volume\": 65412.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CHPT\": {\"symbol\": \"CHPT\", \"average_volume\": 495106.3, \"latest_volume\": 122863.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"DTST\": {\"symbol\": \"DTST\", \"average_volume\": 69232.8, \"latest_volume\": 17428.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"KOPN\": {\"symbol\": \"KOPN\", \"average_volume\": 3547332.0, \"latest_volume\": 552820.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CCEL\": {\"symbol\": \"CCEL\", \"average_volume\": 9484.9, \"latest_volume\": 8049.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"ANGO\": {\"symbol\": \"ANGO\", \"average_volume\": 620335.0, \"latest_volume\": 30750.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"GIPR\": {\"symbol\": \"GIPR\", \"average_volume\": 5948152.5, \"latest_volume\": 95425.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"PXED\": {\"symbol\": \"PXED\", \"average_volume\": 159529.7, \"latest_volume\": 5997.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"BEEM\": {\"symbol\": \"BEEM\", \"average_volume\": 323418.7, \"latest_volume\": 42687.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"RPM\": {\"symbol\": \"RPM\", \"average_volume\": 1162504.2, \"latest_volume\": 74442.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"ARAI\": {\"symbol\": \"ARAI\", \"average_volume\": 50779516.9, \"latest_volume\": 12916169.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"NEOG\": {\"symbol\": \"NEOG\", \"average_volume\": 3178350.2, \"latest_volume\": 140402.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CAR\": {\"symbol\": \"CAR\", \"average_volume\": 4032432.4, \"latest_volume\": 1532824.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"SMC\": {\"symbol\": \"SMC\", \"average_volume\": 43345.2, \"latest_volume\": 12352.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"SG\": {\"symbol\": \"SG\", \"average_volume\": 3985244.6, \"latest_volume\": 754546.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"HTO\": {\"symbol\": \"HTO\", \"average_volume\": 533873.6, \"latest_volume\": 51936.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"RPAY\": {\"symbol\": \"RPAY\", \"average_volume\": 1824435.0, \"latest_volume\": 69850.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"GF\": {\"symbol\": \"GF\", \"average_volume\": 65770.6, \"latest_volume\": 15806.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"MNR\": {\"symbol\": \"MNR\", \"average_volume\": 1668010.1, \"latest_volume\": 182801.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"ACET\": {\"symbol\": \"ACET\", \"average_volume\": 169068.3, \"latest_volume\": 125383.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"WKSP\": {\"symbol\": \"WKSP\", \"average_volume\": 258458.4, \"latest_volume\": 69084.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CNXC\": {\"symbol\": \"CNXC\", \"average_volume\": 1477801.0, \"latest_volume\": 128710.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"SVBL\": {\"symbol\": \"SVBL\", \"average_volume\": 1730.0, \"latest_volume\": 1000.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"FROPX\": {\"symbol\": \"FROPX\", \"average_volume\": 0.0, \"latest_volume\": 0.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"FRBBX\": {\"symbol\": \"FRBBX\", \"average_volume\": 0.0, \"latest_volume\": 0.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"SWZ\": {\"symbol\": \"SWZ\", \"average_volume\": 74927.7, \"latest_volume\": 577.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CAMP\": {\"symbol\": \"CAMP\", \"average_volume\": 58845.5, \"latest_volume\": 14955.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"FAT\": {\"symbol\": \"FAT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": \"No volume data found\"}, \"CARM\": {\"symbol\": \"CARM\", \"average_volume\": 97858.6, \"latest_volume\": 486.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"GRDX\": {\"symbol\": \"GRDX\", \"average_volume\": 96605.6, \"latest_volume\": 47856.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"OLOX\": {\"symbol\": \"OLOX\", \"average_volume\": 602544.9, \"latest_volume\": 96949.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"BPTH\": {\"symbol\": \"BPTH\", \"average_volume\": 4850.0, \"latest_volume\": 10800.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"CLSD\": {\"symbol\": \"CLSD\", \"average_volume\": 57900.0, \"latest_volume\": 7100.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"LFLY\": {\"symbol\": \"LFLY\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": \"No volume data found\"}, \"AR\": {\"symbol\": \"AR\", \"average_volume\": 5062157.7, \"latest_volume\": 524977.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"POWER\": {\"symbol\": \"POWER\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": \"No volume data found\"}, \"RACE\": {\"symbol\": \"RACE\", \"average_volume\": 553150.4, \"latest_volume\": 64304.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"QSI\": {\"symbol\": \"QSI\", \"average_volume\": 2597158.8, \"latest_volume\": 2239488.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}, \"IV\": {\"symbol\": \"IV\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": \"No volume data found\"}, \"SRPT\": {\"symbol\": \"SRPT\", \"average_volume\": 2057392.6, \"latest_volume\": 384326.0, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-15\", \"error\": null}}",
+    "output_length": 10193,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:31:36.142497",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "RPM",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for RPM\n**Date:** 2026-04-15\n**Current Price:** $108.67\n\n## Price Action\n- **Daily Change:** -0.70%\n- **5-Day Change:** -0.05%\n\n## RSI (14)\n- **Value:** 60.2 \u2193\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.945\n- **Signal Line:** -0.864\n- **Histogram:** 1.809 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $107.13 (+1.4% from price)\n- **200 SMA:** $111.16 (-2.2% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $111.57\n- **Middle:** $100.72\n- **Lower:** $89.86\n- **Band Position:** 87%\n- **Bandwidth:** 21.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $3.55 (3.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $103.34 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 74.0\n- **%D:** 68.2\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 24.6 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $103.59 (+4.9% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 1.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** BULLISH DIVERGENCE \u26a1 (accumulation)\n\n## VWAP (20-period)\n- **VWAP:** $101.10\n- **Current vs VWAP:** +7.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $121.78\n- **Recent Low:** $92.92\n- **Next Resistance:** $110.76 (38.2%)\n- **Next Support:** $107.35 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1487,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:31:37.585658",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "RPM"
+    },
+    "context": "",
+    "output": "No insider transactions found for RPM in the last 3 months.",
+    "output_length": 59,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:31:37.649206",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "RPM"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for RPM\n\n### 2026-04-01\n- **Strong Buy**: 4\n- **Buy**: 13\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 21\n\n**Sentiment**: 81.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 13\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 13\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 12\n- **Hold**: 7\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 68.2% Bullish, 0.0% Bearish\n\n",
+    "output_length": 714,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:31:39.814779",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "RPM",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for RPM\n\n**Available Expirations:** 4 dates\n**Analyzing:** 2026-04-17, 2026-05-15, 2026-08-21\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 176 | 279 | 1.585 |\n| Open Interest | 902 | 747 | 0.828 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $90.0 | 161 | 272 | 0.59x | 125.4% |\n",
+    "output_length": 622,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:08.408176",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "CTRA",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for CTRA\n**Date:** 2026-04-15\n**Current Price:** $31.67\n\n## Price Action\n- **Daily Change:** -4.06%\n- **5-Day Change:** -5.35%\n\n## RSI (14)\n- **Value:** 39.1 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 0.318\n- **Signal Line:** 0.802\n- **Histogram:** -0.483 (Strengthening \u2191)\n- **Signal:** BEARISH CROSSOVER \u26a0\ufe0f\n\n## Moving Averages\n- **50 SMA:** $32.07 (-1.3% from price)\n- **200 SMA:** $26.42 (+19.9% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $36.53\n- **Middle:** $34.23\n- **Lower:** $31.93\n- **Band Position:** -6%\n- **Bandwidth:** 13.4% (volatility indicator)\n- **Signal:** AT LOWER BAND - Potential bounce \u26a1\n\n## ATR (Volatility)\n- **ATR:** $1.23 (3.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $29.82 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 26.3\n- **%D:** 37.4\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 13.8 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $33.52 (-5.5% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 293.3M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $34.17\n- **Current vs VWAP:** -7.3%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $36.88\n- **Recent Low:** $27.23\n- **Next Resistance:** $32.06 (50.0%)\n- **Next Support:** $30.92 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1551,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:08.693257",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "CTRA"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for CTRA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:08.762341",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "CTRA"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for CTRA\n\n### 2026-04-01\n- **Strong Buy**: 8\n- **Buy**: 14\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 71.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 9\n- **Buy**: 16\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 80.6% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 9\n- **Buy**: 18\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 84.4% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 9\n- **Buy**: 19\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 84.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 715,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:09.407047",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "CTRA",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for CTRA\n\n**Available Expirations:** 15 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 684 | 893 | 1.306 |\n| Open Interest | 17,240 | 10,302 | 0.598 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Bullish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $26.0 | 593 | 770 | 0.77x | 166.0% |\n",
+    "output_length": 630,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:26.740607",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "AME",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for AME\n**Date:** 2026-04-15\n**Current Price:** $234.36\n\n## Price Action\n- **Daily Change:** -0.05%\n- **5-Day Change:** +1.68%\n\n## RSI (14)\n- **Value:** 66.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 3.017\n- **Signal Line:** 0.183\n- **Histogram:** 2.835 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $225.33 (+4.0% from price)\n- **200 SMA:** $200.41 (+16.9% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $237.37\n- **Middle:** $218.93\n- **Lower:** $200.49\n- **Band Position:** 92%\n- **Bandwidth:** 16.8% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $5.57 (2.4% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $226.01 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 90.6\n- **%D:** 84.0\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 20.8 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $223.70 (+4.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 9.9M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $218.18\n- **Current vs VWAP:** +7.4%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $241.67\n- **Recent Low:** $207.32\n- **Next Resistance:** $241.67 (0.0% (High))\n- **Next Support:** $233.56 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1520,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:26.782348",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "AME"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for AME: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:26.891568",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "AME"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for AME\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 16\n- **Hold**: 7\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 25\n\n**Sentiment**: 72.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 15\n- **Hold**: 7\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 70.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 14\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 66.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 23\n\n**Sentiment**: 65.2% Bullish, 0.0% Bearish\n\n",
+    "output_length": 714,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:27.408019",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "AME",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for AME\n\n**Available Expirations:** 6 dates\n**Analyzing:** 2026-04-17, 2026-05-15, 2026-06-18\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 169 | 900 | 5.325 |\n| Open Interest | 5,402 | 3,698 | 0.685 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Bullish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $185.0 | 200 | 201 | 1.0x | 147.0% |\n| PUT | 2026-05-15 | $220.0 | 615 | 1,202 | 0.51x | 38.6% |\n",
+    "output_length": 686,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:29.135850",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "CTAS",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for CTAS\n**Date:** 2026-04-15\n**Current Price:** $176.14\n\n## Price Action\n- **Daily Change:** +0.26%\n- **5-Day Change:** +0.89%\n\n## RSI (14)\n- **Value:** 43.7 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -4.326\n- **Signal Line:** -5.374\n- **Histogram:** 1.048 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $188.51 (-6.6% from price)\n- **200 SMA:** $196.45 (-10.3% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $188.42\n- **Middle:** $175.59\n- **Lower:** $162.77\n- **Band Position:** 52%\n- **Bandwidth:** 14.6% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $4.54 (2.6% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $169.33 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 79.3\n- **%D:** 63.2\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 7.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $177.44 (-0.7% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** -18.2M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $175.77\n- **Current vs VWAP:** +0.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $209.08\n- **Recent Low:** $165.60\n- **Next Resistance:** $182.21 (61.8%)\n- **Next Support:** $174.90 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1546,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:29.413735",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "CTAS"
+    },
+    "context": "",
+    "output": "# Insider Transactions for CTAS\n# Data retrieved on: 2026-04-15 14:32:29\n\n## Summary\n- **Insider Sentiment:** Neutral\n- **Option Exercise:** 1 transactions\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-04-09,COLETTI ROBERT E,Director,Option Exercise,12544,339463,D\n",
+    "output_length": 312,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:29.481040",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "CTAS"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for CTAS\n\n### 2026-04-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 13\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 27\n\n**Sentiment**: 48.1% Bullish, 3.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 4\n- **Buy**: 10\n- **Hold**: 14\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 29\n\n**Sentiment**: 48.3% Bullish, 3.4% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 4\n- **Buy**: 10\n- **Hold**: 13\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 28\n\n**Sentiment**: 50.0% Bullish, 3.6% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 4\n- **Buy**: 8\n- **Hold**: 14\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 27\n\n**Sentiment**: 44.4% Bullish, 3.7% Bearish\n\n",
+    "output_length": 717,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:29.836221",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "CTAS",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for CTAS\n\n**Available Expirations:** 15 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 292 | 452 | 1.548 |\n| Open Interest | 1,537 | 1,556 | 1.012 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-24 | $180.0 | 142 | 21 | 6.76x | 32.1% |\n| PUT | 2026-04-24 | $150.0 | 250 | 250 | 1.0x | 53.6% |\n",
+    "output_length": 685,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:34.320886",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "ETN",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for ETN\n**Date:** 2026-04-15\n**Current Price:** $401.90\n\n## Price Action\n- **Daily Change:** -0.36%\n- **5-Day Change:** +4.23%\n\n## RSI (14)\n- **Value:** 67.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 9.986\n- **Signal Line:** 5.042\n- **Histogram:** 4.944 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $368.91 (+8.9% from price)\n- **200 SMA:** $357.57 (+12.4% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $407.20\n- **Middle:** $370.99\n- **Lower:** $334.77\n- **Band Position:** 93%\n- **Bandwidth:** 19.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $12.72 (3.2% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $382.82 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 87.7\n- **%D:** 79.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 19.0 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $376.49 (+6.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 35.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $369.78\n- **Current vs VWAP:** +8.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $407.83\n- **Recent Low:** $337.20\n- **Next Resistance:** $407.83 (0.0% (High))\n- **Next Support:** $391.16 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1538,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:34.481952",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "ETN"
+    },
+    "context": "",
+    "output": "No insider transactions found for ETN in the last 3 months.",
+    "output_length": 59,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:34.563828",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "ETN"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for ETN\n\n### 2026-04-01\n- **Strong Buy**: 8\n- **Buy**: 21\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 37\n\n**Sentiment**: 78.4% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 77.1% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 77.1% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 19\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 34\n\n**Sentiment**: 73.5% Bullish, 0.0% Bearish\n\n",
+    "output_length": 714,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:35.013246",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "ETN",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for ETN\n\n**Available Expirations:** 16 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 993 | 1,065 | 1.073 |\n| Open Interest | 9,057 | 22,607 | 2.496 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Neutral\n- **OI P/C Ratio:** Bearish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-24 | $370.0 | 147 | 96 | 1.53x | 41.0% |\n",
+    "output_length": 611,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:38.502854",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "WMT",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for WMT\n**Date:** 2026-04-15\n**Current Price:** $125.05\n\n## Price Action\n- **Daily Change:** +0.39%\n- **5-Day Change:** -1.74%\n\n## RSI (14)\n- **Value:** 50.9 \u2193\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.576\n- **Signal Line:** 0.366\n- **Histogram:** 0.210 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $125.49 (-0.4% from price)\n- **200 SMA:** $109.93 (+13.7% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $128.92\n- **Middle:** $123.88\n- **Lower:** $118.85\n- **Band Position:** 62%\n- **Bandwidth:** 8.1% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $2.92 (2.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $120.67 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 57.1\n- **%D:** 66.7\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.7 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $124.86 (+0.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 476.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** BULLISH DIVERGENCE \u26a1 (accumulation)\n\n## VWAP (20-period)\n- **VWAP:** $123.21\n- **Current vs VWAP:** +1.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $134.41\n- **Recent Low:** $118.02\n- **Next Resistance:** $126.22 (50.0%)\n- **Next Support:** $124.28 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1514,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:38.631594",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "WMT"
+    },
+    "context": "",
+    "output": "# Insider Transactions for WMT\n# Data retrieved on: 2026-04-15 14:32:38\n\n## Summary\n- **Insider Sentiment:** BEARISH \u26a0\ufe0f (significant insider selling)\n- **Award/Grant:** 11 transactions\n- **Sale:** 4 transactions\n- **Gift:** 1 transactions\n- **Total Sales Value:** $407,168,340\n- **Largest Sale (3mo):** 2026-03-25 | WALTON FAMILY HOLDINGS TRUST (Beneficial Owner of more than 10% of a Class of Security) | 3279000 shares | $403009014 | Ownership: D\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-03-31,HARRIS CARLA A,Director,Award/Grant,141,17523,D\n2026-03-31,MEHROTRA SHISHIR,Director,Award/Grant,213,26472,D\n2026-03-31,MORITZ ROBERT EDWARD JR.,Director,Award/Grant,231,28709,D\n2026-03-31,FLYNN TIMOTHY PATRICK,Director,Award/Grant,302,37533,D\n2026-03-31,FRIAR SARAH J,Director,Award/Grant,282,35047,D\n2026-03-31,PENNER GREGORY BOYD,Director,Award/Grant,458,56920,D\n2026-03-31,WALTON STEUART L.,Director,Award/Grant,282,35047,D\n2026-03-31,STEPHENSON RANDALL L,Director,Award/Grant,382,47475,D\n2026-03-31,CONDE CESAR,Director,Award/Grant,231,28709,D\n2026-03-31,NICCOL BRIAN R,Director,Award/Grant,231,28709,D\n2026-03-31,MAYER MARISSA A,Director,Award/Grant,231,28709,D\n2026-03-26,MCMILLON C DOUGLAS,Director,Sale,19416,2391280,D\n2026-03-25,WALTON FAMILY HOLDINGS TRUST,Beneficial Owner of more than 10% of a Class of Security,Sale,3279000,403009014,D\n2026-03-19,FURNER JOHN R,Chief Executive Officer,Sale,13125,1600718,D\n2026-03-17,WALTON STEUART L.,Director,Gift,35000,0,D\n2026-03-16,BARTLETT DANIEL J,Officer,Sale,1325,167328,D\n",
+    "output_length": 1577,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:38.696595",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "WMT"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for WMT\n\n### 2026-04-01\n- **Strong Buy**: 14\n- **Buy**: 30\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 91.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 14\n- **Buy**: 31\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 49\n\n**Sentiment**: 91.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 14\n- **Buy**: 32\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 49\n\n**Sentiment**: 93.9% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 15\n- **Buy**: 31\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 95.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 718,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:39.874572",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "WMT",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for WMT\n\n**Available Expirations:** 17 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 10,329 | 9,081 | 0.879 |\n| Open Interest | 122,777 | 145,971 | 1.189 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Neutral\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-24 | $124.0 | 3,123 | 777 | 4.02x | 25.9% |\n| CALL | 2026-04-17 | $100.0 | 166 | 120 | 1.38x | 165.6% |\n| PUT | 2026-04-17 | $75.0 | 3,000 | 3,010 | 1.0x | 181.3% |\n| PUT | 2026-04-17 | $80.0 | 750 | 753 | 1.0x | 156.3% |\n| PUT | 2026-04-17 | $108.0 | 295 | 357 | 0.83x | 53.1% |\n| CALL | 2026-05-01 | $134.0 | 123 | 155 | 0.79x | 26.8% |\n| PUT | 2026-05-01 | $114.0 | 161 | 204 | 0.79x | 29.7% |\n| PUT | 2026-04-24 | $122.0 | 320 | 415 | 0.77x | 25.7% |\n| CALL | 2026-04-17 | $128.0 | 2,316 | 3,044 | 0.76x | 27.9% |\n| PUT | 2026-05-01 | $118.0 | 726 | 967 | 0.75x | 27.1% |\n",
+    "output_length": 1153,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:41.884342",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "COST",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for COST\n**Date:** 2026-04-15\n**Current Price:** $974.80\n\n## Price Action\n- **Daily Change:** -0.62%\n- **5-Day Change:** -5.38%\n\n## RSI (14)\n- **Value:** 41.9 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 2.858\n- **Signal Line:** 4.958\n- **Histogram:** -2.100 (Strengthening \u2191)\n- **Signal:** BEARISH CROSSOVER \u26a0\ufe0f\n\n## Moving Averages\n- **50 SMA:** $993.95 (-1.9% from price)\n- **200 SMA:** $947.40 (+2.9% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $1032.80\n- **Middle:** $992.69\n- **Lower:** $952.58\n- **Band Position:** 28%\n- **Bandwidth:** 8.1% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $19.00 (1.9% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $946.30 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 35.5\n- **%D:** 56.7\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 18.8 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $997.08 (-2.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** -35.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $993.42\n- **Current vs VWAP:** -1.9%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $1035.82\n- **Recent Low:** $931.27\n- **Next Resistance:** $983.54 (50.0%)\n- **Next Support:** $971.21 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1538,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:42.058095",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "COST"
+    },
+    "context": "",
+    "output": "# Insider Transactions for COST\n# Data retrieved on: 2026-04-15 14:32:42\n\n## Summary\n- **Insider Sentiment:** BEARISH \u26a0\ufe0f (significant insider selling)\n- **Sale:** 1 transactions\n- **Total Sales Value:** $695,100\n- **Largest Sale (3mo):** 2026-04-01 | FRATES CATON (Officer) | 700 shares | $695100 | Ownership: D\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-04-01,FRATES CATON,Officer,Sale,700,695100,D\n",
+    "output_length": 450,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:42.173195",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "COST"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for COST\n\n### 2026-04-01\n- **Strong Buy**: 13\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 44\n\n**Sentiment**: 68.2% Bullish, 2.3% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 13\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 44\n\n**Sentiment**: 68.2% Bullish, 2.3% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 13\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 44\n\n**Sentiment**: 68.2% Bullish, 2.3% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 13\n- **Buy**: 15\n- **Hold**: 14\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 43\n\n**Sentiment**: 65.1% Bullish, 2.3% Bearish\n\n",
+    "output_length": 723,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:42.694214",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "COST",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for COST\n\n**Available Expirations:** 19 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 2,930 | 11,253 | 3.841 |\n| Open Interest | 34,758 | 53,425 | 1.537 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Bearish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-24 | $750.0 | 806 | 164 | 4.91x | 92.9% |\n| PUT | 2026-04-24 | $770.0 | 598 | 133 | 4.5x | 85.1% |\n| PUT | 2026-04-17 | $805.0 | 799 | 275 | 2.91x | 104.4% |\n| PUT | 2026-04-17 | $905.0 | 392 | 212 | 1.85x | 46.9% |\n| PUT | 2026-04-17 | $825.0 | 161 | 95 | 1.69x | 62.5% |\n| PUT | 2026-04-24 | $580.0 | 274 | 190 | 1.44x | 166.7% |\n| PUT | 2026-04-24 | $980.0 | 164 | 119 | 1.38x | 22.5% |\n| PUT | 2026-04-24 | $590.0 | 530 | 433 | 1.22x | 107.8% |\n| PUT | 2026-04-24 | $610.0 | 275 | 248 | 1.11x | 152.4% |\n| PUT | 2026-05-01 | $940.0 | 200 | 187 | 1.07x | 22.9% |\n",
+    "output_length": 1159,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:54.170333",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "TGT",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for TGT\n**Date:** 2026-04-15\n**Current Price:** $119.53\n\n## Price Action\n- **Daily Change:** +1.40%\n- **5-Day Change:** -2.92%\n\n## RSI (14)\n- **Value:** 52.1 \u2193\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 1.404\n- **Signal Line:** 1.565\n- **Histogram:** -0.161 (Strengthening \u2191)\n- **Signal:** BEARISH CROSSOVER \u26a0\ufe0f\n\n## Moving Averages\n- **50 SMA:** $116.83 (+2.3% from price)\n- **200 SMA:** $100.31 (+19.2% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $124.80\n- **Middle:** $118.63\n- **Lower:** $112.46\n- **Band Position:** 57%\n- **Bandwidth:** 10.4% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $3.23 (2.7% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $114.68 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 48.5\n- **%D:** 64.2\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 13.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $119.34 (+0.2% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 84.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $117.76\n- **Current vs VWAP:** +1.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $126.00\n- **Recent Low:** $102.64\n- **Next Resistance:** $120.49 (23.6%)\n- **Next Support:** $117.08 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1546,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:54.375154",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "TGT"
+    },
+    "context": "",
+    "output": "# Insider Transactions for TGT\n# Data retrieved on: 2026-04-15 14:32:54\n\n## Summary\n- **Insider Sentiment:** BEARISH \u26a0\ufe0f (significant insider selling)\n- **Award/Grant:** 8 transactions\n- **Sale:** 1 transactions\n- **Total Sales Value:** $240,593\n- **Largest Sale (3mo):** 2026-03-17 | LIEGEL MATTHEW A (Officer) | 2053 shares | $240593 | Ownership: D\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-04-07,KREMER MELISSA K,Officer,Award/Grant,7259,0,D\n2026-04-07,FIDDELKE MICHAEL J.,Officer,Award/Grant,11250,0,D\n2026-04-07,SYLVESTER CARA A,Officer,Award/Grant,5809,0,D\n2026-04-07,VEMANA PRATABKUMAR,Officer,Award/Grant,3634,0,D\n2026-04-07,LIEGEL MATTHEW A,Officer,Award/Grant,1337,0,D\n2026-04-07,ROATH LISA R,Officer,Award/Grant,2443,0,D\n2026-04-07,CORNELL BRIAN C,Officer and Director,Award/Grant,50777,0,D\n2026-04-01,BRATSPIES STEPHEN B.,Director,Award/Grant,1791,0,D\n2026-03-17,LIEGEL MATTHEW A,Officer,Sale,2053,240593,D\n",
+    "output_length": 969,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:54.455727",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "TGT"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for TGT\n\n### 2026-04-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 25\n- **Sell**: 3\n- **Strong Sell**: 0\n- **Total Analysts**: 43\n\n**Sentiment**: 34.9% Bullish, 7.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 24\n- **Sell**: 4\n- **Strong Sell**: 1\n- **Total Analysts**: 44\n\n**Sentiment**: 34.1% Bullish, 11.4% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 24\n- **Sell**: 4\n- **Strong Sell**: 1\n- **Total Analysts**: 44\n\n**Sentiment**: 34.1% Bullish, 11.4% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 23\n- **Sell**: 4\n- **Strong Sell**: 2\n- **Total Analysts**: 43\n\n**Sentiment**: 32.6% Bullish, 14.0% Bearish\n\n",
+    "output_length": 717,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:32:54.906807",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "TGT",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for TGT\n\n**Available Expirations:** 19 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 5,201 | 2,369 | 0.455 |\n| Open Interest | 36,603 | 31,480 | 0.86 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bullish (more call volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-17 | $123.0 | 3,304 | 537 | 6.15x | 26.9% |\n| CALL | 2026-05-01 | $116.0 | 154 | 162 | 0.95x | 44.2% |\n| CALL | 2026-05-01 | $118.0 | 103 | 114 | 0.9x | 41.7% |\n| PUT | 2026-04-17 | $118.0 | 207 | 298 | 0.69x | 40.1% |\n",
+    "output_length": 811,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:05.118938",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "V",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for V\n**Date:** 2026-04-15\n**Current Price:** $311.37\n\n## Price Action\n- **Daily Change:** +0.64%\n- **5-Day Change:** +0.78%\n\n## RSI (14)\n- **Value:** 54.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -1.258\n- **Signal Line:** -2.986\n- **Histogram:** 1.728 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $312.96 (-0.5% from price)\n- **200 SMA:** $334.13 (-6.8% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $312.00\n- **Middle:** $303.62\n- **Lower:** $295.24\n- **Band Position:** 96%\n- **Bandwidth:** 5.5% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $6.46 (2.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $301.68 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 82.0\n- **%D:** 71.1\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 14.2 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $306.33 (+1.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -26.4M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $303.17\n- **Current vs VWAP:** +2.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $336.90\n- **Recent Low:** $293.89\n- **Next Resistance:** $315.39 (50.0%)\n- **Next Support:** $310.32 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1567,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:05.258422",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "V"
+    },
+    "context": "",
+    "output": "No insider transactions found for V in the last 3 months.",
+    "output_length": 57,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:05.328377",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "V"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for V\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 31\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 46\n\n**Sentiment**: 91.3% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 13\n- **Buy**: 31\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 91.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 13\n- **Buy**: 29\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 13\n- **Buy**: 28\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 47\n\n**Sentiment**: 87.2% Bullish, 0.0% Bearish\n\n",
+    "output_length": 716,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:06.101107",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "V",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for V\n\n**Available Expirations:** 18 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 3,795 | 2,716 | 0.716 |\n| Open Interest | 39,920 | 28,748 | 0.72 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Neutral\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-24 | $280.0 | 116 | 13 | 8.92x | 62.2% |\n| CALL | 2026-04-17 | $270.0 | 118 | 19 | 6.21x | 90.5% |\n| PUT | 2026-04-24 | $190.0 | 762 | 153 | 4.98x | 170.6% |\n| PUT | 2026-04-17 | $317.5 | 104 | 34 | 3.06x | 32.6% |\n| PUT | 2026-04-17 | $220.0 | 123 | 78 | 1.58x | 231.5% |\n| CALL | 2026-04-17 | $480.0 | 124 | 125 | 0.99x | 253.2% |\n| CALL | 2026-05-01 | $365.0 | 104 | 166 | 0.63x | 37.0% |\n",
+    "output_length": 963,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:13.110098",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "SEE",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for SEE\n**Date:** 2026-04-15\n**Current Price:** $42.15\n\n## Price Action\n- **Daily Change:** +0.00%\n- **5-Day Change:** +0.17%\n\n## RSI (14)\n- **Value:** 69.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.104\n- **Signal Line:** 0.092\n- **Histogram:** 0.012 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $41.82 (+0.8% from price)\n- **200 SMA:** $37.09 (+13.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $42.24\n- **Middle:** $41.97\n- **Lower:** $41.70\n- **Band Position:** 84%\n- **Bandwidth:** 1.3% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $0.09 (0.2% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $42.02 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 95.9\n- **%D:** 91.9\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 24.8 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $41.99 (+0.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 43.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $41.97\n- **Current vs VWAP:** +0.4%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $42.15\n- **Recent Low:** $41.55\n- **Next Support:** $42.01 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1454,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:13.250386",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "SEE"
+    },
+    "context": "",
+    "output": "No insider transactions found for SEE in the last 3 months.",
+    "output_length": 59,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:13.317969",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "SEE"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for SEE\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 15\n\n**Sentiment**: 46.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 41.2% Bullish, 5.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 41.2% Bullish, 5.9% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 41.2% Bullish, 5.9% Bearish\n\n",
+    "output_length": 710,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:13.701419",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "SEE",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for SEE\n\n**Available Expirations:** 4 dates\n**Analyzing:** 2026-04-17, 2026-05-15, 2026-07-17\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 402 | 191 | 0.475 |\n| Open Interest | 47,939 | 3,348 | 0.07 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bullish (more call volume)\n- **OI P/C Ratio:** Bullish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-17 | $40.0 | 116 | 199 | 0.58x | 0.0% |\n",
+    "output_length": 626,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:16.881579",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "RACE",
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "# Technical Analysis for RACE\n**Date:** 2026-04-15\n**Current Price:** $358.13\n\n## Price Action\n- **Daily Change:** +0.84%\n- **5-Day Change:** +1.94%\n\n## RSI (14)\n- **Value:** 61.2 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 2.402\n- **Signal Line:** -1.685\n- **Histogram:** 4.087 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $348.04 (+2.9% from price)\n- **200 SMA:** $408.61 (-12.4% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $362.04\n- **Middle:** $335.33\n- **Lower:** $308.61\n- **Band Position:** 93%\n- **Bandwidth:** 15.9% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $10.00 (2.8% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $343.13 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 78.9\n- **%D:** 73.8\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.1 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $342.98 (+4.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -5.9M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $334.73\n- **Current vs VWAP:** +7.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $393.50\n- **Recent Low:** $312.51\n- **Next Resistance:** $362.56 (38.2%)\n- **Next Support:** $353.01 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1536,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:17.022118",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "RACE"
+    },
+    "context": "",
+    "output": "No insider transactions data found for symbol 'RACE'",
+    "output_length": 52,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:17.089256",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "RACE"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for RACE\n\n### 2026-04-01\n- **Strong Buy**: 7\n- **Buy**: 11\n- **Hold**: 7\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 27\n\n**Sentiment**: 66.7% Bullish, 7.4% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 11\n- **Hold**: 8\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 27\n\n**Sentiment**: 63.0% Bullish, 7.4% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 11\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 1\n- **Total Analysts**: 27\n\n**Sentiment**: 63.0% Bullish, 7.4% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 5\n- **Buy**: 10\n- **Hold**: 7\n- **Sell**: 1\n- **Strong Sell**: 1\n- **Total Analysts**: 24\n\n**Sentiment**: 62.5% Bullish, 8.3% Bearish\n\n",
+    "output_length": 715,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:33:18.757007",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "RACE",
+      "num_expirations": 3,
+      "curr_date": "2026-04-15"
+    },
+    "context": "",
+    "output": "## Options Activity for RACE\n\n**Available Expirations:** 14 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 253 | 3,381 | 13.364 |\n| Open Interest | 2,503 | 3,012 | 1.203 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $400.0 | 1,540 | 187 | 8.24x | 79.5% |\n",
+    "output_length": 633,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-15T14:34:24.858288",
+    "type": "llm",
+    "node": "ranker",
+    "step": "Rank candidates",
+    "model": "gemini-3-pro-preview",
+    "prompt": "You are a professional stock analyst selecting the best short-term trading opportunities from a pre-filtered candidate list.\n\nCURRENT DATE: 2026-04-15\n\nGOAL: Select UP TO 15 stocks with the highest probability of generating >5.0% returns within 1-7 days. If fewer than 15 candidates meet the quality bar, return only the ones that do. Quality over quantity \u2014 never pad the list with weak picks.\n\nMINIMUM QUALITY BAR:\n- Only include candidates where you have genuine conviction (final_score >= 65).\n- If a candidate lacks a clear catalyst or has contradictory signals, SKIP it.\n- It is better to return 5 excellent picks than 15 mediocre ones.\n\nSTRATEGY-SPECIFIC EVALUATION CRITERIA:\nEach candidate was discovered by a specific scanner. Evaluate them using the criteria most relevant to their strategy:\n- **insider_buying**: Focus on insider transaction SIZE relative to market cap, insider ROLE (CEO/CFO > Director), number of distinct insiders buying, and whether the stock is near support. Large cluster buys are strongest.\n- **options_flow**: Focus on put/call ratio, absolute call VOLUME vs open interest, premium size, and whether flow aligns with the technical trend. Unusually low P/C ratios (<0.1) with high volume are strongest.\n- **momentum / technical_breakout**: Focus on volume confirmation (>2x average), trend alignment (above key SMAs), and whether momentum is accelerating or fading. Avoid chasing extended moves (RSI >80).\n- **earnings_play**: Focus on short interest (squeeze potential), pre-earnings accumulation signals, analyst estimate trends, and historical earnings surprise rate. Binary risk must be acknowledged.\n- **social_dd**: Has shown 55% 30d win rate \u2014 strongest long-hold scanner. These setups combine social sentiment WITH technical confirmation (OBV, short interest, MACD). Score based on quality of technical/fundamental corroboration. A strong OBV + high short interest + bullish MACD warrants 65-75. DO NOT conflate with social_hype.\n- **social_hype**: Treat as SPECULATIVE (14.3% 7d win rate, -4.84% avg 7d return). Require strong corroborating evidence. Pure social sentiment without data backing should score below 50.\n- **short_squeeze**: Focus on short interest %, days to cover, cost to borrow, and whether a catalyst exists to trigger covering. High SI alone is not enough.\n- **contrarian_value**: Focus on oversold technicals (RSI <30), fundamental support (earnings stability), and a clear reason why the selloff is overdone.\n- **news_catalyst**: **AVOID by default** \u2014 0% historical 7d win rate (-8.37% avg 7d return, n=8). Only score \u226555 if the catalyst is (1) not yet reflected in the intraday move, (2) mechanistic and specific (FDA decision, contract win, regulatory approval), NOT macroeconomic framing ('geopolitical tension', 'oil price', 'rate expectations'). Macro news_catalyst setups should score <50.\n- **sector_rotation**: Focus on relative strength vs sector ETF, whether the stock is a laggard in an accelerating sector.\n- **minervini**: Focus on the RS Rating (top 30% = RS>=70, top 10% = RS>=90) as the primary signal. Verify all 6 trend template conditions are met (price structure above rising SMAs). Strongest setups combine RS>=85 with price consolidating near highs (within 10-15% of 52w high) \u2014 these have minimal overhead supply. Penalize if RS Rating is borderline (70-75) without other confirming signals.\n- **ml_signal**: Use the ML Win Probability as a strong quantitative signal. Scores above 65% deserve significant weight.\n\nHISTORICAL INSIGHTS:\n\"Historical 1-day win rate: 39.1% (603 tracked)\\nHistorical 7-day win rate: 44.1% (596 tracked)\\nHistorical 30-day win rate: 36.8% (495 tracked)\\n\\nBest performing strategies (7-day):\\n  - short_squeeze: 60.0% win rate, avg +2.1% return (10 samples)\\n  - analyst_upgrade: 55.9% win rate, avg +0.2% return (34 samples)\\n  - insider_buying: 47.4% win rate, avg -0.2% return (173 samples)\\n\\nWORST performing strategies (7-day) \\u2014 penalize these heavily in scoring:\\n  - pre_earnings_accumulation: 28.6% win rate, avg -1.9% return (7 samples)\\n  - social_hype: 18.2% win rate, avg -4.1% return (22 samples)\\n  - news_catalyst: 0.0% win rate, avg -9.1% return (8 samples)\"\n\nCANDIDATES FOR REVIEW:\n### RPM (Priority: CRITICAL)\n- **Strategy Match**: pead_drift\n- **Sources**: earnings_beat | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 3.83 | **Piotroski F-Score**: 5\n- **Price**: $105.97 | **Current Price (numeric)**: 105.97000122070312 | **Intraday**: -3.7% | **Avg Volume**: 1,162,504\n- **Short Interest**: 2.8%\n- **Discovery Context**: Earnings beat 7d ago: actual $0.57 vs est $0.36 (+59.9% surprise) \u2014 PEAD drift window open\n- **Business**: RPM International Inc. provides specialty chemicals for the construction, industrial, specialty, and consumer markets. It operates in four segments: CPG, PCG, Consumer, and SPG. The company offers waterproofing, coating, and traditional roofing systems; sealants, air barriers, tapes, and foams; residential home weatherization systems; roofing and building maintenance services; sealing and bonding, subfloor preparation, flooring, and glazing solutions; resin flooring systems, polyurethane, MMA waterproof, epoxy floor paint and coatings, concrete repair, and protection products; fire stopping and intumescent steel coating, and manufacturing industry solutions; and rolled asphalt roofing materials and chemical admixtures. It also provides concrete and masonry admixtures, concrete fibers, cement performance enhancers, curing and sealing compounds, structural grouts and mortars, epoxy adhesives, injection resins, polyurethane foams, floor hardeners and toppings, joint fillers, industrial and architectural coatings, decorative color/stains/stamps, restoration materials, concrete panel wall systems, flooring systems, fluorescent colorants and pigments, shellac-based-specialty and marine coatings, and fuel additives. It offers fiberglass reinforced plastic gratings and shapes; corrosion-control coating, containment and railcar lining, fire and sound proofing, heat and cryogenic insulation, and specialty construction products; amine curing agents, reactive diluents, and epoxy resins; fire and water damage restoration, carpet cleaning, and disinfecting products; wood treatments, coatings, and touch-up products; nail enamels, polishes, and coating components; paint contractors and DIYers, concrete restoration and flooring, metallic and faux finish coatings, cleaners, and hobby paints and cements; and caulks, adhesives, insulating foams, and patches, spackling, glazing, and repair products. The company was incorporated in 1947 and is headquartered in Medina, Ohio.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for RPM\n**Date:** 2026-04-15\n**Current Price:** $108.67\n\n## Price Action\n- **Daily Change:** -0.70%\n- **5-Day Change:** -0.05%\n\n## RSI (14)\n- **Value:** 60.2 \u2193\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.945\n- **Signal Line:** -0.864\n- **Histogram:** 1.809 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $107.13 (+1.4% from price)\n- **200 SMA:** $111.16 (-2.2% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $111.57\n- **Middle:** $100.72\n- **Lower:** $89.86\n- **Band Position:** 87%\n- **Bandwidth:** 21.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $3.55 (3.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $103.34 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 74.0\n- **%D:** 68.2\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 24.6 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $103.59 (+4.9% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 1.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** BULLISH DIVERGENCE \u26a1 (accumulation)\n\n## VWAP (20-period)\n- **VWAP:** $101.10\n- **Current vs VWAP:** +7.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $121.78\n- **Recent Low:** $92.92\n- **Next Resistance:** $110.76 (38.2%)\n- **Next Support:** $107.35 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: Sector: Basic Materials | Industry: Specialty Chemicals | Valuation: Cap: $13.57B, P/E: 20.42, Fwd P/E: 18.07, P/B: 4.34, P/S: 1.76 | Growth: Rev Growth: 8.9%, Earnings Growth: 0.0% | Profitability: Profit Margin: 8.6%, Oper Margin: 6.4%, ROE: 22.9%, ROA: 8.1% | Dividend: 199.0% yield | Financial Health: Current Ratio: 2.28, D/E: 92.06 | Analyst Target: $128 | EPS: $5.19 | Beta: 1.09 | 52W Range: $92.92 - $129.12\n\n**Insider Transactions**:\nNo insider transactions found for RPM in the last 3 months.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for RPM\n\n### 2026-04-01\n- **Strong Buy**: 4\n- **Buy**: 13\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 21\n\n**Sentiment**: 81.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 13\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 13\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 12\n- **Hold**: 7\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 68.2% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for RPM\n\n**Available Expirations:** 4 dates\n**Analyzing:** 2026-04-17, 2026-05-15, 2026-08-21\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 176 | 279 | 1.585 |\n| Open Interest | 902 | 747 | 0.828 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $90.0 | 161 | 272 | 0.59x | 125.4% |\n\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### CTRA (Priority: HIGH)\n- **Strategy Match**: volume_divergence\n- **Sources**: obv_divergence | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 2.6 | **Piotroski F-Score**: 7\n- **Price**: $31.58 | **Current Price (numeric)**: 31.575000762939453 | **Intraday**: +0.2% | **Avg Volume**: 6,403,871\n- **Short Interest**: 3.0%\n- **Discovery Context**: OBV divergence: price -4.2% over 20d, OBV +24.7% of avg vol \u2014 multi-week accumulation signal\n- **Business**: Coterra Energy Inc., an independent oil and gas company, engages in the exploration, development, and production of oil, natural gas, and natural gas liquids in the United States. The company's properties include the Permian Basin, which covers approximately 345,000 net acres in the Delaware Basin in west Texas and southeast New Mexico, and an additional approximate of 49,000 net acres in the Delaware Basin in Lea County, New Mexico; Marcellus Shale properties, which covers approximately 186,000 net acres located in Susquehanna County, northeast Pennsylvania; and Anadarko Basin, which covers approximately 208,000 net acres located in the mid-continent region in Oklahoma. It also operates natural gas and saltwater gathering, and disposal systems in Texas. The company sells its natural gas to industrial customers, local distribution companies, oil and gas marketers, energy companies, pipeline companies, and power generation facilities. The company was formerly known as Cabot Oil & Gas Corporation and changed its name to Coterra Energy Inc. in October 2021. Coterra Energy Inc. was incorporated in 1989 and is headquartered in Houston, Texas.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for CTRA\n**Date:** 2026-04-15\n**Current Price:** $31.67\n\n## Price Action\n- **Daily Change:** -4.06%\n- **5-Day Change:** -5.35%\n\n## RSI (14)\n- **Value:** 39.1 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 0.318\n- **Signal Line:** 0.802\n- **Histogram:** -0.483 (Strengthening \u2191)\n- **Signal:** BEARISH CROSSOVER \u26a0\ufe0f\n\n## Moving Averages\n- **50 SMA:** $32.07 (-1.3% from price)\n- **200 SMA:** $26.42 (+19.9% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $36.53\n- **Middle:** $34.23\n- **Lower:** $31.93\n- **Band Position:** -6%\n- **Bandwidth:** 13.4% (volatility indicator)\n- **Signal:** AT LOWER BAND - Potential bounce \u26a1\n\n## ATR (Volatility)\n- **ATR:** $1.23 (3.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $29.82 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 26.3\n- **%D:** 37.4\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 13.8 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $33.52 (-5.5% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 293.3M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $34.17\n- **Current vs VWAP:** -7.3%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $36.88\n- **Recent Low:** $27.23\n- **Next Resistance:** $32.06 (50.0%)\n- **Next Support:** $30.92 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: Sector: Energy | Industry: Oil & Gas E&P | Valuation: Cap: $23.98B, P/E: 14.10, Fwd P/E: 10.53, P/B: 1.62, P/S: 3.43 | Growth: Rev Growth: 23.4%, Earnings Growth: 20.6% | Profitability: Profit Margin: 24.6%, Oper Margin: 33.3%, ROE: 12.3%, ROA: 6.7% | Dividend: 278.0% yield | Financial Health: Current Ratio: 1.19, D/E: 26.98 | Analyst Target: $37 | EPS: $2.24 | Beta: 0.27 | 52W Range: $22.33 - $36.88\n\n**Insider Transactions**:\nError retrieving insider transactions for CTRA: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for CTRA\n\n### 2026-04-01\n- **Strong Buy**: 8\n- **Buy**: 14\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 71.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 9\n- **Buy**: 16\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 80.6% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 9\n- **Buy**: 18\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 84.4% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 9\n- **Buy**: 19\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 84.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for CTRA\n\n**Available Expirations:** 15 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 684 | 893 | 1.306 |\n| Open Interest | 17,240 | 10,302 | 0.598 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Bullish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $26.0 | 593 | 770 | 0.77x | 166.0% |\n\n\n**Upcoming Earnings**: Earnings in 15 days (2026-04-30): EPS Est $0.82, Rev Est $2,132,542,488\n\n### AME (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 7.78 | **Piotroski F-Score**: 6\n- **Price**: $231.91 | **Current Price (numeric)**: 231.91000366210938 | **Intraday**: -0.8% | **Avg Volume**: 950,418\n- **Short Interest**: 1.6%\n- **Discovery Context**: Analyst upgrade: ZWJ Investment Counsel Inc. Buys 9,786 Shares of AMETEK, Inc. $AME\n- **Business**: AMETEK, Inc. manufactures and sells electronic instruments (EIG) and electromechanical (EMG) devices in the United States and internationally. It operates through EIG and EMG segments. The company offers advanced instruments for the process, aerospace, power, and industrial markets; process and analytical instruments for the oil and gas, petrochemical, pharmaceutical, semiconductor, automation, and food and beverage industries; instruments to the laboratory equipment, ultra-precision manufacturing, medical, and test and measurement markets; power quality monitoring and metering devices, uninterruptible power supplies, programmable power and electromagnetic compatibility test equipment, and gas turbines sensors; dashboard instruments for heavy trucks and other vehicles; instrumentation and controls for food and beverage industries; and aircraft and engine sensors, embedded computing, monitoring, power supplies, fuel and fluid measurement, and data acquisition systems for aerospace and defense industry. It also provides engineered medical components and devices, automation solutions, thermal management systems, specialty metals, and electrical interconnects; single-use and consumable surgical instruments, implantable components, and drug delivery systems; engineered electrical connectors and electronics packaging; precision motion control products for data storage, medical devices, business equipment, automation, and other application; high-purity powdered metals, strips and foils, specialty clad metals, and metal matrix composites; motor-blower systems and heat exchangers for thermal management, military and commercial aircraft, and military ground vehicles; and motors used in commercial appliances, food and beverage machines, hydraulic pumps, and industrial blowers, as well as operates a network of aviation maintenance, repair, and overhaul facilities. AMETEK, Inc. was incorporated in 1930 and is headquartered in Berwyn, Pennsylvania.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for AME\n**Date:** 2026-04-15\n**Current Price:** $234.36\n\n## Price Action\n- **Daily Change:** -0.05%\n- **5-Day Change:** +1.68%\n\n## RSI (14)\n- **Value:** 66.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 3.017\n- **Signal Line:** 0.183\n- **Histogram:** 2.835 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $225.33 (+4.0% from price)\n- **200 SMA:** $200.41 (+16.9% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $237.37\n- **Middle:** $218.93\n- **Lower:** $200.49\n- **Band Position:** 92%\n- **Bandwidth:** 16.8% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $5.57 (2.4% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $226.01 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 90.6\n- **%D:** 84.0\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 20.8 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $223.70 (+4.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 9.9M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $218.18\n- **Current vs VWAP:** +7.4%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $241.67\n- **Recent Low:** $207.32\n- **Next Resistance:** $241.67 (0.0% (High))\n- **Next Support:** $233.56 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: Sector: Industrials | Industry: Specialty Industrial Machinery | Valuation: Cap: $53.02B, P/E: 36.17, Fwd P/E: 26.55, P/B: 4.99, P/S: 7.16 | Growth: Rev Growth: 13.4%, Earnings Growth: 3.6% | Profitability: Profit Margin: 20.0%, Oper Margin: 27.5%, ROE: 14.6%, ROA: 7.9% | Dividend: 58.0% yield | Financial Health: Current Ratio: 1.06, D/E: 24.19 | Analyst Target: $250 | EPS: $6.40 | Beta: 1.04 | 52W Range: $153.73 - $242.05\n\n**Insider Transactions**:\nError retrieving insider transactions for AME: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for AME\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 16\n- **Hold**: 7\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 25\n\n**Sentiment**: 72.0% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 15\n- **Hold**: 7\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 70.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 14\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 66.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 23\n\n**Sentiment**: 65.2% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for AME\n\n**Available Expirations:** 6 dates\n**Analyzing:** 2026-04-17, 2026-05-15, 2026-06-18\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 169 | 900 | 5.325 |\n| Open Interest | 5,402 | 3,698 | 0.685 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Bullish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $185.0 | 200 | 201 | 1.0x | 147.0% |\n| PUT | 2026-05-15 | $220.0 | 615 | 1,202 | 0.51x | 38.6% |\n\n\n**Upcoming Earnings**: Earnings in 20 days (2026-05-05): EPS Est $1.92, Rev Est $1,934,640,587\n\n### CTAS (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 11.93 | **Piotroski F-Score**: 8\n- **Price**: $174.99 | **Current Price (numeric)**: 174.9949951171875 | **Intraday**: -0.6% | **Avg Volume**: 2,023,954\n- **Short Interest**: 3.2%\n- **Discovery Context**: Analyst upgrade: ZWJ Investment Counsel Inc. Buys 9,786 Shares of AMETEK, Inc. $AME\n- **Business**: Cintas Corporation engages in the provision of corporate identity uniforms and related business services primarily in the United States, Canada, and Latin America. It operates through Uniform Rental and Facility Services, First Aid and Safety Services, and All Other segments. The company rents and services uniforms and other garments, including flame resistant clothing, mats, mops and shop towels, and other ancillary items; and provides restroom cleaning services and supplies, as well as sells uniforms. In addition, the company offers first aid and safety services, and fire protection products and services. It provides its products and services through its distribution network and local delivery routes, or local representatives to small service and manufacturing companies, as well as major corporations. The company was founded in 1968 and is based in Cincinnati, Ohio. Cintas Corporation was formerly a subsidiary of Cintas Corporation.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for CTAS\n**Date:** 2026-04-15\n**Current Price:** $176.14\n\n## Price Action\n- **Daily Change:** +0.26%\n- **5-Day Change:** +0.89%\n\n## RSI (14)\n- **Value:** 43.7 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -4.326\n- **Signal Line:** -5.374\n- **Histogram:** 1.048 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $188.51 (-6.6% from price)\n- **200 SMA:** $196.45 (-10.3% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $188.42\n- **Middle:** $175.59\n- **Lower:** $162.77\n- **Band Position:** 52%\n- **Bandwidth:** 14.6% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $4.54 (2.6% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $169.33 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 79.3\n- **%D:** 63.2\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 7.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $177.44 (-0.7% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** -18.2M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $175.77\n- **Current vs VWAP:** +0.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $209.08\n- **Recent Low:** $165.60\n- **Next Resistance:** $182.21 (61.8%)\n- **Next Support:** $174.90 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: Sector: Industrials | Industry: Specialty Business Services | Valuation: Cap: $70.14B, P/E: 36.98, Fwd P/E: 32.31, P/B: 14.64, P/S: 6.36 | Growth: Rev Growth: 8.9%, Earnings Growth: 9.7% | Profitability: Profit Margin: 17.6%, Oper Margin: 23.2%, ROE: 41.3%, ROA: 15.9% | Dividend: 102.0% yield | Financial Health: Current Ratio: 1.98, D/E: 60.94 | Analyst Target: $212 | EPS: $4.74 | Beta: 1.01 | 52W Range: $165.60 - $229.24\n\n**Insider Transactions**:\n# Insider Transactions for CTAS\n# Data retrieved on: 2026-04-15 14:32:29\n\n## Summary\n- **Insider Sentiment:** Neutral\n- **Option Exercise:** 1 transactions\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-04-09,COLETTI ROBERT E,Director,Option Exercise,12544,339463,D\n\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for CTAS\n\n### 2026-04-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 13\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 27\n\n**Sentiment**: 48.1% Bullish, 3.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 4\n- **Buy**: 10\n- **Hold**: 14\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 29\n\n**Sentiment**: 48.3% Bullish, 3.4% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 4\n- **Buy**: 10\n- **Hold**: 13\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 28\n\n**Sentiment**: 50.0% Bullish, 3.6% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 4\n- **Buy**: 8\n- **Hold**: 14\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 27\n\n**Sentiment**: 44.4% Bullish, 3.7% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for CTAS\n\n**Available Expirations:** 15 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 292 | 452 | 1.548 |\n| Open Interest | 1,537 | 1,556 | 1.012 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-24 | $180.0 | 142 | 21 | 6.76x | 32.1% |\n| PUT | 2026-04-24 | $150.0 | 250 | 250 | 1.0x | 53.6% |\n\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### ETN (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 5.77 | **Piotroski F-Score**: 7\n- **Price**: $396.48 | **Current Price (numeric)**: 396.4800109863281 | **Intraday**: -1.1% | **Avg Volume**: 1,761,011\n- **Short Interest**: 2.3%\n- **Discovery Context**: Analyst upgrade: ZWJ Investment Counsel Inc. Buys 9,786 Shares of AMETEK, Inc. $AME\n- **Business**: Eaton Corporation plc operates as a power management company in the United States, Canada, Latin America, Europe, and the Asia Pacific. The company operates through Electrical Americas, Electrical Global, Aerospace, Vehicle, and eMobility segments. It offers electrical components, industrial components, power distribution and assemblies, residential products, single and three phase power quality and connectivity products, wiring devices, circuit protection products, utility power distribution products, and power reliability equipment; and hazardous duty electrical equipment, emergency lighting, fire detection, intrinsically safe explosion-proof instrumentation, and structural support systems. It also provides pumps, motors, hydraulic power units, hoses and fittings, and electro-hydraulic pumps; valves, cylinders, electronic controls, electromechanical actuators, sensors, aircraft flap and slat systems, and nose wheel steering systems; hose, thermoplastic tubing products, fittings, adapters, couplings, and sealing and ducting products; air-to-air refueling systems, fuel pumps, fuel inerting products, sensors, and adapters and regulators; oxygen generation system, payload carriages, and thermal management products; wiring connectors and cables; hydraulic and bag filters, strainers and cartridges, and golf grips for manufacturers of commercial and military aircraft, and related after-market customers, as well as industrial applications. In addition, the company offers transmissions, clutches, hybrid power systems, superchargers, engine valves and valve actuation systems, locking and limited slip differentials, transmission controls, and fuel vapor components for the vehicle industry; voltage inverters, converters, fuses, circuit protection units, vehicle controls, power distribution systems, fuel tank isolation valves, and commercial vehicle hybrid systems. The company formerly known as Abeiron Limited. The company was founded in 1911 and is based in Dublin, Ireland.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for ETN\n**Date:** 2026-04-15\n**Current Price:** $401.90\n\n## Price Action\n- **Daily Change:** -0.36%\n- **5-Day Change:** +4.23%\n\n## RSI (14)\n- **Value:** 67.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 9.986\n- **Signal Line:** 5.042\n- **Histogram:** 4.944 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $368.91 (+8.9% from price)\n- **200 SMA:** $357.57 (+12.4% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $407.20\n- **Middle:** $370.99\n- **Lower:** $334.77\n- **Band Position:** 93%\n- **Bandwidth:** 19.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $12.72 (3.2% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $382.82 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 87.7\n- **%D:** 79.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 19.0 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $376.49 (+6.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 35.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $369.78\n- **Current vs VWAP:** +8.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $407.83\n- **Recent Low:** $337.20\n- **Next Resistance:** $407.83 (0.0% (High))\n- **Next Support:** $391.16 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: Sector: Industrials | Industry: Specialty Industrial Machinery | Valuation: Cap: $153.85B, P/E: 37.91, Fwd P/E: 25.56, P/B: 7.91, P/S: 5.60 | Growth: Rev Growth: 13.1%, Earnings Growth: 18.9% | Profitability: Profit Margin: 14.9%, Oper Margin: 20.0%, ROE: 21.5%, ROA: 8.3% | Dividend: 109.0% yield | Financial Health: Current Ratio: 1.32, D/E: 54.88 | Analyst Target: $410 | EPS: $10.45 | Beta: 1.16 | 52W Range: $255.10 - $408.45\n\n**Insider Transactions**:\nNo insider transactions found for ETN in the last 3 months.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for ETN\n\n### 2026-04-01\n- **Strong Buy**: 8\n- **Buy**: 21\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 37\n\n**Sentiment**: 78.4% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 77.1% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 77.1% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 19\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 34\n\n**Sentiment**: 73.5% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for ETN\n\n**Available Expirations:** 16 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 993 | 1,065 | 1.073 |\n| Open Interest | 9,057 | 22,607 | 2.496 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Neutral\n- **OI P/C Ratio:** Bearish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-24 | $370.0 | 147 | 96 | 1.53x | 41.0% |\n\n\n**Upcoming Earnings**: Earnings in 20 days (2026-05-05): EPS Est $2.77, Rev Est $7,151,763,348\n\n### WMT (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 6.61 | **Piotroski F-Score**: 7\n- **Price**: $123.68 | **Current Price (numeric)**: 123.68499755859375 | **Intraday**: -0.7% | **Avg Volume**: 13,630,892\n- **Short Interest**: 0.9%\n- **Discovery Context**: Analyst initiated: Third View Private Wealth LLC Invests $1.13 Million in Walmart Inc. $WMT\n- **Business**: Walmart Inc. engages in the operation of retail and wholesale stores and clubs, ecommerce websites, and mobile applications worldwide. The company operates through three segments: Walmart U.S., Walmart International, and Sam's Club U.S. It operates supercenters, supermarkets, warehouse clubs, cash and carry stores, and discount stores under Walmart and Walmart Neighborhood Market brands; membership-only warehouse clubs; and ecommerce websites, such as walmart.com.mx, walmart.ca, flipkart.com, PhonePe and other sites. It offers grocery items, including dry grocery, snacks, dairy, meat, produce, deli and bakery, frozen foods, alcoholic and nonalcoholic beverages, as well as consumables, such as health and beauty aids, pet supplies, household chemicals, paper goods, and baby products; and fuel and other categories. In addition, it is involved in the provision of health and wellness products covering pharmacy, optical and hearing services, over-the-counter drugs, and protein and nutrition products; and home, hardlines, and seasonal items, including home improvement, outdoor living, gardening, furniture, apparel, jewelry, tools and power equipment, housewares, toys, and mattresses. Further, the company offers consumer electronics and accessories, software, video games, office supplies, appliances, and third-party gift cards. Additionally, it operates digital payment platforms; offers financial services and related products, including money transfers, bill payments, money orders, check cashing, prepaid access, co-branded credit cards, installment lending, and earned wage access; and markets lines of merchandise under private and licensed brands. The company was formerly known as Wal-Mart Stores, Inc. and changed its name to Walmart Inc. in February 2018. Walmart Inc. was founded in 1945 and is based in Bentonville, Arkansas.\n- **News**: Announced a total redesign of its 'Great Value' private label brand across 10,000 items and reported its AI assistant is driving significantly higher consumer spend.\n\n**Technical Analysis**:\n# Technical Analysis for WMT\n**Date:** 2026-04-15\n**Current Price:** $125.05\n\n## Price Action\n- **Daily Change:** +0.39%\n- **5-Day Change:** -1.74%\n\n## RSI (14)\n- **Value:** 50.9 \u2193\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.576\n- **Signal Line:** 0.366\n- **Histogram:** 0.210 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $125.49 (-0.4% from price)\n- **200 SMA:** $109.93 (+13.7% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $128.92\n- **Middle:** $123.88\n- **Lower:** $118.85\n- **Band Position:** 62%\n- **Bandwidth:** 8.1% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $2.92 (2.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $120.67 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 57.1\n- **%D:** 66.7\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.7 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $124.86 (+0.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 476.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** BULLISH DIVERGENCE \u26a1 (accumulation)\n\n## VWAP (20-period)\n- **VWAP:** $123.21\n- **Current vs VWAP:** +1.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $134.41\n- **Recent Low:** $118.02\n- **Next Resistance:** $126.22 (50.0%)\n- **Next Support:** $124.28 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: Sector: Consumer Defensive | Industry: Discount Stores | Valuation: Cap: $986.07B, P/E: 45.31, Fwd P/E: 37.65, P/B: 9.89, P/S: 1.38 | Growth: Rev Growth: 5.6%, Earnings Growth: -19.0% | Profitability: Profit Margin: 3.1%, Oper Margin: 4.6%, ROE: 21.8%, ROA: 6.8% | Dividend: 79.0% yield | Financial Health: Current Ratio: 0.79, D/E: 64.44 | Analyst Target: $136 | EPS: $2.73 | Beta: 0.66 | 52W Range: $90.61 - $134.69\n\n**Insider Transactions**:\n# Insider Transactions for WMT\n# Data retrieved on: 2026-04-15 14:32:38\n\n## Summary\n- **Insider Sentiment:** BEARISH \u26a0\ufe0f (significant insider selling)\n- **Award/Grant:** 11 transactions\n- **Sale:** 4 transactions\n- **Gift:** 1 transactions\n- **Total Sales Value:** $407,168,340\n- **Largest Sale (3mo):** 2026-03-25 | WALTON FAMILY HOLDINGS TRUST (Beneficial Owner of more than 10% of a Class of Security) | 3279000 shares | $403009014 | Ownership: D\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-03-31,HARRIS CARLA A,Director,Award/Grant,141,17523,D\n2026-03-31,MEHROTRA SHISHIR,Director,Award/Grant,213,26472,D\n2026-03-31,MORITZ ROBERT EDWARD JR.,Director,Award/Grant,231,28709,D\n2026-03-31,FLYNN TIMOTHY PATRICK,Director,Award/Grant,302,37533,D\n2026-03-31,FRIAR SARAH J,Director,Award/Grant,282,35047,D\n2026-03-31,PENNER GREGORY BOYD,Director,Award/Grant,458,56920,D\n2026-03-31,WALTON STEUART L.,Director,Award/Grant,282,35047,D\n2026-03-31,STEPHENSON RANDALL L,Director,Award/Grant,382,47475,D\n2026-03-31,CONDE CESAR,Director,Award/Grant,231,28709,D\n2026-03-31,NICCOL BRIAN R,Director,Award/Grant,231,28709,D\n2026-03-31,MAYER MARISSA A,Director,Award/Grant,231,28709,D\n2026-03-26,MCMILLON C DOUGLAS,Director,Sale,19416,2391280,D\n2026-03-25,WALTON FAMILY HOLDINGS TRUST,Beneficial Owner of more than 10% of a Class of Security,Sale,3279000,403009014,D\n2026-03-19,FURNER JOHN R,Chief Executive Officer,Sale,13125,1600718,D\n2026-03-17,WALTON STEUART L.,Director,Gift,35000,0,D\n2026-03-16,BARTLETT DANIEL J,Officer,Sale,1325,167328,D\n\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for WMT\n\n### 2026-04-01\n- **Strong Buy**: 14\n- **Buy**: 30\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 91.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 14\n- **Buy**: 31\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 49\n\n**Sentiment**: 91.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 14\n- **Buy**: 32\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 49\n\n**Sentiment**: 93.9% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 15\n- **Buy**: 31\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 95.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for WMT\n\n**Available Expirations:** 17 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 10,329 | 9,081 | 0.879 |\n| Open Interest | 122,777 | 145,971 | 1.189 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Neutral\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-24 | $124.0 | 3,123 | 777 | 4.02x | 25.9% |\n| CALL | 2026-04-17 | $100.0 | 166 | 120 | 1.38x | 165.6% |\n| PUT | 2026-04-17 | $75.0 | 3,000 | 3,010 | 1.0x | 181.3% |\n| PUT | 2026-04-17 | $80.0 | 750 | 753 | 1.0x | 156.3% |\n| PUT | 2026-04-17 | $108.0 | 295 | 357 | 0.83x | 53.1% |\n| CALL | 2026-05-01 | $134.0 | 123 | 155 | 0.79x | 26.8% |\n| PUT | 2026-05-01 | $114.0 | 161 | 204 | 0.79x | 29.7% |\n| PUT | 2026-04-24 | $122.0 | 320 | 415 | 0.77x | 25.7% |\n| CALL | 2026-04-17 | $128.0 | 2,316 | 3,044 | 0.76x | 27.9% |\n| PUT | 2026-05-01 | $118.0 | 726 | 967 | 0.75x | 27.1% |\n\n\n**Upcoming Earnings**: Earnings in 29 days (2026-05-14): EPS Est $0.66, Rev Est $176,375,063,850\n\n### COST (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 9.88 | **Piotroski F-Score**: 6\n- **Price**: $974.25 | **Current Price (numeric)**: 974.25 | **Intraday**: +0.4% | **Avg Volume**: 1,714,554\n- **Short Interest**: 1.4%\n- **Discovery Context**: Analyst initiated: Third View Private Wealth LLC Invests $1.13 Million in Walmart Inc. $WMT\n- **Business**: Costco Wholesale Corporation, together with its subsidiaries, engages in the operation of membership warehouses in the United States, Puerto Rico, Canada, Mexico, Japan, the United Kingdom, Korea, Australia, Taiwan, China, Spain, France, Iceland, New Zealand, and Sweden. It offers merchandise, including sundries, dry groceries, candies, coolers, freezers, deli, liquor, and tobacco; non-food merchandise comprising appliances, small electronics, health and beauty aids, hardware, lawn and garden, sporting goods, tires, toys and seasonal, automotive, stamps, tickets, apparel, furniture, domestics, housewares, special order kiosks, and jewelry; and fresh food, such as meat, produce, service deli, and bakery products. The company is also involved in warehouse ancillary operations, which include gasoline, pharmacies, optical, food courts, hearing-aid centers, and tire installation centers. In addition, it engages in e-commerce, business centers, travel, and other businesses. The company was formerly known as Costco Companies, Inc. and changed its name to Costco Wholesale Corporation in August 1999. Costco Wholesale Corporation was founded in 1976 and is based in Issaquah, Washington.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for COST\n**Date:** 2026-04-15\n**Current Price:** $974.80\n\n## Price Action\n- **Daily Change:** -0.62%\n- **5-Day Change:** -5.38%\n\n## RSI (14)\n- **Value:** 41.9 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 2.858\n- **Signal Line:** 4.958\n- **Histogram:** -2.100 (Strengthening \u2191)\n- **Signal:** BEARISH CROSSOVER \u26a0\ufe0f\n\n## Moving Averages\n- **50 SMA:** $993.95 (-1.9% from price)\n- **200 SMA:** $947.40 (+2.9% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $1032.80\n- **Middle:** $992.69\n- **Lower:** $952.58\n- **Band Position:** 28%\n- **Bandwidth:** 8.1% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $19.00 (1.9% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $946.30 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 35.5\n- **%D:** 56.7\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 18.8 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $997.08 (-2.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** -35.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $993.42\n- **Current vs VWAP:** -1.9%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $1035.82\n- **Recent Low:** $931.27\n- **Next Resistance:** $983.54 (50.0%)\n- **Next Support:** $971.21 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: Sector: Consumer Defensive | Industry: Discount Stores | Valuation: Cap: $432.33B, P/E: 50.73, Fwd P/E: 43.35, P/B: 26.13, P/S: 1.51 | Growth: Rev Growth: 21.5%, Earnings Growth: 45.5% | Profitability: Profit Margin: 3.0%, Oper Margin: 3.7%, ROE: 29.7%, ROA: 8.7% | Dividend: 53.0% yield | Financial Health: Current Ratio: 1.06, D/E: 60.26 | Analyst Target: $1,068 | EPS: $19.20 | Beta: 0.98 | 52W Range: $844.06 - $1067.08\n\n**Insider Transactions**:\n# Insider Transactions for COST\n# Data retrieved on: 2026-04-15 14:32:42\n\n## Summary\n- **Insider Sentiment:** BEARISH \u26a0\ufe0f (significant insider selling)\n- **Sale:** 1 transactions\n- **Total Sales Value:** $695,100\n- **Largest Sale (3mo):** 2026-04-01 | FRATES CATON (Officer) | 700 shares | $695100 | Ownership: D\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-04-01,FRATES CATON,Officer,Sale,700,695100,D\n\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for COST\n\n### 2026-04-01\n- **Strong Buy**: 13\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 44\n\n**Sentiment**: 68.2% Bullish, 2.3% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 13\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 44\n\n**Sentiment**: 68.2% Bullish, 2.3% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 13\n- **Buy**: 17\n- **Hold**: 13\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 44\n\n**Sentiment**: 68.2% Bullish, 2.3% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 13\n- **Buy**: 15\n- **Hold**: 14\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 43\n\n**Sentiment**: 65.1% Bullish, 2.3% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for COST\n\n**Available Expirations:** 19 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 2,930 | 11,253 | 3.841 |\n| Open Interest | 34,758 | 53,425 | 1.537 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Bearish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-24 | $750.0 | 806 | 164 | 4.91x | 92.9% |\n| PUT | 2026-04-24 | $770.0 | 598 | 133 | 4.5x | 85.1% |\n| PUT | 2026-04-17 | $805.0 | 799 | 275 | 2.91x | 104.4% |\n| PUT | 2026-04-17 | $905.0 | 392 | 212 | 1.85x | 46.9% |\n| PUT | 2026-04-17 | $825.0 | 161 | 95 | 1.69x | 62.5% |\n| PUT | 2026-04-24 | $580.0 | 274 | 190 | 1.44x | 166.7% |\n| PUT | 2026-04-24 | $980.0 | 164 | 119 | 1.38x | 22.5% |\n| PUT | 2026-04-24 | $590.0 | 530 | 433 | 1.22x | 107.8% |\n| PUT | 2026-04-24 | $610.0 | 275 | 248 | 1.11x | 152.4% |\n| PUT | 2026-05-01 | $940.0 | 200 | 187 | 1.07x | 22.9% |\n\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### TGT (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 30/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 2.99 | **Piotroski F-Score**: 6\n- **Price**: $119.69 | **Current Price (numeric)**: 119.69000244140625 | **Intraday**: -0.0% | **Avg Volume**: 4,049,326\n- **Short Interest**: 4.2%\n- **Discovery Context**: Analyst initiated: Third View Private Wealth LLC Invests $1.13 Million in Walmart Inc. $WMT | \ud83c\udfaf Unusual bullish options flow: 3 unusual calls vs 1 puts, P/C ratio: 0.455\n- **Business**: Target Corporation operates as a general merchandise retailer in the United States. It offers apparel for women, men, young adults, kids, toddlers, and babies, as well as jewelry, accessories, and shoes; and beauty products, such as skin and bath care, cosmetics, hair care, oral care, deodorant, and shaving products. The company also provides food and beverage products comprising dry and perishable grocery, including snacks, candy, beverages, deli, bakery, meat, produce, and food service; electronics which includes video games and consoles, toys, sporting goods, entertainment, and luggage; bed and bath, home d\u00e9cor, school/office supplies, storage, small appliances, kitchenware, greeting cards, party supplies, furniture, lighting, home improvement, and seasonal merchandise; and household essentials, such as household cleaning, paper products, over-the-counter healthcare, vitamins and supplements, baby gear, and pet supplies. In addition, it sells merchandise through periodic design and creative partnerships, and shop-in-shop experience; and in-store amenities. The company sells its products through its stores; and digital channels, including Target.com. Target Corporation was incorporated in 1902 and is headquartered in Minneapolis, Minnesota.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for TGT\n**Date:** 2026-04-15\n**Current Price:** $119.53\n\n## Price Action\n- **Daily Change:** +1.40%\n- **5-Day Change:** -2.92%\n\n## RSI (14)\n- **Value:** 52.1 \u2193\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 1.404\n- **Signal Line:** 1.565\n- **Histogram:** -0.161 (Strengthening \u2191)\n- **Signal:** BEARISH CROSSOVER \u26a0\ufe0f\n\n## Moving Averages\n- **50 SMA:** $116.83 (+2.3% from price)\n- **200 SMA:** $100.31 (+19.2% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $124.80\n- **Middle:** $118.63\n- **Lower:** $112.46\n- **Band Position:** 57%\n- **Bandwidth:** 10.4% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $3.23 (2.7% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $114.68 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 48.5\n- **%D:** 64.2\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 13.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $119.34 (+0.2% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 84.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $117.76\n- **Current vs VWAP:** +1.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $126.00\n- **Recent Low:** $102.64\n- **Next Resistance:** $120.49 (23.6%)\n- **Next Support:** $117.08 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: Sector: Consumer Defensive | Industry: Discount Stores | Valuation: Cap: $54.20B, P/E: 14.72, Fwd P/E: 14.06, P/B: 3.35, P/S: 0.52 | Growth: Rev Growth: -1.5%, Earnings Growth: -5.0% | Profitability: Profit Margin: 3.5%, Oper Margin: 4.9%, ROE: 24.0%, ROA: 5.3% | Dividend: 381.0% yield | Financial Health: Current Ratio: 0.94, D/E: 125.52 | Analyst Target: $125 | EPS: $8.13 | Beta: 1.03 | 52W Range: $83.44 - $126.00\n\n**Insider Transactions**:\n# Insider Transactions for TGT\n# Data retrieved on: 2026-04-15 14:32:54\n\n## Summary\n- **Insider Sentiment:** BEARISH \u26a0\ufe0f (significant insider selling)\n- **Award/Grant:** 8 transactions\n- **Sale:** 1 transactions\n- **Total Sales Value:** $240,593\n- **Largest Sale (3mo):** 2026-03-17 | LIEGEL MATTHEW A (Officer) | 2053 shares | $240593 | Ownership: D\n\n## Transaction Details\n\nStart Date,Insider,Position,Transaction,Shares,Value,Ownership\n2026-04-07,KREMER MELISSA K,Officer,Award/Grant,7259,0,D\n2026-04-07,FIDDELKE MICHAEL J.,Officer,Award/Grant,11250,0,D\n2026-04-07,SYLVESTER CARA A,Officer,Award/Grant,5809,0,D\n2026-04-07,VEMANA PRATABKUMAR,Officer,Award/Grant,3634,0,D\n2026-04-07,LIEGEL MATTHEW A,Officer,Award/Grant,1337,0,D\n2026-04-07,ROATH LISA R,Officer,Award/Grant,2443,0,D\n2026-04-07,CORNELL BRIAN C,Officer and Director,Award/Grant,50777,0,D\n2026-04-01,BRATSPIES STEPHEN B.,Director,Award/Grant,1791,0,D\n2026-03-17,LIEGEL MATTHEW A,Officer,Sale,2053,240593,D\n\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for TGT\n\n### 2026-04-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 25\n- **Sell**: 3\n- **Strong Sell**: 0\n- **Total Analysts**: 43\n\n**Sentiment**: 34.9% Bullish, 7.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 24\n- **Sell**: 4\n- **Strong Sell**: 1\n- **Total Analysts**: 44\n\n**Sentiment**: 34.1% Bullish, 11.4% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 24\n- **Sell**: 4\n- **Strong Sell**: 1\n- **Total Analysts**: 44\n\n**Sentiment**: 34.1% Bullish, 11.4% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 23\n- **Sell**: 4\n- **Strong Sell**: 2\n- **Total Analysts**: 43\n\n**Sentiment**: 32.6% Bullish, 14.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for TGT\n\n**Available Expirations:** 19 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 5,201 | 2,369 | 0.455 |\n| Open Interest | 36,603 | 31,480 | 0.86 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bullish (more call volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-17 | $123.0 | 3,304 | 537 | 6.15x | 26.9% |\n| CALL | 2026-05-01 | $116.0 | 154 | 162 | 0.95x | 44.2% |\n| CALL | 2026-05-01 | $118.0 | 103 | 114 | 0.9x | 41.7% |\n| PUT | 2026-04-17 | $118.0 | 207 | 298 | 0.69x | 40.1% |\n\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### V (Priority: MEDIUM)\n- **Strategy Match**: volume_divergence\n- **Sources**: obv_divergence | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 7.33 | **Piotroski F-Score**: 6\n- **Price**: $312.64 | **Current Price (numeric)**: 312.6400146484375 | **Intraday**: -0.1% | **Avg Volume**: 5,210,931\n- **Short Interest**: 1.4%\n- **Discovery Context**: OBV divergence: price +1.4% over 20d, OBV +32.2% of avg vol \u2014 multi-week accumulation signal\n- **Business**: Visa Inc. operates as a payment technology company in the United States and internationally. The company operates VisaNet, a transaction processing network that enables authorization, clearing, and settlement of payment transactions. It also offers credit, debit, and prepaid card products; tap to pay, tokenization, and click to pay services; Visa Direct, a platform which facilitates money movement, enabling clients to collect, hold, convert, and send funds across its network; and issuing solutions, such as airport lounge access, dining reservations, shopping experiences, event tickets, and seller offers. In addition, the company provides acceptance solutions, an omnichannel payment integration with e-commerce platforms; risk detection and prevention solutions; and advisory and other services comprising consulting practice, proprietary analytics models, data scientists and economists, marketing services, and managed services. It provides its services under the Visa, Visa Electron, V PAY, Interlink, and PLUS brands. The company serves consumers, sellers, financial institutions, and government entities. Visa Inc. was founded in 1958 and is headquartered in San Francisco, California.\n- **News**: Launched a validator node on Stripe's Tempo blockchain for stablecoin settlement and partnered with fintech Neat to embed AI services into cards.\n\n**Technical Analysis**:\n# Technical Analysis for V\n**Date:** 2026-04-15\n**Current Price:** $311.37\n\n## Price Action\n- **Daily Change:** +0.64%\n- **5-Day Change:** +0.78%\n\n## RSI (14)\n- **Value:** 54.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -1.258\n- **Signal Line:** -2.986\n- **Histogram:** 1.728 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $312.96 (-0.5% from price)\n- **200 SMA:** $334.13 (-6.8% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $312.00\n- **Middle:** $303.62\n- **Lower:** $295.24\n- **Band Position:** 96%\n- **Bandwidth:** 5.5% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $6.46 (2.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $301.68 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 82.0\n- **%D:** 71.1\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 14.2 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $306.33 (+1.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -26.4M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $303.17\n- **Current vs VWAP:** +2.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $336.90\n- **Recent Low:** $293.89\n- **Next Resistance:** $315.39 (50.0%)\n- **Next Support:** $310.32 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: Sector: Financial Services | Industry: Credit Services | Valuation: Cap: $602.90B, P/E: 29.36, Fwd P/E: 21.50, P/B: 15.61, P/S: 14.57 | Growth: Rev Growth: 14.6%, Earnings Growth: 17.4% | Profitability: Profit Margin: 50.2%, Oper Margin: 68.3%, ROE: 54.0%, ROA: 18.4% | Dividend: 86.0% yield | Financial Health: Current Ratio: 1.11, D/E: 54.61 | Analyst Target: $395 | EPS: $10.65 | Beta: 0.80 | 52W Range: $293.89 - $375.51\n\n**Insider Transactions**:\nNo insider transactions found for V in the last 3 months.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for V\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 31\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 46\n\n**Sentiment**: 91.3% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 13\n- **Buy**: 31\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 91.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 13\n- **Buy**: 29\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 48\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 13\n- **Buy**: 28\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 47\n\n**Sentiment**: 87.2% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for V\n\n**Available Expirations:** 18 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 3,795 | 2,716 | 0.716 |\n| Open Interest | 39,920 | 28,748 | 0.72 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Neutral\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-24 | $280.0 | 116 | 13 | 8.92x | 62.2% |\n| CALL | 2026-04-17 | $270.0 | 118 | 19 | 6.21x | 90.5% |\n| PUT | 2026-04-24 | $190.0 | 762 | 153 | 4.98x | 170.6% |\n| PUT | 2026-04-17 | $317.5 | 104 | 34 | 3.06x | 32.6% |\n| PUT | 2026-04-17 | $220.0 | 123 | 78 | 1.58x | 231.5% |\n| CALL | 2026-04-17 | $480.0 | 124 | 125 | 0.99x | 253.2% |\n| CALL | 2026-05-01 | $365.0 | 104 | 166 | 0.63x | 37.0% |\n\n\n**Upcoming Earnings**: Earnings in 13 days (2026-04-28): EPS Est $3.16, Rev Est $10,952,960,154\n\n### SEE (Priority: MEDIUM)\n- **Strategy Match**: volume_divergence\n- **Sources**: obv_divergence | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 35/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 1.93 | **Piotroski F-Score**: 5\n- **Price**: $42.15 | **Current Price (numeric)**: 42.15 | **Intraday**: +0.0% | **Avg Volume**: 3,048,100\n- **Short Interest**: 10.3%\n- **Discovery Context**: OBV divergence: price +0.9% over 20d, OBV +25.8% of avg vol \u2014 multi-week accumulation signal | \ud83c\udfaf Unusual bullish options flow: 1 unusual calls vs 0 puts, P/C ratio: 0.475\n- **Business**: Sealed Air Corporation provides packaging solutions in the United States, Europe, the Middle East, Africa, and Asia Pacific. It operates through two segments: Food and Protective. The Food segment offers integrated packaging materials and automation equipment solutions for food safety, extending shelf life, reducing food waste, automate processes, and optimize total cost to industrial food processors in fresh red meat, poultry, smoked and processed meats, seafood, fluids and liquids, cheese, and other food markets. This segment also provides barrier bags and pouches, film, and trays under the CRYOVAC, CRYOVAC Grip & Tear, CRYOVAC Darfresh, LIQUIBOX, Optidure, and Simple Steps brand names through sales, marketing, and customer service personnel. The Protective segment provides inflatable packaging, performance shrink films, bagging systems, polyurethane foam packaging solutions, and suspension and retention packaging to protect goods to e-commerce, consumer goods, pharmaceutical and medical devices, and industrial manufacturing markets under the SEALED AIR, BUBBLE WRAP, AUTOBAG, Instapak, and Korrvu brands. This segment sells its products through distributors, as well as directly to fabricators, original equipment manufacturers, contract manufacturers, logistics partners, and e-commerce/fulfillment operations. Sealed Air Corporation was incorporated in 1960 and is headquartered in Charlotte, North Carolina.\n- **News**: No news reported for the period of April 14-15, 2026.\n\n**Technical Analysis**:\n# Technical Analysis for SEE\n**Date:** 2026-04-15\n**Current Price:** $42.15\n\n## Price Action\n- **Daily Change:** +0.00%\n- **5-Day Change:** +0.17%\n\n## RSI (14)\n- **Value:** 69.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.104\n- **Signal Line:** 0.092\n- **Histogram:** 0.012 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $41.82 (+0.8% from price)\n- **200 SMA:** $37.09 (+13.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $42.24\n- **Middle:** $41.97\n- **Lower:** $41.70\n- **Band Position:** 84%\n- **Bandwidth:** 1.3% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $0.09 (0.2% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $42.02 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 95.9\n- **%D:** 91.9\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 24.8 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $41.99 (+0.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 43.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $41.97\n- **Current vs VWAP:** +0.4%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $42.15\n- **Recent Low:** $41.55\n- **Next Support:** $42.01 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: Sector: Consumer Cyclical | Industry: Packaging & Containers | Valuation: Cap: $6.21B, P/E: 14.10, Fwd P/E: 11.33, P/B: 5.02, P/S: 1.16 | Growth: Rev Growth: 2.1% | Profitability: Profit Margin: 9.4%, Oper Margin: 11.5%, ROE: 47.4%, ROA: 7.0% | Dividend: 190.0% yield | Financial Health: Current Ratio: 0.91, D/E: 331.32 | Analyst Target: $46 | EPS: $2.99 | Beta: 1.30 | 52W Range: $25.56 - $44.27\n\n**Insider Transactions**:\nNo insider transactions found for SEE in the last 3 months.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for SEE\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 15\n\n**Sentiment**: 46.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 41.2% Bullish, 5.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 41.2% Bullish, 5.9% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 41.2% Bullish, 5.9% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for SEE\n\n**Available Expirations:** 4 dates\n**Analyzing:** 2026-04-17, 2026-05-15, 2026-07-17\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 402 | 191 | 0.475 |\n| Open Interest | 47,939 | 3,348 | 0.07 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bullish (more call volume)\n- **OI P/C Ratio:** Bullish positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| CALL | 2026-04-17 | $40.0 | 116 | 199 | 0.58x | 0.0% |\n\n\n**Upcoming Earnings**: Earnings in 19 days (2026-05-04): EPS Est $0.82, Rev Est $1,303,519,130\n\n### RACE (Priority: MEDIUM)\n- **Strategy Match**: social_dd\n- **Sources**: reddit_dd | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: 9.09 | **Piotroski F-Score**: 9\n- **Price**: $356.06 | **Current Price (numeric)**: 356.05999755859375 | **Intraday**: -0.2% | **Avg Volume**: 553,150\n- **Short Interest**: 3.2%\n- **Discovery Context**: Reddit DD (score: 75/100): 160k Month, in the options account. Consistent 30k weeks, even through the war dip. Calls only, ever\n- **Business**: Ferrari N.V., through its subsidiaries, engages in design, engineering, production, and sale of luxury performance sports cars worldwide. It offers sports, track, one-off, and road cars, as well as supercars. The company also provides spare parts and engines, as well as after sales, repair, maintenance, and restoration services for cars; and licenses its Ferrari brand to various producers and retailers of luxury and lifestyle goods. In addition, it operates Ferrari museums in Modena and Maranello; Il Cavallino restaurant in Maranello; and theme parks in Abu Dhabi and Spain. Further, the company provides direct or indirect finance and leasing services; range of financial and ancillary services; special financing arrangements; and operates franchised and owned Ferrari stores. The company was founded in 1947 and is headquartered in Maranello, Italy.\n- **News**: Shareholders approved a cash dividend of \u20ac3.615 per share and authorized the repurchase of up to 10% of company capital during the Annual General Meeting.\n\n**Technical Analysis**:\n# Technical Analysis for RACE\n**Date:** 2026-04-15\n**Current Price:** $358.13\n\n## Price Action\n- **Daily Change:** +0.84%\n- **5-Day Change:** +1.94%\n\n## RSI (14)\n- **Value:** 61.2 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 2.402\n- **Signal Line:** -1.685\n- **Histogram:** 4.087 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $348.04 (+2.9% from price)\n- **200 SMA:** $408.61 (-12.4% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $362.04\n- **Middle:** $335.33\n- **Lower:** $308.61\n- **Band Position:** 93%\n- **Bandwidth:** 15.9% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $10.00 (2.8% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $343.13 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 78.9\n- **%D:** 73.8\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.1 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $342.98 (+4.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -5.9M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $334.73\n- **Current vs VWAP:** +7.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $393.50\n- **Recent Low:** $312.51\n- **Next Resistance:** $362.56 (38.2%)\n- **Next Support:** $353.01 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: Sector: Consumer Cyclical | Industry: Auto Manufacturers | Valuation: Cap: $63.26B, P/E: 34.05, Fwd P/E: 28.37, P/B: 13.96, P/S: 8.85 | Growth: Rev Growth: 3.8%, Earnings Growth: -0.2% | Profitability: Profit Margin: 22.3%, Oper Margin: 28.6%, ROE: 42.9%, ROA: 13.8% | Dividend: 120.0% yield | Financial Health: Current Ratio: 2.30, D/E: 73.68 | Analyst Target: $451 | EPS: $10.46 | Beta: 0.60 | 52W Range: $312.51 - $519.10\n\n**Insider Transactions**:\nNo insider transactions data found for symbol 'RACE'\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for RACE\n\n### 2026-04-01\n- **Strong Buy**: 7\n- **Buy**: 11\n- **Hold**: 7\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 27\n\n**Sentiment**: 66.7% Bullish, 7.4% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 11\n- **Hold**: 8\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 27\n\n**Sentiment**: 63.0% Bullish, 7.4% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 11\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 1\n- **Total Analysts**: 27\n\n**Sentiment**: 63.0% Bullish, 7.4% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 5\n- **Buy**: 10\n- **Hold**: 7\n- **Sell**: 1\n- **Strong Sell**: 1\n- **Total Analysts**: 24\n\n**Sentiment**: 62.5% Bullish, 8.3% Bearish\n\n\n\n**Options Activity**:\n## Options Activity for RACE\n\n**Available Expirations:** 14 dates\n**Analyzing:** 2026-04-17, 2026-04-24, 2026-05-01\n\n### Summary\n| Metric | Calls | Puts | Put/Call Ratio |\n|--------|-------|------|----------------|\n| Volume | 253 | 3,381 | 13.364 |\n| Open Interest | 2,503 | 3,012 | 1.203 |\n\n### Sentiment Analysis\n- **Volume P/C Ratio:** Bearish (more put volume)\n- **OI P/C Ratio:** Neutral positioning\n\n### Unusual Activity (High Volume vs Open Interest)\n| Type | Expiry | Strike | Volume | OI | Vol/OI | IV |\n|------|--------|--------|--------|----|---------|----|---|\n| PUT | 2026-04-17 | $400.0 | 1,540 | 187 | 8.24x | 79.5% |\n\n\n**Upcoming Earnings**: Earnings in 20 days (2026-05-05): EPS Est $2.28, Rev Est $1,827,378,623\n\n\nRANKING INSTRUCTIONS:\n1. Evaluate each candidate through the lens of its specific strategy (see criteria above).\n2. Cross-reference the strategy signal with Technicals, Fundamentals, and Options data for confirmation.\n3. Use the Quantitative Pre-Score as an objective baseline \u2014 scores above 50 indicate strong multi-factor alignment.\n4. The ML Win Probability is a trained model's estimate of hitting +5.0% within 7 days. Treat >60% as strong confirmation, >70% as very strong.\n5. Prioritize LEADING indicators (Insider Buying, Pre-Earnings Accumulation, Options Flow) over lagging ones (momentum chasing, social hype).\n6. Penalize contradictory signals: e.g., bullish options but heavy insider SELLING, or strong momentum but overbought RSI with declining volume.\n7. Use ONLY the information provided in the candidates section. Do NOT invent catalysts, prices, or metrics that are not explicitly stated.\n8. If a data field is missing, note it as N/A \u2014 do not fabricate values.\n9. Only rank tickers from the candidates list.\n10. Each reason MUST cite at least two specific data points from the candidate context (e.g., \"P/C ratio of 0.02\", \"Director purchased $5.2M\").\n\nOUTPUT FORMAT \u2014 JSON object with a 'rankings' list. Each item:\n- rank: sequential from 1\n- ticker: stock symbol (must be from candidate list)\n- company_name: company name\n- current_price: numeric price from candidate data\n- strategy_match: the candidate's strategy (use the value from the candidate, do not change it)\n- final_score: 0-100 (your holistic assessment: 65+ = included, 80+ = high conviction, 90+ = exceptional)\n- confidence: 1-10 (how confident are you in THIS specific trade)\n- risk_level: one of \"low\", \"moderate\", \"high\", \"speculative\"\n- reason: Investment thesis in 4-6 sentences. Structure: (1) What is the edge/catalyst, (2) Why NOW \u2014 what makes the timing urgent, (3) Risk/reward profile, (4) Key risk or what could invalidate the thesis. Cite specific numbers.\n- description: One-sentence company description\n\nIMPORTANT: Return ONLY valid JSON. No markdown wrapping, no commentary outside the JSON. All numeric fields must be numbers, not strings.",
+    "prompt_length": 73088,
+    "output": "{\n  \"rankings\": [\n    {\n      \"rank\": 1,\n      \"ticker\": \"SEE\",\n      \"company_name\": \"Sealed Air Corporation\",\n      \"current_price\": 42.15,\n      \"strategy_match\": \"volume_divergence\",\n      \"final_score\": 75,\n      \"confidence\": 8,\n      \"risk_level\": \"low\",\n      \"reason\": \"The primary edge is a strong OBV divergence signaling multi-week institutional accumulation, corroborated by a highly bullish options P/C ratio of 0.475. Timing is urgent as the stock is exhibiting extreme volatility contraction (Bollinger Bandwidth of 1.3%) while holding above the 50 SMA at $41.82, a classic precursor to an explosive breakout. The risk/reward profile is highly favorable with a tight structural stop-loss available, while a 10.3% short interest provides latent fuel for a potential squeeze. The key risk is the RSI at 69.8, indicating the stock is nearing overbought levels and must break out on strong volume to avoid immediate rejection.\",\n      \"description\": \"Sealed Air Corporation provides packaging solutions in the United States, Europe, the Middle East, Africa, and Asia Pacific.\"\n    },\n    {\n      \"rank\": 2,\n      \"ticker\": \"V\",\n      \"company_name\": \"Visa Inc.\",\n      \"current_price\": 312.6400146484375,\n      \"strategy_match\": \"volume_divergence\",\n      \"final_score\": 68,\n      \"confidence\": 6,\n      \"risk_level\": \"moderate\",\n      \"reason\": \"The setup offers a compelling accumulation edge, with OBV rising by 32.2% of average volume despite flat price action, backed by highly unusual ITM call buying where the 280 strike traded at 8.92x open interest. The timing is supported by a fresh MACD bullish crossover and price action pushing against the upper Bollinger Band. This creates an attractive risk/reward scenario anchored by elite fundamentals (54.0% ROE, 7.33 Altman Z-Score) as it attempts a trend reversal. The primary risk is technical overhead, as the broader trend remains bearish and failure to decisively reclaim the 50 SMA at $312.96 would invalidate the upside thesis",
+    "output_length": 2000,
+    "error": ""
+  }
+]
