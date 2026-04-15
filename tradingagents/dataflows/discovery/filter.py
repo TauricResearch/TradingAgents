@@ -420,58 +420,6 @@ class CandidateFilter:
             logger.warning(f"Batch news fetch failed, will skip news enrichment: {e}")
             return {}
 
-    def _fetch_batch_prices(self, candidates: List[Dict[str, Any]]) -> Dict[str, float]:
-        """Batch-fetch current prices for all candidates in one request.
-
-        This avoids per-ticker yfinance calls that get rate-limited after
-        bulk downloads (e.g., ml_signal scanning 500+ tickers).
-        """
-        tickers = [c.get("ticker", "").upper() for c in candidates if c.get("ticker")]
-        if not tickers:
-            return {}
-
-        try:
-            import yfinance as yf
-
-            logger.info(f"💰 Batch fetching prices for {len(tickers)} tickers...")
-            # Call yf.download directly — the download_history wrapper only accepts
-            # a single string (calls symbol.upper()), but yf.download handles lists.
-            data = yf.download(
-                tickers,
-                period="5d",
-                interval="1d",
-                auto_adjust=True,
-                progress=False,
-            )
-
-            if data is None or data.empty:
-                logger.warning("Batch price download returned empty data")
-                return {}
-
-            prices = {}
-            if isinstance(data.columns, pd.MultiIndex):
-                available = data.columns.get_level_values(1).unique()
-                for ticker in tickers:
-                    try:
-                        if ticker in available:
-                            close = data.xs(ticker, axis=1, level=1)["Close"].dropna()
-                            if not close.empty:
-                                prices[ticker] = float(close.iloc[-1])
-                    except Exception:
-                        continue
-            else:
-                # Single ticker case
-                close = data["Close"].dropna()
-                if not close.empty and len(tickers) == 1:
-                    prices[tickers[0]] = float(close.iloc[-1])
-
-            logger.info(f"✓ Batch prices fetched for {len(prices)}/{len(tickers)} tickers")
-            return prices
-
-        except Exception as e:
-            logger.warning(f"Batch price fetch failed, will fall back to per-ticker: {e}")
-            return {}
-
     def _filter_and_enrich_candidates(
         self,
         state: Dict[str, Any],
