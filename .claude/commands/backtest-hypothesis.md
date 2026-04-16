@@ -4,7 +4,27 @@ Test a hypothesis about a scanner improvement using branch-per-hypothesis isolat
 
 **Usage:** `/backtest-hypothesis "<description of the hypothesis>"`
 
+If called with **no argument**, execute Step 0 (auto-propose) before continuing.
+
 **Example:** `/backtest-hypothesis "options_flow: scan 3 expirations instead of 1 to capture institutional 30+ DTE positioning"`
+
+---
+
+## Step 0: Auto-Propose (no argument only)
+
+If no hypothesis description was provided, derive one from the knowledge base:
+
+1. Read `docs/iterations/LEARNINGS.md` — note scanners with low win rates, flagged weaknesses, or "no data yet"
+2. Read each scanner domain file in `docs/iterations/scanners/` that has data
+3. Read each research file in `docs/iterations/research/`
+4. Read `docs/iterations/hypotheses/active.json` — note what is already being tested so you don't duplicate
+
+Identify the **single best untested hypothesis** using this priority order:
+- Scanner with lowest 7d win rate that has a clear, actionable fix
+- Research paper finding that is implemented but has a tunable parameter not yet tested
+- Scanner with "No data yet" that has been running long enough to have picks
+
+Propose the hypothesis to the user in one sentence: what scanner, what change, why. Ask for confirmation before proceeding. If they confirm, use that as the hypothesis description and continue to Step 1.
 
 ---
 
