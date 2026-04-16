@@ -99,6 +99,20 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "minimax": {
+        "quick": [
+            ("MiniMax-M2.7", "MiniMax-M2.7"),
+            ("MiniMax-M2.7-highspeed", "MiniMax-M2.7-highspeed"),
+            ("MiniMax-M2.5", "MiniMax-M2.5"),
+            ("MiniMax-M2.5-highspeed", "MiniMax-M2.5-highspeed"),
+        ],
+        "deep": [
+            ("MiniMax-M2.7", "MiniMax-M2.7"),
+            ("MiniMax-M2.7-highspeed", "MiniMax-M2.7-highspeed"),
+            ("MiniMax-M2.5", "MiniMax-M2.5"),
+            ("MiniMax-M2.5-highspeed", "MiniMax-M2.5-highspeed"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [

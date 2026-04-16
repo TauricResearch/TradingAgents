@@ -1,10 +1,17 @@
 import os
+import time
+import logging
 from typing import Any, Optional
 
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
+
+logger = logging.getLogger(__name__)
+
+_NULL_CHOICES_RETRIES = 3
+_NULL_CHOICES_DELAY = 2  # seconds
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -16,7 +23,28 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        for attempt in range(1, _NULL_CHOICES_RETRIES + 1):
+            try:
+                return normalize_content(super().invoke(input, config, **kwargs))
+            except TypeError as e:
+                if "null value for 'choices'" in str(e):
+                    if attempt < _NULL_CHOICES_RETRIES:
+                        logger.warning(
+                            "Received null choices from API (content filter or transient error). "
+                            "Retrying in %ds (attempt %d/%d)...",
+                            _NULL_CHOICES_DELAY,
+                            attempt,
+                            _NULL_CHOICES_RETRIES,
+                        )
+                        time.sleep(_NULL_CHOICES_DELAY)
+                    else:
+                        raise RuntimeError(
+                            "API returned null choices after retries. "
+                            "The request may have been blocked by content moderation. "
+                            "Try rephrasing the prompt or check the provider's content policy."
+                        ) from e
+                else:
+                    raise
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
@@ -32,6 +60,7 @@ _PROVIDER_CONFIG = {
     "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
+    "minimax": ("https://api.minimaxi.chat/v1", "MINIMAX_API_KEY"),
 }
 
 

@@ -8,7 +8,7 @@ from .azure_client import AzureOpenAIClient
 
 # Providers that use the OpenAI-compatible chat completions API
 _OPENAI_COMPATIBLE = (
-    "openai", "xai", "deepseek", "qwen", "glm", "ollama", "openrouter",
+    "openai", "xai", "deepseek", "qwen", "glm", "ollama", "openrouter", "minimax",
 )
 
 
