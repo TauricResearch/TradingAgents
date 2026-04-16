@@ -565,26 +565,45 @@ class LangGraphEngine:
         final_state: Dict[str, Any] = {}
         captured_root_state = False
 
-        try:
-            async for event in scanner.graph.astream_events(
-                initial_state, version="v2", config={"callbacks": [rl.callback]}
-            ):
-                if run_should_stop(root_run_id):
-                    logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
-                    yield system_log("Aborting macro scan due to graceful stop request.")
-                    raise asyncio.CancelledError()
+        # Hard ceiling for the full scan.  A LangGraph fan-in deadlock (e.g. one
+        # Phase-1a scanner returning an empty report) causes astream_events to hang
+        # indefinitely without raising an exception.  The timeout converts that silent
+        # hang into a RuntimeError so _run_and_store marks the run "failed" and
+        # persists run_meta.json — rather than leaving it stuck at "running" forever.
+        _scan_timeout = float(self.config.get("scan_timeout_seconds") or 1800)  # 30 min
 
-                # Capture the complete final state from the root graph's terminal event.
-                # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
-                # langgraph_node in metadata) whose data.output is the full accumulated state.
-                if is_root_chain_end(event):
-                    output = (event.get("data") or {}).get("output")
-                    if isinstance(output, dict):
-                        captured_root_state = True
-                        final_state = output
-                mapped = self._event_mapper.map_event(execution_key, event)
-                if mapped:
-                    yield mapped
+        try:
+            try:
+                async with asyncio.timeout(_scan_timeout):
+                    async for event in scanner.graph.astream_events(
+                        initial_state, version="v2", config={"callbacks": [rl.callback]}
+                    ):
+                        if run_should_stop(root_run_id):
+                            logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
+                            yield system_log("Aborting macro scan due to graceful stop request.")
+                            raise asyncio.CancelledError()
+
+                        # Capture the complete final state from the root graph's terminal event.
+                        # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
+                        # langgraph_node in metadata) whose data.output is the full
+                        # accumulated state.
+                        if is_root_chain_end(event):
+                            output = (event.get("data") or {}).get("output")
+                            if isinstance(output, dict):
+                                captured_root_state = True
+                                final_state = output
+                        mapped = self._event_mapper.map_event(execution_key, event)
+                        if mapped:
+                            yield mapped
+            except asyncio.TimeoutError:
+                msg = (
+                    f"Macro scan timed out after {_scan_timeout:.0f}s — "
+                    "likely a LangGraph fan-in deadlock caused by a scanner node "
+                    "returning an empty report. Resume from the last completed Phase-1a node."
+                )
+                logger.error("SCAN run=%s: %s", root_run_id, msg)
+                yield system_log(f"Error: {msg}")
+                raise RuntimeError(msg)
 
             if not captured_root_state:
                 message = (
@@ -701,18 +720,30 @@ class LangGraphEngine:
         final_state: Dict[str, Any] = {}
         captured_root_state = False
 
+        _scan_timeout = float(self.config.get("scan_timeout_seconds") or 1800)  # 30 min
+
         try:
-            async for event in graph.astream_events(
-                seeded_state, version="v2", config={"callbacks": [rl.callback]}
-            ):
-                if is_root_chain_end(event):
-                    output = (event.get("data") or {}).get("output")
-                    if isinstance(output, dict):
-                        captured_root_state = True
-                        final_state = output
-                mapped = self._event_mapper.map_event(execution_key, event)
-                if mapped:
-                    yield mapped
+            try:
+                async with asyncio.timeout(_scan_timeout):
+                    async for event in graph.astream_events(
+                        seeded_state, version="v2", config={"callbacks": [rl.callback]}
+                    ):
+                        if is_root_chain_end(event):
+                            output = (event.get("data") or {}).get("output")
+                            if isinstance(output, dict):
+                                captured_root_state = True
+                                final_state = output
+                        mapped = self._event_mapper.map_event(execution_key, event)
+                        if mapped:
+                            yield mapped
+            except asyncio.TimeoutError:
+                msg = (
+                    f"Scan rerun from {start_node} timed out after {_scan_timeout:.0f}s — "
+                    "likely a LangGraph fan-in deadlock. Resume from an earlier completed node."
+                )
+                logger.error("SCAN rerun run=%s: %s", root_run_id, msg)
+                yield system_log(f"Error: {msg}")
+                raise RuntimeError(msg)
 
             if not captured_root_state:
                 message = f"Scan continuation from {start_node} for {date} completed without a root final state."

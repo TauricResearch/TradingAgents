@@ -240,6 +240,7 @@ agent_os/frontend/dist/
 .codex/
 .vscode/
 .idea/
+.agent/
 docs/scratch/
 
 

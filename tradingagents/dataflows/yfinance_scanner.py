@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Annotated
+import threading
 
 import requests
 import yfinance as yf
@@ -13,6 +14,46 @@ from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import YFinanceError
 
 logger = logging.getLogger(__name__)
+
+# ── Session warmup ────────────────────────────────────────────────────────────
+# Yahoo Finance's EquityQuery screener endpoint requires an authenticated
+# session (A3 cookie + crumb).  yfinance caches the cookie on disk, but in a
+# cold process the first `yf.screen()` call can race before the cookie is
+# loaded into the session, causing a transient HTTP 401.
+#
+# _ensure_yfinance_session_warm() fetches the cookie+crumb exactly once per
+# process (guarded by a threading.Event so parallel scanner threads don't
+# compete) and must be called before any EquityQuery screener call.
+
+_session_warm_event = threading.Event()
+_session_warm_lock = threading.Lock()
+
+
+def _ensure_yfinance_session_warm(timeout: float = 15.0) -> None:
+    """Pre-fetch the Yahoo Finance cookie+crumb once per process.
+
+    Subsequent calls return immediately because the Event is already set.
+    Safe to call from multiple threads simultaneously.
+    """
+    if _session_warm_event.is_set():
+        return
+
+    with _session_warm_lock:
+        # Double-checked locking: another thread may have warmed while we waited
+        if _session_warm_event.is_set():
+            return
+        try:
+            import yfinance.data as _yfdata
+            _shared = _yfdata.YfData()
+            _shared._get_cookie_and_crumb(timeout=timeout)
+            logger.debug("yfinance session warmed (cookie+crumb fetched).")
+        except Exception as exc:
+            # Non-fatal: the screener call itself will attempt a lazy warm-up;
+            # log and continue — the retry logic in get_gatekeeper_universe_yfinance
+            # will handle any resulting 401.
+            logger.warning("yfinance session pre-warm failed (%s: %s); continuing.", type(exc).__name__, exc)
+        finally:
+            _session_warm_event.set()
 
 
 def get_market_movers_yfinance(
@@ -220,38 +261,28 @@ def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
     - average daily volume (3M) > 2M
     - price > $5
 
+    Resilience:
+    - Retries the custom EquityQuery up to _MAX_RETRIES times with exponential
+      backoff to handle transient 401 / session-expiry errors from Yahoo Finance.
+    - If all retries are exhausted, falls back to the predefined 'most_actives'
+      screener (MCap >= $2B, dayvolume > 5M) so the scanner produces real data
+      rather than failing the entire run.
+
     Returns:
         Markdown table of the gatekeeper universe candidates.
     """
-    try:
-        query = EquityQuery(
-            "and",
-            [
-                EquityQuery("is-in", ["exchange", "NMS", "NYQ", "ASE"]),
-                EquityQuery("gte", ["intradaymarketcap", 2_000_000_000]),
-                EquityQuery("gt", ["netincomemargin.lasttwelvemonths", 0]),
-                EquityQuery("gt", ["avgdailyvol3m", 2_000_000]),
-                EquityQuery("gt", ["intradayprice", 5]),
-            ],
-        )
+    import time
 
-        data = yf.screen(query, size=max(limit, 1), sortField="dayvolume", sortAsc=False)
-        if not data or not isinstance(data, dict):
-            return "No stocks matched the gatekeeper universe today."
+    _MAX_RETRIES = 3
+    _RETRY_DELAYS = [2.0, 4.0]  # seconds between retries (len = _MAX_RETRIES - 1)
 
-        quotes = data.get("quotes", [])
-        if not quotes:
-            return "No stocks matched the gatekeeper universe today."
-
-        header = "# Gatekeeper Universe\n"
-        header += "# Filters: US-listed, market cap >= $2B, positive net margin, avg volume > 2M, price > $5\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    def _build_table(quotes: list, header: str, limit: int) -> str:
+        """Shared table builder for both primary and fallback paths."""
         lines = [
             header,
             "| Symbol | Name | Exchange | Price | Avg Vol 3M | Current Vol | Market Cap |",
             "|--------|------|----------|-------|------------|-------------|------------|",
         ]
-
         for quote in quotes[:limit]:
             symbol = quote.get("symbol", "N/A")
             name = quote.get("shortName", quote.get("longName", "N/A"))
@@ -268,15 +299,96 @@ def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
             lines.append(
                 f"| {symbol} | {name[:30]} | {exchange} | {price_str} | {avg_vol_str} | {cur_vol_str} | {market_cap_str} |"
             )
-
         return "\n".join(lines) + "\n"
 
+    # Warm the yfinance session once per process before the first EquityQuery
+    # screener call; eliminates the cold-start 401 race condition.
+    _ensure_yfinance_session_warm()
+
+    # Primary path: custom EquityQuery with quality filters
+    query = EquityQuery(
+        "and",
+        [
+            EquityQuery("is-in", ["exchange", "NMS", "NYQ", "ASE"]),
+            EquityQuery("gte", ["intradaymarketcap", 2_000_000_000]),
+            EquityQuery("gt", ["netincomemargin.lasttwelvemonths", 0]),
+            EquityQuery("gt", ["avgdailyvol3m", 2_000_000]),
+            EquityQuery("gt", ["intradayprice", 5]),
+        ],
+    )
+
+    last_primary_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            data = yf.screen(query, size=max(limit, 1), sortField="dayvolume", sortAsc=False)
+            if data and isinstance(data, dict):
+                quotes = data.get("quotes", [])
+                if quotes:
+                    header = (
+                        "# Gatekeeper Universe\n"
+                        "# Filters: US-listed, market cap >= $2B, positive net margin, avg volume > 2M, price > $5\n"
+                        f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    )
+                    return _build_table(quotes, header, limit)
+            # Empty result — not a transient error, no point retrying
+            break
+        except requests.exceptions.Timeout:
+            raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe")
+        except ThirdPartyTimeoutError:
+            raise
+        except Exception as exc:
+            last_primary_error = exc
+            if attempt < len(_RETRY_DELAYS):
+                logger.warning(
+                    "get_gatekeeper_universe: EquityQuery attempt %d/%d failed (%s: %s); "
+                    "retrying in %.0fs...",
+                    attempt + 1,
+                    _MAX_RETRIES,
+                    type(exc).__name__,
+                    exc,
+                    _RETRY_DELAYS[attempt],
+                )
+                time.sleep(_RETRY_DELAYS[attempt])
+            else:
+                logger.warning(
+                    "get_gatekeeper_universe: all %d EquityQuery attempts failed (%s); "
+                    "falling back to predefined 'most_actives' screener.",
+                    _MAX_RETRIES,
+                    exc,
+                )
+
+    # Fallback path: predefined 'most_actives' screener
+    # Enforces MCap >= $2B and dayvolume > 5M — a reasonable proxy when the
+    # custom query is unavailable due to transient auth / rate-limit errors.
+    try:
+        fb_data = yf.screen("MOST_ACTIVES", count=max(limit, 1))
+        if fb_data and isinstance(fb_data, dict):
+            fb_quotes = fb_data.get("quotes", [])
+            if fb_quotes:
+                header = (
+                    "# Gatekeeper Universe (fallback: most_actives)\n"
+                    "# Note: custom EquityQuery unavailable; using predefined most_actives screener "
+                    "(MCap >= $2B, dayvolume > 5M).\n"
+                    f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                )
+                logger.info(
+                    "get_gatekeeper_universe: fallback screener returned %d quotes.", len(fb_quotes)
+                )
+                return _build_table(fb_quotes, header, limit)
+
+        return "No stocks matched the gatekeeper universe today."
+
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe")
+        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe (fallback)")
     except ThirdPartyTimeoutError:
         raise
-    except Exception as e:
-        raise YFinanceError(f"Error fetching gatekeeper universe: {str(e)}") from e
+    except Exception as fb_exc:
+        # Both paths failed — surface the original error for clarity.
+        original = f" (original error: {last_primary_error})" if last_primary_error else ""
+        raise YFinanceError(
+            f"Error fetching gatekeeper universe: {fb_exc}{original}"
+        ) from fb_exc
+
 
 
 def get_market_indices_yfinance() -> str:
