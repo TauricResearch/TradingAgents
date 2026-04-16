@@ -55,6 +55,15 @@
       "scanner": "insider_buying",
       "return_7d": null,
       "win_7d": null
+    },
+    {
+      "date": "2026-04-16",
+      "ticker": "NKE",
+      "score": 92,
+      "confidence": 9,
+      "scanner": "insider_buying",
+      "return_7d": null,
+      "win_7d": null
     }
   ]
 }
