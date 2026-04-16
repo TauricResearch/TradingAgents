@@ -82,6 +82,7 @@ class MessageBuffer:
         self.report_sections = {}
         self.selected_analysts = []
         self._processed_message_ids = set()
+        self._processed_message_fingerprints = set()
 
     def init_for_analysis(self, selected_analysts):
         """Initialize agent status and report sections based on selected analysts.
@@ -117,6 +118,7 @@ class MessageBuffer:
         self.messages.clear()
         self.tool_calls.clear()
         self._processed_message_ids.clear()
+        self._processed_message_fingerprints.clear()
 
     def get_completed_reports_count(self):
         """Count reports that are finalized (their finalizing agent is completed).
