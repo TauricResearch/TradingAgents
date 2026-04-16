@@ -242,7 +242,8 @@ agent_os/frontend/dist/
 .idea/
 .agent/
 docs/scratch/
-
+graphify/
+graphify-out/
 
 artifacts/
 .worktrees/
