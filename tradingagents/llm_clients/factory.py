@@ -5,6 +5,12 @@ from .base_client import BaseLLMClient
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .google_client import GoogleClient
+from .azure_client import AzureOpenAIClient
+
+# Providers that use the OpenAI-compatible chat completions API
+_OPENAI_COMPATIBLE = (
+    "openai", "xai", "deepseek", "qwen", "glm", "ollama", "openrouter",
+)
 
 
 @dataclass(frozen=True)
@@ -73,16 +79,10 @@ def create_llm_client(
     """Create an LLM client for the specified provider.
 
     Args:
-        provider: LLM provider (openai, anthropic, google, xai, ollama, openrouter)
+        provider: LLM provider name
         model: Model name/identifier
         base_url: Optional base URL for API endpoint
         **kwargs: Additional provider-specific arguments
-            - http_client: Custom httpx.Client for SSL proxy or certificate customization
-            - http_async_client: Custom httpx.AsyncClient for async operations
-            - timeout: Request timeout in seconds
-            - max_retries: Maximum retry attempts
-            - api_key: API key for the provider
-            - callbacks: LangChain callbacks
 
     Returns:
         Configured BaseLLMClient instance
