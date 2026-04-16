@@ -4,6 +4,15 @@ Status: implemented (2026-04-16)
 Audience: orchestrator users, backend maintainers
 Scope: LLMRunner configuration validation and error classification
 
+## Change Log
+
+**2026-04-16**: Refactored provider validation to centralize patterns in `factory.py`
+- Moved `_PROVIDER_BASE_URL_PATTERNS` from `llm_runner.py` to `ProviderSpec.base_url_patterns` in `factory.py`
+- Added `validate_provider_base_url()` function in factory for reusable validation
+- Split ollama and openrouter into separate `ProviderSpec` entries (previously shared openai's spec)
+- Reduced `llm_runner.py` from 45 lines to 13 lines for validation logic
+- All 21 tests pass, including 6 provider mismatch tests
+
 ## Overview
 
 `orchestrator/llm_runner.py` implements three layers of configuration validation to catch errors before expensive graph initialization or API calls:
@@ -243,9 +252,19 @@ python -m pytest orchestrator/tests/test_llm_runner.py -v
 
 When adding a new provider to `tradingagents/llm_clients/factory.py`:
 
-1. Add URL pattern to `_PROVIDER_BASE_URL_PATTERNS` in `llm_runner.py`
-2. Add test cases for valid and invalid configurations
+1. Add a new `ProviderSpec` entry to `_PROVIDER_SPECS` tuple with `base_url_patterns`
+2. Add test cases for valid and invalid configurations in `orchestrator/tests/test_llm_runner.py`
 3. Update this documentation
+
+**Example:**
+```python
+ProviderSpec(
+    canonical_name="newprovider",
+    aliases=("newprovider",),
+    builder=lambda model, base_url=None, **kwargs: NewProviderClient(model, base_url, **kwargs),
+    base_url_patterns=(r"api\.newprovider\.com",),
+)
+```
 
 ### Adjusting Timeout Recommendations
 
@@ -277,11 +296,25 @@ Current implementation does **not** validate API key validity before graph initi
 
 ### Provider Pattern Maintenance
 
-URL patterns must be manually kept in sync with provider changes:
+~~URL patterns must be manually kept in sync with provider changes:~~
 
+**UPDATE (2026-04-16)**: Provider URL patterns have been moved to `tradingagents/llm_clients/factory.py` as part of `ProviderSpec`. This centralizes validation logic with provider definitions.
+
+**Current implementation:**
+- Each `ProviderSpec` includes optional `base_url_patterns` tuple
+- `validate_provider_base_url()` function provides validation logic
+- `LLMRunner._detect_provider_mismatch()` delegates to factory validation
+- Patterns are co-located with provider builders, reducing maintenance burden
+
+**Benefits:**
+- Single source of truth for provider configuration
+- Easier to keep patterns in sync when adding/updating providers
+- Factory can be tested independently of orchestrator
+- Reduced code duplication
+
+**Remaining considerations:**
 - **Risk**: Provider changes base URL structure (e.g., API versioning)
 - **Mitigation**: Validation is non-blocking; mismatches are logged but don't prevent operation
-- **Future**: Consider moving patterns to `tradingagents/llm_clients/factory.py` as part of `ProviderSpec`
 
 ### Timeout Recommendations
 

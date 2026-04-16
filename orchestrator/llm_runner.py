@@ -1,32 +1,15 @@
 import json
 import logging
 import os
-import re
 from datetime import datetime, timezone
 
 from orchestrator.config import OrchestratorConfig
 from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.contracts.result_contract import Signal, build_error_signal
 from tradingagents.agents.utils.agent_states import extract_research_provenance
+from tradingagents.llm_clients.factory import validate_provider_base_url
 
 logger = logging.getLogger(__name__)
-
-# Provider × base_url validation matrix
-# Note: ollama/openrouter share openai's canonical provider but have different URL patterns
-_PROVIDER_BASE_URL_PATTERNS = {
-    "anthropic": [r"api\.anthropic\.com", r"api\.minimaxi\.com/anthropic"],
-    "openai": [r"api\.openai\.com"],
-    "google": [r"generativelanguage\.googleapis\.com"],
-    "xai": [r"api\.x\.ai"],
-    "ollama": [r"localhost:\d+", r"127\.0\.0\.1:\d+", r"ollama"],
-    "openrouter": [r"openrouter\.ai"],
-}
-
-# Precompile regex patterns for efficiency
-_COMPILED_PATTERNS = {
-    provider: [re.compile(pattern) for pattern in patterns]
-    for provider, patterns in _PROVIDER_BASE_URL_PATTERNS.items()
-}
 
 # Recommended timeout thresholds by analyst count
 _RECOMMENDED_TIMEOUTS = {
@@ -110,35 +93,19 @@ class LLMRunner:
         return self._graph
 
     def _detect_provider_mismatch(self):
-        """Validate provider × base_url compatibility using pattern matrix.
+        """Validate provider × base_url compatibility using factory's validation.
 
         Uses the original provider name (not canonical) for validation since
-        ollama/openrouter share openai's canonical provider but have different URLs.
+        ollama/openrouter have different URL patterns than openai.
         """
         trading_cfg = self._config.trading_agents_config or {}
-        provider = str(trading_cfg.get("llm_provider", "")).lower()
-        base_url = str(trading_cfg.get("backend_url", "") or "").lower()
+        provider = trading_cfg.get("llm_provider", "")
+        base_url = trading_cfg.get("backend_url", "")
 
         if not provider or not base_url:
             return None
 
-        # Use original provider name for pattern matching (not canonical)
-        # This handles ollama/openrouter which share openai's canonical provider
-        compiled_patterns = _COMPILED_PATTERNS.get(provider, [])
-        if not compiled_patterns:
-            # No validation rules defined for this provider
-            return None
-
-        for pattern in compiled_patterns:
-            if pattern.search(base_url):
-                return None  # Match found, no mismatch
-
-        # No pattern matched - return raw patterns for error message
-        return {
-            "provider": provider,
-            "backend_url": trading_cfg.get("backend_url"),
-            "expected_patterns": _PROVIDER_BASE_URL_PATTERNS[provider],
-        }
+        return validate_provider_base_url(provider, base_url)
 
     def get_signal(self, ticker: str, date: str) -> Signal:
         """获取指定股票在指定日期的 LLM 信号，带缓存。"""
