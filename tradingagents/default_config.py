@@ -138,8 +138,8 @@ DEFAULT_CONFIG = {
                 "enabled": True,
                 "pipeline": "edge",
                 "limit": 8,
-                "min_z_score": 2.0,         # Minimum FINRA ATS anomaly Z-score
-                "min_dark_pool_pct": 40.0,  # Minimum % of daily volume off-exchange
+                "min_z_score": 0.0,         # Meridian pre-filters; 0 = take all surfaced anomalies
+                "min_dark_pool_pct": 0.0,   # Meridian pre-filters; 0 = take all surfaced anomalies
                 "source_url": "https://meridianfin.io/darkpool",
             },
             "insider_buying": {
