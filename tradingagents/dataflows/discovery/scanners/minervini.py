@@ -42,6 +42,7 @@ class MinerviniScanner(BaseScanner):
         self.sma_200_slope_days = self.scanner_config.get("sma_200_slope_days", 20)
         self.min_pct_off_low = self.scanner_config.get("min_pct_off_low", 30)
         self.max_pct_from_high = self.scanner_config.get("max_pct_from_high", 25)
+        self.min_pct_from_high = self.scanner_config.get("min_pct_from_high", 7)  # hypothesis
         self.max_tickers = self.scanner_config.get("max_tickers", 0)  # 0 = no cap
 
     def scan(self, state: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -200,8 +201,9 @@ class MinerviniScanner(BaseScanner):
                 sma_150 > sma_200,  # 2. SMA150 above SMA200
                 sma_200 > sma_200_prev,  # 3. SMA200 slope is rising
                 price > sma_50,  # 4. Price above SMA50
-                pct_off_low >= self.min_pct_off_low,  # 5. At least 30% off 52w low
-                pct_from_high <= self.max_pct_from_high,  # 6. Within 25% of 52w high
+                pct_off_low >= self.min_pct_off_low,          # 5. At least 30% off 52w low
+                pct_from_high <= self.max_pct_from_high,      # 6. Within 25% of 52w high
+                pct_from_high >= self.min_pct_from_high,      # 7. Not already at resistance (≥7% below high)
             ]
 
             if not all(conditions):
