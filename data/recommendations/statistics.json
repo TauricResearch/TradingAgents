@@ -1,5 +1,5 @@
 {
-  "total_recommendations": 661,
+  "total_recommendations": 664,
   "by_strategy": {
     "momentum": {
       "count": 136,
@@ -32,7 +32,7 @@
       "win_rate_30d": 31.2
     },
     "insider_buying": {
-      "count": 189,
+      "count": 190,
       "wins_1d": 68,
       "losses_1d": 108,
       "wins_7d": 84,
@@ -235,7 +235,7 @@
       "avg_return_30d": 0
     },
     "volume_divergence": {
-      "count": 7,
+      "count": 9,
       "wins_1d": 2,
       "losses_1d": 1,
       "wins_7d": 0,
