@@ -17,6 +17,7 @@ class FakeMessage:
 class FakeMessageBuffer:
     def __init__(self):
         self._processed_message_ids = set()
+        self._processed_message_fingerprints = set()
         self.messages = []
         self.tool_calls = []
 
@@ -62,3 +63,29 @@ def test_ingest_chunk_messages_skips_duplicate_message_ids():
 
     assert len(message_buffer.messages) == 1
     assert len(message_buffer.tool_calls) == 1
+
+
+def test_ingest_chunk_messages_skips_duplicate_messages_without_ids():
+    message_buffer = FakeMessageBuffer()
+    chunk = {"messages": [FakeMessage(None, "same", [{"name": "tool_a", "args": {"x": 1}}])]}
+
+    ingest_chunk_messages(message_buffer, chunk, fake_classifier)
+    ingest_chunk_messages(message_buffer, chunk, fake_classifier)
+
+    assert len(message_buffer.messages) == 1
+    assert len(message_buffer.tool_calls) == 1
+
+
+def test_ingest_chunk_messages_keeps_distinct_messages_without_ids():
+    message_buffer = FakeMessageBuffer()
+    chunk = {
+        "messages": [
+            FakeMessage(None, "first", [{"name": "tool_a", "args": {"x": 1}}]),
+            FakeMessage(None, "second", [{"name": "tool_b", "args": {"y": 2}}]),
+        ]
+    }
+
+    ingest_chunk_messages(message_buffer, chunk, fake_classifier)
+
+    assert [content for _, content in message_buffer.messages] == ["first", "second"]
+    assert [name for name, _ in message_buffer.tool_calls] == ["tool_a", "tool_b"]
