@@ -444,21 +444,36 @@ class DiscoveryAnalytics:
                 }
             )
 
-        # Save to dated file
+        # Merge into existing dated file so multiple runs on the same day accumulate.
+        # Dedupe by ticker — later run wins (more recent price, potentially better signal).
         output_file = self.recommendations_dir / f"{trade_date}.json"
+        existing = []
+        if output_file.exists():
+            try:
+                with open(output_file) as f:
+                    existing = json.load(f).get("recommendations", [])
+            except Exception:
+                existing = []
+
+        # Index existing by ticker; overwrite with new picks
+        merged = {r["ticker"]: r for r in existing}
+        for r in enriched_rankings:
+            merged[r["ticker"]] = r
+        merged_list = list(merged.values())
+
         with open(output_file, "w") as f:
             json.dump(
                 {
                     "date": trade_date,
                     "llm_provider": llm_provider,
-                    "recommendations": enriched_rankings,
+                    "recommendations": merged_list,
                 },
                 f,
                 indent=2,
             )
 
         logger.info(
-            f"   📊 Saved {len(enriched_rankings)} recommendations for tracking: {output_file}"
+            f"   📊 Saved {len(enriched_rankings)} recommendations ({len(merged_list)} total) for tracking: {output_file}"
         )
 
     def save_discovery_results(self, state: dict, trade_date: str, config: Dict[str, Any]):
