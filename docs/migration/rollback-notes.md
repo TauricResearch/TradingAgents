@@ -14,12 +14,18 @@ Mainline has moved beyond pure planning, but it has not finished the full bounda
   - result contracts are persisted via `result_store.py`;
   - `/ws/analysis/{task_id}` and `/ws/orchestrator` already wrap payloads with `contract_version`;
   - recommendation and task-status reads already depend on application-layer shaping more than route-local reconstruction.
-- `Phase 5` is **not complete**:
-  - `web_dashboard/backend/main.py` is still too large;
-  - route-local orchestration has not been fully deleted;
+- `Phase 5` is **partially landed** via the task lifecycle boundary slice:
+  - `status/list/cancel` now route through backend task services instead of route-local orchestration;
+  - `web_dashboard/backend/main.py` is still too large outside that slice;
+  - reports/export and other residual route-local orchestration are still pending;
   - compatibility fields still coexist with the newer contract-first path.
 
 Also note that research provenance / node guard / profiling work is now landed on the orchestrator side. That effort complements the backend migration but should not be confused with “application boundary fully complete.”
+
+**Recent improvements (2026-04-16)**:
+- Orchestrator error classification now includes comprehensive provider × base_url matrix validation
+- Timeout configuration validation warns when analyst/research timeouts may be insufficient for multi-analyst profiles
+- All provider mismatches (anthropic, openai, google, xai, ollama, openrouter) are now detected before graph initialization
 
 ## 1. Migration objective
 
@@ -80,6 +86,7 @@ Rollback:
 Current status:
 
 - partially complete on mainline via `analysis_service.py`, `job_service.py`, and `result_store.py`
+- task lifecycle (`status/list/cancel`) is now service-routed
 - not complete enough yet to claim `main.py` is only a thin adapter
 
 ## Phase 2: dual-read for task status

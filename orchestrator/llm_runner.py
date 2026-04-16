@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 
 from orchestrator.config import OrchestratorConfig
@@ -9,6 +10,31 @@ from orchestrator.contracts.result_contract import Signal, build_error_signal
 from tradingagents.agents.utils.agent_states import extract_research_provenance
 
 logger = logging.getLogger(__name__)
+
+# Provider × base_url validation matrix
+# Note: ollama/openrouter share openai's canonical provider but have different URL patterns
+_PROVIDER_BASE_URL_PATTERNS = {
+    "anthropic": [r"api\.anthropic\.com", r"api\.minimaxi\.com/anthropic"],
+    "openai": [r"api\.openai\.com"],
+    "google": [r"generativelanguage\.googleapis\.com"],
+    "xai": [r"api\.x\.ai"],
+    "ollama": [r"localhost:\d+", r"127\.0\.0\.1:\d+", r"ollama"],
+    "openrouter": [r"openrouter\.ai"],
+}
+
+# Precompile regex patterns for efficiency
+_COMPILED_PATTERNS = {
+    provider: [re.compile(pattern) for pattern in patterns]
+    for provider, patterns in _PROVIDER_BASE_URL_PATTERNS.items()
+}
+
+# Recommended timeout thresholds by analyst count
+_RECOMMENDED_TIMEOUTS = {
+    1: {"analyst": 75.0, "research": 30.0},
+    2: {"analyst": 90.0, "research": 45.0},
+    3: {"analyst": 105.0, "research": 60.0},
+    4: {"analyst": 120.0, "research": 75.0},
+}
 
 
 def _build_data_quality(state: str, **details):
@@ -24,12 +50,53 @@ def _extract_research_metadata(final_state: dict | None) -> dict | None:
     return extract_research_provenance(debate_state)
 
 
+def _looks_like_provider_auth_failure(exc: Exception) -> bool:
+    text = str(exc).lower()
+    markers = (
+        "authentication_error",
+        "login fail",
+        "please carry the api secret key",
+        "invalid api key",
+        "unauthorized",
+        "error code: 401",
+    )
+    return any(marker in text for marker in markers)
+
+
 class LLMRunner:
     def __init__(self, config: OrchestratorConfig):
         self._config = config
         self._graph = None  # Lazy-initialized on first get_signal() call (requires API key)
         self.cache_dir = config.cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
+        self._validate_timeout_config()
+
+    def _validate_timeout_config(self):
+        """Warn if timeout configuration may be insufficient for selected analysts."""
+        trading_cfg = self._config.trading_agents_config or {}
+        selected_analysts = trading_cfg.get("selected_analysts", ["market", "social", "news", "fundamentals"])
+        analyst_count = len(selected_analysts) if selected_analysts else 4
+
+        analyst_timeout = float(trading_cfg.get("analyst_node_timeout_secs", 75.0))
+        research_timeout = float(trading_cfg.get("research_node_timeout_secs", 30.0))
+
+        # Get recommended thresholds (use max if analyst_count > 4)
+        recommended = _RECOMMENDED_TIMEOUTS.get(analyst_count, _RECOMMENDED_TIMEOUTS[4])
+
+        warnings = []
+        if analyst_timeout < recommended["analyst"]:
+            warnings.append(
+                f"analyst_node_timeout_secs={analyst_timeout:.1f}s may be insufficient "
+                f"for {analyst_count} analyst(s) (recommended: {recommended['analyst']:.1f}s)"
+            )
+        if research_timeout < recommended["research"]:
+            warnings.append(
+                f"research_node_timeout_secs={research_timeout:.1f}s may be insufficient "
+                f"for {analyst_count} analyst(s) (recommended: {recommended['research']:.1f}s)"
+            )
+
+        for warning in warnings:
+            logger.warning("LLMRunner: %s", warning)
 
     def _get_graph(self):
         """Lazy-initialize TradingAgentsGraph (heavy, requires API key at init time)."""
@@ -43,42 +110,39 @@ class LLMRunner:
         return self._graph
 
     def _detect_provider_mismatch(self):
+        """Validate provider × base_url compatibility using pattern matrix.
+
+        Uses the original provider name (not canonical) for validation since
+        ollama/openrouter share openai's canonical provider but have different URLs.
+        """
         trading_cfg = self._config.trading_agents_config or {}
         provider = str(trading_cfg.get("llm_provider", "")).lower()
         base_url = str(trading_cfg.get("backend_url", "") or "").lower()
+
         if not provider or not base_url:
             return None
-        if provider == "anthropic" and "/anthropic" not in base_url:
-            return {
-                "provider": provider,
-                "backend_url": trading_cfg.get("backend_url"),
-            }
-        if provider in {"openai", "openrouter", "ollama", "xai"} and "/anthropic" in base_url:
-            return {
-                "provider": provider,
-                "backend_url": trading_cfg.get("backend_url"),
-            }
-        return None
+
+        # Use original provider name for pattern matching (not canonical)
+        # This handles ollama/openrouter which share openai's canonical provider
+        compiled_patterns = _COMPILED_PATTERNS.get(provider, [])
+        if not compiled_patterns:
+            # No validation rules defined for this provider
+            return None
+
+        for pattern in compiled_patterns:
+            if pattern.search(base_url):
+                return None  # Match found, no mismatch
+
+        # No pattern matched - return raw patterns for error message
+        return {
+            "provider": provider,
+            "backend_url": trading_cfg.get("backend_url"),
+            "expected_patterns": _PROVIDER_BASE_URL_PATTERNS[provider],
+        }
 
     def get_signal(self, ticker: str, date: str) -> Signal:
         """获取指定股票在指定日期的 LLM 信号，带缓存。"""
-        safe_ticker = ticker.replace("/", "_")  # sanitize for filesystem (e.g. BRK/B)
-        cache_path = os.path.join(self.cache_dir, f"{safe_ticker}_{date}.json")
-
-        if os.path.exists(cache_path):
-            logger.info("LLMRunner: cache hit for %s %s", ticker, date)
-            with open(cache_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            # Use stored direction/confidence directly to avoid re-mapping drift
-            return Signal(
-                ticker=ticker,
-                direction=data["direction"],
-                confidence=data["confidence"],
-                source="llm",
-                timestamp=datetime.fromisoformat(data["timestamp"]),
-                metadata=data,
-            )
-
+        # Validate configuration first (lightweight, prevents returning stale cache on config errors)
         mismatch = self._detect_provider_mismatch()
         if mismatch is not None:
             return build_error_signal(
@@ -93,6 +157,25 @@ class LLMRunner:
                     "data_quality": _build_data_quality("provider_mismatch", **mismatch),
                 },
             )
+
+        # Check cache after validation
+        safe_ticker = ticker.replace("/", "_")
+        cache_path = os.path.join(self.cache_dir, f"{safe_ticker}_{date}.json")
+
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.info("LLMRunner: cache hit for %s %s", ticker, date)
+            return Signal(
+                ticker=ticker,
+                direction=data["direction"],
+                confidence=data["confidence"],
+                source="llm",
+                timestamp=datetime.fromisoformat(data["timestamp"]),
+                metadata=data,
+            )
+        except FileNotFoundError:
+            pass  # Continue to LLM call
 
         try:
             _final_state, processed_signal = self._get_graph().propagate(ticker, date)
@@ -118,6 +201,11 @@ class LLMRunner:
                 "timestamp": now.isoformat(),
                 "ticker": ticker,
                 "date": date,
+                "decision_structured": (
+                    (_final_state or {}).get("final_trade_decision_structured")
+                    if isinstance(_final_state, dict)
+                    else None
+                ),
                 "data_quality": data_quality,
                 "research": research_metadata,
                 "sample_quality": (
@@ -142,6 +230,16 @@ class LLMRunner:
             reason_code = ReasonCode.LLM_SIGNAL_FAILED.value
             if "Unsupported LLM provider" in str(e):
                 reason_code = ReasonCode.PROVIDER_MISMATCH.value
+            elif _looks_like_provider_auth_failure(e):
+                reason_code = ReasonCode.PROVIDER_AUTH_FAILED.value
+
+            # Map reason code to data quality state
+            state_map = {
+                ReasonCode.PROVIDER_MISMATCH.value: "provider_mismatch",
+                ReasonCode.PROVIDER_AUTH_FAILED.value: "provider_auth_failed",
+            }
+            state = state_map.get(reason_code, "unknown")
+
             return build_error_signal(
                 ticker=ticker,
                 source="llm",
@@ -149,7 +247,7 @@ class LLMRunner:
                 message=str(e),
                 metadata={
                     "data_quality": _build_data_quality(
-                        "provider_mismatch" if reason_code == ReasonCode.PROVIDER_MISMATCH.value else "unknown",
+                        state,
                         provider=(self._config.trading_agents_config or {}).get("llm_provider"),
                         backend_url=(self._config.trading_agents_config or {}).get("backend_url"),
                     ),

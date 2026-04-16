@@ -14,6 +14,7 @@ class ReasonCode(str, Enum):
     LLM_SIGNAL_FAILED = "llm_signal_failed"
     LLM_UNKNOWN_RATING = "llm_unknown_rating"
     PROVIDER_MISMATCH = "provider_mismatch"
+    PROVIDER_AUTH_FAILED = "provider_auth_failed"
     BOTH_SIGNALS_UNAVAILABLE = "both_signals_unavailable"
 
 
