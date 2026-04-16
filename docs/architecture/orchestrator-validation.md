@@ -8,7 +8,8 @@ Scope: LLMRunner configuration validation and error classification
 
 **2026-04-16**: Refactored provider validation to centralize patterns in `factory.py`
 - Moved `_PROVIDER_BASE_URL_PATTERNS` from `llm_runner.py` to `ProviderSpec.base_url_patterns` in `factory.py`
-- Added `validate_provider_base_url()` function in factory for reusable validation
+- Added `validate_provider_base_url()` function with pattern caching for performance
+- Added `ProviderMismatch` TypedDict for type-safe validation results
 - Split ollama and openrouter into separate `ProviderSpec` entries (previously shared openai's spec)
 - Reduced `llm_runner.py` from 45 lines to 13 lines for validation logic
 - All 21 tests pass, including 6 provider mismatch tests

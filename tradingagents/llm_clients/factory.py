@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, TypedDict
 import re
 
 from .base_client import BaseLLMClient
@@ -12,6 +12,16 @@ from .azure_client import AzureOpenAIClient
 _OPENAI_COMPATIBLE = (
     "openai", "xai", "deepseek", "qwen", "glm", "ollama", "openrouter",
 )
+
+# Compiled pattern cache for validation performance
+_COMPILED_PATTERNS: dict[str, list[re.Pattern]] = {}
+
+
+class ProviderMismatch(TypedDict):
+    """Provider validation mismatch details."""
+    provider: str
+    backend_url: str
+    expected_patterns: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -130,7 +140,7 @@ def create_llm_client(
     return provider_spec.builder(model, base_url, **kwargs)
 
 
-def validate_provider_base_url(provider: str, base_url: str) -> Optional[dict]:
+def validate_provider_base_url(provider: str, base_url: str) -> Optional[ProviderMismatch]:
     """Validate provider × base_url compatibility.
 
     Args:
@@ -138,12 +148,7 @@ def validate_provider_base_url(provider: str, base_url: str) -> Optional[dict]:
         base_url: API endpoint URL
 
     Returns:
-        None if valid, or dict with mismatch details if invalid:
-        {
-            "provider": str,
-            "backend_url": str,
-            "expected_patterns": tuple[str, ...]
-        }
+        None if valid, or ProviderMismatch dict if invalid
     """
     if not provider or not base_url:
         return None
@@ -161,9 +166,12 @@ def validate_provider_base_url(provider: str, base_url: str) -> Optional[dict]:
         # No validation rules defined for this provider
         return None
 
-    # Compile and test patterns
-    for pattern_str in spec.base_url_patterns:
-        pattern = re.compile(pattern_str)
+    # Use cached compiled patterns for performance
+    cache_key = spec.canonical_name
+    if cache_key not in _COMPILED_PATTERNS:
+        _COMPILED_PATTERNS[cache_key] = [re.compile(p) for p in spec.base_url_patterns]
+
+    for pattern in _COMPILED_PATTERNS[cache_key]:
         if pattern.search(base_url_lower):
             return None  # Match found
 
