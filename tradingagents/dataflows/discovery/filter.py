@@ -174,11 +174,17 @@ class CandidateFilter:
         volume_by_ticker = self._fetch_batch_volume(state, candidates)
         news_by_ticker = self._fetch_batch_news(start_date, end_date, candidates)
 
-        # Load OHLCV cache for candidate tickers — replaces per-ticker yfinance calls
+        # Load OHLCV cache — use the full universe key (same as nightly prefetch) so we
+        # get a cache hit, then slice to candidate tickers.  Requesting only candidate
+        # tickers produces a different cache key and triggers a fresh download.
         cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
         candidate_tickers = [c["ticker"].upper() for c in candidates if c.get("ticker")]
         logger.info(f"Loading OHLCV cache for {len(candidate_tickers)} candidate tickers...")
-        ohlcv_data = download_ohlcv_cached(candidate_tickers, period="1y", cache_dir=cache_dir)
+        from tradingagents.dataflows.universe import load_universe
+
+        universe_tickers = load_universe(self.config)
+        full_ohlcv = download_ohlcv_cached(universe_tickers, period="1y", cache_dir=cache_dir)
+        ohlcv_data = {t: full_ohlcv[t] for t in candidate_tickers if t in full_ohlcv}
         logger.info(f"OHLCV cache loaded for {len(ohlcv_data)}/{len(candidate_tickers)} tickers")
 
         (
