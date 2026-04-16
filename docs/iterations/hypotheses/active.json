@@ -24,6 +24,24 @@
       ],
       "baseline_scanner": "insider_buying",
       "conclusion": null
+    },
+    {
+      "id": "earnings_calendar-min-short-interest",
+      "scanner": "earnings_calendar",
+      "title": "Require short interest >= 20% for earnings plays",
+      "description": "Hypothesis: earnings_calendar has a 37.7% 7d win rate and -2.05% avg return — worst performer. APLD (30.6% SI) was consistently the highest-scoring earnings candidate in recent runs. Requiring short interest >= 20% forces the scanner to surface only setups where a positive earnings surprise can trigger forced short covering, converting a weak calendar signal into a squeeze catalyst.",
+      "branch": "hypothesis/earnings_calendar-min-short-interest",
+      "pr_number": 22,
+      "status": "running",
+      "priority": 9,
+      "expected_impact": "high",
+      "hypothesis_type": "implementation",
+      "created_at": "2026-04-16",
+      "min_days": 10,
+      "days_elapsed": 0,
+      "picks_log": [],
+      "baseline_scanner": "earnings_calendar",
+      "conclusion": null
     }
   ]
 }
