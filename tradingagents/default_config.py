@@ -134,6 +134,14 @@ DEFAULT_CONFIG = {
         # ========================================
         "scanners": {
             # Edge signals - Early information advantages
+            "dark_pool_flow": {
+                "enabled": True,
+                "pipeline": "edge",
+                "limit": 8,
+                "min_z_score": 2.0,         # Minimum FINRA ATS anomaly Z-score
+                "min_dark_pool_pct": 40.0,  # Minimum % of daily volume off-exchange
+                "source_url": "https://meridianfin.io/darkpool",
+            },
             "insider_buying": {
                 "enabled": True,
                 "pipeline": "edge",

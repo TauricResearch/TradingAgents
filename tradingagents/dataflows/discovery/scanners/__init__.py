@@ -3,6 +3,7 @@
 # Import all scanners to trigger registration
 from . import (
     analyst_upgrades,  # noqa: F401
+    dark_pool_flow,  # noqa: F401
     earnings_beat,  # noqa: F401
     earnings_calendar,  # noqa: F401
     high_52w_breakout,  # noqa: F401
