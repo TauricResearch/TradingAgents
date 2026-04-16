@@ -19,7 +19,7 @@ def create_social_media_analyst(llm):
 
         if use_compact_analysis_prompt():
             system_message = (
-                "You are a sentiment analyst. Use `get_news` to infer recent company sentiment from news and public discussion. Summarize in under 180 words with: sentiment direction, what is driving it, whether sentiment confirms or contradicts price action, and the trading implication. End with a Markdown table."
+                "You are a sentiment analyst. Make at most one `get_news` call, then infer recent company sentiment from news and public discussion. Summarize in under 180 words with: sentiment direction, what is driving it, whether sentiment confirms or contradicts price action, and the trading implication. End with a Markdown table."
                 + get_language_instruction()
             )
         else:

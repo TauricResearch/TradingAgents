@@ -75,6 +75,9 @@ class JobService:
             "result_ref": result_ref,
             "degradation_summary": None,
             "data_quality_summary": None,
+            "evidence_summary": None,
+            "tentative_classification": None,
+            "budget_state": {},
             "compat": {},
         })
         self.task_results[task_id] = state
@@ -108,6 +111,9 @@ class JobService:
             "result_ref": result_ref,
             "degradation_summary": None,
             "data_quality_summary": None,
+            "evidence_summary": None,
+            "tentative_classification": None,
+            "budget_state": {},
             "compat": {},
         })
         self.task_results[task_id] = state
@@ -153,6 +159,9 @@ class JobService:
         state["contract_version"] = contract.get("contract_version", state.get("contract_version"))
         state["degradation_summary"] = contract.get("degradation") or self._build_degradation_summary(result)
         state["data_quality_summary"] = contract.get("data_quality")
+        state["evidence_summary"] = contract.get("evidence")
+        state["tentative_classification"] = contract.get("tentative_classification")
+        state["budget_state"] = contract.get("budget_state") or state.get("budget_state") or {}
         state["compat"] = {
             "decision": result.get("decision"),
             "quant_signal": quant.get("rating"),
@@ -208,10 +217,13 @@ class JobService:
             "request_id": state.get("request_id"),
             "executor_type": state.get("executor_type", DEFAULT_EXECUTOR_TYPE),
             "result_ref": state.get("result_ref"),
-            "status": state.get("status"),
+            "status": self._public_status(state.get("status")),
             "created_at": state.get("created_at"),
             "degradation_summary": state.get("degradation_summary"),
             "data_quality_summary": state.get("data_quality_summary"),
+            "evidence": state.get("evidence_summary"),
+            "tentative_classification": state.get("tentative_classification"),
+            "budget_state": state.get("budget_state") or {},
             "error": self._public_error(contract, state),
         }
         if state.get("type") == "portfolio":
@@ -257,6 +269,8 @@ class JobService:
             "error": payload.get("error"),
             "data_quality_summary": payload.get("data_quality_summary"),
             "degradation_summary": payload.get("degradation_summary"),
+            "tentative_classification": payload.get("tentative_classification"),
+            "budget_state": payload.get("budget_state") or {},
         }
         if state.get("type") == "portfolio":
             summary.update({
@@ -292,15 +306,11 @@ class JobService:
         self.processes[task_id] = process
 
     def cancel_job(self, task_id: str, error: str = "用户取消") -> dict | None:
-        task = self.analysis_tasks.get(task_id)
-        if task:
-            task.cancel()
         state = self.task_results.get(task_id)
         if not state:
             return None
         state["status"] = "failed"
         state["error"] = error
-        self.persist_task(task_id, state)
         return state
 
     @staticmethod
@@ -312,6 +322,9 @@ class JobService:
         normalized.setdefault("result_ref", None)
         normalized.setdefault("degradation_summary", None)
         normalized.setdefault("data_quality_summary", None)
+        normalized.setdefault("evidence_summary", None)
+        normalized.setdefault("tentative_classification", None)
+        normalized.setdefault("budget_state", {})
         if "data_quality" in normalized and normalized.get("data_quality_summary") is None:
             normalized["data_quality_summary"] = normalized.get("data_quality")
         compat = normalized.get("compat")
@@ -345,3 +358,9 @@ class JobService:
         if contract is not None and "error" in contract:
             return contract.get("error")
         return state.get("error")
+
+    @staticmethod
+    def _public_status(status: str | None) -> str | None:
+        if status in {"collecting_evidence", "auto_recovering", "classification_pending", "probing_provider"}:
+            return "running"
+        return status

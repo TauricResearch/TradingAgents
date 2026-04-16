@@ -21,7 +21,7 @@ def create_news_analyst(llm):
 
         if use_compact_analysis_prompt():
             system_message = (
-                "You are a news analyst. Gather only the most relevant recent company and macro news. Summarize in under 180 words with: bullish catalysts, bearish catalysts, macro context, and likely near-term market impact. End with a Markdown table."
+                "You are a news analyst. Make at most one `get_news` call and one `get_global_news` call, then gather only the most relevant recent company and macro news. Summarize in under 180 words with: bullish catalysts, bearish catalysts, macro context, and likely near-term market impact. End with a Markdown table."
                 + get_language_instruction()
             )
         else:

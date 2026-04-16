@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass, field, replace
+from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import Request
@@ -30,7 +30,7 @@ class RequestContext:
     llm_max_retries: Optional[int] = None
     client_host: Optional[str] = None
     is_local: bool = False
-    metadata: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def build_request_context(
@@ -49,7 +49,7 @@ def build_request_context(
     request_id: Optional[str] = None,
     contract_version: str = CONTRACT_VERSION,
     executor_type: str = DEFAULT_EXECUTOR_TYPE,
-    metadata: Optional[dict[str, str]] = None,
+    metadata: Optional[dict[str, Any]] = None,
 ) -> RequestContext:
     """Create a stable request context without leaking FastAPI internals into services."""
     client_host = request.client.host if request and request.client else None
@@ -72,3 +72,14 @@ def build_request_context(
         is_local=is_local,
         metadata=dict(metadata or {}),
     )
+
+
+def clone_request_context(
+    context: RequestContext,
+    *,
+    metadata_updates: Optional[dict[str, Any]] = None,
+    **overrides: Any,
+) -> RequestContext:
+    metadata = dict(context.metadata)
+    metadata.update(metadata_updates or {})
+    return replace(context, metadata=metadata, **overrides)

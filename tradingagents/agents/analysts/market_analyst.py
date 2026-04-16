@@ -22,7 +22,9 @@ def create_market_analyst(llm):
 
         if use_compact_analysis_prompt():
             system_message = (
-                """You are a market analyst. First call `get_stock_data`, then call `get_indicators` with 4 to 6 complementary indicators chosen from: `close_10_ema`, `close_50_sma`, `close_200_sma`, `macd`, `macds`, `macdh`, `rsi`, `boll`, `boll_ub`, `boll_lb`, `atr`, `vwma`.
+                """You are a market analyst. Make at most two tool calls total:
+1. Call `get_stock_data` once.
+2. Call `get_indicators` once with 4 to 6 complementary indicators passed as a single comma-separated string chosen from: `close_10_ema`, `close_50_sma`, `close_200_sma`, `macd`, `macds`, `macdh`, `rsi`, `boll`, `boll_ub`, `boll_lb`, `atr`, `vwma`.
 
 Pick indicators that cover trend, momentum, volatility, and volume without redundancy. Then produce a concise report with:
 - market regime
@@ -31,7 +33,7 @@ Pick indicators that cover trend, momentum, volatility, and volume without redun
 - trade implications
 - risk warnings
 
-Keep the report under 250 words and end with a Markdown table of the key signals."""
+Do not make repeated follow-up tool calls after the indicator batch returns. Keep the report under 250 words and end with a Markdown table of the key signals."""
                 + get_language_instruction()
             )
         else:

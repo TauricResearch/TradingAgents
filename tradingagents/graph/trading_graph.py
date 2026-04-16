@@ -12,7 +12,7 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.llm_clients import create_llm_client
 
 from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import get_default_config
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.agents.utils.agent_states import (
     AgentState,
@@ -20,6 +20,7 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
     extract_research_provenance,
 )
+from tradingagents.agents.utils.decision_utils import build_structured_decision
 from tradingagents.dataflows.config import set_config
 
 # Import the new abstract tool methods from agent_utils
@@ -43,13 +44,13 @@ from .signal_processing import SignalProcessor
 
 
 def _merge_with_default_config(config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Merge a partial user config onto DEFAULT_CONFIG.
+    """Merge a partial user config onto the runtime default config.
 
     Orchestrator callers often override only a few LLM/vendor fields. Without a
     merge step, required defaults such as ``project_dir`` disappear and the
     graph fails during initialization.
     """
-    merged = copy.deepcopy(DEFAULT_CONFIG)
+    merged = get_default_config()
     if not config:
         return merged
 
@@ -145,6 +146,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.portfolio_manager_memory,
             self.conditional_logic,
+            analyst_node_timeout_secs=float(self.config.get("analyst_node_timeout_secs", 75.0)),
             research_node_timeout_secs=float(self.config.get("research_node_timeout_secs", 30.0)),
         )
 
@@ -194,6 +196,11 @@ class TradingAgentsGraph:
             if effort:
                 kwargs["effort"] = effort
 
+        # Pass api_key if present in config (for MiniMax and other third-party Anthropic-compatible APIs)
+        api_key = self.config.get("api_key")
+        if api_key:
+            kwargs["api_key"] = api_key
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
@@ -239,7 +246,11 @@ class TradingAgentsGraph:
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date
+            company_name,
+            trade_date,
+            portfolio_context=str(self.config.get("portfolio_context", "") or ""),
+            peer_context=str(self.config.get("peer_context", "") or ""),
+            peer_context_mode=str(self.config.get("peer_context_mode", "UNSPECIFIED") or "UNSPECIFIED"),
         )
         args = self.propagator.get_graph_args()
 
@@ -258,6 +269,8 @@ class TradingAgentsGraph:
             # Standard mode without tracing
             final_state = self.graph.invoke(init_agent_state, **args)
 
+        final_state = self._normalize_decision_outputs(final_state)
+
         # Store current state for reflection
         self.curr_state = final_state
 
@@ -266,6 +279,65 @@ class TradingAgentsGraph:
 
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
+
+    def _normalize_decision_outputs(self, final_state: Dict[str, Any]) -> Dict[str, Any]:
+        normalized = copy.deepcopy(final_state)
+        portfolio_context = bool(str(normalized.get("portfolio_context", "") or "").strip())
+        peer_context = bool(str(normalized.get("peer_context", "") or "").strip())
+        context_usage = {
+            "portfolio_context": portfolio_context,
+            "peer_context": peer_context,
+        }
+
+        investment_plan = str(normalized.get("investment_plan", "") or "")
+        trader_plan = str(normalized.get("trader_investment_plan", "") or "")
+        final_rating = str(normalized.get("final_trade_decision", "") or "")
+        final_report = str(
+            normalized.get("final_trade_decision_report")
+            or normalized.get("risk_debate_state", {}).get("judge_decision", "")
+            or final_rating
+        )
+
+        investment_structured = normalized.get("investment_plan_structured") or build_structured_decision(
+            investment_plan,
+            default_rating="HOLD",
+            peer_context_mode=normalized.get("peer_context_mode", "UNSPECIFIED"),
+            context_usage=context_usage,
+        )
+        trader_structured = normalized.get("trader_investment_plan_structured") or build_structured_decision(
+            trader_plan,
+            fallback_candidates=(("investment_plan", investment_plan),),
+            default_rating="HOLD",
+            peer_context_mode=normalized.get("peer_context_mode", "UNSPECIFIED"),
+            context_usage=context_usage,
+        )
+        final_structured = normalized.get("final_trade_decision_structured") or build_structured_decision(
+            final_report,
+            fallback_candidates=(
+                ("trader_plan", trader_plan),
+                ("investment_plan", investment_plan),
+            ),
+            default_rating="HOLD",
+            peer_context_mode=normalized.get("peer_context_mode", "UNSPECIFIED"),
+            context_usage=context_usage,
+        )
+
+        if final_rating and final_rating != final_structured["rating"]:
+            warnings = list(final_structured.get("warnings") or [])
+            warnings.append(f"final_trade_decision_overridden:{final_rating}->{final_structured['rating']}")
+            final_structured["warnings"] = warnings
+
+        normalized["investment_plan_structured"] = investment_structured
+        normalized["trader_investment_plan_structured"] = trader_structured
+        normalized["final_trade_decision"] = final_structured["rating"]
+        normalized["final_trade_decision_report"] = final_structured["report_text"]
+        normalized["final_trade_decision_structured"] = final_structured
+
+        risk_state = dict(normalized.get("risk_debate_state") or {})
+        risk_state["judge_decision"] = final_structured["report_text"]
+        normalized["risk_debate_state"] = risk_state
+
+        return normalized
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
@@ -294,6 +366,7 @@ class TradingAgentsGraph:
                 ),
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
+            "trader_investment_plan_structured": final_state.get("trader_investment_plan_structured", {}),
             "risk_debate_state": {
                 "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
                 "conservative_history": final_state["risk_debate_state"]["conservative_history"],
@@ -302,7 +375,10 @@ class TradingAgentsGraph:
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
             },
             "investment_plan": final_state["investment_plan"],
+            "investment_plan_structured": final_state.get("investment_plan_structured", {}),
             "final_trade_decision": final_state["final_trade_decision"],
+            "final_trade_decision_report": final_state.get("final_trade_decision_report", ""),
+            "final_trade_decision_structured": final_state.get("final_trade_decision_structured", {}),
         }
 
         # Save to file

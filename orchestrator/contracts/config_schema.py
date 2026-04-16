@@ -21,14 +21,20 @@ class TradingAgentsConfigPayload(TypedDict, total=False):
     openai_reasoning_effort: Optional[str]
     anthropic_effort: Optional[str]
     output_language: str
+    portfolio_context: str
+    peer_context: str
+    peer_context_mode: str
     max_debate_rounds: int
     max_risk_discuss_rounds: int
     max_recur_limit: int
+    analyst_node_timeout_secs: float
     data_vendors: dict[str, str]
     tool_vendors: dict[str, str]
     selected_analysts: list[str]
     llm_timeout: float
     llm_max_retries: int
+    minimax_retry_attempts: int
+    minimax_retry_base_delay: float
     timeout: float
     max_retries: int
     use_responses_api: bool

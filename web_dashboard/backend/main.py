@@ -13,18 +13,31 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from tradingagents.default_config import get_default_config
+from tradingagents.default_config import get_default_config, normalize_runtime_llm_config
 
-from services import AnalysisService, JobService, ResultStore, build_request_context, load_migration_flags
+from services import (
+    AnalysisService,
+    JobService,
+    ResultStore,
+    TaskCommandService,
+    TaskQueryService,
+    build_request_context,
+    clone_request_context,
+    load_migration_flags,
+)
 from services.executor import LegacySubprocessAnalysisExecutor
 
 # Path to TradingAgents repo root
 REPO_ROOT = Path(__file__).parent.parent.parent
+_env_file = os.environ.get("TRADINGAGENTS_ENV_FILE")
+if _env_file != "":
+    load_dotenv(Path(_env_file) if _env_file else REPO_ROOT / ".env", override=True)
 # Use the currently running Python interpreter
 ANALYSIS_PYTHON = Path(sys.executable)
 # Task state persistence directory
@@ -64,6 +77,18 @@ async def lifespan(app: FastAPI):
         retry_count=MAX_RETRY_COUNT,
         retry_base_delay_secs=RETRY_BASE_DELAY_SECS,
     )
+    app.state.task_query_service = TaskQueryService(
+        task_results=app.state.task_results,
+        result_store=app.state.result_store,
+        job_service=app.state.job_service,
+    )
+    app.state.task_command_service = TaskCommandService(
+        task_results=app.state.task_results,
+        analysis_tasks=app.state.analysis_tasks,
+        processes=app.state.processes,
+        result_store=app.state.result_store,
+        job_service=app.state.job_service,
+    )
 
     # Restore persisted task states from disk
     app.state.job_service.restore_task_results(app.state.result_store.restore_task_results())
@@ -95,6 +120,9 @@ app.add_middleware(
 class AnalysisRequest(BaseModel):
     ticker: str
     date: Optional[str] = None
+    portfolio_context: Optional[str] = None
+    peer_context: Optional[str] = None
+    peer_context_mode: Optional[str] = None
 
 class ScreenRequest(BaseModel):
     mode: str = "china_strict"
@@ -126,7 +154,8 @@ async def save_apikey(request: Request, body: dict = None, api_key: Optional[str
         raise HTTPException(status_code=400, detail="api_key cannot be empty")
 
     try:
-        _persist_analysis_api_key(apikey)
+        runtime_provider = _resolve_analysis_runtime_settings().get("llm_provider", "anthropic")
+        _persist_analysis_api_key(apikey, provider=str(runtime_provider).lower())
         return {"ok": True, "saved": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save API key: {e}")
@@ -175,15 +204,22 @@ def _load_saved_config() -> dict:
     return {}
 
 
-def _persist_analysis_api_key(api_key_value: str):
+def _persist_analysis_api_key(api_key_value: str, *, provider: str):
     global _api_key
+    existing = _load_saved_config()
+    api_keys = dict(existing.get("api_keys") or {})
+    api_keys[provider] = api_key_value
+    payload = dict(existing)
+    payload["api_keys"] = api_keys
+    payload["api_key_provider"] = provider
+    payload["api_key"] = api_key_value
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps({"api_key": api_key_value}, ensure_ascii=False))
+    CONFIG_PATH.write_text(json.dumps(payload, ensure_ascii=False))
     os.chmod(CONFIG_PATH, 0o600)
     _api_key = None
 
 
-def _get_analysis_provider_api_key(provider: str, saved_api_key: Optional[str] = None) -> Optional[str]:
+def _get_analysis_provider_api_key(provider: str, saved_config: Optional[dict] = None) -> Optional[str]:
     env_names = {
         "anthropic": ("ANTHROPIC_API_KEY", "MINIMAX_API_KEY"),
         "openai": ("OPENAI_API_KEY",),
@@ -196,7 +232,17 @@ def _get_analysis_provider_api_key(provider: str, saved_api_key: Optional[str] =
         value = os.environ.get(env_name)
         if value:
             return value
-    return saved_api_key
+    saved = dict(saved_config or {})
+    api_keys = saved.get("api_keys")
+    if isinstance(api_keys, dict):
+        value = api_keys.get(provider.lower())
+        if value:
+            return value
+    legacy_provider = str(saved.get("api_key_provider") or "").lower()
+    legacy_key = saved.get("api_key")
+    if legacy_provider == provider.lower() and legacy_key:
+        return legacy_key
+    return None
 
 
 def _resolve_analysis_runtime_settings() -> dict:
@@ -231,9 +277,19 @@ def _resolve_analysis_runtime_settings() -> dict:
     selected_analysts_raw = os.environ.get("TRADINGAGENTS_SELECTED_ANALYSTS", "market")
     selected_analysts = [item.strip() for item in selected_analysts_raw.split(",") if item.strip()]
     analysis_prompt_style = os.environ.get("TRADINGAGENTS_ANALYSIS_PROMPT_STYLE", "compact")
-    llm_timeout = float(os.environ.get("TRADINGAGENTS_LLM_TIMEOUT", "45"))
-    llm_max_retries = int(os.environ.get("TRADINGAGENTS_LLM_MAX_RETRIES", "0"))
-    return {
+    llm_timeout = float(
+        os.environ.get(
+            "TRADINGAGENTS_LLM_TIMEOUT",
+            str(defaults.get("llm_timeout", 45)),
+        )
+    )
+    llm_max_retries = int(
+        os.environ.get(
+            "TRADINGAGENTS_LLM_MAX_RETRIES",
+            str(defaults.get("llm_max_retries", 0)),
+        )
+    )
+    settings = {
         "llm_provider": provider,
         "backend_url": backend_url,
         "deep_think_llm": deep_model,
@@ -242,8 +298,9 @@ def _resolve_analysis_runtime_settings() -> dict:
         "analysis_prompt_style": analysis_prompt_style,
         "llm_timeout": llm_timeout,
         "llm_max_retries": llm_max_retries,
-        "provider_api_key": _get_analysis_provider_api_key(provider, saved.get("api_key")),
+        "provider_api_key": _get_analysis_provider_api_key(provider, saved),
     }
+    return normalize_runtime_llm_config(settings)
 
 
 def _build_analysis_request_context(request: Request, auth_key: Optional[str]):
@@ -260,6 +317,15 @@ def _build_analysis_request_context(request: Request, auth_key: Optional[str]):
         analysis_prompt_style=settings["analysis_prompt_style"],
         llm_timeout=settings["llm_timeout"],
         llm_max_retries=settings["llm_max_retries"],
+        metadata={
+            "stdout_timeout_secs": max(float(settings["llm_timeout"]) * 4.0, 120.0),
+            "total_timeout_secs": max(float(settings["llm_timeout"]) * 12.0, 900.0),
+            "heartbeat_interval_secs": 10.0,
+            "local_recovery_timeout_secs": max(float(settings["llm_timeout"]) * 2.5, 90.0),
+            "provider_probe_timeout_secs": max(float(settings["llm_timeout"]) * 1.5, 60.0),
+            "local_recovery_cost_cap": 1.0,
+            "provider_probe_cost_cap": 1.0,
+        },
     )
 
 
@@ -350,6 +416,15 @@ async def start_analysis(
     task_id = f"{payload.ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     date = payload.date or datetime.now().strftime("%Y-%m-%d")
     request_context = _build_analysis_request_context(http_request, api_key)
+    if payload.portfolio_context is not None or payload.peer_context is not None:
+        request_context = clone_request_context(
+            request_context,
+            metadata_updates={
+                "portfolio_context": payload.portfolio_context,
+                "peer_context": payload.peer_context,
+                "peer_context_mode": payload.peer_context_mode or ("CALLER_PROVIDED" if payload.peer_context else None),
+            },
+        )
 
     try:
         return await app.state.analysis_service.start_analysis(
@@ -370,9 +445,10 @@ async def get_task_status(task_id: str, api_key: Optional[str] = Header(None)):
     """Get task status"""
     if not _check_api_key(api_key):
         _auth_error()
-    if task_id not in app.state.task_results:
+    payload = app.state.task_query_service.public_task_payload(task_id)
+    if payload is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return _public_task_payload(task_id)
+    return payload
 
 
 @app.get("/api/analysis/tasks")
@@ -380,10 +456,7 @@ async def list_tasks(api_key: Optional[str] = Header(None)):
     """List all tasks (active and recent)"""
     if not _check_api_key(api_key):
         _auth_error()
-    tasks = [_public_task_summary(task_id) for task_id in app.state.task_results]
-    # Sort by created_at descending (most recent first)
-    tasks.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-    return {"contract_version": "v1alpha1", "tasks": tasks, "total": len(tasks)}
+    return app.state.task_query_service.list_task_summaries()
 
 
 @app.delete("/api/analysis/cancel/{task_id}")
@@ -391,33 +464,13 @@ async def cancel_task(task_id: str, api_key: Optional[str] = Header(None)):
     """Cancel a running task."""
     if not _check_api_key(api_key):
         _auth_error()
-    if task_id not in app.state.task_results:
+    payload = await app.state.task_command_service.cancel_task(
+        task_id,
+        broadcast_progress=broadcast_progress,
+    )
+    if payload is None:
         raise HTTPException(status_code=404, detail="Task not found")
-
-    proc = app.state.processes.get(task_id)
-    if proc and proc.returncode is None:
-        try:
-            proc.kill()
-        except Exception:
-            pass
-
-    task = app.state.analysis_tasks.get(task_id)
-    if task:
-        task.cancel()
-
-    state = app.state.job_service.cancel_job(task_id, error="用户取消")
-    if state is not None:
-        state["status"] = "cancelled"
-        state["error"] = {
-            "code": "cancelled",
-            "message": "用户取消",
-            "retryable": False,
-        }
-        app.state.result_store.save_task_status(task_id, state)
-        await broadcast_progress(task_id, state)
-    app.state.result_store.delete_task_status(task_id)
-
-    return {"contract_version": "v1alpha1", "task_id": task_id, "status": "cancelled"}
+    return payload
 
 
 # ============== WebSocket ==============
@@ -474,25 +527,21 @@ async def broadcast_progress(task_id: str, progress: dict):
 
 
 def _load_task_contract(task_id: str, state: Optional[dict] = None) -> Optional[dict]:
-    current_state = state or app.state.task_results.get(task_id)
-    if current_state is None:
-        return None
-    return app.state.result_store.load_result_contract(
-        result_ref=current_state.get("result_ref"),
-        task_id=task_id,
-    )
+    return app.state.task_query_service.load_task_contract(task_id, state_override=state)
 
 
 def _public_task_payload(task_id: str, state_override: Optional[dict] = None) -> dict:
-    state = state_override or app.state.task_results[task_id]
-    contract = _load_task_contract(task_id, state)
-    return app.state.job_service.to_public_task_payload(task_id, contract=contract)
+    payload = app.state.task_query_service.public_task_payload(task_id, state_override=state_override)
+    if payload is None:
+        raise KeyError(task_id)
+    return payload
 
 
 def _public_task_summary(task_id: str, state_override: Optional[dict] = None) -> dict:
-    state = state_override or app.state.task_results[task_id]
-    contract = _load_task_contract(task_id, state)
-    return app.state.job_service.to_task_summary(task_id, contract=contract)
+    summary = app.state.task_query_service.public_task_summary(task_id, state_override=state_override)
+    if summary is None:
+        raise KeyError(task_id)
+    return summary
 
 
 # ============== Reports ==============

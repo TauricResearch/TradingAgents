@@ -4,7 +4,21 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import (
+    StockstatsUtils,
+    _clean_dataframe,
+    _fetch_eastmoney_ohlcv,
+    _fetch_tencent_ohlcv,
+    yf_retry,
+    load_ohlcv,
+    filter_financials_by_date,
+)
+from .config import get_config
+
+
+def _use_compact_data_output() -> bool:
+    mode = str(get_config().get("analysis_prompt_style", "standard")).strip().lower()
+    return mode in {"compact", "fast", "minimax"}
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -19,16 +33,31 @@ def get_YFin_data_online(
     ticker = yf.Ticker(symbol.upper())
 
     # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    try:
+        data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    except Exception:
+        try:
+            data = _fetch_tencent_ohlcv(symbol.upper(), start_date, end_date)
+        except Exception:
+            data = _fetch_eastmoney_ohlcv(symbol.upper(), start_date, end_date)
 
     # Check if data is empty
     if data.empty:
-        return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
-        )
+        try:
+            data = _fetch_tencent_ohlcv(symbol.upper(), start_date, end_date)
+        except Exception:
+            try:
+                data = _fetch_eastmoney_ohlcv(symbol.upper(), start_date, end_date)
+            except Exception:
+                return (
+                    f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+                )
+
+    if "Date" not in data.columns and data.index.name is not None:
+        data = data.reset_index()
 
     # Remove timezone info from index for cleaner output
-    if data.index.tz is not None:
+    if getattr(data.index, "tz", None) is not None:
         data.index = data.index.tz_localize(None)
 
     # Round numerical values to 2 decimal places for cleaner display
@@ -37,12 +66,20 @@ def get_YFin_data_online(
         if col in data.columns:
             data[col] = data[col].round(2)
 
+    compact_mode = _use_compact_data_output()
+    original_len = len(data)
+    if compact_mode and original_len > 20:
+        data = data.tail(20)
+
     # Convert DataFrame to CSV string
     csv_string = data.to_csv()
 
     # Add header information
     header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
-    header += f"# Total records: {len(data)}\n"
+    if compact_mode and original_len > len(data):
+        header += f"# Showing last {len(data)} of {original_len} records (compact mode)\n"
+    else:
+        header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
     return header + csv_string
@@ -134,6 +171,10 @@ def get_stock_stats_indicators_window(
             f"Indicator {indicator} is not supported. Please choose from: {list(best_ind_params.keys())}"
         )
 
+    compact_mode = _use_compact_data_output()
+    if compact_mode:
+        look_back_days = min(look_back_days, 14)
+
     end_date = curr_date
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
@@ -158,6 +199,13 @@ def get_stock_stats_indicators_window(
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
         
+        if compact_mode:
+            date_values = [
+                (date_str, value)
+                for date_str, value in date_values
+                if not str(value).startswith("N/A: Not a trading day")
+            ][:10]
+
         # Build the result string
         ind_string = ""
         for date_str, value in date_values:
@@ -168,11 +216,16 @@ def get_stock_stats_indicators_window(
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        emitted = 0
         while curr_date_dt >= before:
             indicator_value = get_stockstats_indicator(
                 symbol, indicator, curr_date_dt.strftime("%Y-%m-%d")
             )
-            ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            if not compact_mode or not str(indicator_value).startswith("N/A: Not a trading day"):
+                ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+                emitted += 1
+                if compact_mode and emitted >= 10:
+                    break
             curr_date_dt = curr_date_dt - relativedelta(days=1)
 
     result_str = (

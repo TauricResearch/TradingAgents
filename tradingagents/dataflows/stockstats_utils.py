@@ -3,6 +3,7 @@ import logging
 
 import pandas as pd
 import yfinance as yf
+import requests
 from yfinance.exceptions import YFRateLimitError
 from stockstats import wrap
 from typing import Annotated
@@ -10,6 +11,109 @@ import os
 from .config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+def _symbol_to_tencent_code(symbol: str) -> str:
+    code, exchange = symbol.upper().split(".")
+    if exchange == "SS":
+        return f"sh{code}"
+    if exchange == "SZ":
+        return f"sz{code}"
+    raise ValueError(f"Unsupported A-share symbol for Tencent fallback: {symbol}")
+
+
+def _fetch_tencent_ohlcv(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """Fallback daily OHLCV fetch for A-shares via Tencent."""
+    session = requests.Session()
+    session.trust_env = False
+    response = session.get(
+        "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get",
+        params={
+            "param": f"{_symbol_to_tencent_code(symbol)},day,{start_date},{end_date},320,qfq"
+        },
+        headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://gu.qq.com/",
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    data = ((payload or {}).get("data") or {}).get(_symbol_to_tencent_code(symbol)) or {}
+    rows = data.get("qfqday") or data.get("day") or []
+    if not rows:
+        raise ValueError(f"No Tencent OHLCV data returned for {symbol}")
+
+    parsed = []
+    for line in rows:
+        # [date, open, close, high, low, volume]
+        date_str, open_p, close_p, high_p, low_p, volume = line[:6]
+        parsed.append(
+            {
+                "Date": date_str,
+                "Open": float(open_p),
+                "High": float(high_p),
+                "Low": float(low_p),
+                "Close": float(close_p),
+                "Volume": float(volume),
+            }
+        )
+    return pd.DataFrame(parsed)
+
+
+def _symbol_to_eastmoney_secid(symbol: str) -> str:
+    code, exchange = symbol.upper().split(".")
+    if exchange == "SS":
+        return f"1.{code}"
+    if exchange in {"SZ", "BJ"}:
+        return f"0.{code}"
+    raise ValueError(f"Unsupported A-share symbol for Eastmoney fallback: {symbol}")
+
+
+def _fetch_eastmoney_ohlcv(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """Fallback daily OHLCV fetch for A-shares via Eastmoney."""
+    session = requests.Session()
+    session.trust_env = False
+    url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+    response = session.get(
+        url,
+        params={
+            "secid": _symbol_to_eastmoney_secid(symbol),
+            "fields1": "f1,f2,f3,f4,f5,f6",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+            "klt": "101",
+            "fqt": "1",
+            "beg": start_date.replace("-", ""),
+            "end": end_date.replace("-", ""),
+            "ut": "fa5fd1943c7b386f172d6893dbfba10b",
+        },
+        headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://quote.eastmoney.com/",
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    klines = ((payload or {}).get("data") or {}).get("klines") or []
+    if not klines:
+        raise ValueError(f"No Eastmoney OHLCV data returned for {symbol}")
+
+    rows = []
+    for line in klines:
+        date_str, open_p, close_p, high_p, low_p, volume, amount, *_rest = line.split(",")
+        rows.append(
+            {
+                "Date": date_str,
+                "Open": float(open_p),
+                "High": float(high_p),
+                "Low": float(low_p),
+                "Close": float(close_p),
+                "Volume": float(volume),
+                "Amount": float(amount),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def _is_transient_yfinance_error(exc: Exception) -> bool:
@@ -70,6 +174,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     """
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
+    min_acceptable_date = curr_date_dt - pd.Timedelta(days=1)
 
     # Cache uses a fixed window (15y to today) so one file per symbol
     today_date = pd.Timestamp.today()
@@ -83,18 +188,47 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         f"{symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
+    need_refresh = True
+    data = None
     if os.path.exists(data_file):
-        data = pd.read_csv(data_file, on_bad_lines="skip")
-    else:
-        data = yf_retry(lambda: yf.download(
-            symbol,
-            start=start_str,
-            end=end_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        ))
-        data = data.reset_index()
+        cached = pd.read_csv(data_file, on_bad_lines="skip")
+        if "Date" in cached.columns:
+            parsed_dates = pd.to_datetime(cached["Date"], errors="coerce")
+            latest_cached = parsed_dates.dropna().max()
+            if (
+                latest_cached is not pd.NaT
+                and latest_cached is not None
+                and latest_cached >= min_acceptable_date
+            ):
+                data = cached
+                need_refresh = False
+
+    if need_refresh:
+        try:
+            data = yf_retry(lambda: yf.download(
+                symbol,
+                start=start_str,
+                end=end_str,
+                multi_level_index=False,
+                progress=False,
+                auto_adjust=True,
+            ))
+            data = data.reset_index()
+            latest_downloaded = pd.to_datetime(data.get("Date"), errors="coerce").dropna().max()
+            if latest_downloaded is pd.NaT or latest_downloaded is None or latest_downloaded < min_acceptable_date:
+                raise ValueError(
+                    f"yfinance returned stale data for {symbol}: latest={latest_downloaded}"
+                )
+        except Exception as exc:
+            logger.warning(
+                "yfinance download failed for %s, falling back to Tencent/Eastmoney OHLCV: %s",
+                symbol,
+                exc,
+            )
+            try:
+                data = _fetch_tencent_ohlcv(symbol, start_str, end_str)
+            except Exception:
+                data = _fetch_eastmoney_ohlcv(symbol, start_str, end_str)
         data.to_csv(data_file, index=False)
 
     data = _clean_dataframe(data)

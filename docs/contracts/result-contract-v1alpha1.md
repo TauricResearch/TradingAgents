@@ -102,7 +102,10 @@ Optional transport-specific wrapper fields such as WebSocket `type` may sit outs
     {"name": "portfolio", "status": "pending", "completed_at": null}
   ],
   "result": null,
-  "error": null
+  "error": null,
+  "evidence_summary": null,
+  "tentative_classification": null,
+  "budget_state": {}
 }
 ```
 
@@ -111,6 +114,7 @@ Notes:
 - `elapsed_seconds` is preferred over the current loosely typed `elapsed`.
 - stage entries should carry explicit `name`; current positional arrays are fragile.
 - `result` remains nullable until completion.
+- `evidence_summary`, `tentative_classification`, and `budget_state` are additive helper fields for runtime recovery / attribution and may be absent in older payloads.
 
 ## 5.3 Completed result payload
 
@@ -136,6 +140,29 @@ Notes:
       "path": "results/600519.SS/2026-04-13/complete_report.md",
       "available": true
     }
+  },
+  "evidence": {
+    "attempts": [
+      {
+        "status": "completed",
+        "observation_code": "completed",
+        "stage": "portfolio"
+      }
+    ],
+    "last_observation": {
+      "status": "completed",
+      "observation_code": "completed",
+      "stage": "portfolio"
+    }
+  },
+  "tentative_classification": {
+    "kind": "healthy",
+    "summary": "baseline execution succeeded without fallback"
+  },
+  "budget_state": {
+    "local_recovery_used": false,
+    "provider_probe_used": false,
+    "baseline_timeout_secs": 300.0
   },
   "error": null
 }
@@ -256,6 +283,7 @@ Consumers should tolerate:
 - absent `result.signals.quant` when quant path is unavailable
 - absent `result.signals.llm` when LLM path is unavailable
 - `result.degraded = true` when only one lane produced a usable signal
+- optional additive fields such as `evidence`, `tentative_classification`, `budget_state`, `evidence_summary`
 
 ### fields to avoid freezing yet
 

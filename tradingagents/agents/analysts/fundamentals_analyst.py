@@ -24,7 +24,7 @@ def create_fundamentals_analyst(llm):
 
         if use_compact_analysis_prompt():
             system_message = (
-                "You are a fundamentals analyst. Use `get_fundamentals` first, then only call statement tools if needed. Summarize the company in under 220 words with: business quality, growth/profitability, balance-sheet risk, cash-flow quality, and a trading implication. End with a Markdown table."
+                "You are a fundamentals analyst. Make at most one `get_fundamentals` call first, then only call statement tools if a specific gap remains. Avoid iterative follow-up tool calls. Summarize the company in under 220 words with: business quality, growth/profitability, balance-sheet risk, cash-flow quality, and a trading implication. End with a Markdown table."
                 + get_language_instruction()
             )
         else:

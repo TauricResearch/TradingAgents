@@ -4,9 +4,11 @@ import concurrent.futures
 import time
 from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
+from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
+from tradingagents.agents.utils.decision_utils import build_structured_decision
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
@@ -26,6 +28,7 @@ class GraphSetup:
         invest_judge_memory,
         portfolio_manager_memory,
         conditional_logic: ConditionalLogic,
+        analyst_node_timeout_secs: float = 75.0,
         research_node_timeout_secs: float = 30.0,
     ):
         """Initialize with required components."""
@@ -38,6 +41,7 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.portfolio_manager_memory = portfolio_manager_memory
         self.conditional_logic = conditional_logic
+        self.analyst_node_timeout_secs = analyst_node_timeout_secs
         self.research_node_timeout_secs = research_node_timeout_secs
 
     def setup_graph(
@@ -61,29 +65,37 @@ class GraphSetup:
         tool_nodes = {}
 
         if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["market"] = self._guard_analyst_node(
+                "Market Analyst",
+                create_market_analyst(self.quick_thinking_llm),
+                report_field="market_report",
             )
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
-            analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["social"] = self._guard_analyst_node(
+                "Social Analyst",
+                create_social_media_analyst(self.quick_thinking_llm),
+                report_field="sentiment_report",
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["news"] = self._guard_analyst_node(
+                "News Analyst",
+                create_news_analyst(self.quick_thinking_llm),
+                report_field="news_report",
             )
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
 
         if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["fundamentals"] = self._guard_analyst_node(
+                "Fundamentals Analyst",
+                create_fundamentals_analyst(self.quick_thinking_llm),
+                report_field="fundamentals_report",
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
@@ -249,6 +261,35 @@ class GraphSetup:
 
         return wrapped
 
+    def _guard_analyst_node(self, node_name: str, node, *, report_field: str):
+        def wrapped(state):
+            started_at = time.time()
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(node, state)
+            try:
+                return future.result(timeout=self.analyst_node_timeout_secs)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+                return self._apply_analyst_fallback(
+                    node_name=node_name,
+                    report_field=report_field,
+                    reason=f"{node_name.lower().replace(' ', '_')}_timeout",
+                    started_at=started_at,
+                )
+            except Exception as exc:
+                executor.shutdown(wait=False, cancel_futures=True)
+                return self._apply_analyst_fallback(
+                    node_name=node_name,
+                    report_field=report_field,
+                    reason=f"{node_name.lower().replace(' ', '_')}_{type(exc).__name__.lower()}",
+                    started_at=started_at,
+                )
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        return wrapped
+
     @staticmethod
     def _provenance(state) -> dict:
         debate_state = dict(state["investment_debate_state"])
@@ -298,6 +339,11 @@ class GraphSetup:
             return {
                 "investment_debate_state": debate_state,
                 "investment_plan": fallback,
+                "investment_plan_structured": build_structured_decision(
+                    fallback,
+                    default_rating="HOLD",
+                    peer_context_mode=state.get("peer_context_mode", "UNSPECIFIED"),
+                ),
             }
 
         prefix = "Bull Analyst" if dimension == "bull" else "Bear Analyst"
@@ -312,3 +358,15 @@ class GraphSetup:
         debate_state["count"] = debate_state.get("count", 0) + 1
         debate_state.update(provenance)
         return {"investment_debate_state": debate_state}
+
+    @staticmethod
+    def _apply_analyst_fallback(*, node_name: str, report_field: str, reason: str, started_at: float):
+        elapsed_seconds = round(time.time() - started_at, 3)
+        fallback = (
+            f"[DEGRADED] {node_name} unavailable ({reason}). "
+            f"Proceed with partial research context. Guard elapsed={elapsed_seconds}s."
+        )
+        return {
+            "messages": [AIMessage(content=fallback)],
+            report_field: fallback,
+        }

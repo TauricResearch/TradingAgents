@@ -50,3 +50,8 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+    def test_minimax_anthropic_compatible_models_are_known(self):
+        for model in ("MiniMax-M2.7-highspeed", "MiniMax-M2.7"):
+            with self.subTest(model=model):
+                self.assertTrue(validate_model("anthropic", model))

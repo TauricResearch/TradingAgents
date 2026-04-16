@@ -11,12 +11,13 @@ This document is still the **target boundary** document, but several convergence
 - `web_dashboard/backend/services/job_service.py` now owns public task/job projection logic;
 - `web_dashboard/backend/services/result_store.py` persists result contracts under `results/<task_id>/result.v1alpha1.json`;
 - `web_dashboard/backend/services/analysis_service.py` and `api/portfolio.py` already expose contract-first result payloads by default;
+- task lifecycle query/command routing for `status/list/cancel` now sits behind backend task services instead of route-local orchestration in `main.py`;
 - `/ws/analysis/{task_id}` and `/ws/orchestrator` already carry `contract_version = "v1alpha1"` and include result/degradation/data-quality metadata.
 
 What is **not** fully finished yet:
 
-- `web_dashboard/backend/main.py` still contains too much orchestration glue and transport-local logic;
-- route handlers are thinner than before, but the application layer has not fully absorbed every lifecycle branch;
+- `web_dashboard/backend/main.py` still contains too much orchestration glue and transport-local logic outside the task lifecycle slice;
+- route handlers are thinner than before, but the application layer has not fully absorbed reports/export and every remaining lifecycle branch;
 - migration flags/modes still coexist with legacy compatibility paths.
 
 ## 1. Why this document exists
@@ -49,7 +50,6 @@ This is the correct place for quant/LLM merge semantics.
 
 - analysis subprocess template creation;
 - stage-to-progress mapping;
-- task state persistence in `app.state.task_results` and `data/task_status/*.json`;
 - conversion from `FinalSignal` to UI-oriented fields such as `decision`, `quant_signal`, `llm_signal`, `confidence`;
 - report materialization into `results/<ticker>/<date>/complete_report.md`.
 
@@ -59,6 +59,7 @@ At the same time, current mainline no longer matches the oldest “all logic sit
 
 - merge semantics remain in `orchestrator/`;
 - public payload shaping has started moving into backend services;
+- task lifecycle query/command paths now route through backend task services;
 - legacy compatibility fields still exist for UI safety.
 
 ## 3. Target boundary

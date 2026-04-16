@@ -1,15 +1,11 @@
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
 
-from dotenv import load_dotenv
+from tradingagents.default_config import get_default_config, load_project_env
 
-# Load environment variables from .env file
-load_dotenv()
+load_project_env(__file__)
 
 # Create a custom config
-config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-5.4-mini"  # Use a different model
-config["quick_think_llm"] = "gpt-5.4-mini"  # Use a different model
+config = get_default_config()
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance, no extra API keys needed)

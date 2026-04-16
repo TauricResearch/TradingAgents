@@ -16,6 +16,7 @@ def _setup() -> GraphSetup:
         invest_judge_memory=None,
         portfolio_manager_memory=None,
         conditional_logic=None,
+        analyst_node_timeout_secs=0.01,
         research_node_timeout_secs=0.01,
     )
 
@@ -208,6 +209,28 @@ def test_guard_timeout_returns_without_waiting_for_node_completion(monkeypatch):
     assert debate["research_status"] == "degraded"
     assert debate["research_mode"] == "degraded_synthesis"
     assert debate["timed_out_nodes"] == ["Bull Researcher"]
+
+
+def test_analyst_guard_timeout_returns_degraded_report_quickly():
+    setup = _setup()
+
+    def slow_node(_state):
+        time.sleep(0.2)
+        return {"messages": [], "market_report": "ok"}
+
+    wrapped = setup._guard_analyst_node(
+        "Market Analyst",
+        slow_node,
+        report_field="market_report",
+    )
+
+    started = time.monotonic()
+    result = wrapped({"messages": []})
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.1
+    assert result["market_report"].startswith("[DEGRADED] Market Analyst unavailable")
+    assert result["messages"][0].content.startswith("[DEGRADED] Market Analyst unavailable")
 
 
 def test_extract_research_provenance_returns_subset():
