@@ -82,6 +82,6 @@ python run_ningde.py   # 宁德时代
 
 ## API配置
 
-- API Key: Read from a local environment variable; do not commit secrets
+- API Key: 从本地环境变量读取（不要提交到仓库）
 - Base URL: `https://api.minimaxi.com/anthropic`
 - Model: `MiniMax-M2.7-highspeed`

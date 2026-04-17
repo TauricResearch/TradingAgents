@@ -183,3 +183,19 @@ def test_get_signal_marks_partial_data_when_required_columns_missing(runner, mon
     assert signal.degraded is True
     assert signal.reason_code == ReasonCode.PARTIAL_DATA.value
     assert signal.metadata["data_quality"]["state"] == "partial_data"
+
+
+def test_get_signal_uses_yf_retry_wrapper(runner, monkeypatch):
+    calls = []
+
+    def fake_retry(func, max_retries=3, base_delay=2.0):
+        calls.append((max_retries, base_delay))
+        return pd.DataFrame()
+
+    monkeypatch.setattr("orchestrator.quant_runner.yf_retry", fake_retry)
+    monkeypatch.setattr("orchestrator.quant_runner.is_non_trading_day", lambda *_args, **_kwargs: False)
+
+    signal = runner.get_signal("AAPL", "2024-01-02")
+
+    assert calls == [(3, 2.0)]
+    assert signal.reason_code == ReasonCode.QUANT_NO_DATA.value

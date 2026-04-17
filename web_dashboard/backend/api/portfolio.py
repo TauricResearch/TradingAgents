@@ -2,14 +2,42 @@
 Portfolio API — 自选股、持仓、每日建议
 """
 import asyncio
-import fcntl
 import json
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import yfinance
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - exercised on Windows
+    import msvcrt
+
+    class _FcntlCompat:
+        LOCK_SH = 1
+        LOCK_EX = 2
+        LOCK_UN = 8
+
+        @staticmethod
+        def flock(fd: int, operation: int) -> None:
+            os.lseek(fd, 0, os.SEEK_SET)
+            if operation == _FcntlCompat.LOCK_UN:
+                try:
+                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                except OSError:
+                    return
+                return
+
+            if os.fstat(fd).st_size == 0:
+                os.write(fd, b"\0")
+                os.lseek(fd, 0, os.SEEK_SET)
+
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+
+    fcntl = _FcntlCompat()
 
 # Data directory
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
@@ -153,7 +181,7 @@ def _fetch_price(ticker: str) -> float | None:
 async def _fetch_price_throttled(ticker: str) -> float | None:
     """Fetch price with semaphore throttling."""
     async with _yfinance_semaphore:
-        return _fetch_price(ticker)
+        return await asyncio.to_thread(_fetch_price, ticker)
 
 
 async def get_positions(account: Optional[str] = None) -> list:

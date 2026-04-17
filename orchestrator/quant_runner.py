@@ -12,6 +12,7 @@ from orchestrator.config import OrchestratorConfig
 from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.contracts.result_contract import Signal, build_error_signal
 from orchestrator.market_calendar import is_non_trading_day
+from tradingagents.dataflows.stockstats_utils import yf_retry
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,15 @@ class QuantRunner:
         start_str = start_dt.strftime("%Y-%m-%d")
 
         end_exclusive = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
-        df = yf.download(ticker, start=start_str, end=end_exclusive, progress=False, auto_adjust=True)
+        df = yf_retry(
+            lambda: yf.download(
+                ticker,
+                start=start_str,
+                end=end_exclusive,
+                progress=False,
+                auto_adjust=True,
+            )
+        )
         if df.empty:
             logger.warning("No price data for %s between %s and %s", ticker, start_str, date)
             if is_non_trading_day(ticker, end_dt.date()):

@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 from datetime import datetime as real_datetime, timezone
 from pathlib import Path
 
@@ -95,9 +96,13 @@ def test_main_writes_trace_payload_with_research_provenance(monkeypatch, tmp_pat
     monkeypatch.setattr(profile_stage_chain, "TradingAgentsGraph", _FakeTradingAgentsGraph)
     monkeypatch.setattr(profile_stage_chain, "Propagator", _FakePropagator)
     monkeypatch.setattr(profile_stage_chain.time, "monotonic", lambda: next(monotonic_points))
-    monkeypatch.setattr(profile_stage_chain.signal, "signal", lambda *args, **kwargs: None)
-    monkeypatch.setattr(profile_stage_chain.signal, "alarm", lambda *args, **kwargs: None)
     monkeypatch.setattr(profile_stage_chain, "datetime", _FixedDateTime)
+
+    @contextmanager
+    def fake_guard(_seconds):
+        yield profile_stage_chain.threading.Event()
+
+    monkeypatch.setattr(profile_stage_chain, "_overall_timeout_guard", fake_guard)
     monkeypatch.setattr(
         "sys.argv",
         [
@@ -161,3 +166,51 @@ def test_main_writes_trace_payload_with_research_provenance(monkeypatch, tmp_pat
     dump_path = Path(output["dump_path"])
     assert dump_path.exists()
     assert json.loads(dump_path.read_text()) == output
+
+
+class _KeyboardInterruptGraph:
+    def __init__(self, *, selected_analysts, config):
+        self.graph = self
+
+    def stream(self, state, stream_mode, config):
+        raise KeyboardInterrupt
+        yield
+
+
+def test_main_reports_cross_platform_timeout(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(profile_stage_chain, "TradingAgentsGraph", _KeyboardInterruptGraph)
+    monkeypatch.setattr(profile_stage_chain, "Propagator", _FakePropagator)
+    monkeypatch.setattr(profile_stage_chain, "datetime", _FixedDateTime)
+
+    @contextmanager
+    def timed_out_guard(seconds):
+        event = profile_stage_chain.threading.Event()
+        event.set()
+        yield event
+
+    monkeypatch.setattr(profile_stage_chain, "_overall_timeout_guard", timed_out_guard)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "profile_stage_chain.py",
+            "--ticker",
+            "AAPL",
+            "--date",
+            "2026-04-11",
+            "--selected-analysts",
+            "market,social",
+            "--analysis-prompt-style",
+            "balanced",
+            "--overall-timeout",
+            "1",
+            "--dump-dir",
+            str(tmp_path),
+        ],
+    )
+
+    profile_stage_chain.main()
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "error"
+    assert output["exception_type"] == "_ProfileTimeout"
+    assert output["error"] == "profiling timeout after 1s"

@@ -1,12 +1,9 @@
 """
 Tests for portfolio API — covers critical security and correctness fixes.
 """
+import asyncio
 import json
-import os
-import tempfile
-import pytest
 from pathlib import Path
-from unittest.mock import patch
 
 
 class TestRemovePositionMassDeletion:
@@ -261,3 +258,28 @@ class TestConstants:
 
         assert "MAX_CONCURRENT_YFINANCE_REQUESTS" in content
         assert "asyncio.Semaphore(MAX_CONCURRENT_YFINANCE_REQUESTS)" in content
+
+    def test_portfolio_locking_has_windows_fallback(self):
+        portfolio_path = Path(__file__).parent.parent / "api" / "portfolio.py"
+        content = portfolio_path.read_text()
+
+        assert "except ImportError" in content
+        assert "msvcrt" in content
+
+
+class TestAsyncPriceFetch:
+    def test_fetch_price_throttled_uses_worker_thread(self, monkeypatch):
+        from api import portfolio
+
+        calls = []
+
+        async def fake_to_thread(func, *args):
+            calls.append((func, args))
+            return 321.0
+
+        monkeypatch.setattr(portfolio.asyncio, "to_thread", fake_to_thread)
+
+        result = asyncio.run(portfolio._fetch_price_throttled("AAPL"))
+
+        assert result == 321.0
+        assert calls == [(portfolio._fetch_price, ("AAPL",))]

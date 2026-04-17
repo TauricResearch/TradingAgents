@@ -1,5 +1,6 @@
 import time
 import logging
+import threading
 
 import pandas as pd
 import yfinance as yf
@@ -11,6 +12,16 @@ import os
 from .config import get_config
 
 logger = logging.getLogger(__name__)
+_fallback_session_local = threading.local()
+
+
+def _get_fallback_session() -> requests.Session:
+    session = getattr(_fallback_session_local, "session", None)
+    if session is None:
+        session = requests.Session()
+        session.trust_env = False
+        _fallback_session_local.session = session
+    return session
 
 
 def _symbol_to_tencent_code(symbol: str) -> str:
@@ -24,8 +35,7 @@ def _symbol_to_tencent_code(symbol: str) -> str:
 
 def _fetch_tencent_ohlcv(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
     """Fallback daily OHLCV fetch for A-shares via Tencent."""
-    session = requests.Session()
-    session.trust_env = False
+    session = _get_fallback_session()
     response = session.get(
         "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get",
         params={
@@ -72,8 +82,7 @@ def _symbol_to_eastmoney_secid(symbol: str) -> str:
 
 def _fetch_eastmoney_ohlcv(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
     """Fallback daily OHLCV fetch for A-shares via Eastmoney."""
-    session = requests.Session()
-    session.trust_env = False
+    session = _get_fallback_session()
     url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
     response = session.get(
         url,
