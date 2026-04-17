@@ -20,6 +20,10 @@ config["data_vendors"] = {
     "news_data": "yfinance",                 # Options: alpha_vantage, yfinance
 }
 
+# Enable memory persistence so lessons survive restarts (optional).
+# Set to None or omit to keep the default RAM-only behaviour.
+config["memory_persist_dir"] = "~/.tradingagents/memory"
+
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
@@ -27,5 +31,10 @@ ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 
-# Memorize mistakes and reflect
-# ta.reflect_and_remember(1000) # parameter is the position returns
+# Reflect on the decision after observing actual returns.
+# Call this once the position closes and the P&L is known.
+# The signed float indicates outcome: positive = correct signal,
+# negative = incorrect signal.  Lessons are persisted when
+# memory_persist_dir is set, so the next TradingAgentsGraph
+# instance will load them automatically.
+# ta.reflect_and_remember(0.03)  # e.g. 3 % gain

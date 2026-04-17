@@ -18,6 +18,8 @@ DEFAULT_CONFIG = {
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
+    # Memory persistence (None = RAM-only, path = JSON file persistence)
+    "memory_persist_dir": None,
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

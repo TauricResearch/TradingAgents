@@ -2,7 +2,14 @@
 
 Uses BM25 (Best Matching 25) algorithm for retrieval - no API calls,
 no token limits, works offline with any LLM provider.
+
+Supports optional JSON file persistence via config["memory_persist_dir"].
+When set, memories survive process restarts; when unset, behaves as
+before (RAM-only).
 """
+
+import json
+import pathlib
 
 from rank_bm25 import BM25Okapi
 from typing import List, Tuple
@@ -10,19 +17,78 @@ import re
 
 
 class FinancialSituationMemory:
-    """Memory system for storing and retrieving financial situations using BM25."""
+    """Memory system for storing and retrieving financial situations using BM25.
+
+    Persistence
+    -----------
+    Pass ``config={"memory_persist_dir": "/some/path"}`` to enable JSON
+    file persistence.  Each memory instance writes a
+    ``<memory_persist_dir>/<name>.json`` file that is loaded on
+    construction and updated on every ``add_situations`` / ``clear``
+    call.  When ``memory_persist_dir`` is *not* set (the default),
+    the class behaves identically to the original RAM-only version.
+    """
 
     def __init__(self, name: str, config: dict = None):
         """Initialize the memory system.
 
         Args:
             name: Name identifier for this memory instance
-            config: Configuration dict (kept for API compatibility, not used for BM25)
+            config: Configuration dict.  Recognises the key
+                ``memory_persist_dir`` — when set to a directory path,
+                memories are persisted to ``<dir>/<name>.json``.
         """
         self.name = name
         self.documents: List[str] = []
         self.recommendations: List[str] = []
         self.bm25 = None
+
+        # Resolve persistence path (may be None → RAM-only)
+        self._persist_path: pathlib.Path | None = None
+        if config and config.get("memory_persist_dir"):
+            d = pathlib.Path(config["memory_persist_dir"]).expanduser()
+            d.mkdir(parents=True, exist_ok=True)
+            self._persist_path = d / f"{name}.json"
+
+        # Load previously persisted memories (no-op when path is None)
+        self._load()
+
+    # ------------------------------------------------------------------
+    # Persistence helpers
+    # ------------------------------------------------------------------
+
+    def _load(self):
+        """Load previously persisted memories from disk (no-op when RAM-only)."""
+        if self._persist_path is None or not self._persist_path.exists():
+            return
+        try:
+            data = json.loads(self._persist_path.read_text(encoding="utf-8"))
+            situations = data.get("situations", [])
+            recommendations = data.get("recommendations", [])
+            # Pair them up; ignore mismatched trailing entries
+            pairs = list(zip(situations, recommendations))
+            if pairs:
+                self.add_situations(pairs)
+        except (json.JSONDecodeError, OSError):
+            # Corrupt / unreadable file — start fresh
+            pass
+
+    def _save(self):
+        """Persist current memories to disk (no-op when RAM-only)."""
+        if self._persist_path is None:
+            return
+        payload = {
+            "situations": list(self.documents),
+            "recommendations": list(self.recommendations),
+        }
+        # Atomic-ish write: write to temp then rename
+        tmp = self._persist_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self._persist_path)
+
+    # ------------------------------------------------------------------
+    # Tokenisation & indexing
+    # ------------------------------------------------------------------
 
     def _tokenize(self, text: str) -> List[str]:
         """Tokenize text for BM25 indexing.
@@ -53,6 +119,9 @@ class FinancialSituationMemory:
 
         # Rebuild BM25 index with new documents
         self._rebuild_index()
+
+        # Persist to disk (no-op when RAM-only)
+        self._save()
 
     def get_memories(self, current_situation: str, n_matches: int = 1) -> List[dict]:
         """Find matching recommendations using BM25 similarity.
@@ -96,6 +165,7 @@ class FinancialSituationMemory:
         self.documents = []
         self.recommendations = []
         self.bm25 = None
+        self._save()  # Persist the empty state
 
 
 if __name__ == "__main__":
