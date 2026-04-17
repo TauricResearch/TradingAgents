@@ -65,11 +65,13 @@ class FinancialSituationMemory:
             data = json.loads(self._persist_path.read_text(encoding="utf-8"))
             situations = data.get("situations", [])
             recommendations = data.get("recommendations", [])
-            # Pair them up; ignore mismatched trailing entries
-            pairs = list(zip(situations, recommendations))
-            if pairs:
-                self.add_situations(pairs)
-        except (json.JSONDecodeError, OSError):
+            # Populate lists directly to avoid redundant _save() call
+            for situation, recommendation in zip(situations, recommendations):
+                self.documents.append(situation)
+                self.recommendations.append(recommendation)
+            if self.documents:
+                self._rebuild_index()
+        except (json.JSONDecodeError, OSError, AttributeError, TypeError):
             # Corrupt / unreadable file — start fresh
             pass
 
@@ -81,10 +83,14 @@ class FinancialSituationMemory:
             "situations": list(self.documents),
             "recommendations": list(self.recommendations),
         }
-        # Atomic-ish write: write to temp then rename
-        tmp = self._persist_path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(self._persist_path)
+        try:
+            # Atomic-ish write: write to temp then rename
+            tmp = self._persist_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(self._persist_path)
+        except OSError:
+            # Fail gracefully if disk is full or permissions are restricted
+            pass
 
     # ------------------------------------------------------------------
     # Tokenisation & indexing
