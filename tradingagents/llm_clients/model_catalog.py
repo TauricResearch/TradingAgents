@@ -25,11 +25,15 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "anthropic": {
         "quick": [
+            ("MiniMax M2.7 Highspeed - Repo local default via Anthropic-compatible API", "MiniMax-M2.7-highspeed"),
+            ("MiniMax M2.7 - Anthropic-compatible legacy fallback", "MiniMax-M2.7"),
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
             ("Claude Haiku 4.5 - Fast, near-instant responses", "claude-haiku-4-5"),
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
         ],
         "deep": [
+            ("MiniMax M2.7 Highspeed - Repo local default via Anthropic-compatible API", "MiniMax-M2.7-highspeed"),
+            ("MiniMax M2.7 - Anthropic-compatible legacy fallback", "MiniMax-M2.7"),
             ("Claude Opus 4.6 - Most intelligent, agents and coding", "claude-opus-4-6"),
             ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),

@@ -147,14 +147,20 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
+For this local repo, the default daily lane is MiniMax via Anthropic-compatible API:
+
+```bash
+cp .env.example .env
+# then fill:
+# MINIMAX_API_KEY=...
+# ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
+# TRADINGAGENTS_LLM_PROVIDER=anthropic
+# TRADINGAGENTS_MODEL=MiniMax-M2.7-highspeed
+```
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
-
-Alternatively, copy `.env.example` to `.env` and fill in your keys:
-```bash
-cp .env.example .env
-```
 
 ### CLI Usage
 
@@ -191,9 +197,10 @@ To use TradingAgents inside your code, you can import the `tradingagents` module
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import get_default_config, load_project_env
 
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+load_project_env(__file__)
+ta = TradingAgentsGraph(debug=True, config=get_default_config())
 
 # forward propagate
 _, decision = ta.propagate("NVDA", "2026-01-15")
@@ -204,12 +211,12 @@ You can also adjust the default configuration to set your own choice of LLMs, de
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import get_default_config, load_project_env
 
-config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
-config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
+load_project_env(__file__)
+config = get_default_config()
+# Local repo default is MiniMax Anthropic-compatible.
+# Override only when you intentionally want a different provider/model.
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)

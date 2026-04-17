@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from tradingagents.agents.utils.decision_utils import CANONICAL_RATINGS, extract_rating
+
 
 class SignalProcessor:
     """Processes trading signals to extract actionable decisions."""
@@ -20,6 +22,10 @@ class SignalProcessor:
         Returns:
             Extracted rating (BUY, OVERWEIGHT, HOLD, UNDERWEIGHT, or SELL)
         """
+        parsed = extract_rating(full_signal)
+        if parsed in CANONICAL_RATINGS:
+            return parsed
+
         messages = [
             (
                 "system",

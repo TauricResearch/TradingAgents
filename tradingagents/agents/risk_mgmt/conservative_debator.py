@@ -1,4 +1,11 @@
 
+from tradingagents.agents.utils.agent_utils import (
+    build_optional_decision_context,
+    summarize_structured_signal,
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+
 
 def create_conservative_debator(llm):
     def conservative_node(state) -> dict:
@@ -15,10 +22,39 @@ def create_conservative_debator(llm):
         fundamentals_report = state["fundamentals_report"]
 
         trader_decision = state["trader_investment_plan"]
+        trader_structured = state.get("trader_investment_plan_structured") or {}
+        research_structured = state.get("investment_plan_structured") or {}
+        decision_context = build_optional_decision_context(
+            state.get("portfolio_context", ""),
+            state.get("peer_context", ""),
+            peer_context_mode=state.get("peer_context_mode", "UNSPECIFIED"),
+            max_chars=400,
+        )
 
-        prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the Conservative Risk Analyst. Focus on downside protection and capital preservation.
+
+Research signal: {summarize_structured_signal(research_structured)}
+Trader signal: {summarize_structured_signal(trader_structured)}
+Trader decision: {truncate_prompt_text(trader_decision, 500)}
+{decision_context}
+Market report: {truncate_prompt_text(market_research_report, 500)}
+Sentiment report: {truncate_prompt_text(sentiment_report, 350)}
+News report: {truncate_prompt_text(news_report, 350)}
+Fundamentals report: {truncate_prompt_text(fundamentals_report, 450)}
+Debate history: {truncate_prompt_text(history, 500)}
+Last aggressive: {truncate_prompt_text(current_aggressive_response, 300)}
+Last neutral: {truncate_prompt_text(current_neutral_response, 300)}
+
+Keep it under 180 words and focus on 2-3 main risks."""
+        else:
+            prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
 
 {trader_decision}
+
+Structured research signal: {summarize_structured_signal(research_structured)}
+Structured trader signal: {summarize_structured_signal(trader_structured)}
+{decision_context}
 
 Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
 

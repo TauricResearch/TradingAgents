@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
+from typing import Any, Optional
+from uuid import uuid4
+
+from fastapi import Request
+
+
+CONTRACT_VERSION = "v1alpha1"
+DEFAULT_EXECUTOR_TYPE = "legacy_subprocess"
+
+
+@dataclass(frozen=True)
+class RequestContext:
+    """Minimal request-scoped metadata passed into application services."""
+
+    request_id: str
+    contract_version: str = CONTRACT_VERSION
+    executor_type: str = DEFAULT_EXECUTOR_TYPE
+    auth_key: Optional[str] = None
+    provider_api_key: Optional[str] = None
+    llm_provider: Optional[str] = None
+    backend_url: Optional[str] = None
+    deep_think_llm: Optional[str] = None
+    quick_think_llm: Optional[str] = None
+    selected_analysts: tuple[str, ...] = ()
+    analysis_prompt_style: Optional[str] = None
+    llm_timeout: Optional[float] = None
+    llm_max_retries: Optional[int] = None
+    client_host: Optional[str] = None
+    is_local: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+def build_request_context(
+    request: Optional[Request] = None,
+    *,
+    auth_key: Optional[str] = None,
+    provider_api_key: Optional[str] = None,
+    llm_provider: Optional[str] = None,
+    backend_url: Optional[str] = None,
+    deep_think_llm: Optional[str] = None,
+    quick_think_llm: Optional[str] = None,
+    selected_analysts: Optional[list[str] | tuple[str, ...]] = None,
+    analysis_prompt_style: Optional[str] = None,
+    llm_timeout: Optional[float] = None,
+    llm_max_retries: Optional[int] = None,
+    request_id: Optional[str] = None,
+    contract_version: str = CONTRACT_VERSION,
+    executor_type: str = DEFAULT_EXECUTOR_TYPE,
+    metadata: Optional[dict[str, Any]] = None,
+) -> RequestContext:
+    """Create a stable request context without leaking FastAPI internals into services."""
+    client_host = request.client.host if request and request.client else None
+    is_local = client_host in {"127.0.0.1", "::1", "localhost", "testclient"}
+    return RequestContext(
+        request_id=request_id or uuid4().hex,
+        contract_version=contract_version,
+        executor_type=executor_type,
+        auth_key=auth_key,
+        provider_api_key=provider_api_key,
+        llm_provider=llm_provider,
+        backend_url=backend_url,
+        deep_think_llm=deep_think_llm,
+        quick_think_llm=quick_think_llm,
+        selected_analysts=tuple(selected_analysts or ()),
+        analysis_prompt_style=analysis_prompt_style,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
+        client_host=client_host,
+        is_local=is_local,
+        metadata=dict(metadata or {}),
+    )
+
+
+def clone_request_context(
+    context: RequestContext,
+    *,
+    metadata_updates: Optional[dict[str, Any]] = None,
+    **overrides: Any,
+) -> RequestContext:
+    metadata = dict(context.metadata)
+    metadata.update(metadata_updates or {})
+    return replace(context, metadata=metadata, **overrides)

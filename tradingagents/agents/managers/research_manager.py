@@ -1,5 +1,10 @@
-
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    build_optional_decision_context,
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+from tradingagents.agents.utils.decision_utils import build_structured_decision
 
 
 def create_research_manager(llm, memory):
@@ -12,15 +17,47 @@ def create_research_manager(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         investment_debate_state = state["investment_debate_state"]
+        portfolio_context = state.get("portfolio_context", "")
+        peer_context = state.get("peer_context", "")
+        decision_context = build_optional_decision_context(
+            portfolio_context,
+            peer_context,
+            peer_context_mode=state.get("peer_context_mode", "UNSPECIFIED"),
+            max_chars=500,
+        )
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        past_memories = memory.get_memories(
+            curr_situation,
+            n_matches=1 if use_compact_analysis_prompt() else 2,
+        )
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the research manager. Decide Buy, Sell, or Hold based on the debate.
+
+Return a concise response with:
+1. Recommendation line formatted exactly as `RECOMMENDATION: BUY|HOLD|SELL`
+2. Top reasons
+3. Simple execution plan
+
+Past lessons:
+{truncate_prompt_text(past_memory_str, 180)}
+
+{instrument_context}
+
+{decision_context}
+
+Debate history:
+{truncate_prompt_text(history, 700)}
+
+You already have enough evidence. Do not ask for more data and do not emit tool calls.
+Keep the full answer under 180 words."""
+        else:
+            prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
 
 Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. Your recommendation—Buy, Sell, or Hold—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
 
@@ -36,10 +73,24 @@ Here are your past reflections on mistakes:
 
 {instrument_context}
 
+{decision_context}
+
 Here is the debate:
 Debate History:
-{history}"""
+{history}
+
+Start the answer with `RECOMMENDATION: BUY|HOLD|SELL`.
+You already have enough evidence. Do not ask for more data and do not emit tool calls."""
         response = llm.invoke(prompt)
+        structured_plan = build_structured_decision(
+            response.content,
+            default_rating="HOLD",
+            peer_context_mode=state.get("peer_context_mode", "UNSPECIFIED"),
+            context_usage={
+                "portfolio_context": bool(str(portfolio_context).strip()),
+                "peer_context": bool(str(peer_context).strip()),
+            },
+        )
 
         new_investment_debate_state = {
             "judge_decision": response.content,
@@ -53,6 +104,7 @@ Debate History:
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": response.content,
+            "investment_plan_structured": structured_plan,
         }
 
     return research_manager_node

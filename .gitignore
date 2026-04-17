@@ -1,3 +1,7 @@
+# Git worktrees
+.worktrees/
+orchestrator/profile_runs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -217,3 +221,6 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Orchestrator cache
+orchestrator/cache/

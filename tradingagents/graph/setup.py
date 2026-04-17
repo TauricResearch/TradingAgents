@@ -1,10 +1,14 @@
 # TradingAgents/graph/setup.py
 
+import concurrent.futures
+import time
 from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
+from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
+from tradingagents.agents.utils.decision_utils import build_structured_decision
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
@@ -24,6 +28,8 @@ class GraphSetup:
         invest_judge_memory,
         portfolio_manager_memory,
         conditional_logic: ConditionalLogic,
+        analyst_node_timeout_secs: float = 75.0,
+        research_node_timeout_secs: float = 30.0,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -35,6 +41,8 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.portfolio_manager_memory = portfolio_manager_memory
         self.conditional_logic = conditional_logic
+        self.analyst_node_timeout_secs = analyst_node_timeout_secs
+        self.research_node_timeout_secs = research_node_timeout_secs
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -57,41 +65,52 @@ class GraphSetup:
         tool_nodes = {}
 
         if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["market"] = self._guard_analyst_node(
+                "Market Analyst",
+                create_market_analyst(self.quick_thinking_llm),
+                report_field="market_report",
             )
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
-            analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["social"] = self._guard_analyst_node(
+                "Social Analyst",
+                create_social_media_analyst(self.quick_thinking_llm),
+                report_field="sentiment_report",
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["news"] = self._guard_analyst_node(
+                "News Analyst",
+                create_news_analyst(self.quick_thinking_llm),
+                report_field="news_report",
             )
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
 
         if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
+            analyst_nodes["fundamentals"] = self._guard_analyst_node(
+                "Fundamentals Analyst",
+                create_fundamentals_analyst(self.quick_thinking_llm),
+                report_field="fundamentals_report",
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
         # Create researcher and manager nodes
-        bull_researcher_node = create_bull_researcher(
+        bull_researcher_node = self._guard_research_node(
+            "Bull Researcher",
             self.quick_thinking_llm, self.bull_memory
         )
-        bear_researcher_node = create_bear_researcher(
+        bear_researcher_node = self._guard_research_node(
+            "Bear Researcher",
             self.quick_thinking_llm, self.bear_memory
         )
-        research_manager_node = create_research_manager(
+        research_manager_node = self._guard_research_node(
+            "Research Manager",
             self.deep_thinking_llm, self.invest_judge_memory
         )
         trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
@@ -199,3 +218,155 @@ class GraphSetup:
 
         # Compile and return
         return workflow.compile()
+
+    def _guard_research_node(self, node_name: str, llm: Any, memory):
+        if node_name == "Bull Researcher":
+            node = create_bull_researcher(llm, memory)
+            dimension = "bull"
+        elif node_name == "Bear Researcher":
+            node = create_bear_researcher(llm, memory)
+            dimension = "bear"
+        else:
+            node = create_research_manager(llm, memory)
+            dimension = "manager"
+
+        def wrapped(state):
+            started_at = time.time()
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(node, state)
+            try:
+                result = future.result(timeout=self.research_node_timeout_secs)
+                return self._apply_research_success(state, result, dimension)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+                return self._apply_research_fallback(
+                    state,
+                    node_name=node_name,
+                    dimension=dimension,
+                    reason=f"{node_name.lower().replace(' ', '_')}_timeout",
+                    started_at=started_at,
+                )
+            except Exception as exc:
+                executor.shutdown(wait=False, cancel_futures=True)
+                return self._apply_research_fallback(
+                    state,
+                    node_name=node_name,
+                    dimension=dimension,
+                    reason=f"{node_name.lower().replace(' ', '_')}_{type(exc).__name__.lower()}",
+                    started_at=started_at,
+                )
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        return wrapped
+
+    def _guard_analyst_node(self, node_name: str, node, *, report_field: str):
+        def wrapped(state):
+            started_at = time.time()
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(node, state)
+            try:
+                return future.result(timeout=self.analyst_node_timeout_secs)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                executor.shutdown(wait=False, cancel_futures=True)
+                return self._apply_analyst_fallback(
+                    node_name=node_name,
+                    report_field=report_field,
+                    reason=f"{node_name.lower().replace(' ', '_')}_timeout",
+                    started_at=started_at,
+                )
+            except Exception as exc:
+                executor.shutdown(wait=False, cancel_futures=True)
+                return self._apply_analyst_fallback(
+                    node_name=node_name,
+                    report_field=report_field,
+                    reason=f"{node_name.lower().replace(' ', '_')}_{type(exc).__name__.lower()}",
+                    started_at=started_at,
+                )
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        return wrapped
+
+    @staticmethod
+    def _provenance(state) -> dict:
+        debate_state = dict(state["investment_debate_state"])
+        return {
+            "research_status": debate_state.get("research_status", "full"),
+            "research_mode": debate_state.get("research_mode", "debate"),
+            "timed_out_nodes": list(debate_state.get("timed_out_nodes", [])),
+            "degraded_reason": debate_state.get("degraded_reason"),
+            "covered_dimensions": list(debate_state.get("covered_dimensions", [])),
+            "manager_confidence": debate_state.get("manager_confidence"),
+        }
+
+    def _apply_research_success(self, state, result: dict, dimension: str):
+        debate_state = dict(result.get("investment_debate_state") or state["investment_debate_state"])
+        provenance = self._provenance(state)
+        if dimension not in provenance["covered_dimensions"]:
+            provenance["covered_dimensions"].append(dimension)
+        if provenance["research_status"] == "full":
+            provenance["research_mode"] = "debate"
+        if dimension == "manager" and provenance["manager_confidence"] is None:
+            provenance["manager_confidence"] = 1.0 if provenance["research_status"] == "full" else 0.5
+        debate_state.update(provenance)
+        updated = dict(result)
+        updated["investment_debate_state"] = debate_state
+        return updated
+
+    def _apply_research_fallback(self, state, *, node_name: str, dimension: str, reason: str, started_at: float):
+        debate_state = dict(state["investment_debate_state"])
+        provenance = self._provenance(state)
+        provenance["research_status"] = "degraded"
+        provenance["research_mode"] = "degraded_synthesis"
+        provenance["degraded_reason"] = reason
+        if "timeout" in reason and node_name not in provenance["timed_out_nodes"]:
+            provenance["timed_out_nodes"].append(node_name)
+
+        elapsed_seconds = round(time.time() - started_at, 3)
+        if dimension == "manager":
+            provenance["manager_confidence"] = 0.0
+            fallback = (
+                "Recommendation: HOLD\n"
+                f"Top reasons: research degraded at {node_name} ({reason}); use partial research context cautiously.\n"
+                f"Simple execution plan: keep sizing conservative and wait for confirmation. Guard elapsed={elapsed_seconds}s."
+            )
+            debate_state["judge_decision"] = fallback
+            debate_state["current_response"] = fallback
+            debate_state.update(provenance)
+            return {
+                "investment_debate_state": debate_state,
+                "investment_plan": fallback,
+                "investment_plan_structured": build_structured_decision(
+                    fallback,
+                    default_rating="HOLD",
+                    peer_context_mode=state.get("peer_context_mode", "UNSPECIFIED"),
+                ),
+            }
+
+        prefix = "Bull Analyst" if dimension == "bull" else "Bear Analyst"
+        history_field = "bull_history" if dimension == "bull" else "bear_history"
+        degraded_argument = (
+            f"{prefix}: [DEGRADED] {node_name} unavailable ({reason}). "
+            f"Proceeding with partial research context. Guard elapsed={elapsed_seconds}s."
+        )
+        debate_state["history"] = debate_state.get("history", "") + "\n" + degraded_argument
+        debate_state[history_field] = debate_state.get(history_field, "") + "\n" + degraded_argument
+        debate_state["current_response"] = degraded_argument
+        debate_state["count"] = debate_state.get("count", 0) + 1
+        debate_state.update(provenance)
+        return {"investment_debate_state": debate_state}
+
+    @staticmethod
+    def _apply_analyst_fallback(*, node_name: str, report_field: str, reason: str, started_at: float):
+        elapsed_seconds = round(time.time() - started_at, 3)
+        fallback = (
+            f"[DEGRADED] {node_name} unavailable ({reason}). "
+            f"Proceed with partial research context. Guard elapsed={elapsed_seconds}s."
+        )
+        return {
+            "messages": [AIMessage(content=fallback)],
+            report_field: fallback,
+        }

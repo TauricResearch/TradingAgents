@@ -1,4 +1,11 @@
 
+from tradingagents.agents.utils.agent_utils import (
+    build_optional_decision_context,
+    summarize_structured_signal,
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+
 
 def create_neutral_debator(llm):
     def neutral_node(state) -> dict:
@@ -15,10 +22,39 @@ def create_neutral_debator(llm):
         fundamentals_report = state["fundamentals_report"]
 
         trader_decision = state["trader_investment_plan"]
+        trader_structured = state.get("trader_investment_plan_structured") or {}
+        research_structured = state.get("investment_plan_structured") or {}
+        decision_context = build_optional_decision_context(
+            state.get("portfolio_context", ""),
+            state.get("peer_context", ""),
+            peer_context_mode=state.get("peer_context_mode", "UNSPECIFIED"),
+            max_chars=400,
+        )
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the Neutral Risk Analyst. Balance upside and downside and prefer robust execution.
+
+Research signal: {summarize_structured_signal(research_structured)}
+Trader signal: {summarize_structured_signal(trader_structured)}
+Trader decision: {truncate_prompt_text(trader_decision, 500)}
+{decision_context}
+Market report: {truncate_prompt_text(market_research_report, 500)}
+Sentiment report: {truncate_prompt_text(sentiment_report, 350)}
+News report: {truncate_prompt_text(news_report, 350)}
+Fundamentals report: {truncate_prompt_text(fundamentals_report, 450)}
+Debate history: {truncate_prompt_text(history, 500)}
+Last aggressive: {truncate_prompt_text(current_aggressive_response, 300)}
+Last conservative: {truncate_prompt_text(current_conservative_response, 300)}
+
+Keep it under 180 words and argue for the most balanced path."""
+        else:
+            prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
 
 {trader_decision}
+
+Structured research signal: {summarize_structured_signal(research_structured)}
+Structured trader signal: {summarize_structured_signal(trader_structured)}
+{decision_context}
 
 Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
 

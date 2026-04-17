@@ -16,13 +16,22 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str
+        self,
+        company_name: str,
+        trade_date: str,
+        *,
+        portfolio_context: str = "",
+        peer_context: str = "",
+        peer_context_mode: str = "UNSPECIFIED",
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
+            "portfolio_context": portfolio_context,
+            "peer_context": peer_context,
+            "peer_context_mode": peer_context_mode,
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",
@@ -31,6 +40,12 @@ class Propagator:
                     "current_response": "",
                     "judge_decision": "",
                     "count": 0,
+                    "research_status": "full",
+                    "research_mode": "debate",
+                    "timed_out_nodes": [],
+                    "degraded_reason": None,
+                    "covered_dimensions": [],
+                    "manager_confidence": None,
                 }
             ),
             "risk_debate_state": RiskDebateState(
@@ -51,6 +66,13 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "investment_plan": "",
+            "investment_plan_structured": {},
+            "trader_investment_plan": "",
+            "trader_investment_plan_structured": {},
+            "final_trade_decision": "",
+            "final_trade_decision_report": "",
+            "final_trade_decision_structured": {},
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
@@ -60,7 +82,7 @@ class Propagator:
             callbacks: Optional list of callback handlers for tool execution tracking.
                        Note: LLM callbacks are handled separately via LLM constructor.
         """
-        config = {"recursion_limit": self.max_recur_limit}
+        config = {"recursion_limit": self.max_recur_limit, "max_concurrency": 1}
         if callbacks:
             config["callbacks"] = callbacks
         return {

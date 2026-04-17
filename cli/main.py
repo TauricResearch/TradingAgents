@@ -25,7 +25,7 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import get_default_config
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -931,7 +931,7 @@ def run_analysis():
     selections = get_user_selections()
 
     # Create config with selected research depth
-    config = DEFAULT_CONFIG.copy()
+    config = get_default_config()
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
@@ -1165,7 +1165,14 @@ def run_analysis():
 
         # Update final report sections
         for section in message_buffer.report_sections.keys():
-            if section in final_state:
+            if section == "final_trade_decision":
+                report_value = final_state.get(
+                    "final_trade_decision_report",
+                    final_state.get("final_trade_decision"),
+                )
+                if report_value:
+                    message_buffer.update_report_section(section, report_value)
+            elif section in final_state:
                 message_buffer.update_report_section(section, final_state[section])
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
