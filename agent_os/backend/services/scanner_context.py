@@ -32,13 +32,10 @@ logger = logging.getLogger("agent_os.engine")
 # ---------------------------------------------------------------------------
 
 
-def clean_line(text: Any, max_chars: int = 200) -> str:
+def clean_line(text: Any, max_chars: int = 0) -> str:
+    """Cleans whitespace but no longer truncates characters to prevent LLM hallucinations."""
     line = " ".join(str(text or "").strip().split())
-    if not line:
-        return ""
-    if len(line) <= max_chars:
-        return line
-    return line[: max_chars - 3].rstrip() + "..."
+    return line
 
 
 def dedupe_keep_order(lines: list[str], max_items: int) -> list[str]:
@@ -302,14 +299,14 @@ def build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str
                 theme_lines.append(line)
         else:
             theme_lines.append(clean_line(item, 200))
-    theme_lines = dedupe_keep_order(theme_lines, 4) or ["N/A"]
+    theme_lines = dedupe_keep_order(theme_lines, 2) or ["N/A"]
 
     macro_risk_lines = [
         clean_line(item, 180)
         for item in (summary_data.get("risk_factors") or [])
         if str(item).strip()
     ]
-    macro_risk_lines = dedupe_keep_order(macro_risk_lines, 6)
+    macro_risk_lines = dedupe_keep_order(macro_risk_lines, 3)
     if not macro_risk_lines:
         macro_risk_lines = [candidate_risk_line]
 
