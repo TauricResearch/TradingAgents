@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import os
 import typer
 from pathlib import Path
 from functools import wraps
@@ -1177,7 +1178,8 @@ def run_analysis():
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        reports_base = Path(os.getenv("TRADINGAGENTS_RESULTS_DIR", str(Path.cwd() / ".reports")))
+        default_path = reports_base / f"{selections['ticker']}_{timestamp}"
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
             default=str(default_path)
