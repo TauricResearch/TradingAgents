@@ -23,16 +23,18 @@ def get_news(
 @tool
 def get_global_news(
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
-    look_back_days: Annotated[int, "Number of days to look back"] = 7,
-    limit: Annotated[int, "Maximum number of articles to return"] = 5,
+    look_back_days: Annotated[int | None, "Number of days to look back (defaults to global_news_lookback_days config)"] = None,
+    limit: Annotated[int | None, "Maximum number of articles to return (defaults to global_news_article_limit config)"] = None,
 ) -> str:
     """
     Retrieve global news data.
     Uses the configured news_data vendor.
     Args:
         curr_date (str): Current date in yyyy-mm-dd format
-        look_back_days (int): Number of days to look back (default 7)
-        limit (int): Maximum number of articles to return (default 5)
+        look_back_days (int | None): Number of days to look back. If None, uses
+            the global_news_lookback_days value from DEFAULT_CONFIG (7).
+        limit (int | None): Maximum number of articles to return. If None, uses
+            the global_news_article_limit value from DEFAULT_CONFIG (10).
     Returns:
         str: A formatted string containing global news data
     """

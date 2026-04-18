@@ -15,15 +15,17 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
         Dictionary containing news sentiment data or JSON string.
     """
 
+    limit = get_config().get("news_article_limit", 20)
     params = {
         "tickers": ticker,
         "time_from": format_datetime_for_api(start_date),
         "time_to": format_datetime_for_api(end_date),
+        "limit": str(limit),
     }
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_global_news(curr_date, look_back_days: int = None, limit: int = None) -> dict[str, str] | str:
+def get_global_news(curr_date: str, look_back_days: int | None = None, limit: int | None = None) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
@@ -42,7 +44,7 @@ def get_global_news(curr_date, look_back_days: int = None, limit: int = None) ->
     if look_back_days is None:
         look_back_days = config.get("global_news_lookback_days", 7)
     if limit is None:
-        limit = config.get("global_news_article_limit", 50)
+        limit = config.get("global_news_article_limit", 10)
 
     # Calculate start date
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
