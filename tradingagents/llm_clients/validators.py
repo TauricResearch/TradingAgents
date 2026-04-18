@@ -63,6 +63,35 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    "groq": [
+        # Llama 4 series
+        "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        # Llama 3.3 series
+        "llama-3.3-70b-versatile",
+        "llama-3.3-70b-specdec",
+        # Llama 3.1 series
+        "llama-3.1-8b-instant",
+        # Mixtral
+        "mixtral-8x7b-32768",
+        # DeepSeek
+        "deepseek-r1-distill-llama-70b",
+        # Gemma
+        "gemma2-9b-it",
+    ],
+    "together": [
+        # Llama 4 series
+        "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+        # Llama 3.3 series
+        "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo",
+        # DeepSeek
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        # Qwen
+        "Qwen/Qwen2.5-72B-Instruct-Turbo",
+        "Qwen/QwQ-32B",
+    ],
 }
 
 
@@ -73,7 +102,7 @@ def validate_model(provider: str, model: str) -> bool:
     """
     provider_lower = provider.lower()
 
-    if provider_lower in ("ollama", "openrouter"):
+    if provider_lower in ("ollama", "openrouter", "groq", "together"):
         return True
 
     if provider_lower not in VALID_MODELS:

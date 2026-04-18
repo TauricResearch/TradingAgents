@@ -155,7 +155,21 @@ def select_shallow_thinking_agent(provider) -> str:
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
         ],
+        "groq": [
+            ("Llama 3.3 70B Versatile - Fast inference", "llama-3.3-70b-versatile"),
+            ("Llama 3.1 8B Instant - Ultra-fast", "llama-3.1-8b-instant"),
+            ("Llama 3.3 70B SpecDec - Speculative decoding", "llama-3.3-70b-specdec"),
+            ("Gemma2 9B - Google open model", "gemma2-9b-it"),
+        ],
+        "together": [
+            ("Llama 4 Scout 17B - Latest Llama, 16 experts", "meta-llama/Llama-4-Scout-17B-16E-Instruct"),
+            ("Llama 3.3 70B Turbo - Fast inference", "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo"),
+            ("Qwen 2.5 72B Turbo - Strong reasoning", "Qwen/Qwen2.5-72B-Instruct-Turbo"),
+            ("QwQ 32B - Reasoning-focused", "Qwen/QwQ-32B"),
+        ],
         "ollama": [
+            ("Llama 3.3:latest (70B, local)", "llama3.3:latest"),
+            ("Llama 3.2:latest (3B, local)", "llama3.2:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
@@ -223,7 +237,22 @@ def select_deep_thinking_agent(provider) -> str:
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
         ],
+        "groq": [
+            ("Llama 4 Maverick 17B - Latest Llama, 128 experts", "meta-llama/llama-4-maverick-17b-128e-instruct"),
+            ("Llama 4 Scout 17B - Latest Llama, 16 experts", "meta-llama/llama-4-scout-17b-16e-instruct"),
+            ("Llama 3.3 70B Versatile - Fast inference", "llama-3.3-70b-versatile"),
+            ("DeepSeek R1 Distill 70B - Reasoning model", "deepseek-r1-distill-llama-70b"),
+        ],
+        "together": [
+            ("Llama 4 Maverick 17B - Latest Llama, 128 experts", "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"),
+            ("Llama 4 Scout 17B - Latest Llama, 16 experts", "meta-llama/Llama-4-Scout-17B-16E-Instruct"),
+            ("DeepSeek R1 - Full reasoning model", "deepseek-ai/DeepSeek-R1"),
+            ("DeepSeek V3 - Strong general model", "deepseek-ai/DeepSeek-V3"),
+        ],
         "ollama": [
+            ("Llama 3.3:latest (70B, local)", "llama3.3:latest"),
+            ("Llama 3.1:latest (8B, local)", "llama3.1:latest"),
+            ("DeepSeek-R1:latest (local)", "deepseek-r1:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
@@ -260,6 +289,8 @@ def select_llm_provider() -> tuple[str, str]:
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
+        ("Groq", "https://api.groq.com/openai/v1"),
+        ("Together", "https://api.together.xyz/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
