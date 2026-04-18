@@ -1,8 +1,7 @@
 # TradingAgents/graph/setup.py
 
-from typing import Dict, Any
-from langchain_openai import ChatOpenAI
-from langgraph.graph import END, StateGraph, START
+from typing import Any, Dict
+from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
@@ -16,14 +15,14 @@ class GraphSetup:
 
     def __init__(
         self,
-        quick_thinking_llm: ChatOpenAI,
-        deep_thinking_llm: ChatOpenAI,
+        quick_thinking_llm: Any,
+        deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         bull_memory,
         bear_memory,
         trader_memory,
         invest_judge_memory,
-        risk_manager_memory,
+        portfolio_manager_memory,
         conditional_logic: ConditionalLogic,
     ):
         """Initialize with required components."""
@@ -34,7 +33,7 @@ class GraphSetup:
         self.bear_memory = bear_memory
         self.trader_memory = trader_memory
         self.invest_judge_memory = invest_judge_memory
-        self.risk_manager_memory = risk_manager_memory
+        self.portfolio_manager_memory = portfolio_manager_memory
         self.conditional_logic = conditional_logic
 
     def setup_graph(
@@ -101,8 +100,8 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        risk_manager_node = create_risk_manager(
-            self.deep_thinking_llm, self.risk_manager_memory
+        portfolio_manager_node = create_portfolio_manager(
+            self.deep_thinking_llm, self.portfolio_manager_memory
         )
 
         # Create workflow
@@ -124,7 +123,7 @@ class GraphSetup:
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
-        workflow.add_node("Risk Judge", risk_manager_node)
+        workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
         # Start with the first analyst
@@ -176,7 +175,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Conservative Analyst": "Conservative Analyst",
-                "Risk Judge": "Risk Judge",
+                "Portfolio Manager": "Portfolio Manager",
             },
         )
         workflow.add_conditional_edges(
@@ -184,7 +183,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Neutral Analyst": "Neutral Analyst",
-                "Risk Judge": "Risk Judge",
+                "Portfolio Manager": "Portfolio Manager",
             },
         )
         workflow.add_conditional_edges(
@@ -192,11 +191,11 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
-                "Risk Judge": "Risk Judge",
+                "Portfolio Manager": "Portfolio Manager",
             },
         )
 
-        workflow.add_edge("Risk Judge", END)
+        workflow.add_edge("Portfolio Manager", END)
 
         # Compile and return
         return workflow.compile()
