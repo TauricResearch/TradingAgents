@@ -1,6 +1,6 @@
-# Documentation Map
+<!-- Last verified: 2026-04-18 -->
 
-Use this file as the index for the `docs/` tree.
+# Documentation MapUse this file as the index for the `docs/` tree.
 
 ## Start Here
 

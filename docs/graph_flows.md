@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-31 -->
+<!-- Last verified: 2026-04-18 -->
 
 # Graph Flows
 
@@ -13,60 +13,95 @@ flowchart TD
     A --> C["geopolitical_scanner"]
     A --> D["market_movers_scanner"]
     A --> E["sector_scanner"]
-    E --> F["factor_alignment_scanner"]
-    E --> G["smart_money_scanner"]
-    E --> H["drift_scanner"]
-    D --> H
-    B --> H
-    B --> I["industry_deep_dive"]
-    C --> I
-    D --> I
-    F --> I
-    G --> I
-    H --> I
-    I --> J["macro_synthesis"]
+    
+    B --> S_B["summarize_gatekeeper"]
+    C --> S_C["summarize_geopolitical"]
+    D --> S_D["summarize_market_movers"]
+    E --> S_E["summarize_sector"]
+
+    S_E --> F["factor_alignment_scanner"]
+    S_E --> G["smart_money_scanner"]
+    S_E --> H["drift_scanner"]
+    S_D --> H
+    S_B --> H
+
+    F --> S_F["summarize_factor_alignment"]
+    G --> S_G["summarize_smart_money"]
+    H --> S_H["summarize_drift"]
+
+    S_B --> I["industry_deep_dive"]
+    S_C --> I
+    S_D --> I
+    S_F --> I
+    S_G --> I
+    S_H --> I
+
+    I --> S_I["summarize_industry_deep_dive"]
+    
+    S_I --> J["macro_synthesis"]
+    S_B --> J
+    S_C --> J
+    S_D --> J
+    S_E --> J
+    S_F --> J
+    S_G --> J
+    S_H --> J
+    
     J --> K([END])
 ```
 
-- Phase 1 fan-out: `gatekeeper_scanner`, `geopolitical_scanner`, `market_movers_scanner`, `sector_scanner`
-- Bounded follow-ons: `factor_alignment_scanner`, `smart_money_scanner`, `drift_scanner`
-- Fan-in synthesis path: `industry_deep_dive -> macro_synthesis`
+- Phase 1a fan-out: `gatekeeper_scanner`, `geopolitical_scanner`, `market_movers_scanner`, `sector_scanner`
+- Summary Compression 1: `summarize_*` heuristic fast-paths to reduce LLM context token spam.
+- Phase 1b/c bounded follow-ons: `factor_alignment_scanner`, `smart_money_scanner`, `drift_scanner`
+- Summary Compression 2: `summarize_*` for Phase 1b/c nodes.
+- Fan-in synthesis path: `industry_deep_dive -> summarize_industry_deep_dive -> macro_synthesis`
 
 ## Per-Ticker Trading Pipeline
 
 ```mermaid
 flowchart TD
-    A([START]) --> B["Market Analyst"]
+    A([START]) --> P["Instrument Preflight"]
+    P --> B["Market Analyst"]
     B --> C["Msg Clear Market"]
     C --> D["Social Analyst"]
     D --> E["Msg Clear Social"]
     E --> F["News Analyst"]
     F --> G["Msg Clear News"]
-    G --> H["Fundamentals Analyst"]
+    G --> G1["News Fact Checker"]
+    G1 --> H["Fundamentals Analyst"]
     H --> I["Msg Clear Fundamentals"]
     I -->|normal| J["Bull Researcher"]
-    I -->|critical abort| Q["Portfolio Manager"]
+    I -->|critical abort| Q["Portfolio Manager / CRITICAL ABORT"]
     J -->|continue| K["Bear Researcher"]
     J -->|round cap| L["Research Manager"]
-    J -->|critical abort| Q
     K -->|continue| J
     K -->|round cap| L
-    K -->|critical abort| Q
     L --> M["Trader"]
-    M --> N["Aggressive Analyst"]
-    N -->|continue| O["Conservative Analyst"]
-    N -->|stop or abort| Q
-    O -->|continue| P["Neutral Analyst"]
-    O -->|stop or abort| Q
-    P -->|continue| N
-    P -->|stop or abort| Q
-    Q --> R([END])
+    
+    M --> R1_A["Aggressive R1"]
+    M --> R1_C["Conservative R1"]
+    M --> R1_N["Neutral R1"]
+    
+    R1_A --> Barrier["Risk Round Barrier"]
+    R1_C --> Barrier
+    R1_N --> Barrier
+    
+    Barrier --> R2_A["Aggressive R2"]
+    Barrier --> R2_C["Conservative R2"]
+    Barrier --> R2_N["Neutral R2"]
+    
+    R2_A --> Synth["Risk Synthesis"]
+    R2_C --> Synth
+    R2_N --> Synth
+    
+    Synth --> Q
+    Q --> Z([END])
 ```
 
-- Analysts run sequentially in the compiled graph.
+- Analysts run sequentially in the compiled graph, bypassing unsupported instruments dynamically at `Instrument Preflight`.
 - Debate alternates bull and bear until `max_debate_rounds`.
-- Risk rotates aggressive, conservative, and neutral until `max_risk_discuss_rounds`.
-- Critical aborts can short-circuit directly to `Portfolio Manager`.
+- Risk debate is now a 2-round parallel map-reduce structure (`R1` parallel -> `Barrier` -> `R2` parallel -> `Risk Synthesis`).
+- Critical aborts can short-circuit directly to `Portfolio Manager` or `END`.
 
 ## Portfolio
 

@@ -1,6 +1,7 @@
 # TradingAgents — Multi-Agent System Technical Documentation
 
-> **Reverse-engineered from production code — 2026-04-04**
+<!-- Last verified: 2026-04-18 -->
+> **Reverse-engineered from production code — 2026-04-18**
 >
 > Source of truth: `tradingagents/graph/`, `tradingagents/agents/`, `tradingagents/portfolio/`,
 > `agent_os/backend/services/langgraph_engine.py`
@@ -1170,6 +1171,22 @@ State updates:
     "claims": [
       {"claim": "AAPL: iPhone 17 supply chain ramp confirmed...", "source": "Nikkei Asia", "evidence_id": "art_nikkei_001"}
     ]
+  }
+```
+
+**News Fact Checker output:**
+
+```
+State updates:
+  news_report_structured: {
+    "ticker": "AAPL",
+    "claims": [
+      {"claim": "AAPL: iPhone 17 supply chain ramp confirmed...", "source": "Nikkei Asia", "evidence_id": "art_nikkei_001"}
+    ],
+    "key_metrics": {
+       "claim_count": 1,
+       "removed_claims": 0
+    }
   }
 ```
 

@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-31 -->
+<!-- Last verified: 2026-04-18 -->
 
 # Agent Data & Tool Flow
 
@@ -17,22 +17,26 @@ Use this file when you need the current agent/tool/memory picture without the fu
 | --- | --- | --- |
 | Prefetch before LLM call | Market, social, news, fundamentals analysts | Python fetches selected context before the LLM prompt is built. |
 | Inline tool loop | Scanner agents, market analyst, fundamentals analyst, holding reviewer | Tools are bound and resolved inside the node via `run_tool_loop()`. |
-| Pure reasoning node | Debate agents, risk agents, macro synthesis, summary agents, PM decision | No tools are bound. The node only reasons over state and memory context. |
-| Plain Python closure | Portfolio loading, risk metrics, candidate ranking, cash sweep, trade execution | No LLM call. State is transformed deterministically in Python. |
+| Pure reasoning node | Debate agents, risk agents, macro synthesis, PM decision | No tools are bound. The node only reasons over state and memory context. |
+| Heuristic heuristic fast-path | `summarize_*` nodes | Mostly pure python dictionary aggregation instead of expensive LLM calls to save latency and money |
+| Plain Python closure | Portfolio loading, risk metrics, candidate ranking, cash sweep, trade execution, Instrument Preflight | No LLM call. State is transformed deterministically in Python. |
 
 ## Trading Workflow
 
 | Agent / node | Tier | Tool behavior | Memory behavior | Primary output |
 | --- | --- | --- | --- | --- |
+| Instrument Preflight | n/a | no tools | none | skips unsupported tickers |
 | Market Analyst | quick | Prefetches `get_macro_regime` and `get_stock_data`; may call `get_indicators` inline | none | `market_report`, `macro_regime_report` |
 | Social Analyst | quick | Prefetches `get_news`; no post-prefetch tool loop | none | `sentiment_report` |
 | News Analyst | quick | Prefetches `get_news` and `get_global_news`; no post-prefetch tool loop | none | `news_report` |
+| News Fact Checker | n/a | no tools, python lookup | uses EvidenceStore | drops uncorroborated news claims |
 | Fundamentals Analyst | quick | Prefetches `get_ttm_analysis`, `get_fundamentals`, `get_peer_comparison`, `get_sector_relative`; may call statement tools inline | none | `fundamentals_report` |
 | Bull Researcher | mid | no tools | `bull_memory.get_memories()` | debate update |
 | Bear Researcher | mid | no tools | `bear_memory.get_memories()` | debate update |
 | Research Manager | deep | no tools | `invest_judge_memory.get_memories()` | `investment_plan` |
 | Trader | mid | no tools | `trader_memory.get_memories()` | `trader_investment_plan` |
-| Aggressive / Conservative / Neutral | quick | no tools | none | `risk_debate_state` updates |
+| Aggressive / Conservative / Neutral (R1/R2) | quick | no tools, run in parallel map-reduce | none | risk considerations |
+| Risk Synthesis | mid | no tools | none | `risk_debate_state` final summary |
 | Portfolio Manager | deep | no tools | `portfolio_manager_memory.get_memories()` | `final_trade_decision` |
 
 ## Scanner Workflow
@@ -46,6 +50,7 @@ Use this file when you need the current agent/tool/memory picture without the fu
 | Factor Alignment Scanner | quick | `get_topic_news`, `get_earnings_calendar` inline | none | `factor_alignment_report` |
 | Smart Money Scanner | quick | Finviz smart-money tools inline | none | `smart_money_report` |
 | Drift Scanner | quick | `get_gap_candidates`, `get_topic_news`, `get_earnings_calendar` inline | none | `drift_opportunities_report` |
+| summarize_* nodes | n/a | heuristic bypass (pure python aggregation) | none | context compression |
 | Industry Deep Dive | mid | `get_industry_performance`, `get_topic_news` inline | none | `industry_deep_dive_report` |
 | Macro Synthesis | deep | no tools; deterministic ranking before final LLM call | none | `macro_scan_summary` |
 
@@ -82,10 +87,11 @@ Use this file when you need the current agent/tool/memory picture without the fu
 | `MacroMemory` | `macro_summary` | Regime-level lessons and context carryover |
 | `ReflexionMemory` | `micro_summary` | Per-ticker historical lessons and prior outcomes |
 | Selection lesson store | `prioritize_candidates` | Negative screening lessons applied during ranking |
+| `NewsEvidenceStore` | `News Fact Checker` | Provenance matching to prevent LLM hallucination of dates/facts |
 
 ## Current Runtime Notes
 
-- The compiled trading graph still contains `tools_*` ToolNode nodes, but current analyst behavior mostly prefetches context or resolves tools inline before moving to the message-clear nodes.
-- The trading analyst stage is sequential, not parallel.
-- The scanner graph is a real fan-out/fan-in graph with reducer-protected shared state.
+- The compiled trading graph uses sequential analyst nodes with intelligent `Instrument Preflight` gating to drop invalid security types immediately.
+- The scanner graph uses a robust fan-out/fan-in topology that uses custom heuristic fast-paths (`summarize_*`) to radically shrink the context injected downwards, eliminating token limits and reducing costs.
+- Risk Analysis performs parallel Map-Reduce in a multi-round loop separated by a barrier node before performing standard Risk Synthesis.
 - The portfolio graph is mixed-mode: deterministic Python nodes, one inline-tool holding reviewer, parallel summary agents, then deterministic post-processing and execution.
