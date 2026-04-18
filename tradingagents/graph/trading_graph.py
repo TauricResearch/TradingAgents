@@ -66,10 +66,8 @@ class TradingAgentsGraph:
         set_config(self.config)
 
         # Create necessary directories
-        os.makedirs(
-            os.path.join(self.config["project_dir"], "dataflows/data_cache"),
-            exist_ok=True,
-        )
+        os.makedirs(self.config["data_cache_dir"], exist_ok=True)
+        os.makedirs(self.config["results_dir"], exist_ok=True)
 
         # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = self._get_provider_kwargs()
@@ -99,7 +97,7 @@ class TradingAgentsGraph:
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
         self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        self.portfolio_manager_memory = FinancialSituationMemory("portfolio_manager_memory", self.config)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -117,7 +115,7 @@ class TradingAgentsGraph:
             self.bear_memory,
             self.trader_memory,
             self.invest_judge_memory,
-            self.risk_manager_memory,
+            self.portfolio_manager_memory,
             self.conditional_logic,
         )
 
@@ -147,6 +145,11 @@ class TradingAgentsGraph:
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
+
+        elif provider == "anthropic":
+            effort = self.config.get("anthropic_effort")
+            if effort:
+                kwargs["effort"] = effort
 
         return kwargs
 
@@ -254,15 +257,12 @@ class TradingAgentsGraph:
         }
 
         # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
+        directory = Path(self.config["results_dir"]) / self.ticker / "TradingAgentsStrategy_logs"
         directory.mkdir(parents=True, exist_ok=True)
 
-        with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(self.log_states_dict, f, indent=4)
+        log_path = directory / f"full_states_log_{trade_date}.json"
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
@@ -278,8 +278,8 @@ class TradingAgentsGraph:
         self.reflector.reflect_invest_judge(
             self.curr_state, returns_losses, self.invest_judge_memory
         )
-        self.reflector.reflect_risk_manager(
-            self.curr_state, returns_losses, self.risk_manager_memory
+        self.reflector.reflect_portfolio_manager(
+            self.curr_state, returns_losses, self.portfolio_manager_memory
         )
 
     def process_signal(self, full_signal):
