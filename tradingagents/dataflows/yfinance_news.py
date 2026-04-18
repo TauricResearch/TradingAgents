@@ -5,6 +5,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .stockstats_utils import yf_retry
+from .config import get_config
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -66,7 +67,8 @@ def get_news_yfinance(
     """
     try:
         stock = yf.Ticker(ticker)
-        news = yf_retry(lambda: stock.get_news(count=20))
+        count = get_config().get("news_article_limit", 20)
+        news = yf_retry(lambda: stock.get_news(count=count))
 
         if not news:
             return f"No news found for {ticker}"
@@ -106,20 +108,25 @@ def get_news_yfinance(
 
 def get_global_news_yfinance(
     curr_date: str,
-    look_back_days: int = 7,
-    limit: int = 10,
+    look_back_days: int = None,
+    limit: int = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back
-        limit: Maximum number of articles to return
+        look_back_days: Number of days to look back (defaults to global_news_lookback_days config)
+        limit: Maximum number of articles to return (defaults to global_news_article_limit config)
 
     Returns:
         Formatted string containing global news articles
     """
+    config = get_config()
+    if look_back_days is None:
+        look_back_days = config.get("global_news_lookback_days", 7)
+    if limit is None:
+        limit = config.get("global_news_article_limit", 10)
     # Search queries for macro/global news
     search_queries = [
         "stock market economy",

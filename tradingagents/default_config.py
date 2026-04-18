@@ -22,6 +22,10 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # News fetching configuration
+    "news_article_limit": 20,           # max articles per ticker for get_news
+    "global_news_lookback_days": 7,     # lookback window (days) for get_global_news
+    "global_news_article_limit": 10,    # max articles returned by get_global_news
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
