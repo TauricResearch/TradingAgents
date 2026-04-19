@@ -28,6 +28,9 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
+- [2026-04] **Indicator Calculation Separation** ([#542](https://github.com/TauricResearch/TradingAgents/issues/542)) — Technical indicators are now pre-computed in pure Python code before passing to the Market Analyst LLM. Eliminates 8-16 tool call round trips per analysis, reducing analysis time from 2-4 minutes to under 60 seconds.
+- [2026-04] **YFinance Rate Limit Fix** ([#555](https://github.com/TauricResearch/TradingAgents/issues/555)) — Added exponential backoff retry and in-memory TTL caching for all yfinance API calls. Automatic vendor fallback to Alpha Vantage when rate limits persist.
+- [2026-04] **LLM Model Updates** — Updated model lists across all 6 providers to April 2026 latest, including Claude Opus 4.6, GPT-5.4 series, Gemini 3.1 Pro, and Grok 4.20.
 - [2026-03] **KIS Broker Integration** — Real-time trade execution via Korea Investment & Securities (한국투자증권) API. Supports both paper trading (모의투자) and real trading (실투자) with multi-layer safety guards.
 - [2026-03] **Investment Persona System** — Trade like Warren Buffett, Ray Dalio, or Peter Lynch. Persona-specific strategies are injected into Trader, Research Manager, and Risk Manager agents.
 - [2026-02] **TradingAgents v0.2.0** released with multi-provider LLM support (GPT-5.x, Gemini 3.x, Claude 4.x, Grok 4.x) and improved system architecture.
@@ -69,7 +72,7 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags. For Korean-listed companies, it also leverages [OpenDART](https://opendart.fss.or.kr/) data including official financial statements and regulatory disclosures.
 - Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
-- Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
+- Technical Analyst: Pre-computes all technical indicators (MACD, RSI, Bollinger Bands, ATR, moving averages, etc.) in pure code, then passes the structured summary to the LLM for contextual interpretation and trend analysis.
 
 <p align="center">
   <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -337,16 +340,18 @@ When the broker is enabled, the Trader agent also receives portfolio context (cu
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `llm_provider` | `"openai"` | LLM provider: openai, google, anthropic, xai, openrouter, ollama |
-| `deep_think_llm` | `"gpt-5.2"` | Model for complex reasoning tasks |
-| `quick_think_llm` | `"gpt-5-mini"` | Model for quick analysis tasks |
-| `backend_url` | `"https://api.openai.com/v1"` | API endpoint URL |
+| `llm_provider` | `"anthropic"` | LLM provider: openai, google, anthropic, xai, openrouter, ollama |
+| `deep_think_llm` | `"claude-sonnet-4-6"` | Model for complex reasoning tasks |
+| `quick_think_llm` | `"claude-haiku-4-5-20251001"` | Model for quick analysis tasks |
+| `backend_url` | `None` | API endpoint URL (auto-configured per provider) |
 | `max_debate_rounds` | `1` | Bull/Bear debate rounds |
 | `max_risk_discuss_rounds` | `1` | Risk management discussion rounds |
 | `data_vendors` | `{"core_stock_apis": "yfinance", ...}` | Category-level data vendor selection |
 | `persona` | `None` | Investment persona |
 | `broker.enabled` | `False` | Enable trade execution |
 | `broker.mode` | `"paper"` | Paper or real trading |
+| `yfinance_retry` | `{max_retries: 3, base_delay: 2.0, ...}` | YFinance retry/backoff configuration |
+| `cache_ttl` | `{fundamentals: 3600, news: 900, ...}` | In-memory cache TTL per data category (seconds) |
 | `google_thinking_level` | `None` | Gemini thinking config: "high", "minimal" |
 | `openai_reasoning_effort` | `None` | OpenAI reasoning effort: "low", "medium", "high" |
 
