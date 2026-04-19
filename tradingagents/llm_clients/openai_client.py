@@ -33,7 +33,7 @@ _PROVIDER_CONFIG = {
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
     "nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY"),
-    "openaicompatible": (os.environ.get("OPENAI_BASE_URL"), "OPENAI_API_KEY"),
+    "openaicompatible": (os.environ.get("OPENAI_BASE_URL","https://api.openai.com/v1"), "OPENAI_API_KEY"),
 }
 
 
