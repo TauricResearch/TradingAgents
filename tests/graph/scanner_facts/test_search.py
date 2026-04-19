@@ -223,6 +223,18 @@ def test_integration_search_alias_in_real_facts():
     assert result["ticker"] == "ON"
 
 
+def test_integration_search_registry_alias_in_real_facts():
+    """Searching by a curated alias should work even for Markdown-only ticker nodes."""
+    from tradingagents.graph.scanner_facts.builder import (
+        build_scanner_graph_facts_from_market_dir,
+    )
+    facts = build_scanner_graph_facts_from_market_dir(
+        FIXTURES, scan_date="2026-04-16", run_id="test-search-registry-alias"
+    )
+    result = retrieve_ticker_subgraph(facts, "Nvidia", hops=2)
+    assert result["ticker"] == "NVDA"
+
+
 def test_integration_unknown_ticker_raises_in_real_facts():
     from tradingagents.graph.scanner_facts.builder import (
         build_scanner_graph_facts_from_market_dir,

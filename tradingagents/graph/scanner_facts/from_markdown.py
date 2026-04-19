@@ -272,6 +272,57 @@ def _emit_macro_node(
             [evidence_text] if evidence_text else [], conf,
         ))
 
+    _emit_macro_relation(
+        node_id, node_type, source, evidence_text, implication, nodes, edges, node_ids
+    )
+
+
+def _theme_label_from_row(evidence_text: str, implication: str) -> str:
+    """Derive a compact Theme label from a sector/macro row."""
+    for candidate in (implication, evidence_text):
+        cleaned = " ".join((candidate or "").strip().split())
+        if cleaned:
+            return cleaned[:80]
+    return ""
+
+
+def _emit_macro_relation(
+    node_id: str, node_type: str, source: str,
+    evidence_text: str, implication: str,
+    nodes: list, edges: list, node_ids: set,
+) -> None:
+    """Emit the row-level relationship required by the Sector/Macro contract."""
+    target = _theme_label_from_row(evidence_text, implication)
+    if not target or target == node_id:
+        return
+
+    polarity = infer_polarity(node_id, evidence_text, implication)
+    hedging = any(w in (evidence_text + " " + implication).lower()
+                  for w in ("may", "could", "potential", "if", "uncertain"))
+    conf = compute_confidence(
+        ConfidenceSource.INFERRED_EDGE,
+        hedging=hedging,
+        polarity_empty=(polarity == ""),
+    )
+
+    if target not in node_ids:
+        node_ids.add(target)
+        nodes.append(_make_node(
+            target, "Theme", target, source,
+            [implication or evidence_text], conf,
+        ))
+
+    relation = "DRIVES_SENTIMENT" if node_type == "Sector" else "IMPACTS"
+    edges.append(_make_edge(
+        node_id,
+        relation,
+        target,
+        source,
+        " | ".join(p for p in (node_id, evidence_text, implication) if p),
+        conf,
+        polarity,
+    ))
+
 
 # ---------- Risk / Failure Modes handler ----------
 

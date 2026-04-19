@@ -16,6 +16,7 @@ from tradingagents.graph.scanner_facts.from_macro_json import (
     load_and_parse_macro_scan_summary,
 )
 from tradingagents.graph.scanner_facts.from_markdown import facts_from_all_markdown_summaries
+from tradingagents.graph.scanner_facts.aliases import aliases_for_node
 from tradingagents.graph.scanner_facts.schema import SCHEMA_VERSION, validate_graph_facts
 from tradingagents.report_paths import get_market_dir, get_scanner_graph_facts_path
 
@@ -45,6 +46,12 @@ def _merge_partial_facts(partials: list[dict]) -> dict:
 
     for partial in partials:
         for node in partial.get("nodes", []):
+            node = dict(node)
+            node["aliases"] = list(node.get("aliases", []))
+            for alias in aliases_for_node(node["id"], node["type"]):
+                if alias not in node["aliases"]:
+                    node["aliases"].append(alias)
+
             key = (node["type"], node["id"])
             if key in node_index:
                 existing = nodes[node_index[key]]

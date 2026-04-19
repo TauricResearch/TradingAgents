@@ -78,6 +78,16 @@ FX_ALIASES: dict[str, list[str]] = {
 }
 
 
+_REGISTRY_BY_NODE_TYPE: dict[str, dict[str, list[str]]] = {
+    "Ticker": TICKER_ALIASES,
+    "Sector": SECTOR_ALIASES,
+    "MarketIndex": INDEX_ALIASES,
+    "MacroIndicator": MACRO_ALIASES,
+    "Commodity": COMMODITY_ALIASES,
+    "CurrencyPair": FX_ALIASES,
+}
+
+
 def resolve_alias(
     label: str,
     registry: dict[str, list[str]],
@@ -93,3 +103,19 @@ def resolve_alias(
         if label_norm in aliases:
             return canonical
     return None
+
+
+def aliases_for_node(node_id: str, node_type: str) -> list[str]:
+    """Return curated aliases for a canonical node id/type."""
+    registry = _REGISTRY_BY_NODE_TYPE.get(node_type)
+    if not registry:
+        return []
+    return list(registry.get(node_id, []))
+
+
+def resolve_alias_for_type(label: str, node_type: str) -> str | None:
+    """Resolve *label* through the curated registry for one node type."""
+    registry = _REGISTRY_BY_NODE_TYPE.get(node_type)
+    if not registry:
+        return None
+    return resolve_alias(label, registry)

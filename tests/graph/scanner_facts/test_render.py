@@ -284,6 +284,7 @@ def test_render_tool_produces_same_output(tmp_path):
     ):
         from tradingagents.graph.scanner_facts.render import get_render_tool
         tool = get_render_tool()
+        assert tool.name == "render_ticker_graph_context"
         tool_result = tool.invoke({"scan_date": "2026-04-16", "run_id": "TESTRUN", "ticker": "ON"})
 
     direct_result = render_ticker_graph_context(facts, "ON")

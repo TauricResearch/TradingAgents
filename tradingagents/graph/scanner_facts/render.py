@@ -201,7 +201,9 @@ def get_render_tool():
     from tradingagents.graph.scanner_facts.builder import load_scanner_graph_facts
     from tradingagents.report_paths import get_scanner_graph_facts_path
 
-    @lc_tool
+    core_renderer = render_ticker_graph_context
+
+    @lc_tool("render_ticker_graph_context")
     def render_ticker_graph_context_tool(scan_date: str, run_id: str, ticker: str) -> str:
         """Render the scanner graph context for a ticker as a compact prompt string.
 
@@ -219,6 +221,6 @@ def get_render_tool():
         """
         artifact_path = get_scanner_graph_facts_path(scan_date, run_id)
         facts = load_scanner_graph_facts(artifact_path)
-        return render_ticker_graph_context(facts, ticker)
+        return core_renderer(facts, ticker)
 
     return render_ticker_graph_context_tool

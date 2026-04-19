@@ -258,6 +258,14 @@ def test_market_movers_vix_classified_as_macro_indicator():
     )
 
 
+def test_market_movers_macro_rows_emit_impacts_edges():
+    text = (FIXTURES / "market_movers_summary.md").read_text()
+    result = facts_from_markdown_summary(text, source="market_movers_summary.md")
+    impacts_edges = _edges_by_relation(result, "IMPACTS")
+    assert impacts_edges, "Expected macro/index rows to emit IMPACTS edges"
+    assert any(e["source"] == "VIX" for e in impacts_edges), impacts_edges
+
+
 # ---- quality gating ----
 
 def test_quality_gated_text_returns_empty_facts():

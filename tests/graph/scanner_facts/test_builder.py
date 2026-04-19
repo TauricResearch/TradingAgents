@@ -72,6 +72,16 @@ def test_merge_keeps_different_types_with_same_id():
     assert "Sector" in types
 
 
+def test_merge_nodes_adds_curated_aliases():
+    partial = {
+        "nodes": [{"id": "NVDA", "type": "Ticker", "label": "NVDA",
+                   "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.9}],
+        "edges": [],
+    }
+    merged = _merge_partial_facts([partial])
+    assert "Nvidia" in merged["nodes"][0]["aliases"]
+
+
 def test_merge_dedupes_edges_by_source_relation_target_provenance():
     edge = {"source": "ON", "relation": "BELONGS_TO", "target": "Technology",
             "polarity": "", "provenance": "src_a", "evidence": "ev", "confidence": 0.9}

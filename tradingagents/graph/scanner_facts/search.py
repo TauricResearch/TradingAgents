@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from collections import deque
 
+from tradingagents.graph.scanner_facts.aliases import resolve_alias_for_type
+
 _logger = logging.getLogger(__name__)
 
 
@@ -23,6 +25,13 @@ def _find_seed_node(facts: dict, query: str) -> dict | None:
     for node in facts.get("nodes", []):
         for alias in node.get("aliases", []):
             if alias.strip().upper() == upper or alias.strip() == query.strip():
+                return node
+    # Curated ticker aliases are part of the canonical lookup contract even
+    # when older artifacts were built before aliases were embedded per node.
+    canonical = resolve_alias_for_type(query.strip(), "Ticker")
+    if canonical:
+        for node in facts.get("nodes", []):
+            if node.get("type") == "Ticker" and node["id"].upper() == canonical.upper():
                 return node
     return None
 
