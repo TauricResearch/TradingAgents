@@ -27,7 +27,7 @@ def test_no_env_set_uses_hardcoded_defaults():
     assert cfg["mid_think_llm"] is None
     assert cfg["quick_think_llm"] == "gpt-5-mini"
     assert cfg["backend_url"] == "https://api.openai.com/v1"
-    assert cfg["llm_timeout"] == 180.0
+    assert cfg["llm_timeout"] == 300.0
     assert cfg["max_debate_rounds"] == 2
     assert cfg["data_vendors"]["scanner_data"] == "yfinance"
 

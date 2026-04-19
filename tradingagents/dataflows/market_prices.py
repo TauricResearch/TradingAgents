@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+import pandas as pd
 import requests
 import yfinance as yf
 
 from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import YFinanceError
+
+
+logger = logging.getLogger(__name__)
 
 
 _MARKET_PRICE_SYMBOLS = {
@@ -81,13 +86,22 @@ class MarketPricesClient:
         if download_df is None or getattr(download_df, "empty", True):
             return None
 
+        # yfinance can return a Series for single symbol or a DataFrame for multiple symbols.
+        # Multi-symbol case with multi-index columns: download_df["Close"] is a DataFrame.
+        # Single-symbol case: download_df["Close"] is usually a Series.
+        
         try:
-            closes = download_df["Close"][symbol].dropna()
+            close_col = download_df["Close"]
+            if isinstance(close_col, pd.DataFrame):
+                # Multi-symbol
+                if symbol not in close_col.columns:
+                    return None
+                closes = close_col[symbol].dropna()
+            else:
+                # Single-symbol Series
+                closes = close_col.dropna()
         except Exception:
-            try:
-                closes = download_df["Close"].dropna()
-            except Exception:
-                return None
+            return None
 
         if len(closes) < 2:
             return None

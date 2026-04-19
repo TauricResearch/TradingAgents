@@ -61,7 +61,7 @@ class TestConditionalLogicWiring:
         from tradingagents.default_config import DEFAULT_CONFIG
         assert DEFAULT_CONFIG["max_debate_rounds"] == 2
         assert DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2
-        assert DEFAULT_CONFIG["llm_timeout"] == 180.0
+        assert DEFAULT_CONFIG["llm_timeout"] == 300.0
 
     def test_conditional_logic_accepts_config_values(self):
         from tradingagents.graph.conditional_logic import ConditionalLogic
