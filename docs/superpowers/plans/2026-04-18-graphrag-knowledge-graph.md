@@ -54,7 +54,7 @@
 | `tradingagents/graph/graph_memory/retriever.py` | `get_subgraph(session, ticker, scan_date, hops, staleness_days)` + `format_subgraph_for_llm()` + `create_graph_context_retrieval_node(llm, driver_factory)` |
 | `tradingagents/graph/graph_memory/learning.py` | `LearningMemoryWriter` protocol (no-op default) — mem0 integration hook for the upcoming learning agent |
 | `docker-compose.yml` (or existing file — append service) | Neo4j 5.x service for local dev |
-| `docs/agent/decisions/022-neo4j-knowledge-graph.md` | ADR documenting Neo4j + bitemporal + mem0 hook decision |
+| `docs/agent/decisions/023-neo4j-knowledge-graph.md` | ADR documenting Neo4j + bitemporal + mem0 hook decision |
 | `tests/graph/graph_memory/__init__.py` | Test package marker |
 | `tests/graph/graph_memory/conftest.py` | `neo4j_session` fixture using `testcontainers[neo4j]`, skip if unavailable |
 | `tests/graph/graph_memory/test_schema.py` | DDL idempotency |
@@ -1346,7 +1346,7 @@ Today this is a no-op. A follow-up PR will provide a concrete
 optionally mirrors distilled learnings back into Neo4j as `Ticker -> Theme`
 edges with a `learned=true` flag.
 
-See: docs/agent/decisions/022-neo4j-knowledge-graph.md
+See: docs/agent/decisions/023-neo4j-knowledge-graph.md
 """
 from __future__ import annotations
 
@@ -1767,17 +1767,25 @@ git commit -m "feat(graphrag): prefer retrieved_graph_context in research packet
 ## Task 12: ADR
 
 **Files:**
-- Create: `docs/agent/decisions/022-neo4j-knowledge-graph.md`
+- Create: `docs/agent/decisions/023-neo4j-knowledge-graph.md`
 
 - [ ] **Write the ADR**
 
 Covers: status (accepted), context (need persistent cross-run memory + multi-hop queries), decision (Neo4j 5.x, bitemporal model, structured-row extraction, `LearningMemoryWriter` seam for mem0), consequences & constraints (Neo4j must be available for graph-enabled runs; `graph_enabled=False` is the safe fallback), actionable rules (every edge MUST carry `provenance`; every ingestion MUST stamp `first_seen` / `last_seen`; retrieval MUST filter by `graph_staleness_days`).
 
+ADR 023 ingests from `scanner_graph_facts.json` (ADR 022) rather than reparsing summaries directly.
+
+**Resume Rule (binding, matching ADR 022):** `pipeline_from_phase` / `run_pipeline_from_phase` may resume without building graph facts when explicitly invoked by an operator, but must emit a warning banner:
+```
+WARNING: Resuming without scanner_graph_facts.json — scanner_context_packet fallback active.
+```
+This path is operator-explicit only. Normal backend execution never triggers it.
+
 - [ ] **Commit**
 
 ```bash
-git add docs/agent/decisions/022-neo4j-knowledge-graph.md
-git commit -m "docs(adr): ADR 022 — Neo4j knowledge graph + bitemporal + mem0 hook"
+git add docs/agent/decisions/023-neo4j-knowledge-graph.md
+git commit -m "docs(adr): ADR 023 — Neo4j knowledge graph + bitemporal + mem0 hook"
 ```
 
 ---
