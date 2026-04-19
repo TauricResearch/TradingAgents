@@ -24,6 +24,7 @@ class UnifiedChatOpenAI(ChatOpenAI):
         return (
             model_lower.startswith("o1")
             or model_lower.startswith("o3")
+            or model_lower.startswith("o4")
             or "gpt-5" in model_lower
         )
 
