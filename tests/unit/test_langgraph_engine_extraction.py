@@ -179,6 +179,7 @@ class TestLangGraphEngineExtraction(unittest.TestCase):
             "event": "on_chain_start",
             "run_id": "node_run",
             "name": "market_analyst",
+            "parent_ids": ["graph_run"],
             "data": {},
             "metadata": {"langgraph_node": "market_analyst"},
         }

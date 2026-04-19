@@ -77,7 +77,7 @@ def mock_llm_with_tool_call():
     tool_call_msg = AIMessage(
         content="",
         tool_calls=[
-            {"name": "mock_tool", "args": {"query": "test"}, "id": "call_123"}
+            {"name": "get_balance_sheet", "args": {"ticker": "AAPL"}, "id": "call_123"}
         ]
     )
     # 2. Second call: The LLM receives the tool output and writes the report
@@ -148,7 +148,11 @@ def test_fundamentals_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
             "Peer Comparison": "Peer context",
             "Sector Relative Performance": "Sector context",
         },
-    ):
+    ), patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.get_balance_sheet"
+    ) as mock_tool_fn:
+        mock_tool_fn.name = "get_balance_sheet"
+        mock_tool_fn.invoke.return_value = "Mocked Balance Sheet data"
         node = create_fundamentals_analyst(mock_llm_with_tool_call)
         result = node(mock_state)
     assert "This is the final report after running the tool." in result["fundamentals_report"]

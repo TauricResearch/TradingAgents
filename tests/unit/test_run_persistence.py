@@ -75,7 +75,7 @@ def test_run_and_store_checkpoints_events_before_cancellation(monkeypatch):
     event_counts = [payload["count"] for kind, payload in fake_store.calls if kind == "events"]
     meta_statuses = [payload["status"] for kind, payload in fake_store.calls if kind == "meta"]
 
-    assert event_counts == list(range(1, 11)) + [10]
+    assert event_counts == list(range(1, 12)) + [11]
     assert meta_statuses == ["failed"]
     assert run_snapshot["status"] == "failed"
     assert run_snapshot["error"] == "Run cancelled"
@@ -107,7 +107,7 @@ def test_run_and_store_checkpoints_first_event(monkeypatch):
         runs_route.runs.pop(run_id, None)
 
     event_counts = [payload["count"] for kind, payload in fake_store.calls if kind == "events"]
-    assert event_counts == [1, 1]
+    assert event_counts == [1, 2, 2]
 
 
 def test_run_and_store_persists_pending_phase3_decision(monkeypatch):

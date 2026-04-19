@@ -39,7 +39,12 @@ def test_research_packet_summary_node_returns_summary():
             },
             "sentiment_report": "- Sentiment improved to 62%",
             "news_report": "- AAPL supplier demand improved 8% on 2024-05-15.",
+            "news_report_structured": {
+                "status": "completed",
+                "key_metrics": {"claim_count": 1},
+            },
             "fundamentals_report": "- Gross margin expanded 120bps.",
+
             "macro_regime_report": "## Risk-On\nMarket is RISK-ON.",
         }
     )

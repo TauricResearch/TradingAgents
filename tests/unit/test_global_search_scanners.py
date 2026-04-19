@@ -70,7 +70,9 @@ def test_gatekeeper_scanner_end_to_end():
         gatekeeper_tool,
     ):
         node = create_gatekeeper_scanner(llm)
-        result = node(_base_state())
+        state = _base_state()
+        state.pop("gatekeeper_universe_report", None)
+        result = node(state)
 
     assert "Gatekeeper report" in result["gatekeeper_universe_report"]
     assert result["sender"] == "gatekeeper_scanner"
@@ -113,7 +115,11 @@ def test_factor_alignment_scanner_end_to_end():
 
     assert "Factor alignment report" in result["factor_alignment_report"]
     assert result["sender"] == "factor_alignment_scanner"
-    assert [tool.name for tool in llm.tools_bound] == ["get_topic_news", "get_earnings_calendar"]
+    assert [tool.name for tool in llm.tools_bound] == [
+        "get_sector_performance",
+        "get_topic_news",
+        "get_earnings_calendar",
+    ]
 
 
 def test_drift_scanner_end_to_end():
