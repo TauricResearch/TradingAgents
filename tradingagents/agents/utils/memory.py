@@ -6,13 +6,14 @@ no token limits, works offline with any LLM provider.
 
 import json
 import logging
+import re
 import tempfile
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
 from rank_bm25 import BM25Okapi
 from typing import List, Tuple
-import re
+
+logger = logging.getLogger(__name__)
 
 
 class FinancialSituationMemory:

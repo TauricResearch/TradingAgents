@@ -16,9 +16,15 @@ def create_research_manager(llm, memory):
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
-        past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if past_memories:
+            past_memory_str = "".join(rec["recommendation"] + "\n\n" for rec in past_memories)
+            memory_section = (
+                "Take into account your past mistakes on similar situations."
+                " Use these insights to refine your decision-making and ensure you are learning and improving.\n\n"
+                f"Here are your past reflections on mistakes:\n\"{past_memory_str}\"\n"
+            )
+        else:
+            memory_section = ""
 
         prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
 
@@ -29,11 +35,9 @@ Additionally, develop a detailed investment plan for the trader. This should inc
 Your Recommendation: A decisive stance supported by the most convincing arguments.
 Rationale: An explanation of why these arguments lead to your conclusion.
 Strategic Actions: Concrete steps for implementing the recommendation.
-Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. 
+Present your analysis conversationally, as if speaking naturally, without special formatting.
 
-Here are your past reflections on mistakes:
-\"{past_memory_str}\"
-
+{memory_section}
 {instrument_context}
 
 Here is the debate:

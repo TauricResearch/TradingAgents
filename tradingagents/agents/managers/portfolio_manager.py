@@ -18,9 +18,11 @@ def create_portfolio_manager(llm, memory):
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
-        past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if past_memories:
+            past_memory_str = "".join(rec["recommendation"] + "\n\n" for rec in past_memories)
+            lessons_line = f"- Lessons from past decisions: **{past_memory_str}**\n"
+        else:
+            lessons_line = ""
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
@@ -38,7 +40,7 @@ def create_portfolio_manager(llm, memory):
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
-- Lessons from past decisions: **{past_memory_str}**
+{lessons_line}
 
 **Required Output Structure:**
 1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
