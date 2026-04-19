@@ -46,6 +46,20 @@ DEFAULT_CONFIG = {
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # YFinance retry/backoff configuration
+    "yfinance_retry": {
+        "max_retries": 3,         # Number of retry attempts before giving up
+        "base_delay": 2.0,        # Initial backoff delay in seconds
+        "max_delay": 60.0,        # Maximum backoff delay cap in seconds
+        "backoff_factor": 2.0,    # Exponential backoff multiplier (2s → 4s → 8s)
+    },
+    # Data cache TTL in seconds (0 to disable caching for a category)
+    "cache_ttl": {
+        "fundamentals": 3600,          # 1 hour
+        "financial_statements": 3600,  # 1 hour
+        "news": 900,                   # 15 minutes
+        "insider_transactions": 3600,  # 1 hour
+    },
     # Investment persona configuration
     # Options: None, "warren_buffett", "ray_dalio", "peter_lynch"
     "persona": None,

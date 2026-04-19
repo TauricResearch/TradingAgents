@@ -4,7 +4,9 @@ from dateutil.relativedelta import relativedelta
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils
+from .yfinance_utils import YFRateLimitError, yfinance_retry, yfinance_cached
 
+@yfinance_retry()
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -293,6 +295,8 @@ def get_stockstats_indicator(
     return str(indicator_value)
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
@@ -346,10 +350,14 @@ def get_fundamentals(
 
         return header + "\n".join(lines)
 
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
@@ -375,11 +383,15 @@ def get_balance_sheet(
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         return header + csv_string
-        
+
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error retrieving balance sheet for {ticker}: {str(e)}"
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
@@ -405,11 +417,15 @@ def get_cashflow(
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         return header + csv_string
-        
+
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error retrieving cash flow for {ticker}: {str(e)}"
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
@@ -435,11 +451,15 @@ def get_income_statement(
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         return header + csv_string
-        
+
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
 ):
@@ -459,6 +479,8 @@ def get_insider_transactions(
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         return header + csv_string
-        
+
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"

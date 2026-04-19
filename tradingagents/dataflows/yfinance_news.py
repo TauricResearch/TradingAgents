@@ -3,6 +3,7 @@
 import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from .yfinance_utils import YFRateLimitError, yfinance_retry, yfinance_cached
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -46,6 +47,8 @@ def _extract_article_data(article: dict) -> dict:
         }
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_news_yfinance(
     ticker: str,
     start_date: str,
@@ -98,10 +101,14 @@ def get_news_yfinance(
 
         return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error fetching news for {ticker}: {str(e)}"
 
 
+@yfinance_retry()
+@yfinance_cached()
 def get_global_news_yfinance(
     curr_date: str,
     look_back_days: int = 7,
@@ -186,5 +193,7 @@ def get_global_news_yfinance(
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
+    except YFRateLimitError:
+        raise
     except Exception as e:
         return f"Error fetching global news: {str(e)}"

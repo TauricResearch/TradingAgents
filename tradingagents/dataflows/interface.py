@@ -37,6 +37,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .yfinance_utils import YFRateLimitError
 from .opendart import (
     get_dart_financials as get_opendart_financials,
     get_dart_disclosures as get_opendart_disclosures,
@@ -189,7 +190,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+        except (AlphaVantageRateLimitError, YFRateLimitError):
+            continue  # Rate limits trigger vendor fallback
 
     raise RuntimeError(f"No available vendor for '{method}'")

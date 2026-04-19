@@ -4,6 +4,7 @@ from stockstats import wrap
 from typing import Annotated
 import os
 from .config import get_config
+from .yfinance_utils import YFRateLimitError
 
 
 class StockstatsUtils:
@@ -39,14 +40,17 @@ class StockstatsUtils:
             data = pd.read_csv(data_file)
             data["Date"] = pd.to_datetime(data["Date"])
         else:
-            data = yf.download(
-                symbol,
-                start=start_date_str,
-                end=end_date_str,
-                multi_level_index=False,
-                progress=False,
-                auto_adjust=True,
-            )
+            try:
+                data = yf.download(
+                    symbol,
+                    start=start_date_str,
+                    end=end_date_str,
+                    multi_level_index=False,
+                    progress=False,
+                    auto_adjust=True,
+                )
+            except YFRateLimitError:
+                raise
             data = data.reset_index()
             data.to_csv(data_file, index=False)
 
