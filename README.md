@@ -136,7 +136,9 @@ docker compose --profile ollama run --rm tradingagents-ollama
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
 
 ```bash
-export OPENAI_API_KEY=...          # OpenAI (GPT)
+export OPENAI_BASE_URL=...         # OpenAI (GPT) or OpenaiCompatible
+export OPENAI_API_KEY=...          # OpenAI (GPT) or OpenaiCompatible
+export NVIDIA_API_KEY=...          # Nvidia
 export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
