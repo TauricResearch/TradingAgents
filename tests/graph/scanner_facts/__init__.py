@@ -1,0 +1,1 @@
+"""Scanner facts tests package."""
