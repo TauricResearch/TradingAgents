@@ -4,6 +4,12 @@ Uses BM25 (Best Matching 25) algorithm for retrieval - no API calls,
 no token limits, works offline with any LLM provider.
 """
 
+import json
+import logging
+import tempfile
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from rank_bm25 import BM25Okapi
 from typing import List, Tuple
 import re
@@ -17,12 +23,75 @@ class FinancialSituationMemory:
 
         Args:
             name: Name identifier for this memory instance
-            config: Configuration dict (kept for API compatibility, not used for BM25)
+            config: Configuration dict. If config contains a non-empty
+                    ``memory_persist_dir`` key, documents and recommendations
+                    are loaded from (and saved to) that directory.
         """
         self.name = name
         self.documents: List[str] = []
         self.recommendations: List[str] = []
         self.bm25 = None
+        self._persist_path = None
+
+        if config:
+            persist_dir = config.get("memory_persist_dir")
+            if persist_dir:
+                self._persist_path = Path(persist_dir) / f"{name}.json"
+                self._load()
+
+    def _load(self):
+        """Load documents and recommendations from disk if the persist file exists."""
+        if not (self._persist_path and self._persist_path.exists()):
+            return
+        try:
+            with open(self._persist_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            docs = data.get("documents", [])
+            recs = data.get("recommendations", [])
+            if len(docs) != len(recs):
+                logger.warning(
+                    "Memory file %s is corrupt (documents/recommendations length mismatch). "
+                    "Starting with empty memory.",
+                    self._persist_path,
+                )
+                return
+            self.documents = docs
+            self.recommendations = recs
+            if self.documents:
+                self._rebuild_index()
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning(
+                "Could not load memory from %s (%s). Starting with empty memory.",
+                self._persist_path,
+                exc,
+            )
+
+    def _save(self):
+        """Persist documents and recommendations to disk atomically."""
+        if not self._persist_path:
+            return
+        self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self._persist_path.parent,
+                delete=False,
+                suffix=".tmp",
+            ) as tmp:
+                json.dump(
+                    {
+                        "documents": self.documents,
+                        "recommendations": self.recommendations,
+                    },
+                    tmp,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                tmp_path = Path(tmp.name)
+            tmp_path.replace(self._persist_path)
+        except OSError as exc:
+            logger.warning("Could not save memory to %s (%s).", self._persist_path, exc)
 
     def _tokenize(self, text: str) -> List[str]:
         """Tokenize text for BM25 indexing.
@@ -53,6 +122,7 @@ class FinancialSituationMemory:
 
         # Rebuild BM25 index with new documents
         self._rebuild_index()
+        self._save()
 
     def get_memories(self, current_situation: str, n_matches: int = 1) -> List[dict]:
         """Find matching recommendations using BM25 similarity.
@@ -96,6 +166,7 @@ class FinancialSituationMemory:
         self.documents = []
         self.recommendations = []
         self.bm25 = None
+        self._save()
 
 
 if __name__ == "__main__":
