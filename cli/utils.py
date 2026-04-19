@@ -244,7 +244,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
         ("Nvidia", "nvidia", "https://integrate.api.nvidia.com/v1"),
-        ("OpenAICompatible", "openaicompatible", os.environ.get("OPENAI_BASE_URL")),
+        ("OpenAICompatible", "openaicompatible", os.environ.get("OPENAI_BASE_URL","https://api.openai.com/v1")),
     ]
 
     choice = questionary.select(
