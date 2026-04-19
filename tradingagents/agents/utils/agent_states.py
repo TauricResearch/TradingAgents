@@ -64,6 +64,7 @@ class AgentState(MessagesState):
     is_leveraged: Annotated[bool, "Whether the instrument is leveraged"]
 
     scanner_context_packet: Annotated[str, "Consolidated context from the scanner phase"]
+    scanner_graph_context_text: Annotated[str, "Prompt-ready ticker graph context rendered from scanner graph facts"]
 
     sender: Annotated[str, "Agent that sent this message"]
 
