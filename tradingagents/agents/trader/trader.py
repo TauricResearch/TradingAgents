@@ -61,7 +61,7 @@ def create_trader(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
-        scanner_context = state.get("scanner_context_packet", "")
+        scanner_context = state.get("scanner_graph_context_text", "")
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
@@ -83,8 +83,10 @@ def create_trader(llm, memory):
 
         scanner_section = ""
         if scanner_context:
+            role_guidance = "Use the scanner graph context to preserve catalysts, exposure edges, and risk factors when translating research into a trade plan."
             scanner_section = (
-                "\n\n## Scanner Ground-Truth Data\n"
+                "\n\n## Scanner Graph Context\n\n"
+                f"{role_guidance}\n\n"
                 "The following commodity prices, FX rates, and calendar dates are verified "
                 "live data. Use ONLY these values for catalyst dates, commodity references, "
                 "and FX levels. Do NOT estimate or hallucinate any dates or prices.\n\n"

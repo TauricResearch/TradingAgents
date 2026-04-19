@@ -124,12 +124,13 @@ def build_debate_evidence_brief(state: dict) -> str:
 
     # Scanner ground truth (verified prices, FX, dates)
     scanner = _compact_lines(
-        str(state.get("scanner_context_packet") or ""),
+        str(state.get("scanner_graph_context_text") or ""),
         max_lines=6,
         max_chars=800,
     )
     if scanner:
-        sections.append(f"## Ground Truth\n{scanner}")
+        role_guidance = "Treat scanner graph context as the compact ground-truth scanner evidence block for this ticker."
+        sections.append(f"## Ground Truth\n\n{role_guidance}\n\n{scanner}")
 
     # Market structured: macro regime + key levels
     market_s = state.get("market_report_structured")
@@ -215,13 +216,13 @@ def build_research_packet(state: dict) -> str:
     """Return the canonical deterministic analyst packet for downstream nodes."""
     sections: list[str] = []
 
-    scanner_context_packet = _compact_lines(
-        str(state.get("scanner_context_packet") or ""),
+    scanner_graph_context = _compact_lines(
+        str(state.get("scanner_graph_context_text") or ""),
         max_lines=10,
         max_chars=2000,
     )
-    if scanner_context_packet:
-        sections.append(f"## Scanner Context (Phase 1)\n{scanner_context_packet}")
+    if scanner_graph_context:
+        sections.append(f"## Scanner Graph Context\n{scanner_graph_context}")
 
     market_structured = _format_market_structured(state.get("market_report_structured"))
     if market_structured:

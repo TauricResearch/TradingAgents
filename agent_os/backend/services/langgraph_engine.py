@@ -17,6 +17,11 @@ from tradingagents.agents.utils.output_validation import build_market_report_str
 from tradingagents.daily_digest import append_to_digest
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.portfolio_graph import PortfolioGraph
+from tradingagents.graph.scanner_facts.builder import (
+    ensure_scanner_graph_facts,
+    load_scanner_graph_facts,
+)
+from tradingagents.graph.scanner_facts.render import render_ticker_graph_context
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.instruments import (
@@ -31,6 +36,7 @@ from tradingagents.report_paths import (
     REPORTS_ROOT,
     get_daily_dir,
     get_market_dir,
+    get_scanner_graph_facts_path,
     get_ticker_dir,
 )
 
@@ -646,6 +652,10 @@ class LangGraphEngine:
                 try:
                     summary_data = normalize_scan_summary(extract_json(summary_text))
                     store.save_scan(date, summary_data)
+                    # Write flat JSON for scanner_graph_facts builder
+                    (save_dir / "macro_scan_summary.json").write_text(
+                        json.dumps(summary_data, indent=2, sort_keys=True)
+                    )
                 except (ValueError, KeyError, TypeError):
                     logger.warning(
                         "macro_scan_summary for date=%s is not valid JSON "
@@ -669,6 +679,11 @@ class LangGraphEngine:
 
             yield system_log(f"Scan reports saved to {save_dir}")
             logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
+
+            # Build scanner graph facts — fail loud on error (do NOT catch)
+            graph_facts_path = ensure_scanner_graph_facts(scan_date=date, run_id=root_run_id)
+            yield system_log(f"Scanner graph facts built: {graph_facts_path.name}")
+            logger.info("Scanner graph facts built run=%s path=%s", root_run_id, graph_facts_path)
         except Exception as exc:
             logger.exception("Failed to save scan reports run=%s", root_run_id)
             yield system_log(f"Warning: could not save scan reports: {exc}")
@@ -828,12 +843,32 @@ class LangGraphEngine:
             debug=True,
         )
 
+        # Load scanner graph facts and render ticker-specific context
+        scanner_graph_context_text = ""
+        _graph_facts_path = get_scanner_graph_facts_path(date, root_run_id)
+        if not _graph_facts_path.exists():
+            raise FileNotFoundError(
+                f"scanner_graph_facts.json missing for run={root_run_id}, date={date}. "
+                f"Rebuild: python -m tradingagents.graph.scanner_facts.rebuild "
+                f"--date {date} --run-id {root_run_id}"
+            )
+        _facts = load_scanner_graph_facts(_graph_facts_path)
+        try:
+            scanner_graph_context_text = render_ticker_graph_context(_facts, ticker)
+        except KeyError:
+            scanner_graph_context_text = ""
+            logger.warning(
+                "Ticker %s not found in scanner graph facts run=%s — context will be empty",
+                ticker, root_run_id,
+            )
+
         initial_state = graph_wrapper.propagator.create_initial_state(
             ticker,
             date,
             run_id=root_run_id,
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
+            scanner_graph_context_text=scanner_graph_context_text,
             market_report=injected_market["market_report"],
             market_report_structured=injected_market["market_report_structured"],
             macro_regime_report=injected_market["macro_regime_report"],
@@ -1270,11 +1305,29 @@ class LangGraphEngine:
             else:
                 yield system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
+
+                # Resume path: inject graph context if available; warn if not
+                _scanner_graph_context_text = ""
+                _gfp = get_scanner_graph_facts_path(date, root_run_id)
+                if _gfp.exists():
+                    try:
+                        _facts = load_scanner_graph_facts(_gfp)
+                        _scanner_graph_context_text = render_ticker_graph_context(_facts, ticker)
+                    except Exception as _exc:
+                        logger.warning("Could not render graph context for resume %s: %s", ticker, _exc)
+                else:
+                    logger.warning(
+                        "WARNING: Resuming without scanner_graph_facts.json - "
+                        "scanner_context_packet fallback active. run=%s ticker=%s",
+                        root_run_id, ticker,
+                    )
+
                 initial_state = graph_wrapper.propagator.create_initial_state(
                     ticker,
                     date,
                     run_id=root_run_id,
                     portfolio_context=ckpt.get("portfolio_context", "candidate"),
+                    scanner_graph_context_text=_scanner_graph_context_text,
                 )
                 # Overlay checkpoint data onto initial state
                 for k, v in ckpt.items():
@@ -1353,11 +1406,29 @@ class LangGraphEngine:
             else:
                 yield system_log(f"Running risk phase for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
+
+                # Resume path: inject graph context if available; warn if not
+                _scanner_graph_context_text = ""
+                _gfp = get_scanner_graph_facts_path(date, root_run_id)
+                if _gfp.exists():
+                    try:
+                        _facts = load_scanner_graph_facts(_gfp)
+                        _scanner_graph_context_text = render_ticker_graph_context(_facts, ticker)
+                    except Exception as _exc:
+                        logger.warning("Could not render graph context for resume %s: %s", ticker, _exc)
+                else:
+                    logger.warning(
+                        "WARNING: Resuming without scanner_graph_facts.json - "
+                        "scanner_context_packet fallback active. run=%s ticker=%s",
+                        root_run_id, ticker,
+                    )
+
                 initial_state = graph_wrapper.propagator.create_initial_state(
                     ticker,
                     date,
                     run_id=root_run_id,
                     portfolio_context=ckpt.get("portfolio_context", "candidate"),
+                    scanner_graph_context_text=_scanner_graph_context_text,
                 )
                 if not ckpt.get("investment_plan"):
                     raise ValueError(

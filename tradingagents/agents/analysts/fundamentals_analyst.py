@@ -27,7 +27,7 @@ def create_fundamentals_analyst(llm):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
-        scanner_context = state.get("scanner_context_packet", "")
+        scanner_context = state.get("scanner_graph_context_text", "")
 
         # ── Pre-fetch the four mandatory foundational datasets in parallel ────
         # get_ttm_analysis, get_fundamentals, get_peer_comparison, and
@@ -158,6 +158,12 @@ def create_fundamentals_analyst(llm):
             "key metrics for easy reference."
         )
 
+        # Build scanner context block with role-specific guidance
+        scanner_context_block = ""
+        if scanner_context:
+            role_guidance = "Use the scanner graph context to keep sector, catalyst, risk, and macro exposures consistent with the scanner run."
+            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -170,8 +176,8 @@ def create_fundamentals_analyst(llm):
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
-                    "## Scanner Context\n\n{scanner_context}\n\n"
-                    "## Pre-loaded Context\n\n{prefetched_context}",
+                    "{scanner_context_block}"
+                    "\n\n## Pre-loaded Context\n\n{prefetched_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -181,7 +187,7 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
-        prompt = prompt.partial(scanner_context=scanner_context)
+        prompt = prompt.partial(scanner_context_block=scanner_context_block)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
         chain = prompt | llm.bind_tools(tools)

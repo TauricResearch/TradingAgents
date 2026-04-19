@@ -128,7 +128,7 @@ def create_market_analyst(llm):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
-        scanner_context = state.get("scanner_context_packet", "")
+        scanner_context = state.get("scanner_graph_context_text", "")
 
         lookback_days = DEFAULT_CONFIG.get("trading_lookback_days", 90)
         indicator_lookback_days = max(20, min(int(lookback_days), 45))
@@ -167,7 +167,7 @@ def create_market_analyst(llm):
         if regime_data and not regime_data.startswith("[Error"):
             macro_regime_report = regime_data
 
-        # VIX reconciliation: scanner_context_packet is closer to the scan
+        # VIX reconciliation: scanner_graph_context_text is closer to the scan
         # timestamp.  If the pre-fetched macro regime report contains a VIX
         # value that diverges >20% from the scanner's VIX, log a warning and
         # patch the macro regime text so the analyst doesn't use stale data.
@@ -266,6 +266,12 @@ def create_market_analyst(llm):
             "a Markdown table at the end of the report to organise key points for easy review."
         )
 
+        # Build scanner context block with role-specific guidance
+        scanner_context_block = ""
+        if scanner_context:
+            role_guidance = "Use the scanner graph context as verified cross-market context: sector, index, volatility, commodity, and FX edges are ground truth for this run."
+            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -277,8 +283,8 @@ def create_market_analyst(llm):
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     "\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
-                    "## Scanner Context\n\n{scanner_context}\n\n"
-                    "## Pre-loaded Context\n\n{prefetched_context}",
+                    "{scanner_context_block}"
+                    "\n\n## Pre-loaded Context\n\n{prefetched_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -287,7 +293,7 @@ def create_market_analyst(llm):
         prompt = prompt.partial(system_message=system_message)
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
-        prompt = prompt.partial(scanner_context=scanner_context)
+        prompt = prompt.partial(scanner_context_block=scanner_context_block)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
         llm_for_market = llm

@@ -89,12 +89,10 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         ticker = state["company_of_interest"]
         run_id = str(state["run_id"])
         instrument_context = build_instrument_context(ticker)
-        
-        # Apply ticker-specific filtering to reduce scanner context from ~10K to ~3-4K tokens
-        scanner_context_raw = state.get("scanner_context_packet", "")
-        scanner_context = filter_scanner_context_for_ticker(
-            scanner_context_raw, ticker
-        ) if scanner_context_raw else ""
+
+        # Use scanner_graph_context_text directly — it's already ticker-focused
+        # Do NOT re-filter graph context by ticker string
+        scanner_context = state.get("scanner_graph_context_text", "")
         scanner_citation_hint = _extract_scanner_citation_hint(
             scanner_context, current_date
         )
@@ -238,6 +236,12 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             "rows from the same validated evidence."
         )
 
+        # Build scanner context block with role-specific guidance
+        scanner_context_block = ""
+        if scanner_context:
+            role_guidance = "Use the scanner graph context as ticker-focused prior context; do not re-filter it by ticker string because it has already been retrieved for this ticker."
+            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -249,8 +253,8 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     "\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
-                    "## Scanner Context\n\n{scanner_context}\n\n"
-                    "{compact_news_context}",
+                    "{scanner_context_block}"
+                    "\n\n{compact_news_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -259,7 +263,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         prompt = prompt.partial(system_message=system_message)
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
-        prompt = prompt.partial(scanner_context=scanner_context)
+        prompt = prompt.partial(scanner_context_block=scanner_context_block)
         prompt = prompt.partial(compact_news_context=compact_news_context)
 
         # No tools remain — use direct invocation (no bind_tools, no tool loop)

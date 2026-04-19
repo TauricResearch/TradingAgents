@@ -19,7 +19,7 @@ def create_social_media_analyst(llm):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
-        scanner_context = state.get("scanner_context_packet", "")
+        scanner_context = state.get("scanner_graph_context_text", "")
 
         # ── Pre-fetch headline sentiment signals for the past 7 days ─────────
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
@@ -86,6 +86,12 @@ def create_social_media_analyst(llm):
             "to organise key points, making it easy to read."
         )
 
+        # Build scanner context block with role-specific guidance
+        scanner_context_block = ""
+        if scanner_context:
+            role_guidance = "Use the scanner graph context to anchor social sentiment against verified scanner themes and risk factors."
+            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -97,8 +103,8 @@ def create_social_media_analyst(llm):
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     "\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
-                    "## Scanner Context\n\n{scanner_context}\n\n"
-                    "## Pre-loaded Context\n\n{prefetched_context}",
+                    "{scanner_context_block}"
+                    "\n\n## Pre-loaded Context\n\n{prefetched_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -107,7 +113,7 @@ def create_social_media_analyst(llm):
         prompt = prompt.partial(system_message=system_message)
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
-        prompt = prompt.partial(scanner_context=scanner_context)
+        prompt = prompt.partial(scanner_context_block=scanner_context_block)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
