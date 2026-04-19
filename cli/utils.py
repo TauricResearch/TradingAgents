@@ -1,4 +1,5 @@
 import questionary
+import os
 from typing import List, Optional, Tuple, Dict
 
 from rich.console import Console
@@ -242,6 +243,8 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
+        ("Nvidia", "nvidia", "https://integrate.api.nvidia.com/v1"),
+        ("OpenAICompatible", "openaicompatible", os.environ.get("OPENAI_BASE_URL")),
     ]
 
     choice = questionary.select(

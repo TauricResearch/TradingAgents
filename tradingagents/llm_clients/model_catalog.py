@@ -99,6 +99,22 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "nvidia": {
+        "quick": [
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "openaicompatible": {
+        "quick": [
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [
