@@ -41,14 +41,21 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
 
 def has_checkpoint(data_dir: str | Path, ticker: str, date: str) -> bool:
     """Check whether a resumable checkpoint exists for ticker+date."""
+    return checkpoint_step(data_dir, ticker, date) is not None
+
+
+def checkpoint_step(data_dir: str | Path, ticker: str, date: str) -> int | None:
+    """Return the step number of the latest checkpoint, or None if none exists."""
     db = _db_path(data_dir, ticker)
     if not db.exists():
-        return False
+        return None
     tid = thread_id(ticker, date)
     with get_checkpointer(data_dir, ticker) as saver:
         config = {"configurable": {"thread_id": tid}}
         cp = saver.get_tuple(config)
-        return cp is not None
+        if cp is None:
+            return None
+        return cp.metadata.get("step")
 
 
 def clear_all_checkpoints(data_dir: str | Path) -> int:

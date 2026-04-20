@@ -1,5 +1,6 @@
 # TradingAgents/graph/trading_graph.py
 
+import logging
 import os
 from pathlib import Path
 import json
@@ -33,7 +34,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
-from .checkpointer import clear_checkpoint, get_checkpointer, thread_id
+from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -43,6 +44,8 @@ from .signal_processing import SignalProcessor
 
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
+
+    logger = logging.getLogger("tradingagents.graph")
 
     def __init__(
         self,
@@ -204,6 +207,15 @@ class TradingAgentsGraph:
             )
             saver = self._checkpointer_ctx.__enter__()
             self.graph = self.workflow.compile(checkpointer=saver)
+
+            # Log resume vs fresh start
+            step = checkpoint_step(
+                self.config["data_cache_dir"], company_name, str(trade_date)
+            )
+            if step is not None:
+                self.logger.info("Resuming from step %d for %s on %s", step, company_name, trade_date)
+            else:
+                self.logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
         try:
             return self._run_graph(company_name, trade_date)
