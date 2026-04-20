@@ -33,7 +33,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
-from .checkpointer import get_checkpointer
+from .checkpointer import get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -220,6 +220,11 @@ class TradingAgentsGraph:
             company_name, trade_date
         )
         args = self.propagator.get_graph_args()
+
+        # Inject thread_id so same ticker+date resumes, different date starts fresh
+        if self.config.get("checkpoint_enabled"):
+            tid = thread_id(company_name, str(trade_date))
+            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
         if self.debug:
             # Debug mode with tracing
