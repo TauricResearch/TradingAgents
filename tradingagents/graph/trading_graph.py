@@ -33,7 +33,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
-from .checkpointer import get_checkpointer, thread_id
+from .checkpointer import clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -246,6 +246,10 @@ class TradingAgentsGraph:
 
         # Log state
         self._log_state(trade_date, final_state)
+
+        # Clear checkpoint on successful completion to avoid stale state
+        if self.config.get("checkpoint_enabled"):
+            clear_checkpoint(self.config["data_cache_dir"], company_name, str(trade_date))
 
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
