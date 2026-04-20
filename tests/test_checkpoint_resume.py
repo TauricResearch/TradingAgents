@@ -108,5 +108,40 @@ class TestCheckpointResume(unittest.TestCase):
         self.assertEqual(result["count"], 11)
 
 
+    def test_different_date_starts_fresh(self):
+        """A different date must NOT resume from an existing checkpoint."""
+        global _should_crash
+        builder = _build_graph()
+        date2 = "2026-04-21"
+
+        # Run with date1 — crash to leave a checkpoint
+        _should_crash = True
+        tid1 = thread_id(self.ticker, self.date)
+        with get_checkpointer(self.tmpdir, self.ticker) as saver:
+            graph = builder.compile(checkpointer=saver)
+            with self.assertRaises(RuntimeError):
+                graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
+
+        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+
+        # date2 should have no checkpoint
+        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, date2))
+
+        # Run with date2 — should start fresh and succeed
+        _should_crash = False
+        tid2 = thread_id(self.ticker, date2)
+        self.assertNotEqual(tid1, tid2)
+
+        with get_checkpointer(self.tmpdir, self.ticker) as saver:
+            graph = builder.compile(checkpointer=saver)
+            result = graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid2}})
+
+        # Fresh run: analyst +1, trader +10 = 11
+        self.assertEqual(result["count"], 11)
+
+        # Original date checkpoint still exists (untouched)
+        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+
+
 if __name__ == "__main__":
     unittest.main()
