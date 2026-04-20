@@ -10,12 +10,16 @@ Based on:
 
 from .base import BaseStrategy, Role, StrategySignal
 from .registry import compute_signals, format_signals_for_role, get_registry, reset_registry
+from .scorecard import Scorecard, build_scorecard, format_scorecard
 
 __all__ = [
     "BaseStrategy",
     "Role",
+    "Scorecard",
     "StrategySignal",
+    "build_scorecard",
     "compute_signals",
+    "format_scorecard",
     "format_signals_for_role",
     "get_registry",
     "reset_registry",
