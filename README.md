@@ -219,6 +219,50 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+## Checkpoint / Resume
+
+TradingAgents can save progress after each graph node so that a crashed or interrupted run resumes from the last successful step instead of starting over.
+
+### Enabling Checkpoints
+
+Via the CLI:
+```bash
+tradingagents analyze --checkpoint
+```
+
+Via Python:
+```python
+config = DEFAULT_CONFIG.copy()
+config["checkpoint_enabled"] = True
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2026-01-15")
+```
+
+When enabled, the graph logs `Resuming from step N` if a checkpoint is found for the same ticker + date, or `Starting fresh` otherwise. On successful completion the checkpoint is automatically cleared to avoid stale state.
+
+### Storage Location
+
+Checkpoints are stored as per-ticker SQLite databases under the data cache directory:
+
+```
+~/.tradingagents/cache/checkpoints/<TICKER>.db
+```
+
+Override the base path with the `TRADINGAGENTS_CACHE_DIR` environment variable.
+
+### Cleanup
+
+Delete all saved checkpoints before a run:
+```bash
+tradingagents analyze --clear-checkpoints
+```
+
+Or remove them manually:
+```bash
+rm -rf ~/.tradingagents/cache/checkpoints/
+```
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
