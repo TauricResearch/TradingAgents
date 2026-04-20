@@ -23,6 +23,8 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .reddit_sentiment import get_reddit_sentiment as get_reddit_sentiment_impl
+from .fear_greed import get_fear_greed as get_fear_greed_impl
 
 # Configuration and routing logic
 from .config import get_config
@@ -56,6 +58,13 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+        ]
+    },
+    "sentiment_data": {
+        "description": "Retail sentiment and market mood data",
+        "tools": [
+            "get_reddit_sentiment",
+            "get_market_fear_greed",
         ]
     }
 }
@@ -106,6 +115,13 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # sentiment_data
+    "get_reddit_sentiment": {
+        "default": get_reddit_sentiment_impl,
+    },
+    "get_market_fear_greed": {
+        "default": get_fear_greed_impl,
     },
 }
 
