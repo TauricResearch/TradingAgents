@@ -7,6 +7,23 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.dataflows.config import get_config
 
+try:
+    from tradingagents.indicators import get_indicator_signals
+except ImportError:
+    get_indicator_signals = None
+
+
+def _format_preamble(signals: dict) -> str:
+    """Format pre-computed interpretations as a prompt preamble."""
+    if not signals:
+        return ""
+    parts = ["\n## Pre-Computed Indicator Interpretations\n"]
+    for name, s in signals.items():
+        parts.append(f"- **{name}**: {s['explanation']}")
+    parts.append("\nUse these alongside the indicator catalog below. "
+                 "Do NOT recalculate these values.\n")
+    return "\n".join(parts)
+
 
 def create_market_analyst(llm):
 
@@ -14,13 +31,25 @@ def create_market_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
+        # Pre-compute indicator interpretations when available
+        indicator_preamble = ""
+        if get_indicator_signals is not None:
+            try:
+                signals = get_indicator_signals(
+                    state["company_of_interest"], current_date
+                )
+                indicator_preamble = _format_preamble(signals)
+            except Exception:
+                pass
+
         tools = [
             get_stock_data,
             get_indicators,
         ]
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+            indicator_preamble
+            + """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
