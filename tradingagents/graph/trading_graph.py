@@ -190,9 +190,21 @@ class TradingAgentsGraph:
         }
 
     def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date."""
+        """Run the trading agents graph for a company on a specific date.
+
+        Returns:
+            Tuple of (final_state, signal). If budget is exceeded mid-run,
+            returns partial state with ``final_trade_decision`` set to
+            ``"BUDGET_EXCEEDED"`` and signal ``"hold"``.
+        """
+        from tradingagents.spend_tracker import BudgetExceededError, SpendTracker
 
         self.ticker = company_name
+
+        # Notify spend trackers of ticker start
+        for cb in self.callbacks:
+            if isinstance(cb, SpendTracker):
+                cb.begin_ticker(company_name)
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
@@ -200,60 +212,72 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
-        if self.debug:
-            # Debug mode with tracing
-            trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
-                    chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+        try:
+            if self.debug:
+                # Debug mode with tracing
+                trace = []
+                for chunk in self.graph.stream(init_agent_state, **args):
+                    if len(chunk["messages"]) == 0:
+                        pass
+                    else:
+                        chunk["messages"][-1].pretty_print()
+                        trace.append(chunk)
 
-            final_state = trace[-1]
-        else:
-            # Standard mode without tracing
-            final_state = self.graph.invoke(init_agent_state, **args)
+                final_state = trace[-1] if trace else dict(init_agent_state)
+            else:
+                # Standard mode without tracing
+                final_state = self.graph.invoke(init_agent_state, **args)
+        except BudgetExceededError:
+            # Graceful abort: build partial state from what we have
+            final_state = dict(init_agent_state)
+            if self.debug and trace:
+                final_state.update(trace[-1])
+            final_state.setdefault("final_trade_decision", "BUDGET_EXCEEDED")
 
         # Store current state for reflection
         self.curr_state = final_state
 
-        # Log state
+        # Log state (partial or full)
         self._log_state(trade_date, final_state)
 
-        # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        # Log per-ticker and cumulative spend to stderr
+        for cb in self.callbacks:
+            if isinstance(cb, SpendTracker):
+                cb.log_ticker_spend(company_name)
+                cb.log_audit_trail()
+
+        decision_text = final_state.get("final_trade_decision", "BUDGET_EXCEEDED")
+        return final_state, self.process_signal(decision_text)
 
     def _log_state(self, trade_date, final_state):
-        """Log the final state to a JSON file."""
+        """Log the final state to a JSON file. Tolerates partial state from budget abort."""
+        invest_debate = final_state.get("investment_debate_state") or {}
+        risk_debate = final_state.get("risk_debate_state") or {}
+
         self.log_states_dict[str(trade_date)] = {
-            "company_of_interest": final_state["company_of_interest"],
-            "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "company_of_interest": final_state.get("company_of_interest", ""),
+            "trade_date": final_state.get("trade_date", ""),
+            "market_report": final_state.get("market_report", ""),
+            "sentiment_report": final_state.get("sentiment_report", ""),
+            "news_report": final_state.get("news_report", ""),
+            "fundamentals_report": final_state.get("fundamentals_report", ""),
             "investment_debate_state": {
-                "bull_history": final_state["investment_debate_state"]["bull_history"],
-                "bear_history": final_state["investment_debate_state"]["bear_history"],
-                "history": final_state["investment_debate_state"]["history"],
-                "current_response": final_state["investment_debate_state"][
-                    "current_response"
-                ],
-                "judge_decision": final_state["investment_debate_state"][
-                    "judge_decision"
-                ],
+                "bull_history": invest_debate.get("bull_history", ""),
+                "bear_history": invest_debate.get("bear_history", ""),
+                "history": invest_debate.get("history", ""),
+                "current_response": invest_debate.get("current_response", ""),
+                "judge_decision": invest_debate.get("judge_decision", ""),
             },
-            "trader_investment_decision": final_state["trader_investment_plan"],
+            "trader_investment_decision": final_state.get("trader_investment_plan", ""),
             "risk_debate_state": {
-                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
-                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
-                "neutral_history": final_state["risk_debate_state"]["neutral_history"],
-                "history": final_state["risk_debate_state"]["history"],
-                "judge_decision": final_state["risk_debate_state"]["judge_decision"],
+                "aggressive_history": risk_debate.get("aggressive_history", ""),
+                "conservative_history": risk_debate.get("conservative_history", ""),
+                "neutral_history": risk_debate.get("neutral_history", ""),
+                "history": risk_debate.get("history", ""),
+                "judge_decision": risk_debate.get("judge_decision", ""),
             },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
+            "investment_plan": final_state.get("investment_plan", ""),
+            "final_trade_decision": final_state.get("final_trade_decision", ""),
         }
 
         # Save to file
