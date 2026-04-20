@@ -177,6 +177,34 @@ def normalize_analysis_status(analysis: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Checkpoint / Message recovery
+# ---------------------------------------------------------------------------
+
+
+def repair_checkpoint_messages(messages: list[Any]) -> list[Any]:
+    """Repair common message-serialization issues from old checkpoints.
+
+    Specifically, LangGraph's RemoveMessage requires a valid 'id'. If a
+    checkpoint contains a dictionary with type="remove" but no 'id', it
+    will trigger a TypeError on resume. We filter those out here.
+    """
+    if not isinstance(messages, list):
+        return []
+
+    repaired = []
+    for m in messages:
+        # If it's a dict (serialized message)
+        if isinstance(m, dict):
+            m_type = str(m.get("type") or "").lower()
+            # RemoveMessage MUST have an ID
+            if m_type == "remove" and not m.get("id"):
+                logger.warning("Filtering out corrupted RemoveMessage (missing ID) from checkpoint")
+                continue
+        repaired.append(m)
+    return repaired
+
+
+# ---------------------------------------------------------------------------
 # Run lifecycle
 # ---------------------------------------------------------------------------
 

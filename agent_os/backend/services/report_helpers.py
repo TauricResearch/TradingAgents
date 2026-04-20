@@ -93,10 +93,22 @@ def sanitize_for_json(obj: Any) -> Any:
     if isinstance(obj, (list, tuple)):
         return [sanitize_for_json(v) for v in obj]
     if hasattr(obj, "content") and hasattr(obj, "type"):
-        return {
+        res = {
             "type": str(getattr(obj, "type", "unknown")),
             "content": str(getattr(obj, "content", "")),
         }
+        # Preserve critical fields for LangGraph/LangChain reconstruction
+        if hasattr(obj, "id") and obj.id is not None:
+            res["id"] = str(obj.id)
+        if hasattr(obj, "tool_call_id") and obj.tool_call_id is not None:
+            res["tool_call_id"] = str(obj.tool_call_id)
+        if hasattr(obj, "name") and obj.name is not None:
+            res["name"] = str(obj.name)
+        if hasattr(obj, "tool_calls") and obj.tool_calls:
+            res["tool_calls"] = sanitize_for_json(obj.tool_calls)
+        if hasattr(obj, "additional_kwargs") and obj.additional_kwargs:
+            res["additional_kwargs"] = sanitize_for_json(obj.additional_kwargs)
+        return res
     if isinstance(obj, (str, int, float, bool, type(None))):
         return obj
     return str(obj)

@@ -251,7 +251,7 @@ class EventMapper:
             return None
         elif kind == "on_chain_end":
             metadata = event.get("metadata") or {}
-            if metadata.get("langgraph_node"):
+            if metadata.get("langgraph_node") and len(event.get("parent_ids", [])) == 1:
                 latency_ms = 0
                 start_t = starts.pop(node_timer_key, None)
                 if start_t is not None:

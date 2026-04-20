@@ -62,6 +62,7 @@ from agent_os.backend.services.run_helpers import (
     is_fallback_eligible_error,
     is_policy_error,
     normalize_analysis_status,
+    repair_checkpoint_messages,
     run_should_stop,
     tickers_from_decision,
 )
@@ -1341,6 +1342,9 @@ class LangGraphEngine:
                         "fundamentals_report_structured",
                         "macro_regime_report",
                     ):
+                        # Repair messages list if this is the messages key
+                        if k == "messages" and isinstance(v, list):
+                            v = repair_checkpoint_messages(v)
                         initial_state[k] = v
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
@@ -1438,6 +1442,8 @@ class LangGraphEngine:
                 for k, v in ckpt.items():
                     if k != "messages":
                         initial_state[k] = v
+                    elif isinstance(v, list):
+                        initial_state[k] = repair_checkpoint_messages(v)
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
                 self._event_mapper.register_run(execution_key, ticker.upper())

@@ -62,7 +62,7 @@ def create_drift_scanner(llm):
             "(2) Sector-level drift vs noise assessment, "
             "(3) 5-8 primary candidate tickers with validated catalysts, "
             "(4) Continuation vs Reversal risk deltas. "
-            f"Market Context: {market_context[:300]}... Sector Context: {sector_context[:300]}..."
+            f"Market Context: {market_context}... Sector Context: {sector_context}..."
         )
 
         prompt = ChatPromptTemplate.from_messages(

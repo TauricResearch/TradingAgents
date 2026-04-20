@@ -40,7 +40,10 @@ def invoke_with_timeout(
     if thread.is_alive():
         return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s")
 
-    status, payload = result_queue.get()
+    try:
+        status, payload = result_queue.get(timeout=1.0)
+    except queue.Empty:
+        return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s (queue empty after join)")
     if status == "err":
         return None, payload  # type: ignore[return-value]
     return payload, None

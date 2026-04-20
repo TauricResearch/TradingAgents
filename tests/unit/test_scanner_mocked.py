@@ -274,6 +274,26 @@ class TestYfinanceScannerMarketIndices:
 
         assert isinstance(result, str)
 
+    def test_download_uses_threads_false(self):
+        """get_market_indices_yfinance must not spawn a nested thread pool."""
+        from tradingagents.dataflows.yfinance_scanner import get_market_indices_yfinance
+
+        symbols = ["^GSPC", "^DJI", "^IXIC", "^VIX", "^RUT"]
+        idx = pd.date_range("2024-01-04", periods=5, freq="B")
+        close_data = {s: [4800.0 + i for i in range(5)] for s in symbols}
+        multi_df = pd.DataFrame(close_data, index=idx)
+        multi_df.columns = pd.MultiIndex.from_product([["Close"], symbols])
+
+        with patch("tradingagents.dataflows.yfinance_scanner.yf.download",
+                   return_value=multi_df) as mock_dl:
+            get_market_indices_yfinance()
+
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("threads") is False, (
+            "get_market_indices_yfinance must pass threads=False to avoid "
+            "nested thread-pool deadlocks inside LangGraph's thread pool"
+        )
+
 
 # ---------------------------------------------------------------------------
 # yfinance scanner — get_sector_performance_yfinance
@@ -322,6 +342,22 @@ class TestYfinanceScannerSectorPerformance:
             result = get_sector_performance_yfinance()
 
         assert "Error" in result
+
+    def test_download_uses_threads_false(self):
+        """yf.download must not spawn its own thread pool inside a LangGraph
+        node thread — nested thread pools can deadlock and 17 simultaneous
+        Yahoo connections trigger silent rate-limit hangs."""
+        from tradingagents.dataflows.yfinance_scanner import get_sector_performance_yfinance
+
+        with patch("tradingagents.dataflows.yfinance_scanner.yf.download",
+                   return_value=self._make_sector_df()) as mock_dl:
+            get_sector_performance_yfinance()
+
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("threads") is False, (
+            "get_sector_performance_yfinance must pass threads=False to avoid "
+            "nested thread-pool deadlocks inside LangGraph's thread pool"
+        )
 
 
 # ---------------------------------------------------------------------------

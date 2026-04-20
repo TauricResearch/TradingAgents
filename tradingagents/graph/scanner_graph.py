@@ -1,6 +1,7 @@
 """Scanner graph — orchestrates the 4-phase macro scanner pipeline."""
 
 from copy import deepcopy
+import threading
 from typing import Any, List, Optional
 
 from tradingagents.dataflows.config import set_config
@@ -57,16 +58,28 @@ class ScannerGraph:
         max_scan_tickers = int(self.config.get("max_auto_tickers", 10))
         scan_horizon_days = int(self.config.get("scan_horizon_days", 30))
 
+        # Use a threading semaphore to limit the number of parallel scanner
+        # nodes (Phase 1a/1b) that hit the LLM concurrently.  This prevents
+        # local/private LLM endpoints (e.g. Ollama) from being overwhelmed.
+        concurrency = int(self.config.get("scanner_concurrency") or 2)
+        semaphore = threading.Semaphore(concurrency)
+
+        def _wrap_scanner(node_fn):
+            def wrapped(state):
+                with semaphore:
+                    return node_fn(state)
+            return wrapped
+
         # Scanner nodes use the scanner_llm tier (tool-call compliant model).
         # Summarizers use quick_llm (no tool calling needed).
         self.agents = {
-            "gatekeeper_scanner": create_gatekeeper_scanner(scanner_llm),
-            "geopolitical_scanner": create_geopolitical_scanner(scanner_llm),
-            "market_movers_scanner": create_market_movers_scanner(scanner_llm),
-            "sector_scanner": create_sector_scanner(scanner_llm),
-            "factor_alignment_scanner": create_factor_alignment_scanner(scanner_llm),
-            "drift_scanner": create_drift_scanner(scanner_llm),
-            "smart_money_scanner": create_smart_money_scanner(scanner_llm),
+            "gatekeeper_scanner": _wrap_scanner(create_gatekeeper_scanner(scanner_llm)),
+            "geopolitical_scanner": _wrap_scanner(create_geopolitical_scanner(scanner_llm)),
+            "market_movers_scanner": _wrap_scanner(create_market_movers_scanner(scanner_llm)),
+            "sector_scanner": _wrap_scanner(create_sector_scanner(scanner_llm)),
+            "factor_alignment_scanner": _wrap_scanner(create_factor_alignment_scanner(scanner_llm)),
+            "drift_scanner": _wrap_scanner(create_drift_scanner(scanner_llm)),
+            "smart_money_scanner": _wrap_scanner(create_smart_money_scanner(scanner_llm)),
             "industry_deep_dive": create_industry_deep_dive(mid_llm),
             "macro_synthesis": create_macro_synthesis(
                 deep_llm,

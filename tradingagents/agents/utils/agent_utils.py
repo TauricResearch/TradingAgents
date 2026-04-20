@@ -69,12 +69,20 @@ def build_instrument_context(ticker: str) -> str:
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""
-        messages = state["messages"]
+        messages = state.get("messages", [])
+        if not messages:
+            return {}
 
-        # Remove all messages
-        removal_operations = [RemoveMessage(id=m.id) for m in messages]
+        # Remove all messages that have a valid ID.
+        # Messages without IDs cannot be targeted by RemoveMessage and would
+        # trigger a TypeError if we attempted to instantiate one with a null ID.
+        removal_operations = [
+            RemoveMessage(id=m.id) for m in messages
+            if hasattr(m, "id") and m.id is not None
+        ]
 
-        # Add a minimal placeholder message
+        # Add a minimal placeholder message to ensure the message list is never empty,
+        # which is required by some LLM providers like Anthropic.
         placeholder = HumanMessage(content="Continue")
 
         return {"messages": removal_operations + [placeholder]}
