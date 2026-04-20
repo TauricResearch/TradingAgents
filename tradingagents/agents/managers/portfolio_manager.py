@@ -1,4 +1,6 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.output_parser import validate_agent_output
+from tradingagents.agents.schemas import PortfolioDecision
 
 
 def create_portfolio_manager(llm, memory):
@@ -55,6 +57,8 @@ def create_portfolio_manager(llm, memory):
 Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
 
         response = llm.invoke(prompt)
+
+        model, _ = validate_agent_output(response.content, PortfolioDecision, llm)
 
         new_risk_debate_state = {
             "judge_decision": response.content,

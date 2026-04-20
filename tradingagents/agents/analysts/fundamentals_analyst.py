@@ -8,6 +8,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_language_instruction,
 )
+from tradingagents.agents.output_parser import validate_agent_output
+from tradingagents.agents.schemas import AnalystReport
 from tradingagents.dataflows.config import get_config
 
 
@@ -60,6 +62,9 @@ def create_fundamentals_analyst(llm):
 
         if len(result.tool_calls) == 0:
             report = result.content
+            model, _ = validate_agent_output(report, AnalystReport, llm)
+            if model:
+                report = model.summary or report
 
         return {
             "messages": [result],

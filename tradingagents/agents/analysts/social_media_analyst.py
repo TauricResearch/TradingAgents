@@ -1,5 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction, get_news
+from tradingagents.agents.output_parser import validate_agent_output
+from tradingagents.agents.schemas import AnalystReport
 from tradingagents.dataflows.config import get_config
 
 
@@ -48,6 +50,9 @@ def create_social_media_analyst(llm):
 
         if len(result.tool_calls) == 0:
             report = result.content
+            model, _ = validate_agent_output(report, AnalystReport, llm)
+            if model:
+                report = model.summary or report
 
         return {
             "messages": [result],

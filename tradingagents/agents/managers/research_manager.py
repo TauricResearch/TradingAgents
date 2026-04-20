@@ -1,5 +1,7 @@
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.output_parser import validate_agent_output
+from tradingagents.agents.schemas import TraderDecision
 
 
 def create_research_manager(llm, memory):
@@ -40,6 +42,8 @@ Here is the debate:
 Debate History:
 {history}"""
         response = llm.invoke(prompt)
+
+        model, _ = validate_agent_output(response.content, TraderDecision, llm)
 
         new_investment_debate_state = {
             "judge_decision": response.content,

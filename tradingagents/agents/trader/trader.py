@@ -1,6 +1,8 @@
 import functools
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.output_parser import validate_agent_output
+from tradingagents.agents.schemas import TraderDecision
 
 
 def create_trader(llm, memory):
@@ -37,6 +39,8 @@ def create_trader(llm, memory):
         ]
 
         result = llm.invoke(messages)
+
+        model, _ = validate_agent_output(result.content, TraderDecision, llm)
 
         return {
             "messages": [result],

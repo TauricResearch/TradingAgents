@@ -1,3 +1,5 @@
+from tradingagents.agents.output_parser import validate_agent_output
+from tradingagents.agents.schemas import RiskAssessment
 
 
 def create_bull_researcher(llm, memory):
@@ -40,6 +42,8 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 """
 
         response = llm.invoke(prompt)
+
+        model, _ = validate_agent_output(response.content, RiskAssessment, llm)
 
         argument = f"Bull Analyst: {response.content}"
 
