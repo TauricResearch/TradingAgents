@@ -51,6 +51,17 @@ def has_checkpoint(data_dir: str | Path, ticker: str, date: str) -> bool:
         return cp is not None
 
 
+def clear_all_checkpoints(data_dir: str | Path) -> int:
+    """Remove all checkpoint DBs. Returns number of files deleted."""
+    cp_dir = Path(data_dir) / "checkpoints"
+    if not cp_dir.exists():
+        return 0
+    dbs = list(cp_dir.glob("*.db"))
+    for db in dbs:
+        db.unlink()
+    return len(dbs)
+
+
 def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
     """Remove checkpoint for a specific ticker+date (delete the whole DB if it's the only thread)."""
     db = _db_path(data_dir, ticker)

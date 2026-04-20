@@ -1200,7 +1200,12 @@ def run_analysis(checkpoint: bool = False):
 @app.command()
 def analyze(
     checkpoint: bool = typer.Option(False, "--checkpoint", help="Enable checkpoint/resume: save state after each node so crashed runs can resume."),
+    clear_checkpoints: bool = typer.Option(False, "--clear-checkpoints", help="Delete all saved checkpoints before running (force fresh start)."),
 ):
+    if clear_checkpoints:
+        from tradingagents.graph.checkpointer import clear_all_checkpoints
+        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
+        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     run_analysis(checkpoint=checkpoint)
 
 
