@@ -1,10 +1,12 @@
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.strategy_utils import get_signal_section
 
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
+        signal_section = get_signal_section(state, "researcher")
         history = state["investment_debate_state"].get("history", "")
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
@@ -38,7 +40,8 @@ Here are your past reflections on mistakes:
 
 Here is the debate:
 Debate History:
-{history}"""
+{history}
+{signal_section}"""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {

@@ -1,5 +1,8 @@
 
 
+from tradingagents.agents.utils.strategy_utils import get_signal_section
+
+
 def create_bear_researcher(llm, memory):
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
@@ -11,6 +14,7 @@ def create_bear_researcher(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        signal_section = get_signal_section(state, "researcher")
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
@@ -39,7 +43,7 @@ Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
-"""
+{signal_section}"""
 
         response = llm.invoke(prompt)
 
