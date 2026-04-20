@@ -18,9 +18,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN useradd --create-home appuser
-RUN mkdir -p /home/appuser/.tradingagents
-RUN chown -R appuser:appuser /home/appuser/.tradingagents
+RUN useradd --create-home appuser && \
+    mkdir -p /home/appuser/.tradingagents && \
+    chown -R appuser:appuser /home/appuser/.tradingagents
 USER appuser
 WORKDIR /home/appuser/app
 
