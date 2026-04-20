@@ -91,7 +91,7 @@ Output a structured risk synthesis in under 400 words."""
             llm,
             prompt,
             timeout_seconds=timeout_seconds,
-            max_tokens=900,
+            max_tokens=DEFAULT_CONFIG.get("mid_think_llm_max_tokens"),
         )
         if invoke_error is not None:
             err_type = type(invoke_error).__name__

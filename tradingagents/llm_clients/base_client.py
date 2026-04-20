@@ -1,14 +1,25 @@
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Optional
+
+# Matches <think>...</think> blocks used by DeepSeek R1, Qwen QwQ, kimi-k2.5,
+# and other reasoning models served via OpenAI-compatible chat completions.
+# The alternation (?:</think>|$) handles both properly closed blocks and
+# token-budget-truncated blocks where </think> was never emitted.
+# Note: also strips literal "<think>" mentions in visible prose — accepted
+# tradeoff since empty/raw scratchpad output is far worse.
+# Only applies to responses routed through BaseLLMClient subclasses.
+_THINK_RE = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL)
 
 
 def normalize_content(response):
     """Normalize LLM response content to a plain string.
 
-    Multiple providers (OpenAI Responses API, Google Gemini 3) return content
-    as a list of typed blocks, e.g. [{'type': 'reasoning', ...}, {'type': 'text', 'text': '...'}].
-    Downstream agents expect response.content to be a string. This extracts
-    and joins the text blocks, discarding reasoning/metadata blocks.
+    Handles two formats:
+    - List of typed blocks (OpenAI Responses API, Google): extracts text blocks,
+      discards reasoning/metadata blocks.
+    - Plain string with inline <think>...</think> scratchpad (DeepSeek R1, kimi,
+      QwQ via OpenRouter): strips the thinking block, keeps visible output only.
     """
     content = response.content
     if isinstance(content, list):
@@ -18,6 +29,8 @@ def normalize_content(response):
             for item in content
         ]
         response.content = "\n".join(t for t in texts if t)
+    elif isinstance(content, str):
+        response.content = _THINK_RE.sub("", content).strip()
     return response
 
 

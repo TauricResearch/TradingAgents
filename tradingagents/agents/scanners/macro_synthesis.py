@@ -356,7 +356,7 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
             chain,
             {},
             timeout_seconds=timeout_seconds,
-            max_tokens=2200,
+            max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
         )
 
         if invoke_error is not None:

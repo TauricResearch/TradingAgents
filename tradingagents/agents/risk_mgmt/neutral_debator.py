@@ -59,7 +59,7 @@ Output in two sections:
 2. SUMMARY POINTS: 3 most critical balanced risk/reward points.
 """
             response, invoke_error = invoke_with_timeout(
-                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=700
+                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=DEFAULT_CONFIG.get("quick_think_llm_max_tokens")
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
@@ -117,7 +117,7 @@ Output in two sections:
 2. SUMMARY POINTS: 3 most critical balanced risk/reward points.
 """
             response, invoke_error = invoke_with_timeout(
-                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=700
+                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=DEFAULT_CONFIG.get("quick_think_llm_max_tokens")
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):

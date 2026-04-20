@@ -13,7 +13,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+from tradingagents.agents.utils.llm_guard import bind_max_tokens_if_supported, invoke_with_timeout
 
 _logger = logging.getLogger(__name__)
 
@@ -296,13 +296,9 @@ def create_market_analyst(llm):
         prompt = prompt.partial(scanner_context_block=scanner_context_block)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
-        llm_for_market = llm
-        if hasattr(llm, "bind"):
-            try:
-                llm_for_market = llm.bind(max_tokens=900)
-            except Exception:
-                llm_for_market = llm
-
+        llm_for_market = bind_max_tokens_if_supported(
+            llm, DEFAULT_CONFIG.get("quick_think_llm_max_tokens")
+        )
         chain = prompt | llm_for_market
         _cap = float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
         invoke_timeout = min(
