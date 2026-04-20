@@ -26,6 +26,7 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.metrics_config import is_metric_enabled, MetricsConfig, DEFAULT_METRICS_CONFIG, parse_metrics_flag, list_all_metrics
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -81,14 +82,17 @@ class MessageBuffer:
         self.report_sections = {}
         self.selected_analysts = []
         self._processed_message_ids = set()
+        self.metrics_config: MetricsConfig = DEFAULT_METRICS_CONFIG
 
-    def init_for_analysis(self, selected_analysts):
+    def init_for_analysis(self, selected_analysts, metrics_config: MetricsConfig | None = None):
         """Initialize agent status and report sections based on selected analysts.
 
         Args:
             selected_analysts: List of analyst type strings (e.g., ["market", "news"])
+            metrics_config: Optional metrics configuration to filter report sections
         """
         self.selected_analysts = [a.lower() for a in selected_analysts]
+        self.metrics_config = metrics_config or DEFAULT_METRICS_CONFIG
 
         # Build agent_status dynamically
         self.agent_status = {}
@@ -187,24 +191,26 @@ class MessageBuffer:
 
     def _update_final_report(self):
         report_parts = []
+        mc = self.metrics_config
 
         # Analyst Team Reports - use .get() to handle missing sections
         analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
-        if any(self.report_sections.get(section) for section in analyst_sections):
+        visible_analysts = [s for s in analyst_sections if self.report_sections.get(s) and is_metric_enabled(mc, "analysts", s)]
+        if visible_analysts:
             report_parts.append("## Analyst Team Reports")
-            if self.report_sections.get("market_report"):
+            if self.report_sections.get("market_report") and is_metric_enabled(mc, "analysts", "market_report"):
                 report_parts.append(
                     f"### Market Analysis\n{self.report_sections['market_report']}"
                 )
-            if self.report_sections.get("sentiment_report"):
+            if self.report_sections.get("sentiment_report") and is_metric_enabled(mc, "analysts", "sentiment_report"):
                 report_parts.append(
                     f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
                 )
-            if self.report_sections.get("news_report"):
+            if self.report_sections.get("news_report") and is_metric_enabled(mc, "analysts", "news_report"):
                 report_parts.append(
                     f"### News Analysis\n{self.report_sections['news_report']}"
                 )
-            if self.report_sections.get("fundamentals_report"):
+            if self.report_sections.get("fundamentals_report") and is_metric_enabled(mc, "analysts", "fundamentals_report"):
                 report_parts.append(
                     f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
                 )
@@ -215,12 +221,12 @@ class MessageBuffer:
             report_parts.append(f"{self.report_sections['investment_plan']}")
 
         # Trading Team Reports
-        if self.report_sections.get("trader_investment_plan"):
+        if self.report_sections.get("trader_investment_plan") and is_metric_enabled(mc, "trading", "trader_investment_plan"):
             report_parts.append("## Trading Team Plan")
             report_parts.append(f"{self.report_sections['trader_investment_plan']}")
 
         # Portfolio Management Decision
-        if self.report_sections.get("final_trade_decision"):
+        if self.report_sections.get("final_trade_decision") and is_metric_enabled(mc, "portfolio", "final_trade_decision"):
             report_parts.append("## Portfolio Management Decision")
             report_parts.append(f"{self.report_sections['final_trade_decision']}")
 
@@ -636,27 +642,28 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def save_report_to_disk(final_state, ticker: str, save_path: Path, metrics_config: MetricsConfig | None = None):
     """Save complete analysis report to disk with organized subfolders."""
+    mc = metrics_config or DEFAULT_METRICS_CONFIG
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"
     analyst_parts = []
-    if final_state.get("market_report"):
+    if final_state.get("market_report") and is_metric_enabled(mc, "analysts", "market_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "market.md").write_text(final_state["market_report"])
         analyst_parts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
+    if final_state.get("sentiment_report") and is_metric_enabled(mc, "analysts", "sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"])
         analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
+    if final_state.get("news_report") and is_metric_enabled(mc, "analysts", "news_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "news.md").write_text(final_state["news_report"])
         analyst_parts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
+    if final_state.get("fundamentals_report") and is_metric_enabled(mc, "analysts", "fundamentals_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"])
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
@@ -669,15 +676,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         research_dir = save_path / "2_research"
         debate = final_state["investment_debate_state"]
         research_parts = []
-        if debate.get("bull_history"):
+        if debate.get("bull_history") and is_metric_enabled(mc, "research", "bull_history"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "bull.md").write_text(debate["bull_history"])
             research_parts.append(("Bull Researcher", debate["bull_history"]))
-        if debate.get("bear_history"):
+        if debate.get("bear_history") and is_metric_enabled(mc, "research", "bear_history"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "bear.md").write_text(debate["bear_history"])
             research_parts.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
+        if debate.get("judge_decision") and is_metric_enabled(mc, "research", "judge_decision"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "manager.md").write_text(debate["judge_decision"])
             research_parts.append(("Research Manager", debate["judge_decision"]))
@@ -686,7 +693,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             sections.append(f"## II. Research Team Decision\n\n{content}")
 
     # 3. Trading
-    if final_state.get("trader_investment_plan"):
+    if final_state.get("trader_investment_plan") and is_metric_enabled(mc, "trading", "trader_investment_plan"):
         trading_dir = save_path / "3_trading"
         trading_dir.mkdir(exist_ok=True)
         (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"])
@@ -697,15 +704,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         risk_dir = save_path / "4_risk"
         risk = final_state["risk_debate_state"]
         risk_parts = []
-        if risk.get("aggressive_history"):
+        if risk.get("aggressive_history") and is_metric_enabled(mc, "risk", "aggressive_history"):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "aggressive.md").write_text(risk["aggressive_history"])
             risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
-        if risk.get("conservative_history"):
+        if risk.get("conservative_history") and is_metric_enabled(mc, "risk", "conservative_history"):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "conservative.md").write_text(risk["conservative_history"])
             risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
-        if risk.get("neutral_history"):
+        if risk.get("neutral_history") and is_metric_enabled(mc, "risk", "neutral_history"):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "neutral.md").write_text(risk["neutral_history"])
             risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
@@ -714,7 +721,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
 
         # 5. Portfolio Manager
-        if risk.get("judge_decision"):
+        if risk.get("judge_decision") and is_metric_enabled(mc, "portfolio", "final_trade_decision"):
             portfolio_dir = save_path / "5_portfolio"
             portfolio_dir.mkdir(exist_ok=True)
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"])
@@ -726,20 +733,21 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     return save_path / "complete_report.md"
 
 
-def display_complete_report(final_state):
+def display_complete_report(final_state, metrics_config: MetricsConfig | None = None):
     """Display the complete analysis report sequentially (avoids truncation)."""
+    mc = metrics_config or DEFAULT_METRICS_CONFIG
     console.print()
     console.print(Rule("Complete Analysis Report", style="bold green"))
 
     # I. Analyst Team Reports
     analysts = []
-    if final_state.get("market_report"):
+    if final_state.get("market_report") and is_metric_enabled(mc, "analysts", "market_report"):
         analysts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
+    if final_state.get("sentiment_report") and is_metric_enabled(mc, "analysts", "sentiment_report"):
         analysts.append(("Social Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
+    if final_state.get("news_report") and is_metric_enabled(mc, "analysts", "news_report"):
         analysts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
+    if final_state.get("fundamentals_report") and is_metric_enabled(mc, "analysts", "fundamentals_report"):
         analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
@@ -750,11 +758,11 @@ def display_complete_report(final_state):
     if final_state.get("investment_debate_state"):
         debate = final_state["investment_debate_state"]
         research = []
-        if debate.get("bull_history"):
+        if debate.get("bull_history") and is_metric_enabled(mc, "research", "bull_history"):
             research.append(("Bull Researcher", debate["bull_history"]))
-        if debate.get("bear_history"):
+        if debate.get("bear_history") and is_metric_enabled(mc, "research", "bear_history"):
             research.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
+        if debate.get("judge_decision") and is_metric_enabled(mc, "research", "judge_decision"):
             research.append(("Research Manager", debate["judge_decision"]))
         if research:
             console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
@@ -762,7 +770,7 @@ def display_complete_report(final_state):
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
     # III. Trading Team
-    if final_state.get("trader_investment_plan"):
+    if final_state.get("trader_investment_plan") and is_metric_enabled(mc, "trading", "trader_investment_plan"):
         console.print(Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow"))
         console.print(Panel(Markdown(final_state["trader_investment_plan"]), title="Trader", border_style="blue", padding=(1, 2)))
 
@@ -770,11 +778,11 @@ def display_complete_report(final_state):
     if final_state.get("risk_debate_state"):
         risk = final_state["risk_debate_state"]
         risk_reports = []
-        if risk.get("aggressive_history"):
+        if risk.get("aggressive_history") and is_metric_enabled(mc, "risk", "aggressive_history"):
             risk_reports.append(("Aggressive Analyst", risk["aggressive_history"]))
-        if risk.get("conservative_history"):
+        if risk.get("conservative_history") and is_metric_enabled(mc, "risk", "conservative_history"):
             risk_reports.append(("Conservative Analyst", risk["conservative_history"]))
-        if risk.get("neutral_history"):
+        if risk.get("neutral_history") and is_metric_enabled(mc, "risk", "neutral_history"):
             risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
         if risk_reports:
             console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
@@ -782,7 +790,7 @@ def display_complete_report(final_state):
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
         # V. Portfolio Manager Decision
-        if risk.get("judge_decision"):
+        if risk.get("judge_decision") and is_metric_enabled(mc, "portfolio", "final_trade_decision"):
             console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
             console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
@@ -926,7 +934,7 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis():
+def run_analysis(metrics_config: MetricsConfig | None = None):
     # First get all user selections
     selections = get_user_selections()
 
@@ -944,6 +952,10 @@ def run_analysis():
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
 
+    # Apply --metrics override if provided
+    if metrics_config is not None:
+        config["metrics_config"] = metrics_config
+
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
 
@@ -960,7 +972,7 @@ def run_analysis():
     )
 
     # Initialize message buffer with selected analysts
-    message_buffer.init_for_analysis(selected_analyst_keys)
+    message_buffer.init_for_analysis(selected_analyst_keys, config.get("metrics_config"))
 
     # Track start time for elapsed display
     start_time = time.time()
@@ -1184,7 +1196,7 @@ def run_analysis():
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(final_state, selections["ticker"], save_path, config.get("metrics_config"))
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
@@ -1193,12 +1205,39 @@ def run_analysis():
     # Prompt to display full report
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
     if display_choice in ("Y", "YES", ""):
-        display_complete_report(final_state)
+        display_complete_report(final_state, config.get("metrics_config"))
 
 
 @app.command()
-def analyze():
-    run_analysis()
+def analyze(
+    metrics: Optional[str] = typer.Option(
+        None,
+        "--metrics",
+        help="Comma-separated list of section.metric keys to include in reports. "
+        "Omitted metrics are hidden. Example: 'analysts.market_report,risk.aggressive_history'. "
+        "Use --list-metrics to see all available keys.",
+    ),
+    list_metrics: bool = typer.Option(
+        False,
+        "--list-metrics",
+        help="List all available metric keys and exit.",
+    ),
+):
+    if list_metrics:
+        console.print("[bold]Available metrics:[/bold]")
+        for key in list_all_metrics():
+            console.print(f"  {key}")
+        raise typer.Exit()
+
+    metrics_config = None
+    if metrics:
+        try:
+            metrics_config = parse_metrics_flag(metrics)
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            raise typer.Exit(code=1)
+
+    run_analysis(metrics_config=metrics_config)
 
 
 if __name__ == "__main__":

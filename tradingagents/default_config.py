@@ -1,5 +1,7 @@
 import os
 
+from tradingagents.metrics_config import DEFAULT_METRICS_CONFIG
+
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 
 DEFAULT_CONFIG = {
@@ -34,4 +36,6 @@ DEFAULT_CONFIG = {
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # Metrics configuration — controls which metrics appear in reports
+    "metrics_config": DEFAULT_METRICS_CONFIG,
 }
