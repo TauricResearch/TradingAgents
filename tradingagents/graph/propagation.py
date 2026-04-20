@@ -1,11 +1,14 @@
 # TradingAgents/graph/propagation.py
 
+import logging
 from typing import Dict, Any, List, Optional
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
     RiskDebateState,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Propagator:
@@ -19,6 +22,14 @@ class Propagator:
         self, company_name: str, trade_date: str
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        # Compute strategy signals once up-front
+        strategy_signals: list[dict[str, Any]] = []
+        try:
+            from tradingagents.strategies import compute_signals
+            strategy_signals = compute_signals(company_name, str(trade_date))
+        except Exception:
+            logger.warning("Strategy signal computation failed; continuing without signals", exc_info=True)
+
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
@@ -51,6 +62,7 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "strategy_signals": strategy_signals,
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
