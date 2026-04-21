@@ -40,3 +40,15 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "unit: fast isolated unit tests",
+    "integration: tests requiring external services",
+    "smoke: quick sanity-check tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
