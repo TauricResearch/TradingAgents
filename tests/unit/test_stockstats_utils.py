@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import pytest
+import re
+from unittest.mock import patch, MagicMock
 from tradingagents.dataflows.stockstats_utils import _clean_dataframe
 
 def test_clean_dataframe_valid_data():
@@ -157,3 +159,33 @@ def test_clean_dataframe_handles_no_date_or_close():
 
     assert list(cleaned.columns) == ["1", "open"]
     assert len(cleaned) == 2
+
+
+def test_safe_yf_download_sets_multi_level_index_false():
+    """safe_yf_download always passes multi_level_index=False to yf.download."""
+    with patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl:
+        mock_dl.return_value = pd.DataFrame({"Close": [100.0]})
+        from tradingagents.dataflows.stockstats_utils import safe_yf_download
+        safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01")
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("multi_level_index") is False
+
+
+def test_safe_yf_download_sets_threads_false_by_default():
+    """safe_yf_download defaults threads=False."""
+    with patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl:
+        mock_dl.return_value = pd.DataFrame({"Close": [100.0]})
+        from tradingagents.dataflows.stockstats_utils import safe_yf_download
+        safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01")
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("threads") is False
+
+
+def test_safe_yf_download_caller_can_override_threads():
+    """safe_yf_download allows callers to explicitly set threads=True."""
+    with patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl:
+        mock_dl.return_value = pd.DataFrame({"Close": [100.0]})
+        from tradingagents.dataflows.stockstats_utils import safe_yf_download
+        safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01", threads=True)
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("threads") is True

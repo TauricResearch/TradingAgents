@@ -21,6 +21,18 @@ class YFinanceError(Exception):
     pass
 
 
+def safe_yf_download(tickers, start=None, end=None, **kwargs) -> pd.DataFrame:
+    """Central yf.download wrapper — enforces thread-safety and column hygiene.
+
+    Defaults threads=False (safe inside LangGraph's thread pool) and
+    multi_level_index=False (prevents duplicate-ticker column contamination).
+    Callers may override either default by passing explicit keyword arguments.
+    """
+    kwargs.setdefault("threads", False)
+    kwargs.setdefault("multi_level_index", False)
+    return yf.download(tickers, start=start, end=end, **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
