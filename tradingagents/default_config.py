@@ -34,4 +34,6 @@ DEFAULT_CONFIG = {
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # Signal sources
+    "polymarket_enabled": True,  # Fetch prediction market signals from Polymarket
 }

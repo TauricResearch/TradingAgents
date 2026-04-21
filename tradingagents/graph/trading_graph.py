@@ -194,9 +194,19 @@ class TradingAgentsGraph:
 
         self.ticker = company_name
 
+        # Fetch polymarket prediction market signals if enabled
+        polymarket_context = ""
+        if self.config.get("polymarket_enabled", True):
+            try:
+                from tradingagents.signals.polymarket import fetch_polymarket_signals, format_signals_text
+                result = fetch_polymarket_signals()
+                polymarket_context = format_signals_text(result)
+            except Exception:
+                pass
+
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date
+            company_name, trade_date, polymarket_context=polymarket_context
         )
         args = self.propagator.get_graph_args()
 
