@@ -148,6 +148,42 @@ def test_clean_dataframe_non_string_columns():
     expected_columns = ["date", "close", "0", "1"]
     assert list(cleaned_df.columns) == expected_columns
 
+
+def test_load_or_fetch_ohlcv_purges_stale_cache(tmp_path, monkeypatch):
+    """_load_or_fetch_ohlcv deletes a cache file whose last date is too old."""
+    from tradingagents.dataflows import stockstats_utils as su
+
+    # Build a stale CSV: last row is 10 days ago, but with enough rows to pass the < 50 check
+    old_date = (pd.Timestamp.today() - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
+    rows = pd.DataFrame({
+        "Date": pd.date_range(end=old_date, periods=100, freq="D").strftime("%Y-%m-%d"),
+        "Open": [100.0] * 100,
+        "High": [101.0] * 100,
+        "Low": [99.0] * 100,
+        "Close": [100.5] * 100,
+        "Volume": [1000000] * 100,
+    })
+    # Write to a path that matches the expected cache file name
+    today = pd.Timestamp.today()
+    start = (today - pd.DateOffset(years=15)).strftime("%Y-%m-%d")
+    end = today.strftime("%Y-%m-%d")
+    cache_file = tmp_path / f"STM-YFin-data-{start}-{end}.csv"
+    rows.to_csv(cache_file, index=False)
+
+    monkeypatch.setattr(su, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+
+    fresh_rows = rows.copy()
+    fresh_rows["Date"] = today.strftime("%Y-%m-%d")
+
+    mock_raw = MagicMock()
+    mock_raw.empty = False
+    mock_raw.reset_index.return_value = fresh_rows
+
+    with patch.object(su, "yf") as mock_yf:
+        mock_yf.download.return_value = mock_raw
+        su._load_or_fetch_ohlcv("STM")
+        assert mock_yf.download.called, "Should have re-fetched stale cache"
+
 def test_clean_dataframe_handles_no_date_or_close():
     """Test _clean_dataframe correctly formats column names if there's no date or close"""
     df = pd.DataFrame({

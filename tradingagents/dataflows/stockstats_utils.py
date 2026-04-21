@@ -9,6 +9,7 @@ from stockstats import wrap
 from typing import Annotated
 import os
 from .config import get_config
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,28 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
                 )
                 os.remove(data_file)
                 data = None
+            else:
+                # Layer 6: staleness check
+                date_col = "Date" if "Date" in data.columns else "date"
+                if date_col in data.columns:
+                    try:
+                        last_date = pd.to_datetime(data[date_col]).max()
+                        max_age = int(
+                            get_config().get("ohlcv_cache_max_age_days")
+                            or DEFAULT_CONFIG.get("ohlcv_cache_max_age_days")
+                            or 2
+                        )
+                        if (pd.Timestamp.today() - last_date).days > max_age:
+                            logger.warning(
+                                "Cache file for %s is stale (last date %s, age %d days > %d) — re-fetching.",
+                                symbol, last_date.date(), (pd.Timestamp.today() - last_date).days, max_age,
+                            )
+                            os.remove(data_file)
+                            data = None
+                    except Exception as exc:
+                        logger.warning("Could not parse dates from cache for %s (%s) — re-fetching.", symbol, exc)
+                        os.remove(data_file)
+                        data = None
     else:
         data = None
 
