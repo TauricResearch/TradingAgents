@@ -120,6 +120,38 @@ New key in `default_config.py`:
 
 Default 3.0 means SMA may not exceed 3× the close price (or vice versa). This catches cross-ticker contamination (e.g. STM $36 vs TSM SMA $170 = ratio 4.7) while allowing normal volatility.
 
+### Layer 5 — Row Count Guard
+
+Before passing the DataFrame to stockstats, assert it contains enough rows for the requested SMA period:
+
+```python
+def _assert_sufficient_rows(df: pd.DataFrame, min_rows: int, ticker: str) -> None:
+    if len(df) < min_rows:
+        raise RuntimeError(
+            f"[OHLCV] Insufficient data for {ticker}: "
+            f"need {min_rows} rows, got {len(df)}"
+        )
+```
+
+Called in `_load_or_fetch_ohlcv()` with `min_rows` equal to the largest SMA window requested (e.g. 50 for `close_50_sma`). An undersized window silently produces a rolling mean over fewer rows than intended — this guard surfaces it as a hard error before any indicator computation.
+
+### Layer 6 — Cache Staleness Check
+
+When loading from a CSV cache file, check the most recent date in the data:
+
+```python
+max_age_days = DEFAULT_CONFIG.get("ohlcv_cache_max_age_days", 2)
+```
+
+If `today - last_date > max_age_days` trading days, delete the cache file and re-fetch. This prevents a stale cache from being reused across multiple trading days and producing SMA values anchored to old prices.
+
+**Config key:**
+```python
+"ohlcv_cache_max_age_days": _env_int("TRADINGAGENTS_OHLCV_CACHE_MAX_AGE_DAYS", 2, env=env),
+```
+
+Default 2 trading days tolerates weekend runs (Saturday/Sunday re-use Friday's cache) without silently ageing further.
+
 ---
 
 ## Data Flow After Fix
@@ -129,9 +161,11 @@ yf.download([...])
   → safe_yf_download() [Layer 1]
     → threads=False, multi_level_index=False
     → flat single-level DataFrame
-  → _load_or_fetch_ohlcv() [Layer 2]
-    → check for .1/.2 column suffixes
-    → if found: delete cache, re-fetch
+  → _load_or_fetch_ohlcv() [Layer 2 + Layer 6]
+    → staleness check: if last_date > max_age_days old → delete, re-fetch
+    → column check: if .1/.2 suffixes found → delete, re-fetch
+  → row count guard [Layer 5]
+    → if len(df) < min_rows → RuntimeError
   → plausibility guard [Layer 4]
     → SMA/close ratio check
     → if implausible: delete cache, retry (up to 3×)
@@ -146,6 +180,7 @@ yf.download([...])
 | Key | Env Var | Default | Purpose |
 |-----|---------|---------|---------|
 | `ohlcv_sma_plausibility_threshold` | `TRADINGAGENTS_OHLCV_SMA_PLAUSIBILITY_THRESHOLD` | `3.0` | Max ratio of SMA to close before flagging contamination |
+| `ohlcv_cache_max_age_days` | `TRADINGAGENTS_OHLCV_CACHE_MAX_AGE_DAYS` | `2` | Max age (calendar days) of a cache file before forced re-fetch |
 
 ---
 
@@ -154,11 +189,11 @@ yf.download([...])
 | File | Change |
 |------|--------|
 | `tradingagents/dataflows/yfinance_utils.py` | Add `safe_yf_download()`, replace `yf.download()` calls |
-| `tradingagents/dataflows/stockstats_utils.py` | Add Layer 2 column validator and Layer 4 plausibility guard in `_load_or_fetch_ohlcv()` |
+| `tradingagents/dataflows/stockstats_utils.py` | Add Layer 2 column validator, Layer 4 plausibility guard, Layer 5 row count guard, and Layer 6 staleness check in `_load_or_fetch_ohlcv()` |
 | `tradingagents/dataflows/yfinance_scanner.py` | Replace `yf.download()` calls with `safe_yf_download()` |
 | `tradingagents/agents/utils/core_stock_tools.py` | Replace `yf.download()` call with `safe_yf_download()` |
 | `tradingagents/dataflows/yfin_utils.py` | Replace `yf.download()` calls if present |
-| `tradingagents/default_config.py` | Add `ohlcv_sma_plausibility_threshold` key |
+| `tradingagents/default_config.py` | Add `ohlcv_sma_plausibility_threshold` and `ohlcv_cache_max_age_days` keys |
 
 ---
 
@@ -167,7 +202,9 @@ yf.download([...])
 1. **Unit test — `safe_yf_download` multi-ticker** : call with `["STM", "TSM"]`, assert no `.1`/`.2` columns in result
 2. **Unit test — column validator**: create a mock DataFrame with `Close` and `Close.1` columns, assert `_has_contaminated_columns()` returns `True`
 3. **Unit test — plausibility guard**: mock a DataFrame where SMA is 5× the close price, assert retry loop fires and `RuntimeError` is raised after 3 attempts
-4. **Integration test**: run market analyst node for STM, assert `close_50_sma` is within 3× of last close price
+4. **Unit test — row count guard**: pass a DataFrame with 10 rows and `min_rows=50`, assert `RuntimeError` is raised
+5. **Unit test — staleness check**: mock a cache file whose last date is 5 days ago, assert it is deleted and re-fetched
+6. **Integration test**: run market analyst node for STM, assert `close_50_sma` is within 3× of last close price
 
 ---
 
