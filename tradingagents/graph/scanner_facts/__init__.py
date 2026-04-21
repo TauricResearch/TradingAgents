@@ -1,0 +1,1 @@
+"""Scanner graph facts package."""

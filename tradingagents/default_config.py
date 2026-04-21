@@ -204,6 +204,7 @@ def build_default_config(
         "scanner_llm_provider": _env("SCANNER_LLM_PROVIDER", env=env),
         "scanner_backend_url": _env("SCANNER_BACKEND_URL", env=env),
         "scanner_llm_timeout": _env_float("SCANNER_LLM_TIMEOUT_SEC", env=env),
+        "scanner_concurrency": _env_int("SCANNER_CONCURRENCY", 2, env=env),
         "backend_url": _env("BACKEND_URL", "https://api.openai.com/v1", env=env),
         # Per-role provider overrides (fallback to shared llm_provider/backend_url).
         "deep_think_llm_provider": _env("DEEP_THINK_LLM_PROVIDER", env=env),
@@ -245,6 +246,11 @@ def build_default_config(
         "quick_think_llm_timeout_cap": _env_float(
             "QUICK_THINK_LLM_TIMEOUT_CAP_SEC", 300.0, env=env
         ),
+        # Per-tier max output tokens (None = let the model decide).
+        "deep_think_llm_max_tokens": _env_int("DEEP_THINK_LLM_MAX_TOKENS", env=env),
+        "mid_think_llm_max_tokens": _env_int("MID_THINK_LLM_MAX_TOKENS", env=env),
+        "quick_think_llm_max_tokens": _env_int("QUICK_THINK_LLM_MAX_TOKENS", env=env),
+        "scanner_llm_max_tokens": _env_int("SCANNER_LLM_MAX_TOKENS", env=env),
         "tool_loop_timeout_cap": _env_float(
             "TOOL_LOOP_TIMEOUT_CAP_SEC", 300.0, env=env
         ),

@@ -3,6 +3,7 @@ from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
+    build_research_manager_fallback,
     output_contains_scratchpad,
 )
 from tradingagents.agents.utils.summary_context import (
@@ -90,30 +91,33 @@ Debate History:
             llm,
             prompt,
             timeout_seconds=timeout_seconds,
-            max_tokens=800,
+            max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
         )
-        if invoke_error is not None:
-            err_type = type(invoke_error).__name__
-            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
 
-        # De-anonymize: replace TICKER_A back with the real ticker so downstream
-        # nodes (Trader, Portfolio Manager) receive the correct symbol.
-        output_content = response.content.replace("TICKER_A", ticker)
-        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
-        if output_contains_scratchpad(output_content):
-            raise RuntimeError(
-                "Research Manager produced scratchpad/instructional output; refusing fallback."
-            )
-        if not str(output_content).strip():
-            raise RuntimeError(
-                "Research Manager produced empty output; refusing fallback."
-            )
+        is_timeout = False
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                is_timeout = True
+            else:
+                err_type = type(invoke_error).__name__
+                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+
+        # If it was a timeout or if the content is empty/garbage, apply the deterministic fallback.
+        output_content = ""
+        if response:
+            output_content = response.content.replace("TICKER_A", ticker)
+
+        if is_timeout or not str(output_content).strip() or output_contains_scratchpad(output_content):
+            output_content = build_research_manager_fallback(state)
+            is_fallback = True
+        else:
+            is_fallback = False
 
         structured = build_investment_plan_structured(
             ticker=ticker,
             as_of_date=state.get("trade_date", ""),
             investment_plan=output_content,
-            is_timeout_fallback=is_timeout,
+            is_timeout_fallback=is_timeout or is_fallback,
         )
 
         new_investment_debate_state = {

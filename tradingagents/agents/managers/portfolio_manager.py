@@ -85,7 +85,7 @@ def create_portfolio_manager(llm, memory):
                 llm,
                 prompt,
                 timeout_seconds=timeout_seconds,
-                max_tokens=900,
+                max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
             )
             if invoke_error is not None:
                 err_type = type(invoke_error).__name__
@@ -137,7 +137,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
                 llm,
                 prompt,
                 timeout_seconds=timeout_seconds,
-                max_tokens=900,
+                max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
             )
             if invoke_error is not None:
                 err_type = type(invoke_error).__name__

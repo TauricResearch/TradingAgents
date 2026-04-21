@@ -86,7 +86,7 @@ Rules: Exactly 3 claims max. One counterpoint. One rebuttal. No paragraphs.
             llm,
             prompt,
             timeout_seconds=timeout_seconds,
-            max_tokens=600,
+            max_tokens=DEFAULT_CONFIG.get("mid_think_llm_max_tokens"),
         )
         if invoke_error is not None:
             if isinstance(invoke_error, TimeoutError):

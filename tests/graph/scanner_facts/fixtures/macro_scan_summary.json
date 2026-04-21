@@ -1,0 +1,81 @@
+{
+  "timeframe": "1 month",
+  "executive_summary": "Markets are in a pronounced Risk-On regime with the S&P 500 and Nasdaq reaching new all-time highs and the VIX compressed at 17.90 (-1.49%). Technology (+9.08% 1M) and Real Estate (+9.22% YTD) are the dominant leadership sectors, driven by AI infrastructure demand and institutional accumulation. Geopolitical risks remain moderate but tangible, evidenced by Brent Crude supply premiums (+3.44% at $98.20) and diverging sovereign CDS spreads (Germany +13.01% vs US -2.67%). Defensive sectors (Healthcare -5.34% YTD, Consumer Staples -3.32% 1M) are experiencing severe deterioration. The 'Golden Overlap' identifies ON, MSFT, and PBR as high-conviction candidates where Smart Money accumulation aligns with top-down sector momentum.",
+  "macro_context": {
+    "economic_cycle": "Late-cycle expansion characterized by leadership rotation into growth and cyclical recovery",
+    "central_bank_stance": "Divergent global monetary conditions; US sovereign risk perception easing (5Y CDS 35.03 bps, -2.67% 1M), Eurozone uncertainty rising (German CDS +13.01%), China risk moderating (-10.25%)",
+    "geopolitical_risks": [
+      "Energy supply chain disruptions supporting Brent crude premium (+3.44%) over WTI (-1.36%)",
+      "Eurozone sovereign stress escalation",
+      "Persistent safe-haven bid in Precious Metals (Gold $4,811.90, +0.25%) despite equity highs"
+    ]
+  },
+  "key_themes": [
+    {
+      "theme": "Technology Sector Momentum & AI Infrastructure",
+      "description": "Technology leads 1-month returns (+9.08%) with sustained institutional accumulation and positive analyst revisions. AI infrastructure demand creates cross-sector correlation with Data Center REITs (DLR, EQIX).",
+      "conviction": "high",
+      "timeframe": "1 month"
+    },
+    {
+      "theme": "Real Estate Recovery Via Yield & Digital Infrastructure",
+      "description": "Sector demonstrates persistent strength (+9.22% YTD, +3.24% 1M) driven by rotation into yield assets and structural AI data center demand.",
+      "conviction": "high",
+      "timeframe": "1-3 months"
+    },
+    {
+      "theme": "Energy Supply Instability",
+      "description": "Geopolitical tension driving Brent-WTI divergence. Insider accumulation in select energy names contrasts with mixed short-term sector momentum.",
+      "conviction": "medium",
+      "timeframe": "1 month"
+    },
+    {
+      "theme": "Defensive Sector Deterioration",
+      "description": "Negative revision pressure and momentum deterioration in Healthcare (-5.34% YTD) and Consumer Staples (-3.32% 1M) indicating rotation out of traditional safety.",
+      "conviction": "high",
+      "timeframe": "1 month"
+    }
+  ],
+  "stocks_to_investigate": [
+    {
+      "ticker": "ON",
+      "name": "ON Semiconductor",
+      "sector": "Technology",
+      "rationale": "Breakout accumulation at $79.93 with 52-week high on high volume (Smart Money confirmation). Aligns with Technology sector dominance (+9.08% 1M) and growth factor leadership.",
+      "thesis_angle": "Golden Overlap: Institutional accumulation meets sector momentum",
+      "conviction": "high",
+      "key_catalysts": [
+        "Breakout above $79.93 on 11.54x relative volume",
+        "Technology sector earnings reporting cycle"
+      ],
+      "risks": [
+        "High valuation premium within concentrated sector",
+        "Gap-fill reversal if momentum stalls"
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "name": "Microsoft",
+      "sector": "Technology",
+      "rationale": "Analyst positive revisions indicate 41.62% rally potential. Momentum leader with +12.65% 1-week performance and +5.48% YTD in the top-ranked sector.",
+      "thesis_angle": "Analyst revision inflection in secular growth leader",
+      "conviction": "high",
+      "key_catalysts": [
+        "AI infrastructure monetization updates",
+        "Earnings positive revision trend"
+      ],
+      "risks": [
+        "Concentration risk (top-heavy index weight)",
+        "Rich valuation susceptible to rate volatility"
+      ]
+    }
+  ],
+  "risk_factors": [
+    "VIX sustained increase above 17.90 negating current Risk-On classification",
+    "German sovereign CDS spread acceleration (+13.01%) indicating Eurozone systemic stress",
+    "Technology sector concentration risk (NVDA/AAPL/MSFT >50% weight) amplifying drawdown potential",
+    "WTI/Brent price divergence signaling regional demand destruction or supply dislocations",
+    "Speculative gap-up reversals in Quantum/Lithium themes (XNDU, SGML) with insufficient fundamental catalysts",
+    "Earnings reporting volatility window (4/30) for select Healthcare and Tech names"
+  ]
+}

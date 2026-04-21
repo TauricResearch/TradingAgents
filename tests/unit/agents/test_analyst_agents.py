@@ -351,8 +351,8 @@ def test_news_analyst_uses_scanner_context_when_no_articles_ingested(mock_state)
     )
     state = {
         **mock_state,
-        "scanner_context_packet": (
-            "# SCANNER CONTEXT PACKET: AAPL\n"
+        "scanner_graph_context_text": (
+            "# SCANNER GRAPH CONTEXT: AAPL\n"
             "Date: 2024-05-15\n\n"
             "Source: Finviz Smart Money Scanner\n"
             "Scan Date: 2024-05-15\n"

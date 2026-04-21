@@ -5,6 +5,7 @@ from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
+    build_trader_plan_fallback,
     build_trader_plan_structured,
     output_contains_scratchpad,
 )
@@ -61,7 +62,7 @@ def create_trader(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
-        scanner_context = state.get("scanner_context_packet", "")
+        scanner_context = state.get("scanner_graph_context_text", "")
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
@@ -83,8 +84,10 @@ def create_trader(llm, memory):
 
         scanner_section = ""
         if scanner_context:
+            role_guidance = "Use the scanner graph context to preserve catalysts, exposure edges, and risk factors when translating research into a trade plan."
             scanner_section = (
-                "\n\n## Scanner Ground-Truth Data\n"
+                "\n\n## Scanner Graph Context\n\n"
+                f"{role_guidance}\n\n"
                 "The following commodity prices, FX rates, and calendar dates are verified "
                 "live data. Use ONLY these values for catalyst dates, commodity references, "
                 "and FX levels. Do NOT estimate or hallucinate any dates or prices.\n\n"
@@ -137,21 +140,27 @@ Apply lessons from past decisions:
             llm,
             messages,
             timeout_seconds=timeout_seconds,
-            max_tokens=900,
+            max_tokens=DEFAULT_CONFIG.get("mid_think_llm_max_tokens"),
         )
-        if invoke_error is not None:
-            err_type = type(invoke_error).__name__
-            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
 
-        # De-anonymize: replace TICKER_A back with the real ticker.
-        output_content = result.content.replace("TICKER_A", ticker)
-        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
-        if output_contains_scratchpad(output_content):
-            raise RuntimeError(
-                "Trader produced scratchpad/instructional output; refusing fallback."
-            )
-        if not str(output_content).strip():
-            raise RuntimeError("Trader produced empty output; refusing fallback.")
+        is_timeout = False
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                is_timeout = True
+            else:
+                err_type = type(invoke_error).__name__
+                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+
+        # If it was a timeout or if the content is empty/garbage, apply the deterministic fallback.
+        output_content = ""
+        if result:
+            output_content = result.content.replace("TICKER_A", ticker)
+
+        if is_timeout or not str(output_content).strip() or output_contains_scratchpad(output_content):
+            output_content = build_trader_plan_fallback(state)
+            is_fallback = True
+        else:
+            is_fallback = False
 
         # Guardrail: reject plans anchored to stale prices.
         current_price = _extract_current_price_from_state(state)
@@ -170,11 +179,11 @@ Apply lessons from past decisions:
             ticker=ticker,
             as_of_date=state.get("trade_date", ""),
             trader_plan=output_content,
-            is_timeout_fallback=is_timeout,
+            is_timeout_fallback=is_timeout or is_fallback,
         )
 
         return {
-            "messages": [result],
+            "messages": [result] if result else [],
             "trader_investment_plan": output_content,
             "trader_plan_structured": structured,
             "sender": name,

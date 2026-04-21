@@ -40,7 +40,7 @@ def create_research_packet_summary(llm):
                 state.get("news_report"),
                 state.get("fundamentals_report"),
                 state.get("macro_regime_report"),
-                state.get("scanner_context_packet"),
+                state.get("scanner_graph_context_text"),
             )
         ):
             return {

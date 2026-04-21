@@ -37,6 +37,13 @@ MAX_NUDGES = 2
 # prompts that can stall local tool-calling models.
 MAX_TOOL_OUTPUT_CHARS = 5000
 
+# Hard cap on a single tool invocation.  yf.download() and similar network
+# calls can hang indefinitely on rate-limit or DNS issues; this prevents one
+# blocked tool call from deadlocking an entire LangGraph fan-out.
+TOOL_EXECUTION_TIMEOUT = float(
+    DEFAULT_CONFIG.get("tool_execution_timeout") or 60.0
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +57,7 @@ def run_tool_loop(
     invoke_timeout_seconds: float | None = None,
     require_tool_result: bool = False,
     node_name: str = "",
+    max_tokens: int | None = None,
 ) -> AIMessage:
     """Invoke *chain* in a loop, executing any tool calls until the LLM
     produces a final text response (i.e. no more tool_calls).
@@ -85,6 +93,7 @@ def run_tool_loop(
     attempted_tools: list[str] = []
     successful_tools: list[str] = []
     result = None
+    effective_max_tokens = max_tokens if max_tokens is not None else DEFAULT_CONFIG.get("scanner_llm_max_tokens")
     _cap = float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
     timeout_seconds = min(
         float(invoke_timeout_seconds or DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
@@ -132,6 +141,7 @@ def run_tool_loop(
                 llm=chain,
                 prompt_or_messages=current_messages,
                 timeout_seconds=timeout_seconds,
+                max_tokens=effective_max_tokens,
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
@@ -207,15 +217,24 @@ def run_tool_loop(
             else:
                 t0 = time.time()
                 try:
-                    tool_output = tool_fn.invoke(tool_args)
+                    _tool_result, _tool_err = invoke_with_timeout(
+                        llm=tool_fn,
+                        prompt_or_messages=tool_args,
+                        timeout_seconds=TOOL_EXECUTION_TIMEOUT,
+                    )
+                    elapsed_ms = (time.time() - t0) * 1000
+                    if _tool_err is not None:
+                        raise _tool_err
+                    tool_output = _tool_result
                     any_tool_succeeded = True
                     successful_tools.append(tool_name)
                     if rl:
-                        rl.log_tool_call(tool_name, str(tool_args)[:120], True, (time.time() - t0) * 1000)
+                        rl.log_tool_call(tool_name, str(tool_args)[:120], True, elapsed_ms)
                 except Exception as e:
+                    elapsed_ms = (time.time() - t0) * 1000
                     tool_output = f"Error calling {tool_name}: {e}"
                     if rl:
-                        rl.log_tool_call(tool_name, str(tool_args)[:120], False, (time.time() - t0) * 1000, error=str(e)[:200])
+                        rl.log_tool_call(tool_name, str(tool_args)[:120], False, elapsed_ms, error=str(e)[:200])
 
             raw_tool_output = str(tool_output)
             tool_output_text = raw_tool_output

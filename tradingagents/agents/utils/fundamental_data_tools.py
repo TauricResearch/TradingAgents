@@ -86,7 +86,7 @@ def get_ttm_analysis(
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
 ) -> str:
     """
-    Retrieve an 8-quarter Trailing Twelve Months (TTM) trend analysis for a company.
+    Retrieve an 8-quarter (2-year) Trailing Twelve Months (TTM) trend analysis for a company.
     Computes revenue growth (QoQ and YoY), margin trajectories (gross, operating, net),
     return on equity trend, debt/equity trend, and free cash flow trend across up to
     8 quarterly periods.
@@ -96,9 +96,34 @@ def get_ttm_analysis(
     Returns:
         str: Formatted Markdown report with TTM summary and quarterly trend table
     """
-    income_csv = route_to_vendor("get_income_statement", ticker, "quarterly", curr_date)
-    balance_csv = route_to_vendor("get_balance_sheet", ticker, "quarterly", curr_date)
-    cashflow_csv = route_to_vendor("get_cashflow", ticker, "quarterly", curr_date)
+    # Use parallel pre-fetching for the three heavy financial statements
+    from tradingagents.agents.utils.agent_utils import prefetch_tools_parallel
+
+    statements = prefetch_tools_parallel(
+        [
+            {
+                "tool": route_to_vendor,
+                "args": ("get_income_statement", ticker, "quarterly", curr_date),
+                "label": "income",
+            },
+            {
+                "tool": route_to_vendor,
+                "args": ("get_balance_sheet", ticker, "quarterly", curr_date),
+                "label": "balance",
+            },
+            {
+                "tool": route_to_vendor,
+                "args": ("get_cashflow", ticker, "quarterly", curr_date),
+                "label": "cashflow",
+            },
+        ]
+    )
+
+    income_csv = statements.get("income", "")
+    balance_csv = statements.get("balance", "")
+    cashflow_csv = statements.get("cashflow", "")
+
+    # Restored to 8 quarters (2-year trend)
     metrics = compute_ttm_metrics(income_csv, balance_csv, cashflow_csv, n_quarters=8)
 
     parse_errors = metrics["metadata"].get("parse_errors", [])

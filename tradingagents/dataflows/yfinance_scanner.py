@@ -420,7 +420,10 @@ def get_market_indices_yfinance() -> str:
         
         # Batch-download 1-day history for all symbols in a single request
         symbols = list(indices.keys())
-        indices_history = yf.download(symbols, period="2d", auto_adjust=True, progress=False, threads=True)
+        # threads=False: this function already runs inside LangGraph's thread pool;
+        # nested thread pools risk deadlock and 17 simultaneous Yahoo connections
+        # trigger silent rate-limit drops with no exception or timeout.
+        indices_history = yf.download(symbols, period="2d", auto_adjust=True, progress=False, threads=False)
 
         for symbol, name in indices.items():
             try:
@@ -503,7 +506,10 @@ def get_sector_performance_yfinance() -> str:
     try:
         symbols = list(sector_etfs.values())
         # Download ~6 months of data to cover YTD, 1-month, 1-week
-        hist = yf.download(symbols, period="6mo", auto_adjust=True, progress=False, threads=True)
+        # threads=False: same reasoning as get_market_indices — already inside
+        # LangGraph's thread pool; sequential fetches avoid nested pool deadlock
+        # and reduce peak concurrent Yahoo connections from 17 to ~6.
+        hist = yf.download(symbols, period="6mo", auto_adjust=True, progress=False, threads=False)
 
         header = "# Sector Performance Overview\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
@@ -607,7 +613,7 @@ def get_industry_performance_yfinance(
         price_returns: dict[str, dict[str, float | None]] = {}
         try:
             hist = yf.download(
-                tickers, period="1mo", auto_adjust=True, progress=False, threads=True,
+                tickers, period="1mo", auto_adjust=True, progress=False, threads=False,
             )
             for tkr in tickers:
                 try:

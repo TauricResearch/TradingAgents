@@ -72,6 +72,11 @@ def get_eval_dir(date: str, ticker: str, run_id: str | None = None) -> Path:
     return get_ticker_dir(date, ticker, run_id) / "eval"
 
 
+def get_scanner_graph_facts_path(date: str, run_id: str) -> Path:
+    """Return ``…/{date}/{run_id}/market/scanner_graph_facts.json``."""
+    return get_market_dir(date, run_id) / "scanner_graph_facts.json"
+
+
 def get_digest_path(date: str) -> Path:
     """Return the shared daily digest path."""
     return REPORTS_ROOT / "daily" / date / "daily_digest.md"
