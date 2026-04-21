@@ -189,3 +189,17 @@ def test_safe_yf_download_caller_can_override_threads():
         safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01", threads=True)
         _, kwargs = mock_dl.call_args
         assert kwargs.get("threads") is True
+
+
+def test_has_contaminated_columns_detects_dot_suffix():
+    """_has_contaminated_columns returns True when columns like Close.1 are present."""
+    from tradingagents.dataflows.stockstats_utils import _has_contaminated_columns
+    df = pd.DataFrame({"Date": [], "Close": [], "Close.1": [], "Volume": []})
+    assert _has_contaminated_columns(df) is True
+
+
+def test_has_contaminated_columns_clean_df():
+    """_has_contaminated_columns returns False for a normal single-ticker DataFrame."""
+    from tradingagents.dataflows.stockstats_utils import _has_contaminated_columns
+    df = pd.DataFrame({"Date": [], "Open": [], "High": [], "Low": [], "Close": [], "Volume": []})
+    assert _has_contaminated_columns(df) is False

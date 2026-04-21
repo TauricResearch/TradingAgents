@@ -1,5 +1,6 @@
 import time
 import logging
+import re
 
 import pandas as pd
 import yfinance as yf
@@ -31,6 +32,14 @@ def safe_yf_download(tickers, start=None, end=None, **kwargs) -> pd.DataFrame:
     kwargs.setdefault("threads", False)
     kwargs.setdefault("multi_level_index", False)
     return yf.download(tickers, start=start, end=end, **kwargs)
+
+
+def _has_contaminated_columns(df: pd.DataFrame) -> bool:
+    """Return True if any column name ends with .N (multi-ticker contamination)."""
+    return any(
+        bool(re.search(r"\.\d+$", str(col)))
+        for col in df.columns
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +111,13 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
                 logger.warning(
                     "Cache file for %s has only %d rows — likely truncated, re-fetching.",
                     symbol, len(data),
+                )
+                os.remove(data_file)
+                data = None
+            elif _has_contaminated_columns(data):
+                logger.warning(
+                    "Cache file for %s has contaminated columns %s — deleting and re-fetching.",
+                    symbol, [c for c in data.columns if re.search(r"\.\d+$", str(c))],
                 )
                 os.remove(data_file)
                 data = None
