@@ -52,6 +52,34 @@ def _assert_sufficient_rows(df: pd.DataFrame, min_rows: int, ticker: str) -> Non
         )
 
 
+def _is_close_plausible(df: pd.DataFrame, ticker: str) -> bool:
+    """Return False if the 50-day rolling mean of Close deviates too far from the last close.
+
+    Catches cross-ticker contamination where a high-priced ticker's data was
+    mixed into a low-priced ticker's cache (e.g. TSM $170 in STM's $36 file).
+    """
+    close_col = "Close" if "Close" in df.columns else "close"
+    if close_col not in df.columns:
+        return True
+    closes = pd.to_numeric(df[close_col], errors="coerce").dropna()
+    if len(closes) < 10:
+        return True
+    last_close = closes.iloc[-1]
+    rolling_mean = closes.tail(50).mean()
+    if last_close <= 0 or rolling_mean <= 0:
+        logger.warning("[OHLCV] %s: non-positive close value detected (last=%.2f, mean=%.2f)", ticker, last_close, rolling_mean)
+        return False
+    threshold = DEFAULT_CONFIG.get("ohlcv_sma_plausibility_threshold") or 3.0
+    ratio = max(last_close, rolling_mean) / min(last_close, rolling_mean)
+    if ratio > threshold:
+        logger.warning(
+            "[OHLCV] Plausibility check failed for %s: last_close=%.2f, rolling_mean_50=%.2f, ratio=%.2f > %.1f",
+            ticker, last_close, rolling_mean, ratio, threshold,
+        )
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -156,24 +184,40 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
     else:
         data = None
 
-    # ── Download from yfinance if cache miss / corrupt ────────────────────────
-    if data is None:
-        raw = yf.download(
-            symbol,
-            start=start_date_str,
-            end=end_date_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        )
-        if raw.empty:
-            raise YFinanceError(
-                f"yfinance returned no data for symbol '{symbol}' "
-                f"({start_date_str} → {end_date_str})"
+    # ── Download from yfinance if cache miss / corrupt (with plausibility retry) ──
+    _MAX_PLAUSIBILITY_RETRIES = 3
+    for _attempt in range(_MAX_PLAUSIBILITY_RETRIES):
+        if data is None:
+            raw = yf.download(
+                symbol,
+                start=start_date_str,
+                end=end_date_str,
+                multi_level_index=False,
+                progress=False,
+                auto_adjust=True,
             )
-        data = raw.reset_index()
-        data.to_csv(data_file, index=False)
-        logger.debug("Downloaded and cached OHLCV for %s → %s", symbol, data_file)
+            if raw.empty:
+                raise YFinanceError(
+                    f"yfinance returned no data for symbol '{symbol}' "
+                    f"({start_date_str} → {end_date_str})"
+                )
+            data = raw.reset_index()
+            data.to_csv(data_file, index=False)
+            logger.debug("Downloaded and cached OHLCV for %s → %s (attempt %d)", symbol, data_file, _attempt + 1)
+
+        if not _is_close_plausible(data, symbol):
+            if os.path.exists(data_file):
+                os.remove(data_file)
+            data = None
+            if _attempt == _MAX_PLAUSIBILITY_RETRIES - 1:
+                raise RuntimeError(
+                    f"[OHLCV] Plausibility check failed for {symbol} after "
+                    f"{_MAX_PLAUSIBILITY_RETRIES} attempts — possible persistent data "
+                    f"contamination. Delete data_cache/ and retry."
+                )
+            logger.warning("[OHLCV] Plausibility failure for %s on attempt %d — retrying.", symbol, _attempt + 1)
+            continue
+        break
 
     _assert_sufficient_rows(data, min_rows=50, ticker=symbol)
     return data
