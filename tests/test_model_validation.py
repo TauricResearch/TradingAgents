@@ -1,6 +1,8 @@
 import unittest
 import warnings
 
+import pytest
+
 from tradingagents.llm_clients.base_client import BaseLLMClient
 from tradingagents.llm_clients.model_catalog import get_known_models
 from tradingagents.llm_clients.validators import validate_model
@@ -19,6 +21,7 @@ class DummyLLMClient(BaseLLMClient):
         return validate_model(self.provider, self.model)
 
 
+@pytest.mark.unit
 class ModelValidationTests(unittest.TestCase):
     def test_cli_catalog_models_are_all_validator_approved(self):
         for provider, models in get_known_models().items():
