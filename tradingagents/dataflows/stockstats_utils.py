@@ -43,6 +43,15 @@ def _has_contaminated_columns(df: pd.DataFrame) -> bool:
     )
 
 
+def _assert_sufficient_rows(df: pd.DataFrame, min_rows: int, ticker: str) -> None:
+    """Raise RuntimeError if df has fewer rows than the minimum required."""
+    if len(df) < min_rows:
+        raise RuntimeError(
+            f"[OHLCV] Insufficient data for {ticker}: "
+            f"need {min_rows} rows, got {len(df)}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -166,6 +175,7 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
         data.to_csv(data_file, index=False)
         logger.debug("Downloaded and cached OHLCV for %s → %s", symbol, data_file)
 
+    _assert_sufficient_rows(data, min_rows=50, ticker=symbol)
     return data
 
 

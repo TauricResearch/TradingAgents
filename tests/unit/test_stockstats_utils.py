@@ -239,3 +239,18 @@ def test_has_contaminated_columns_clean_df():
     from tradingagents.dataflows.stockstats_utils import _has_contaminated_columns
     df = pd.DataFrame({"Date": [], "Open": [], "High": [], "Low": [], "Close": [], "Volume": []})
     assert _has_contaminated_columns(df) is False
+
+
+def test_assert_sufficient_rows_raises_when_too_few():
+    """_assert_sufficient_rows raises RuntimeError when df has fewer rows than required."""
+    from tradingagents.dataflows.stockstats_utils import _assert_sufficient_rows
+    df = pd.DataFrame({"Close": range(10)})
+    with pytest.raises(RuntimeError, match=r"\[OHLCV\] Insufficient data for THIN"):
+        _assert_sufficient_rows(df, min_rows=50, ticker="THIN")
+
+
+def test_assert_sufficient_rows_passes_when_enough():
+    """_assert_sufficient_rows does not raise when df has enough rows."""
+    from tradingagents.dataflows.stockstats_utils import _assert_sufficient_rows
+    df = pd.DataFrame({"Close": range(60)})
+    _assert_sufficient_rows(df, min_rows=50, ticker="AAPL")  # no exception
