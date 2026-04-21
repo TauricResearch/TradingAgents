@@ -1,10 +1,12 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.strategy_utils import get_signal_section
 
 
 def create_portfolio_manager(llm, memory):
     def portfolio_manager_node(state) -> dict:
 
         instrument_context = build_instrument_context(state["company_of_interest"])
+        signal_section = get_signal_section(state, "risk")
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -52,7 +54,8 @@ def create_portfolio_manager(llm, memory):
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}
+{signal_section}"""
 
         response = llm.invoke(prompt)
 

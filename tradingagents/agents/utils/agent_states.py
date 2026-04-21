@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
 
@@ -70,3 +70,6 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+    # Quantitative strategy signals (computed once, consumed by all nodes)
+    strategy_signals: Annotated[list[dict[str, Any]], "Deterministic strategy signals from the strategies framework"]
