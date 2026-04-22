@@ -29,6 +29,7 @@ from agent_os.backend.services.report_helpers import extract_tickers_from_scan_d
 from agent_os.backend.services.run_helpers import (
     fallback_model_summary,
     is_rate_limit_error,
+    resolve_tier_model_provider,
 )
 
 
@@ -86,6 +87,35 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
         summary = fallback_model_summary(current, fallback)
 
         self.assertEqual(summary, "quick_think=q2, deep_think=d2")
+
+    def testresolve_tier_model_provider_uses_tier_specific_provider(self):
+        config = {
+            "llm_provider": "openai",
+            "quick_think_llm": "google/gemini-2.5-flash",
+            "quick_think_llm_provider": "openrouter",
+            "mid_think_llm": "openrouter/elephant-alpha",
+            "mid_think_llm_provider": "openrouter",
+            "deep_think_llm": "moonshotai/kimi-k2.5",
+            "deep_think_llm_provider": "openrouter",
+        }
+
+        quick_model, quick_provider = resolve_tier_model_provider(config, "quick_think")
+        mid_model, mid_provider = resolve_tier_model_provider(config, "mid_think")
+        deep_model, deep_provider = resolve_tier_model_provider(config, "deep_think")
+
+        self.assertEqual((quick_model, quick_provider), ("google/gemini-2.5-flash", "openrouter"))
+        self.assertEqual((mid_model, mid_provider), ("openrouter/elephant-alpha", "openrouter"))
+        self.assertEqual((deep_model, deep_provider), ("moonshotai/kimi-k2.5", "openrouter"))
+
+    def testresolve_tier_model_provider_defaults_unknown_tier_to_quick(self):
+        config = {
+            "llm_provider": "openai",
+            "quick_think_llm": "gpt-5-mini",
+        }
+
+        model, provider = resolve_tier_model_provider(config, None)
+
+        self.assertEqual((model, provider), ("gpt-5-mini", "openai"))
 
     def test_load_injected_market_report_from_markdown(self):
         tmpdir = Path.cwd() / "_test_injected_reports"

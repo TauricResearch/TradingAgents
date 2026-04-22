@@ -86,6 +86,30 @@ def infer_fallback_tier(config: dict[str, Any], exc: Exception) -> str | None:
     return None
 
 
+def resolve_tier_model_provider(
+    config: dict[str, Any],
+    tier: str | None,
+) -> tuple[str, str]:
+    """Resolve the effective model/provider pair for a configured LLM tier."""
+    normalized_tier = tier if tier in _LLM_TIERS else None
+
+    if normalized_tier == "mid_think":
+        model = config.get("mid_think_llm") or config.get("quick_think_llm")
+        provider = (
+            config.get("mid_think_llm_provider")
+            or config.get("quick_think_llm_provider")
+            or config.get("llm_provider")
+        )
+    elif normalized_tier == "deep_think":
+        model = config.get("deep_think_llm")
+        provider = config.get("deep_think_llm_provider") or config.get("llm_provider")
+    else:
+        model = config.get("quick_think_llm")
+        provider = config.get("quick_think_llm_provider") or config.get("llm_provider")
+
+    return str(model or "unknown"), str(provider or "unknown")
+
+
 def build_fallback_config(config: dict[str, Any], tier: str | None = None) -> dict | None:
     """Return config with fallback substitution.
 

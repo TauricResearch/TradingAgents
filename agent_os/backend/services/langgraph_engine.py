@@ -63,6 +63,7 @@ from agent_os.backend.services.run_helpers import (
     is_policy_error,
     normalize_analysis_status,
     repair_checkpoint_messages,
+    resolve_tier_model_provider,
     run_should_stop,
     tickers_from_decision,
 )
@@ -920,8 +921,8 @@ class LangGraphEngine:
                     yield mapped
         except Exception as exc:
             if is_policy_error(exc):
-                model = self.config.get("quick_think_llm") or self.config.get("llm_provider", "unknown")
-                provider = self.config.get("llm_provider", "unknown")
+                failing_tier = infer_fallback_tier(self.config, exc)
+                model, provider = resolve_tier_model_provider(self.config, failing_tier)
                 raise RuntimeError(
                     f"LLM 404 (model={model}, provider={provider}): model blocked by "
                     f"provider policy — https://openrouter.ai/settings/privacy — "
