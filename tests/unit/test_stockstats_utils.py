@@ -254,3 +254,47 @@ def test_assert_sufficient_rows_passes_when_enough():
     from tradingagents.dataflows.stockstats_utils import _assert_sufficient_rows
     df = pd.DataFrame({"Close": range(60)})
     _assert_sufficient_rows(df, min_rows=50, ticker="AAPL")  # no exception
+
+
+def test_safe_yf_download_sets_multi_level_index_false():
+    """safe_yf_download always passes multi_level_index=False to yf.download."""
+    with patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl:
+        mock_dl.return_value = pd.DataFrame({"Close": [100.0]})
+        from tradingagents.dataflows.stockstats_utils import safe_yf_download
+        safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01")
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("multi_level_index") is False
+
+
+def test_safe_yf_download_sets_threads_false_by_default():
+    """safe_yf_download defaults threads=False."""
+    with patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl:
+        mock_dl.return_value = pd.DataFrame({"Close": [100.0]})
+        from tradingagents.dataflows.stockstats_utils import safe_yf_download
+        safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01")
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("threads") is False
+
+
+def test_safe_yf_download_caller_can_override_threads():
+    """safe_yf_download allows callers to explicitly set threads=True."""
+    with patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl:
+        mock_dl.return_value = pd.DataFrame({"Close": [100.0]})
+        from tradingagents.dataflows.stockstats_utils import safe_yf_download
+        safe_yf_download("AAPL", start="2024-01-01", end="2024-02-01", threads=True)
+        _, kwargs = mock_dl.call_args
+        assert kwargs.get("threads") is True
+
+
+def test_has_contaminated_columns_detects_dot_suffix():
+    """_has_contaminated_columns returns True when columns like Close.1 are present."""
+    from tradingagents.dataflows.stockstats_utils import _has_contaminated_columns
+    df = pd.DataFrame({"Date": [], "Close": [], "Close.1": [], "Volume": []})
+    assert _has_contaminated_columns(df) is True
+
+
+def test_has_contaminated_columns_clean_df():
+    """_has_contaminated_columns returns False for a normal single-ticker DataFrame."""
+    from tradingagents.dataflows.stockstats_utils import _has_contaminated_columns
+    df = pd.DataFrame({"Date": [], "Open": [], "High": [], "Low": [], "Close": [], "Volume": []})
+    assert _has_contaminated_columns(df) is False
