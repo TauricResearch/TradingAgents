@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, patch
+
 from tradingagents.graph.setup import GraphSetup
 
-def test_market_analyst_uses_mid_llm():
+
+def test_market_analyst_uses_quick_llm():
     quick_llm = MagicMock(name="quick")
     mid_llm = MagicMock(name="mid")
     deep_llm = MagicMock(name="deep")
@@ -43,10 +45,10 @@ def test_market_analyst_uses_mid_llm():
              patch("tradingagents.graph.setup.create_critical_abort_terminal"), \
              patch("tradingagents.graph.setup.create_portfolio_manager"):
             setup.setup_graph(selected_analysts=["market"])
-            mock_create.assert_called_once_with(mid_llm)
+            mock_create.assert_called_once_with(quick_llm)
 
 
-def test_social_analyst_uses_mid_llm():
+def test_social_analyst_uses_quick_llm():
     quick_llm = MagicMock(name="quick")
     mid_llm = MagicMock(name="mid")
     deep_llm = MagicMock(name="deep")
@@ -88,10 +90,10 @@ def test_social_analyst_uses_mid_llm():
              patch("tradingagents.graph.setup.create_critical_abort_terminal"), \
              patch("tradingagents.graph.setup.create_portfolio_manager"):
             setup.setup_graph(selected_analysts=["social"])
-            mock_create.assert_called_once_with(mid_llm)
+            mock_create.assert_called_once_with(quick_llm)
 
 
-def test_fundamentals_analyst_uses_mid_llm():
+def test_fundamentals_analyst_uses_quick_llm():
     quick_llm = MagicMock(name="quick")
     mid_llm = MagicMock(name="mid")
     deep_llm = MagicMock(name="deep")
@@ -137,7 +139,7 @@ def test_fundamentals_analyst_uses_mid_llm():
              patch("tradingagents.graph.setup.create_portfolio_manager"):
             
             setup.setup_graph(selected_analysts=["fundamentals"])
-            mock_create.assert_called_once_with(mid_llm)
+            mock_create.assert_called_once_with(quick_llm)
 
 
 def test_news_analyst_and_fact_checker_share_injected_evidence_store():
@@ -185,7 +187,7 @@ def test_news_analyst_and_fact_checker_share_injected_evidence_store():
          patch("tradingagents.graph.setup.create_portfolio_manager"):
         setup.setup_graph(selected_analysts=["news"])
 
-    mock_news_analyst.assert_called_once_with(mid_llm, news_evidence_store)
+    mock_news_analyst.assert_called_once_with(quick_llm, news_evidence_store)
     mock_fact_checker.assert_called_once_with(news_evidence_store)
 
 

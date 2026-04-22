@@ -1,5 +1,6 @@
 import time
 import logging
+import re
 
 import pandas as pd
 import yfinance as yf
@@ -8,6 +9,7 @@ from stockstats import wrap
 from typing import Annotated
 import os
 from .config import get_config
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,63 @@ logger = logging.getLogger(__name__)
 class YFinanceError(Exception):
     """Raised when yfinance or stockstats data fetching/processing fails."""
     pass
+
+
+def safe_yf_download(tickers, start=None, end=None, **kwargs) -> pd.DataFrame:
+    """Central yf.download wrapper — enforces thread-safety and column hygiene.
+
+    Defaults threads=False (safe inside LangGraph's thread pool) and
+    multi_level_index=False (prevents duplicate-ticker column contamination).
+    Callers may override either default by passing explicit keyword arguments.
+    """
+    kwargs.setdefault("threads", False)
+    kwargs.setdefault("multi_level_index", False)
+    return yf.download(tickers, start=start, end=end, **kwargs)
+
+
+def _has_contaminated_columns(df: pd.DataFrame) -> bool:
+    """Return True if any column name ends with .N (multi-ticker contamination)."""
+    return any(
+        bool(re.search(r"\.\d+$", str(col)))
+        for col in df.columns
+    )
+
+
+def _assert_sufficient_rows(df: pd.DataFrame, min_rows: int, ticker: str) -> None:
+    """Raise RuntimeError if df has fewer rows than the minimum required."""
+    if len(df) < min_rows:
+        raise RuntimeError(
+            f"[OHLCV] Insufficient data for {ticker}: "
+            f"need {min_rows} rows, got {len(df)}"
+        )
+
+
+def _is_close_plausible(df: pd.DataFrame, ticker: str) -> bool:
+    """Return False if the 50-day rolling mean of Close deviates too far from the last close.
+
+    Catches cross-ticker contamination where a high-priced ticker's data was
+    mixed into a low-priced ticker's cache (e.g. TSM $170 in STM's $36 file).
+    """
+    close_col = "Close" if "Close" in df.columns else "close"
+    if close_col not in df.columns:
+        return True
+    closes = pd.to_numeric(df[close_col], errors="coerce").dropna()
+    if len(closes) < 10:
+        return True
+    last_close = closes.iloc[-1]
+    rolling_mean = closes.tail(50).mean()
+    if last_close <= 0 or rolling_mean <= 0:
+        logger.warning("[OHLCV] %s: non-positive close value detected (last=%.2f, mean=%.2f)", ticker, last_close, rolling_mean)
+        return False
+    threshold = DEFAULT_CONFIG.get("ohlcv_sma_plausibility_threshold") or 3.0
+    ratio = max(last_close, rolling_mean) / min(last_close, rolling_mean)
+    if ratio > threshold:
+        logger.warning(
+            "[OHLCV] Plausibility check failed for %s: last_close=%.2f, rolling_mean_50=%.2f, ratio=%.2f > %.1f",
+            ticker, last_close, rolling_mean, ratio, threshold,
+        )
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -93,28 +152,73 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
                 )
                 os.remove(data_file)
                 data = None
+            elif _has_contaminated_columns(data):
+                logger.warning(
+                    "Cache file for %s has contaminated columns %s — deleting and re-fetching.",
+                    symbol, [c for c in data.columns if re.search(r"\.\d+$", str(c))],
+                )
+                os.remove(data_file)
+                data = None
+            else:
+                # Layer 6: staleness check
+                date_col = "Date" if "Date" in data.columns else "date"
+                if date_col in data.columns:
+                    try:
+                        last_date = pd.to_datetime(data[date_col]).max()
+                        max_age = int(
+                            get_config().get("ohlcv_cache_max_age_days")
+                            or DEFAULT_CONFIG.get("ohlcv_cache_max_age_days")
+                            or 2
+                        )
+                        if (pd.Timestamp.today() - last_date).days > max_age:
+                            logger.warning(
+                                "Cache file for %s is stale (last date %s, age %d days > %d) — re-fetching.",
+                                symbol, last_date.date(), (pd.Timestamp.today() - last_date).days, max_age,
+                            )
+                            os.remove(data_file)
+                            data = None
+                    except Exception as exc:
+                        logger.warning("Could not parse dates from cache for %s (%s) — re-fetching.", symbol, exc)
+                        os.remove(data_file)
+                        data = None
     else:
         data = None
 
-    # ── Download from yfinance if cache miss / corrupt ────────────────────────
-    if data is None:
-        raw = yf.download(
-            symbol,
-            start=start_date_str,
-            end=end_date_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        )
-        if raw.empty:
-            raise YFinanceError(
-                f"yfinance returned no data for symbol '{symbol}' "
-                f"({start_date_str} → {end_date_str})"
+    # ── Download from yfinance if cache miss / corrupt (with plausibility retry) ──
+    _MAX_PLAUSIBILITY_RETRIES = 3
+    for _attempt in range(_MAX_PLAUSIBILITY_RETRIES):
+        if data is None:
+            raw = safe_yf_download(
+                symbol,
+                start=start_date_str,
+                end=end_date_str,
+                progress=False,
+                auto_adjust=True,
             )
-        data = raw.reset_index()
-        data.to_csv(data_file, index=False)
-        logger.debug("Downloaded and cached OHLCV for %s → %s", symbol, data_file)
+            if raw.empty:
+                raise YFinanceError(
+                    f"yfinance returned no data for symbol '{symbol}' "
+                    f"({start_date_str} → {end_date_str})"
+                )
+            data = raw.reset_index()
+            data.to_csv(data_file, index=False)
+            logger.debug("Downloaded and cached OHLCV for %s → %s (attempt %d)", symbol, data_file, _attempt + 1)
 
+        if not _is_close_plausible(data, symbol):
+            if os.path.exists(data_file):
+                os.remove(data_file)
+            data = None
+            if _attempt == _MAX_PLAUSIBILITY_RETRIES - 1:
+                raise RuntimeError(
+                    f"[OHLCV] Plausibility check failed for {symbol} after "
+                    f"{_MAX_PLAUSIBILITY_RETRIES} attempts — possible persistent data "
+                    f"contamination. Delete data_cache/ and retry."
+                )
+            logger.warning("[OHLCV] Plausibility failure for %s on attempt %d — retrying.", symbol, _attempt + 1)
+            continue
+        break
+
+    _assert_sufficient_rows(data, min_rows=50, ticker=symbol)
     return data
 
 

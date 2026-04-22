@@ -284,6 +284,8 @@ def build_default_config(
         "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10, env=env),
         "scan_horizon_days": _env_int("SCAN_HORIZON_DAYS", 30, env=env),
         "trading_lookback_days": _env_int("TRADING_LOOKBACK_DAYS", 90, env=env),
+        "ohlcv_sma_plausibility_threshold": _env_float("OHLCV_SMA_PLAUSIBILITY_THRESHOLD", 3.0, env=env),
+        "ohlcv_cache_max_age_days": _env_int("OHLCV_CACHE_MAX_AGE_DAYS", 2, env=env),
         # Data vendor configuration
         "data_vendors": {
             "core_stock_apis": _env("VENDOR_CORE_STOCK_APIS", "yfinance", env=env),

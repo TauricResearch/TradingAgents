@@ -17,8 +17,9 @@ from unittest.mock import patch, MagicMock
 # ---------------------------------------------------------------------------
 
 def _minimal_ohlcv_df(periods: int = 200) -> pd.DataFrame:
-    """Return a minimal valid OHLCV DataFrame with a Date column."""
-    idx = pd.date_range("2024-01-02", periods=periods, freq="B")
+    """Return a minimal valid OHLCV DataFrame with a Date column ending today."""
+    end = pd.Timestamp.today()
+    idx = pd.bdate_range(end=end, periods=periods)
     return pd.DataFrame(
         {
             "Date": idx.strftime("%Y-%m-%d"),
