@@ -1,3 +1,17 @@
+"""
+DEPRECATED — yfinance is scheduled for removal in the FMP-primary migration.
+
+This module is the Alpaca-fallback path for TradingAgents data. It is
+still wired in (tier1 + tier2 + interface.py reference it) and too
+large to stub safely without rewiring the structured analysts, so it
+stays live for now. Track: replace with calls through
+FMPDataService (see stock-screener/backend/docs/FMP_MIGRATION.md for
+the pattern) and route `interface.py` to FMP-first instead.
+
+Callers: tradingagents/agents/structured/tier1.py,
+tradingagents/agents/structured/tier2.py,
+tradingagents/test.py
+"""
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
