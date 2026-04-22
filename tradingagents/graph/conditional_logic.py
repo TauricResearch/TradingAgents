@@ -1,6 +1,5 @@
 # TradingAgents/graph/conditional_logic.py
 
-from typing import Callable
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.critical_abort import (
     report_has_critical_abort,
@@ -28,17 +27,6 @@ class ConditionalLogic:
         # marker at the start of the report.
         return report_has_critical_abort(report)
 
-    @staticmethod
-    def make_should_continue(tool_name: str, msg_clear: str) -> Callable[[AgentState], str]:
-        """Factory for analyzer continuation logic."""
-        def should_continue(state: AgentState) -> str:
-            messages = state["messages"]
-            last_message = messages[-1]
-            if last_message.tool_calls:
-                return tool_name
-            return msg_clear
-        return should_continue
-
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
         # Only the explicit CRITICAL ABORT marker bypasses debate.
@@ -47,9 +35,22 @@ class ConditionalLogic:
         ):
             return CRITICAL_ABORT_NODE
 
-        if state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds:
+        # Defensive: handle missing or incomplete investment_debate_state
+        debate_state = state.get("investment_debate_state")
+        if not debate_state:
+            # No debate state means we should end debate
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
+        
+        count = debate_state.get("count")
+        if count is None or count >= 2 * self.max_debate_rounds:
+            return "Research Manager"
+        
+        current_response = debate_state.get("current_response", "")
+        if not current_response:
+            # Missing current_response; default to Bull to start debate
+            return "Bull Researcher"
+        
+        if current_response.startswith("Bull"):
             return "Bear Researcher"
         return "Bull Researcher"
 
@@ -61,10 +62,23 @@ class ConditionalLogic:
         ):
             return CRITICAL_ABORT_NODE
 
-        if state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds:
+        # Defensive: handle missing or incomplete risk_debate_state
+        risk_state = state.get("risk_debate_state")
+        if not risk_state:
+            # No risk state means we should end risk analysis
             return "Portfolio Manager"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
+        
+        count = risk_state.get("count")
+        if count is None or count >= 3 * self.max_risk_discuss_rounds:
+            return "Portfolio Manager"
+        
+        latest_speaker = risk_state.get("latest_speaker", "")
+        if not latest_speaker:
+            # Missing latest_speaker; default to starting with Aggressive
+            return "Aggressive Analyst"
+        
+        if latest_speaker.startswith("Aggressive"):
             return "Conservative Analyst"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Conservative"):
+        if latest_speaker.startswith("Conservative"):
             return "Neutral Analyst"
         return "Aggressive Analyst"

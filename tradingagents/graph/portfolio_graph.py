@@ -202,6 +202,7 @@ class PortfolioGraph:
             "cash_sweep": "",
             "execution_result": "",
             "sender": "",
+            "ticker_analyses": {},
         }
 
         if self.debug:
