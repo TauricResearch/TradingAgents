@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import contextvars
+import logging
 import queue
 import threading
+import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def bind_max_tokens_if_supported(llm: Any, max_tokens: int | None = None) -> Any:
@@ -16,37 +20,85 @@ def bind_max_tokens_if_supported(llm: Any, max_tokens: int | None = None) -> Any
         return llm
 
 
+def _is_retryable_error(exc: Exception) -> bool:
+    """Return True for transient LLM API errors worth retrying.
+
+    Provider-agnostic: checks exception class names and message content
+    so it works for OpenAI, xAI, OpenRouter, Ollama, and any other
+    provider that routes through an OpenAI-compatible client.
+    """
+    if isinstance(exc, (ConnectionError, TimeoutError)):
+        return True
+    cls_name = type(exc).__name__
+    if any(k in cls_name for k in ("Connection", "Timeout", "Network")):
+        return True
+    msg = str(exc).lower()
+    return any(k in msg for k in (
+        "json error",
+        "injected into sse",
+        "connection",
+        "timeout",
+        "timed out",
+        "network",
+        "stream",
+    ))
+
+
 def invoke_with_timeout(
     llm: Any,
     prompt_or_messages: Any,
     *,
     timeout_seconds: float,
     max_tokens: int | None = None,
+    max_retries: int = 2,
 ) -> tuple[Any | None, Exception | None]:
     guarded_llm = bind_max_tokens_if_supported(llm, max_tokens=max_tokens)
-    result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
-    parent_context = contextvars.copy_context()
 
-    def _runner() -> None:
+    last_error: Exception | None = None
+    for attempt in range(max_retries + 1):
+        if attempt > 0:
+            delay = 2 ** attempt  # 2s, 4s
+            logger.warning(
+                "invoke_with_timeout: retrying after transient error (attempt %d/%d, delay=%ds): %s",
+                attempt,
+                max_retries,
+                delay,
+                last_error,
+            )
+            time.sleep(delay)
+
+        result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
+        parent_context = contextvars.copy_context()
+
+        def _runner() -> None:
+            try:
+                result = parent_context.run(guarded_llm.invoke, prompt_or_messages)
+                result_queue.put(("ok", result))
+            except Exception as exc:  # pragma: no cover - exercised through callers
+                result_queue.put(("err", exc))
+
+        thread = threading.Thread(target=_runner, daemon=True)
+        thread.start()
+        thread.join(timeout=max(1.0, float(timeout_seconds)))
+        if thread.is_alive():
+            return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s")
+
         try:
-            result = parent_context.run(guarded_llm.invoke, prompt_or_messages)
-            result_queue.put(("ok", result))
-        except Exception as exc:  # pragma: no cover - exercised through callers
-            result_queue.put(("err", exc))
+            status, payload = result_queue.get(timeout=1.0)
+        except queue.Empty:
+            return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s (queue empty after join)")
 
-    thread = threading.Thread(target=_runner, daemon=True)
-    thread.start()
-    thread.join(timeout=max(1.0, float(timeout_seconds)))
-    if thread.is_alive():
-        return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s")
+        if status == "ok":
+            return payload, None  # type: ignore[return-value]
 
-    try:
-        status, payload = result_queue.get(timeout=1.0)
-    except queue.Empty:
-        return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s (queue empty after join)")
-    if status == "err":
-        return None, payload  # type: ignore[return-value]
-    return payload, None
+        exc = payload  # type: ignore[assignment]
+        if attempt < max_retries and _is_retryable_error(exc):  # type: ignore[arg-type]
+            last_error = exc  # type: ignore[assignment]
+            continue
+
+        return None, exc  # type: ignore[return-value]
+
+    return None, last_error
 
 
 def truncate_text(value: Any, *, max_chars: int) -> str:

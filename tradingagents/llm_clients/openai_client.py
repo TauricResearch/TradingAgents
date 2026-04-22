@@ -58,6 +58,8 @@ def _is_transient_openai_error(exc: Exception) -> bool:
                 "timeout",
                 "temporarily unavailable",
                 "provider returned error",  # OpenRouter SSE stream error; usually transient
+                "json error",              # SSE stream JSON corruption; transient
+                "injected into sse",       # openai._streaming SSE parse failure
             )
         )
 
