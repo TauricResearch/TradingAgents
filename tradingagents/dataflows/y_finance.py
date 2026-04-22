@@ -1,16 +1,18 @@
 """
-DEPRECATED — yfinance is scheduled for removal in the FMP-primary migration.
+DEPRECATED — yfinance is the secondary fallback path only.
 
-This module is the Alpaca-fallback path for TradingAgents data. It is
-still wired in (tier1 + tier2 + interface.py reference it) and too
-large to stub safely without rewiring the structured analysts, so it
-stays live for now. Track: replace with calls through
-FMPDataService (see stock-screener/backend/docs/FMP_MIGRATION.md for
-the pattern) and route `interface.py` to FMP-first instead.
+FMP (see ``fmp.py``) is the primary data source for TradingAgents as
+of the 2026-04-22 migration:
+  - ``interface.py``'s VENDOR_METHODS lists ``fmp`` first, with yfinance
+    retained in the fallback chain.
+  - ``tier1.py``, ``tier2.py``, and ``portfolio.py`` import from ``.fmp``;
+    no agent code calls this module directly anymore.
 
-Callers: tradingagents/agents/structured/tier1.py,
-tradingagents/agents/structured/tier2.py,
-tradingagents/test.py
+This module stays live so that (a) the fallback chain still has a
+working yfinance branch for transient FMP outages, and (b) the
+``yfinance_news`` module still uses ``yf.Ticker`` internally for news.
+Once FMP's news coverage proves sufficient in production, this whole
+file and its yfinance dependency can be removed.
 """
 from typing import Annotated
 from datetime import datetime

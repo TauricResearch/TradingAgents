@@ -1,6 +1,6 @@
 """Tier 2 agents: Deep analysis that runs only on Tier 1 survivors.
 
-Each agent fetches its own data via yfinance, calls the LLM once with
+Each agent fetches its own data via FMP, calls the LLM once with
 structured output, and returns a typed result into PipelineState.
 """
 
@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any, Dict
 
-import yfinance as yf
+from tradingagents.dataflows.fmp import get_ticker_info
 
 from tradingagents.models import (
     ArchetypeOutput,
@@ -49,8 +49,7 @@ def create_business_quality_node(llm):
         card = state.get("company_card") or {}
 
         try:
-            t = yf.Ticker(ticker.upper())
-            info = t.info or {}
+            info = get_ticker_info(ticker) or {}
         except Exception:
             info = {}
 
@@ -59,15 +58,15 @@ def create_business_quality_node(llm):
 Ticker: {ticker} | Sector: {card.get('sector', 'Unknown')} | Industry: {card.get('industry', 'Unknown')}
 Market Cap: {card.get('market_cap_formatted', 'N/A')}
 
-FINANCIALS (source: yfinance):
-- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))} (source: yfinance)
-- Profit Margins: {_pct(_safe(info, 'profitMargins'))} (source: yfinance)
-- Operating Margins: {_pct(_safe(info, 'operatingMargins'))} (source: yfinance)
-- ROE: {_pct(_safe(info, 'returnOnEquity'))} (source: yfinance)
-- ROA: {_pct(_safe(info, 'returnOnAssets'))} (source: yfinance)
-- Debt/Equity: {_safe(info, 'debtToEquity', 'N/A')} (source: yfinance)
-- Free Cash Flow: {_safe(info, 'freeCashflow', 'N/A')} (source: yfinance)
-- Current Ratio: {_safe(info, 'currentRatio', 'N/A')} (source: yfinance)
+FINANCIALS (source: FMP):
+- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))} (source: FMP)
+- Profit Margins: {_pct(_safe(info, 'profitMargins'))} (source: FMP)
+- Operating Margins: {_pct(_safe(info, 'operatingMargins'))} (source: FMP)
+- ROE: {_pct(_safe(info, 'returnOnEquity'))} (source: FMP)
+- ROA: {_pct(_safe(info, 'returnOnAssets'))} (source: FMP)
+- Debt/Equity: {_safe(info, 'debtToEquity', 'N/A')} (source: FMP)
+- Free Cash Flow: {_safe(info, 'freeCashflow', 'N/A')} (source: FMP)
+- Current Ratio: {_safe(info, 'currentRatio', 'N/A')} (source: FMP)
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
@@ -114,7 +113,7 @@ def create_institutional_flow_node(llm):
     def node(state: Dict[str, Any]) -> Dict[str, Any]:
         ticker = state["ticker"]
 
-        from tradingagents.dataflows.y_finance import get_institutional_flow
+        from tradingagents.dataflows.fmp import get_institutional_flow
         try:
             raw = get_institutional_flow(ticker)
             data = json.loads(raw) if isinstance(raw, str) else raw
@@ -135,23 +134,23 @@ Your job: track real smart-money movement — not just static ownership percenta
 
 Ticker: {ticker}
 
-OWNERSHIP & VOLUME (source: yfinance):
-- Institutional Ownership: {data.get('held_percent_institutions', 'N/A')}% (source: yfinance)
-- Insider Ownership: {data.get('held_percent_insiders', 'N/A')}% (source: yfinance)
-- Volume Ratio (10d/avg): {data.get('volume_ratio', 'N/A')} (source: yfinance)
-- Short % of Float: {data.get('short_pct_of_float', 'N/A')}% (source: yfinance)
-- Short Ratio (days): {data.get('short_ratio', 'N/A')} (source: yfinance)
-- Float Turnover 5d: {data.get('float_turnover_5d_pct', 'N/A')}% (source: yfinance)
+OWNERSHIP & VOLUME (source: FMP):
+- Institutional Ownership: {data.get('held_percent_institutions', 'N/A')}% (source: FMP)
+- Insider Ownership: {data.get('held_percent_insiders', 'N/A')}% (source: FMP)
+- Volume Ratio (10d/avg): {data.get('volume_ratio', 'N/A')} (source: FMP)
+- Short % of Float: {data.get('short_pct_of_float', 'N/A')}% (source: FMP)
+- Short Ratio (days): {data.get('short_ratio', 'N/A')} (source: FMP)
+- Float Turnover 5d: {data.get('float_turnover_5d_pct', 'N/A')}% (source: FMP)
 
-SHORT INTEREST TREND (source: yfinance):
+SHORT INTEREST TREND (source: FMP):
 - Short Interest Change (vs prior month): {data.get('short_interest_change_pct', 'N/A')}%
 - Short Interest Trend: {data.get('short_interest_trend', 'N/A')}
 
-TOP INSTITUTIONAL HOLDERS (13F, source: yfinance):
+TOP INSTITUTIONAL HOLDERS (13F, source: FMP):
 {chr(10).join(holder_lines) or '  No data available'}
 - Total top holders tracked: {data.get('top_holders_count', 'N/A')}
 
-INSIDER TRANSACTIONS (recent, source: yfinance):
+INSIDER TRANSACTIONS (recent, source: FMP):
 - Insider Buys: {data.get('insider_buys_recent', 'N/A')}
 - Insider Sells: {data.get('insider_sells_recent', 'N/A')}
 - Insider Signal: {data.get('insider_transaction_signal', 'N/A')}
@@ -213,7 +212,7 @@ def create_valuation_node(llm):
     def node(state: Dict[str, Any]) -> Dict[str, Any]:
         ticker = state["ticker"]
 
-        from tradingagents.dataflows.y_finance import get_valuation_peers
+        from tradingagents.dataflows.fmp import get_valuation_peers
         try:
             raw = get_valuation_peers(ticker)
             data = json.loads(raw) if isinstance(raw, str) else raw
@@ -224,16 +223,16 @@ def create_valuation_node(llm):
 
 Ticker: {ticker}
 
-VALUATION METRICS (source: yfinance):
-- Trailing P/E: {data.get('trailing_pe', 'N/A')} (source: yfinance)
-- Forward P/E: {data.get('forward_pe', 'N/A')} (source: yfinance)
-- PEG Ratio: {data.get('peg_ratio', 'N/A')} (source: yfinance)
-- P/B: {data.get('price_to_book', 'N/A')} (source: yfinance)
-- EV/EBITDA: {data.get('ev_to_ebitda', 'N/A')} (source: yfinance)
-- P/S: {data.get('price_to_sales', 'N/A')} (source: yfinance)
-- 52W Range Position: {data.get('vs_52w_range_pct', 'N/A')}% (source: yfinance)
-- Revenue Growth: {data.get('revenue_growth', 'N/A')} (source: yfinance)
-- Earnings Growth: {data.get('earnings_growth', 'N/A')} (source: yfinance)
+VALUATION METRICS (source: FMP):
+- Trailing P/E: {data.get('trailing_pe', 'N/A')} (source: FMP)
+- Forward P/E: {data.get('forward_pe', 'N/A')} (source: FMP)
+- PEG Ratio: {data.get('peg_ratio', 'N/A')} (source: FMP)
+- P/B: {data.get('price_to_book', 'N/A')} (source: FMP)
+- EV/EBITDA: {data.get('ev_to_ebitda', 'N/A')} (source: FMP)
+- P/S: {data.get('price_to_sales', 'N/A')} (source: FMP)
+- 52W Range Position: {data.get('vs_52w_range_pct', 'N/A')}% (source: FMP)
+- Revenue Growth: {data.get('revenue_growth', 'N/A')} (source: FMP)
+- Earnings Growth: {data.get('earnings_growth', 'N/A')} (source: FMP)
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
@@ -296,11 +295,10 @@ def create_entry_timing_node(llm):
         except Exception as e:
             logger.debug("Alpaca MAs failed for %s: %s", ticker, e)
 
-        # Fallback: yfinance info
+        # Fallback: FMP ticker info
         if price is None:
             try:
-                t = yf.Ticker(ticker.upper())
-                info = t.info or {}
+                info = get_ticker_info(ticker) or {}
             except Exception:
                 info = {}
 
@@ -317,7 +315,7 @@ def create_entry_timing_node(llm):
         if ma50 and ma200:
             ma_rel = "above" if ma50 > ma200 else "below"
 
-        _timing_source = "Alpaca" if price is not None and ma50 is not None else "yfinance"
+        _timing_source = "Alpaca" if price is not None and ma50 is not None else "FMP"
 
         prompt = f"""You are an Entry Timing Analyst in a structured equity ranking pipeline.
 
@@ -374,7 +372,7 @@ def create_earnings_revisions_node(llm):
     def node(state: Dict[str, Any]) -> Dict[str, Any]:
         ticker = state["ticker"]
 
-        from tradingagents.dataflows.y_finance import get_earnings_estimates
+        from tradingagents.dataflows.fmp import get_earnings_estimates
         try:
             raw = get_earnings_estimates(ticker)
             data = json.loads(raw) if isinstance(raw, str) else raw
@@ -389,12 +387,12 @@ def create_earnings_revisions_node(llm):
 
 Ticker: {ticker}
 
-EARNINGS DATA (source: yfinance):
-- Trailing EPS: {data.get('trailing_eps', 'N/A')} (source: yfinance)
-- Forward EPS: {data.get('forward_eps', 'N/A')} (source: yfinance)
-- Price Target Upside: {upside or 'N/A'}% (source: yfinance)
-- Price Targets: {json.dumps(targets)[:300] if targets else 'N/A'} (source: yfinance)
-- Recent Recommendations: {len(recs)} entries (source: yfinance)
+EARNINGS DATA (source: FMP):
+- Trailing EPS: {data.get('trailing_eps', 'N/A')} (source: FMP)
+- Forward EPS: {data.get('forward_eps', 'N/A')} (source: FMP)
+- Price Target Upside: {upside or 'N/A'}% (source: FMP)
+- Price Targets: {json.dumps(targets)[:300] if targets else 'N/A'} (source: FMP)
+- Recent Recommendations: {len(recs)} entries (source: FMP)
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
@@ -438,7 +436,7 @@ def create_sector_rotation_node(llm):
     def node(state: Dict[str, Any]) -> Dict[str, Any]:
         ticker = state["ticker"]
 
-        from tradingagents.dataflows.y_finance import get_sector_rotation
+        from tradingagents.dataflows.fmp import get_sector_rotation
         try:
             raw = get_sector_rotation(ticker)
             data = json.loads(raw) if isinstance(raw, str) else raw
@@ -449,10 +447,10 @@ def create_sector_rotation_node(llm):
 
 Ticker: {ticker} | Sector: {data.get('sector', 'Unknown')} | Sector ETF: {data.get('sector_etf', 'N/A')}
 
-SECTOR DATA (source: yfinance):
-- Sector vs SPY 1M: {data.get('stock_sector_vs_spy_1m', 'N/A')}% (source: yfinance)
-- Sector vs SPY 3M: {data.get('stock_sector_vs_spy_3m', 'N/A')}% (source: yfinance)
-- Sector Rank: {data.get('stock_sector_rank', 'N/A')} / {data.get('total_sectors', 11)} (source: yfinance)
+SECTOR DATA (source: FMP):
+- Sector vs SPY 1M: {data.get('stock_sector_vs_spy_1m', 'N/A')}% (source: FMP)
+- Sector vs SPY 3M: {data.get('stock_sector_vs_spy_3m', 'N/A')}% (source: FMP)
+- Sector Rank: {data.get('stock_sector_rank', 'N/A')} / {data.get('total_sectors', 11)} (source: FMP)
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
@@ -499,10 +497,9 @@ def create_backlog_node(llm):
         sector = card.get("sector", "Unknown")
         industry = card.get("industry", "Unknown")
 
-        # Backlog data is limited via yfinance — use revenue trajectory as proxy
+        # Backlog data is limited via FMP — use revenue trajectory as proxy
         try:
-            t = yf.Ticker(ticker.upper())
-            info = t.info or {}
+            info = get_ticker_info(ticker) or {}
         except Exception:
             info = {}
 
@@ -510,10 +507,10 @@ def create_backlog_node(llm):
 
 Ticker: {ticker} | Sector: {sector} | Industry: {industry}
 
-AVAILABLE DATA (source: yfinance):
-- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))} (source: yfinance)
-- Earnings Growth: {_pct(_safe(info, 'earningsGrowth'))} (source: yfinance)
-- Revenue: {_safe(info, 'totalRevenue', 'N/A')} (source: yfinance)
+AVAILABLE DATA (source: FMP):
+- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))} (source: FMP)
+- Earnings Growth: {_pct(_safe(info, 'earningsGrowth'))} (source: FMP)
+- Revenue: {_safe(info, 'totalRevenue', 'N/A')} (source: FMP)
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
@@ -554,8 +551,7 @@ def create_crowding_node(llm):
         card = state.get("company_card") or {}
 
         try:
-            t = yf.Ticker(ticker.upper())
-            info = t.info or {}
+            info = get_ticker_info(ticker) or {}
         except Exception:
             info = {}
 
@@ -570,9 +566,9 @@ def create_crowding_node(llm):
 Ticker: {ticker} | Company: {card.get('company_name', 'Unknown')}
 Market Cap Category: {card.get('market_cap_category', 'unknown')}
 
-DATA (source: yfinance):
-- Short % of Float: {short_pct or 'N/A'}% (source: yfinance)
-- Short Ratio (days): {_safe(info, 'shortRatio', 'N/A')} (source: yfinance)
+DATA (source: FMP):
+- Short % of Float: {short_pct or 'N/A'}% (source: FMP)
+- Short Ratio (days): {_safe(info, 'shortRatio', 'N/A')} (source: FMP)
 - Analyst Coverage: implied from market cap ({card.get('market_cap_category', 'unknown')})
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.

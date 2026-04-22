@@ -20,12 +20,13 @@ DEFAULT_CONFIG = {
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     # Data vendor configuration
-    # Category-level configuration (default for all tools in category)
+    # Category-level configuration (default for all tools in category).
+    # FMP is primary; yfinance/alpha_vantage kept in the fallback chain only.
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "fmp",       # Options: fmp, yfinance, alpha_vantage
+        "technical_indicators": "fmp",  # Options: fmp, yfinance, alpha_vantage
+        "fundamental_data": "fmp",      # Options: fmp, yfinance, alpha_vantage
+        "news_data": "fmp",             # Options: fmp, yfinance, alpha_vantage
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

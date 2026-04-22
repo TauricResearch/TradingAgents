@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any, Dict
 
-import yfinance as yf
+from tradingagents.dataflows.fmp import get_ticker_info
 
 from tradingagents.models import (
     CompanyCard,
@@ -41,18 +41,17 @@ def _fmt_num(val):
 
 
 def _fetch_yf_info(ticker: str) -> dict:
-    """Fetch yfinance info dict for a ticker."""
+    """Fetch FMP-backed ticker info dict (yfinance.Ticker.info-shaped)."""
     try:
-        t = yf.Ticker(ticker.upper())
-        return t.info or {}
+        return get_ticker_info(ticker) or {}
     except Exception as e:
-        logger.warning("yfinance fetch failed for %s: %s", ticker, e)
+        logger.warning("FMP ticker info fetch failed for %s: %s", ticker, e)
         return {}
 
 
 def _fetch_macro_data() -> dict:
-    """Fetch macro indicators via yfinance."""
-    from tradingagents.dataflows.y_finance import get_macro_indicators
+    """Fetch macro indicators via FMP."""
+    from tradingagents.dataflows.fmp import get_macro_indicators
 
     try:
         raw = get_macro_indicators()
@@ -170,14 +169,14 @@ def create_macro_node(llm):
 
 Ticker: {ticker} | Sector: {sector}
 
-MACRO DATA (source: yfinance):
-- VIX: {macro_data.get('vix_level', 'N/A')} (source: yfinance)
-- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}% (source: yfinance)
-- Dollar 1M: {macro_data.get('dollar_1m_return', 'N/A')}% (source: yfinance)
-- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')} (source: yfinance)
-- SPY 1M: {spy_perf.get('return_1m', 'N/A')}% (source: yfinance)
+MACRO DATA (source: FMP):
+- VIX: {macro_data.get('vix_level', 'N/A')} (source: FMP)
+- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}% (source: FMP)
+- Dollar 1M: {macro_data.get('dollar_1m_return', 'N/A')}% (source: FMP)
+- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')} (source: FMP)
+- SPY 1M: {spy_perf.get('return_1m', 'N/A')}% (source: FMP)
 
-SECTOR PERFORMANCE (1M, source: yfinance):
+SECTOR PERFORMANCE (1M, source: FMP):
 {chr(10).join(sector_lines[:12]) or 'N/A'}
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
@@ -246,11 +245,11 @@ def create_liquidity_node(llm):
 
 Ticker: {ticker} | Sector: {card.get('sector', 'Unknown')}
 
-AVAILABLE DATA (source: yfinance macro API):
-- VIX: {macro_data.get('vix_level', 'N/A')} (source: yfinance)
-- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}% (source: yfinance)
-- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')} (source: yfinance)
-- Dollar Strength: {macro_data.get('dollar_strength', 'N/A')} (source: yfinance)
+AVAILABLE DATA (source: FMP macro API):
+- VIX: {macro_data.get('vix_level', 'N/A')} (source: FMP)
+- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}% (source: FMP)
+- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')} (source: FMP)
+- Dollar Strength: {macro_data.get('dollar_strength', 'N/A')} (source: FMP)
 
 NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 

@@ -11,7 +11,7 @@ import json
 import logging
 from typing import Any, Dict, List
 
-import yfinance as yf
+from tradingagents.dataflows.fmp import get_ticker_info
 
 from tradingagents.models import (
     PositionReplacementOutput,
@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 def _fetch_peer_basics(tickers: List[str]) -> List[dict]:
-    """Fetch basic yfinance data for a list of peer tickers."""
+    """Fetch basic FMP data for a list of peer tickers."""
     peers = []
     for sym in tickers[:8]:  # cap at 8 to keep prompt manageable
         try:
-            info = yf.Ticker(sym.upper()).info or {}
+            info = get_ticker_info(sym) or {}
             peers.append({
                 "ticker": sym.upper(),
                 "company_name": info.get("longName") or info.get("shortName") or sym,
@@ -94,10 +94,9 @@ def create_theme_substitution_node(llm):
         summary = _summarize_for_theme(state)
         master_score = state.get("master_score", 0)
 
-        # Use yfinance to find peers in the same industry
+        # Use FMP to find peers in the same industry
         try:
-            t = yf.Ticker(ticker.upper())
-            info = t.info or {}
+            info = get_ticker_info(ticker) or {}
             industry = info.get("industry", "")
             sector = info.get("sector", "")
         except Exception:
