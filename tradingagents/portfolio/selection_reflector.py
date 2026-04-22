@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.report_paths import get_market_dir
 from tradingagents.dataflows.finnhub import get_company_news
+from tradingagents.dataflows.stockstats_utils import safe_yf_download
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +55,12 @@ def fetch_price_trend(ticker: str, start_date: str, end_date: str) -> tuple[floa
         return (current - base) / base * 100
 
     try:
-        hist = yf.download(
+        hist = safe_yf_download(
             [ticker, "SPY"],
             start=start_date,
             end=end_date,
             auto_adjust=True,
-            progress=False
+            progress=False,
         )
         if hist.empty or len(hist) < 2:
             return None, None, None, None, None, []

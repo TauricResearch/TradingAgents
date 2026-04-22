@@ -12,6 +12,7 @@ import requests
 import yfinance as yf
 
 from .alpha_vantage_common import AlphaVantageError, _make_api_request
+from .stockstats_utils import safe_yf_download
 
 
 # ---------------------------------------------------------------------------
@@ -36,7 +37,7 @@ _CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]    # Discretionary, Technology, Industria
 def _download(symbols: list[str], period: str = "3mo") -> Optional[pd.DataFrame]:
     """Download closing prices, returning None on failure."""
     try:
-        hist = yf.download(symbols, period=period, auto_adjust=True, progress=False, threads=True)
+        hist = safe_yf_download(symbols, period=period, auto_adjust=True, progress=False)
         if hist is None:
             return None
         if hist.empty:

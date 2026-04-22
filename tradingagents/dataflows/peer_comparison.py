@@ -7,6 +7,7 @@ from typing import Optional
 
 import yfinance as yf
 import pandas as pd
+from .stockstats_utils import safe_yf_download
 
 
 # ---------------------------------------------------------------------------
@@ -147,12 +148,11 @@ def compute_relative_performance(
         all_symbols.append(etf)
 
     try:
-        hist = yf.download(
+        hist = safe_yf_download(
             all_symbols,
             period="6mo",
             auto_adjust=True,
             progress=False,
-            threads=True,
         )
     except Exception as e:
         return f"Error downloading price data for peer comparison: {e}"
@@ -289,12 +289,11 @@ def get_sector_relative_report(ticker: str, curr_date: str = None) -> str:
 
     try:
         symbols = [ticker.upper(), etf]
-        hist = yf.download(
+        hist = safe_yf_download(
             symbols,
             period="6mo",
             auto_adjust=True,
             progress=False,
-            threads=True,
         )
     except Exception as e:
         return f"Error downloading data for {ticker} vs {etf}: {e}"

@@ -11,7 +11,7 @@ import requests
 import yfinance as yf
 
 from .finnhub_common import ThirdPartyTimeoutError
-from .stockstats_utils import YFinanceError
+from .stockstats_utils import YFinanceError, safe_yf_download
 
 
 logger = logging.getLogger(__name__)
@@ -45,12 +45,11 @@ class MarketPricesClient:
         try:
             # period="5d" to ensure we have enough data for prev_close calculation
             # even across weekends or low-volume assets.
-            prices_df = yf.download(
+            prices_df = safe_yf_download(
                 symbols,
                 period="5d",
                 auto_adjust=False,
                 progress=False,
-                threads=True,
             )
         except requests.exceptions.Timeout as exc:
             raise ThirdPartyTimeoutError("Request timed out fetching market prices") from exc

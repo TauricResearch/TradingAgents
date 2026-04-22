@@ -188,11 +188,10 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
     _MAX_PLAUSIBILITY_RETRIES = 3
     for _attempt in range(_MAX_PLAUSIBILITY_RETRIES):
         if data is None:
-            raw = yf.download(
+            raw = safe_yf_download(
                 symbol,
                 start=start_date_str,
                 end=end_date_str,
-                multi_level_index=False,
                 progress=False,
                 auto_adjust=True,
             )
