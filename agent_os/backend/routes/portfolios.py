@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Any, Optional
-from pathlib import Path
-import json
-from agent_os.backend.dependencies import get_current_user, get_db_client
-from tradingagents.portfolio.supabase_client import SupabaseClient
-from tradingagents.portfolio.exceptions import PortfolioNotFoundError
-from tradingagents.report_paths import get_market_dir
 import datetime
+import json
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from agent_os.backend.dependencies import get_current_user, get_db_client
+from tradingagents.portfolio.exceptions import PortfolioNotFoundError
+from tradingagents.portfolio.supabase_client import SupabaseClient
+from tradingagents.report_paths import get_market_dir
 
 router = APIRouter(prefix="/api/portfolios", tags=["portfolios"])
 
@@ -24,7 +25,7 @@ def _resolve_portfolio_id(portfolio_id: str, db: SupabaseClient) -> str:
 async def list_portfolios(
     user: dict = Depends(get_current_user),
     db: SupabaseClient = Depends(get_db_client)
-):
+) -> list[dict[str, Any]]:
     portfolios = db.list_portfolios()
     return [p.to_dict() for p in portfolios]
 
@@ -33,21 +34,21 @@ async def get_portfolio(
     portfolio_id: str,
     user: dict = Depends(get_current_user),
     db: SupabaseClient = Depends(get_db_client)
-):
+) -> dict[str, Any]:
     try:
         portfolio_id = _resolve_portfolio_id(portfolio_id, db)
         portfolio = db.get_portfolio(portfolio_id)
         return portfolio.to_dict()
-    except PortfolioNotFoundError:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Portfolio not found") from e
 
 @router.get("/{portfolio_id}/summary")
 async def get_portfolio_summary(
     portfolio_id: str,
-    date: Optional[str] = None,
+    date: str | None = None,
     user: dict = Depends(get_current_user),
     db: SupabaseClient = Depends(get_db_client)
-):
+) -> dict[str, Any]:
     """Returns the 'Top 3 Metrics' for the dashboard header."""
     if not date:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -77,7 +78,7 @@ async def get_portfolio_summary(
                 regime = ctx.get("economic_cycle", "NEUTRAL").upper()
                 # Beta is often calculated per-portfolio or per-holding
                 # For now, we use a placeholder or pull from metadata
-            except:
+            except json.JSONDecodeError:
                 pass
 
         return {
@@ -88,7 +89,7 @@ async def get_portfolio_summary(
             "var_1d": 4200.0, # Placeholder
             "efficiency_label": "High Efficiency" if sharpe > 2.0 else "Normal"
         }
-    except Exception as e:
+    except Exception:
         # Fallback for demo
         return {
             "sharpe_ratio": 2.42,
@@ -104,7 +105,7 @@ async def get_latest_portfolio_state(
     portfolio_id: str,
     user: dict = Depends(get_current_user),
     db: SupabaseClient = Depends(get_db_client)
-):
+) -> dict[str, Any]:
     try:
         portfolio_id = _resolve_portfolio_id(portfolio_id, db)
         portfolio = db.get_portfolio(portfolio_id)
@@ -159,5 +160,5 @@ async def get_latest_portfolio_state(
             "holdings": holdings_out,
             "recent_trades": trades_out,
         }
-    except PortfolioNotFoundError:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
+    except PortfolioNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Portfolio not found") from e

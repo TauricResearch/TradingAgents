@@ -8,17 +8,20 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
+from tradingagents.graph.scanner_facts.aliases import aliases_for_node
 from tradingagents.graph.scanner_facts.from_macro_json import (
     facts_from_macro_scan_summary,
     load_and_parse_macro_scan_summary,
 )
 from tradingagents.graph.scanner_facts.from_markdown import facts_from_all_markdown_summaries
-from tradingagents.graph.scanner_facts.aliases import aliases_for_node
 from tradingagents.graph.scanner_facts.schema import SCHEMA_VERSION, validate_graph_facts
 from tradingagents.report_paths import get_market_dir, get_scanner_graph_facts_path
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
@@ -116,7 +119,7 @@ def build_scanner_graph_facts_from_market_dir(
     merged = _merge_partial_facts([macro_partial, md_partial])
 
     # Validate
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     inputs = ["macro_scan_summary.json"]
     for fname in market_dir.iterdir():
         if fname.suffix == ".md" and fname.stem.endswith("_summary"):

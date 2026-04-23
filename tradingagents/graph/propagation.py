@@ -1,6 +1,7 @@
 # TradingAgents/graph/propagation.py
 
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
@@ -11,7 +12,7 @@ from tradingagents.instruments import resolve_instrument
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit: int = 100):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
 
@@ -24,9 +25,9 @@ class Propagator:
         scanner_context_packet: str = "",
         scanner_graph_context_text: str = "",
         market_report: str = "",
-        market_report_structured: Optional[Dict[str, Any]] = None,
+        market_report_structured: dict[str, Any] | None = None,
         macro_regime_report: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create the initial state for the agent graph."""
         instrument = resolve_instrument(company_name, source_context="trading_graph")
         return {
@@ -86,7 +87,7 @@ class Propagator:
             "critical_abort_reason": "",
         }
 
-    def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
+    def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:
         """Get arguments for the graph invocation.
 
         Args:

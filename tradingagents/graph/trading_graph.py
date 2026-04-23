@@ -5,8 +5,6 @@ import os
 from copy import deepcopy
 from typing import Any
 
-from tradingagents.agents import *
-
 # Import the new abstract tool methods
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
@@ -159,18 +157,19 @@ class TradingAgentsGraph:
         self._risk_graph = None
 
     @property
-    def debate_graph(self):
+    def debate_graph(self) -> Any:
         """Subgraph starting from Bull Researcher (skips analysts)."""
         if self._debate_graph is None:
-            self._debate_graph = self.graph_setup.build_debate_subgraph()
+            self._debate_graph = self.setup.build_debate_subgraph()
         return self._debate_graph
 
     @property
-    def risk_graph(self):
+    def risk_graph(self) -> Any:
         """Subgraph starting from Aggressive Analyst (skips analysts + debate + trader)."""
         if self._risk_graph is None:
-            self._risk_graph = self.graph_setup.build_risk_subgraph()
+            self._risk_graph = self.setup.build_risk_subgraph()
         return self._risk_graph
+
 
     def _get_provider_kwargs(self, role: str = "") -> dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation.
@@ -214,7 +213,7 @@ class TradingAgentsGraph:
 
         return kwargs
 
-    def propagate(self, company_name, trade_date):
+    def propagate(self, company_name: str, trade_date: str) -> tuple[dict[str, Any], Any]:
         """Run the trading agents graph for a company on a specific date."""
 
         self.ticker = company_name
@@ -249,7 +248,7 @@ class TradingAgentsGraph:
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
-    def _log_state(self, trade_date, final_state):
+    def _log_state(self, trade_date: str, final_state: dict[str, Any]) -> None:
         """Log the final state to a JSON file."""
         # Defensive access for nested debate state fields
         investment_debate = final_state.get("investment_debate_state", {})
@@ -298,7 +297,7 @@ class TradingAgentsGraph:
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
-    def reflect_and_remember(self, returns_losses):
+    def reflect_and_remember(self, returns_losses: float) -> None:
         """Reflect on decisions and update memory based on returns."""
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
@@ -316,7 +315,7 @@ class TradingAgentsGraph:
             self.curr_state, returns_losses, self.portfolio_manager_memory
         )
 
-    def process_signal(self, full_signal):
+    def process_signal(self, full_signal: str) -> Any:
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
 

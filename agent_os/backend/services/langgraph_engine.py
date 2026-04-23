@@ -9,9 +9,38 @@ import asyncio
 import json
 import logging
 import time
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Protocol
+from typing import Any, Protocol
 
+from agent_os.backend.services.event_mapper import (
+    EventMapper,
+    is_root_chain_end,
+    system_log,
+)
+from agent_os.backend.services.report_helpers import (
+    extract_pipeline_instruments_from_scan_data,
+    normalize_scan_summary,
+    sanitize_for_json,
+    write_complete_report_md,
+)
+from agent_os.backend.services.run_helpers import (
+    analysis_has_deep_dive,
+    analysis_is_terminal,
+    analysis_status,
+    build_fallback_config,
+    fallback_model_summary,
+    fetch_prices,
+    infer_fallback_tier,
+    is_fallback_eligible_error,
+    is_policy_error,
+    normalize_analysis_status,
+    repair_checkpoint_messages,
+    resolve_tier_model_provider,
+    run_should_stop,
+    tickers_from_decision,
+)
+from agent_os.backend.services.scanner_context import build_scanner_context_packet
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.output_validation import build_market_report_structured
 from tradingagents.daily_digest import append_to_digest
@@ -40,35 +69,6 @@ from tradingagents.report_paths import (
     get_ticker_dir,
 )
 
-from agent_os.backend.services.event_mapper import (
-    EventMapper,
-    is_root_chain_end,
-    system_log,
-)
-from agent_os.backend.services.report_helpers import (
-    extract_pipeline_instruments_from_scan_data,
-    normalize_scan_summary,
-    sanitize_for_json,
-    write_complete_report_md,
-)
-from agent_os.backend.services.run_helpers import (
-    analysis_has_deep_dive,
-    analysis_status,
-    analysis_is_terminal,
-    build_fallback_config,
-    fallback_model_summary,
-    fetch_prices,
-    infer_fallback_tier,
-    is_fallback_eligible_error,
-    is_policy_error,
-    normalize_analysis_status,
-    repair_checkpoint_messages,
-    resolve_tier_model_provider,
-    run_should_stop,
-    tickers_from_decision,
-)
-from agent_os.backend.services.scanner_context import build_scanner_context_packet
-
 logger = logging.getLogger("agent_os.engine")
 
 
@@ -77,15 +77,15 @@ logger = logging.getLogger("agent_os.engine")
 # ------------------------------------------------------------------
 
 
-def _root_run_id(run_id: str, params: Dict[str, Any]) -> str:
+def _root_run_id(run_id: str, params: dict[str, Any]) -> str:
     return params.get("run_id") or run_id
 
 
-def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
+def _execution_key(run_id: str, params: dict[str, Any]) -> str:
     return params.get("_execution_key") or run_id
 
 
-def _load_injected_market_report(file_path: str) -> Dict[str, Any]:
+def _load_injected_market_report(file_path: str) -> dict[str, Any]:
     """Load a saved market report artifact for pipeline injection.
 
     Supports:
@@ -303,9 +303,9 @@ _PORTFOLIO_NODE_RESULT_FIELDS = (
 
 
 def _extract_node_results(
-    state: Dict[str, Any],
+    state: dict[str, Any],
     fields: tuple[str, ...],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return a compact node-results payload with non-empty values only."""
     return {
         field: state[field]
@@ -343,7 +343,7 @@ class PipelineRecoveryStore(Protocol):
     ) -> dict[str, Any] | None: ...
 
 
-def _is_top_level_langgraph_node_end(event: Dict[str, Any]) -> bool:
+def _is_top_level_langgraph_node_end(event: dict[str, Any]) -> bool:
     """Return True for terminal events emitted by top-level LangGraph nodes."""
     if event.get("event") != "on_chain_end":
         return False
@@ -354,7 +354,7 @@ def _is_top_level_langgraph_node_end(event: Dict[str, Any]) -> bool:
 
 
 def _build_analysts_checkpoint(
-    state: Dict[str, Any],
+    state: dict[str, Any],
     *,
     ticker: str,
     date: str,
@@ -376,7 +376,7 @@ def _build_analysts_checkpoint(
 
 
 def _build_trader_checkpoint(
-    state: Dict[str, Any],
+    state: dict[str, Any],
     *,
     ticker: str,
     date: str,
@@ -400,7 +400,7 @@ def _build_trader_checkpoint(
     }
 
 
-def infer_pipeline_resume_phase(snapshot: Dict[str, Any] | None) -> str | None:
+def infer_pipeline_resume_phase(snapshot: dict[str, Any] | None) -> str | None:
     """Infer the earliest safe pipeline phase to resume from a saved snapshot."""
     if not isinstance(snapshot, dict):
         return None
@@ -438,10 +438,10 @@ class LangGraphEngine:
     """Orchestrates LangGraph pipeline executions and streams events."""
 
     def __init__(self) -> None:
-        self.config: Dict[str, Any] = DEFAULT_CONFIG.copy()
-        self.active_runs: Dict[str, Dict[str, Any]] = {}
+        self.config: dict[str, Any] = DEFAULT_CONFIG.copy()
+        self.active_runs: dict[str, dict[str, Any]] = {}
         self._event_mapper = EventMapper()
-        self._run_loggers: Dict[str, RunLogger] = {}
+        self._run_loggers: dict[str, RunLogger] = {}
 
     def _persist_pipeline_recovery_artifacts(
         self,
@@ -449,7 +449,7 @@ class LangGraphEngine:
         store: PipelineRecoveryStore,
         date: str,
         ticker: str,
-        state: Dict[str, Any],
+        state: dict[str, Any],
         node_name: str,
     ) -> None:
         """Persist the latest resumable pipeline snapshot and derived checkpoints."""
@@ -477,8 +477,8 @@ class LangGraphEngine:
     def _maybe_persist_pipeline_recovery_artifacts(
         self,
         *,
-        event: Dict[str, Any],
-        current_state: Dict[str, Any],
+        event: dict[str, Any],
+        current_state: dict[str, Any],
         store: PipelineRecoveryStore,
         date: str,
         ticker: str,
@@ -541,8 +541,8 @@ class LangGraphEngine:
     # ------------------------------------------------------------------
 
     async def run_scan(
-        self, run_id: str, params: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any]
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Run the 3-phase macro scanner and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         root_run_id = _root_run_id(run_id, params)
@@ -570,7 +570,7 @@ class LangGraphEngine:
         initial_state.setdefault("macro_scan_summary", "")
 
         self._event_mapper.register_run(execution_key, "MARKET")
-        final_state: Dict[str, Any] = {}
+        final_state: dict[str, Any] = {}
         captured_root_state = False
 
         # Hard ceiling for the full scan.  A LangGraph fan-in deadlock (e.g. one
@@ -603,7 +603,7 @@ class LangGraphEngine:
                         mapped = self._event_mapper.map_event(execution_key, event)
                         if mapped:
                             yield mapped
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 msg = (
                     f"Macro scan timed out after {_scan_timeout:.0f}s — "
                     "likely a LangGraph fan-in deadlock caused by a scanner node "
@@ -611,7 +611,7 @@ class LangGraphEngine:
                 )
                 logger.error("SCAN run=%s: %s", root_run_id, msg)
                 yield system_log(f"Error: {msg}")
-                raise RuntimeError(msg)
+                raise RuntimeError(msg) from None
 
             if not captured_root_state:
                 message = (
@@ -633,11 +633,11 @@ class LangGraphEngine:
 
     async def _save_scan_outputs(
         self,
-        final_state: Dict[str, Any],
+        final_state: dict[str, Any],
         date: str,
         root_run_id: str,
-        store,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        store: Any,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Persist scan artifacts and emit system log events."""
         yield system_log("Saving scan reports…")
         try:
@@ -693,10 +693,10 @@ class LangGraphEngine:
     async def run_scan_from_node(
         self,
         run_id: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         start_node: str,
-        initial_state: Dict[str, Any],
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        initial_state: dict[str, Any],
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Continue a market scan from *start_node* using a seeded state."""
         if start_node not in SCAN_NODE_TO_REPORT_FIELD:
             yield system_log(f"Unknown scan node '{start_node}' — skipping")
@@ -734,7 +734,7 @@ class LangGraphEngine:
         }
 
         self._event_mapper.register_run(execution_key, "MARKET")
-        final_state: Dict[str, Any] = {}
+        final_state: dict[str, Any] = {}
         captured_root_state = False
 
         _scan_timeout = float(self.config.get("scan_timeout_seconds") or 1800)  # 30 min
@@ -753,14 +753,14 @@ class LangGraphEngine:
                         mapped = self._event_mapper.map_event(execution_key, event)
                         if mapped:
                             yield mapped
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 msg = (
                     f"Scan rerun from {start_node} timed out after {_scan_timeout:.0f}s — "
                     "likely a LangGraph fan-in deadlock. Resume from an earlier completed node."
                 )
                 logger.error("SCAN rerun run=%s: %s", root_run_id, msg)
                 yield system_log(f"Error: {msg}")
-                raise RuntimeError(msg)
+                raise RuntimeError(msg) from None
 
             if not captured_root_state:
                 message = f"Scan continuation from {start_node} for {date} completed without a root final state."
@@ -778,8 +778,8 @@ class LangGraphEngine:
             self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
 
     async def run_pipeline(
-        self, run_id: str, params: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any]
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Run per-ticker analysis pipeline and stream events."""
         instrument = resolve_instrument(params.get("ticker", "AAPL"), source_context="pipeline")
         ticker = instrument.canonical_symbol or "AAPL"
@@ -885,8 +885,8 @@ class LangGraphEngine:
                 )
 
         self._event_mapper.register_run(execution_key, ticker.upper())
-        final_state: Dict[str, Any] = {}
-        current_state: Dict[str, Any] = dict(initial_state)
+        final_state: dict[str, Any] = {}
+        current_state: dict[str, Any] = dict(initial_state)
 
         try:
             async for event in graph_wrapper.graph.astream_events(
@@ -1010,8 +1010,8 @@ class LangGraphEngine:
         self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
 
     async def run_portfolio(
-        self, run_id: str, params: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any]
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Run the portfolio manager workflow and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
@@ -1036,7 +1036,7 @@ class LangGraphEngine:
         scan_summary = normalize_scan_summary(
             reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
         )
-        ticker_analyses: Dict[str, Any] = {}
+        ticker_analyses: dict[str, Any] = {}
 
         search_dirs: list[Path] = []
         run_daily_dir = get_daily_dir(date, root_run_id)
@@ -1124,7 +1124,7 @@ class LangGraphEngine:
         }
 
         self._event_mapper.register_run(execution_key, portfolio_id)
-        final_state: Dict[str, Any] = {}
+        final_state: dict[str, Any] = {}
 
         async for event in portfolio_graph.graph.astream_events(
             initial_state, version="v2", config={"callbacks": [rl.callback]}
@@ -1225,13 +1225,13 @@ class LangGraphEngine:
     async def run_trade_execution(
         self, run_id: str, date: str, portfolio_id: str, decision: dict, prices: dict,
         store: ReportStore | None = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Manually execute a pre-computed PM decision (for resumability)."""
         logger.info("Starting TRADE_EXECUTION run=%s portfolio=%s date=%s", run_id, portfolio_id, date)
         yield system_log(f"Resuming trade execution for {portfolio_id} using saved decision…")
 
-        from tradingagents.portfolio.trade_executor import TradeExecutor
         from tradingagents.portfolio.repository import PortfolioRepository
+        from tradingagents.portfolio.trade_executor import TradeExecutor
 
         if not prices:
             tickers = tickers_from_decision(decision)
@@ -1263,8 +1263,8 @@ class LangGraphEngine:
             raise
 
     async def run_pipeline_from_phase(
-        self, run_id: str, params: Dict[str, Any], phase: str,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any], phase: str,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Re-run a single ticker's pipeline from a specific phase.
 
         Phases:
@@ -1350,8 +1350,8 @@ class LangGraphEngine:
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
                 self._event_mapper.register_run(execution_key, ticker.upper())
-                final_state: Dict[str, Any] = {}
-                current_state: Dict[str, Any] = dict(initial_state)
+                final_state: dict[str, Any] = {}
+                current_state: dict[str, Any] = dict(initial_state)
 
                 async for event in graph_wrapper.debate_graph.astream_events(
                     initial_state, version="v2",
@@ -1448,8 +1448,8 @@ class LangGraphEngine:
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
                 self._event_mapper.register_run(execution_key, ticker.upper())
-                final_state: Dict[str, Any] = {}
-                current_state: Dict[str, Any] = dict(initial_state)
+                final_state: dict[str, Any] = {}
+                current_state: dict[str, Any] = dict(initial_state)
 
                 async for event in graph_wrapper.risk_graph.astream_events(
                     initial_state, version="v2",
@@ -1504,8 +1504,8 @@ class LangGraphEngine:
             yield evt
 
     async def run_auto(
-        self, run_id: str, params: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any]
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
@@ -1591,9 +1591,9 @@ class LangGraphEngine:
         finally:
             self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
 
-    def _load_scan_state(self, *, root_run_id: str, date: str, store) -> Dict[str, Any]:
+    def _load_scan_state(self, *, root_run_id: str, date: str, store: Any) -> dict[str, Any]:
         """Load persisted Phase 1 reports into the state shape expected by Phase 2."""
-        scan_state: Dict[str, Any] = {"scan_date": date}
+        scan_state: dict[str, Any] = {"scan_date": date}
         save_dir = get_market_dir(date, root_run_id)
         for key in SCAN_NODE_TO_REPORT_FIELD.values():
             report_file = save_dir / f"{key}.md"
@@ -1611,12 +1611,12 @@ class LangGraphEngine:
         root_run_id: str,
         date: str,
         force: bool,
-        params: Dict[str, Any],
-        store,
-        scan_state: Dict[str, Any],
+        params: dict[str, Any],
+        store: Any,
+        scan_state: dict[str, Any],
         continue_on_ticker_failure: bool,
         include_portfolio_holdings: bool,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         if run_should_stop(root_run_id):
             yield system_log("Graceful stop requested — finishing after the market scan phase.")
             return
@@ -2006,10 +2006,10 @@ class LangGraphEngine:
     async def run_auto_from_scan_rerun(
         self,
         run_id: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         start_node: str,
-        initial_state: Dict[str, Any],
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        initial_state: dict[str, Any],
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Continue an auto workflow after re-running part of the market scan."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
@@ -2052,9 +2052,9 @@ class LangGraphEngine:
         root_run_id: str,
         date: str,
         force: bool,
-        params: Dict[str, Any],
-        store,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        params: dict[str, Any],
+        store: Any,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Run or resume the portfolio stage for an auto workflow."""
         yield system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
@@ -2097,9 +2097,9 @@ class LangGraphEngine:
     async def run_auto_phase3_decision(
         self,
         run_id: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         retry_tickers: list[str],
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Resolve an auto-run Phase 2 pause by retrying selected tickers or continuing."""
         root_run_id = _root_run_id(run_id, params)
         execution_key = _execution_key(run_id, params)

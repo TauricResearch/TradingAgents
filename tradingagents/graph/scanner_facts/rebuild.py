@@ -16,17 +16,16 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tradingagents.graph.scanner_facts.builder import (
     _merge_partial_facts,
     save_scanner_graph_facts,
-    load_scanner_graph_facts,
 )
 from tradingagents.graph.scanner_facts.from_markdown import facts_from_all_markdown_summaries
 from tradingagents.graph.scanner_facts.schema import SCHEMA_VERSION, validate_graph_facts
-from tradingagents.report_paths import REPORTS_ROOT, get_scanner_graph_facts_path
+from tradingagents.report_paths import REPORTS_ROOT
 
 _logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ def _build_from_markdown_only(
     md_partial = facts_from_all_markdown_summaries(market_dir)
     merged = _merge_partial_facts([md_partial])
 
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     inputs = sorted(f.name for f in market_dir.glob("*_summary.md"))
 
     facts: dict = {
@@ -124,14 +123,12 @@ def rebuild_scanner_graph_facts(
         return artifact_path
 
     # Try primary path: macro JSON + markdown
-    macro_path = market_dir / "macro_scan_summary.json"
+    market_dir / "macro_scan_summary.json"
 
     try:
-        from tradingagents.graph.scanner_facts.from_macro_json import (
-            facts_from_macro_scan_summary,
-            load_and_parse_macro_scan_summary,
+        from tradingagents.graph.scanner_facts.builder import (
+            build_scanner_graph_facts_from_market_dir,
         )
-        from tradingagents.graph.scanner_facts.builder import build_scanner_graph_facts_from_market_dir
 
         facts = build_scanner_graph_facts_from_market_dir(
             market_dir, scan_date=scan_date, run_id=run_id

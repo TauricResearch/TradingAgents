@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tradingagents.graph.scanner_facts.normalize import (
     ConfidenceSource,
@@ -22,6 +22,9 @@ from tradingagents.graph.scanner_facts.normalize import (
     infer_polarity,
     is_equity_ticker,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
@@ -147,7 +150,7 @@ def _process_ticker_row(
     implication = cols[4].strip() if len(cols) >= 5 else ""
 
     is_full = len(cols) >= 5 and evidence_text
-    is_partial = len(cols) >= 3 and not is_full
+    len(cols) >= 3 and not is_full
 
     src = ConfidenceSource.MD_PIPE_FULL if is_full else ConfidenceSource.MD_PIPE_PARTIAL
     hedging = any(w in implication.lower() for w in ("may", "could", "potential", "if", "uncertain"))

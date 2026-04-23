@@ -73,6 +73,8 @@ select = [
 ignore = [
     "E501",    # line length handled by formatter
     "ANN401",  # dynamically typed expressions (Any) — we use Any in many places for flexibility
+    "B008",    # function call in argument defaults (standard for FastAPI Depends)
+    "TCH",     # type-checking blocks (can break runtime usage of types)
 ]
 
 [tool.ruff.lint.flake8-annotations]

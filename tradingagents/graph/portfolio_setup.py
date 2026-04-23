@@ -16,15 +16,16 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
+from tradingagents.instruments import resolve_instrument
 from tradingagents.portfolio.candidate_prioritizer import prioritize_candidates
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 from tradingagents.portfolio.risk_evaluator import compute_portfolio_risk
 from tradingagents.portfolio.trade_executor import TradeExecutor
-from tradingagents.instruments import resolve_instrument
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +90,10 @@ class PortfolioGraphSetup:
     def __init__(
         self,
         agents: dict[str, Any],
-        repo=None,
+        repo: Any = None,
         config: dict[str, Any] | None = None,
-        macro_memory=None,
-        micro_memory=None,
+        macro_memory: Any = None,
+        micro_memory: Any = None,
     ) -> None:
         self.agents = agents
         self._repo = repo
@@ -107,11 +108,11 @@ class PortfolioGraphSetup:
     # Node factories (non-LLM)
     # ------------------------------------------------------------------
 
-    def _make_load_portfolio_node(self):
+    def _make_load_portfolio_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         repo = self._repo
         config = self._config
 
-        def load_portfolio_node(state):
+        def load_portfolio_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_id = state["portfolio_id"]
             prices = state.get("prices") or {}
             try:
@@ -137,8 +138,8 @@ class PortfolioGraphSetup:
 
         return load_portfolio_node
 
-    def _make_compute_risk_node(self):
-        def compute_risk_node(state):
+    def _make_compute_risk_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
+        def compute_risk_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_data_str = state.get("portfolio_data") or "{}"
             prices = state.get("prices") or {}
             try:
@@ -182,10 +183,10 @@ class PortfolioGraphSetup:
 
         return compute_risk_node
 
-    def _make_prioritize_candidates_node(self):
+    def _make_prioritize_candidates_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         config = self._config
 
-        def prioritize_candidates_node(state):
+        def prioritize_candidates_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_data_str = state.get("portfolio_data") or "{}"
             scan_summary = state.get("scan_summary") or {}
             ticker_analyses = state.get("ticker_analyses") or {}
@@ -226,9 +227,9 @@ class PortfolioGraphSetup:
 
         return prioritize_candidates_node
 
-    def _make_cash_sweep_node(self):
+    def _make_cash_sweep_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Node to automatically sweep excess cash into a cash-equivalent ETF."""
-        def cash_sweep_node(state):
+        def cash_sweep_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_data_str = state.get("portfolio_data") or "{}"
             pm_decision_str = state.get("pm_decision") or "{}"
             prices = state.get("prices") or {}
@@ -293,11 +294,11 @@ class PortfolioGraphSetup:
 
         return cash_sweep_node
 
-    def _make_execute_trades_node(self):
+    def _make_execute_trades_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         repo = self._repo
         config = self._config
 
-        def execute_trades_node(state):
+        def execute_trades_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_id = state["portfolio_id"]
             analysis_date = state.get("analysis_date") or ""
             prices = state.get("prices") or {}
@@ -331,7 +332,7 @@ class PortfolioGraphSetup:
     # Graph assembly
     # ------------------------------------------------------------------
 
-    def setup_graph(self):
+    def setup_graph(self) -> Any:
         """Build and compile the portfolio workflow graph with parallel summary fan-out.
 
         Topology:

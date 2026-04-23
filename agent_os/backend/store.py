@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any
 
 # In-memory store for demo (should be replaced by Redis/DB for persistence)
-runs: Dict[str, Dict[str, Any]] = {}
+runs: dict[str, dict[str, Any]] = {}

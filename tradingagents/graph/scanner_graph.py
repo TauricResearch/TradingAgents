@@ -1,6 +1,7 @@
 """Scanner graph — orchestrates the 4-phase macro scanner pipeline."""
 
 import threading
+from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
@@ -65,11 +66,13 @@ class ScannerGraph:
         concurrency = int(self.config.get("scanner_concurrency") or 2)
         semaphore = threading.Semaphore(concurrency)
 
-        def _wrap_scanner(node_fn):
-            def wrapped(state):
+        def _wrap_scanner(node_fn: Callable) -> Callable:
+            def wrapped(state: Any) -> Any:
                 with semaphore:
                     return node_fn(state)
+
             return wrapped
+
 
         # Scanner nodes use the scanner_llm tier (tool-call compliant model).
         # Summarizers use quick_llm (no tool calling needed).
@@ -256,7 +259,7 @@ class ScannerGraph:
 
         return self.graph.invoke(initial_state)
 
-    def graph_from(self, start_node: str):
+    def graph_from(self, start_node: str) -> Any:
         """Return a compiled partial scanner graph that starts at *start_node*."""
         return self.setup.setup_graph_from(start_node)
 

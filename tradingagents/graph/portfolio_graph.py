@@ -38,7 +38,7 @@ class PortfolioGraph:
         config: dict[str, Any] | None = None,
         debug: bool = False,
         callbacks: list | None = None,
-        repo=None,
+        repo: Any = None,
     ) -> None:
         """Initialize the portfolio graph.
 

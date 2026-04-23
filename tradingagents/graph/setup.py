@@ -1,16 +1,36 @@
 # TradingAgents/graph/setup.py
 
-from typing import Dict
-from langchain_openai import ChatOpenAI
-from langgraph.graph import END, StateGraph, START
+from collections.abc import Callable
+from typing import Any
 
-from tradingagents.agents import *
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, START, StateGraph
+
+from tradingagents.agents import (
+    create_aggressive_debator,
+    create_bear_researcher,
+    create_bull_researcher,
+    create_conservative_debator,
+    create_critical_abort_terminal,
+    create_fundamentals_analyst,
+    create_market_analyst,
+    create_msg_delete,
+    create_neutral_debator,
+    create_news_analyst,
+    create_news_fact_checker,
+    create_portfolio_manager,
+    create_research_manager,
+    create_risk_round_barrier,
+    create_risk_synthesis,
+    create_social_media_analyst,
+    create_trader,
+)
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.critical_abort import state_has_critical_abort
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
-from .conditional_logic import ConditionalLogic, CRITICAL_ABORT_NODE
+from .conditional_logic import CRITICAL_ABORT_NODE, ConditionalLogic
 
 
 class GraphSetup:
@@ -52,8 +72,8 @@ class GraphSetup:
         return "Bull Researcher"
 
     @staticmethod
-    def _make_instrument_preflight_node():
-        def instrument_preflight_node(state: AgentState) -> dict:
+    def _make_instrument_preflight_node() -> Callable[[AgentState], dict[str, Any]]:
+        def instrument_preflight_node(state: AgentState) -> dict[str, Any]:
             instrument = resolve_instrument(
                 state["company_of_interest"], source_context="trading_graph"
             )
@@ -92,11 +112,11 @@ class GraphSetup:
         quick_thinking_llm: ChatOpenAI,
         mid_thinking_llm: ChatOpenAI,
         deep_thinking_llm: ChatOpenAI,
-        bull_memory,
-        bear_memory,
-        trader_memory,
-        invest_judge_memory,
-        portfolio_manager_memory,
+        bull_memory: Any,
+        bear_memory: Any,
+        trader_memory: Any,
+        invest_judge_memory: Any,
+        portfolio_manager_memory: Any,
         conditional_logic: ConditionalLogic,
         news_evidence_store: NewsEvidenceStore | None = None,
     ):
@@ -113,8 +133,8 @@ class GraphSetup:
         self.news_evidence_store = news_evidence_store or NewsEvidenceStore()
 
     def setup_graph(
-        self, selected_analysts=["market", "news", "fundamentals"]
-    ):
+        self, selected_analysts: list[str] | None = None
+    ) -> Any:
         """Set up and compile the agent workflow graph.
 
         Args:
@@ -124,6 +144,8 @@ class GraphSetup:
                 - "fundamentals": Fundamentals analyst
                 - "social": Social media analyst (disabled — scraper not yet implemented)
         """
+        if selected_analysts is None:
+            selected_analysts = ["market", "news", "fundamentals"]
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
 
@@ -254,9 +276,11 @@ class GraphSetup:
 
             def _route_after_clear(
                 state: AgentState,
-                analysts: list[str] = list(selected_analysts),
+                analysts: list[str] = None,
                 start_index: int = i + 1,
             ) -> str:
+                if analysts is None:
+                    analysts = list(selected_analysts)
                 if self._should_short_circuit_to_critical_abort_terminal(state):
                     return CRITICAL_ABORT_NODE
                 return self._resolve_next_analyst_node(state, analysts, start_index)
@@ -317,7 +341,7 @@ class GraphSetup:
         # Compile and return
         return workflow.compile()
 
-    def build_debate_subgraph(self):
+    def build_debate_subgraph(self) -> Any:
         """Build a subgraph that starts from Bull Researcher (skips analysts).
 
         Use this to re-run the debate + trader + risk phases when analysts
@@ -417,7 +441,7 @@ class GraphSetup:
 
         return workflow.compile()
 
-    def build_risk_subgraph(self):
+    def build_risk_subgraph(self) -> Any:
         """Build a subgraph that starts from the risk debate (skips analysts + debate + trader).
 
         Use this to re-run only the risk debate + PM phases when trader

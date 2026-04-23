@@ -10,14 +10,16 @@ import datetime as _dt
 import json
 import logging
 import re
-from pathlib import Path
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any
 
 from tradingagents.instruments import (
     CanonicalInstrument,
     is_equity_pipeline_supported,
     resolve_instrument,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger("agent_os.engine")
 
@@ -252,7 +254,7 @@ def format_report_section_for_persistence(section_key: str, text: Any) -> str:
 
 
 def write_complete_report_md(
-    final_state: Dict[str, Any], ticker: str, save_dir: Path
+    final_state: dict[str, Any], ticker: str, save_dir: Path
 ) -> None:
     """Write a human-readable complete_report.md from the pipeline final state."""
     sections = []
@@ -289,7 +291,7 @@ def write_complete_report_md(
     (save_dir / "complete_report.md").write_text(header + "\n\n".join(sections))
 
 
-def extract_tickers_from_scan_data(scan_data: Dict[str, Any] | None) -> list[str]:
+def extract_tickers_from_scan_data(scan_data: dict[str, Any] | None) -> list[str]:
     """Extract ticker symbols from a ReportStore scan summary dict.
 
     Handles two shapes from the macro synthesis LLM output:
@@ -321,7 +323,7 @@ def extract_tickers_from_scan_data(scan_data: Dict[str, Any] | None) -> list[str
 
 
 def extract_pipeline_instruments_from_scan_data(
-    scan_data: Dict[str, Any] | None,
+    scan_data: dict[str, Any] | None,
 ) -> list[CanonicalInstrument]:
     """Extract resolved instruments from scan data for pipeline queuing."""
     if not scan_data:
@@ -346,7 +348,7 @@ def extract_pipeline_instruments_from_scan_data(
     return instruments
 
 
-def normalize_scan_summary(scan_data: Dict[str, Any] | None) -> Dict[str, Any]:
+def normalize_scan_summary(scan_data: dict[str, Any] | None) -> dict[str, Any]:
     """Normalize raw scan summary data, classifying candidates by asset type."""
     if not isinstance(scan_data, dict):
         return {}

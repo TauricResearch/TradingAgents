@@ -12,7 +12,8 @@ Usage (via POST /api/run/mock):
 
 import asyncio
 import time
-from typing import AsyncGenerator, Dict, Any
+from collections.abc import AsyncGenerator
+from typing import Any
 
 
 class MockEngine:
@@ -23,8 +24,8 @@ class MockEngine:
     # ------------------------------------------------------------------
 
     async def run_mock(
-        self, run_id: str, params: Dict[str, Any]
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any]
+    ) -> AsyncGenerator[dict[str, Any], None]:
         mock_type = params.get("mock_type", "pipeline")
         speed = max(float(params.get("speed", 1.0)), 0.1)
 
@@ -43,8 +44,8 @@ class MockEngine:
     # ------------------------------------------------------------------
 
     async def _run_pipeline(
-        self, run_id: str, params: Dict[str, Any], speed: float
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any], speed: float
+    ) -> AsyncGenerator[dict[str, Any], None]:
         ticker = params.get("ticker", "AAPL").upper()
         date = params.get("date", time.strftime("%Y-%m-%d"))
 
@@ -94,8 +95,8 @@ class MockEngine:
     # ------------------------------------------------------------------
 
     async def _run_scan(
-        self, run_id: str, params: Dict[str, Any], speed: float
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any], speed: float
+    ) -> AsyncGenerator[dict[str, Any], None]:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         identifier = "MARKET"
 
@@ -141,8 +142,8 @@ class MockEngine:
     # ------------------------------------------------------------------
 
     async def _run_auto(
-        self, run_id: str, params: Dict[str, Any], speed: float
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        self, run_id: str, params: dict[str, Any], speed: float
+    ) -> AsyncGenerator[dict[str, Any], None]:
         tickers = params.get("tickers") or [params.get("ticker", "AAPL").upper()]
 
         yield self._log(f"[MOCK] Starting auto run — scan + {len(tickers)} pipeline(s) + portfolio")
@@ -183,7 +184,7 @@ class MockEngine:
         tok_out: int,
         speed: float,
         tool_name: str,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         yield self._thought(node, identifier, model, f"[MOCK] {node} analysing {identifier}…")
         await self._sleep(0.4, speed)
 
@@ -207,7 +208,7 @@ class MockEngine:
         tok_in: int,
         tok_out: int,
         speed: float,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         yield self._thought(node, identifier, model, f"[MOCK] {node} processing {identifier}…")
         await self._sleep(latency, speed)
 
@@ -222,7 +223,7 @@ class MockEngine:
     def _ns() -> str:
         return str(time.time_ns())
 
-    def _log(self, message: str) -> Dict[str, Any]:
+    def _log(self, message: str) -> dict[str, Any]:
         return {
             "id": f"log_{self._ns()}",
             "node_id": "__system__",
@@ -233,7 +234,7 @@ class MockEngine:
             "metrics": {},
         }
 
-    def _thought(self, node: str, identifier: str, model: str, message: str) -> Dict[str, Any]:
+    def _thought(self, node: str, identifier: str, model: str, message: str) -> dict[str, Any]:
         return {
             "id": f"thought_{self._ns()}",
             "node_id": node,
@@ -246,7 +247,7 @@ class MockEngine:
             "metrics": {"model": model},
         }
 
-    def _tool_call(self, node: str, identifier: str, tool: str, inp: str) -> Dict[str, Any]:
+    def _tool_call(self, node: str, identifier: str, tool: str, inp: str) -> dict[str, Any]:
         return {
             "id": f"tool_{self._ns()}",
             "node_id": f"tool_{tool}",
@@ -259,7 +260,7 @@ class MockEngine:
             "metrics": {},
         }
 
-    def _tool_result(self, node: str, identifier: str, tool: str, output: str) -> Dict[str, Any]:
+    def _tool_result(self, node: str, identifier: str, tool: str, output: str) -> dict[str, Any]:
         return {
             "id": f"tool_res_{self._ns()}",
             "node_id": f"tool_{tool}",
@@ -281,7 +282,7 @@ class MockEngine:
         tok_out: int,
         latency_ms: int,
         message: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "id": f"result_{self._ns()}",
             "node_id": node,
