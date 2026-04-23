@@ -25,15 +25,13 @@ def _parse_price_token(raw: str) -> float | None:
 
 def _extract_current_price_from_state(state: dict) -> float | None:
     market_structured = state.get("market_report_structured") or {}
-    levels = market_structured.get("key_levels") or []
-    if not isinstance(levels, list):
-        return None
-    for level in levels:
-        match = re.search(r"\$([0-9][0-9,]*(?:\.[0-9]+)?)", str(level))
-        if match:
-            parsed = _parse_price_token(match.group(1))
-            if parsed is not None:
-                return parsed
+    # Prefer the dedicated current_price field (extracted from "current price of $X" prose)
+    # over key_levels[0], which is the 200-day SMA — not the live price.
+    current_price_str = market_structured.get("current_price")
+    if current_price_str:
+        parsed = _parse_price_token(current_price_str)
+        if parsed is not None:
+            return parsed
     return None
 
 

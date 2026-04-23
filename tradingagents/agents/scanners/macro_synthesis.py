@@ -360,21 +360,20 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
         )
 
         if invoke_error is not None:
-            logger.warning(
-                "macro_synthesis invoke failed (%s): %s",
+            logger.error(
+                "macro_synthesis invoke failed (%s): %s — aborting scan, no fallback.",
                 type(invoke_error).__name__,
                 invoke_error,
             )
-            fallback_payload = _repair_macro_summary({}, state, max_scan_tickers, horizon_label)
-            fallback_payload["executive_summary"] = (
-                f"Macro synthesis timed out after {timeout_seconds:.0f}s; "
-                "returning deterministic fallback summary from scanner rankings."
-            )
-            report = json.dumps(fallback_payload)
-            result_message = AIMessage(content=report)
-        else:
-            report = str(getattr(result, "content", "") or "")
-            result_message = result
+            raise RuntimeError(
+                f"Macro synthesis failed after {timeout_seconds:.0f}s "
+                f"({type(invoke_error).__name__}). "
+                "Scanner cannot proceed without candidate selection. "
+                "Re-run or increase deep_think_llm_timeout in config."
+            ) from invoke_error
+
+        report = str(getattr(result, "content", "") or "")
+        result_message = result
 
         # Sanitize LLM output: strip markdown fences / <think> blocks before storing
         if invoke_error is None:

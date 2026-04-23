@@ -173,10 +173,25 @@ def infer_macro_regime_from_prefetched_report(macro_regime_report: str) -> str:
     text = str(macro_regime_report or "").strip().lower()
     if not text:
         return "unknown"
-    if "risk-off" in text or "risk off" in text:
-        return "risk_off"
-    if "risk-on" in text or "risk on" in text:
+    # Prefer: match "regime" followed closely by the classification word.
+    # This anchors to the regime *declaration* and avoids false positives like
+    # "0 risk-off signals" appearing in the signal-count line of a RISK-ON report.
+    match = re.search(r"\bregime\b.{0,60}?(risk-on|risk on|risk-off|risk off|transition)\b", text)
+    if match:
+        token = match.group(1)
+        if "off" in token:
+            return "risk_off"
+        if "on" in token:
+            return "risk_on"
+        return "transition"
+    # Fallback: count all occurrences and take the majority. Handles compact formats
+    # (e.g. "## Risk-On") that omit the word "regime" entirely.
+    risk_on_count = len(re.findall(r"risk[-\s]on", text))
+    risk_off_count = len(re.findall(r"risk[-\s]off", text))
+    if risk_on_count > risk_off_count:
         return "risk_on"
+    if risk_off_count > risk_on_count:
+        return "risk_off"
     if "transition" in text:
         return "transition"
     return "unknown"
@@ -204,6 +219,26 @@ def _extract_key_levels(report: str, *, max_levels: int = 3) -> list[str]:
         if len(deduped) >= max_levels:
             break
     return deduped
+
+
+def _extract_current_price_from_report(report: str) -> str | None:
+    """Extract the current/live price from a market analyst report prose."""
+    patterns = [
+        r"current\s+price\s+(?:of\s+)?\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"currently\s+trading\s+at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"price\s+(?:is\s+)?at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+    ]
+    for pat in patterns:
+        m = re.search(pat, str(report or ""), re.IGNORECASE)
+        if m:
+            token = m.group(1).replace(",", "")
+            try:
+                val = float(token)
+                if val > 0:
+                    return f"${val:.2f}"
+            except ValueError:
+                continue
+    return None
 
 
 def build_market_report_structured(
@@ -244,6 +279,7 @@ def build_market_report_structured(
         "claim_count": bullet_count,
         "macro_regime": infer_macro_regime_from_prefetched_report(macro_regime_report),
         "macro_regime_report_present": bool(str(macro_regime_report or "").strip()),
+        "current_price": _extract_current_price_from_report(report),
         "key_levels": _extract_key_levels(report),
         "key_metrics": {
             "numeric_mentions": numeric_mentions,

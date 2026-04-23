@@ -261,7 +261,7 @@ class TestTraderGroundTruth:
                 _base_state(
                     investment_plan="- Recommendation: BUY",
                     investment_plan_structured={"status": "completed"},
-                    market_report_structured={"key_levels": ["$130.49", "$128.47"]},
+                    market_report_structured={"current_price": "$130.49", "key_levels": ["$130.49", "$128.47"]},
                 )
             )
 
