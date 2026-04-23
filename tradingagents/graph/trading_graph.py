@@ -47,7 +47,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=["market", "news", "fundamentals"],
         debug=False,
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
@@ -316,6 +316,10 @@ class TradingAgentsGraph:
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
+        # Defensive access for nested debate state fields
+        investment_debate = final_state.get("investment_debate_state", {})
+        risk_debate = final_state.get("risk_debate_state", {})
+        
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -326,25 +330,21 @@ class TradingAgentsGraph:
             "fundamentals_report": final_state["fundamentals_report"],
             "research_packet_summary": final_state.get("research_packet_summary", ""),
             "investment_debate_state": {
-                "bull_history": final_state["investment_debate_state"]["bull_history"],
-                "bear_history": final_state["investment_debate_state"]["bear_history"],
-                "history": final_state["investment_debate_state"]["history"],
-                "summary": final_state["investment_debate_state"].get("summary", ""),
-                "current_response": final_state["investment_debate_state"][
-                    "current_response"
-                ],
-                "judge_decision": final_state["investment_debate_state"][
-                    "judge_decision"
-                ],
+                "bull_history": investment_debate.get("bull_history", ""),
+                "bear_history": investment_debate.get("bear_history", ""),
+                "history": investment_debate.get("history", ""),
+                "summary": investment_debate.get("summary", ""),
+                "current_response": investment_debate.get("current_response", ""),
+                "judge_decision": investment_debate.get("judge_decision", ""),
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
             "risk_debate_state": {
-                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
-                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
-                "neutral_history": final_state["risk_debate_state"]["neutral_history"],
-                "history": final_state["risk_debate_state"]["history"],
-                "summary": final_state["risk_debate_state"].get("summary", ""),
-                "judge_decision": final_state["risk_debate_state"]["judge_decision"],
+                "aggressive_history": risk_debate.get("aggressive_history", ""),
+                "conservative_history": risk_debate.get("conservative_history", ""),
+                "neutral_history": risk_debate.get("neutral_history", ""),
+                "history": risk_debate.get("history", ""),
+                "summary": risk_debate.get("summary", ""),
+                "judge_decision": risk_debate.get("judge_decision", ""),
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],

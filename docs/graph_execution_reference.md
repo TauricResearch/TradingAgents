@@ -130,17 +130,17 @@ flowchart TD
     Q --> R([END])
 ```
 
-### Important Runtime Nuance: legacy `tools_*` nodes
+### Important Runtime Nuance: analyst nodes now go directly to message clear
 
-`GraphSetup` still compiles `tools_market`, `tools_social`, `tools_news`, and `tools_fundamentals` ToolNode nodes.
-However, the current analyst implementations already prefetch or execute their tools inside the analyst node itself.
+The current analyst implementations prefetch or execute their tools inside the analyst node itself using `prefetch_tools_parallel()` or `run_tool_loop()`.
+
 That means:
 
 - `market_analyst` resolves `get_indicators` inside `run_tool_loop()`
 - `fundamentals_analyst` resolves raw statement tools inside `run_tool_loop()`
 - `news_analyst` and `social_media_analyst` use prefetched data and do not emit tool calls
 
-So in the current code path, the analyst stage usually exits each analyst directly to its `Msg Clear *` node and the compiled `tools_*` graph nodes are effectively dormant.
+As a result, analysts now flow directly to their `Msg Clear *` node after execution, rather than conditionally routing through legacy `tools_*` ToolNode instances. The graph no longer compiles dormant `tools_market`, `tools_social`, `tools_news`, or `tools_fundamentals` nodes.
 
 ### Pipeline Node Reference
 
