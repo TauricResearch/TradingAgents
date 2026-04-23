@@ -376,17 +376,16 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
         result_message = result
 
         # Sanitize LLM output: strip markdown fences / <think> blocks before storing
-        if invoke_error is None:
-            try:
-                parsed = extract_json(report)
-                parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
-                report = json.dumps(parsed)
-            except (ValueError, json.JSONDecodeError):
-                logger.warning(
-                    "macro_synthesis: could not extract JSON from LLM output; "
-                    "storing raw content (first 200 chars): %s",
-                    report[:200],
-                )
+        try:
+            parsed = extract_json(report)
+            parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
+            report = json.dumps(parsed)
+        except (ValueError, json.JSONDecodeError):
+            logger.warning(
+                "macro_synthesis: could not extract JSON from LLM output; "
+                "storing raw content (first 200 chars): %s",
+                report[:200],
+            )
 
         # 3. Resumability: Save after completion
         if report:

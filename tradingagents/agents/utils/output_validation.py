@@ -222,14 +222,25 @@ def _extract_key_levels(report: str, *, max_levels: int = 3) -> list[str]:
 
 
 def _extract_current_price_from_report(report: str) -> str | None:
-    """Extract the current/live price from a market analyst report prose."""
+    """Extract the current/live price from a market analyst report prose.
+
+    Patterns are ordered most-specific to least-specific. Pattern 3 has a
+    negative lookbehind to avoid matching "target price at", "support price at",
+    "strike price at", etc. Returns None (with a warning) when no pattern matches.
+    """
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
     patterns = [
         r"current\s+price\s+(?:of\s+)?\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
         r"currently\s+trading\s+at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
-        r"price\s+(?:is\s+)?at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"(?:closed?|last|open(?:ing)?|traded?)\s+(?:at|@)\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"(?:shares?\s+)?(?:trading|trades?)\s+(?:near|around|at)\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"(?<!target\s)(?<!support\s)(?<!strike\s)(?<!resistance\s)price\s+(?:is\s+)?at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
     ]
+    report_str = str(report or "")
     for pat in patterns:
-        m = re.search(pat, str(report or ""), re.IGNORECASE)
+        m = re.search(pat, report_str, re.IGNORECASE)
         if m:
             token = m.group(1).replace(",", "")
             try:
@@ -238,6 +249,11 @@ def _extract_current_price_from_report(report: str) -> str | None:
                     return f"${val:.2f}"
             except ValueError:
                 continue
+    _logger.warning(
+        "output_validation: could not extract current price from market report — "
+        "drift guardrail will be skipped. Report excerpt: %.200s",
+        report_str,
+    )
     return None
 
 

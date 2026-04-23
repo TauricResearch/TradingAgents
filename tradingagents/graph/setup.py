@@ -3,7 +3,6 @@
 from typing import Dict
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, START
-from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
@@ -93,7 +92,6 @@ class GraphSetup:
         quick_thinking_llm: ChatOpenAI,
         mid_thinking_llm: ChatOpenAI,
         deep_thinking_llm: ChatOpenAI,
-        tool_nodes: Dict[str, ToolNode],
         bull_memory,
         bear_memory,
         trader_memory,
@@ -106,7 +104,6 @@ class GraphSetup:
         self.quick_thinking_llm = quick_thinking_llm
         self.mid_thinking_llm = mid_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
-        self.tool_nodes = tool_nodes
         self.bull_memory = bull_memory
         self.bear_memory = bear_memory
         self.trader_memory = trader_memory

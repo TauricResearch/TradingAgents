@@ -5,8 +5,6 @@ import json
 from copy import deepcopy
 from typing import Dict, Any, List, Optional
 
-from langgraph.prebuilt import ToolNode
-
 from tradingagents.llm_clients import create_llm_client
 
 from tradingagents.agents import *
@@ -142,9 +140,6 @@ class TradingAgentsGraph:
         self.portfolio_manager_memory = FinancialSituationMemory("portfolio_manager_memory", self.config)
         self.news_evidence_store = NewsEvidenceStore()
 
-        # Create tool nodes
-        self.tool_nodes = self._create_tool_nodes()
-
         # Initialize components — wire debate/risk rounds from config
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config.get("max_debate_rounds", 2),
@@ -154,7 +149,6 @@ class TradingAgentsGraph:
             self.quick_thinking_llm,
             self.mid_thinking_llm,
             self.deep_thinking_llm,
-            self.tool_nodes,
             self.bull_memory,
             self.bear_memory,
             self.trader_memory,
@@ -235,49 +229,6 @@ class TradingAgentsGraph:
                 kwargs["effort"] = effort
 
         return kwargs
-
-    def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
-        return {
-            "market": ToolNode(
-                [
-                    # Core stock data tools
-                    get_stock_data,
-                    # Technical indicators
-                    get_indicators,
-                    # Macro regime classification
-                    get_macro_regime,
-                ]
-            ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                ]
-            ),
-            "news": ToolNode(
-                [
-                    # News and insider information
-                    get_news,
-                    get_global_news,
-                    get_insider_transactions,
-                ]
-            ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
-                    # TTM trend analysis (8 quarters)
-                    get_ttm_analysis,
-                    # Relative performance tools
-                    get_peer_comparison,
-                    get_sector_relative,
-                ]
-            ),
-        }
 
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date."""
