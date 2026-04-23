@@ -21,7 +21,7 @@ def create_research_manager(llm, memory):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         past_memory_block = (
-            f'Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. \n\nHere are your past reflections on mistakes:\n"{past_memory_str}"\n\n'
+            f'Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. \n\nHere are your past reflections on mistakes:\n"{past_memory_str.strip()}"\n\n'
             if past_memories
             else ""
         )

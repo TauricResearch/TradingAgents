@@ -20,7 +20,7 @@ def create_bear_researcher(llm, memory):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         memory_section = (
-            f"Reflections from similar situations and lessons learned: {past_memory_str}\n"
+            f"Reflections from similar situations and lessons learned: {past_memory_str.strip()}\n"
             if past_memories
             else ""
         )

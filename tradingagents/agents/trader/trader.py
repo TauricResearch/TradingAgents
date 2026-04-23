@@ -22,7 +22,7 @@ def create_trader(llm, memory):
                 past_memory_str += rec["recommendation"] + "\n\n"
 
         memory_instruction = (
-            f" Apply lessons from past decisions to strengthen your analysis. Here are reflections from similar situations you traded in and the lessons learned: {past_memory_str}"
+            f" Apply lessons from past decisions to strengthen your analysis. Here are reflections from similar situations you traded in and the lessons learned: {past_memory_str.strip()}"
             if past_memories
             else ""
         )

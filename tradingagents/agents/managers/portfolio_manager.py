@@ -23,9 +23,14 @@ def create_portfolio_manager(llm, memory):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         lessons_line = (
-            f"- Lessons from past decisions: **{past_memory_str}**\n"
+            f"- Lessons from past decisions: **{past_memory_str.strip()}**\n"
             if past_memories
             else ""
+        )
+        thesis_instruction = (
+            "3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and past reflections."
+            if past_memories
+            else "3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate."
         )
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
@@ -48,7 +53,7 @@ def create_portfolio_manager(llm, memory):
 **Required Output Structure:**
 1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
 2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon.
-3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and past reflections.
+{thesis_instruction}
 
 ---
 
