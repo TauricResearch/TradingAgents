@@ -1,14 +1,12 @@
 """Unit tests for normalize.py — pure-logic, no I/O."""
-import pytest
 from tradingagents.graph.scanner_facts.normalize import (
+    ConfidenceSource,
     canonicalize_sector,
     classify_node_type,
-    is_equity_ticker,
-    infer_polarity,
     compute_confidence,
-    ConfidenceSource,
+    infer_polarity,
+    is_equity_ticker,
 )
-
 
 # ---- canonicalize_sector ----
 

@@ -1,3 +1,5 @@
+from langchain_core.messages import AIMessage
+
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
@@ -5,7 +7,6 @@ from tradingagents.agents.utils.summary_context import (
     get_risk_debate_summary,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
-from langchain_core.messages import AIMessage
 
 
 def create_aggressive_debator(llm, round_num=1):

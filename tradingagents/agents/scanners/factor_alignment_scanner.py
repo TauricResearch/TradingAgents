@@ -1,18 +1,18 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.utils.report_quality import tag_report
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 from tradingagents.agents.utils.scanner_tools import (
     get_earnings_calendar,
     get_sector_performance,
     get_topic_news,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.agents.utils.report_quality import tag_report
-from tradingagents.agents.utils.scanner_idempotency import (
-    check_and_load_report,
-    save_node_report,
-)
 
 
 def create_factor_alignment_scanner(llm):
@@ -29,16 +29,11 @@ def create_factor_alignment_scanner(llm):
         tools = [get_sector_performance, get_topic_news, get_earnings_calendar]
 
         sector_context = state.get("sector_performance_report", "")
-        sector_section = (
-            f"\n\nSector rotation context from the Sector Scanner:\n{sector_context}"
-            if sector_context
-            else ""
-        )
 
         try:
             start_date = datetime.strptime(scan_date, "%Y-%m-%d").date()
         except ValueError:
-            start_date = datetime.now(timezone.utc).date()
+            start_date = datetime.now(UTC).date()
         end_date = start_date + timedelta(days=21)
 
         system_message = (

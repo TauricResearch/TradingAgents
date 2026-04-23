@@ -1,6 +1,3 @@
-import time
-import pandas as pd
-import numpy as np
 
 # Test the performance difference of creating a DataFrame using `engine="c"`
 # vs `engine="python"` in `pd.read_csv`, or just checking the overhead of

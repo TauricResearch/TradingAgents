@@ -1,8 +1,8 @@
 """Tests for the OHLCV plausibility guard and retry loop in _load_or_fetch_ohlcv."""
-import os
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
 import pytest
-from unittest.mock import patch, MagicMock, call
 
 
 def _make_df(close_values: list[float]) -> pd.DataFrame:

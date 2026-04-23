@@ -146,7 +146,7 @@ def build_debate_evidence_brief(state: dict) -> str:
         if claim_count:
             lines.append(f"- Market claims: {claim_count}")
         if lines:
-            sections.append(f"## Market\n" + "\n".join(lines))
+            sections.append("## Market\n" + "\n".join(lines))
 
     # Fundamentals structured: excerpt + section availability
     fund_s = state.get("fundamentals_report_structured")
@@ -164,7 +164,7 @@ def build_debate_evidence_brief(state: dict) -> str:
             if errors:
                 lines.append(f"- Sections with errors: {', '.join(str(s) for s in errors[:3])}")
         if lines:
-            sections.append(f"## Fundamentals\n" + "\n".join(lines))
+            sections.append("## Fundamentals\n" + "\n".join(lines))
 
     # Sentiment structured: direction + claim count
     sent_s = state.get("sentiment_report_structured")
@@ -177,7 +177,7 @@ def build_debate_evidence_brief(state: dict) -> str:
         if claim_count:
             lines.append(f"- Sentiment claims: {claim_count}")
         if lines:
-            sections.append(f"## Sentiment\n" + "\n".join(lines))
+            sections.append("## Sentiment\n" + "\n".join(lines))
     
     # News structured: status + claim metrics (exclude claim text)
     news_s = state.get("news_report_structured")
@@ -198,7 +198,7 @@ def build_debate_evidence_brief(state: dict) -> str:
             if removed_claims is not None:
                 lines.append(f"- Removed claims: {removed_claims}")
         if lines:
-            sections.append(f"## News\n" + "\n".join(lines))
+            sections.append("## News\n" + "\n".join(lines))
 
     # Macro regime report (compact)
     macro_report = _compact_lines(

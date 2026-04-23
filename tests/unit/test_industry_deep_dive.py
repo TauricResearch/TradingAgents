@@ -4,22 +4,19 @@
 2. run_tool_loop nudge triggers when first response is short & no tool calls
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from tradingagents.agents.scanners.industry_deep_dive import (
-    VALID_SECTOR_KEYS,
     _DISPLAY_TO_KEY,
+    VALID_SECTOR_KEYS,
     _extract_top_sectors,
 )
 from tradingagents.agents.utils.tool_runner import (
     run_tool_loop,
-    MAX_TOOL_ROUNDS,
-    MIN_REPORT_LENGTH,
 )
-
 
 # ---------------------------------------------------------------------------
 # _extract_top_sectors tests

@@ -1,11 +1,11 @@
 from unittest.mock import MagicMock, patch
 
+from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 from tradingagents.dataflows.alpha_vantage_market_prices import (
     get_bitcoin_price_alpha_vantage,
     get_gold_price_alpha_vantage,
     get_oil_prices_alpha_vantage,
 )
-from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
 
 def test_get_gold_price_alpha_vantage_formats_gold_spot():
@@ -23,7 +23,7 @@ def test_get_gold_price_alpha_vantage_formats_gold_spot():
 
 
 def test_get_oil_prices_alpha_vantage_formats_wti_and_brent():
-    def fake_request(function_name: str, params: dict):
+    def fake_request(function_name: str, params: dict) -> str:
         if function_name == "WTI":
             return '{"name":"Crude Oil Prices WTI","interval":"daily","data":[{"date":"2026-03-30","value":"89.33"},{"date":"2026-03-29","value":"88.11"}]}'
         if function_name == "BRENT":

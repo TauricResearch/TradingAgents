@@ -47,7 +47,6 @@ from tradingagents.portfolio.models import Holding, Portfolio, PortfolioSnapshot
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.risk_metrics import compute_risk_metrics
 
-
 # ---------------------------------------------------------------------------
 # Tool 1 — Enrich holdings with current prices
 # ---------------------------------------------------------------------------

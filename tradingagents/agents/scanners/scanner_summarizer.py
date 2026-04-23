@@ -11,6 +11,7 @@ deterministic ``[NO_EVIDENCE]`` marker without invoking the LLM.
 from __future__ import annotations
 
 import logging
+
 from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,

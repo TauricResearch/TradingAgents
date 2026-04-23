@@ -13,11 +13,13 @@ This means a flaky or unreachable Atlas cluster never crashes a run.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    from tradingagents.portfolio.report_store import ReportStore
+    from collections.abc import Callable
+
     from tradingagents.portfolio.mongo_report_store import MongoReportStore
+    from tradingagents.portfolio.report_store import ReportStore
 
 logger = logging.getLogger(__name__)
 

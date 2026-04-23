@@ -1,9 +1,7 @@
 """Tests for agentic debate round configuration and conditional logic."""
 
-import pytest
-from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
-
+from tradingagents.graph.conditional_logic import ConditionalLogic
 
 # ---------------------------------------------------------------------------
 # Helpers

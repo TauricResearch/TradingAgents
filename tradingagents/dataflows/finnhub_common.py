@@ -5,7 +5,6 @@ the Finnhub free tier), and the core HTTP request helper used by all other
 finnhub_* modules.
 """
 
-import os
 import threading
 import time as _time
 from datetime import datetime

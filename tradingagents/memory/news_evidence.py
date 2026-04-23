@@ -13,12 +13,15 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING
 
 from tradingagents.default_config import get_env_value
 from tradingagents.report_paths import REPORTS_ROOT
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @dataclass(frozen=True)
@@ -190,7 +193,7 @@ class NewsEvidenceStore:
             url=record.url,
             published_at=record.published_at,
         )
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._connect() as conn:
             conn.execute(
                 """

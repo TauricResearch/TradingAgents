@@ -1,9 +1,11 @@
 import logging
-from typing import Annotated
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
-import yfinance as yf
+from typing import Annotated
+
 import requests
+import yfinance as yf
+from dateutil.relativedelta import relativedelta
+
 from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
 

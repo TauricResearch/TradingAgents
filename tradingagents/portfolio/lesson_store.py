@@ -1,7 +1,9 @@
 import json
 import os
 from pathlib import Path
+
 from tradingagents.report_paths import REPORTS_ROOT
+
 
 class LessonStore:
     """Append-only JSON store for screening lessons.
@@ -24,7 +26,7 @@ class LessonStore:
         if not self.path.exists():
             return []
         try:
-            with open(self.path, "r", encoding="utf-8") as f:
+            with open(self.path, encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError:
             return []

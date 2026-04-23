@@ -14,11 +14,10 @@ Usage::
 from __future__ import annotations
 
 import logging
-from typing import Union
 
 from tradingagents.default_config import DEFAULT_CONFIG, get_env_value
-from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.dual_report_store import DualReportStore
+from tradingagents.portfolio.report_store import ReportStore
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ def create_report_store(
     base_dir: str | None = None,
     mongo_uri: str | None = None,
     mongo_db: str | None = None,
-) -> Union[ReportStore, "MongoReportStore", DualReportStore]:  # noqa: F821
+) -> ReportStore | MongoReportStore | DualReportStore:  # noqa: F821
     """Create and return the appropriate report store.
 
     Resolution order for the backend:

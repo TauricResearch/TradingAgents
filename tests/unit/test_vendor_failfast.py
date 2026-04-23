@@ -4,13 +4,14 @@ Methods NOT in FALLBACK_ALLOWED must fail immediately when the primary vendor
 fails, rather than silently falling back to a vendor with a different data contract.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from tradingagents.dataflows.interface import route_to_vendor, FALLBACK_ALLOWED
+import pytest
+
 from tradingagents.dataflows.alpha_vantage_common import AlphaVantageError
-from tradingagents.dataflows.finnhub_common import FinnhubError
 from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.finnhub_common import FinnhubError
+from tradingagents.dataflows.interface import FALLBACK_ALLOWED, route_to_vendor
 
 
 def _config_with_vendor(category: str, vendor: str):

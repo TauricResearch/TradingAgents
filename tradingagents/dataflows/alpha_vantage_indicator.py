@@ -1,7 +1,8 @@
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
-from .alpha_vantage_common import _make_api_request, ThirdPartyTimeoutError
 
+from dateutil.relativedelta import relativedelta
+
+from .alpha_vantage_common import ThirdPartyTimeoutError, _make_api_request
 
 SUPPORTED_INDICATORS = {
     "close_50_sma": ("50 SMA", "close"),

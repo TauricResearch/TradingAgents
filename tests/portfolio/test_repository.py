@@ -10,7 +10,8 @@ Run (unit tests only)::
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call
+# Define skip marker inline — avoids problematic absolute import from conftest
+import os
 
 import pytest
 
@@ -19,11 +20,9 @@ from tradingagents.portfolio.exceptions import (
     InsufficientCashError,
     InsufficientSharesError,
 )
-from tradingagents.portfolio.models import Holding, Portfolio, Trade
+from tradingagents.portfolio.models import Holding, Portfolio
 from tradingagents.portfolio.repository import PortfolioRepository
 
-# Define skip marker inline — avoids problematic absolute import from conftest
-import os
 requires_supabase = pytest.mark.skipif(
     not os.getenv("SUPABASE_CONNECTION_STRING"),
     reason="SUPABASE_CONNECTION_STRING not set -- skipping integration tests",

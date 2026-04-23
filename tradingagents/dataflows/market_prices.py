@@ -8,11 +8,9 @@ from datetime import UTC, datetime
 
 import pandas as pd
 import requests
-import yfinance as yf
 
 from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import YFinanceError, safe_yf_download
-
 
 logger = logging.getLogger(__name__)
 

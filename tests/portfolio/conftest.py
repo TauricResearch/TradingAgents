@@ -17,7 +17,7 @@ Supabase integration tests use ``pytest.mark.skipif`` to auto-skip when
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,6 +30,9 @@ from tradingagents.portfolio.models import (
 )
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.supabase_client import SupabaseClient
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Skip marker for Supabase integration tests

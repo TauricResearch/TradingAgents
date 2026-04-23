@@ -1,19 +1,18 @@
 """Unit tests for output validation utilities."""
 
-import pytest
 from tradingagents.agents.utils.output_validation import (
     build_market_report_structured,
     extract_allowed_sources_from_context,
     extract_explicit_sources,
     filter_news_report_by_provenance,
+    format_validation_warning,
     infer_macro_regime_from_prefetched_report,
     render_structured_news_payload,
     sanitize_structured_news_payload,
-    validate_ticker_relevance,
     validate_news_analysis,
     validate_news_analysis_detailed,
     validate_structured_news_payload,
-    format_validation_warning,
+    validate_ticker_relevance,
 )
 
 
@@ -202,7 +201,7 @@ class TestValidateNewsAnalysis:
             ("03/15/2026", True),
         ]
         
-        for pattern, should_have_numbers in numeric_patterns:
+        for pattern, _should_have_numbers in numeric_patterns:
             output = f"RIG RIG RIG {pattern} RIG RIG analysis RIG report"
             is_valid, reason = validate_news_analysis(output, "RIG")
             # Should pass because it has numbers/dates + ticker mentions

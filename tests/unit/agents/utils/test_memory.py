@@ -1,5 +1,7 @@
 import pytest
+
 from tradingagents.agents.utils.memory import FinancialSituationMemory
+
 
 @pytest.fixture
 def memory_instance():

@@ -3,13 +3,11 @@
 All tests use monkeypatching — no live LLM or real disk scanner runs.
 """
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tradingagents.graph.scanner_facts.schema import SCHEMA_VERSION
-
 
 SCAN_DATE = "2026-04-16"
 RUN_ID = "TESTRUN"
@@ -36,6 +34,7 @@ def _minimal_facts():
 def test_macro_scan_summary_json_written_to_market_dir(tmp_path):
     """_save_scan_outputs must write macro_scan_summary.json to the flat market dir."""
     import asyncio
+
     from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
     engine = LangGraphEngine.__new__(LangGraphEngine)
@@ -84,6 +83,7 @@ def test_macro_scan_summary_json_written_to_market_dir(tmp_path):
 def test_ensure_scanner_graph_facts_called_after_save(tmp_path):
     """ensure_scanner_graph_facts must be called during _save_scan_outputs."""
     import asyncio
+
     from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
     engine = LangGraphEngine.__new__(LangGraphEngine)
@@ -123,6 +123,7 @@ def test_ensure_scanner_graph_facts_called_after_save(tmp_path):
 def test_run_pipeline_raises_when_graph_facts_missing(tmp_path):
     """run_pipeline must raise FileNotFoundError when scanner_graph_facts.json is absent."""
     import asyncio
+
     from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
     engine = LangGraphEngine.__new__(LangGraphEngine)
@@ -142,7 +143,7 @@ def test_run_pipeline_raises_when_graph_facts_missing(tmp_path):
 
         async def run():
             with pytest.raises(FileNotFoundError) as exc_info:
-                async for evt in engine.run_pipeline("TESTRUN", {
+                async for _evt in engine.run_pipeline("TESTRUN", {
                     "ticker": "ON", "date": SCAN_DATE, "run_id": RUN_ID,
                 }):
                     pass

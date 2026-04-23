@@ -1,8 +1,7 @@
 """Tests for TTM (Trailing Twelve Months) analysis module."""
 
-import pytest
 import pandas as pd
-
+import pytest
 
 # ---------------------------------------------------------------------------
 # Fixtures — synthetic quarterly data

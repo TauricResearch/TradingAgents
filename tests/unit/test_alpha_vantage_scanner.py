@@ -7,10 +7,10 @@ Requires ALPHA_VANTAGE_API_KEY environment variable.
 import pytest
 
 from tradingagents.dataflows.alpha_vantage_scanner import (
-    get_market_movers_alpha_vantage,
-    get_market_indices_alpha_vantage,
-    get_sector_performance_alpha_vantage,
     get_industry_performance_alpha_vantage,
+    get_market_indices_alpha_vantage,
+    get_market_movers_alpha_vantage,
+    get_sector_performance_alpha_vantage,
     get_topic_news_alpha_vantage,
 )
 

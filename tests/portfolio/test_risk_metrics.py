@@ -31,7 +31,6 @@ from tradingagents.portfolio.risk_metrics import (
     compute_risk_metrics,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helper factories
 # ---------------------------------------------------------------------------

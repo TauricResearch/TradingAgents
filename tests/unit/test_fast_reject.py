@@ -4,17 +4,13 @@ This module tests the critical abort mechanism that short-circuits the trading a
 workflow when catastrophic conditions are detected in market or fundamentals reports.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
-
-from langchain_core.messages import AIMessage
 
 from tradingagents.agents.analysts.fundamentals_analyst import create_fundamentals_analyst
 from tradingagents.agents.analysts.market_analyst import create_market_analyst
 from tradingagents.agents.managers.critical_abort_terminal import create_critical_abort_terminal
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
-from tradingagents.graph.conditional_logic import ConditionalLogic, CRITICAL_ABORT_NODE
-
+from tradingagents.graph.conditional_logic import CRITICAL_ABORT_NODE, ConditionalLogic
 
 # ---------------------------------------------------------------------------
 # Mock Data

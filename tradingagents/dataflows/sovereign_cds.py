@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import re
 
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 
 from .stockstats_utils import YFinanceError
-
 
 _SOVEREIGN_CDS_ENDPOINT = "https://www.worldgovernmentbonds.com/wp-json/cds/v1/main"
 _SOVEREIGN_CDS_HEADERS = {

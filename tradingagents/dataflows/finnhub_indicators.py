@@ -10,9 +10,7 @@ from typing import Literal
 
 from .finnhub_common import (
     FinnhubError,
-    ThirdPartyParseError,
     _make_api_request,
-    _now_str,
     _to_unix_timestamp,
 )
 
@@ -184,7 +182,7 @@ def get_indicator_finnhub(
         result_lines.append(f"{'Date':<12} {'MACD':>12} {'Signal':>12} {'Histogram':>12}")
         result_lines.append("-" * 50)
 
-        for ts, macd, signal, hist in zip(timestamps, macd_vals, signal_vals, hist_vals):
+        for ts, macd, signal, hist in zip(timestamps, macd_vals, signal_vals, hist_vals, strict=False):
             date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
             macd_s = f"{macd:.4f}" if macd is not None else "N/A"
             sig_s = f"{signal:.4f}" if signal is not None else "N/A"
@@ -199,7 +197,7 @@ def get_indicator_finnhub(
         result_lines.append(f"{'Date':<12} {'Upper':>12} {'Middle':>12} {'Lower':>12}")
         result_lines.append("-" * 50)
 
-        for ts, upper, middle, lower in zip(timestamps, upper_vals, middle_vals, lower_vals):
+        for ts, upper, middle, lower in zip(timestamps, upper_vals, middle_vals, lower_vals, strict=False):
             date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
             u_s = f"{upper:.4f}" if upper is not None else "N/A"
             m_s = f"{middle:.4f}" if middle is not None else "N/A"
@@ -213,7 +211,7 @@ def get_indicator_finnhub(
         result_lines.append(f"{'Date':<12} {indicator.upper():>12}")
         result_lines.append("-" * 26)
 
-        for ts, value in zip(timestamps, values):
+        for ts, value in zip(timestamps, values, strict=False):
             date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
             val_s = f"{value:.4f}" if value is not None else "N/A"
             result_lines.append(f"{date_str:<12} {val_s:>12}")

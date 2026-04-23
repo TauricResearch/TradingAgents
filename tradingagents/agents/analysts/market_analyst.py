@@ -1,10 +1,9 @@
+import logging
+import re
 from datetime import datetime, timedelta
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
-import logging
-import re
 
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
@@ -25,7 +24,6 @@ from tradingagents.agents.utils.output_validation import (
 )
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.default_config import DEFAULT_CONFIG
-
 
 _INDICATOR_PLANS = {
     "risk_on": [

@@ -1,37 +1,41 @@
-from typing import Optional
 import datetime
 import json
-from tradingagents.agents.utils.json_utils import extract_json
-import typer
-from pathlib import Path
-from functools import wraps
-from rich.console import Console
-
-from rich.panel import Panel
-from rich.spinner import Spinner
-from rich.live import Live
-from rich.markdown import Markdown
-from rich.layout import Layout
-from rich.text import Text
-from rich.table import Table
-from collections import deque
 import time
+from collections import deque
+from functools import wraps
+from pathlib import Path
+
+import typer
 from rich import box
 from rich.align import Align
+from rich.console import Console
+from rich.layout import Layout
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.rule import Rule
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.spinner import Spinner
+from rich.table import Table
+from rich.text import Text
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.report_paths import generate_run_id, get_daily_dir, get_market_dir, get_ticker_dir
-from tradingagents.daily_digest import append_to_digest
-from tradingagents.notebook_sync import sync_to_notebooklm
-from tradingagents.default_config import DEFAULT_CONFIG
-from cli.utils import *
-from tradingagents.graph.scanner_graph import ScannerGraph
-from cli.announcements import fetch_announcements, display_announcements
+from cli.announcements import display_announcements, fetch_announcements
 from cli.stats_handler import StatsCallbackHandler
+from cli.utils import *
+from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.api_usage import format_av_assessment, format_vendor_breakdown
+from tradingagents.daily_digest import append_to_digest
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.scanner_graph import ScannerGraph
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.observability import RunLogger, set_run_logger
-from tradingagents.api_usage import format_vendor_breakdown, format_av_assessment
+from tradingagents.report_paths import (
+    generate_run_id,
+    get_daily_dir,
+    get_market_dir,
+    get_ticker_dir,
+)
 
 console = Console()
 
@@ -490,7 +494,7 @@ def _ask_provider_thinking_config(provider: str):
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
+    with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
@@ -907,7 +911,7 @@ def extract_content_string(content):
     """Extract string content from various message formats.
     Returns None if no meaningful text content is found.
     """
-    def is_empty(val):
+    def is_empty(val) -> bool:
         """Check if value is empty using Python's truthiness."""
         if val is None or val == "":
             return True
@@ -1133,7 +1137,7 @@ def run_analysis():
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=4):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1308,7 +1312,7 @@ def run_analysis():
 
         # Get final state and decision
         final_state = trace[-1]
-        decision = graph.process_signal(final_state["final_trade_decision"])
+        graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1434,7 +1438,7 @@ def run_reflect(date: str | None = None, horizons_str: str = "30,90"):
         console.print(table)
 
 
-def run_scan(date: Optional[str] = None):
+def run_scan(date: str | None = None):
     """Run the 3-phase LLM scanner pipeline via ScannerGraph."""
     console.print(
         Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green")
@@ -1557,18 +1561,19 @@ def run_scan(date: Optional[str] = None):
 
 
 def run_pipeline(
-    macro_path_str: Optional[str] = None,
-    min_conviction_opt: Optional[str] = None,
-    ticker_filter_list: Optional[list[str]] = None,
-    analysis_date_opt: Optional[str] = None,
-    dry_run_opt: Optional[bool] = None,
-    holdings_candidates: Optional[list] = None,
+    macro_path_str: str | None = None,
+    min_conviction_opt: str | None = None,
+    ticker_filter_list: list[str] | None = None,
+    analysis_date_opt: str | None = None,
+    dry_run_opt: bool | None = None,
+    holdings_candidates: list | None = None,
 ):
     """Full pipeline: scan -> filter -> per-ticker deep dive."""
     import asyncio
+
     from tradingagents.pipeline.macro_bridge import (
-        parse_macro_output,
         filter_candidates,
+        parse_macro_output,
         run_all_tickers,
         save_results,
     )
@@ -1773,7 +1778,7 @@ def analyze():
 
 @app.command()
 def scan(
-    date: Optional[str] = typer.Option(
+    date: str | None = typer.Option(
         None, "--date", "-d", help="Scan date in YYYY-MM-DD format (default: today)"
     ),
 ):
@@ -1783,7 +1788,7 @@ def scan(
 
 @app.command()
 def reflect(
-    date: Optional[str] = typer.Option(None, "--date", "-d", help="Reference date YYYY-MM-DD"),
+    date: str | None = typer.Option(None, "--date", "-d", help="Reference date YYYY-MM-DD"),
     horizons: str = typer.Option("30,90", "--horizons", help="Comma-separated lookback days"),
 ):
     """Reflect on past scan picks: compute returns, fetch news, generate screening lessons."""
@@ -1799,7 +1804,9 @@ def pipeline():
 def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
     """Run the Portfolio Manager end-to-end workflow."""
     import json
+
     import yfinance as yf
+
     from tradingagents.graph.portfolio_graph import PortfolioGraph
     from tradingagents.portfolio.repository import PortfolioRepository
 
@@ -1813,7 +1820,7 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
         console.print(f"[red]Scan summary not found: {macro_path}[/red]")
         raise typer.Exit(1)
 
-    with open(macro_path, "r") as f:
+    with open(macro_path) as f:
         try:
             scan_summary = json.load(f)
         except json.JSONDecodeError:
@@ -1922,7 +1929,7 @@ def check_portfolio(
     portfolio_id: str = typer.Option(
         "main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"
     ),
-    date: Optional[str] = typer.Option(
+    date: str | None = typer.Option(
         None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"
     ),
 ):
@@ -1956,7 +1963,7 @@ def auto(
     portfolio_id: str = typer.Option(
         "main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"
     ),
-    date: Optional[str] = typer.Option(
+    date: str | None = typer.Option(
         None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"
     ),
 ):
@@ -2015,12 +2022,12 @@ def estimate_api(
 ):
     """Estimate API usage per vendor (helps decide if AV premium is needed)."""
     from tradingagents.api_usage import (
-        estimate_analyze,
-        estimate_scan,
-        estimate_pipeline,
-        format_estimate,
         AV_FREE_DAILY_LIMIT,
         AV_PREMIUM_PER_MINUTE,
+        estimate_analyze,
+        estimate_pipeline,
+        estimate_scan,
+        format_estimate,
     )
 
     console.print(Panel("[bold green]API Usage Estimation[/bold green]", border_style="green"))

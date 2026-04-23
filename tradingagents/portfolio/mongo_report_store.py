@@ -19,14 +19,16 @@ Usage::
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from pymongo import DESCENDING, MongoClient
-from pymongo.collection import Collection
-from pymongo.database import Database
 
 from tradingagents.portfolio.exceptions import ReportStoreError
+
+if TYPE_CHECKING:
+    from pymongo.collection import Collection
+    from pymongo.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +137,7 @@ class MongoReportStore:
             "portfolio_id": portfolio_id,
             "data": data,
             "markdown": markdown,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
         try:
             result = self._col.insert_one(doc)

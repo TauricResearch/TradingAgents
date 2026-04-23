@@ -219,7 +219,7 @@ def beta(
     sum_ab = 0.0
     sum_b2 = 0.0
 
-    for a, b in zip(asset_returns, benchmark_returns):
+    for a, b in zip(asset_returns, benchmark_returns, strict=False):
         sum_ab += a * b
         sum_b2 += b * b
 
@@ -236,7 +236,7 @@ def beta(
 
 
 def sector_concentration(
-    holdings: list["Holding"],
+    holdings: list[Holding],
     portfolio_total_value: float,
 ) -> dict[str, float]:
     """Compute sector concentration as a fraction of portfolio total value.
@@ -302,7 +302,7 @@ _SECTOR_NORMALISE: dict[str, str] = {
 }
 
 def compute_holding_risk(
-    holding: "Holding",
+    holding: Holding,
     price_history: list[float],
     price_histories: dict[str, list[float]] | None = None,
     benchmark_prices: list[float] | None = None,
@@ -351,8 +351,8 @@ def compute_holding_risk(
 
 
 def compute_portfolio_risk(
-    portfolio: "Portfolio",
-    holdings: list["Holding"],
+    portfolio: Portfolio,
+    holdings: list[Holding],
     price_histories: dict[str, list[float]],
     benchmark_prices: list[float] | None = None,
 ) -> dict[str, Any]:
@@ -465,8 +465,8 @@ def compute_portfolio_risk(
 
 
 def check_constraints(
-    portfolio: "Portfolio",
-    holdings: list["Holding"],
+    portfolio: Portfolio,
+    holdings: list[Holding],
     config: dict[str, Any],
     new_ticker: str | None = None,
     new_shares: float = 0,

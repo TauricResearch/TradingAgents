@@ -1,6 +1,8 @@
 import asyncio
-import websockets
 import json
+
+import websockets
+
 
 async def test_ws():
     uri = "ws://localhost:8001/ws/stream/test_run"
@@ -14,7 +16,7 @@ async def test_ws():
                     print(f"Received: {data['type']} from {data.get('agent', 'system')}")
                     if data['type'] == 'system' and 'completed' in data['message']:
                         break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print("Timeout waiting for message")
                     break
     except Exception as e:

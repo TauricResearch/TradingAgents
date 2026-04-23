@@ -1,6 +1,6 @@
 """Tests for cli.main tool call parsing utility functions."""
-import pytest
 from cli.main import parse_tool_call
+
 
 class MockToolCall:
     def __init__(self, name, args):

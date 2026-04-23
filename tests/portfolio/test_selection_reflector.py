@@ -1,10 +1,16 @@
-import pytest
-import pandas as pd
 from unittest.mock import MagicMock
+
+import pandas as pd
+import pytest
 from langchain_core.messages import AIMessage
+
 from tradingagents.portfolio.selection_reflector import (
-    fetch_price_trend, fetch_news_summary, generate_lesson, reflect_on_scan
+    fetch_news_summary,
+    fetch_price_trend,
+    generate_lesson,
+    reflect_on_scan,
 )
+
 
 @pytest.fixture
 def mock_yf_download(monkeypatch):
@@ -46,7 +52,7 @@ def test_fetch_price_data_single_day(monkeypatch):
     assert top_move_dates == []
 
 def test_fetch_news_summary_weighted(monkeypatch):
-    def mock_get_company_news(ticker, start, end):
+    def mock_get_company_news(ticker, start, end) -> str:
         if start == "2025-01-01":
             return "- Start news 1\n- Start news 2\n- Start news 3"
         elif start == "2025-01-02":

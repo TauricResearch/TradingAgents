@@ -6,9 +6,9 @@ so that the code-under-test exercises every significant branch.
 """
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -105,8 +105,8 @@ class TestMakeApiRequest:
 
     def test_raises_rate_limit_error_on_information_field(self):
         from tradingagents.dataflows.alpha_vantage_common import (
-            _make_api_request,
             AlphaVantageRateLimitError,
+            _make_api_request,
         )
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
@@ -130,8 +130,9 @@ class TestMakeApiRequest:
                     _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
     def test_missing_api_key_raises_value_error(self):
-        from tradingagents.dataflows.alpha_vantage_common import _make_api_request
         import os
+
+        from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
         env = {k: v for k, v in os.environ.items() if k != "ALPHA_VANTAGE_API_KEY"}
         with patch.dict("os.environ", env, clear=True):
@@ -154,6 +155,7 @@ class TestMakeApiRequest:
         directly.  Either way, some exception must be raised.
         """
         import requests as _requests
+
         from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
         bad_resp = _mock_response("", status_code=403)
@@ -222,8 +224,9 @@ class TestFormatDatetimeForApi:
         assert result == "20240115T1430"
 
     def test_datetime_object_is_converted(self):
-        from tradingagents.dataflows.alpha_vantage_common import format_datetime_for_api
         from datetime import datetime
+
+        from tradingagents.dataflows.alpha_vantage_common import format_datetime_for_api
 
         dt = datetime(2024, 1, 15, 14, 30)
         result = format_datetime_for_api(dt)
@@ -276,8 +279,8 @@ class TestAlphaVantageGetStock:
         assert captured_params.get("outputsize") == "full"
 
     def test_rate_limit_error_propagates(self):
-        from tradingagents.dataflows.alpha_vantage_stock import get_stock
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
+        from tradingagents.dataflows.alpha_vantage_stock import get_stock
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_response(RATE_LIMIT_JSON)):
@@ -304,8 +307,8 @@ class TestAlphaVantageGetFundamentals:
         assert "TECHNOLOGY" in result
 
     def test_rate_limit_error_propagates(self):
-        from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
+        from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_response(RATE_LIMIT_JSON)):
@@ -390,8 +393,8 @@ class TestAlphaVantageGetNews:
         assert "Apple Hits Record High" in result
 
     def test_rate_limit_error_propagates(self):
-        from tradingagents.dataflows.alpha_vantage_news import get_news
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
+        from tradingagents.dataflows.alpha_vantage_news import get_news
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_response(RATE_LIMIT_JSON)):
@@ -499,8 +502,8 @@ class TestAlphaVantageGetInsiderTransactions:
         assert "Tim Cook" in result
 
     def test_rate_limit_error_propagates(self):
-        from tradingagents.dataflows.alpha_vantage_news import get_insider_transactions
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
+        from tradingagents.dataflows.alpha_vantage_news import get_insider_transactions
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_response(RATE_LIMIT_JSON)):

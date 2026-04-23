@@ -8,7 +8,7 @@ All constraint checks happen before each BUY.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from tradingagents.instruments import TRACKED_MARKET_INSTRUMENTS
@@ -70,7 +70,7 @@ class TradeExecutor:
         Returns:
             Dict with keys: executed_trades, failed_trades, snapshot, summary.
         """
-        trade_date = date or datetime.now(timezone.utc).isoformat()
+        trade_date = date or datetime.now(UTC).isoformat()
         executed_trades: list[dict[str, Any]] = []
         failed_trades: list[dict[str, Any]] = []
 

@@ -7,13 +7,14 @@ already exists in the state or on disk.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
+
 from tradingagents.report_paths import get_market_dir
 
 logger = logging.getLogger(__name__)
 
 
-def check_and_load_report(state: Dict[str, Any], field: str) -> str | None:
+def check_and_load_report(state: dict[str, Any], field: str) -> str | None:
     """Check if a report exists in state or on disk.
 
     Args:
@@ -44,7 +45,7 @@ def check_and_load_report(state: Dict[str, Any], field: str) -> str | None:
     return None
 
 
-def save_node_report(state: Dict[str, Any], field: str, content: str) -> None:
+def save_node_report(state: dict[str, Any], field: str, content: str) -> None:
     """Save a report to disk immediately for resumability.
 
     Args:

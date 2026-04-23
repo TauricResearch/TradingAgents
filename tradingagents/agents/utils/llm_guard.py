@@ -67,7 +67,7 @@ def invoke_with_timeout(
             )
             time.sleep(delay)
 
-        result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
+        result_queue: queue.Queue[tuple[str, object]] = queue.Queue(maxsize=1)
         parent_context = contextvars.copy_context()
 
         def _runner() -> None:

@@ -17,7 +17,6 @@ import pytest
 
 from tradingagents.agents.utils.summary_context import build_research_packet
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -386,6 +385,7 @@ class TestSocialMediaAnalystGroundTruth:
     def test_ground_truth_in_system_prompt(self):
         """Verify the social media analyst prompt template includes ground-truth instruction."""
         import inspect
+
         from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 
         src = inspect.getsource(create_social_media_analyst)

@@ -9,7 +9,6 @@ Run with:
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Scanner tool tests (yfinance-backed)
 # ---------------------------------------------------------------------------
@@ -211,8 +210,8 @@ class TestScannerRouting:
 
     def setup_method(self):
         """Set config to use alpha_vantage for scanner_data."""
-        from tradingagents.default_config import DEFAULT_CONFIG
         from tradingagents.dataflows.config import set_config
+        from tradingagents.default_config import DEFAULT_CONFIG
 
         config = DEFAULT_CONFIG.copy()
         config["data_vendors"]["scanner_data"] = "alpha_vantage"
@@ -266,8 +265,8 @@ class TestFallbackRouting:
 
     def setup_method(self):
         """Set config to use yfinance for scanner_data."""
-        from tradingagents.default_config import DEFAULT_CONFIG
         from tradingagents.dataflows.config import set_config
+        from tradingagents.default_config import DEFAULT_CONFIG
 
         config = DEFAULT_CONFIG.copy()
         config["data_vendors"]["scanner_data"] = "yfinance"

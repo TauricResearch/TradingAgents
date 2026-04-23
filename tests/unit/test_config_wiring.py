@@ -1,6 +1,5 @@
 """Tests for config wiring — new tools in ToolNodes, new state fields, etc."""
 
-import pytest
 
 
 class TestAgentStateFields:
@@ -44,7 +43,10 @@ class TestNewToolsExported:
     def test_tools_are_langchain_tools(self):
         """All new tools should be LangChain @tool decorated (have .name attribute)."""
         from tradingagents.agents.utils.fundamental_data_tools import (
-            get_ttm_analysis, get_peer_comparison, get_sector_relative, get_macro_regime
+            get_macro_regime,
+            get_peer_comparison,
+            get_sector_relative,
+            get_ttm_analysis,
         )
         for tool in [get_ttm_analysis, get_peer_comparison, get_sector_relative, get_macro_regime]:
             assert hasattr(tool, "name"), f"{tool} is not a LangChain tool"
@@ -71,8 +73,8 @@ class TestConditionalLogicWiring:
 
     def test_debate_threshold_calculation(self):
         """Threshold = 2 * max_debate_rounds."""
-        from tradingagents.graph.conditional_logic import ConditionalLogic
         from tradingagents.agents.utils.agent_states import InvestDebateState
+        from tradingagents.graph.conditional_logic import ConditionalLogic
         cl = ConditionalLogic(max_debate_rounds=2)
         # At count=4, should route to Research Manager
         state = {
@@ -86,8 +88,8 @@ class TestConditionalLogicWiring:
 
     def test_risk_threshold_calculation(self):
         """Threshold = 3 * max_risk_discuss_rounds."""
-        from tradingagents.graph.conditional_logic import ConditionalLogic
         from tradingagents.agents.utils.agent_states import RiskDebateState
+        from tradingagents.graph.conditional_logic import ConditionalLogic
         cl = ConditionalLogic(max_risk_discuss_rounds=2)
         state = {
             "risk_debate_state": RiskDebateState(
@@ -109,8 +111,8 @@ class TestNewModulesImportable:
 
     def test_peer_comparison_importable(self):
         from tradingagents.dataflows.peer_comparison import (
-            get_sector_peers, compute_relative_performance,
-            get_peer_comparison_report, get_sector_relative_report,
+            compute_relative_performance,
+            get_sector_peers,
         )
         assert callable(get_sector_peers)
         assert callable(compute_relative_performance)

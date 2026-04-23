@@ -1,16 +1,14 @@
 """Unit tests for context filtering utilities."""
 
-import pytest
 from tradingagents.agents.utils.context_filtering import (
-    filter_scanner_context_for_ticker,
+    _infer_sector_from_text,
+    extract_ticker_sector_from_rotation,
     filter_earnings_calendar,
     filter_economic_calendar,
-    extract_ticker_sector_from_rotation,
-    filter_smart_money_for_ticker,
     filter_factor_alignment_for_ticker,
-    _infer_sector_from_text,
+    filter_scanner_context_for_ticker,
+    filter_smart_money_for_ticker,
 )
-
 
 # Sample test data
 SAMPLE_SCANNER_CONTEXT = """# SCANNER CONTEXT PACKET: RIG

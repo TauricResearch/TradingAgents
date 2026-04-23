@@ -9,7 +9,6 @@ from typing import Literal
 
 from .finnhub_common import (
     FinnhubError,
-    ThirdPartyParseError,
     _make_api_request,
     _now_str,
 )
@@ -236,7 +235,7 @@ def get_basic_financials(symbol: str) -> str:
             "Symbol may be invalid or not covered on the free tier."
         )
 
-    series: dict = data.get("series", {})
+    data.get("series", {})
 
     def _fmt(key: str, prefix: str = "", suffix: str = "") -> str:
         """Format a metric value with optional prefix/suffix."""

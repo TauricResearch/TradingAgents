@@ -1,9 +1,9 @@
 """Tests for sector and peer relative performance comparison."""
 
-import pytest
-import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -11,7 +11,6 @@ from unittest.mock import patch, MagicMock
 
 def _make_price_series(n: int = 130, start: float = 100.0, growth: float = 0.001) -> pd.Series:
     """Create a synthetic daily price series."""
-    import numpy as np
     dates = pd.date_range("2025-09-01", periods=n, freq="B")
     prices = [start * (1 + growth) ** i for i in range(n)]
     return pd.Series(prices, index=dates)

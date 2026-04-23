@@ -1,5 +1,4 @@
 """Tests for scanner_graph_context_text field in AgentState and Propagator."""
-import pytest
 from tradingagents.graph.propagation import Propagator
 
 

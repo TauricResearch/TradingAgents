@@ -7,9 +7,12 @@ Appends individual report entries (analyze or scan) into a single
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tradingagents.report_paths import get_digest_path
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def append_to_digest(date: str, entry_type: str, label: str, content: str) -> Path:

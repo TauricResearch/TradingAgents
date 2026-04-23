@@ -32,7 +32,6 @@ from tradingagents.agents.utils.output_validation import (
 )
 from tradingagents.llm_clients.factory import create_llm_client
 
-
 pytestmark = [pytest.mark.integration, pytest.mark.enable_socket()]
 
 

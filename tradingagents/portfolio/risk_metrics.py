@@ -41,7 +41,6 @@ from typing import Any
 
 from tradingagents.portfolio.models import PortfolioSnapshot
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -275,7 +274,7 @@ def compute_risk_metrics(
             mu_b = _mean(r_b)
             # Optimized: Use zip to iterate over lists directly instead of expensive indexing
             covariance = sum(
-                (p - mu_p) * (b - mu_b) for p, b in zip(r_p, r_b)
+                (p - mu_p) * (b - mu_b) for p, b in zip(r_p, r_b, strict=False)
             ) / (min_len - 1)
             var_b = _std(r_b) ** 2
             if var_b > 0.0:

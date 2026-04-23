@@ -5,10 +5,10 @@ No test in tests/unit/ can hit a real API.
 """
 
 import json
-import pandas as pd
-import pytest
 from unittest.mock import MagicMock
 
+import pandas as pd
+import pytest
 
 # -- yfinance mock factories --
 

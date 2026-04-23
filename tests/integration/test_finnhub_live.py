@@ -33,7 +33,6 @@ import os
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Global skip guard — skip every test in this file if no API key is present.
 # ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
+import time
+
 import pandas as pd
 import yfinance as yf
-import os
-import time
-from typing import Annotated
+
 
 # Let's mock _clean_dataframe
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
@@ -59,7 +59,6 @@ data = yf.download(
 )
 data = data.reset_index()
 
-import time
 
 iterations = 100
 

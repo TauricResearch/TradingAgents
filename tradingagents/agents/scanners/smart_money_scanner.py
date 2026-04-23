@@ -14,17 +14,17 @@ import logging
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.utils.report_quality import tag_report
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 from tradingagents.agents.utils.scanner_tools import (
     get_breakout_accumulation_stocks,
     get_insider_buying_stocks,
     get_unusual_volume_stocks,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.agents.utils.report_quality import tag_report
-from tradingagents.agents.utils.scanner_idempotency import (
-    check_and_load_report,
-    save_node_report,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +49,6 @@ def create_smart_money_scanner(llm):
         # Inject sector rotation context — available because this node runs
         # after sector_scanner completes.
         sector_context = state.get("sector_performance_report", "")
-        sector_section = (
-            f"\n\nSector rotation context from the Sector Scanner:\n{sector_context}"
-            if sector_context
-            else ""
-        )
 
         system_message = (
             "You are a Senior Quantitative Analyst and Systems Architect hunting for institutional footprints. "

@@ -1,14 +1,14 @@
 """Alpha Vantage-based scanner data fetching for market-wide analysis."""
 
 import json
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Annotated
 
 from .alpha_vantage_common import (
-    _rate_limited_request,
     AlphaVantageError,
     RateLimitError,
     ThirdPartyParseError,
+    _rate_limited_request,
 )
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 from pathlib import Path
-from tradingagents.portfolio.lesson_store import LessonStore
+
 from tradingagents.agents.utils.memory import FinancialSituationMemory
+from tradingagents.portfolio.lesson_store import LessonStore
+
 
 def load_into_memory(lesson_store: LessonStore,
                      memory: FinancialSituationMemory) -> int:

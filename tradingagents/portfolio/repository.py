@@ -18,9 +18,8 @@ See ``docs/portfolio/04_repository_api.md`` for full API documentation.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from tradingagents.portfolio.config import get_portfolio_config
 from tradingagents.portfolio.exceptions import (
@@ -37,6 +36,9 @@ from tradingagents.portfolio.models import (
 )
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.supabase_client import SupabaseClient
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class PortfolioRepository:
@@ -176,7 +178,7 @@ class PortfolioRepository:
             shares=shares,
             price=price,
             total_value=cost,
-            trade_date=datetime.now(timezone.utc).isoformat(),
+            trade_date=datetime.now(UTC).isoformat(),
             signal_source="pm_agent",
             stop_loss=stop_loss,
             take_profit=take_profit,
@@ -234,7 +236,7 @@ class PortfolioRepository:
             shares=shares,
             price=price,
             total_value=proceeds,
-            trade_date=datetime.now(timezone.utc).isoformat(),
+            trade_date=datetime.now(UTC).isoformat(),
             signal_source="pm_agent",
         )
         self._client.record_trade(trade)
@@ -368,7 +370,7 @@ class PortfolioRepository:
         snapshot = PortfolioSnapshot(
             snapshot_id=str(uuid.uuid4()),
             portfolio_id=portfolio.portfolio_id,
-            snapshot_date=datetime.now(timezone.utc).isoformat(),
+            snapshot_date=datetime.now(UTC).isoformat(),
             total_value=portfolio.total_value or portfolio.cash,
             cash=portfolio.cash,
             equity_value=portfolio.equity_value or 0.0,

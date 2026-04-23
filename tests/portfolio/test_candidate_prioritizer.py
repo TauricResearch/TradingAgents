@@ -11,12 +11,11 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.portfolio.models import Holding, Portfolio
 from tradingagents.portfolio.candidate_prioritizer import (
     prioritize_candidates,
     score_candidate,
 )
-
+from tradingagents.portfolio.models import Holding, Portfolio
 
 # ---------------------------------------------------------------------------
 # Helpers

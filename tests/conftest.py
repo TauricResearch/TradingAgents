@@ -1,6 +1,7 @@
 """Shared fixtures and markers for TradingAgents tests."""
 
 import os
+
 import pytest
 
 # Keep tests deterministic: do not auto-load developer-local .env

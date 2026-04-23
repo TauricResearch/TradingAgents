@@ -1,7 +1,7 @@
-import json
 import pytest
-from pathlib import Path
+
 from tradingagents.portfolio.lesson_store import LessonStore
+
 
 @pytest.fixture
 def tmp_store(tmp_path):

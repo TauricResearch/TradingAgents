@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import json
+
 """Tests for Macro_Summary_Agent and Micro_Summary_Agent.
 
 Strategy:
@@ -14,10 +16,10 @@ Strategy:
 
 from unittest.mock import MagicMock
 
-import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
+from tradingagents.agents.portfolio.holding_reviewer import create_holding_reviewer
 from tradingagents.agents.portfolio.macro_summary_agent import (
     create_macro_summary_agent,
 )
@@ -25,12 +27,9 @@ from tradingagents.agents.portfolio.micro_summary_agent import (
     _analysis_snapshot,
     create_micro_summary_agent,
 )
-from tradingagents.agents.portfolio.holding_reviewer import create_holding_reviewer
 from tradingagents.agents.portfolio.pm_decision_agent import (
-    PMDecisionSchema,
     create_pm_decision_agent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

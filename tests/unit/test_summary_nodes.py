@@ -7,7 +7,6 @@ from tradingagents.agents.managers.context_summaries import (
     create_risk_debate_summary,
 )
 from tradingagents.agents.managers.summary_rules import (
-    INVESTMENT_DEBATE_SUMMARY,
     RESEARCH_PACKET_SUMMARY,
     generate_summary_prompt,
 )
@@ -167,7 +166,7 @@ def test_bull_researcher_uses_summary_context_when_available():
 
     result = node(state)
 
-    prompt = llm.invoke.call_args.args[0]
+    llm.invoke.call_args.args[0]
     # Anonymized ticker replaces AAPL in the prompt context
     assert result["investment_debate_state"]["current_response"].startswith("Bull Analyst:")
 

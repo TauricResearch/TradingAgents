@@ -1,11 +1,12 @@
 import json
 import os
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from tradingagents.notebook_sync import sync_to_notebooklm
+
 
 @pytest.fixture
 def mock_nlm_path(tmp_path):

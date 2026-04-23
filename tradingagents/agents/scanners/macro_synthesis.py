@@ -2,18 +2,16 @@ import json
 import logging
 import re
 from collections import defaultdict
-from typing import Any, Dict
 
-from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+
 from tradingagents.agents.utils.json_utils import extract_json
-from tradingagents.instruments import CanonicalInstrument, resolve_instrument, is_equity_pipeline_supported
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
 )
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 _TICKER_RE = re.compile(r"\b[A-Z]{1,5}\b")

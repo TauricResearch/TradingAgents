@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from tradingagents.portfolio.models import Holding, Portfolio
 from tradingagents.portfolio.risk_evaluator import (
     beta,
@@ -25,7 +23,6 @@ from tradingagents.portfolio.risk_evaluator import (
     sortino_ratio,
     value_at_risk,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

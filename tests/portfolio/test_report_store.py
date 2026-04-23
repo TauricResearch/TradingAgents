@@ -19,7 +19,6 @@ import pytest
 from tradingagents.portfolio.exceptions import ReportStoreError
 from tradingagents.portfolio.report_store import ReportStore
 
-
 # ---------------------------------------------------------------------------
 # Macro scan
 # ---------------------------------------------------------------------------

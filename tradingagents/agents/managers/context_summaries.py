@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from tradingagents.agents.utils.summary_context import (
-    build_research_packet,
     build_investment_debate_summary,
+    build_research_packet,
     build_risk_debate_summary,
 )
+
 
 def _build_investment_debate_input(prior_summary: str, current_response: str) -> str:
     return f"""Previous summary:

@@ -1,11 +1,12 @@
 """Tests for daily_digest.py"""
 
-import pytest
-from pathlib import Path
-from unittest.mock import patch
 from datetime import datetime
+from unittest.mock import patch
+
+import pytest
 
 from tradingagents.daily_digest import append_to_digest
+
 
 @pytest.fixture
 def mock_get_digest_path(tmp_path):

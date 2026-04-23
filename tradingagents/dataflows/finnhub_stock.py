@@ -14,7 +14,6 @@ from .finnhub_common import (
     _to_unix_timestamp,
 )
 
-
 # Finnhub resolution codes for the /stock/candle endpoint
 _RESOLUTION_DAILY = "D"
 
@@ -73,7 +72,7 @@ def get_stock_candles(symbol: str, start_date: str, end_date: str) -> str:
         )
 
     rows: list[str] = ["timestamp,open,high,low,close,volume"]
-    for ts, o, h, lo, c, v in zip(timestamps, opens, highs, lows, closes, volumes):
+    for ts, o, h, lo, c, v in zip(timestamps, opens, highs, lows, closes, volumes, strict=False):
         date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
         rows.append(f"{date_str},{o},{h},{lo},{c},{v}")
 

@@ -2,6 +2,7 @@
 
 from tradingagents.dataflows.finnhub_scanner import _safe_fmt
 
+
 def test_safe_fmt_none_returns_default_fallback():
     assert _safe_fmt(None) == "N/A"
 

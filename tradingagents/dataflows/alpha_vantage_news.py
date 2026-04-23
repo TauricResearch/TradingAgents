@@ -2,7 +2,6 @@ import json
 
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 
-
 _DEFAULT_COMPANY_NEWS_LIMIT = 12
 
 

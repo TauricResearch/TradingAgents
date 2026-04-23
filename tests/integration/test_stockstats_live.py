@@ -15,9 +15,8 @@ promotes the lowercase ``date`` column to the DataFrame index, so the old
 name. The fix uses ``df.index.strftime("%Y-%m-%d")`` instead.
 """
 
-import pytest
 import pandas as pd
-
+import pytest
 
 pytestmark = pytest.mark.integration
 

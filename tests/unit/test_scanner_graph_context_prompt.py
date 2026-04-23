@@ -1,6 +1,4 @@
 """Tests that analyst/trader prompts consume scanner_graph_context_text and not scanner_context_packet."""
-import pytest
-from unittest.mock import MagicMock, patch
 
 
 GRAPH_CTX = (

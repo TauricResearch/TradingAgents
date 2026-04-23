@@ -7,14 +7,13 @@ These tests verify:
 4. Trading graph logging handles incomplete nested state
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
-from tradingagents.graph.conditional_logic import ConditionalLogic
-from tradingagents.graph.setup import GraphSetup
-from tradingagents.graph.portfolio_graph import PortfolioGraph
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
 
+from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
+from tradingagents.graph.conditional_logic import ConditionalLogic
+from tradingagents.graph.portfolio_graph import PortfolioGraph
+from tradingagents.graph.setup import GraphSetup
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # ---------------------------------------------------------------------------
 # A. Test tools_* nodes are removed from graph

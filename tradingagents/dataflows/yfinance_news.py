@@ -1,9 +1,11 @@
 """yfinance-based news data fetching functions."""
 
-import yfinance as yf
-import requests
 from datetime import datetime
+
+import requests
+import yfinance as yf
 from dateutil.relativedelta import relativedelta
+
 from .finnhub_common import ThirdPartyTimeoutError
 
 
@@ -325,7 +327,7 @@ def get_global_news_yfinance(
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching global news")
+        raise ThirdPartyTimeoutError("Request timed out fetching global news")
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

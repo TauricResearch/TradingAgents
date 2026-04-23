@@ -1,5 +1,7 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from tradingagents.agents.analysts.fundamentals_analyst import create_fundamentals_analyst
+
 
 def test_fundamentals_analyst_prefetches_tools():
     llm = MagicMock()

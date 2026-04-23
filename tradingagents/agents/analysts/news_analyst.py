@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -8,16 +8,15 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     prefetch_tools_parallel,
 )
-from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
-from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.output_validation import (
     log_validation_result,
     render_structured_news_payload,
     validate_structured_news_payload,
 )
-from tradingagents.memory.news_evidence import NewsEvidenceStore
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.memory.news_evidence import NewsEvidenceStore
 
 logger = logging.getLogger(__name__)
 

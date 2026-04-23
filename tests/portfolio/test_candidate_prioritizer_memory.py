@@ -1,7 +1,9 @@
 import pytest
-from tradingagents.portfolio.candidate_prioritizer import prioritize_candidates
+
 from tradingagents.agents.utils.memory import FinancialSituationMemory
-from tradingagents.portfolio.models import Portfolio, Holding
+from tradingagents.portfolio.candidate_prioritizer import prioritize_candidates
+from tradingagents.portfolio.models import Portfolio
+
 
 @pytest.fixture
 def empty_portfolio():
@@ -68,7 +70,6 @@ def test_score_threshold_boundary(empty_portfolio, test_candidate):
     memory.add_situations([("completely unrelated stuff that barely matches maybe one token aapl", "lesson text")])
 
     # Manually overwrite the get_memories to return a score exactly 0.5
-    original_get = memory.get_memories
     memory.get_memories = lambda *args, **kwargs: [{"similarity_score": 0.5, "recommendation": "lesson text"}]
 
     enriched = prioritize_candidates(

@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import TYPE_CHECKING
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.memory.macro_memory import MacroMemory
+if TYPE_CHECKING:
+    from tradingagents.memory.macro_memory import MacroMemory
 
 logger = logging.getLogger(__name__)
 

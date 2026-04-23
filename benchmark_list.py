@@ -1,6 +1,6 @@
 import time
+
 import pandas as pd
-import numpy as np
 
 # Let's see how much time it takes to create DataFrame columns using list comprehension vs pandas vectorized string methods
 

@@ -1,14 +1,13 @@
 """yfinance-based scanner data fetching functions for market-wide analysis."""
 
+import logging
+import threading
 from datetime import datetime
 from typing import Annotated
-import threading
 
 import requests
 import yfinance as yf
 from yfinance import EquityQuery
-
-import logging
 
 from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import YFinanceError, safe_yf_download
@@ -124,7 +123,7 @@ def get_market_movers_yfinance(
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching market movers")
+        raise ThirdPartyTimeoutError("Request timed out fetching market movers")
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -470,7 +469,7 @@ def get_market_indices_yfinance() -> str:
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching market indices")
+        raise ThirdPartyTimeoutError("Request timed out fetching market indices")
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -564,7 +563,7 @@ def get_sector_performance_yfinance() -> str:
         return "\n".join(lines) + "\n"
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching sector performance")
+        raise ThirdPartyTimeoutError("Request timed out fetching sector performance")
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -668,7 +667,7 @@ def get_industry_performance_yfinance(
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching industry performance")
+        raise ThirdPartyTimeoutError("Request timed out fetching industry performance")
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

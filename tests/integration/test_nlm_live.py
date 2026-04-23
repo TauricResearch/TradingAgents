@@ -1,8 +1,9 @@
-import os
 import json
+import os
 import subprocess
-import pytest
 from pathlib import Path
+
+import pytest
 
 # This test requires a real NOTEBOOKLM_ID in .env and nlm CLI logged in.
 # It is excluded from regular unit tests by its location/filename.

@@ -1,7 +1,7 @@
 """Unit tests for news fact-checker canonical contract normalization."""
 
-import pytest
 from unittest.mock import MagicMock
+
 from tradingagents.agents.managers.news_fact_checker import create_news_fact_checker
 from tradingagents.memory.news_evidence import NewsEvidenceRecord
 
@@ -341,7 +341,6 @@ class TestNewsFactCheckerCanonicalContract:
         assert structured["claims"][0]["source"] == "Finviz Smart Money Scanner"
         assert structured["claims"][0]["scan_date"] == "2026-04-10"
         assert "Finviz Smart Money Scanner" in result["news_report"]
-from tradingagents.memory.news_evidence import NewsEvidenceRecord
 
 
 class FakeEvidenceStore:

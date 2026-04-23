@@ -10,12 +10,9 @@ from datetime import datetime
 from typing import Literal
 
 from .finnhub_common import (
-
-    FinnhubError,
     ThirdPartyTimeoutError,
     _make_api_request,
     _now_str,
-    _to_unix_timestamp,
 )
 
 logger = logging.getLogger(__name__)

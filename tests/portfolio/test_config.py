@@ -1,7 +1,9 @@
 """Tests for tradingagents/portfolio/config.py."""
 
 import pytest
+
 from tradingagents.portfolio.config import validate_config
+
 
 def test_validate_config_valid():
     """Happy path: valid configuration."""

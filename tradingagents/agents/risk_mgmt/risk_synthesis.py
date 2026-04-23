@@ -1,6 +1,5 @@
 """Risk synthesis node — consolidates 2 rounds of parallel risk debate into a summary."""
 
-from langchain_core.messages import AIMessage
 
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured

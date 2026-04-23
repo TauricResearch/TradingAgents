@@ -14,7 +14,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 # Ensure project root is on sys.path (works in CI and local)
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -31,7 +31,6 @@ from agent_os.backend.services.run_helpers import (
     is_rate_limit_error,
     resolve_tier_model_provider,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -253,7 +252,7 @@ class TestRunScanReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             mock_rs_cls.return_value.save_scan = MagicMock()
-            events = asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
+            asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
 
         # All five report keys should have been written (the path uses f"{key}.md")
         for key in ("geopolitical_report", "market_movers_report", "sector_performance_report",
@@ -358,7 +357,7 @@ class TestRunScanReportStorage(unittest.TestCase):
             mock_rs_cls.return_value = mock_store
 
             # Should not raise
-            events = asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
+            asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
 
         mock_store.save_scan.assert_not_called()
         # .md files should still have been written
@@ -859,7 +858,7 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             mock_rs_cls.return_value = mock_store
 
             # Should not raise
-            events = asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
+            asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
 
         self.assertEqual(captured_state.get("ticker_analyses"), {})
         mock_store.load_analysis.assert_not_called()
@@ -1170,7 +1169,6 @@ class TestRunAutoTickerSource(unittest.TestCase):
         completed_tickers = set()
 
         engine = LangGraphEngine()
-        original_run_pipeline = engine.run_pipeline
 
         async def fake_run_pipeline(run_id, params):
             ticker = params.get("ticker")

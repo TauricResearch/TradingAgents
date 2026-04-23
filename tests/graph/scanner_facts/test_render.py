@@ -2,7 +2,6 @@
 
 All tests use in-memory facts dicts. No real files except the LangChain tool integration test.
 """
-import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -224,7 +223,7 @@ def test_render_provenance_truncated_first():
 # ---- empty / missing ----
 
 def test_render_empty_subgraph_empty_regime_returns_empty_string():
-    facts = _make_facts(
+    _make_facts(
         nodes=[],
         edges=[],
         global_regime={"summary": "", "bullets": [], "source": "macro_scan_summary.json"},
@@ -266,7 +265,6 @@ def test_render_resolves_alias():
 
 def test_render_tool_produces_same_output(tmp_path):
     """LangChain render tool invocation must produce identical text to direct function call."""
-    import shutil
     from tradingagents.graph.scanner_facts.builder import save_scanner_graph_facts
 
     # Build a minimal facts dict and save it to tmp

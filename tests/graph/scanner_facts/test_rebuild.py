@@ -2,15 +2,13 @@
 
 All tests use tmp_path or fixture dirs — never real reports/.
 """
-import json
 import shutil
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from tradingagents.graph.scanner_facts.rebuild import rebuild_scanner_graph_facts
 from tradingagents.graph.scanner_facts.builder import load_scanner_graph_facts
+from tradingagents.graph.scanner_facts.rebuild import rebuild_scanner_graph_facts
 from tradingagents.graph.scanner_facts.schema import validate_graph_facts
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -31,7 +29,7 @@ def _make_tmp_market_dir(tmp_path: Path) -> Path:
 # ---- basic rebuild ----
 
 def test_rebuild_creates_artifact(tmp_path):
-    market = _make_tmp_market_dir(tmp_path)
+    _make_tmp_market_dir(tmp_path)
     path = rebuild_scanner_graph_facts(
         "2026-04-16", "TESTRUN",
         reports_root=tmp_path / "reports",
@@ -41,7 +39,7 @@ def test_rebuild_creates_artifact(tmp_path):
 
 
 def test_rebuild_artifact_schema_valid(tmp_path):
-    market = _make_tmp_market_dir(tmp_path)
+    _make_tmp_market_dir(tmp_path)
     path = rebuild_scanner_graph_facts(
         "2026-04-16", "TESTRUN",
         reports_root=tmp_path / "reports",
@@ -52,7 +50,7 @@ def test_rebuild_artifact_schema_valid(tmp_path):
 
 
 def test_rebuild_overwrites_existing(tmp_path):
-    market = _make_tmp_market_dir(tmp_path)
+    _make_tmp_market_dir(tmp_path)
     path1 = rebuild_scanner_graph_facts(
         "2026-04-16", "TESTRUN",
         reports_root=tmp_path / "reports",
@@ -71,7 +69,7 @@ def test_rebuild_overwrites_existing(tmp_path):
 
 
 def test_rebuild_no_overwrite_flag(tmp_path):
-    market = _make_tmp_market_dir(tmp_path)
+    _make_tmp_market_dir(tmp_path)
     path = rebuild_scanner_graph_facts(
         "2026-04-16", "TESTRUN",
         reports_root=tmp_path / "reports",

@@ -24,7 +24,6 @@ from tradingagents.agents.utils.summary_context import (
 )
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
-
 pytestmark = pytest.mark.integration
 
 

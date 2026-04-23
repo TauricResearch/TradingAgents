@@ -4,9 +4,8 @@ This module provides functions to filter scanner context packets to only include
 ticker-relevant information, reducing context from ~10K to ~3-4K tokens.
 """
 
-import re
 import logging
-from typing import Dict, List, Tuple, Optional
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +106,7 @@ def filter_scanner_context_for_ticker(scanner_context: str, ticker: str) -> str:
         return scanner_context
 
 
-def _find_section_by_prefix(sections: Dict[str, str], prefix: str) -> str:
+def _find_section_by_prefix(sections: dict[str, str], prefix: str) -> str:
     """Find a section by prefix match (handles variable-length titles)."""
     for key, value in sections.items():
         if key.startswith(prefix):
@@ -115,7 +114,7 @@ def _find_section_by_prefix(sections: Dict[str, str], prefix: str) -> str:
     return ""
 
 
-def _split_scanner_sections(scanner_context: str) -> Dict[str, str]:
+def _split_scanner_sections(scanner_context: str) -> dict[str, str]:
     """Split scanner context into sections by ## headers."""
     sections = {}
     
@@ -431,9 +430,9 @@ def filter_smart_money_for_ticker(smart_money_report: str, ticker: str) -> str:
     ticker_sector = _infer_sector_from_text(smart_money_body or smart_money_report, ticker)
     related_sectors = RELATED_SECTORS.get(ticker_sector or "", [])
 
-    ticker_paragraphs: List[str] = []
-    sector_paragraphs: List[str] = []
-    market_paragraphs: List[str] = []  # broad market / macro signals
+    ticker_paragraphs: list[str] = []
+    sector_paragraphs: list[str] = []
+    market_paragraphs: list[str] = []  # broad market / macro signals
 
     market_keywords = ["market", "broad", "all sectors", "overall", "macro", "index", "s&p", "nasdaq", "dow"]
 
@@ -477,7 +476,7 @@ def filter_smart_money_for_ticker(smart_money_report: str, ticker: str) -> str:
     return smart_money_report
 
 
-def _extract_smart_money_metadata_block(report: str) -> Tuple[str, str]:
+def _extract_smart_money_metadata_block(report: str) -> tuple[str, str]:
     """Split leading provenance metadata from the smart-money narrative body."""
     if not report:
         return "", ""
@@ -485,7 +484,7 @@ def _extract_smart_money_metadata_block(report: str) -> Tuple[str, str]:
     lines = report.splitlines()
     while lines and not lines[0].strip():
         lines.pop(0)
-    metadata_lines: List[str] = []
+    metadata_lines: list[str] = []
     body_start = 0
 
     for idx, line in enumerate(lines):
@@ -546,9 +545,9 @@ def filter_factor_alignment_for_ticker(factor_report: str, ticker: str) -> str:
 
     market_keywords = ["summary", "regime", "macro", "factor", "overall", "market", "broad", "index"]
 
-    ticker_sections: List[str] = []
-    sector_sections: List[str] = []
-    summary_sections: List[str] = []
+    ticker_sections: list[str] = []
+    sector_sections: list[str] = []
+    summary_sections: list[str] = []
 
     for section in sections:
         section_lower = section.lower()
@@ -577,7 +576,7 @@ def filter_factor_alignment_for_ticker(factor_report: str, ticker: str) -> str:
     return f"[No {ticker}-specific factor data found. Showing general context:]\n\n{truncated}"
 
 
-def _infer_sector_from_text(text: str, ticker: str) -> Optional[str]:
+def _infer_sector_from_text(text: str, ticker: str) -> str | None:
     """
     Heuristic to infer a ticker's sector from text.
     

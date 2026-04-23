@@ -4,11 +4,11 @@ This module provides validation functions to check if agent outputs are actually
 analyzing the provided data rather than hallucinating generic content.
 """
 
-import json
-import re
 import logging
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional, Tuple
+from typing import Any
 
 from tradingagents.agents.utils.json_utils import extract_json
 
@@ -1086,7 +1086,7 @@ def build_final_decision_structured(
 def canonicalize_source_name(
     raw_source: str,
     allowed_source_names: Iterable[str] | None = None,
-) -> Optional[str]:
+) -> str | None:
     """Return a canonical source id for an explicit citation string."""
     normalized = _normalize_source_name(raw_source)
     if not normalized:
@@ -1719,7 +1719,7 @@ def validate_ticker_relevance(
     ticker: str,
     min_mentions: int = 3,
     check_article_refs: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Validate that agent output actually references the ticker.
     
@@ -1796,7 +1796,7 @@ def validate_ticker_relevance(
     return (True, "Valid ticker-relevant output")
 
 
-def validate_news_analysis(output: str, ticker: str) -> Tuple[bool, str]:
+def validate_news_analysis(output: str, ticker: str) -> tuple[bool, str]:
     """
     Specialized validation for news analyst output.
     

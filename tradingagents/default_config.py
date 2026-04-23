@@ -13,10 +13,12 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Mapping, MutableMapping
+from typing import TYPE_CHECKING
 
 from dotenv import dotenv_values
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
 
 _PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
 _REPO_ROOT = Path(__file__).resolve().parent.parent

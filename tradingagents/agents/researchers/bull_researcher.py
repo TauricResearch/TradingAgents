@@ -1,3 +1,5 @@
+from langchain_core.messages import AIMessage
+
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
@@ -7,7 +9,6 @@ from tradingagents.agents.utils.summary_context import (
     get_investment_debate_summary,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
-from langchain_core.messages import AIMessage
 
 
 def create_bull_researcher(llm, memory):
@@ -26,7 +27,7 @@ def create_bull_researcher(llm, memory):
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
+        for _i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         # Anonymize data variables to prevent training-data bias

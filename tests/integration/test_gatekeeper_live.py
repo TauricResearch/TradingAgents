@@ -6,7 +6,6 @@ mocks so the scanner foundation is validated before more graph changes land.
 
 import pytest
 
-
 pytestmark = [pytest.mark.integration, pytest.mark.enable_socket()]
 
 
@@ -77,8 +76,8 @@ def test_gatekeeper_universe_yfinance_primary_path_live():
 
 def test_gatekeeper_universe_yfinance_numeric_evidence_live():
     """Validates that the returned report contains numeric price / market-cap evidence."""
-    from tradingagents.dataflows.yfinance_scanner import get_gatekeeper_universe_yfinance
     from tradingagents.agents.utils.report_quality import assess_report_quality
+    from tradingagents.dataflows.yfinance_scanner import get_gatekeeper_universe_yfinance
 
     result = get_gatekeeper_universe_yfinance(limit=10)
 
@@ -98,7 +97,9 @@ def test_gatekeeper_universe_yfinance_fallback_path_live():
     screener using a real live network call (no mock for the fallback itself)."""
     import time
     from unittest.mock import patch
+
     import yfinance as yf
+
     from tradingagents.dataflows.yfinance_scanner import get_gatekeeper_universe_yfinance
 
     original_screen = yf.screen

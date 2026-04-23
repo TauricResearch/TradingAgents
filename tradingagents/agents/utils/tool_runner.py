@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, List
+from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.default_config import DEFAULT_CONFIG
-
 
 # Most LLM tool-calling patterns resolve within 2-3 rounds;
 # 5 provides headroom for complex scenarios while preventing runaway loops.
@@ -49,8 +48,8 @@ logger = logging.getLogger(__name__)
 
 def run_tool_loop(
     chain,
-    messages: List[Any],
-    tools: List[Any],
+    messages: list[Any],
+    tools: list[Any],
     max_rounds: int = MAX_TOOL_ROUNDS,
     min_report_length: int = MIN_REPORT_LENGTH,
     max_tool_output_chars: int = MAX_TOOL_OUTPUT_CHARS,

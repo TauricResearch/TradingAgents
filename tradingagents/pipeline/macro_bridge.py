@@ -6,16 +6,19 @@ import asyncio
 import json
 import logging
 import time
-from tradingagents.agents.utils.json_utils import extract_json
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import Callable, Literal
+from typing import TYPE_CHECKING, Literal
+
+from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.instruments import (
     is_equity_pipeline_supported,
     resolve_instrument,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +27,7 @@ ConvictionLevel = Literal["high", "medium", "low"]
 CONVICTION_RANK: dict[str, int] = {"high": 3, "medium": 2, "low": 1}
 
 
-def _supports_equity_pipeline(candidate: "StockCandidate") -> bool:
+def _supports_equity_pipeline(candidate: StockCandidate) -> bool:
     if candidate.asset_class or candidate.instrument_type:
         return candidate.asset_class == "equity" and candidate.instrument_type == "common_stock"
     return is_equity_pipeline_supported(resolve_instrument(candidate.ticker, source_context="candidate"))

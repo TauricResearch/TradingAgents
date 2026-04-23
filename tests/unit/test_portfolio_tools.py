@@ -16,8 +16,7 @@ Run::
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -27,9 +26,10 @@ from tradingagents.agents.utils.portfolio_tools import (
     load_portfolio_decision,
     load_portfolio_risk_metrics,
 )
-from tradingagents.portfolio.models import Holding, Portfolio, PortfolioSnapshot
 from tradingagents.portfolio.report_store import ReportStore
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Fixtures
