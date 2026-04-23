@@ -219,6 +219,38 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Polymarket Prediction Market Signals
+
+TradingAgents can incorporate crowd-sourced probability estimates from [Polymarket](https://polymarket.com/) prediction markets. Macro events like Fed rate decisions, tariff changes, and recession odds are fetched from the public Gamma API (no API key required) and injected into analyst prompts as additional context.
+
+**How it works:**
+1. Fetches active prediction markets from the Polymarket Gamma API
+2. Filters for financially relevant events (≥40% probability, ≥$100K volume)
+3. Categorizes signals: Fed/Rates, Economy, Trade, Regulation, Corporate, Crypto, Energy, Tech, Macro
+4. Injects formatted context into fundamentals, sentiment, and news analyst prompts
+
+**Configuration:**
+```python
+config = DEFAULT_CONFIG.copy()
+config["polymarket_enabled"] = True   # default: True
+```
+
+**CLI flags:**
+```bash
+tradingagents --polymarket       # enable (default)
+tradingagents --no-polymarket    # disable
+```
+
+**Example output injected into analyst context:**
+```
+Current prediction market signals (Polymarket):
+- Fed cuts rates by June 2026: 72% probability ($2.1M volume) [Fed/Rates]
+- US enters recession in 2026: 45% probability ($1.8M volume) [Economy]
+- New China tariffs before July 2026: 61% probability ($950K volume) [Trade]
+```
+
+Signals are purely informational context for the LLM analysts — they do not directly drive trading decisions.
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
