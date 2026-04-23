@@ -1,42 +1,24 @@
 # TradingAgents/graph/trading_graph.py
 
-import os
 import json
+import os
 from copy import deepcopy
-from typing import Dict, Any, List, Optional
-
-from tradingagents.llm_clients import create_llm_client
+from typing import Any
 
 from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
+
+# Import the new abstract tool methods
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients import create_llm_client
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 from tradingagents.report_paths import generate_run_id
 
-# Import the new abstract tool methods
-from tradingagents.agents.utils.core_stock_tools import get_stock_data
-from tradingagents.agents.utils.technical_indicators_tools import get_indicators
-from tradingagents.agents.utils.fundamental_data_tools import (
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement,
-    get_ttm_analysis,
-    get_peer_comparison,
-    get_sector_relative,
-    get_macro_regime,
-)
-from tradingagents.agents.utils.news_data_tools import (
-    get_news,
-    get_insider_transactions,
-    get_global_news,
-)
-
 from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
+from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 
@@ -45,10 +27,10 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "news", "fundamentals"],
-        debug=False,
-        config: Dict[str, Any] = None,
-        callbacks: Optional[List] = None,
+        selected_analysts: list[str] | None = None,
+        debug: bool = False,
+        config: dict[str, Any] | None = None,
+        callbacks: list | None = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -58,6 +40,8 @@ class TradingAgentsGraph:
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
+        if selected_analysts is None:
+            selected_analysts = ["market", "news", "fundamentals"]
         self.debug = debug
         self.config = deepcopy(config or DEFAULT_CONFIG)
         self.callbacks = callbacks or []
@@ -188,7 +172,7 @@ class TradingAgentsGraph:
             self._risk_graph = self.graph_setup.build_risk_subgraph()
         return self._risk_graph
 
-    def _get_provider_kwargs(self, role: str = "") -> Dict[str, Any]:
+    def _get_provider_kwargs(self, role: str = "") -> dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation.
 
         Args:
@@ -335,3 +319,34 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def visualize(self, output_path: str | None = None, format: str = "mermaid") -> str | bytes | None:
+        """Visualize the graph in various formats.
+
+        Args:
+            output_path: If provided, saves the visualization to this file.
+            format: "mermaid", "ascii", or "png".
+        """
+        graph = self.graph.get_graph()
+        if format == "ascii":
+            try:
+                res = graph.print_ascii()
+            except Exception as e:
+                res = f"Could not print ASCII: {e}"
+                print(res)
+            if output_path:
+                with open(output_path, "w") as f:
+                    f.write(res if isinstance(res, str) else "ASCII representation printed to console.")
+            return res
+        elif format == "png":
+            png_data = graph.draw_mermaid_png()
+            if output_path:
+                with open(output_path, "wb") as f:
+                    f.write(png_data)
+            return png_data
+        else:
+            mermaid_code = graph.draw_mermaid()
+            if output_path:
+                with open(output_path, "w") as f:
+                    f.write(mermaid_code)
+            return mermaid_code

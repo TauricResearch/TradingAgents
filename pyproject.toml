@@ -51,7 +51,33 @@ dev = [
     "pytest-recording>=0.13.2",
     "vcrpy>=6.0.2",
     "pytest-socket>=0.7.0",
+    "ruff>=0.9.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "B",    # flake8-bugbear
+    "I",    # isort
+    "ANN",  # flake8-annotations (type hints)
+    "TCH",  # flake8-type-checking
+    "PYI",  # flake8-pyi (typing-related)
+    "UP",   # pyupgrade (modern typing)
+    "FA",   # flake8-future-annotations
+]
+ignore = [
+    "E501",    # line length handled by formatter
+    "ANN401",  # dynamically typed expressions (Any) — we use Any in many places for flexibility
+]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+suppress-none-returning = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

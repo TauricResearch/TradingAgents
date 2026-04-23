@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, List, Optional
+from typing import Any
 
+from tradingagents.agents.portfolio import (
+    create_holding_reviewer,
+    create_macro_summary_agent,
+    create_micro_summary_agent,
+    create_pm_decision_agent,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.memory.macro_memory import MacroMemory
 from tradingagents.memory.reflexion import ReflexionMemory
-from tradingagents.agents.portfolio import (
-    create_holding_reviewer,
-    create_pm_decision_agent,
-    create_macro_summary_agent,
-    create_micro_summary_agent,
-)
+
 from .portfolio_setup import PortfolioGraphSetup
 
 
@@ -36,7 +37,7 @@ class PortfolioGraph:
         self,
         config: dict[str, Any] | None = None,
         debug: bool = False,
-        callbacks: Optional[List] = None,
+        callbacks: list | None = None,
         repo=None,
     ) -> None:
         """Initialize the portfolio graph.
@@ -213,3 +214,34 @@ class PortfolioGraph:
             return final_state
 
         return self.graph.invoke(initial_state)
+
+    def visualize(self, output_path: str | None = None, format: str = "mermaid") -> str | bytes | None:
+        """Visualize the graph in various formats.
+
+        Args:
+            output_path: If provided, saves the visualization to this file.
+            format: "mermaid", "ascii", or "png".
+        """
+        graph = self.graph.get_graph()
+        if format == "ascii":
+            try:
+                res = graph.print_ascii()
+            except Exception as e:
+                res = f"Could not print ASCII: {e}"
+                print(res)
+            if output_path:
+                with open(output_path, "w") as f:
+                    f.write(res if isinstance(res, str) else "ASCII representation printed to console.")
+            return res
+        elif format == "png":
+            png_data = graph.draw_mermaid_png()
+            if output_path:
+                with open(output_path, "wb") as f:
+                    f.write(png_data)
+            return png_data
+        else:
+            mermaid_code = graph.draw_mermaid()
+            if output_path:
+                with open(output_path, "w") as f:
+                    f.write(mermaid_code)
+            return mermaid_code

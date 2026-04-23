@@ -1,0 +1,78 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	Market\20Analyst(Market Analyst)
+	Msg\20Clear\20Market(Msg Clear Market)
+	News\20Analyst(News Analyst)
+	Msg\20Clear\20News(Msg Clear News)
+	Fundamentals\20Analyst(Fundamentals Analyst)
+	Msg\20Clear\20Fundamentals(Msg Clear Fundamentals)
+	Instrument\20Preflight(Instrument Preflight)
+	Bull\20Researcher(Bull Researcher)
+	Bear\20Researcher(Bear Researcher)
+	Research\20Manager(Research Manager)
+	Trader(Trader)
+	Aggressive\20R1(Aggressive R1)
+	Conservative\20R1(Conservative R1)
+	Neutral\20R1(Neutral R1)
+	Risk\20Round\20Barrier(Risk Round Barrier)
+	Aggressive\20R2(Aggressive R2)
+	Conservative\20R2(Conservative R2)
+	Neutral\20R2(Neutral R2)
+	Risk\20Synthesis(Risk Synthesis)
+	Critical\20Abort\20Terminal(Critical Abort Terminal)
+	News\20Fact\20Checker(News Fact Checker)
+	Portfolio\20Manager(Portfolio Manager)
+	__end__([<p>__end__</p>]):::last
+	Aggressive\20R1 --> Risk\20Round\20Barrier;
+	Aggressive\20R2 --> Risk\20Synthesis;
+	Bear\20Researcher -.-> Bull\20Researcher;
+	Bear\20Researcher -.-> Critical\20Abort\20Terminal;
+	Bear\20Researcher -.-> Portfolio\20Manager;
+	Bear\20Researcher -.-> Research\20Manager;
+	Bull\20Researcher -.-> Bear\20Researcher;
+	Bull\20Researcher -.-> Critical\20Abort\20Terminal;
+	Bull\20Researcher -.-> Portfolio\20Manager;
+	Bull\20Researcher -.-> Research\20Manager;
+	Conservative\20R1 --> Risk\20Round\20Barrier;
+	Conservative\20R2 --> Risk\20Synthesis;
+	Fundamentals\20Analyst --> Msg\20Clear\20Fundamentals;
+	Instrument\20Preflight -.-> Bull\20Researcher;
+	Instrument\20Preflight -.-> Fundamentals\20Analyst;
+	Instrument\20Preflight -.-> Market\20Analyst;
+	Instrument\20Preflight -.-> News\20Analyst;
+	Instrument\20Preflight -. &nbsp;END&nbsp; .-> __end__;
+	Market\20Analyst --> Msg\20Clear\20Market;
+	Msg\20Clear\20Fundamentals -.-> Bull\20Researcher;
+	Msg\20Clear\20Fundamentals -.-> Critical\20Abort\20Terminal;
+	Msg\20Clear\20Market -.-> Bull\20Researcher;
+	Msg\20Clear\20Market -.-> Critical\20Abort\20Terminal;
+	Msg\20Clear\20Market -.-> Fundamentals\20Analyst;
+	Msg\20Clear\20Market -.-> News\20Analyst;
+	Msg\20Clear\20News --> News\20Fact\20Checker;
+	Neutral\20R1 --> Risk\20Round\20Barrier;
+	Neutral\20R2 --> Risk\20Synthesis;
+	News\20Analyst --> Msg\20Clear\20News;
+	News\20Fact\20Checker -.-> Bull\20Researcher;
+	News\20Fact\20Checker -.-> Critical\20Abort\20Terminal;
+	News\20Fact\20Checker -.-> Fundamentals\20Analyst;
+	Research\20Manager --> Trader;
+	Risk\20Round\20Barrier --> Aggressive\20R2;
+	Risk\20Round\20Barrier --> Conservative\20R2;
+	Risk\20Round\20Barrier --> Neutral\20R2;
+	Risk\20Synthesis --> Portfolio\20Manager;
+	Trader --> Aggressive\20R1;
+	Trader --> Conservative\20R1;
+	Trader --> Neutral\20R1;
+	__start__ --> Instrument\20Preflight;
+	Critical\20Abort\20Terminal --> __end__;
+	Portfolio\20Manager --> __end__;
+	Bear\20Researcher -.-> Bear\20Researcher;
+	Bull\20Researcher -.-> Bull\20Researcher;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

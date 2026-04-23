@@ -1,4 +1,7 @@
-# Byte-compiled / optimized / DLL files
+# Graph Visualizations
+trading_graph.png
+scanner_graph.png
+portfolio_graph.png
 __pycache__/
 *.py[codz]
 *$py.class

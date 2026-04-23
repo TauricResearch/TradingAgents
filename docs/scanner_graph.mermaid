@@ -1,0 +1,60 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	gatekeeper_scanner(gatekeeper_scanner)
+	geopolitical_scanner(geopolitical_scanner)
+	market_movers_scanner(market_movers_scanner)
+	sector_scanner(sector_scanner)
+	factor_alignment_scanner(factor_alignment_scanner)
+	drift_scanner(drift_scanner)
+	smart_money_scanner(smart_money_scanner)
+	industry_deep_dive(industry_deep_dive)
+	macro_synthesis(macro_synthesis)
+	summarize_gatekeeper(summarize_gatekeeper)
+	summarize_geopolitical(summarize_geopolitical)
+	summarize_market_movers(summarize_market_movers)
+	summarize_sector(summarize_sector)
+	summarize_factor_alignment(summarize_factor_alignment)
+	summarize_drift(summarize_drift)
+	summarize_smart_money(summarize_smart_money)
+	summarize_industry_deep_dive(summarize_industry_deep_dive)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> gatekeeper_scanner;
+	__start__ --> geopolitical_scanner;
+	__start__ --> market_movers_scanner;
+	__start__ --> sector_scanner;
+	drift_scanner --> summarize_drift;
+	factor_alignment_scanner --> summarize_factor_alignment;
+	gatekeeper_scanner --> summarize_gatekeeper;
+	geopolitical_scanner --> summarize_geopolitical;
+	industry_deep_dive --> summarize_industry_deep_dive;
+	market_movers_scanner --> summarize_market_movers;
+	sector_scanner --> summarize_sector;
+	smart_money_scanner --> summarize_smart_money;
+	summarize_drift --> industry_deep_dive;
+	summarize_drift --> macro_synthesis;
+	summarize_factor_alignment --> industry_deep_dive;
+	summarize_factor_alignment --> macro_synthesis;
+	summarize_gatekeeper --> drift_scanner;
+	summarize_gatekeeper --> industry_deep_dive;
+	summarize_gatekeeper --> macro_synthesis;
+	summarize_geopolitical --> industry_deep_dive;
+	summarize_geopolitical --> macro_synthesis;
+	summarize_industry_deep_dive --> macro_synthesis;
+	summarize_market_movers --> drift_scanner;
+	summarize_market_movers --> industry_deep_dive;
+	summarize_market_movers --> macro_synthesis;
+	summarize_sector --> drift_scanner;
+	summarize_sector --> factor_alignment_scanner;
+	summarize_sector --> macro_synthesis;
+	summarize_sector --> smart_money_scanner;
+	summarize_smart_money --> industry_deep_dive;
+	summarize_smart_money --> macro_synthesis;
+	macro_synthesis --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
