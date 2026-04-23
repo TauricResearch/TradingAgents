@@ -65,7 +65,8 @@ def create_fundamentals_analyst(llm):
         # Warn when pre-loaded TTM data is degraded so the issue shows up in
         # run_log.jsonl before the LLM is invoked (not buried in the output).
         ttm_result = prefetched.get("TTM Analysis (8-Quarter Trend)", "")
-        if "quarters available: 0" in ttm_result or "[Error" in ttm_result:
+        ttm_failed = "quarters available: 0" in ttm_result or "[Error" in ttm_result
+        if ttm_failed:
             if rl:
                 rl.log_warning(
                     node="Fundamentals Analyst",
@@ -73,6 +74,14 @@ def create_fundamentals_analyst(llm):
                     message="Pre-loaded TTM data is empty or failed — LLM will fall back to raw statement tools",
                     details={"ttm_excerpt": ttm_result[:200]},
                 )
+            # Replace the failed TTM section so the LLM cannot hallucinate trend figures from it.
+            prefetched["TTM Analysis (8-Quarter Trend)"] = (
+                "⚠️ TTM DATA UNAVAILABLE — parse failure, 0 quarters loaded. "
+                "Do NOT generate, estimate, or infer any revenue, margin, or cash flow "
+                "trend figures for this section. Write 'TTM trend data unavailable' and "
+                "rely solely on the Fundamental Ratios and raw statement tools if needed."
+            )
+            prefetched_context = format_prefetched_context(prefetched)
 
         # ── Only the raw statement tools remain iterative ─────────────────────
         tools = [get_balance_sheet, get_cashflow, get_income_statement]

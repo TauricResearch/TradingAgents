@@ -86,6 +86,15 @@ class TestMarketStructuredContract:
         assert infer_macro_regime_from_prefetched_report("## Risk-On\nMarket is RISK-ON.") == "risk_on"
         assert infer_macro_regime_from_prefetched_report("[Error] failed fetch") == "unknown"
         assert infer_macro_regime_from_prefetched_report("") == "unknown"
+        # Regression: "0 risk-off signals" in a RISK-ON report must not flip the result.
+        risk_on_with_counter = (
+            "## Regime: RISK-ON\n"
+            "Macro regime: **RISK-ON** (score +3/6). "
+            "3 risk-on signals, 0 risk-off signals, 3 neutral."
+        )
+        assert infer_macro_regime_from_prefetched_report(risk_on_with_counter) == "risk_on"
+        # Table-row format used by macro_regime_report.
+        assert infer_macro_regime_from_prefetched_report("| Regime | **RISK-OFF** |") == "risk_off"
 
     def test_build_market_report_structured_completed(self):
         structured = build_market_report_structured(
