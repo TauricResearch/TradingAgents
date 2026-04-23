@@ -8,6 +8,8 @@ No API key required — public endpoint.
 """
 
 import datetime
+import json
+import re
 import sys
 from typing import TypedDict
 
@@ -91,26 +93,27 @@ def _fetch_active_markets() -> list[dict]:
     offset = 0
     limit = 100
     max_pages = 10  # up to 1000 markets — enough for keyword filtering
-    for _ in range(max_pages):
-        resp = requests.get(
-            f"{GAMMA_API_URL}/markets",
-            params={
-                "limit": limit,
-                "offset": offset,
-                "active": "true",
-                "closed": "false",
-                "volume_num_min": MIN_VOLUME_USD,
-                "end_date_max": cutoff,
-            },
-            timeout=15,
-        )
-        resp.raise_for_status()
-        batch = resp.json()
-        if not batch:
-            break
-        markets.extend(batch)
-        if len(batch) < limit:
-            break
+    with requests.Session() as session:
+        for _ in range(max_pages):
+            resp = session.get(
+                f"{GAMMA_API_URL}/markets",
+                params={
+                    "limit": limit,
+                    "offset": offset,
+                    "active": "true",
+                    "closed": "false",
+                    "volume_num_min": MIN_VOLUME_USD,
+                    "end_date_max": cutoff,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            batch = resp.json()
+            if not batch:
+                break
+            markets.extend(batch)
+            if len(batch) < limit:
+                break
         offset += limit
     return markets
 
@@ -170,7 +173,6 @@ def _extract_probability(market: dict) -> float:
     if prices:
         try:
             if isinstance(prices, str):
-                import json
                 prices = json.loads(prices)
             return float(prices[0])
         except (json.JSONDecodeError, IndexError, TypeError, ValueError):
@@ -325,7 +327,7 @@ def map_signals_to_tickers(signals: list[PolymarketSignal], held_tickers: set[st
                 sectors.add(sector_key)
 
         # 3. Direct ticker mention in event text
-        direct = [t for t in held_upper if f" {t} " in f" {event_lower.upper()} " or event_lower.upper().startswith(f"{t} ")]
+        direct = [t for t in held_upper if re.search(rf"\b{re.escape(t)}\b", event_lower.upper())]
 
         # 4. Collect all tickers from matched sectors, intersect with held
         matched = set(direct)
@@ -554,9 +556,8 @@ def _normalize_tags(raw_tags) -> list[str]:
     or occasionally as a JSON string or comma-separated string.
     """
     if isinstance(raw_tags, str):
-        import json as _json
         try:
-            raw_tags = _json.loads(raw_tags)
+            raw_tags = json.loads(raw_tags)
         except (ValueError, TypeError):
             return [t.strip() for t in raw_tags.split(",") if t.strip()]
     if not isinstance(raw_tags, list):

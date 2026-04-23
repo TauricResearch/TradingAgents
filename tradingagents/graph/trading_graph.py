@@ -1,10 +1,13 @@
 # TradingAgents/graph/trading_graph.py
 
+import logging
 import os
 from pathlib import Path
 import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from langgraph.prebuilt import ToolNode
 
@@ -201,8 +204,8 @@ class TradingAgentsGraph:
                 from tradingagents.signals.polymarket import fetch_polymarket_signals, format_signals_text
                 result = fetch_polymarket_signals()
                 polymarket_context = format_signals_text(result)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to fetch Polymarket signals: %s", e)
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
