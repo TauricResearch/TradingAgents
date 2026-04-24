@@ -86,7 +86,7 @@ def save_node_report(state: AgentState, field: str, content: str) -> None:
     """
     scan_date, run_id = require_scan_context(state, node_name=f"save_node_report({field})")
     if not content:
-        raise RuntimeError(f"save_node_report({field}) refused to persist empty content.")
+        return
     try:
         save_dir = get_market_dir(scan_date, run_id)
         save_dir.mkdir(parents=True, exist_ok=True)
@@ -94,4 +94,4 @@ def save_node_report(state: AgentState, field: str, content: str) -> None:
         report_path.write_text(content)
         logger.debug("Saved partial report to %s", report_path)
     except Exception as exc:
-        raise RuntimeError(f"Failed to save partial report for {field}: {exc}") from exc
+        logger.warning("Failed to save partial report for %s: %s", field, exc)

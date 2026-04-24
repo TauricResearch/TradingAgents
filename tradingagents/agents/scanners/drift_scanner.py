@@ -43,8 +43,7 @@ def create_drift_scanner(llm: Any) -> Callable[[ScannerState], dict[str, Any]]:
             context_chunks.append(f"Market regime context:\n{market_context}")
         if sector_context:
             context_chunks.append(f"Sector rotation context:\n{sector_context}")
-        if context_chunks:
-            "\n\n".join(context_chunks)
+        combined_context = "\n\n".join(context_chunks) if context_chunks else ""
 
         try:
             start_date = datetime.strptime(scan_date, "%Y-%m-%d").date()
@@ -67,7 +66,7 @@ def create_drift_scanner(llm: Any) -> Callable[[ScannerState], dict[str, Any]]:
             "(2) Sector-level drift vs noise assessment, "
             "(3) 5-8 primary candidate tickers with validated catalysts, "
             "(4) Continuation vs Reversal risk deltas. "
-            f"Market Context: {market_context}... Sector Context: {sector_context}..."
+            + (f"\n\nContext:\n{combined_context}" if combined_context else "")
         )
 
         prompt = ChatPromptTemplate.from_messages(

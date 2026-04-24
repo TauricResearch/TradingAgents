@@ -41,6 +41,7 @@ def _base_state():
     return {
         "messages": [HumanMessage(content="Run the market scan.")],
         "scan_date": "2026-03-27",
+        "run_id": "test_run_id",
         "gatekeeper_universe_report": "| Symbol |\n| NVDA |\n| AAPL |",
         "sector_performance_report": "| Sector | 1-Month % |\n| Technology | +5.0% |",
         "market_movers_report": "| Symbol | Change % |\n| NVDA | +4.0% |",
@@ -68,6 +69,8 @@ def test_gatekeeper_scanner_end_to_end():
     with patch(
         "tradingagents.agents.scanners.gatekeeper_scanner.get_gatekeeper_universe",
         gatekeeper_tool,
+    ), patch(
+        "tradingagents.agents.scanners.gatekeeper_scanner.save_node_report",
     ):
         node = create_gatekeeper_scanner(llm)
         state = _base_state()
@@ -109,6 +112,8 @@ def test_factor_alignment_scanner_end_to_end():
     ), patch(
         "tradingagents.agents.scanners.factor_alignment_scanner.get_earnings_calendar",
         earnings_tool,
+    ), patch(
+        "tradingagents.agents.scanners.factor_alignment_scanner.save_node_report",
     ):
         node = create_factor_alignment_scanner(llm)
         result = node(_base_state())
@@ -159,6 +164,8 @@ def test_drift_scanner_end_to_end():
     ), patch(
         "tradingagents.agents.scanners.drift_scanner.get_earnings_calendar",
         earnings_tool,
+    ), patch(
+        "tradingagents.agents.scanners.drift_scanner.save_node_report",
     ):
         node = create_drift_scanner(llm)
         result = node(_base_state())

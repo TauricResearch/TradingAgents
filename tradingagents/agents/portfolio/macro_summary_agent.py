@@ -63,16 +63,16 @@ def create_macro_summary_agent(
     def macro_summary_node(state: PortfolioManagerState) -> dict[str, Any]:
         scan_summary = state.get("scan_summary") or {}
 
-        # Soft fallback: if scan data is absent or only contains an error, proceed with an empty shell
-        # so the LLM can generate a graceful neutral brief rather than breaking the pipeline.
+        # Hard sentinel: if scan data is absent or only contains an error, return the "NO DATA
+        # AVAILABLE" marker immediately without invoking the LLM.  pm_decision_agent checks for
+        # this string to apply its conservative-posture override (hold positions, avoid new buys).
         if not scan_summary or (isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}):
-            logger.warning("macro_summary_agent: scan_summary missing or contains only error. Proceeding with partial synthesis.")
-            scan_summary = {
-                "executive_summary": "Macro scan data unavailable. Proceeding without top-down signals.",
-                "macro_context": {},
-                "key_themes": [],
-                "stocks_to_investigate": [],
-                "risk_factors": ["Missing macro data"]
+            logger.warning("macro_summary_agent: scan_summary missing or contains only error — returning NO DATA sentinel.")
+            return {
+                "macro_brief": "NO DATA AVAILABLE - ABORT MACRO",
+                "macro_memory_context": "",
+                "messages": [],
+                "sender": "macro_summary_agent",
             }
 
         # ------------------------------------------------------------------

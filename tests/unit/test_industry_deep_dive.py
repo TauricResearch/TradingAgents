@@ -120,6 +120,20 @@ class TestExtractTopSectors:
         result = _extract_top_sectors(report, top_n=2)
         assert result == ["financial-services", "consumer-defensive"]
 
+    def test_extracts_from_plain_text(self):
+        report = "We recommend looking into technology, energy, and materials this quarter."
+        result = _extract_top_sectors(report, top_n=3)
+        assert result == ["technology", "energy", "basic-materials"]
+
+    def test_extracts_with_mixed_capitalization_and_whitespace(self):
+        report = """
+        *  ComMunication SeRvices : strong user growth.
+        * inDuStrials: Infrastructure spending is up.
+        *   basiC MaTerials - high demand.
+        """
+        result = _extract_top_sectors(report, top_n=3)
+        assert result == ["communication-services", "industrials", "basic-materials"]
+
 
 def test_industry_deep_dive_fails_when_scan_date_missing(monkeypatch):
     """A missing scan_date at the fan-in boundary is a pipeline error."""
@@ -148,20 +162,6 @@ def test_industry_deep_dive_fails_when_scan_date_missing(monkeypatch):
         node({"run_id": "RUN1", "messages": [], "sector_performance_report": ""})
 
     assert "missing required scan_date" in str(exc.value)
-
-    def test_extracts_from_plain_text(self):
-        report = "We recommend looking into technology, energy, and materials this quarter."
-        result = _extract_top_sectors(report, top_n=3)
-        assert result == ["technology", "energy", "basic-materials"]
-
-    def test_extracts_with_mixed_capitalization_and_whitespace(self):
-        report = """
-        *  ComMunication SeRvices : strong user growth.
-        * inDuStrials: Infrastructure spending is up.
-        *   basiC MaTerials - high demand.
-        """
-        result = _extract_top_sectors(report, top_n=3)
-        assert result == ["communication-services", "industrials", "basic-materials"]
 
 
 # ---------------------------------------------------------------------------
