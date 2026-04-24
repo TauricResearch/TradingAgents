@@ -28,7 +28,7 @@ class NormalizedChatAnthropic(ChatAnthropic):
 class AnthropicClient(BaseLLMClient):
     """Client for Anthropic Claude models."""
 
-    def __init__(self, model: str, base_url: str | None = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs: Any):
         super().__init__(model, base_url, **kwargs)
 
     def get_llm(self) -> Any:

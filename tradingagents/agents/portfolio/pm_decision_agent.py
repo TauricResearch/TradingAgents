@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable, Literal
+from collections.abc import Callable
+from typing import Any, Literal
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.json_utils import extract_json
 
 logger = logging.getLogger(__name__)
@@ -133,7 +135,7 @@ def create_pm_decision_agent(
     config: dict[str, Any] | None = None,
     macro_memory: Any = None,
     micro_memory: Any = None,
-) -> Callable[[dict[str, Any]], dict[str, Any]]:
+) -> Callable[[AgentState], dict[str, Any]]:
     """Create a PM decision agent node.
 
     Args:
@@ -153,7 +155,7 @@ def create_pm_decision_agent(
         f"- Max total positions: {cfg.get('max_positions', 15)}\n"
     )
 
-    def pm_decision_node(state: dict[str, Any]) -> dict[str, Any]:
+    def pm_decision_node(state: AgentState) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
 
         # Read brief fields written by upstream summary agents

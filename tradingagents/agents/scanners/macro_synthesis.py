@@ -2,10 +2,12 @@ import json
 import logging
 import re
 from collections import defaultdict
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.scanner_idempotency import (
@@ -74,7 +76,7 @@ def _parse_gatekeeper_rows(report_text: str) -> list[dict[str, str]]:
     return rows
 
 
-def _build_candidate_rankings(state: dict, limit: int = 15) -> list[dict[str, object]]:
+def _build_candidate_rankings(state: AgentState, limit: int = 15) -> list[dict[str, object]]:
     allowed_tickers = _extract_rankable_tickers(state.get("gatekeeper_universe_report", ""))
     weighted_sources = [
         ("market_movers_report", 2, "market_movers"),
@@ -185,7 +187,7 @@ def _fallback_candidate_from_ranking(
 
 def _repair_macro_summary(
     parsed: dict,
-    state: dict,
+    state: AgentState,
     max_scan_tickers: int,
     horizon_label: str,
 ) -> dict:
@@ -252,8 +254,8 @@ def _repair_macro_summary(
 
 def create_macro_synthesis(
     llm: Any, max_scan_tickers: int = 10, scan_horizon_days: int = 30
-) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def macro_synthesis_node(state: dict[str, Any]) -> dict[str, Any]:
+) -> Callable[[AgentState], dict[str, Any]]:
+    def macro_synthesis_node(state: AgentState) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "macro_scan_summary")
         if existing_report:

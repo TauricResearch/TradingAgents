@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.critical_abort import extract_abort_report
 from tradingagents.constants import CRITICAL_ABORT_NODE
 
 
-def create_critical_abort_terminal() -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def critical_abort_terminal_node(state: dict[str, Any]) -> dict[str, Any]:
+def create_critical_abort_terminal() -> Callable[[AgentState], dict[str, Any]]:
+    def critical_abort_terminal_node(state: AgentState) -> dict[str, Any]:
         context = str(state.get("portfolio_context") or "candidate").strip().lower()
         is_holding = context == "holding"
         terminal_action = "SELL" if is_holding else "AVOID"

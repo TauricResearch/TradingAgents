@@ -12,10 +12,12 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.news_data_tools import get_news
@@ -59,7 +61,7 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     }
 
 
-def create_holding_reviewer(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+def create_holding_reviewer(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
     """Create a holding reviewer agent node.
 
     Args:
@@ -69,7 +71,7 @@ def create_holding_reviewer(llm: Any) -> Callable[[dict[str, Any]], dict[str, An
         A node function ``holding_reviewer_node(state)`` compatible with LangGraph.
     """
 
-    def holding_reviewer_node(state: dict[str, Any]) -> dict[str, Any]:
+    def holding_reviewer_node(state: AgentState) -> dict[str, Any]:
         portfolio_data_str = state.get("portfolio_data") or "{}"
         analysis_date = state.get("analysis_date") or ""
 

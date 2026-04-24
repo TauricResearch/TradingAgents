@@ -1,15 +1,17 @@
 """Risk synthesis node — consolidates 2 rounds of parallel risk debate into a summary."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
 from tradingagents.agents.utils.summary_context import build_research_packet
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_risk_synthesis(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def risk_synthesis_node(state: dict[str, Any]) -> dict[str, Any]:
+def create_risk_synthesis(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
+    def risk_synthesis_node(state: AgentState) -> dict[str, Any]:
         # Collect all round responses
         r1_agg = state.get("risk_r1_aggressive", "")
         r1_con = state.get("risk_r1_conservative", "")

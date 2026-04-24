@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 import pandas as pd
 

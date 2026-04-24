@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tradingagents.agents.utils.agent_states import AgentState
+
 
 def _compact_lines(text: str, *, max_lines: int = 8, max_chars: int = 1600) -> str:
     lines: list[str] = []
@@ -113,7 +115,7 @@ def _format_news_structured(structured: object) -> str:
 
 
 
-def build_debate_evidence_brief(state: dict) -> str:
+def build_debate_evidence_brief(state: AgentState) -> str:
     """Build a compact evidence brief for debaters from structured contracts.
 
     This is a deterministic extraction (no LLM call) that replaces the full
@@ -212,7 +214,7 @@ def build_debate_evidence_brief(state: dict) -> str:
     return "\n\n".join(sections).strip()
 
 
-def build_research_packet(state: dict) -> str:
+def build_research_packet(state: AgentState) -> str:
     """Return the canonical deterministic analyst packet for downstream nodes."""
     sections: list[str] = []
 
@@ -294,7 +296,7 @@ def build_risk_debate_summary(debate_state: dict) -> str:
     return "\n\n".join(sections).strip()
 
 
-def get_investment_debate_summary(state: dict) -> str:
+def get_investment_debate_summary(state: AgentState) -> str:
     debate_state = state.get("investment_debate_state") or {}
     summary = str(debate_state.get("summary") or "").strip()
     if summary:
@@ -305,7 +307,7 @@ def get_investment_debate_summary(state: dict) -> str:
     return str(debate_state.get("history") or "").strip()
 
 
-def get_risk_debate_summary(state: dict) -> str:
+def get_risk_debate_summary(state: AgentState) -> str:
     debate_state = state.get("risk_debate_state") or {}
     summary = str(debate_state.get("summary") or "").strip()
     if summary:

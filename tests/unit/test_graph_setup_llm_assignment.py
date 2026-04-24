@@ -8,12 +8,6 @@ def test_market_analyst_uses_quick_llm():
     mid_llm = MagicMock(name="mid")
     deep_llm = MagicMock(name="deep")
 
-    tool_nodes = {
-        "market": MagicMock(),
-        "social": MagicMock(),
-        "news": MagicMock(),
-        "fundamentals": MagicMock(),
-    }
     news_evidence_store = MagicMock(name="news_evidence_store")
 
     setup = GraphSetup(
@@ -51,12 +45,6 @@ def test_social_analyst_uses_quick_llm():
     mid_llm = MagicMock(name="mid")
     deep_llm = MagicMock(name="deep")
 
-    tool_nodes = {
-        "market": MagicMock(),
-        "social": MagicMock(),
-        "news": MagicMock(),
-        "fundamentals": MagicMock(),
-    }
     news_evidence_store = MagicMock(name="news_evidence_store")
 
     setup = GraphSetup(
@@ -95,12 +83,6 @@ def test_fundamentals_analyst_uses_quick_llm():
     deep_llm = MagicMock(name="deep")
     
     # Mock other dependencies
-    tool_nodes = {
-        "market": MagicMock(),
-        "social": MagicMock(),
-        "news": MagicMock(),
-        "fundamentals": MagicMock(),
-    }
     news_evidence_store = MagicMock(name="news_evidence_store")
     
     setup = GraphSetup(

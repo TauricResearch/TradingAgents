@@ -28,12 +28,6 @@ class TestToolsNodesRemoved:
         mid_llm = MagicMock(name="mid")
         deep_llm = MagicMock(name="deep")
         
-        tool_nodes = {
-            "market": MagicMock(),
-            "social": MagicMock(),
-            "news": MagicMock(),
-            "fundamentals": MagicMock(),
-        }
         news_evidence_store = MagicMock(name="news_evidence_store")
         
         setup = GraphSetup(
@@ -63,12 +57,6 @@ class TestToolsNodesRemoved:
         mid_llm = MagicMock(name="mid")
         deep_llm = MagicMock(name="deep")
         
-        tool_nodes = {
-            "market": MagicMock(),
-            "social": MagicMock(),
-            "news": MagicMock(),
-            "fundamentals": MagicMock(),
-        }
         news_evidence_store = MagicMock(name="news_evidence_store")
         
         setup = GraphSetup(
