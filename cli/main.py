@@ -2,9 +2,10 @@ import datetime
 import json
 import time
 from collections import deque
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import typer
 from rich import box

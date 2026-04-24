@@ -1,10 +1,12 @@
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     prefetch_tools_parallel,
@@ -81,10 +83,11 @@ def _build_compact_news_context(
     return "\n".join(lines).strip()
 
 
-def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = None) -> Callable[[dict[str, Any]], dict[str, Any]]:
+def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = None) -> Callable[[AgentState], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
-    def news_analyst_node(state: dict[str, Any]) -> dict[str, Any]:
+    def news_analyst_node(state: AgentState, /) -> dict[str, Any]:
+
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         run_id = str(state["run_id"])

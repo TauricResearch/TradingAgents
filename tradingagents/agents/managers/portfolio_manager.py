@@ -1,6 +1,8 @@
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.critical_abort import (
     extract_abort_report,
@@ -16,8 +18,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.observability import get_run_logger
 
 
-def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def portfolio_manager_node(state: dict[str, Any]) -> dict[str, Any]:
+def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
+    def portfolio_manager_node(state: AgentState, /) -> dict[str, Any]:
 
 
         instrument_context = build_instrument_context(state["company_of_interest"])

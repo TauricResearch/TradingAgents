@@ -12,9 +12,12 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from tradingagents.agents.utils.agent_states import AgentState
 
 if TYPE_CHECKING:
     from tradingagents.memory.reflexion import ReflexionMemory
@@ -89,7 +92,7 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
 
 def create_micro_summary_agent(
     llm: Any, micro_memory: ReflexionMemory | None = None
-) -> Callable[[dict[str, Any]], dict[str, Any]]:
+) -> Callable[[AgentState], dict[str, Any]]:
     """Create a micro summary agent node.
 
     Args:
@@ -101,7 +104,7 @@ def create_micro_summary_agent(
         A node function ``micro_summary_node(state)`` compatible with LangGraph.
     """
 
-    def micro_summary_node(state: dict[str, Any]) -> dict[str, Any]:
+    def micro_summary_node(state: AgentState) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
 
         # ------------------------------------------------------------------

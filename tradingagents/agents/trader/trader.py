@@ -1,7 +1,8 @@
-import functools
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
@@ -24,7 +25,7 @@ def _parse_price_token(raw: str) -> float | None:
     return value if value > 0 else None
 
 
-def _extract_current_price_from_state(state: dict) -> float | None:
+def _extract_current_price_from_state(state: AgentState) -> float | None:
     market_structured = state.get("market_report_structured") or {}
     # Prefer the dedicated current_price field (extracted from "current price of $X" prose)
     # over key_levels[0], which is the 200-day SMA — not the live price.
@@ -51,8 +52,9 @@ def _extract_entry_price_from_plan(plan: str) -> float | None:
     return None
 
 
-def create_trader(llm: Any, memory: Any) -> Callable[[dict[str, Any], str], dict[str, Any]]:
-    def trader_node(state: dict[str, Any], name: str) -> dict[str, Any]:
+def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
+    def trader_node(state: AgentState, /) -> dict[str, Any]:
+
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
         investment_plan = state["investment_plan"]
@@ -185,7 +187,7 @@ Apply lessons from past decisions:
             "messages": [result] if result else [],
             "trader_investment_plan": output_content,
             "trader_plan_structured": structured,
-            "sender": name,
+            "sender": "Trader",
         }
 
-    return functools.partial(trader_node, name="Trader")
+    return trader_node

@@ -1,4 +1,6 @@
 
+from typing import Any
+
 from .anthropic_client import AnthropicClient
 from .base_client import BaseLLMClient
 from .google_client import GoogleClient
@@ -9,7 +11,7 @@ def create_llm_client(
     provider: str,
     model: str,
     base_url: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> BaseLLMClient:
     """Create an LLM client for the specified provider.
 

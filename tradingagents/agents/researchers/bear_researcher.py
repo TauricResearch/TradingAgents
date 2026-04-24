@@ -1,7 +1,9 @@
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from langchain_core.messages import AIMessage
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
@@ -13,8 +15,8 @@ from tradingagents.agents.utils.summary_context import (
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_bear_researcher(llm: Any, memory: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def bear_node(state: dict[str, Any]) -> dict[str, Any]:
+def create_bear_researcher(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
+    def bear_node(state: AgentState, /) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")

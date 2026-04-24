@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from tradingagents.agents.utils.agent_states import AgentState
 
 CRITICAL_ABORT_PREFIX = "[CRITICAL ABORT]"
 
@@ -12,14 +12,12 @@ def report_has_critical_abort(report: str) -> bool:
     return str(report).lstrip().startswith(CRITICAL_ABORT_PREFIX)
 
 
-def state_has_critical_abort(state: dict[str, Any], *report_fields: str) -> bool:
+def state_has_critical_abort(state: AgentState, /, *report_fields: str) -> bool:
     """Return True when any named report field begins with the abort marker."""
     return any(report_has_critical_abort(state.get(field, "")) for field in report_fields)
 
 
-def extract_abort_report(
-    state: dict[str, Any], *report_fields: str
-) -> tuple[str, str]:
+def extract_abort_report(state: AgentState, /, *report_fields: str) -> tuple[str, str]:
     """Return the first aborting report field and its raw text."""
     for field in report_fields:
         report = state.get(field, "")

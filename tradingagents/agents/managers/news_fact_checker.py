@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.critical_abort import report_has_critical_abort
 from tradingagents.agents.utils.output_validation import (
     build_news_report_structured,
@@ -34,10 +36,10 @@ def _has_scanner_structured_claims(payload: object) -> bool:
     return False
 def create_news_fact_checker(
     llm: Any, evidence_store: NewsEvidenceStore | None = None
-) -> Callable[[dict[str, Any]], dict[str, Any]]:
+) -> Callable[[AgentState], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
-    def news_fact_checker_node(state: dict[str, Any]) -> dict[str, Any]:
+    def news_fact_checker_node(state: AgentState, /) -> dict[str, Any]:
 
         ticker = str(state.get("company_of_interest") or "").upper()
         trade_date = str(state.get("trade_date") or "")
