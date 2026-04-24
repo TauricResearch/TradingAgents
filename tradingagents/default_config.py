@@ -94,12 +94,12 @@ def _build_env_snapshot(
 
 def get_env_value(
     key: str,
-    default=None,
+    default: Any = None,
     *,
     load_dotenv: bool | None = None,
     dotenv_path: str | Path | None = None,
     environ: Mapping[str, str] | None = None,
-):
+) -> Any:
     """Read an arbitrary environment variable with optional .env overlay.
 
     This preserves the config module's non-mutating dotenv behavior while
@@ -119,7 +119,7 @@ def get_env_value(
     return value
 
 
-def _env(key: str, default=None, *, env: Mapping[str, str] | None = None):
+def _env(key: str, default: Any = None, *, env: Mapping[str, str] | None = None) -> Any:
     """Read TRADINGAGENTS_<KEY> from the provided environment mapping."""
     source = (
         _build_env_snapshot(
@@ -136,7 +136,7 @@ def _env(key: str, default=None, *, env: Mapping[str, str] | None = None):
     return val
 
 
-def _env_int(key: str, default=None, *, env: Mapping[str, str] | None = None):
+def _env_int(key: str, default: Any = None, *, env: Mapping[str, str] | None = None) -> Any:
     val = _env(key, env=env)
     if val is None:
         return default
@@ -146,7 +146,7 @@ def _env_int(key: str, default=None, *, env: Mapping[str, str] | None = None):
         return default
 
 
-def _env_float(key: str, default=None, *, env: Mapping[str, str] | None = None):
+def _env_float(key: str, default: Any = None, *, env: Mapping[str, str] | None = None) -> Any:
     val = _env(key, env=env)
     if val is None:
         return default

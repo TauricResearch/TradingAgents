@@ -127,7 +127,7 @@ def test_gatekeeper_universe_yfinance_fallback_path_live():
     assert "fallback" in result, "Fallback header note missing from result"
 
     # The fallback still returns real data
-    rows = [l for l in result.splitlines() if l.startswith("| ") and "Symbol" not in l and "---" not in l]
+    rows = [line for line in result.splitlines() if line.startswith("| ") and "Symbol" not in line and "---" not in line]
     assert len(rows) >= 1, "No data rows in fallback result"
 
 

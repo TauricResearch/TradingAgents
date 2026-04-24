@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -15,8 +16,8 @@ from tradingagents.agents.utils.scanner_tools import (
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
-def create_drift_scanner(llm):
-    def drift_scanner_node(state):
+def create_drift_scanner(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def drift_scanner_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "drift_opportunities_report")
         if existing_report:

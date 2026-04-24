@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.report_quality import tag_report
@@ -9,8 +11,8 @@ from tradingagents.agents.utils.scanner_tools import get_market_indices
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
-def create_market_movers_scanner(llm):
-    def market_movers_scanner_node(state):
+def create_market_movers_scanner(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def market_movers_scanner_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "market_movers_report")
         if existing_report:

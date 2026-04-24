@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Any, Callable
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -80,10 +81,10 @@ def _build_compact_news_context(
     return "\n".join(lines).strip()
 
 
-def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
+def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = None) -> Callable[[dict[str, Any]], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
-    def news_analyst_node(state):
+    def news_analyst_node(state: dict[str, Any]) -> dict[str, Any]:
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         run_id = str(state["run_id"])

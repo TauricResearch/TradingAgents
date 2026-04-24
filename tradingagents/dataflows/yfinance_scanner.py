@@ -3,7 +3,7 @@
 import logging
 import threading
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import requests
 import yfinance as yf
@@ -123,7 +123,7 @@ def get_market_movers_yfinance(
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching market movers")
+        raise ThirdPartyTimeoutError("Request timed out fetching market movers") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -240,7 +240,7 @@ def get_gap_candidates_yfinance() -> str:
         return "\n".join(lines) + "\n"
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching live gap candidates")
+        raise ThirdPartyTimeoutError("Request timed out fetching live gap candidates") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -332,7 +332,7 @@ def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
             # Empty result — not a transient error, no point retrying
             break
         except requests.exceptions.Timeout:
-            raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe")
+            raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe") from None
         except ThirdPartyTimeoutError:
             raise
         except Exception as exc:
@@ -378,7 +378,7 @@ def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
         return "No stocks matched the gatekeeper universe today."
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe (fallback)")
+        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe (fallback)") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as fb_exc:
@@ -469,7 +469,7 @@ def get_market_indices_yfinance() -> str:
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching market indices")
+        raise ThirdPartyTimeoutError("Request timed out fetching market indices") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -563,14 +563,14 @@ def get_sector_performance_yfinance() -> str:
         return "\n".join(lines) + "\n"
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching sector performance")
+        raise ThirdPartyTimeoutError("Request timed out fetching sector performance") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
         return f"Error fetching sector performance: {str(e)}"
 
 
-def _safe_pct(closes, days_back: int) -> float | None:
+def _safe_pct(closes: Any, days_back: int) -> float | None:
     """Compute percentage change from days_back trading days ago."""
     if len(closes) < days_back + 1:
         return None
@@ -667,7 +667,7 @@ def get_industry_performance_yfinance(
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching industry performance")
+        raise ThirdPartyTimeoutError("Request timed out fetching industry performance") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -732,7 +732,7 @@ def get_topic_news_yfinance(
         return "\n".join(lines) + "\n"
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching news for topic '{topic}'")
+        raise ThirdPartyTimeoutError(f"Request timed out fetching news for topic '{topic}'") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

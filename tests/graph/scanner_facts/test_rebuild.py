@@ -57,7 +57,8 @@ def test_rebuild_overwrites_existing(tmp_path):
     )
     mtime1 = path1.stat().st_mtime
 
-    import time; time.sleep(0.05)  # ensure mtime changes if file is rewritten
+    import time
+    time.sleep(0.05)  # ensure mtime changes if file is rewritten
 
     path2 = rebuild_scanner_graph_facts(
         "2026-04-16", "TESTRUN",
@@ -76,7 +77,8 @@ def test_rebuild_no_overwrite_flag(tmp_path):
     )
     mtime = path.stat().st_mtime
 
-    import time; time.sleep(0.05)
+    import time
+    time.sleep(0.05)
 
     rebuild_scanner_graph_facts(
         "2026-04-16", "TESTRUN",
@@ -190,7 +192,8 @@ def test_cli_no_overwrite_flag(tmp_path):
     artifact = market / "scanner_graph_facts.json"
     mtime = artifact.stat().st_mtime
 
-    import time; time.sleep(0.05)
+    import time
+    time.sleep(0.05)
 
     result = subprocess.run(
         [

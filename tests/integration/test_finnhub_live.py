@@ -114,7 +114,7 @@ class TestLiveGetStockCandles:
         from tradingagents.dataflows.finnhub_stock import get_stock_candles
 
         result = get_stock_candles(_SYMBOL, _START_DATE, _END_DATE)
-        lines = [l for l in result.strip().split("\n") if l]
+        lines = [line for line in result.strip().split("\n") if line]
         # At minimum the header + at least one trading day
         assert len(lines) >= 2
 

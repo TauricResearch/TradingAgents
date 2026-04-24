@@ -19,6 +19,7 @@ All events are written as JSON lines to a file and also to Python's
 
 from __future__ import annotations
 
+import contextvars as _cv
 import json
 import logging
 import threading
@@ -392,8 +393,6 @@ def _extract_graph_node(kwargs: dict) -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 # Thread-local context for passing RunLogger to vendor/tool layers
 # ──────────────────────────────────────────────────────────────────────────────
-
-import contextvars as _cv
 
 _current_run_logger: _cv.ContextVar[RunLogger | None] = _cv.ContextVar(
     "current_run_logger", default=None

@@ -15,7 +15,7 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     This normalizes to string for consistent downstream handling.
     """
 
-    def invoke(self, input, config=None, **kwargs):
+    def invoke(self, input: Any, config: Any = None, **kwargs: Any) -> Any:
         return normalize_content(super().invoke(input, config, **kwargs))
 
 

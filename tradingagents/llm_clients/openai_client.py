@@ -89,7 +89,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
         self._manual_retry_attempts = manual_retry_attempts
         self._manual_retry_base_delay_s = manual_retry_base_delay_s
 
-    def invoke(self, input, config=None, **kwargs):
+    def invoke(self, input: Any, config: Any = None, **kwargs: Any) -> Any:
         attempts = self._manual_retry_attempts + 1
         for attempt in range(1, attempts + 1):
             try:

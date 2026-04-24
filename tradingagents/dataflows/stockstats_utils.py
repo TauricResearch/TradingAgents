@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import time
-from typing import Annotated
+from typing import Annotated, Any, Callable
 
 import pandas as pd
 import yfinance as yf
@@ -25,7 +25,12 @@ class YFinanceError(Exception):
     pass
 
 
-def safe_yf_download(tickers, start=None, end=None, **kwargs) -> pd.DataFrame:
+def safe_yf_download(
+    tickers: str | list[str],
+    start: str | None = None,
+    end: str | None = None,
+    **kwargs: Any,
+) -> pd.DataFrame:
     """Central yf.download wrapper — enforces thread-safety and column hygiene.
 
     Defaults threads=False (safe inside LangGraph's thread pool) and
@@ -229,7 +234,7 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def yf_retry(func, max_retries=3, base_delay=2.0):
+def yf_retry(func: Callable[..., Any], max_retries: int = 3, base_delay: float = 2.0) -> Any:
     """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
@@ -258,7 +263,7 @@ class StockstatsUtils:
         curr_date: Annotated[
             str, "curr date for retrieving stock price data, YYYY-mm-dd"
         ],
-    ):
+    ) -> str:
         curr_date_dt = pd.to_datetime(curr_date)
         curr_date_str = curr_date_dt.strftime("%Y-%m-%d")
 

@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 def run_tool_loop(
-    chain,
+    chain: Any,
     messages: list[Any],
     tools: list[Any],
     max_rounds: int = MAX_TOOL_ROUNDS,

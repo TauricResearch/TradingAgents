@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, Callable
+
 from tradingagents.agents.utils.summary_context import (
     build_investment_debate_summary,
     build_research_packet,
@@ -28,11 +30,11 @@ Latest response:
 {current_response}"""
 
 
-def create_research_packet_summary(llm):
+def create_research_packet_summary(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
     # TODO(structured-contracts): remove after Phase 6 — this node is no longer
     # wired into any graph.  build_research_packet() is now called inline by
     # each consumer (bull_researcher, bear_researcher, research_manager, etc.).
-    def research_packet_summary_node(state) -> dict:
+    def research_packet_summary_node(state: dict[str, Any]) -> dict[str, Any]:
         if not any(
             (
                 state.get("market_report"),
@@ -57,11 +59,12 @@ def create_research_packet_summary(llm):
     return research_packet_summary_node
 
 
-def create_investment_debate_summary(llm):
+def create_investment_debate_summary(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
     # TODO(structured-contracts): remove after Phase 6 — this node is no longer
     # wired into any graph.  build_investment_debate_summary() is now called
-    # inline by each consumer.
-    def investment_debate_summary_node(state) -> dict:
+    # inline by research_manager.
+    def investment_debate_summary_node(state: dict[str, Any]) -> dict[str, Any]:
+
         debate_state = state["investment_debate_state"]
         summary = build_investment_debate_summary(debate_state) or "Investment debate in progress..."
 
@@ -76,8 +79,8 @@ def create_investment_debate_summary(llm):
     return investment_debate_summary_node
 
 
-def create_risk_debate_summary(llm):
-    def risk_debate_summary_node(state) -> dict:
+def create_risk_debate_summary(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def risk_debate_summary_node(state: dict[str, Any]) -> dict[str, Any]:
         debate_state = state["risk_debate_state"]
         summary = build_risk_debate_summary(debate_state) or "Risk debate in progress..."
 

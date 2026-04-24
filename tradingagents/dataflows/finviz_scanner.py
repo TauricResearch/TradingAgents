@@ -49,6 +49,6 @@ def get_gap_candidates_finviz() -> str:
         raise ConnectionError(
             "finvizfinance is not installed — cannot use Finviz gap filter. "
             "Install it with: pip install finvizfinance"
-        )
+        ) from None
     except Exception as e:
         raise ConnectionError(f"Finviz gap screener failed: {e}") from e

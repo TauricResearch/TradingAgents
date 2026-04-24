@@ -14,7 +14,7 @@ Notes on Finnhub free-tier limitations:
 """
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from .finnhub_common import (
     FinnhubError,
@@ -30,7 +30,7 @@ from .finnhub_common import (
 _MAX_ERROR_LEN = 60
 
 
-def _safe_fmt(value, fmt: str = "${:.2f}", fallback: str = "N/A") -> str:
+def _safe_fmt(value: Any, fmt: str = "${:.2f}", fallback: str = "N/A") -> str:
     """Safely format a numeric value, returning *fallback* on None or bad types."""
     if value is None:
         return fallback

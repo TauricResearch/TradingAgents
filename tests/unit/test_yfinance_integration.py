@@ -100,7 +100,7 @@ class TestGetYFinDataOnline:
 
         # Timezone strings like "+00:00" or "UTC" should not appear in the CSV portion
         csv_lines = result.split("\n")
-        data_lines = [l for l in csv_lines if l and not l.startswith("#")]
+        data_lines = [line for line in csv_lines if line and not line.startswith("#")]
         for line in data_lines:
             assert "+00:00" not in line
             assert "UTC" not in line

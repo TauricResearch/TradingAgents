@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.utils.anonymization import anonymize_ticker
@@ -11,8 +13,8 @@ from tradingagents.agents.utils.summary_context import (
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_bull_researcher(llm, memory):
-    def bull_node(state) -> dict:
+def create_bull_researcher(llm: Any, memory: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def bull_node(state: dict[str, Any]) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")

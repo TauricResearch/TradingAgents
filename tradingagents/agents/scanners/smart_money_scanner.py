@@ -11,6 +11,7 @@ parameters — filters are hardcoded to prevent LLM hallucinations.
 """
 
 import logging
+from typing import Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -29,8 +30,8 @@ from tradingagents.agents.utils.tool_runner import run_tool_loop
 logger = logging.getLogger(__name__)
 
 
-def create_smart_money_scanner(llm):
-    def smart_money_scanner_node(state):
+def create_smart_money_scanner(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def smart_money_scanner_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "smart_money_report")
         if existing_report:

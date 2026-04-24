@@ -30,12 +30,12 @@ class TradeExecutor:
         config: Portfolio config dict.  If None, defaults are used.
     """
 
-    def __init__(self, repo=None, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, repo: Any = None, config: dict[str, Any] | None = None) -> None:
         self._repo = repo
         self._config = config or {}
 
     @property
-    def repo(self):
+    def repo(self) -> Any:
         """Lazy-load repo if not provided at construction."""
         if self._repo is None:
             from tradingagents.portfolio.repository import PortfolioRepository

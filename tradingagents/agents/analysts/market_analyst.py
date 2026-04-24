@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime, timedelta
+from typing import Any, Callable
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -13,17 +14,17 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
 from tradingagents.agents.utils.llm_guard import bind_max_tokens_if_supported, invoke_with_timeout
-
-_logger = logging.getLogger(__name__)
-
-# Regex to extract a VIX numeric value from text (e.g. "VIX: 14.50" or "VIX at 19.2")
-_VIX_RE = re.compile(r"VIX[:\s]+(?:at\s+)?(\d+\.?\d*)", re.IGNORECASE)
 from tradingagents.agents.utils.output_validation import (
     build_market_report_structured,
     infer_macro_regime_from_prefetched_report,
 )
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.default_config import DEFAULT_CONFIG
+
+_logger = logging.getLogger(__name__)
+
+# Regex to extract a VIX numeric value from text (e.g. "VIX: 14.50" or "VIX at 19.2")
+_VIX_RE = re.compile(r"VIX[:\s]+(?:at\s+)?(\d+\.?\d*)", re.IGNORECASE)
 
 _INDICATOR_PLANS = {
     "risk_on": [
@@ -121,8 +122,8 @@ def _build_timeout_fallback_report(
     )
 
 
-def create_market_analyst(llm):
-    def market_analyst_node(state):
+def create_market_analyst(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def market_analyst_node(state: dict[str, Any]) -> dict[str, Any]:
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)

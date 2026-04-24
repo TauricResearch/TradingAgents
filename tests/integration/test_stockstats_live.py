@@ -187,7 +187,7 @@ class TestGetStockStatsIndicatorsWindowLive:
         assert "rsi" in result.lower()
         assert _TEST_DATE in result
         # Should have date: value lines
-        lines = [l for l in result.split("\n") if ":" in l and "-" in l]
+        lines = [line for line in result.split("\n") if ":" in line and "-" in line]
         assert len(lines) > 0, "Expected date:value lines in result"
 
     def test_close_50_sma_window_contains_numeric_values(self):
@@ -200,7 +200,7 @@ class TestGetStockStatsIndicatorsWindowLive:
 
         assert isinstance(result, str)
         # At least some lines should have numeric values (not all N/A)
-        value_lines = [l for l in result.split("\n") if ":" in l and l.strip().startswith("20")]
+        value_lines = [line for line in result.split("\n") if ":" in line and line.strip().startswith("20")]
         numeric_values = []
         for line in value_lines:
             try:

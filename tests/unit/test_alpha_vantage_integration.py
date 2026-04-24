@@ -161,9 +161,11 @@ class TestMakeApiRequest:
         bad_resp = _mock_response("", status_code=403)
         bad_resp.raise_for_status.side_effect = _requests.HTTPError("403 Forbidden")
 
+        from tradingagents.dataflows.alpha_vantage_common import ThirdPartyError
+
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=bad_resp):
-            with pytest.raises(Exception):
+            with pytest.raises(ThirdPartyError):
                 _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
 
@@ -198,7 +200,7 @@ class TestFilterCsvByDateRange:
         from tradingagents.dataflows.alpha_vantage_common import _filter_csv_by_date_range
 
         result = _filter_csv_by_date_range(CSV_DAILY_ADJUSTED, "2023-01-01", "2023-12-31")
-        lines = [l for l in result.strip().split("\n") if l]
+        lines = [line for line in result.strip().split("\n") if line]
         # Only header row should remain
         assert len(lines) == 1
         assert "timestamp" in lines[0]

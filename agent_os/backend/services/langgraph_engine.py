@@ -848,20 +848,20 @@ class LangGraphEngine:
         # Load scanner graph facts and render ticker-specific context
         scanner_graph_context_text = ""
         _graph_facts_path = get_scanner_graph_facts_path(date, root_run_id)
-        if not _graph_facts_path.exists():
-            raise FileNotFoundError(
-                f"scanner_graph_facts.json missing for run={root_run_id}, date={date}. "
-                f"Rebuild: python -m tradingagents.graph.scanner_facts.rebuild "
-                f"--date {date} --run-id {root_run_id}"
-            )
-        _facts = load_scanner_graph_facts(_graph_facts_path)
-        try:
-            scanner_graph_context_text = render_ticker_graph_context(_facts, ticker)
-        except KeyError:
-            scanner_graph_context_text = ""
-            logger.warning(
-                "Ticker %s not found in scanner graph facts run=%s — context will be empty",
-                ticker, root_run_id,
+        if _graph_facts_path.exists():
+            _facts = load_scanner_graph_facts(_graph_facts_path)
+            try:
+                scanner_graph_context_text = render_ticker_graph_context(_facts, ticker)
+            except KeyError:
+                scanner_graph_context_text = ""
+                logger.warning(
+                    "Ticker %s not found in scanner graph facts run=%s — context will be empty",
+                    ticker, root_run_id,
+                )
+        else:
+            logger.info(
+                "scanner_graph_facts.json missing for run=%s, date=%s. Proceeding with empty context.",
+                root_run_id, date,
             )
 
         initial_state = graph_wrapper.propagator.create_initial_state(

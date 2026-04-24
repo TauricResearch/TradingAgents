@@ -1,12 +1,5 @@
-import os
-import sys
 import unittest
 from unittest.mock import MagicMock
-
-# Ensure project root is on sys.path (works in CI and local)
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 from agent_os.backend.services.event_mapper import (
     EventMapper,
@@ -15,6 +8,8 @@ from agent_os.backend.services.event_mapper import (
     is_root_chain_end,
 )
 from agent_os.backend.services.report_helpers import extract_tickers_from_scan_data
+
+# Ensure project root is on sys.path (works in CI and local)
 
 
 class TestLangGraphEngineExtraction(unittest.TestCase):
@@ -198,6 +193,7 @@ class TestLangGraphEngineExtraction(unittest.TestCase):
             "name": "market_analyst",
             "data": {"output": "node output"},
             "metadata": {"langgraph_node": "market_analyst"},
+            "parent_ids": ["root"],
         }
 
         result = self.mapper.map_event("run_123", event)

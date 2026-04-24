@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.utils.anonymization import anonymize_ticker
@@ -9,8 +11,8 @@ from tradingagents.agents.utils.summary_context import (
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_neutral_debator(llm, round_num=1):
-    def neutral_node(state) -> dict:
+def create_neutral_debator(llm: Any, round_num: int = 1) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def neutral_node(state: dict[str, Any]) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         research_packet = build_research_packet(state)
         risk_summary = get_risk_debate_summary(state)

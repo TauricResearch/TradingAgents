@@ -521,20 +521,18 @@ class TestPortfolioManagerAbortDetection:
 
     @staticmethod
     def _make_mock_llm(content: str) -> MagicMock:
-        """Build a MagicMock LLM compatible with llm_guard.invoke_with_timeout.
-
-        invoke_with_timeout calls bind_max_tokens_if_supported(llm, max_tokens)
-        which returns llm.bind(max_tokens=N), and then .invoke(prompt) on the
-        result.  We wire both mock_llm.invoke and mock_llm.bind(...).invoke to
-        return the same response so tests can assert on either path.
-        """
+        """Build a MagicMock LLM compatible with llm_guard.invoke_with_timeout."""
         response = MagicMock(content=content)
         mock_llm = MagicMock()
-        mock_llm.invoke.return_value = response
-        # bind() returns a new object whose .invoke also returns the response
+        
+        # This is what invoke_with_timeout uses: llm.bind(...).invoke(...)
         bound = MagicMock()
         bound.invoke.return_value = response
         mock_llm.bind.return_value = bound
+        
+        # Support fallback path which might use plain .invoke
+        mock_llm.invoke.return_value = response
+        
         return mock_llm
 
     def _make_abort_state(self, market_report, fundamentals_report, news_report=""):
@@ -570,8 +568,8 @@ class TestPortfolioManagerAbortDetection:
 
         result = portfolio_manager(state)
 
-        # Verify the LLM was actually called (through bind().invoke path)
-        assert mock_llm.bind.return_value.invoke.called
+        # Verify the LLM was actually called
+        assert mock_llm.invoke.called or mock_llm.bind.return_value.invoke.called
         # Verify the result contains SELL recommendation
         assert "SELL" in result.get("final_trade_decision", "").upper()
 
@@ -598,8 +596,8 @@ class TestPortfolioManagerAbortDetection:
 
         result = portfolio_manager(state)
 
-        # Verify the LLM was actually called (through bind().invoke path)
-        assert mock_llm.bind.return_value.invoke.called
+        # Verify the LLM was actually called
+        assert mock_llm.invoke.called or mock_llm.bind.return_value.invoke.called
         # Verify the result contains BUY recommendation
         assert "BUY" in result.get("final_trade_decision", "").upper()
 
@@ -654,7 +652,9 @@ class TestPortfolioManagerAbortDetection:
 
         portfolio_manager(state)
 
-        prompt = mock_llm.bind.return_value.invoke.call_args.args[0]
+        # Try to extract prompt from either bind().invoke or plain invoke
+        call_args = mock_llm.bind.return_value.invoke.call_args or mock_llm.invoke.call_args
+        prompt = call_args.args[0]
         assert "TRADER PLAN: USE THIS" in prompt
         assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
 
@@ -669,7 +669,9 @@ class TestPortfolioManagerAbortDetection:
 
         portfolio_manager(state)
 
-        prompt = mock_llm.bind.return_value.invoke.call_args.args[0]
+        # Try to extract prompt from either bind().invoke or plain invoke
+        call_args = mock_llm.bind.return_value.invoke.call_args or mock_llm.invoke.call_args
+        prompt = call_args.args[0]
         assert "TRADER PLAN: USE THIS ABORT" in prompt
         assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
 

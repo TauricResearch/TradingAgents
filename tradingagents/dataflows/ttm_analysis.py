@@ -107,7 +107,7 @@ def _parse_financial_csv(csv_text: str) -> pd.DataFrame | None:
 
     # Detect orientation: if index looks like dates, columns are metrics.
     # If columns look like dates, transpose.
-    def _looks_like_dates(values) -> bool:
+    def _looks_like_dates(values: Any) -> bool:
         count = 0
         for v in list(values)[:5]:
             try:
@@ -228,14 +228,14 @@ def compute_ttm_metrics(
     ttm_n = min(4, n)
     ttm_income = income_df.tail(ttm_n)
 
-    def _ttm_sum(df, cols) -> float | None:
+    def _ttm_sum(df: pd.DataFrame, cols: list[str]) -> float | None:
         col = _find_col(df, cols)
         if col is None:
             return None
         vals = pd.to_numeric(df.tail(ttm_n)[col], errors="coerce").dropna()
         return float(vals.sum()) if len(vals) > 0 else None
 
-    def _ttm_latest(df, cols) -> float | None:
+    def _ttm_latest(df: pd.DataFrame, cols: list[str]) -> float | None:
         """Stock items: use most recent value."""
         if df is None:
             return None

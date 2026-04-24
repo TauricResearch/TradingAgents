@@ -22,7 +22,7 @@ def get_api_key() -> str:
         raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
     return api_key
 
-def format_datetime_for_api(date_input) -> str:
+def format_datetime_for_api(date_input: str | datetime) -> str:
     """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
     if isinstance(date_input, str):
         # If already in correct format, return as-is
@@ -37,7 +37,7 @@ def format_datetime_for_api(date_input) -> str:
                 dt = datetime.strptime(date_input, "%Y-%m-%d %H:%M")
                 return dt.strftime("%Y%m%dT%H%M")
             except ValueError:
-                raise ValueError(f"Unsupported date format: {date_input}")
+                raise ValueError(f"Unsupported date format: {date_input}") from None
     elif isinstance(date_input, datetime):
         return date_input.strftime("%Y%m%dT%H%M")
     else:
@@ -159,11 +159,11 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
     except requests.exceptions.Timeout:
         raise ThirdPartyTimeoutError(
             f"Request timed out: function={function_name}, params={params}"
-        )
+        ) from None
     except requests.exceptions.ConnectionError as exc:
-        raise ThirdPartyError(f"Connection error: function={function_name}, error={exc}")
+        raise ThirdPartyError(f"Connection error: function={function_name}, error={exc}") from None
     except requests.exceptions.RequestException as exc:
-        raise ThirdPartyError(f"Request failed: function={function_name}, error={exc}")
+        raise ThirdPartyError(f"Request failed: function={function_name}, error={exc}") from None
 
     # HTTP-level errors
     if response.status_code == 401:

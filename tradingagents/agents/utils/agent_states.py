@@ -3,8 +3,6 @@ from typing import Annotated, Any
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
 
-from tradingagents.agents import *
-
 
 # Researcher team state
 class InvestDebateState(TypedDict):

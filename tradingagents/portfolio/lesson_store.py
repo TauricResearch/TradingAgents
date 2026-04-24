@@ -38,15 +38,15 @@ class LessonStore:
 
         existing_lessons = self.load_all()
         existing_keys = {
-            (l.get("ticker"), l.get("scan_date"), l.get("horizon_days"))
-            for l in existing_lessons
+            (lesson.get("ticker"), lesson.get("scan_date"), lesson.get("horizon_days"))
+            for lesson in existing_lessons
         }
 
         to_add = []
-        for l in lessons:
-            key = (l.get("ticker"), l.get("scan_date"), l.get("horizon_days"))
+        for lesson in lessons:
+            key = (lesson.get("ticker"), lesson.get("scan_date"), lesson.get("horizon_days"))
             if key not in existing_keys:
-                to_add.append(l)
+                to_add.append(lesson)
                 existing_keys.add(key)
 
         if not to_add:

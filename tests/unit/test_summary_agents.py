@@ -1,19 +1,6 @@
 from __future__ import annotations
 
 import json
-
-"""Tests for Macro_Summary_Agent and Micro_Summary_Agent.
-
-Strategy:
-- Empty/error state paths skip the LLM entirely — test those directly.
-- LLM-invoked paths require the mock to be a proper LangChain Runnable so that
-  ``prompt | llm`` creates a working RunnableSequence.  LangChain's pipe operator
-  calls through its own Runnable machinery — a plain MagicMock is NOT invoked via
-  Python's raw ``__call__``.  We use ``RunnableLambda`` to wrap a lambda that
-  returns a fixed AIMessage, making it fully compatible with the chain.
-"""
-
-
 from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage
@@ -30,6 +17,17 @@ from tradingagents.agents.portfolio.micro_summary_agent import (
 from tradingagents.agents.portfolio.pm_decision_agent import (
     create_pm_decision_agent,
 )
+
+"""Tests for Macro_Summary_Agent and Micro_Summary_Agent.
+
+Strategy:
+- Empty/error state paths skip the LLM entirely — test those directly.
+- LLM-invoked paths require the mock to be a proper LangChain Runnable so that
+  ``prompt | llm`` creates a working RunnableSequence.  LangChain's pipe operator
+  calls through its own Runnable machinery — a plain MagicMock is NOT invoked via
+  Python's raw ``__call__``.  We use ``RunnableLambda`` to wrap a lambda that
+  returns a fixed AIMessage, making it fully compatible with the chain.
+"""
 
 # ---------------------------------------------------------------------------
 # Helpers

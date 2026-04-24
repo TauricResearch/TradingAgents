@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from collections import defaultdict
+from typing import Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -249,8 +250,10 @@ def _repair_macro_summary(
     return repaired
 
 
-def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: int = 30):
-    def macro_synthesis_node(state):
+def create_macro_synthesis(
+    llm: Any, max_scan_tickers: int = 10, scan_horizon_days: int = 30
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def macro_synthesis_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "macro_scan_summary")
         if existing_report:

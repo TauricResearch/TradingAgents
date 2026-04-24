@@ -260,8 +260,12 @@ class TestClassifyMacroRegime:
             lqd = _flat_series(100, n)
             tlt = _flat_series(100, n)     # TLT flat (no flight to safety) → 0
             shy = _flat_series(100, n)
-            xlu = _flat_series(60, n); xlp = _flat_series(70, n); xlv = _flat_series(80, n)
-            xly = _trending_series(100, 120, n); xlk = _trending_series(100, 120, n); xli = _trending_series(100, 120, n)  # cyclicals up → +1
+            xlu = _flat_series(60, n)
+            xlp = _flat_series(70, n)
+            xlv = _flat_series(80, n)
+            xly = _trending_series(100, 120, n)
+            xlk = _trending_series(100, 120, n)
+            xli = _trending_series(100, 120, n)  # cyclicals up → +1
         elif scenario == "risk_off":
             vix = _flat_series(30.0, n)    # High VIX
             spx = _trending_series(6000, 4000, n)  # Below 200-SMA
@@ -269,8 +273,12 @@ class TestClassifyMacroRegime:
             lqd = _flat_series(100, n)
             tlt = _trending_series(95, 105, n)  # TLT outperforming (flight to safety)
             shy = _flat_series(100, n)
-            xlu = _trending_series(60, 66, n); xlp = _trending_series(70, 77, n); xlv = _trending_series(80, 88, n)
-            xly = _flat_series(150, n); xlk = _flat_series(180, n); xli = _flat_series(100, n)
+            xlu = _trending_series(60, 66, n)
+            xlp = _trending_series(70, 77, n)
+            xlv = _trending_series(80, 88, n)
+            xly = _flat_series(150, n)
+            xlk = _flat_series(180, n)
+            xli = _flat_series(100, n)
         else:  # transition
             vix = _flat_series(20.0, n)    # Mid VIX
             spx = _trending_series(4900, 5100, n)  # Near 200-SMA
@@ -278,8 +286,12 @@ class TestClassifyMacroRegime:
             lqd = _flat_series(100, n)
             tlt = _flat_series(100, n)
             shy = _flat_series(100, n)
-            xlu = _flat_series(60, n); xlp = _flat_series(70, n); xlv = _flat_series(80, n)
-            xly = _flat_series(150, n); xlk = _flat_series(180, n); xli = _flat_series(100, n)
+            xlu = _flat_series(60, n)
+            xlp = _flat_series(70, n)
+            xlv = _flat_series(80, n)
+            xly = _flat_series(150, n)
+            xlk = _flat_series(180, n)
+            xli = _flat_series(100, n)
 
         return {
             "^VIX": vix, "^GSPC": spx,

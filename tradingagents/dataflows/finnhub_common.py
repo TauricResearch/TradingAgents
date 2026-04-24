@@ -161,15 +161,15 @@ def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict | 
     except requests.exceptions.Timeout:
         raise ThirdPartyTimeoutError(
             f"Request timed out: endpoint={endpoint}, params={params}"
-        )
+        ) from None
     except requests.exceptions.ConnectionError as exc:
         raise ThirdPartyError(
             f"Connection error: endpoint={endpoint}, error={exc}"
-        )
+        ) from None
     except requests.exceptions.RequestException as exc:
         raise ThirdPartyError(
             f"Request failed: endpoint={endpoint}, error={exc}"
-        )
+        ) from None
 
     # HTTP-level error mapping
     if response.status_code == 401:

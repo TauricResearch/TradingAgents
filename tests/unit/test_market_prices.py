@@ -25,7 +25,7 @@ def _market_price_df() -> pd.DataFrame:
 
 
 def test_market_prices_client_fetches_all_rows():
-    with patch("tradingagents.dataflows.market_prices.yf.download", return_value=_market_price_df()):
+    with patch("tradingagents.dataflows.market_prices.safe_yf_download", return_value=_market_price_df()):
         rows = MarketPricesClient().fetch_rows()
 
     assert set(rows) == {"Gold", "WTI Crude", "Brent Crude", "Bitcoin"}
@@ -34,7 +34,7 @@ def test_market_prices_client_fetches_all_rows():
 
 
 def test_get_gold_price_snapshot_formats_markdown():
-    with patch("tradingagents.dataflows.market_prices.yf.download", return_value=_market_price_df()):
+    with patch("tradingagents.dataflows.market_prices.safe_yf_download", return_value=_market_price_df()):
         result = get_gold_price_snapshot()
 
     assert result.startswith("# Gold Price Snapshot")
@@ -43,7 +43,7 @@ def test_get_gold_price_snapshot_formats_markdown():
 
 
 def test_get_oil_prices_snapshot_formats_both_contracts():
-    with patch("tradingagents.dataflows.market_prices.yf.download", return_value=_market_price_df()):
+    with patch("tradingagents.dataflows.market_prices.safe_yf_download", return_value=_market_price_df()):
         result = get_oil_prices_snapshot()
 
     assert result.startswith("# Oil Price Snapshot")
@@ -52,7 +52,7 @@ def test_get_oil_prices_snapshot_formats_both_contracts():
 
 
 def test_get_bitcoin_price_snapshot_formats_markdown():
-    with patch("tradingagents.dataflows.market_prices.yf.download", return_value=_market_price_df()):
+    with patch("tradingagents.dataflows.market_prices.safe_yf_download", return_value=_market_price_df()):
         result = get_bitcoin_price_snapshot()
 
     assert result.startswith("# Bitcoin Price Snapshot")

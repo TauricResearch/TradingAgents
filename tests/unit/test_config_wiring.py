@@ -60,10 +60,12 @@ class TestTTMToolInCategory:
 
 class TestConditionalLogicWiring:
     def test_default_config_debate_rounds(self):
-        from tradingagents.default_config import DEFAULT_CONFIG
-        assert DEFAULT_CONFIG["max_debate_rounds"] == 2
-        assert DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2
-        assert DEFAULT_CONFIG["llm_timeout"] == 300.0
+        from tradingagents.default_config import build_default_config
+        # Use an empty environ and disable dotenv loading to test hardcoded defaults
+        cfg = build_default_config(load_dotenv=False, environ={})
+        assert cfg["max_debate_rounds"] == 2
+        assert cfg["max_risk_discuss_rounds"] == 2
+        assert cfg["llm_timeout"] == 300.0
 
     def test_conditional_logic_accepts_config_values(self):
         from tradingagents.graph.conditional_logic import ConditionalLogic

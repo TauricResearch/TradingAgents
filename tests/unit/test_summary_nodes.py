@@ -23,7 +23,7 @@ def test_research_packet_summary_node_returns_summary():
 
     result = node(
         {
-            "scanner_context_packet": "Oil: $72.10\nDXY: 104.2",
+            "scanner_graph_context_text": "Oil: $72.10\nDXY: 104.2",
             "market_report": "- Price held $189.00 support\n| Metric | Value |\n| --- | --- |",
             "market_report_structured": {
                 "status": "completed",
@@ -49,7 +49,7 @@ def test_research_packet_summary_node_returns_summary():
     )
 
     summary = result["research_packet_summary"]
-    assert "## Scanner Context (Phase 1)" in summary
+    assert "## Scanner Graph Context" in summary
     assert "## Market Structured Contract" in summary
     assert "macro_regime: risk_on" in summary
     assert "## Market Report" in summary

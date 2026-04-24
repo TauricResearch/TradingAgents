@@ -1,4 +1,5 @@
 import time
+from typing import Any
 
 from .alpha_vantage_common import AlphaVantageError
 from .alpha_vantage_fundamentals import (
@@ -302,7 +303,7 @@ def get_vendor(category: str, method: str = None, *, config: dict | None = None)
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "yfinance")
 
-def route_to_vendor(method: str, *args, **kwargs):
+def route_to_vendor(method: str, *args: Any, **kwargs: Any) -> Any:
     """Route method calls to appropriate vendor implementation with fallback support.
 
     Only methods in FALLBACK_ALLOWED get cross-vendor fallback.

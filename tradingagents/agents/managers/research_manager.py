@@ -1,4 +1,6 @@
 
+from typing import Any, Callable
+
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
@@ -14,8 +16,9 @@ from tradingagents.agents.utils.summary_context import (
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_research_manager(llm, memory):
-    def research_manager_node(state) -> dict:
+def create_research_manager(llm: Any, memory: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def research_manager_node(state: dict[str, Any]) -> dict[str, Any]:
+
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
         history = state["investment_debate_state"].get("history", "")

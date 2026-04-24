@@ -103,7 +103,7 @@ def get_news_yfinance(
         return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching news for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out fetching news for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -235,7 +235,7 @@ def get_social_sentiment_yfinance(
         return output
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching sentiment data for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out fetching sentiment data for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -327,7 +327,7 @@ def get_global_news_yfinance(
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching global news")
+        raise ThirdPartyTimeoutError("Request timed out fetching global news") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

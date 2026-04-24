@@ -29,7 +29,7 @@ class TestNewsFactCheckerCanonicalContract:
         )
         mock_store.fetch_records.return_value = [mock_record]
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -66,7 +66,7 @@ class TestNewsFactCheckerCanonicalContract:
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []  # No records
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -115,7 +115,7 @@ class TestNewsFactCheckerCanonicalContract:
         )
         mock_store.fetch_records.return_value = [mock_record]
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -152,7 +152,7 @@ class TestNewsFactCheckerCanonicalContract:
         )
         mock_store.fetch_records.return_value = [mock_record]
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -180,7 +180,7 @@ class TestNewsFactCheckerCanonicalContract:
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -207,7 +207,7 @@ class TestNewsFactCheckerCanonicalContract:
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -246,7 +246,7 @@ class TestNewsFactCheckerCanonicalContract:
         )
         mock_store.fetch_records.return_value = [mock_record]
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -281,7 +281,7 @@ class TestNewsFactCheckerCanonicalContract:
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -303,7 +303,7 @@ class TestNewsFactCheckerCanonicalContract:
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []
 
-        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
         state = {
             "run_id": "test_run",
@@ -385,7 +385,7 @@ def _records():
 
 
 def test_news_fact_checker_removes_unsupported_structured_claims():
-    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
+    node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",
@@ -427,7 +427,7 @@ def test_news_fact_checker_removes_unsupported_structured_claims():
 
 
 def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_remain():
-    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
+    node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",
@@ -462,7 +462,7 @@ def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_
 
 
 def test_news_fact_checker_returns_structured_placeholder_when_payload_missing():
-    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
+    node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",
@@ -482,7 +482,7 @@ def test_news_fact_checker_returns_structured_placeholder_when_payload_missing()
 
 
 def test_news_fact_checker_returns_structured_placeholder_when_payload_invalid():
-    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
+    node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",

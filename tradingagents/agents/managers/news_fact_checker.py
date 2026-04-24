@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any, Callable
 
 from tradingagents.agents.utils.critical_abort import report_has_critical_abort
 from tradingagents.agents.utils.output_validation import (
@@ -31,12 +32,13 @@ def _has_scanner_structured_claims(payload: object) -> bool:
         if source == "Finviz Smart Money Scanner" and scan_date:
             return True
     return False
-
-
-def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
+def create_news_fact_checker(
+    llm: Any, evidence_store: NewsEvidenceStore | None = None
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
-    def news_fact_checker_node(state) -> dict:
+    def news_fact_checker_node(state: dict[str, Any]) -> dict[str, Any]:
+
         ticker = str(state.get("company_of_interest") or "").upper()
         trade_date = str(state.get("trade_date") or "")
         run_id = str(state["run_id"])

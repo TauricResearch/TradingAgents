@@ -12,7 +12,7 @@ from typing import Any
 _THINK_RE = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL)
 
 
-def normalize_content(response):
+def normalize_content(response: Any) -> Any:
     """Normalize LLM response content to a plain string.
 
     Handles two formats:

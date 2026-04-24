@@ -91,7 +91,7 @@ def _assert_ticker_rows(result: str, label: str) -> None:
 
     lines = result.strip().split("\n")
     # First line is the header "Top 5 stocks for …:"
-    data_lines = [l for l in lines[1:] if l.strip()]
+    data_lines = [line for line in lines[1:] if line.strip()]
     assert len(data_lines) >= 1, f"{label}: header present but no data rows"
 
     for line in data_lines:
@@ -259,7 +259,7 @@ class TestGetBreakoutAccumulationStocks:
         if not result.startswith("Top 5 stocks for "):
             pytest.skip("No data returned today")
 
-        lines = [l for l in result.strip().split("\n")[1:] if l.strip()]
+        lines = [line for line in result.strip().split("\n")[1:] if line.strip()]
         assert len(lines) <= 5, f"Expected ≤5 rows, got {len(lines)}"
 
     def test_price_column_is_numeric(self):
@@ -269,7 +269,7 @@ class TestGetBreakoutAccumulationStocks:
         if not result.startswith("Top 5 stocks for "):
             pytest.skip("No data returned today")
 
-        lines = [l for l in result.strip().split("\n")[1:] if l.strip()]
+        lines = [line for line in result.strip().split("\n")[1:] if line.strip()]
         for line in lines:
             price_part = line.split("@ $")[-1].strip()
             float(price_part)  # raises ValueError if not numeric
