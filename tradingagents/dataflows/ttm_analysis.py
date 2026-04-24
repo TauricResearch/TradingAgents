@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from io import StringIO
+from typing import Any
 
 import pandas as pd
 

@@ -5,8 +5,6 @@ All tests use monkeypatching — no live LLM or real disk scanner runs.
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from tradingagents.graph.scanner_facts.schema import SCHEMA_VERSION
 
 SCAN_DATE = "2026-04-16"

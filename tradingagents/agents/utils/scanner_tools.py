@@ -3,7 +3,7 @@
 import logging
 import os
 from time import sleep
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any
 
 from langchain_core.tools import tool
 

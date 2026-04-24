@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
@@ -129,8 +131,8 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
     return VALID_SECTOR_KEYS[:top_n]
 
 
-def create_industry_deep_dive(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def industry_deep_dive_node(state: dict[str, Any]) -> dict[str, Any]:
+def create_industry_deep_dive(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
+    def industry_deep_dive_node(state: AgentState) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "industry_deep_dive_report")
         if existing_report:

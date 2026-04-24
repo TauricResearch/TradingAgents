@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.json_utils import extract_json
 
 logger = logging.getLogger(__name__)
@@ -448,7 +449,7 @@ def output_contains_scratchpad(text: str) -> bool:
     return any(phrase in normalized for phrase in _SCRATCHPAD_PHRASES)
 
 
-def build_research_manager_fallback(state: dict[str, Any]) -> str:
+def build_research_manager_fallback(state: AgentState) -> str:
     ticker = str(state.get("company_of_interest") or "").strip().upper()
     news_structured = state.get("news_report_structured") or {}
     fundamentals_structured = state.get("fundamentals_report_structured") or {}

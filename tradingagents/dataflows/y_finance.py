@@ -374,7 +374,7 @@ def get_fundamentals(
         return header + "\n".join(lines)
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving fundamentals for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving fundamentals for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -408,7 +408,7 @@ def get_balance_sheet(
         return header + csv_string
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving balance sheet for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving balance sheet for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -442,7 +442,7 @@ def get_cashflow(
         return header + csv_string
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving cash flow for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving cash flow for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -476,7 +476,7 @@ def get_income_statement(
         return header + csv_string
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving income statement for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving income statement for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -504,7 +504,7 @@ def get_insider_transactions(
         return header + csv_string
         
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving insider transactions for {ticker}")
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving insider transactions for {ticker}") from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

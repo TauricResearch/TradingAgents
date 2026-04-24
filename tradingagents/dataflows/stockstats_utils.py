@@ -2,7 +2,8 @@ import logging
 import os
 import re
 import time
-from typing import Annotated, Any, Callable
+from collections.abc import Callable
+from typing import Annotated, Any
 
 import pandas as pd
 import yfinance as yf

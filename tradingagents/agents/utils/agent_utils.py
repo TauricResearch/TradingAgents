@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable
+from typing import Any
 
 from langchain_core.messages import HumanMessage, RemoveMessage
+
+from tradingagents.agents.utils.agent_states import AgentState
 
 
 def prefetch_tools_parallel(tool_calls: list[dict]) -> dict[str, str]:
@@ -67,8 +70,8 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
-def create_msg_delete() -> Callable[[dict[str, Any]], dict[str, Any]]:
-    def delete_messages(state: dict[str, Any]) -> dict[str, Any]:
+def create_msg_delete() -> Callable[[AgentState], dict[str, Any]]:
+    def delete_messages(state: AgentState) -> dict[str, Any]:
         """Clear messages and add placeholder for Anthropic compatibility"""
         messages = state.get("messages", [])
         if not messages:

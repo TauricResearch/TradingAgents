@@ -37,7 +37,7 @@ def normalize_content(response: Any) -> Any:
 class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
 
-    def __init__(self, model: str, base_url: str | None = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs: Any):
         self.model = model
         self.base_url = base_url
         self.kwargs = kwargs
