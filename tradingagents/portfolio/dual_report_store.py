@@ -67,7 +67,7 @@ class DualReportStore:
     # Macro Scan
     # ------------------------------------------------------------------
 
-    def save_scan(self, date: str, data: dict[str, Any]) -> Any:
+    def save_scan(self, date: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_scan(date, data)
         self._try_mongo(lambda: self._mongo.save_scan(date, data), None)
         return local_result
@@ -79,7 +79,7 @@ class DualReportStore:
     # Per-Ticker Analysis
     # ------------------------------------------------------------------
 
-    def save_analysis(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
+    def save_analysis(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_analysis(date, ticker, data)
         self._try_mongo(lambda: self._mongo.save_analysis(date, ticker, data), None)
         return local_result
@@ -87,7 +87,7 @@ class DualReportStore:
     def load_analysis(self, date: str, ticker: str) -> dict[str, Any] | None:
         return self._try_mongo(lambda: self._mongo.load_analysis(date, ticker), None) or self._local.load_analysis(date, ticker)
 
-    def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
+    def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_pipeline_node_snapshot(date, ticker, data)
         self._try_mongo(
             lambda: self._mongo.save_pipeline_node_snapshot(date, ticker, data),
@@ -105,7 +105,7 @@ class DualReportStore:
     # Holding Reviews
     # ------------------------------------------------------------------
 
-    def save_holding_review(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
+    def save_holding_review(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_holding_review(date, ticker, data)
         self._try_mongo(lambda: self._mongo.save_holding_review(date, ticker, data), None)
         return local_result
@@ -117,7 +117,7 @@ class DualReportStore:
     # Risk Metrics
     # ------------------------------------------------------------------
 
-    def save_risk_metrics(self, date: str, portfolio_id: str, data: dict[str, Any]) -> Any:
+    def save_risk_metrics(self, date: str, portfolio_id: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_risk_metrics(date, portfolio_id, data)
         self._try_mongo(lambda: self._mongo.save_risk_metrics(date, portfolio_id, data), None)
         return local_result
@@ -135,7 +135,7 @@ class DualReportStore:
         portfolio_id: str,
         data: dict[str, Any],
         markdown: str | None = None,
-    ) -> Any:
+    ) -> str:
         local_result = self._local.save_pm_decision(date, portfolio_id, data, markdown=markdown)
         self._try_mongo(lambda: self._mongo.save_pm_decision(date, portfolio_id, data, markdown=markdown), None)
         return local_result
@@ -147,7 +147,7 @@ class DualReportStore:
     # Execution Results
     # ------------------------------------------------------------------
 
-    def save_execution_result(self, date: str, portfolio_id: str, data: dict[str, Any]) -> Any:
+    def save_execution_result(self, date: str, portfolio_id: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_execution_result(date, portfolio_id, data)
         self._try_mongo(lambda: self._mongo.save_execution_result(date, portfolio_id, data), None)
         return local_result
@@ -159,13 +159,13 @@ class DualReportStore:
     # Run Meta / Events persistence
     # ------------------------------------------------------------------
 
-    def save_run_meta(self, date: str, data: dict[str, Any]) -> Any:
+    def save_run_meta(self, date: str, data: dict[str, Any]) -> str:
         return self._local.save_run_meta(date, data)
 
     def load_run_meta(self, date: str) -> dict[str, Any] | None:
         return self._local.load_run_meta(date)
 
-    def save_run_events(self, date: str, events: list[dict[str, Any]]) -> Any:
+    def save_run_events(self, date: str, events: list[dict[str, Any]]) -> str:
         return self._local.save_run_events(date, events)
 
     def load_run_events(self, date: str) -> list[dict[str, Any]]:
@@ -183,7 +183,7 @@ class DualReportStore:
         date: str,
         portfolio_id: str,
         data: dict[str, Any],
-    ) -> Any:
+    ) -> str:
         local_result = self._local.save_portfolio_node_results(date, portfolio_id, data)
         self._try_mongo(
             lambda: self._mongo.save_portfolio_node_results(date, portfolio_id, data)
@@ -205,13 +205,13 @@ class DualReportStore:
     # Analyst / Trader Checkpoints
     # ------------------------------------------------------------------
 
-    def save_analysts_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
+    def save_analysts_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         return self._local.save_analysts_checkpoint(date, ticker, data)
 
     def load_analysts_checkpoint(self, date: str, ticker: str) -> dict[str, Any] | None:
         return self._local.load_analysts_checkpoint(date, ticker)
 
-    def save_trader_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
+    def save_trader_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         return self._local.save_trader_checkpoint(date, ticker, data)
 
     def load_trader_checkpoint(self, date: str, ticker: str) -> dict[str, Any] | None:
@@ -226,7 +226,7 @@ class DualReportStore:
         self._try_mongo(lambda: self._mongo.clear_portfolio_stage(date, portfolio_id), None)
         return local_deleted
 
-    def list_pm_decisions(self, portfolio_id: str) -> list[Any]:
+    def list_pm_decisions(self, portfolio_id: str) -> list[dict[str, Any]]:
         # Mongo returns dicts, Local returns Paths.  Prefer Mongo for rich data.
         mongo_results = self._try_mongo(lambda: self._mongo.list_pm_decisions(portfolio_id), None)
         if mongo_results:

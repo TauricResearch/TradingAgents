@@ -14,10 +14,14 @@ Usage::
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from tradingagents.default_config import DEFAULT_CONFIG, get_env_value
 from tradingagents.portfolio.dual_report_store import DualReportStore
 from tradingagents.portfolio.report_store import ReportStore
+
+if TYPE_CHECKING:
+    from tradingagents.portfolio.mongo_report_store import MongoReportStore
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ def create_report_store(
     base_dir: str | None = None,
     mongo_uri: str | None = None,
     mongo_db: str | None = None,
-) -> ReportStore | MongoReportStore | DualReportStore:  # noqa: F821
+) -> ReportStore | MongoReportStore | DualReportStore:
     """Create and return the appropriate report store.
 
     Resolution order for the backend:
@@ -69,9 +73,10 @@ def create_report_store(
                 db, run_id,
             )
             return DualReportStore(local_store, mongo_store)
-        except Exception:
+        except Exception as exc:
             logger.warning(
-                "MongoDB connection failed — falling back to filesystem store",
+                "MongoDB connection failed — falling back to filesystem store: %s",
+                exc,
                 exc_info=True,
             )
 

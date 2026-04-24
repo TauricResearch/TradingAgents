@@ -36,6 +36,7 @@ from tradingagents.portfolio.models import (
 )
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.supabase_client import SupabaseClient
+from tradingagents.portfolio.types import PortfolioConfig
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -55,11 +56,12 @@ class PortfolioRepository:
         self,
         client: SupabaseClient | None = None,
         store: ReportStore | None = None,
-        config: dict[str, Any] | None = None,
+        config: PortfolioConfig | None = None,
     ) -> None:
-        self._cfg = config or get_portfolio_config()
+        self._cfg: PortfolioConfig = config or get_portfolio_config()
         self._client = client or SupabaseClient.get_instance()
-        self._store = store or ReportStore(base_dir=self._cfg["data_dir"])
+        data_dir: str = self._cfg.get("data_dir", "reports")
+        self._store = store or ReportStore(base_dir=data_dir)
 
     # ------------------------------------------------------------------
     # Portfolio lifecycle

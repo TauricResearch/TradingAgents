@@ -23,8 +23,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from pymongo import DESCENDING, MongoClient
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 from tradingagents.portfolio.exceptions import ReportStoreError
+from tradingagents.portfolio.types import ReportDocument
 
 if TYPE_CHECKING:
     from pymongo.collection import Collection
@@ -80,8 +82,12 @@ class MongoReportStore:
             )
             self._db: Database = self._client[db_name]
             self._col: Collection = self._db[_REPORTS_COLLECTION]
-        except Exception as exc:
+            # Verify connection immediately by calling server_info()
+            self._client.server_info()
+        except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
             raise ReportStoreError(f"MongoDB connection failed: {exc}") from exc
+        except Exception as exc:
+            raise ReportStoreError(f"MongoDB initialization failed: {exc}") from exc
 
         # Ensure indexes exist on startup as per ADR 016.
         self.ensure_indexes()
@@ -129,7 +135,7 @@ class MongoReportStore:
         if not self._run_id:
             raise ReportStoreError("run_id is required for report-store writes")
         self.ensure_indexes()
-        doc = {
+        doc: ReportDocument = {
             "run_id": self._run_id,
             "date": date,
             "report_type": report_type,
@@ -140,8 +146,12 @@ class MongoReportStore:
             "created_at": datetime.now(UTC),
         }
         try:
-            result = self._col.insert_one(doc)
+            result = self._col.insert_one(doc)  # type: ignore
             return str(result.inserted_id)
+        except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
+            raise ReportStoreError(
+                f"MongoDB connection lost during insert ({report_type}): {exc}"
+            ) from exc
         except Exception as exc:
             raise ReportStoreError(
                 f"MongoDB insert failed ({report_type}): {exc}"
@@ -171,10 +181,23 @@ class MongoReportStore:
         elif self._run_id:
             query["run_id"] = self._run_id
 
-        doc = self._col.find_one(query, sort=[("created_at", DESCENDING)])
-        if doc is None:
-            return None
-        return doc.get("data")
+        try:
+            doc: ReportDocument | None = self._col.find_one(query, sort=[("created_at", DESCENDING)])
+            if doc is None:
+                return None
+            data: dict[str, Any] | None = doc.get("data")
+            if data is None:
+                logger.warning("Report document missing 'data' field: %s", doc.get("_id"))
+                return None
+            return data
+        except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
+            raise ReportStoreError(
+                f"MongoDB connection lost during load ({report_type}): {exc}"
+            ) from exc
+        except Exception as exc:
+            raise ReportStoreError(
+                f"MongoDB load failed ({report_type}): {exc}"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Macro Scan
@@ -298,26 +321,44 @@ class MongoReportStore:
     def clear_portfolio_stage(self, date: str, portfolio_id: str) -> list[str]:
         """Delete PM decision and execution result documents for a given date/portfolio."""
         deleted = []
-        for rtype in ("pm_decision", "execution_result"):
-            result = self._col.delete_many(
-                {"date": date, "report_type": rtype, "portfolio_id": portfolio_id}
-            )
-            if result.deleted_count:
-                deleted.append(rtype)
-        return deleted
+        try:
+            for rtype in ("pm_decision", "execution_result"):
+                result = self._col.delete_many(
+                    {"date": date, "report_type": rtype, "portfolio_id": portfolio_id}
+                )
+                if result.deleted_count:
+                    deleted.append(rtype)
+            return deleted
+        except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
+            raise ReportStoreError(
+                f"MongoDB connection lost during delete ({portfolio_id}): {exc}"
+            ) from exc
+        except Exception as exc:
+            raise ReportStoreError(
+                f"MongoDB delete failed ({portfolio_id}): {exc}"
+            ) from exc
 
     def list_pm_decisions(self, portfolio_id: str) -> list[dict[str, Any]]:
         """Return all PM decisions for a portfolio, newest first.
 
         Excludes ``_id`` (BSON ObjectId) which is not JSON-serializable.
         """
-        return list(
-            self._col.find(
-                {"report_type": "pm_decision", "portfolio_id": portfolio_id},
-                {"_id": 0},
-                sort=[("date", DESCENDING), ("created_at", DESCENDING)],
+        try:
+            return list(
+                self._col.find(
+                    {"report_type": "pm_decision", "portfolio_id": portfolio_id},
+                    {"_id": 0},
+                    sort=[("date", DESCENDING), ("created_at", DESCENDING)],
+                )
             )
-        )
+        except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
+            raise ReportStoreError(
+                f"MongoDB connection lost during find ({portfolio_id}): {exc}"
+            ) from exc
+        except Exception as exc:
+            raise ReportStoreError(
+                f"MongoDB find failed ({portfolio_id}): {exc}"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Run Meta / Events
@@ -342,12 +383,21 @@ class MongoReportStore:
 
     def list_run_metas(self) -> list[dict[str, Any]]:
         """Return all run_meta documents, newest first."""
-        docs = self._col.find(
-            {"report_type": "run_meta"},
-            {"_id": 0},
-            sort=[("created_at", DESCENDING)],
-        )
-        return [d.get("data", d) for d in docs]
+        try:
+            docs = self._col.find(
+                {"report_type": "run_meta"},
+                {"_id": 0},
+                sort=[("created_at", DESCENDING)],
+            )
+            return [d.get("data", d) for d in docs]
+        except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
+            raise ReportStoreError(
+                f"MongoDB connection lost during find (run_meta): {exc}"
+            ) from exc
+        except Exception as exc:
+            raise ReportStoreError(
+                f"MongoDB find failed (run_meta): {exc}"
+            ) from exc
 
     # ------------------------------------------------------------------
     # Analyst / Trader Checkpoints

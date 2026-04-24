@@ -76,7 +76,7 @@ class Portfolio:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Portfolio:
+    def from_dict(cls, /, data: dict[str, Any]) -> Portfolio:
         """Deserialise from a DB row or JSON dict.
 
         Missing optional fields default gracefully. Extra keys are ignored.
@@ -156,7 +156,7 @@ class Holding:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Holding:
+    def from_dict(cls, /, data: dict[str, Any]) -> Holding:
         """Deserialise from a DB row or JSON dict."""
         return cls(
             holding_id=data["holding_id"],
@@ -242,7 +242,7 @@ class Trade:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Trade:
+    def from_dict(cls, /, data: dict[str, Any]) -> Trade:
         """Deserialise from a DB row or JSON dict."""
         raw_sl = data.get("stop_loss")
         raw_tp = data.get("take_profit")
@@ -283,17 +283,8 @@ class PortfolioSnapshot:
     cash: float
     equity_value: float
     num_positions: int
-    holdings_snapshot: list[dict[str, Any]] | str = field(default_factory=list)
+    holdings_snapshot: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-
-    def __getattribute__(self, name: str) -> Any:
-        if name == "holdings_snapshot":
-            val = object.__getattribute__(self, "holdings_snapshot")
-            if isinstance(val, str):
-                val = json.loads(val)
-                object.__setattr__(self, "holdings_snapshot", val)
-            return val
-        return object.__getattribute__(self, name)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise all fields. ``holdings_snapshot`` is already a list[dict]."""
@@ -310,11 +301,21 @@ class PortfolioSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> PortfolioSnapshot:
+    def from_dict(cls, /, data: dict[str, Any]) -> PortfolioSnapshot:
         """Deserialise from DB row or JSON dict.
 
-        ``holdings_snapshot`` is parsed lazily on first access.
+        ``holdings_snapshot`` is parsed from JSON string if needed, otherwise
+        used directly as a list.
         """
+        snap = data.get("holdings_snapshot", [])
+        if isinstance(snap, str):
+            try:
+                holdings = json.loads(snap)
+            except (json.JSONDecodeError, TypeError):
+                holdings = []
+        else:
+            holdings = snap or []
+
         return cls(
             snapshot_id=data["snapshot_id"],
             portfolio_id=data["portfolio_id"],
@@ -323,6 +324,6 @@ class PortfolioSnapshot:
             cash=float(data["cash"]),
             equity_value=float(data["equity_value"]),
             num_positions=int(data["num_positions"]),
-            holdings_snapshot=data.get("holdings_snapshot", []),
+            holdings_snapshot=holdings,
             metadata=data.get("metadata") or {},
         )
