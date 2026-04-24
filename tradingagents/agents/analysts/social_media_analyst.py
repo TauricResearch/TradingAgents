@@ -18,7 +18,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def social_media_analyst_node(state: AgentState) -> dict[str, Any]:
+    def social_media_analyst_node(state: AgentState, /) -> dict[str, Any]:
+
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)

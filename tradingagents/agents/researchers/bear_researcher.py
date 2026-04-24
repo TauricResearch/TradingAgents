@@ -16,7 +16,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_bear_researcher(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def bear_node(state: AgentState) -> dict[str, Any]:
+    def bear_node(state: AgentState, /) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")

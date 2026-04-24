@@ -39,7 +39,7 @@ def create_news_fact_checker(
 ) -> Callable[[AgentState], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
-    def news_fact_checker_node(state: AgentState) -> dict[str, Any]:
+    def news_fact_checker_node(state: AgentState, /) -> dict[str, Any]:
 
         ticker = str(state.get("company_of_interest") or "").upper()
         trade_date = str(state.get("trade_date") or "")

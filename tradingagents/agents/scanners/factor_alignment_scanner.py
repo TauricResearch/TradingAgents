@@ -19,7 +19,7 @@ from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
 def create_factor_alignment_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def factor_alignment_scanner_node(state: AgentState) -> dict[str, Any]:
+    def factor_alignment_scanner_node(state: AgentState, /) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "factor_alignment_report")
         if existing_report:

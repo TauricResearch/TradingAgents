@@ -36,7 +36,8 @@ def create_research_packet_summary(llm: Any) -> Callable[[AgentState], dict[str,
     # TODO(structured-contracts): remove after Phase 6 — this node is no longer
     # wired into any graph.  build_research_packet() is now called inline by
     # each consumer (bull_researcher, bear_researcher, research_manager, etc.).
-    def research_packet_summary_node(state: AgentState) -> dict[str, Any]:
+    def research_packet_summary_node(state: AgentState, /) -> dict[str, Any]:
+
         if not any(
             (
                 state.get("market_report"),
@@ -65,7 +66,8 @@ def create_investment_debate_summary(llm: Any) -> Callable[[AgentState], dict[st
     # TODO(structured-contracts): remove after Phase 6 — this node is no longer
     # wired into any graph.  build_investment_debate_summary() is now called
     # inline by research_manager.
-    def investment_debate_summary_node(state: AgentState) -> dict[str, Any]:
+    def investment_debate_summary_node(state: AgentState, /) -> dict[str, Any]:
+
 
         debate_state = state["investment_debate_state"]
         summary = build_investment_debate_summary(debate_state) or "Investment debate in progress..."
@@ -82,7 +84,8 @@ def create_investment_debate_summary(llm: Any) -> Callable[[AgentState], dict[st
 
 
 def create_risk_debate_summary(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def risk_debate_summary_node(state: AgentState) -> dict[str, Any]:
+    def risk_debate_summary_node(state: AgentState, /) -> dict[str, Any]:
+
         debate_state = state["risk_debate_state"]
         summary = build_risk_debate_summary(debate_state) or "Risk debate in progress..."
 

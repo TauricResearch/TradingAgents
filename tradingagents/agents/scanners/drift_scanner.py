@@ -19,7 +19,7 @@ from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
 def create_drift_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def drift_scanner_node(state: AgentState) -> dict[str, Any]:
+    def drift_scanner_node(state: AgentState, /) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "drift_opportunities_report")
         if existing_report:

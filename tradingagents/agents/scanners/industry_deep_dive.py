@@ -132,7 +132,7 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
 
 
 def create_industry_deep_dive(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def industry_deep_dive_node(state: AgentState) -> dict[str, Any]:
+    def industry_deep_dive_node(state: AgentState, /) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "industry_deep_dive_report")
         if existing_report:

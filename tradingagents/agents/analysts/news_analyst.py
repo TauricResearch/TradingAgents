@@ -86,7 +86,8 @@ def _build_compact_news_context(
 def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = None) -> Callable[[AgentState], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
-    def news_analyst_node(state: AgentState) -> dict[str, Any]:
+    def news_analyst_node(state: AgentState, /) -> dict[str, Any]:
+
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         run_id = str(state["run_id"])

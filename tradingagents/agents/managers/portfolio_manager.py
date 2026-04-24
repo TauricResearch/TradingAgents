@@ -19,7 +19,7 @@ from tradingagents.observability import get_run_logger
 
 
 def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def portfolio_manager_node(state: AgentState) -> dict[str, Any]:
+    def portfolio_manager_node(state: AgentState, /) -> dict[str, Any]:
 
 
         instrument_context = build_instrument_context(state["company_of_interest"])

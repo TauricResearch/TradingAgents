@@ -54,7 +54,8 @@ def _extract_entry_price_from_plan(plan: str) -> float | None:
 
 
 def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def trader_node(state: AgentState, name: str) -> dict[str, Any]:
+    def trader_node(state: AgentState, /) -> dict[str, Any]:
+
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
         investment_plan = state["investment_plan"]
