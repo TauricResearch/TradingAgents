@@ -17,8 +17,7 @@ def state_has_critical_abort(state: AgentState, /, *report_fields: str) -> bool:
     return any(report_has_critical_abort(state.get(field, "")) for field in report_fields)
 
 
-def extract_abort_report(*report_fields: str) -> tuple[str, str]:
-
+def extract_abort_report(state: AgentState, /, *report_fields: str) -> tuple[str, str]:
     """Return the first aborting report field and its raw text."""
     for field in report_fields:
         report = state.get(field, "")
