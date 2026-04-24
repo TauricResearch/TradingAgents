@@ -1,4 +1,3 @@
-import functools
 import re
 from collections.abc import Callable
 from typing import Any
@@ -188,7 +187,7 @@ Apply lessons from past decisions:
             "messages": [result] if result else [],
             "trader_investment_plan": output_content,
             "trader_plan_structured": structured,
-            "sender": name,
+            "sender": "Trader",
         }
 
-    return functools.partial(trader_node, name="Trader")
+    return trader_node

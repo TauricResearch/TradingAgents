@@ -25,10 +25,10 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts: list[str] | None = None,
-        debug: bool = False,
-        config: dict[str, Any] | None = None,
-        callbacks: list | None = None,
+        selected_analysts=["market", "news", "fundamentals"],
+        debug=False,
+        config: Dict[str, Any] = None,
+        callbacks: Optional[List] = None,
     ):
         """Initialize the trading agents graph and components.
 

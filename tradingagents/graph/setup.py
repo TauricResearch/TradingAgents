@@ -133,8 +133,8 @@ class GraphSetup:
         self.news_evidence_store = news_evidence_store or NewsEvidenceStore()
 
     def setup_graph(
-        self, selected_analysts: list[str] | None = None
-    ) -> Any:
+        self, selected_analysts=["market", "news", "fundamentals"]
+    ):
         """Set up and compile the agent workflow graph.
 
         Args:
