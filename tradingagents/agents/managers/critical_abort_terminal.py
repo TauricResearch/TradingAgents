@@ -10,7 +10,7 @@ from tradingagents.constants import CRITICAL_ABORT_NODE
 
 
 def create_critical_abort_terminal() -> Callable[[AgentState], dict[str, Any]]:
-    def critical_abort_terminal_node(state: AgentState) -> dict[str, Any]:
+    def critical_abort_terminal_node(state: AgentState, /) -> dict[str, Any]:
         context = str(state.get("portfolio_context") or "candidate").strip().lower()
         is_holding = context == "holding"
         terminal_action = "SELL" if is_holding else "AVOID"

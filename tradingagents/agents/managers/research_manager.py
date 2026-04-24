@@ -19,7 +19,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def research_manager_node(state: AgentState) -> dict[str, Any]:
+    def research_manager_node(state: AgentState, /) -> dict[str, Any]:
 
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)

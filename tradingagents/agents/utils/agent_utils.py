@@ -71,7 +71,7 @@ def build_instrument_context(ticker: str) -> str:
     )
 
 def create_msg_delete() -> Callable[[AgentState], dict[str, Any]]:
-    def delete_messages(state: AgentState) -> dict[str, Any]:
+    def delete_messages(state: AgentState, /) -> dict[str, Any]:
         """Clear messages and add placeholder for Anthropic compatibility"""
         messages = state.get("messages", [])
         if not messages:

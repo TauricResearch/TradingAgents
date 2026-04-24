@@ -23,7 +23,7 @@ from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
 def create_geopolitical_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def geopolitical_scanner_node(state: AgentState) -> dict[str, Any]:
+    def geopolitical_scanner_node(state: AgentState, /) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "geopolitical_report")
         if existing_report:

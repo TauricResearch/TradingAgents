@@ -14,7 +14,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_conservative_debator(llm: Any, round_num: int = 1) -> Callable[[AgentState], dict[str, Any]]:
-    def conservative_node(state: AgentState) -> dict[str, Any]:
+    def conservative_node(state: AgentState, /) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         research_packet = build_research_packet(state)
         risk_summary = get_risk_debate_summary(state)

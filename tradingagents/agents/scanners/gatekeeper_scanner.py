@@ -14,7 +14,7 @@ from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
 def create_gatekeeper_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def gatekeeper_scanner_node(state: AgentState) -> dict[str, Any]:
+    def gatekeeper_scanner_node(state: AgentState, /) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "gatekeeper_universe_report")
         if existing_report:

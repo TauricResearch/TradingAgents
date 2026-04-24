@@ -125,7 +125,7 @@ def _build_timeout_fallback_report(
 
 
 def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def market_analyst_node(state: AgentState) -> dict[str, Any]:
+    def market_analyst_node(state: AgentState, /) -> dict[str, Any]:
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)

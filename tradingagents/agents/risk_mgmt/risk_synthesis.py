@@ -11,7 +11,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_risk_synthesis(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def risk_synthesis_node(state: AgentState) -> dict[str, Any]:
+    def risk_synthesis_node(state: AgentState, /) -> dict[str, Any]:
         # Collect all round responses
         r1_agg = state.get("risk_r1_aggressive", "")
         r1_con = state.get("risk_r1_conservative", "")
