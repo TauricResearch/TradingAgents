@@ -1,3 +1,4 @@
+import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
@@ -107,7 +108,7 @@ def test_repair_macro_summary_filters_and_backfills_to_requested_count():
     assert repaired["stocks_to_investigate"][2]["name"] == "Apple Inc."
 
 
-def test_macro_synthesis_ignores_prior_message_history_when_prompting_llm():
+def test_macro_synthesis_ignores_prior_message_history_when_prompting_llm(monkeypatch):
     captured_prompt = None
 
     def _invoke(prompt_value):
@@ -120,10 +121,15 @@ def test_macro_synthesis_ignores_prior_message_history_when_prompting_llm():
 
     llm = RunnableLambda(_invoke)
     agent = create_macro_synthesis(llm, max_scan_tickers=3, scan_horizon_days=30)
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.save_node_report",
+        lambda *_args, **_kwargs: None,
+    )
 
     result = agent(
         {
             "scan_date": "2026-03-30",
+            "run_id": "RUN1",
             "messages": [
                 AIMessage(
                     content=[{"type": "text", "text": "provider-native block"}],
@@ -159,7 +165,7 @@ def test_macro_synthesis_ignores_prior_message_history_when_prompting_llm():
     assert result["macro_scan_summary"]
 
 
-def test_macro_synthesis_falls_back_when_scan_date_missing():
+def test_macro_synthesis_fails_when_scan_date_missing():
     def _invoke(_prompt_value):
         return AIMessage(
             content='{"timeframe":"1 month","executive_summary":"Summary","macro_context":{},'
@@ -168,18 +174,20 @@ def test_macro_synthesis_falls_back_when_scan_date_missing():
 
     agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3, scan_horizon_days=30)
 
-    result = agent(
-        {
-            "messages": [],
-            "gatekeeper_universe_report": "NVDA AAPL MSFT",
-            "geopolitical_report": "Geopolitical context",
-            "market_movers_report": "Market movers context",
-            "sector_performance_report": "Sector context",
-            "factor_alignment_report": "Factor context",
-            "drift_opportunities_report": "Drift context",
-            "smart_money_report": "Smart money context",
-            "industry_deep_dive_report": "Industry context",
-        }
-    )
+    with pytest.raises(RuntimeError) as exc:
+        agent(
+            {
+                "run_id": "RUN1",
+                "messages": [],
+                "gatekeeper_universe_report": "NVDA AAPL MSFT",
+                "geopolitical_report": "Geopolitical context",
+                "market_movers_report": "Market movers context",
+                "sector_performance_report": "Sector context",
+                "factor_alignment_report": "Factor context",
+                "drift_opportunities_report": "Drift context",
+                "smart_money_report": "Smart money context",
+                "industry_deep_dive_report": "Industry context",
+            }
+        )
 
-    assert result["macro_scan_summary"]
+    assert "missing required scan_date" in str(exc.value)

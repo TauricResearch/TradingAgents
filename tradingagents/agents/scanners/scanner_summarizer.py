@@ -18,13 +18,14 @@ from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,
 )
-from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.report_quality import parse_quality_header
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
+    require_scan_context,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_states import ScannerState
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def _build_scanner_summary_prompt(report_key: str, raw_report: str) -> str:
     )
 
 
-def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Callable[[AgentState], dict[str, Any]]:
+def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Callable[[ScannerState], dict[str, Any]]:
     """Create a node that summarizes a specific scanner report.
 
     Args:
@@ -65,7 +66,9 @@ def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Ca
         summary_key: The key in the state to store the summary.
     """
 
-    def summarizer_node(state: AgentState) -> dict[str, Any]:
+    def summarizer_node(state: ScannerState) -> dict[str, Any]:
+        require_scan_context(state, node_name=f"summarizer_{report_key}")
+
         # 1. Idempotency Check
         existing_summary = check_and_load_report(state, summary_key)
         if existing_summary and existing_summary != "No data available for summarization.":
@@ -74,13 +77,15 @@ def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Ca
                 "sender": f"summarizer_{report_key}",
             }
 
-        raw_report = state.get(report_key, "") or check_and_load_report(state, report_key) or ""
+        raw_report = state.get(report_key, "")
         report_label = report_key.replace("_report", "").replace("_", " ").strip() or report_key
 
         # Gate: skip LLM for empty, degenerate, or quality-tagged-empty reports.
         if not raw_report or raw_report.strip() in _DEGENERATE_OUTPUTS:
-            no_ev = f"[NO_EVIDENCE] Source: {report_label}. Upstream scanner produced no usable data. Exclude from synthesis."
-            return {summary_key: no_ev, "sender": f"summarizer_{report_key}"}
+            raise RuntimeError(
+                f"Summarizer missing usable upstream report for {report_key}; "
+                "refusing to synthesize without graph evidence."
+            )
 
         quality = parse_quality_header(raw_report)
         if quality and (

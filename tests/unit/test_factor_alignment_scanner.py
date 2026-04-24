@@ -35,10 +35,14 @@ def test_factor_alignment_uses_sector_tool_and_wider_tool_output_budget():
     with patch(
         "tradingagents.agents.scanners.factor_alignment_scanner.run_tool_loop",
         side_effect=_fake_run_tool_loop,
+    ), patch(
+        "tradingagents.agents.scanners.factor_alignment_scanner.save_node_report",
+        lambda *_args, **_kwargs: None,
     ):
         result = node(
             {
                 "scan_date": "2026-04-10",
+                "run_id": "RUN1",
                 "messages": [AIMessage(content="Start factor scan")],
                 "sector_performance_report": "Technology +2.1%, Energy -1.3%",
             }

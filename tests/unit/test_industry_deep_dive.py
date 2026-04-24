@@ -121,8 +121,8 @@ class TestExtractTopSectors:
         assert result == ["financial-services", "consumer-defensive"]
 
 
-def test_industry_deep_dive_falls_back_when_scan_date_missing(monkeypatch):
-    """A missing scan_date at the fan-in boundary should not crash the scan."""
+def test_industry_deep_dive_fails_when_scan_date_missing(monkeypatch):
+    """A missing scan_date at the fan-in boundary is a pipeline error."""
 
     class FakeLLM:
         def bind_tools(self, _tools):
@@ -143,10 +143,11 @@ def test_industry_deep_dive_falls_back_when_scan_date_missing(monkeypatch):
         lambda *_args, **_kwargs: None,
     )
     node = create_industry_deep_dive(FakeLLM())
-    result = node({"messages": [], "sector_performance_report": ""})
 
-    assert result["industry_deep_dive_report"]
-    assert result["sender"] == "industry_deep_dive"
+    with pytest.raises(RuntimeError) as exc:
+        node({"run_id": "RUN1", "messages": [], "sector_performance_report": ""})
+
+    assert "missing required scan_date" in str(exc.value)
 
     def test_extracts_from_plain_text(self):
         report = "We recommend looking into technology, energy, and materials this quarter."

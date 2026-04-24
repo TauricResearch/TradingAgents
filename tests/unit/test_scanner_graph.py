@@ -1,6 +1,7 @@
 """Tests for ScannerGraph and ScannerGraphSetup."""
 
 from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 
 
 def test_scanner_graph_import():
@@ -204,6 +205,94 @@ def test_scanner_state_preserves_scan_date_across_fan_in():
 
     assert get_origin(scan_date_hint) is Annotated
     assert get_args(scan_date_hint)[1] is _last_value
+
+
+def test_scanner_state_reducer_ignores_empty_updates():
+    """Empty branch state must not erase a populated scanner report at joins."""
+    from tradingagents.agents.utils.scanner_states import _last_value
+
+    assert _last_value("report text", "") == "report text"
+    assert _last_value("", "report text") == "report text"
+
+
+def test_scanner_summarizer_receives_scanner_state_fields_in_graph(tmp_path, monkeypatch):
+    """Summarizer nodes must receive scanner-specific report fields from predecessors."""
+    from tradingagents.agents.scanners.scanner_summarizer import create_scanner_summarizer
+    from tradingagents.graph.scanner_setup import ScannerGraphSetup
+
+    llm = MagicMock()
+    llm.invoke.return_value = SimpleNamespace(content="- NVDA | Technology | summary")
+    monkeypatch.setattr(
+        "tradingagents.agents.utils.scanner_idempotency.get_market_dir",
+        lambda scan_date, run_id: tmp_path / "daily" / scan_date / run_id / "market",
+    )
+
+    def make_report_node(name: str, field: str):
+        def _node(_state):
+            return {
+                field: f"[QUALITY: ok | evidence=1 | tools=test]\n{name} evidence",
+                "sender": name,
+            }
+
+        return _node
+
+    def passthrough_macro(_state):
+        return {"macro_scan_summary": "ok", "sender": "macro_synthesis"}
+
+    agents = {
+        "gatekeeper_scanner": make_report_node("gatekeeper", "gatekeeper_universe_report"),
+        "geopolitical_scanner": make_report_node("geopolitical", "geopolitical_report"),
+        "market_movers_scanner": make_report_node("market", "market_movers_report"),
+        "sector_scanner": make_report_node("sector", "sector_performance_report"),
+        "factor_alignment_scanner": make_report_node("factor", "factor_alignment_report"),
+        "drift_scanner": make_report_node("drift", "drift_opportunities_report"),
+        "smart_money_scanner": make_report_node("smart", "smart_money_report"),
+        "industry_deep_dive": make_report_node("industry", "industry_deep_dive_report"),
+        "macro_synthesis": passthrough_macro,
+    }
+    for node_name, report_key, summary_key in (
+        ("summarize_gatekeeper", "gatekeeper_universe_report", "gatekeeper_summary"),
+        ("summarize_geopolitical", "geopolitical_report", "geopolitical_summary"),
+        ("summarize_market_movers", "market_movers_report", "market_movers_summary"),
+        ("summarize_sector", "sector_performance_report", "sector_summary"),
+        ("summarize_factor_alignment", "factor_alignment_report", "factor_alignment_summary"),
+        ("summarize_drift", "drift_opportunities_report", "drift_opportunities_summary"),
+        ("summarize_smart_money", "smart_money_report", "smart_money_summary"),
+        ("summarize_industry_deep_dive", "industry_deep_dive_report", "industry_deep_dive_summary"),
+    ):
+        agents[node_name] = create_scanner_summarizer(llm, report_key, summary_key)
+
+    initial_state = {
+        "scan_date": "2026-04-24",
+        "run_id": "STRICT_GRAPH_STATE",
+        "messages": [],
+        "sender": "",
+        "macro_scan_summary": "",
+    }
+    for key in (
+        "gatekeeper_universe_report",
+        "geopolitical_report",
+        "market_movers_report",
+        "sector_performance_report",
+        "factor_alignment_report",
+        "drift_opportunities_report",
+        "smart_money_report",
+        "industry_deep_dive_report",
+        "gatekeeper_summary",
+        "geopolitical_summary",
+        "market_movers_summary",
+        "sector_summary",
+        "factor_alignment_summary",
+        "drift_opportunities_summary",
+        "smart_money_summary",
+        "industry_deep_dive_summary",
+    ):
+        initial_state[key] = ""
+
+    result = ScannerGraphSetup(agents).setup_graph().invoke(initial_state)
+
+    assert result["gatekeeper_summary"] == "- NVDA | Technology | summary"
+    assert llm.invoke.call_count >= 1
 
 
 if __name__ == "__main__":

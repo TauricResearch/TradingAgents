@@ -1,18 +1,18 @@
 import json
 import logging
 import re
-import time
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
+    require_scan_context,
     save_node_report,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -77,7 +77,7 @@ def _parse_gatekeeper_rows(report_text: str) -> list[dict[str, str]]:
     return rows
 
 
-def _build_candidate_rankings(state: AgentState, limit: int = 15) -> list[dict[str, object]]:
+def _build_candidate_rankings(state: ScannerState, limit: int = 15) -> list[dict[str, object]]:
     allowed_tickers = _extract_rankable_tickers(state.get("gatekeeper_universe_report", ""))
     weighted_sources = [
         ("market_movers_report", 2, "market_movers"),
@@ -188,7 +188,7 @@ def _fallback_candidate_from_ranking(
 
 def _repair_macro_summary(
     parsed: dict,
-    state: AgentState,
+    state: ScannerState,
     max_scan_tickers: int,
     horizon_label: str,
 ) -> dict:
@@ -255,8 +255,10 @@ def _repair_macro_summary(
 
 def create_macro_synthesis(
     llm: Any, max_scan_tickers: int = 10, scan_horizon_days: int = 30
-) -> Callable[[AgentState], dict[str, Any]]:
-    def macro_synthesis_node(state: AgentState) -> dict[str, Any]:
+) -> Callable[[ScannerState], dict[str, Any]]:
+    def macro_synthesis_node(state: ScannerState) -> dict[str, Any]:
+        scan_date, _run_id = require_scan_context(state, node_name="macro_synthesis")
+
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "macro_scan_summary")
         if existing_report:
@@ -265,7 +267,6 @@ def create_macro_synthesis(
                 "sender": "macro_synthesis",
             }
 
-        scan_date = state.get("scan_date") or time.strftime("%Y-%m-%d")
         horizon_label = _format_horizon_label(scan_horizon_days)
 
         # Inject all previous reports for synthesis — keep it concise to avoid token bloat

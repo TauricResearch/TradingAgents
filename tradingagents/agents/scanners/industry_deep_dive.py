@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import re
-import time
 from collections.abc import Callable
 from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
+    require_scan_context,
     save_node_report,
 )
 from tradingagents.agents.utils.scanner_tools import get_industry_performance, get_topic_news
@@ -132,8 +132,10 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
     return VALID_SECTOR_KEYS[:top_n]
 
 
-def create_industry_deep_dive(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def industry_deep_dive_node(state: AgentState, /) -> dict[str, Any]:
+def create_industry_deep_dive(llm: Any) -> Callable[[ScannerState], dict[str, Any]]:
+    def industry_deep_dive_node(state: ScannerState, /) -> dict[str, Any]:
+        scan_date, _run_id = require_scan_context(state, node_name="industry_deep_dive")
+
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "industry_deep_dive_report")
         if existing_report:
@@ -141,8 +143,6 @@ def create_industry_deep_dive(llm: Any) -> Callable[[AgentState], dict[str, Any]
                 "industry_deep_dive_report": existing_report,
                 "sender": "industry_deep_dive",
             }
-
-        scan_date = state.get("scan_date") or time.strftime("%Y-%m-%d")
 
         tools = [get_industry_performance, get_topic_news]
 

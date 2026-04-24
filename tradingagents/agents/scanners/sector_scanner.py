@@ -3,18 +3,21 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
+    require_scan_context,
     save_node_report,
 )
 from tradingagents.agents.utils.scanner_tools import get_sector_performance
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
-def create_sector_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def sector_scanner_node(state: AgentState) -> dict[str, Any]:
+def create_sector_scanner(llm: Any) -> Callable[[ScannerState], dict[str, Any]]:
+    def sector_scanner_node(state: ScannerState) -> dict[str, Any]:
+        scan_date, _run_id = require_scan_context(state, node_name="sector_scanner")
+
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "sector_performance_report")
         if existing_report:
@@ -22,8 +25,6 @@ def create_sector_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
                 "sector_performance_report": existing_report,
                 "sender": "sector_scanner",
             }
-
-        scan_date = state["scan_date"]
 
         tools = [get_sector_performance]
 

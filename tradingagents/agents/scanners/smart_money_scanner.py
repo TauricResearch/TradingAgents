@@ -16,10 +16,11 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
+    require_scan_context,
     save_node_report,
 )
 from tradingagents.agents.utils.scanner_tools import (
@@ -32,8 +33,10 @@ from tradingagents.agents.utils.tool_runner import run_tool_loop
 logger = logging.getLogger(__name__)
 
 
-def create_smart_money_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
-    def smart_money_scanner_node(state: AgentState) -> dict[str, Any]:
+def create_smart_money_scanner(llm: Any) -> Callable[[ScannerState], dict[str, Any]]:
+    def smart_money_scanner_node(state: ScannerState) -> dict[str, Any]:
+        scan_date, _run_id = require_scan_context(state, node_name="smart_money_scanner")
+
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "smart_money_report")
         if existing_report:
@@ -42,7 +45,6 @@ def create_smart_money_scanner(llm: Any) -> Callable[[AgentState], dict[str, Any
                 "sender": "smart_money_scanner",
             }
 
-        scan_date = state["scan_date"]
         tools = [
             get_insider_buying_stocks,
             get_unusual_volume_stocks,
