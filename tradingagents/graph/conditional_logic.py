@@ -49,19 +49,19 @@ class ConditionalLogic:
         if (
             state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
         ):  # 3 rounds of back-and-forth between 2 agents
-            return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
-            return "Bear Researcher"
-        return "Bull Researcher"
+            return "研究经理"
+        if state["investment_debate_state"]["current_response"].startswith("多头"):
+            return "空头研究员"
+        return "多头研究员"
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
         if (
             state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
         ):  # 3 rounds of back-and-forth between 3 agents
-            return "Portfolio Manager"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
-            return "Conservative Analyst"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Conservative"):
-            return "Neutral Analyst"
-        return "Aggressive Analyst"
+            return "投资组合经理"
+        if state["risk_debate_state"]["latest_speaker"].startswith("激进"):
+            return "保守分析师"
+        if state["risk_debate_state"]["latest_speaker"].startswith("保守"):
+            return "中立分析师"
+        return "激进分析师"

@@ -25,13 +25,13 @@ def create_trader(llm, memory):
 
         context = {
             "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. {instrument_context} This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
+            "content": f"基于分析师团队的全面分析，这是为{company_name}量身定制的投资计划。{instrument_context} 该计划整合了当前技术市场趋势、宏观经济指标和社交媒体情绪的洞察。以此计划为基础评估你的下一个交易决策。\n\n建议投资计划：{investment_plan}\n\n利用这些洞察做出明智和战略性的决策。",
         }
 
         messages = [
             {
                 "role": "system",
-                "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific recommendation to buy, sell, or hold. End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. Apply lessons from past decisions to strengthen your analysis. Here are reflections from similar situations you traded in and the lessons learned: {past_memory_str}""",
+                "content": f"""你是一位分析市场数据并做出投资决策的交易代理。基于你的分析，提供具体的买入、卖出或持有建议。以坚定决策结束，并始终以"**最终交易提案：买入/持有/卖出**"结束你的回复以确认你的建议。应用过去决策中的教训来加强你的分析。以下是你在类似情况下交易的教训和经验：{past_memory_str}""",
             },
             context,
         ]
@@ -44,4 +44,4 @@ def create_trader(llm, memory):
             "sender": name,
         }
 
-    return functools.partial(trader_node, name="Trader")
+    return functools.partial(trader_node, name="交易员")

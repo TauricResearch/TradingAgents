@@ -22,37 +22,37 @@ def create_portfolio_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
+        prompt = f"""作为投资组合经理，综合风险分析师的辩论并交付最终交易决策。
 
 {instrument_context}
 
 ---
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
+**评级量表**（严格使用其中之一）：
+- **买入**：强烈信念入场或加仓
+- **增持**：看好前景，逐步增加敞口
+- **持有**：维持当前仓位，无需操作
+- **减仓**：减少敞口，获取部分利润
+- **卖出**：清仓或避免入场
 
-**Context:**
-- Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
-- Lessons from past decisions: **{past_memory_str}**
+**背景：**
+- 研究经理的投资计划：*{research_plan}*
+- 交易员的交易提案：*{trader_plan}*
+- 过去决策的经验教训：*{past_memory_str}*
 
-**Required Output Structure:**
-1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
-2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon.
-3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and past reflections.
+**必需输出结构：**
+1. **评级**：声明买入/增持/持有/减仓/卖出之一。
+2. **执行摘要**：涵盖入场策略、仓位规模、关键风险水平和时间范围的简明行动计划。
+3. **投资论点**：基于分析师辩论和过去反思的详细推理。
 
 ---
 
-**Risk Analysts Debate History:**
+**风险分析师辩论历史：**
 {history}
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+做出决定性的决策，让每个结论都基于分析师提供的具体证据。"""
 
         response = llm.invoke(prompt)
 

@@ -116,14 +116,14 @@ class GraphSetup:
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
-        workflow.add_node("Bull Researcher", bull_researcher_node)
-        workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive Analyst", aggressive_analyst)
-        workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Conservative Analyst", conservative_analyst)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node("多头研究员", bull_researcher_node)
+        workflow.add_node("空头研究员", bear_researcher_node)
+        workflow.add_node("研究经理", research_manager_node)
+        workflow.add_node("交易员", trader_node)
+        workflow.add_node("激进分析师", aggressive_analyst)
+        workflow.add_node("中立分析师", neutral_analyst)
+        workflow.add_node("保守分析师", conservative_analyst)
+        workflow.add_node("投资组合经理", portfolio_manager_node)
 
         # Define edges
         # Start with the first analyst
@@ -149,53 +149,53 @@ class GraphSetup:
                 next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
             else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+                workflow.add_edge(current_clear, "多头研究员")
 
         # Add remaining edges
         workflow.add_conditional_edges(
-            "Bull Researcher",
+            "多头研究员",
             self.conditional_logic.should_continue_debate,
             {
-                "Bear Researcher": "Bear Researcher",
-                "Research Manager": "Research Manager",
+                "空头研究员": "空头研究员",
+                "研究经理": "研究经理",
             },
         )
         workflow.add_conditional_edges(
-            "Bear Researcher",
+            "空头研究员",
             self.conditional_logic.should_continue_debate,
             {
-                "Bull Researcher": "Bull Researcher",
-                "Research Manager": "Research Manager",
+                "多头研究员": "多头研究员",
+                "研究经理": "研究经理",
             },
         )
-        workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Aggressive Analyst")
+        workflow.add_edge("研究经理", "交易员")
+        workflow.add_edge("交易员", "激进分析师")
         workflow.add_conditional_edges(
-            "Aggressive Analyst",
+            "激进分析师",
             self.conditional_logic.should_continue_risk_analysis,
             {
-                "Conservative Analyst": "Conservative Analyst",
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Conservative Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Neutral Analyst": "Neutral Analyst",
-                "Portfolio Manager": "Portfolio Manager",
+                "保守分析师": "保守分析师",
+                "投资组合经理": "投资组合经理",
             },
         )
         workflow.add_conditional_edges(
-            "Neutral Analyst",
+            "保守分析师",
             self.conditional_logic.should_continue_risk_analysis,
             {
-                "Aggressive Analyst": "Aggressive Analyst",
-                "Portfolio Manager": "Portfolio Manager",
+                "中立分析师": "中立分析师",
+                "投资组合经理": "投资组合经理",
+            },
+        )
+        workflow.add_conditional_edges(
+            "中立分析师",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "激进分析师": "激进分析师",
+                "投资组合经理": "投资组合经理",
             },
         )
 
-        workflow.add_edge("Portfolio Manager", END)
+        workflow.add_edge("投资组合经理", END)
 
         # Compile and return
         return workflow.compile()

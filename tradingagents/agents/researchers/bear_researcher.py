@@ -19,31 +19,31 @@ def create_bear_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        prompt = f"""你是一位空头分析师，提出不投资该股票的理由。你的目标是提出一个有充分理由的论点，强调风险、挑战和负面指标。利用提供的研究和数据来突出潜在缺点并有效反驳多头观点。
 
-Key points to focus on:
+需要关注的重点：
 
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
-- Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
-- Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
+- 风险和挑战：突出可能阻碍股票表现的因素，如市场饱和、财务不稳定或宏观经济威胁。
+- 竞争劣势：强调弱点，如较弱的市场地位、下降的创新能力或来自竞争对手的威胁。
+- 负面指标：使用财务数据、市场趋势或近期负面新闻作为证据支持你的立场。
+- 多头反驳点：用具体数据和合理推理批判性地分析多头论点，揭露弱点或过度乐观的假设。
+- 互动交流：以对话方式呈现你的论点，直接回应多头分析师的观点并进行有效的辩论，而不仅仅是列出事实。
 
-Resources available:
+可用资源：
 
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bull argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
+市场研究报告：{market_research_report}
+社交媒体情绪报告：{sentiment_report}
+最新世界事务新闻：{news_report}
+公司基本面报告：{fundamentals_report}
+辩论对话历史：{history}
+上一个多头论点：{current_response}
+类似情况的经验教训：{past_memory_str}
+利用这些信息提供令人信服的空头论点，反驳多头的观点，并进行展示投资该股票风险和弱点的动态辩论。你还必须处理反思并从过去犯下的错误中吸取教训。
 """
 
         response = llm.invoke(prompt)
 
-        argument = f"Bear Analyst: {response.content}"
+        argument = f"空头分析师：{response.content}"
 
         new_investment_debate_state = {
             "history": history + "\n" + argument,
