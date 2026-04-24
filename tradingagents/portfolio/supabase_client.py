@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any
+from threading import Lock
+from typing import Any, ClassVar
 
 import psycopg2
 import psycopg2.extras
@@ -34,6 +35,7 @@ from tradingagents.portfolio.models import (
     PortfolioSnapshot,
     Trade,
 )
+from tradingagents.portfolio.types import RealDictRow
 
 
 class SupabaseClient:
@@ -43,7 +45,8 @@ class SupabaseClient:
     and return typed model instances.
     """
 
-    _instance: SupabaseClient | None = None
+    _instance: ClassVar[SupabaseClient | None] = None
+    _lock: ClassVar[Lock] = Lock()
 
     def __init__(self, connection_string: str) -> None:
         self._dsn = self._fix_dsn(connection_string)
@@ -73,33 +76,35 @@ class SupabaseClient:
     @classmethod
     def get_instance(cls) -> SupabaseClient:
         """Return the singleton instance, creating it if necessary."""
-        if cls._instance is None:
-            cfg = get_portfolio_config()
-            dsn = cfg["supabase_connection_string"]
-            if not dsn:
-                raise PortfolioError(
-                    "SUPABASE_CONNECTION_STRING not configured. "
-                    "Set it in .env or as an environment variable."
-                )
-            cls._instance = cls(dsn)
-        return cls._instance
+        with cls._lock:
+            if cls._instance is None:
+                cfg = get_portfolio_config()
+                dsn = cfg.get("supabase_connection_string")
+                if not dsn:
+                    raise PortfolioError(
+                        "SUPABASE_CONNECTION_STRING not configured. "
+                        "Set it in .env or as an environment variable."
+                    )
+                cls._instance = cls(dsn)
+            return cls._instance
 
     @classmethod
     def reset_instance(cls) -> None:
         """Close and reset the singleton (for testing)."""
-        if cls._instance is not None:
-            try:
-                cls._instance._conn.close()
-            except Exception:
-                pass
-            cls._instance = None
+        with cls._lock:
+            if cls._instance is not None:
+                try:
+                    cls._instance._conn.close()
+                except psycopg2.OperationalError:
+                    pass
+                cls._instance = None
 
-    def _cursor(self) -> Any:
+    def _cursor(self) -> psycopg2.extras.RealDictCursor:  # type: ignore
         """Return a RealDictCursor, reconnecting if the connection was dropped."""
         if self._conn.closed:
             self._conn = psycopg2.connect(self._dsn)
             self._conn.autocommit = True
-        return self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        return self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)  # type: ignore
 
     # ------------------------------------------------------------------
     # Portfolio CRUD
@@ -122,6 +127,8 @@ class SupabaseClient:
                 row = cur.fetchone()
         except psycopg2.errors.UniqueViolation as exc:
             raise DuplicatePortfolioError(f"Portfolio already exists: {pid}") from exc
+        if row is None:
+            raise PortfolioError(f"Failed to create portfolio: {pid}")
         return self._row_to_portfolio(row)
 
     def get_portfolio(self, portfolio_id: str) -> Portfolio:
@@ -131,6 +138,7 @@ class SupabaseClient:
         ``"main_portfolio"`` from config), the lookup falls back to a name-based
         query so the caller does not need to know the underlying UUID.
         """
+        row: RealDictRow | None = None
         try:
             with self._cursor() as cur:
                 cur.execute("SELECT * FROM portfolios WHERE portfolio_id = %s", (portfolio_id,))
@@ -140,7 +148,7 @@ class SupabaseClient:
             with self._cursor() as cur:
                 cur.execute("SELECT * FROM portfolios WHERE name = %s ORDER BY created_at DESC LIMIT 1", (portfolio_id,))
                 row = cur.fetchone()
-        if not row:
+        if row is None:
             raise PortfolioNotFoundError(f"Portfolio not found: {portfolio_id}")
         return self._row_to_portfolio(row)
 
@@ -163,7 +171,7 @@ class SupabaseClient:
                  json.dumps(portfolio.metadata), portfolio.portfolio_id),
             )
             row = cur.fetchone()
-        if not row:
+        if row is None:
             raise PortfolioNotFoundError(f"Portfolio not found: {portfolio.portfolio_id}")
         return self._row_to_portfolio(row)
 
@@ -200,6 +208,8 @@ class SupabaseClient:
                  holding.shares, holding.avg_cost, holding.sector, holding.industry),
             )
             row = cur.fetchone()
+        if row is None:
+            raise PortfolioError(f"Failed to upsert holding: {holding.ticker}")
         return self._row_to_holding(row)
 
     def get_holding(self, portfolio_id: str, ticker: str) -> Holding | None:
@@ -286,6 +296,8 @@ class SupabaseClient:
                  json.dumps(trade.metadata)),
             )
             row = cur.fetchone()
+        if row is None:
+            raise PortfolioError(f"Failed to record trade: {tid}")
         return self._row_to_trade(row)
 
     def list_trades(
@@ -349,6 +361,8 @@ class SupabaseClient:
                  json.dumps(snapshot.metadata)),
             )
             row = cur.fetchone()
+        if row is None:
+            raise PortfolioError(f"Failed to save snapshot: {sid}")
         return self._row_to_snapshot(row)
 
     def get_latest_snapshot(self, portfolio_id: str) -> PortfolioSnapshot | None:
@@ -384,24 +398,35 @@ class SupabaseClient:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _row_to_portfolio(row: dict) -> Portfolio:
-        metadata = row.get("metadata") or {}
+    def _row_to_portfolio(row: RealDictRow) -> Portfolio:
+        required_keys = {"portfolio_id", "name", "cash", "initial_cash"}
+        if not required_keys.issubset(row.keys()):
+            missing = required_keys - row.keys()
+            raise ValueError(f"Portfolio row missing required keys: {missing}")
+        metadata: dict[str, Any] = row.get("metadata") or {}
         if isinstance(metadata, str):
-            metadata = json.loads(metadata)
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                metadata = {}
         return Portfolio(
             portfolio_id=str(row["portfolio_id"]),
             name=row["name"],
             cash=float(row["cash"]),
             initial_cash=float(row["initial_cash"]),
-            currency=row["currency"].strip(),
-            created_at=str(row["created_at"]),
-            updated_at=str(row["updated_at"]),
+            currency=str(row.get("currency", "USD")).strip(),
+            created_at=str(row.get("created_at", "")),
+            updated_at=str(row.get("updated_at", "")),
             report_path=row.get("report_path"),
             metadata=metadata,
         )
 
     @staticmethod
-    def _row_to_holding(row: dict) -> Holding:
+    def _row_to_holding(row: RealDictRow) -> Holding:
+        required_keys = {"holding_id", "portfolio_id", "ticker", "shares", "avg_cost"}
+        if not required_keys.issubset(row.keys()):
+            missing = required_keys - row.keys()
+            raise ValueError(f"Holding row missing required keys: {missing}")
         return Holding(
             holding_id=str(row["holding_id"]),
             portfolio_id=str(row["portfolio_id"]),
@@ -410,15 +435,24 @@ class SupabaseClient:
             avg_cost=float(row["avg_cost"]),
             sector=row.get("sector"),
             industry=row.get("industry"),
-            created_at=str(row["created_at"]),
-            updated_at=str(row["updated_at"]),
+            created_at=str(row.get("created_at", "")),
+            updated_at=str(row.get("updated_at", "")),
         )
 
     @staticmethod
-    def _row_to_trade(row: dict) -> Trade:
-        metadata = row.get("metadata") or {}
+    def _row_to_trade(row: RealDictRow) -> Trade:
+        required_keys = {"trade_id", "portfolio_id", "ticker", "action", "shares", "price", "total_value"}
+        if not required_keys.issubset(row.keys()):
+            missing = required_keys - row.keys()
+            raise ValueError(f"Trade row missing required keys: {missing}")
+        metadata: dict[str, Any] = row.get("metadata") or {}
         if isinstance(metadata, str):
-            metadata = json.loads(metadata)
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                metadata = {}
+        raw_sl = row.get("stop_loss")
+        raw_tp = row.get("take_profit")
         return Trade(
             trade_id=str(row["trade_id"]),
             portfolio_id=str(row["portfolio_id"]),
@@ -427,24 +461,36 @@ class SupabaseClient:
             shares=float(row["shares"]),
             price=float(row["price"]),
             total_value=float(row["total_value"]),
-            trade_date=str(row["trade_date"]),
+            trade_date=str(row.get("trade_date", "")),
             rationale=row.get("rationale"),
             signal_source=row.get("signal_source"),
+            stop_loss=float(raw_sl) if raw_sl is not None else None,
+            take_profit=float(raw_tp) if raw_tp is not None else None,
             metadata=metadata,
         )
 
     @staticmethod
-    def _row_to_snapshot(row: dict) -> PortfolioSnapshot:
-        holdings = row.get("holdings_snapshot") or []
+    def _row_to_snapshot(row: RealDictRow) -> PortfolioSnapshot:
+        required_keys = {"snapshot_id", "portfolio_id", "total_value", "cash", "equity_value", "num_positions"}
+        if not required_keys.issubset(row.keys()):
+            missing = required_keys - row.keys()
+            raise ValueError(f"Snapshot row missing required keys: {missing}")
+        holdings: list[dict[str, Any]] = row.get("holdings_snapshot") or []
         if isinstance(holdings, str):
-            holdings = json.loads(holdings)
-        metadata = row.get("metadata") or {}
+            try:
+                holdings = json.loads(holdings)
+            except json.JSONDecodeError:
+                holdings = []
+        metadata: dict[str, Any] = row.get("metadata") or {}
         if isinstance(metadata, str):
-            metadata = json.loads(metadata)
+            try:
+                metadata = json.loads(metadata)
+            except json.JSONDecodeError:
+                metadata = {}
         return PortfolioSnapshot(
             snapshot_id=str(row["snapshot_id"]),
             portfolio_id=str(row["portfolio_id"]),
-            snapshot_date=str(row["snapshot_date"]),
+            snapshot_date=str(row.get("snapshot_date", "")),
             total_value=float(row["total_value"]),
             cash=float(row["cash"]),
             equity_value=float(row["equity_value"]),
