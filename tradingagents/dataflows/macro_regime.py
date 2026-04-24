@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from io import StringIO
-import re
-from typing import Optional
 
 import pandas as pd
 import requests
-import yfinance as yf
 
 from .alpha_vantage_common import AlphaVantageError, _make_api_request
 from .stockstats_utils import safe_yf_download
-
 
 # ---------------------------------------------------------------------------
 # Signal thresholds
@@ -34,7 +31,7 @@ _CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]    # Discretionary, Technology, Industria
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _download(symbols: list[str], period: str = "3mo") -> Optional[pd.DataFrame]:
+def _download(symbols: list[str], period: str = "3mo") -> pd.DataFrame | None:
     """Download closing prices, returning None on failure."""
     try:
         hist = safe_yf_download(symbols, period=period, auto_adjust=True, progress=False)
@@ -55,7 +52,7 @@ def _download(symbols: list[str], period: str = "3mo") -> Optional[pd.DataFrame]
         return None
 
 
-def _download_vix_from_finviz_vx_futures() -> tuple[Optional[float], Optional[str], Optional[float]]:
+def _download_vix_from_finviz_vx_futures() -> tuple[float | None, str | None, float | None]:
     """Fetch VX futures direction from Finviz futures page.
 
     Returns:
@@ -105,7 +102,7 @@ def _download_vix_from_finviz_vx_futures() -> tuple[Optional[float], Optional[st
     return change_1d_pct, "VX", None
 
 
-def _download_vix_proxy_from_alpha_vantage() -> tuple[Optional[float], Optional[str], Optional[float]]:
+def _download_vix_proxy_from_alpha_vantage() -> tuple[float | None, str | None, float | None]:
     """Fetch VIX proxy direction from Alpha Vantage (VXX/VIXY).
 
     Returns:
@@ -149,20 +146,20 @@ def _download_vix_proxy_from_alpha_vantage() -> tuple[Optional[float], Optional[
     return None, None, None
 
 
-def _latest(series: Optional[pd.Series]) -> Optional[float]:
+def _latest(series: pd.Series | None) -> float | None:
     if series is None or series.empty:
         return None
     v = series.dropna()
     return float(v.iloc[-1]) if len(v) > 0 else None
 
 
-def _sma(series: pd.Series, window: int) -> Optional[float]:
+def _sma(series: pd.Series, window: int) -> float | None:
     if series is None or len(series.dropna()) < window:
         return None
     return float(series.dropna().rolling(window).mean().iloc[-1])
 
 
-def _pct_change_n(series: pd.Series, n: int) -> Optional[float]:
+def _pct_change_n(series: pd.Series, n: int) -> float | None:
     s = series.dropna()
     if len(s) < n + 1:
         return None
@@ -173,7 +170,7 @@ def _pct_change_n(series: pd.Series, n: int) -> Optional[float]:
     return (current - base) / base * 100
 
 
-def _fmt_pct(val: Optional[float]) -> str:
+def _fmt_pct(val: float | None) -> str:
     if val is None:
         return "N/A"
     return f"{val:+.1f}%"
@@ -183,7 +180,7 @@ def _fmt_pct(val: Optional[float]) -> str:
 # Individual signal evaluators (each returns +1, 0, or -1)
 # ---------------------------------------------------------------------------
 
-def _signal_vix_level(vix_price: Optional[float]) -> tuple[int, str]:
+def _signal_vix_level(vix_price: float | None) -> tuple[int, str]:
     """VIX level: <16 risk-on (+1), >25 risk-off (-1), else transition (0)."""
     if vix_price is None:
         return 0, "VIX level: unavailable (neutral)"
@@ -194,7 +191,7 @@ def _signal_vix_level(vix_price: Optional[float]) -> tuple[int, str]:
     return 0, f"VIX level: {vix_price:.1f} (neutral zone {VIX_RISK_ON_THRESHOLD}–{VIX_RISK_OFF_THRESHOLD})"
 
 
-def _signal_vix_trend(vix_series: Optional[pd.Series]) -> tuple[int, str]:
+def _signal_vix_trend(vix_series: pd.Series | None) -> tuple[int, str]:
     """VIX 5-day SMA vs 20-day SMA: rising VIX = risk-off."""
     if vix_series is None or len(vix_series) < 21:
         return 0, "VIX trend: insufficient history (neutral)"
@@ -209,7 +206,7 @@ def _signal_vix_trend(vix_series: Optional[pd.Series]) -> tuple[int, str]:
     return 0, f"VIX trend: flat (SMA5={sma5:.1f} ≈ SMA20={sma20:.1f}) → neutral"
 
 
-def _signal_credit_spread(hyg_series: Optional[pd.Series], lqd_series: Optional[pd.Series]) -> tuple[int, str]:
+def _signal_credit_spread(hyg_series: pd.Series | None, lqd_series: pd.Series | None) -> tuple[int, str]:
     """HYG/LQD ratio: declining ratio = credit spreads widening = risk-off."""
     if hyg_series is None or lqd_series is None:
         return 0, "Credit spread proxy (HYG/LQD): unavailable (neutral)"
@@ -235,7 +232,7 @@ def _signal_credit_spread(hyg_series: Optional[pd.Series], lqd_series: Optional[
     return 0, f"Credit spread (HYG/LQD) 1M: {_fmt_pct(ratio_1m)} → stable (neutral)"
 
 
-def _signal_yield_curve(tlt_series: Optional[pd.Series], shy_series: Optional[pd.Series]) -> tuple[int, str]:
+def _signal_yield_curve(tlt_series: pd.Series | None, shy_series: pd.Series | None) -> tuple[int, str]:
     """TLT (20yr) vs SHY (1-3yr): TLT outperforming = flight to safety = risk-off."""
     if tlt_series is None or shy_series is None:
         return 0, "Yield curve proxy (TLT vs SHY): unavailable (neutral)"
@@ -256,7 +253,7 @@ def _signal_yield_curve(tlt_series: Optional[pd.Series], shy_series: Optional[pd
     return 0, f"Yield curve: TLT {_fmt_pct(tlt_1m)} vs SHY {_fmt_pct(shy_1m)} → neutral"
 
 
-def _signal_market_breadth(spx_series: Optional[pd.Series]) -> tuple[int, str]:
+def _signal_market_breadth(spx_series: pd.Series | None) -> tuple[int, str]:
     """S&P 500 above/below 200-day SMA."""
     if spx_series is None:
         return 0, "Market breadth (SPX vs 200 SMA): unavailable (neutral)"
@@ -276,9 +273,9 @@ def _signal_sector_rotation(
     cyclical_closes: dict[str, pd.Series],
 ) -> tuple[int, str]:
     """Defensive vs cyclical sector rotation over 1 month."""
-    def avg_return(closes_dict: dict[str, pd.Series], days: int) -> Optional[float]:
+    def avg_return(closes_dict: dict[str, pd.Series], days: int) -> float | None:
         returns = []
-        for sym, s in closes_dict.items():
+        for _sym, s in closes_dict.items():
             pct = _pct_change_n(s.dropna(), days)
             if pct is not None:
                 returns.append(pct)
@@ -311,9 +308,9 @@ def _signal_sector_rotation(
 # ---------------------------------------------------------------------------
 
 def _fetch_macro_data() -> tuple[
-    Optional[pd.Series], Optional[pd.Series], Optional[pd.Series], Optional[pd.Series],
-    Optional[pd.Series], Optional[pd.Series], dict[str, pd.Series], dict[str, pd.Series],
-    Optional[float], str, Optional[float]
+    pd.Series | None, pd.Series | None, pd.Series | None, pd.Series | None,
+    pd.Series | None, pd.Series | None, dict[str, pd.Series], dict[str, pd.Series],
+    float | None, str, float | None
 ]:
     vix_data = _download(["^VIX"], period="3mo")
     market_data = _download(["^GSPC"], period="14mo")  # 14mo for 200-SMA
@@ -345,7 +342,7 @@ def _fetch_macro_data() -> tuple[
     vix_price = _latest(vix_series)
     yfinance_vix_corrupt = vix_price is not None and vix_price > 100
     vix_source = "yfinance:^VIX"
-    vix_proxy_change_1d: Optional[float] = None
+    vix_proxy_change_1d: float | None = None
 
     if vix_series is None or yfinance_vix_corrupt:
         av_change_1d, av_symbol, av_price = _download_vix_proxy_from_alpha_vantage()
@@ -377,10 +374,10 @@ def _fetch_macro_data() -> tuple[
 
 
 def _evaluate_signals(
-    vix_price: Optional[float], vix_series: Optional[pd.Series],
-    hyg_series: Optional[pd.Series], lqd_series: Optional[pd.Series],
-    tlt_series: Optional[pd.Series], shy_series: Optional[pd.Series],
-    spx_series: Optional[pd.Series], defensive_closes: dict[str, pd.Series],
+    vix_price: float | None, vix_series: pd.Series | None,
+    hyg_series: pd.Series | None, lqd_series: pd.Series | None,
+    tlt_series: pd.Series | None, shy_series: pd.Series | None,
+    spx_series: pd.Series | None, defensive_closes: dict[str, pd.Series],
     cyclical_closes: dict[str, pd.Series]
 ) -> tuple[int, list[dict]]:
     evaluators = [
@@ -399,7 +396,7 @@ def _evaluate_signals(
 
     signals = []
     total_score = 0
-    for name, (score, description) in zip(signal_names, evaluators):
+    for name, (score, description) in zip(signal_names, evaluators, strict=False):
         signals.append({"name": name, "score": score, "description": description})
         total_score += score
 
@@ -431,9 +428,9 @@ def _generate_summary(
     total_score: int,
     confidence: str,
     signals: list[dict],
-    vix_price: Optional[float],
+    vix_price: float | None,
     vix_source: str,
-    vix_proxy_change_1d: Optional[float],
+    vix_proxy_change_1d: float | None,
 ) -> str:
     risk_on_count = sum(1 for s in signals if s["score"] > 0)
     risk_off_count = sum(1 for s in signals if s["score"] < 0)
@@ -466,7 +463,7 @@ def _generate_summary(
 # Main classifier
 # ---------------------------------------------------------------------------
 
-def classify_macro_regime(curr_date: Optional[str] = None) -> dict:
+def classify_macro_regime(curr_date: str | None = None) -> dict:
     """
     Classify current macro regime using 6 market signals.
 

@@ -1,4 +1,6 @@
-from tradingagents.observability import get_run_logger
+
+from typing import Any, Callable
+
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.critical_abort import (
     extract_abort_report,
@@ -11,21 +13,22 @@ from tradingagents.agents.utils.summary_context import (
     get_risk_debate_summary,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
-from langchain_core.messages import AIMessage
+from tradingagents.observability import get_run_logger
 
 
-def create_portfolio_manager(llm, memory):
-    def portfolio_manager_node(state) -> dict:
+def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def portfolio_manager_node(state: dict[str, Any]) -> dict[str, Any]:
+
 
         instrument_context = build_instrument_context(state["company_of_interest"])
 
         risk_debate_state = state["risk_debate_state"]
         history = truncate_text(risk_debate_state.get("history", ""), max_chars=3200)
         risk_summary = truncate_text(get_risk_debate_summary(state), max_chars=1800)
-        market_research_report = state.get("market_report", "")
-        news_report = state.get("news_report", "")
-        fundamentals_report = state.get("fundamentals_report", "")
-        sentiment_report = state.get("sentiment_report", "")
+        state.get("market_report", "")
+        state.get("news_report", "")
+        state.get("fundamentals_report", "")
+        state.get("sentiment_report", "")
         trader_plan = state.get("trader_investment_plan", "")
         macro_regime_report = state.get("macro_regime_report", "")
         research_packet = truncate_text(build_research_packet(state), max_chars=5000)
@@ -41,7 +44,7 @@ def create_portfolio_manager(llm, memory):
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
+        for _i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nEnsure your risk assessment reflects the macro environment — in risk-off regimes, apply higher standards for position entry and tighter risk controls.\n" if macro_regime_report else ""

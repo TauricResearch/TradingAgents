@@ -1,11 +1,10 @@
 """Unit tests for summary context builders and news contract formatting."""
 
-import pytest
-from tradingagents.agents.utils.summary_context import (
-    build_research_packet,
-    build_debate_evidence_brief,
-)
 from tradingagents.agents.utils.output_validation import build_research_manager_fallback
+from tradingagents.agents.utils.summary_context import (
+    build_debate_evidence_brief,
+    build_research_packet,
+)
 
 
 class TestNewsStructuredContextFormatting:

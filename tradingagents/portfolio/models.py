@@ -76,7 +76,7 @@ class Portfolio:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Portfolio":
+    def from_dict(cls, data: dict[str, Any]) -> Portfolio:
         """Deserialise from a DB row or JSON dict.
 
         Missing optional fields default gracefully. Extra keys are ignored.
@@ -93,7 +93,7 @@ class Portfolio:
             metadata=data.get("metadata") or {},
         )
 
-    def enrich(self, holdings: list["Holding"]) -> "Portfolio":
+    def enrich(self, holdings: list[Holding]) -> Portfolio:
         """Compute total_value, equity_value, cash_pct from holdings.
 
         Modifies self in-place and returns self for chaining.
@@ -156,7 +156,7 @@ class Holding:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Holding":
+    def from_dict(cls, data: dict[str, Any]) -> Holding:
         """Deserialise from a DB row or JSON dict."""
         return cls(
             holding_id=data["holding_id"],
@@ -170,7 +170,7 @@ class Holding:
             updated_at=data.get("updated_at", ""),
         )
 
-    def enrich(self, current_price: float, portfolio_total_value: float) -> "Holding":
+    def enrich(self, current_price: float, portfolio_total_value: float) -> Holding:
         """Populate runtime-computed fields in-place and return self.
 
         Formula:
@@ -242,7 +242,7 @@ class Trade:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Trade":
+    def from_dict(cls, data: dict[str, Any]) -> Trade:
         """Deserialise from a DB row or JSON dict."""
         raw_sl = data.get("stop_loss")
         raw_tp = data.get("take_profit")
@@ -310,7 +310,7 @@ class PortfolioSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PortfolioSnapshot":
+    def from_dict(cls, data: dict[str, Any]) -> PortfolioSnapshot:
         """Deserialise from DB row or JSON dict.
 
         ``holdings_snapshot`` is parsed lazily on first access.

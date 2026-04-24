@@ -1,9 +1,7 @@
-from enum import Enum
-from typing import List, Optional, Dict
-from pydantic import BaseModel
+from enum import StrEnum
 
 
-class AnalystType(str, Enum):
+class AnalystType(StrEnum):
     MARKET = "market"
     SOCIAL = "social"
     NEWS = "news"

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import secrets
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -45,7 +45,7 @@ def generate_run_id() -> str:
 
 def ts_now() -> str:
     """Return a sortable UTC timestamp string with millisecond precision."""
-    dt = datetime.now(timezone.utc)
+    dt = datetime.now(UTC)
     return dt.strftime("%Y%m%dT%H%M%S") + f"{dt.microsecond // 1000:03d}Z"
 
 

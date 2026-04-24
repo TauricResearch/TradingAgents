@@ -12,11 +12,9 @@ Uses the real 2026-04-16 fixtures. Tests verify correct handling of:
 """
 from pathlib import Path
 
-import pytest
-
 from tradingagents.graph.scanner_facts.from_markdown import (
-    facts_from_markdown_summary,
     facts_from_all_markdown_summaries,
+    facts_from_markdown_summary,
     is_quality_gated,
 )
 from tradingagents.graph.scanner_facts.schema import validate_graph_facts

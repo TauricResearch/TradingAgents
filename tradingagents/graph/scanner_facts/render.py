@@ -145,7 +145,7 @@ def render_ticker_graph_context(
             lines_prov.append(f"- {edge['source']} -> {edge['target']}: {prov}")
 
     # ---- Budget enforcement ----
-    def _join(r, f, p) -> str:
+    def _join(r: list[str], f: list[str], p: list[str]) -> str:
         parts = []
         if r:
             parts.append("\n".join(r))
@@ -191,13 +191,14 @@ def render_ticker_graph_context(
 # LangChain render tool
 # -----------------------------------------------------------------
 
-def get_render_tool():
+def get_render_tool() -> Any:
     """Return a LangChain @tool that renders ticker graph context from state (scan_date, run_id, ticker).
 
     The tool loads the artifact from disk using get_scanner_graph_facts_path + load_scanner_graph_facts,
     then calls render_ticker_graph_context.
     """
     from langchain_core.tools import tool as lc_tool
+
     from tradingagents.graph.scanner_facts.builder import load_scanner_graph_facts
     from tradingagents.report_paths import get_scanner_graph_facts_path
 

@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 # Matches <think>...</think> blocks used by DeepSeek R1, Qwen QwQ, kimi-k2.5,
 # and other reasoning models served via OpenAI-compatible chat completions.
@@ -12,7 +12,7 @@ from typing import Any, Optional
 _THINK_RE = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL)
 
 
-def normalize_content(response):
+def normalize_content(response: Any) -> Any:
     """Normalize LLM response content to a plain string.
 
     Handles two formats:
@@ -37,7 +37,7 @@ def normalize_content(response):
 class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
 
-    def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
+    def __init__(self, model: str, base_url: str | None = None, **kwargs):
         self.model = model
         self.base_url = base_url
         self.kwargs = kwargs

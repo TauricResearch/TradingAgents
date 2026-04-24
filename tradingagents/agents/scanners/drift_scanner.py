@@ -1,22 +1,23 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.agents.utils.report_quality import tag_report
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 from tradingagents.agents.utils.scanner_tools import (
     get_earnings_calendar,
     get_gap_candidates,
     get_topic_news,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.agents.utils.report_quality import tag_report
-from tradingagents.agents.utils.scanner_idempotency import (
-    check_and_load_report,
-    save_node_report,
-)
 
 
-def create_drift_scanner(llm):
-    def drift_scanner_node(state):
+def create_drift_scanner(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def drift_scanner_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "drift_opportunities_report")
         if existing_report:
@@ -38,15 +39,13 @@ def create_drift_scanner(llm):
             context_chunks.append(f"Market regime context:\n{market_context}")
         if sector_context:
             context_chunks.append(f"Sector rotation context:\n{sector_context}")
-        context_section = ""
         if context_chunks:
-            joined_context = "\n\n".join(context_chunks)
-            context_section = f"\n\n{joined_context}"
+            "\n\n".join(context_chunks)
 
         try:
             start_date = datetime.strptime(scan_date, "%Y-%m-%d").date()
         except ValueError:
-            start_date = datetime.now(timezone.utc).date()
+            start_date = datetime.now(UTC).date()
         end_date = start_date + timedelta(days=14)
 
         system_message = (

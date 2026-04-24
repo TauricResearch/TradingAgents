@@ -9,17 +9,10 @@ Run::
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 from tradingagents.portfolio.models import Holding, Portfolio, PortfolioSnapshot
-from tradingagents.portfolio.exceptions import (
-    InsufficientCashError,
-    InsufficientSharesError,
-)
 from tradingagents.portfolio.trade_executor import TradeExecutor
-
 
 # ---------------------------------------------------------------------------
 # Helpers

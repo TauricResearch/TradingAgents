@@ -9,12 +9,12 @@ Run with:
     pytest tests/integration/test_scanner_context_filtering_live.py -v -m integration
 """
 import json
-import os
-import pytest
 from datetime import datetime, timedelta
 
-from tradingagents.dataflows.alpha_vantage_news import get_news as get_alpha_vantage_news
+import pytest
+
 from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
+from tradingagents.dataflows.alpha_vantage_news import get_news as get_alpha_vantage_news
 
 
 def _build_context_with_real_news(ticker: str) -> tuple[str, list[dict]]:

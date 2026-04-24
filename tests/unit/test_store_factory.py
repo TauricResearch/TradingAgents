@@ -13,8 +13,6 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
 

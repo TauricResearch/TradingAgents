@@ -9,8 +9,8 @@ Run with:
     pytest tests/integration/ -v -m integration
 """
 import pytest
-from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
 
+from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
 
 PRODUCTION_SIZED_CONTEXT = """# SCANNER CONTEXT PACKET: RIG
 Date: 2026-03-31

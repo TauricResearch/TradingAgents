@@ -1,15 +1,17 @@
 from pathlib import Path
-from tradingagents.portfolio.lesson_store import LessonStore
+
 from tradingagents.agents.utils.memory import FinancialSituationMemory
+from tradingagents.portfolio.lesson_store import LessonStore
+
 
 def load_into_memory(lesson_store: LessonStore,
                      memory: FinancialSituationMemory) -> int:
     """Populate memory with ONLY negative-sentiment lessons. Returns count loaded."""
     lessons = lesson_store.load_all()
     pairs = [
-        (l.get("situation", ""), l.get("screening_advice", l.get("advice", "")))
-        for l in lessons
-        if l.get("sentiment") == "negative"
+        (lesson.get("situation", ""), lesson.get("screening_advice", lesson.get("advice", "")))
+        for lesson in lessons
+        if lesson.get("sentiment") == "negative"
     ]
     if pairs:
         memory.add_situations(pairs)

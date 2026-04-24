@@ -1,9 +1,11 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import asyncio
 import logging
 import time
-from agent_os.backend.store import runs
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from agent_os.backend.routes.runs import _ensure_run_events_loaded
+from agent_os.backend.store import runs
 
 logger = logging.getLogger("agent_os.websocket")
 

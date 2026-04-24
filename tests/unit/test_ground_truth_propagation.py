@@ -17,7 +17,6 @@ import pytest
 
 from tradingagents.agents.utils.summary_context import build_research_packet
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -43,16 +42,17 @@ def _base_state(**overrides):
     state = {
         "company_of_interest": "AAPL",
         "trade_date": "2026-03-31",
-        "scanner_context_packet": SCANNER_PACKET,
+        "scanner_graph_context_text": SCANNER_PACKET,
         "market_report": "market data here",
         "sentiment_report": "sentiment data here",
         "news_report": "news data here",
         "fundamentals_report": "fundamentals data here",
         "macro_regime_report": "TRANSITION",
+        "market_report_structured": {"current_price": "$150.00"},
         "research_packet_summary": "",
         "messages": [("human", "AAPL")],
-        "investment_plan": "Buy AAPL at $190",
-        "trader_investment_plan": "Buy AAPL at $190",
+        "investment_plan": "Buy AAPL at $150",
+        "trader_investment_plan": "Buy AAPL at $150",
         "investment_debate_state": {
             "bull_history": "bull argument",
             "bear_history": "bear argument",
@@ -85,11 +85,20 @@ def _base_state(**overrides):
     return state
 
 
-def _mock_llm(response_text="mock response"):
-    llm = MagicMock()
-    llm.bind.side_effect = RuntimeError("bind unsupported in unit test")
-    llm.invoke.return_value = SimpleNamespace(content=response_text)
-    return llm
+def _mock_llm(response_text: str = "mock response") -> MagicMock:
+    """Build a MagicMock LLM compatible with llm_guard.invoke_with_timeout."""
+    response = SimpleNamespace(content=response_text)
+    mock_llm = MagicMock()
+    
+    # This is what invoke_with_timeout uses: llm.bind(...).invoke(...)
+    bound = MagicMock()
+    bound.invoke.return_value = response
+    mock_llm.bind.return_value = bound
+    
+    # Support direct .invoke calls
+    mock_llm.invoke.return_value = response
+    
+    return mock_llm
 
 
 def _mock_memory():
@@ -107,14 +116,14 @@ class TestBuildResearchPacketIncludesScanner:
         """When research_packet_summary is empty, raw reports include scanner context."""
         state = _base_state(research_packet_summary="")
         packet = build_research_packet(state)
-        assert "Scanner Context (Phase 1)" in packet
+        assert "## Scanner Graph Context" in packet
         assert "$103.28" in packet
 
     def test_scanner_context_first_in_packet(self):
         """Scanner Context appears before analyst reports in the research packet."""
         state = _base_state(research_packet_summary="")
         packet = build_research_packet(state)
-        scanner_pos = packet.index("Scanner Context (Phase 1)")
+        scanner_pos = packet.index("## Scanner Graph Context")
         market_pos = packet.index("## Market Report")
         assert scanner_pos < market_pos
 
@@ -122,14 +131,14 @@ class TestBuildResearchPacketIncludesScanner:
         """When raw analyst reports exist, they remain canonical even if summary is present."""
         state = _base_state(research_packet_summary="compressed summary with Scanner Context")
         packet = build_research_packet(state)
-        assert "Scanner Context (Phase 1)" in packet
+        assert "## Scanner Graph Context" in packet
         assert "## Market Report" in packet
         assert packet != "compressed summary with Scanner Context"
 
     def test_summary_used_only_when_raw_reports_missing(self):
         """No legacy-summary fallback remains once summary generation is disabled."""
         state = _base_state(
-            scanner_context_packet="",
+            scanner_graph_context_text="",
             market_report="",
             sentiment_report="",
             news_report="",
@@ -153,37 +162,45 @@ class TestResearchManagerGroundTruth:
         node = create_research_manager(llm, _mock_memory())
         node(_base_state())
 
-        prompt = llm.invoke.call_args.args[0]
+        # Extract prompt from either bind().invoke or plain invoke
+        call_args = llm.bind.return_value.invoke.call_args or llm.invoke.call_args
+        prompt = call_args.args[0]
         assert "GROUND TRUTH" in prompt
-        assert "Scanner Context" in prompt
+        assert "Scanner Graph Context" in prompt
         assert "Do NOT invent" in prompt
 
-    def test_scratchpad_output_raises_runtime_error(self):
+    def test_scratchpad_output_triggers_fallback(self):
+        """When LLM outputs scratchpad phrases, we use the deterministic fallback."""
         from tradingagents.agents.managers.research_manager import create_research_manager
 
+        # Trigger phrase: "we need to"
         llm = _mock_llm("We need to follow instruction.\nWe can create bull arguments.")
         node = create_research_manager(llm, _mock_memory())
-        with pytest.raises(RuntimeError) as exc:
-            node(
-                _base_state(
-                    news_report_structured={
-                        "claims": [
-                            {
-                                "claim": "AAPL secured a $4.10B financing package.",
-                                "source": "Reuters",
-                                "published_at": "2026-03-30",
-                            }
-                        ]
-                    },
-                    fundamentals_report_structured={
-                        "status": "timeout_fallback",
-                        "macro_regime": "unknown",
-                        "key_metrics": {"numeric_mentions": 0},
+        
+        result = node(
+            _base_state(
+                news_report_structured={
+                    "status": "completed",
+                    "claims": [
+                        {
+                            "claim": "AAPL secured a $4.10B financing package.",
+                            "source": "Reuters",
+                            "published_at": "2026-03-30",
+                        }
+                    ]
+                },
+                fundamentals_report_structured={
+                    "status": "timeout_fallback",
+                    "macro_regime": "unknown",
+                    "key_metrics": {"numeric_mentions": 0},
                     },
                 )
             )
 
-        assert "scratchpad" in str(exc.value).lower()
+        # Should use fallback because scratchpad was detected
+        final_out = result.get("investment_plan") or result.get("trader_investment_plan") or ""
+        assert "We need to follow instruction" not in final_out
+        assert "Market Evidence" in final_out or "Macro Regime" in final_out or "Price Levels" in final_out or "Strategic Action" in final_out
 
 
 # ---------------------------------------------------------------------------
@@ -194,20 +211,20 @@ class TestTraderGroundTruth:
     def test_scanner_context_in_user_message(self):
         from tradingagents.agents.trader.trader import create_trader
 
-        llm = _mock_llm("Buy AAPL at $190")
+        llm = _mock_llm("Buy AAPL at $150")
         node = create_trader(llm, _mock_memory())
         node(_base_state())
 
         call_args = llm.invoke.call_args.args[0]
         # call_args is a list of messages
         user_msg = next(m for m in call_args if m["role"] == "user")
-        assert "Scanner Ground-Truth Data" in user_msg["content"]
+        assert "## Scanner Graph Context" in user_msg["content"]
         assert "$103.28" in user_msg["content"]
 
     def test_ground_truth_instruction_in_system_prompt(self):
         from tradingagents.agents.trader.trader import create_trader
 
-        llm = _mock_llm("Buy AAPL at $190")
+        llm = _mock_llm("Buy AAPL at $150")
         node = create_trader(llm, _mock_memory())
         node(_base_state())
 
@@ -216,20 +233,19 @@ class TestTraderGroundTruth:
         assert "ground-truth calendar data ONLY" in system_msg["content"]
         assert "Do NOT estimate or invent" in system_msg["content"]
 
-    def test_scratchpad_output_raises_runtime_error(self):
+    def test_scratchpad_output_triggers_fallback(self):
+        """When LLM outputs scratchpad phrases, we use the deterministic fallback."""
         from tradingagents.agents.trader.trader import create_trader
 
-        llm = _mock_llm("Let's craft the final answer.\nNow produce final answer.")
+        # Contains trigger phrases like "Let's craft" and "produce final answer"
+        llm = _mock_llm("Let's craft the final answer.\nNow produce final answer. Buy AAPL.")
         node = create_trader(llm, _mock_memory())
-        with pytest.raises(RuntimeError) as exc:
-            node(
-                _base_state(
-                    market_report_structured={"key_levels": []},
-                    fundamentals_report_structured={"status": "timeout_fallback"},
-                )
-            )
-
-        assert "scratchpad" in str(exc.value).lower()
+        
+        result = node(_base_state())
+        
+        # Should NOT contain the scratchpad text, but rather the fallback
+        assert "Let's craft" not in result["trader_investment_plan"]
+        assert "Market Evidence" in result["trader_investment_plan"] or "Price Levels" in result["trader_investment_plan"] or "Research Manager" in result["trader_investment_plan"]
 
     def test_empty_upstream_plan_raises_runtime_error(self):
         from tradingagents.agents.trader.trader import create_trader
@@ -261,7 +277,10 @@ class TestTraderGroundTruth:
                 _base_state(
                     investment_plan="- Recommendation: BUY",
                     investment_plan_structured={"status": "completed"},
-                    market_report_structured={"current_price": "$130.49", "key_levels": ["$130.49", "$128.47"]},
+                    market_report_structured={
+                        "current_price": "$130.49",
+                        "key_levels": ["$130.49", "$128.47"]
+                    },
                 )
             )
 
@@ -386,6 +405,7 @@ class TestSocialMediaAnalystGroundTruth:
     def test_ground_truth_in_system_prompt(self):
         """Verify the social media analyst prompt template includes ground-truth instruction."""
         import inspect
+
         from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 
         src = inspect.getsource(create_social_media_analyst)
@@ -433,22 +453,22 @@ class TestStructuredContractEmission:
         assert structured["contract_version"] == "investment_plan_v1"
         assert structured["recommendation"] == "BUY"
 
-    def test_research_manager_empty_output_raises_runtime_error(self):
+    def test_research_manager_empty_output_triggers_fallback(self):
         from tradingagents.agents.managers.research_manager import create_research_manager
 
         llm = _mock_llm("")
         node = create_research_manager(llm, _mock_memory())
-        with pytest.raises(RuntimeError) as exc:
-            node(_base_state())
-
-        assert "empty output" in str(exc.value).lower()
+        result = node(_base_state())
+        
+        final_out = result["investment_plan"]
+        assert "Market Evidence" in final_out or "Macro Regime" in final_out or "Strategic Action" in final_out
 
     def test_trader_emits_trader_plan_structured(self):
         from tradingagents.agents.trader.trader import create_trader
 
         llm = _mock_llm(
-            "- Entry Setup: $192 breakout\n"
-            "- Risk Parameters: Stop-loss $183, take-profit $210\n"
+            "- Entry Setup: $150 breakout\n"
+            "- Risk Parameters: Stop-loss $140, take-profit $180\n"
             "- FINAL TRANSACTION PROPOSAL: **BUY**"
         )
         node = create_trader(llm, _mock_memory())

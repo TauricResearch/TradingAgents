@@ -1,6 +1,3 @@
-import time
-import pandas as pd
-import numpy as np
 
 # We'll test whether passing data structure properly when creating a DataFrame is the issue.
 # Wait, let's re-read the issue.

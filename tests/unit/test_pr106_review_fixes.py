@@ -18,7 +18,7 @@ import os
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -134,7 +134,7 @@ class TestSaveHoldingReviewIteration(unittest.TestCase):
             fake_daily.__truediv__ = MagicMock(return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False)))
             mock_gdd.return_value = fake_daily
 
-            events = asyncio.run(_collect(engine.run_portfolio("run1", {
+            asyncio.run(_collect(engine.run_portfolio("run1", {
                 "date": "2026-03-20",
                 "portfolio_id": "pid-123",
             })))
@@ -254,7 +254,6 @@ class TestReflexionCreatedAtType(unittest.TestCase):
 
     def test_local_path_stores_iso_string(self):
         """When writing to local JSON, created_at should be an ISO string."""
-        import tempfile
         from tradingagents.memory.reflexion import ReflexionMemory
 
         with tempfile.TemporaryDirectory() as tmpdir:

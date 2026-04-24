@@ -7,7 +7,6 @@ from tradingagents.agents.managers.context_summaries import (
     create_risk_debate_summary,
 )
 from tradingagents.agents.managers.summary_rules import (
-    INVESTMENT_DEBATE_SUMMARY,
     RESEARCH_PACKET_SUMMARY,
     generate_summary_prompt,
 )
@@ -24,7 +23,7 @@ def test_research_packet_summary_node_returns_summary():
 
     result = node(
         {
-            "scanner_context_packet": "Oil: $72.10\nDXY: 104.2",
+            "scanner_graph_context_text": "Oil: $72.10\nDXY: 104.2",
             "market_report": "- Price held $189.00 support\n| Metric | Value |\n| --- | --- |",
             "market_report_structured": {
                 "status": "completed",
@@ -50,7 +49,7 @@ def test_research_packet_summary_node_returns_summary():
     )
 
     summary = result["research_packet_summary"]
-    assert "## Scanner Context (Phase 1)" in summary
+    assert "## Scanner Graph Context" in summary
     assert "## Market Structured Contract" in summary
     assert "macro_regime: risk_on" in summary
     assert "## Market Report" in summary
@@ -167,7 +166,7 @@ def test_bull_researcher_uses_summary_context_when_available():
 
     result = node(state)
 
-    prompt = llm.invoke.call_args.args[0]
+    llm.invoke.call_args.args[0]
     # Anonymized ticker replaces AAPL in the prompt context
     assert result["investment_debate_state"]["current_response"].startswith("Bull Analyst:")
 

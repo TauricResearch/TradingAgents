@@ -1,11 +1,12 @@
 import json
 import os
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from tradingagents.notebook_sync import sync_to_notebooklm
+
 
 @pytest.fixture
 def mock_nlm_path(tmp_path):
@@ -23,8 +24,7 @@ def test_sync_skips_when_nlm_not_found():
     """Should warn and skip if nlm binary is not in PATH."""
     with patch.dict(os.environ, {"NOTEBOOKLM_ID": "test-id"}):
         with patch("shutil.which", return_value=None):
-            with patch("tradingagents.notebook_sync.Path.exists", return_value=False):
-                sync_to_notebooklm(Path("test.md"), "2026-03-19")
+            sync_to_notebooklm(Path("test.md"), "2026-03-19")
 
 def test_sync_performs_delete_then_add(mock_nlm_path):
     """Should find existing source, delete it, then add new one."""

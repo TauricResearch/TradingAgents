@@ -169,7 +169,7 @@ def audit_run(reports_dir: Path) -> dict:
         meta = json.loads(meta_file.read_text())
         max_tickers = meta.get("params", {}).get("max_tickers")
         if max_tickers:
-            macro_summary_file = market_dir / "report"
+            market_dir / "report"
             ticker_dirs = [
                 d.name for d in reports_dir.iterdir()
                 if d.is_dir() and d.name not in ("market", "portfolio", "report")

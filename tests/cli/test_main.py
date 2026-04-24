@@ -1,5 +1,5 @@
-import pytest
 from cli.main import MessageBuffer, extract_content_string
+
 
 def test_extract_content_string_empty():
     assert extract_content_string(None) is None

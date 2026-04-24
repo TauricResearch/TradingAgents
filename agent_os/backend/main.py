@@ -3,9 +3,11 @@ import os
 import socket
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from agent_os.backend.routes import portfolios, runs, websocket
@@ -86,7 +88,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def log_requests(request: Request, call_next: Callable[[Request], Any]) -> Response:
     logger.info(f"Incoming request: {request.method} {request.url}")
     response = await call_next(request)
     logger.info(f"Response status: {response.status_code}")
@@ -100,14 +102,14 @@ app.include_router(websocket.router)
 
 
 @app.get("/api/config")
-async def get_config():
+async def get_config() -> dict[str, Any]:
     from tradingagents.default_config import DEFAULT_CONFIG
     return {
         "default_portfolio_id": DEFAULT_CONFIG.get("default_portfolio_id", "main_portfolio")
     }
 
 @app.get("/")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "AgentOS API"}
 
 

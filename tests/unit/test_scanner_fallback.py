@@ -1,12 +1,13 @@
 """Unit tests for AV failover — mocked, no network."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from tradingagents.dataflows.alpha_vantage_common import AlphaVantageError
 from tradingagents.dataflows.alpha_vantage_scanner import (
-    get_sector_performance_alpha_vantage,
     get_industry_performance_alpha_vantage,
+    get_sector_performance_alpha_vantage,
 )
 
 

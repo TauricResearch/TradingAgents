@@ -9,7 +9,6 @@ Run with:
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Scanner tool tests (yfinance-backed)
 # ---------------------------------------------------------------------------
@@ -113,8 +112,8 @@ def test_yfinance_sector_performance_numeric_percentages():
     result = get_sector_performance_yfinance()
     lines = result.strip().split("\n")
     data_lines = [
-        l for l in lines
-        if l.startswith("| ") and "Sector" not in l and "---" not in l
+        line for line in lines
+        if line.startswith("| ") and "Sector" not in line and "---" not in line
     ]
     assert len(data_lines) == 11, f"Expected 11 data rows, got {len(data_lines)}"
     for line in data_lines:
@@ -140,8 +139,8 @@ def test_yfinance_industry_performance_no_na_symbols():
     result = get_industry_performance_yfinance("technology")
     lines = result.strip().split("\n")
     data_lines = [
-        l for l in lines
-        if l.startswith("| ") and "Company" not in l and "---" not in l
+        line for line in lines
+        if line.startswith("| ") and "Company" not in line and "---" not in line
     ]
     for line in data_lines:
         cols = [c.strip() for c in line.split("|")[1:-1]]
@@ -173,7 +172,7 @@ def test_yfinance_industry_performance_seven_columns():
 
     result = get_industry_performance_yfinance("technology")
     lines = result.strip().split("\n")
-    sep_lines = [l for l in lines if l.startswith("|") and "---" in l]
+    sep_lines = [line for line in lines if line.startswith("|") and "---" in line]
     assert len(sep_lines) >= 1
     cols = [c.strip() for c in sep_lines[0].split("|")[1:-1]]
     assert len(cols) == 7, f"Expected 7 columns, got {len(cols)}: {cols}"
@@ -211,8 +210,8 @@ class TestScannerRouting:
 
     def setup_method(self):
         """Set config to use alpha_vantage for scanner_data."""
-        from tradingagents.default_config import DEFAULT_CONFIG
         from tradingagents.dataflows.config import set_config
+        from tradingagents.default_config import DEFAULT_CONFIG
 
         config = DEFAULT_CONFIG.copy()
         config["data_vendors"]["scanner_data"] = "alpha_vantage"
@@ -266,8 +265,8 @@ class TestFallbackRouting:
 
     def setup_method(self):
         """Set config to use yfinance for scanner_data."""
-        from tradingagents.default_config import DEFAULT_CONFIG
         from tradingagents.dataflows.config import set_config
+        from tradingagents.default_config import DEFAULT_CONFIG
 
         config = DEFAULT_CONFIG.copy()
         config["data_vendors"]["scanner_data"] = "yfinance"

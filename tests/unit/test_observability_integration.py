@@ -10,18 +10,17 @@ import json
 import os
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+from agent_os.backend.services.event_mapper import TOOL_SERVICE_MAP
+from agent_os.backend.services.langgraph_engine import LangGraphEngine
+from tradingagents.observability import RunLogger, get_run_logger, set_run_logger
 
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
-
-from agent_os.backend.services.langgraph_engine import LangGraphEngine
-from agent_os.backend.services.event_mapper import TOOL_SERVICE_MAP
-from tradingagents.observability import RunLogger, get_run_logger, set_run_logger
 
 
 class TestToolServiceMap(unittest.TestCase):

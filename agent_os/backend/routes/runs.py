@@ -6,25 +6,25 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
-from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.run_metadata import normalize_run_params
 from agent_os.backend.services.langgraph_engine import (
-    AwaitPhase3Decision,
-    LangGraphEngine,
     NODE_TO_PHASE,
     SCAN_NODE_TO_REPORT_FIELD,
+    AwaitPhase3Decision,
+    LangGraphEngine,
     infer_pipeline_resume_phase,
 )
 from agent_os.backend.services.mock_engine import MockEngine
-from tradingagents.portfolio.exceptions import ReportStoreError
-from tradingagents.portfolio.store_factory import create_report_store
-from tradingagents.report_paths import generate_run_id
+from agent_os.backend.store import runs
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.scanner_setup import (
     SCANNER_START_NODES,
     get_scanner_descendants,
 )
+from tradingagents.portfolio.exceptions import ReportStoreError
+from tradingagents.portfolio.store_factory import create_report_store
+from tradingagents.report_paths import generate_run_id
 
 logger = logging.getLogger("agent_os.runs")
 
@@ -314,8 +314,8 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], Non
 async def trigger_scan(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict = Depends(get_current_user)
-):
+    user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, str]:
     p = normalize_run_params("scan", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
@@ -336,8 +336,8 @@ async def trigger_scan(
 async def trigger_pipeline(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict = Depends(get_current_user)
-):
+    user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, str]:
     p = normalize_run_params("pipeline", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
@@ -358,8 +358,8 @@ async def trigger_pipeline(
 async def trigger_portfolio(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict = Depends(get_current_user)
-):
+    user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, str]:
     p = normalize_run_params("portfolio", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
@@ -380,8 +380,8 @@ async def trigger_portfolio(
 async def trigger_auto(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict = Depends(get_current_user)
-):
+    user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, str]:
     p = normalize_run_params("auto", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
@@ -402,8 +402,8 @@ async def trigger_auto(
 async def trigger_mock(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
     """Start a mock run that streams scripted events — no real LLM calls.
 
     Accepted params:
@@ -520,7 +520,7 @@ def _build_scan_rerun_state(events: list) -> dict[str, Any]:
     return state
 
 
-async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = None) -> None:
+async def _append_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None], ticker: str | None = None, phase: str | None = None) -> None:
     """Drive a re-run generator, preserving events from other tickers/phases."""
     run = runs.get(run_id)
     if not run:
@@ -556,7 +556,7 @@ async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = N
         _clear_run_task(run_id)
 
 
-async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> None:
+async def _append_scan_rerun_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None], start_node: str) -> None:
     """Drive a market-scan rerun while preserving unaffected node events."""
     run = runs.get(run_id)
     if not run:
@@ -591,8 +591,8 @@ async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> Non
 async def trigger_rerun_node(
     background_tasks: BackgroundTasks,
     params: dict[str, Any],
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """Re-run a phase of the trading pipeline for a specific ticker.
 
     Body: { run_id, node_id, identifier, date, portfolio_id }
@@ -669,8 +669,8 @@ async def trigger_rerun_node(
 async def resume_run(
     run_id: str,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     if run_id not in runs:
         raise HTTPException(status_code=404, detail="Run not found")
 
@@ -775,8 +775,8 @@ async def resume_run(
 async def submit_phase3_decision(
     run_id: str,
     params: dict[str, Any] | None = None,
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     run = runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -831,8 +831,8 @@ async def submit_phase3_decision(
 @router.post("/{run_id}/stop")
 async def stop_run(
     run_id: str,
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     if run_id not in runs:
         raise HTTPException(status_code=404, detail="Run not found")
 
@@ -861,8 +861,8 @@ async def stop_run(
 @router.delete("/portfolio-stage")
 async def reset_portfolio_stage(
     params: dict[str, Any],
-    user: dict = Depends(get_current_user),
-):
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """Delete PM decision and execution result for a given date/portfolio_id.
 
     After calling this, an auto run will re-run Phase 3 from scratch
@@ -879,7 +879,7 @@ async def reset_portfolio_stage(
     return {"deleted": deleted, "date": date, "portfolio_id": portfolio_id}
 
 
-def _get_mongo_col():
+def _get_mongo_col() -> Any | None:
     """Return the run_events collection if MongoDB is configured."""
     uri = DEFAULT_CONFIG.get("mongo_uri")
     db_name = DEFAULT_CONFIG.get("mongo_db", "tradingagents")
@@ -894,7 +894,7 @@ def _get_mongo_col():
 
 
 @router.get("/")
-async def list_runs(user: dict = Depends(get_current_user)):
+async def list_runs(user: dict[str, Any] = Depends(get_current_user)) -> list[dict[str, Any]]:
     # Filter by user in production
     all_runs = dict(runs)
 
@@ -933,7 +933,7 @@ async def list_runs(user: dict = Depends(get_current_user)):
     return list(all_runs.values())
 
 @router.get("/{run_id}")
-async def get_run_status(run_id: str, user: dict = Depends(get_current_user)):
+async def get_run_status(run_id: str, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     if run_id in runs:
         run = runs[run_id]
         _ensure_run_events_loaded(run_id)

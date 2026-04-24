@@ -1,10 +1,10 @@
 from tradingagents.graph.scanner_facts.aliases import (
-    TICKER_ALIASES,
-    SECTOR_ALIASES,
-    INDEX_ALIASES,
-    MACRO_ALIASES,
     COMMODITY_ALIASES,
     FX_ALIASES,
+    INDEX_ALIASES,
+    MACRO_ALIASES,
+    SECTOR_ALIASES,
+    TICKER_ALIASES,
     resolve_alias,
 )
 

@@ -1,7 +1,7 @@
 """Tests for robust JSON extraction from LLM output."""
 import pytest
-from tradingagents.agents.utils.json_utils import extract_json
 
+from tradingagents.agents.utils.json_utils import extract_json
 
 # ─── Happy-path tests ─────────────────────────────────────────────────────────
 

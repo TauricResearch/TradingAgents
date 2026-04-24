@@ -1,9 +1,10 @@
 """Setup for the scanner workflow graph."""
 
-from langgraph.graph import StateGraph, START, END
+from typing import Any
+
+from langgraph.graph import END, START, StateGraph
 
 from tradingagents.agents.utils.scanner_states import ScannerState
-
 
 SCANNER_START_NODES: tuple[str, ...] = (
     "gatekeeper_scanner",
@@ -104,7 +105,7 @@ class ScannerGraphSetup:
         """
         self.agents = agents
 
-    def setup_graph(self):
+    def setup_graph(self) -> Any:
         """Build and compile the scanner workflow graph.
 
         Returns:
@@ -128,7 +129,7 @@ class ScannerGraphSetup:
 
         return workflow.compile()
 
-    def setup_graph_from(self, start_node: str):
+    def setup_graph_from(self, start_node: str) -> Any:
         """Build and compile a partial scanner workflow from *start_node* onward.
 
         The returned graph starts at ``start_node`` and keeps only downstream

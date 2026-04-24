@@ -1,7 +1,8 @@
 import os
-from datetime import datetime, timezone
-from pymongo import MongoClient
+from datetime import UTC, datetime
+
 from dotenv import load_dotenv
+from pymongo import MongoClient
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -17,8 +18,8 @@ client = MongoClient(MONGO_URI)
 db = client[MONGO_DB]
 
 # Define 2025 range
-start_2025 = datetime(2025, 1, 1, tzinfo=timezone.utc)
-end_2025 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+start_2025 = datetime(2025, 1, 1, tzinfo=UTC)
+end_2025 = datetime(2026, 1, 1, tzinfo=UTC)
 start_2025_ts = start_2025.timestamp()
 end_2025_ts = end_2025.timestamp()
 

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
-import yfinance as yf
 import pandas as pd
-from .stockstats_utils import safe_yf_download
+import yfinance as yf
 
+from .stockstats_utils import safe_yf_download
 
 # ---------------------------------------------------------------------------
 # Reuse sector/ETF mappings from alpha_vantage_scanner to stay DRY
@@ -69,7 +68,7 @@ _SECTOR_NORMALISE: dict[str, str] = {
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _safe_pct(closes: pd.Series, days_back: int) -> Optional[float]:
+def _safe_pct(closes: pd.Series, days_back: int) -> float | None:
     if len(closes) < days_back + 1:
         return None
     base = closes.iloc[-(days_back + 1)]
@@ -79,7 +78,7 @@ def _safe_pct(closes: pd.Series, days_back: int) -> Optional[float]:
     return (current - base) / base * 100
 
 
-def _ytd_pct(closes: pd.Series) -> Optional[float]:
+def _ytd_pct(closes: pd.Series) -> float | None:
     if closes.empty:
         return None
     current_year = closes.index[-1].year
@@ -92,7 +91,7 @@ def _ytd_pct(closes: pd.Series) -> Optional[float]:
     return (closes.iloc[-1] - base) / base * 100
 
 
-def _fmt_pct(val: Optional[float]) -> str:
+def _fmt_pct(val: float | None) -> str:
     if val is None:
         return "N/A"
     sign = "+" if val >= 0 else ""

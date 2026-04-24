@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Any
 from tradingagents.portfolio.risk_evaluator import sector_concentration
 
 if TYPE_CHECKING:
-    from tradingagents.portfolio.models import Holding, Portfolio
     from tradingagents.agents.utils.memory import FinancialSituationMemory
+    from tradingagents.portfolio.models import Holding, Portfolio
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ _THESIS_SCORES: dict[str, float] = {
 
 def score_candidate(
     candidate: dict[str, Any],
-    holdings: list["Holding"],
+    holdings: list[Holding],
     portfolio_total_value: float,
     config: dict[str, Any],
 ) -> float:
@@ -104,11 +104,11 @@ def _build_candidate_description(candidate: dict) -> str:
 
 def prioritize_candidates(
     candidates: list[dict[str, Any]],
-    portfolio: "Portfolio",
-    holdings: list["Holding"],
+    portfolio: Portfolio,
+    holdings: list[Holding],
     config: dict[str, Any],
     top_n: int | None = None,
-    selection_memory: "FinancialSituationMemory | None" = None,
+    selection_memory: FinancialSituationMemory | None = None,
 ) -> list[dict[str, Any]]:
     """Score and rank candidates by priority_score descending.
 

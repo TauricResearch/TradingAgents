@@ -7,11 +7,10 @@ these tests run without a network connection or API key.
 
 import json
 import socket
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
 import pytest
-from datetime import date, datetime
-from unittest.mock import patch, MagicMock
-
 
 # ---------------------------------------------------------------------------
 # Helpers — mock data factories
@@ -534,8 +533,8 @@ class TestAVScannerMarketMovers:
             get_market_movers_alpha_vantage("not_valid")
 
     def test_rate_limit_error_propagates(self):
-        from tradingagents.dataflows.alpha_vantage_scanner import get_market_movers_alpha_vantage
         from tradingagents.dataflows.alpha_vantage_common import RateLimitError
+        from tradingagents.dataflows.alpha_vantage_scanner import get_market_movers_alpha_vantage
 
         with patch("tradingagents.dataflows.alpha_vantage_scanner._rate_limited_request",
                    side_effect=RateLimitError("rate limited")):
@@ -600,7 +599,9 @@ class TestAVScannerSectorPerformance:
         return fake
 
     def test_returns_sector_table_with_percentages(self):
-        from tradingagents.dataflows.alpha_vantage_scanner import get_sector_performance_alpha_vantage
+        from tradingagents.dataflows.alpha_vantage_scanner import (
+            get_sector_performance_alpha_vantage,
+        )
 
         with patch("tradingagents.dataflows.alpha_vantage_scanner._rate_limited_request",
                    side_effect=self._make_fake_request()):
@@ -610,7 +611,9 @@ class TestAVScannerSectorPerformance:
         assert "|" in result
 
     def test_all_eleven_sectors_in_output(self):
-        from tradingagents.dataflows.alpha_vantage_scanner import get_sector_performance_alpha_vantage
+        from tradingagents.dataflows.alpha_vantage_scanner import (
+            get_sector_performance_alpha_vantage,
+        )
 
         with patch("tradingagents.dataflows.alpha_vantage_scanner._rate_limited_request",
                    side_effect=self._make_fake_request()):
@@ -621,8 +624,10 @@ class TestAVScannerSectorPerformance:
 
     def test_all_errors_raises_alpha_vantage_error(self):
         """If ALL sector ETF requests fail, AlphaVantageError is raised for fallback."""
-        from tradingagents.dataflows.alpha_vantage_scanner import get_sector_performance_alpha_vantage
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageError, RateLimitError
+        from tradingagents.dataflows.alpha_vantage_scanner import (
+            get_sector_performance_alpha_vantage,
+        )
 
         with patch("tradingagents.dataflows.alpha_vantage_scanner._rate_limited_request",
                    side_effect=RateLimitError("rate limited")):
@@ -638,7 +643,9 @@ class TestAVScannerIndustryPerformance:
     """Offline mocked tests for get_industry_performance_alpha_vantage."""
 
     def test_returns_table_for_technology_sector(self):
-        from tradingagents.dataflows.alpha_vantage_scanner import get_industry_performance_alpha_vantage
+        from tradingagents.dataflows.alpha_vantage_scanner import (
+            get_industry_performance_alpha_vantage,
+        )
 
         def fake_request(function_name, params, **kwargs):
             symbol = params.get("symbol", "AAPL")
@@ -653,14 +660,18 @@ class TestAVScannerIndustryPerformance:
         assert any(t in result for t in ["AAPL", "MSFT", "NVDA"])
 
     def test_invalid_sector_raises_value_error(self):
-        from tradingagents.dataflows.alpha_vantage_scanner import get_industry_performance_alpha_vantage
+        from tradingagents.dataflows.alpha_vantage_scanner import (
+            get_industry_performance_alpha_vantage,
+        )
 
         with pytest.raises(ValueError, match="Unknown sector"):
             get_industry_performance_alpha_vantage("not_a_real_sector")
 
     def test_sorted_by_change_percent_descending(self):
         """Results should be sorted by change % descending."""
-        from tradingagents.dataflows.alpha_vantage_scanner import get_industry_performance_alpha_vantage
+        from tradingagents.dataflows.alpha_vantage_scanner import (
+            get_industry_performance_alpha_vantage,
+        )
 
         # Alternate high/low changes to verify sort order
         prices = {"AAPL": ("180.00", "+5.00%"), "MSFT": ("380.00", "+1.00%"),
@@ -749,8 +760,8 @@ class TestAVScannerTopicNews:
         assert "No articles" in result
 
     def test_rate_limit_error_propagates(self):
-        from tradingagents.dataflows.alpha_vantage_scanner import get_topic_news_alpha_vantage
         from tradingagents.dataflows.alpha_vantage_common import RateLimitError
+        from tradingagents.dataflows.alpha_vantage_scanner import get_topic_news_alpha_vantage
 
         with patch("tradingagents.dataflows.alpha_vantage_scanner._rate_limited_request",
                    side_effect=RateLimitError("rate limited")):
@@ -798,9 +809,9 @@ class TestScannerRouting:
 
     def test_get_market_movers_falls_back_to_yfinance_when_av_fails(self):
         """When AV scanner raises AlphaVantageError, fallback to yfinance is used."""
-        from tradingagents.dataflows.interface import route_to_vendor
-        from tradingagents.dataflows.config import get_config
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageError
+        from tradingagents.dataflows.config import get_config
+        from tradingagents.dataflows.interface import route_to_vendor
 
         original_config = get_config()
         patched_config = {

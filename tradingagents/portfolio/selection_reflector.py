@@ -1,12 +1,14 @@
 import logging
 from datetime import datetime
-import yfinance as yf
+from typing import Any
+
 import pandas as pd
 from langchain_core.messages import HumanMessage
+
 from tradingagents.agents.utils.json_utils import extract_json
-from tradingagents.report_paths import get_market_dir
 from tradingagents.dataflows.finnhub import get_company_news
 from tradingagents.dataflows.stockstats_utils import safe_yf_download
+from tradingagents.report_paths import get_market_dir
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +150,7 @@ def fetch_news_summary(ticker: str, start_date: str, end_date: str, top_move_dat
 
     return "\n".join(headlines)
 
-def generate_lesson(llm, candidate: dict, terminal_return: float | None,
+def generate_lesson(llm: Any, candidate: dict, terminal_return: float | None,
                     spy_return: float | None, mfe_pct: float | None,
                     mae_pct: float | None, days_to_peak: int | None,
                     news_summary: str, horizon_days: int) -> dict | None:
@@ -196,7 +198,7 @@ Return ONLY a JSON object with the following keys:
         logger.warning(f"Error generating lesson: {e}")
         return None
 
-def reflect_on_scan(scan_date: str, reflect_date: str, llm, horizon_days: int) -> list[dict]:
+def reflect_on_scan(scan_date: str, reflect_date: str, llm: Any, horizon_days: int) -> list[dict]:
     """Top-level: load candidates, fetch data, generate lessons, return list."""
     candidates = load_scan_candidates(scan_date)
     lessons = []

@@ -19,17 +19,21 @@ All events are written as JSON lines to a file and also to Python's
 
 from __future__ import annotations
 
+import contextvars as _cv
 import json
 import logging
 import threading
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
-from langchain_core.outputs import LLMResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from langchain_core.outputs import LLMResult
 
 _py_logger = logging.getLogger("tradingagents.observability")
 
@@ -264,8 +268,8 @@ class _LLMCallbackHandler(BaseCallbackHandler):
 
     def on_chat_model_start(
         self,
-        serialized: Dict[str, Any],
-        messages: List[List[Any]],
+        serialized: dict[str, Any],
+        messages: list[list[Any]],
         *,
         run_id: Any = None,
         **kwargs: Any,
@@ -297,8 +301,8 @@ class _LLMCallbackHandler(BaseCallbackHandler):
 
     def on_llm_start(
         self,
-        serialized: Dict[str, Any],
-        prompts: List[str],
+        serialized: dict[str, Any],
+        prompts: list[str],
         *,
         run_id: Any = None,
         **kwargs: Any,
@@ -390,18 +394,16 @@ def _extract_graph_node(kwargs: dict) -> str:
 # Thread-local context for passing RunLogger to vendor/tool layers
 # ──────────────────────────────────────────────────────────────────────────────
 
-import contextvars as _cv
-
-_current_run_logger: _cv.ContextVar["RunLogger | None"] = _cv.ContextVar(
+_current_run_logger: _cv.ContextVar[RunLogger | None] = _cv.ContextVar(
     "current_run_logger", default=None
 )
 
 
-def set_run_logger(rl: "RunLogger | None") -> None:
+def set_run_logger(rl: RunLogger | None) -> None:
     """Set the active RunLogger for the current async task or thread."""
     _current_run_logger.set(rl)
 
 
-def get_run_logger() -> "RunLogger | None":
+def get_run_logger() -> RunLogger | None:
     """Get the active RunLogger for the current async task (or None if not set)."""
     return _current_run_logger.get()

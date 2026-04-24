@@ -1,21 +1,19 @@
 import asyncio
+import logging
 import os
 import sys
-import logging
-from typing import Dict, Any
 
 # Ensure we can import from the project root
 sys.path.append(os.getcwd())
 
 from agent_os.backend.services.langgraph_engine import LangGraphEngine
-from tradingagents.default_config import DEFAULT_CONFIG
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("debug_state")
 
 async def debug_run():
-    engine = LangGraphEngine()
+    LangGraphEngine()
     
     # We'll run a mock pipeline first to see how it streams
     print("--- Running Mock Pipeline ---")
@@ -66,9 +64,10 @@ async def debug_run():
     
     # Let's see if we can manually trigger a node
     # We'll need to mock the LLM for the node
-    from tradingagents.agents.analysts.market_analyst import create_market_analyst
     from langchain_core.messages import AIMessage
     from langchain_core.runnables import Runnable
+
+    from tradingagents.agents.analysts.market_analyst import create_market_analyst
     
     class MockLLM(Runnable):
         def __init__(self, response_text):
@@ -105,8 +104,9 @@ async def debug_run():
     # Update state with market analyst result
     state.update(result)
     
-    from tradingagents.agents.managers.research_manager import create_research_manager
     from unittest.mock import MagicMock
+
+    from tradingagents.agents.managers.research_manager import create_research_manager
     
     # Update mock for Research Manager
     mock_llm.response_text = "- Recommendation: BUY (HIGH)\n- Rationale: Market is bullish at $190 (MED)\n- Strategic Action: Entry at $192 (LOW)"

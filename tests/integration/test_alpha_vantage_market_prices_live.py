@@ -11,6 +11,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+
 from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
 pytestmark = [pytest.mark.integration, pytest.mark.enable_socket()]

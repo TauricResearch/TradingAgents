@@ -12,10 +12,12 @@ from __future__ import annotations
 import json
 import logging
 import re
+from typing import TYPE_CHECKING, Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.memory.reflexion import ReflexionMemory
+if TYPE_CHECKING:
+    from tradingagents.memory.reflexion import ReflexionMemory
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +87,9 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     }
 
 
-def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None):
+def create_micro_summary_agent(
+    llm: Any, micro_memory: ReflexionMemory | None = None
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Create a micro summary agent node.
 
     Args:
@@ -97,7 +101,7 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
         A node function ``micro_summary_node(state)`` compatible with LangGraph.
     """
 
-    def micro_summary_node(state: dict) -> dict:
+    def micro_summary_node(state: dict[str, Any]) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
 
         # ------------------------------------------------------------------
@@ -245,7 +249,7 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
     return micro_summary_node
 
 
-def _parse_json_safely(raw: str, *, default):
+def _parse_json_safely(raw: str, *, default: Any) -> Any:
     """Parse a JSON string, returning *default* on any parse error.
 
     Args:

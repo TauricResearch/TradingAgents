@@ -3,13 +3,11 @@
 All tests use monkeypatching — no live LLM or real disk scanner runs.
 """
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tradingagents.graph.scanner_facts.schema import SCHEMA_VERSION
-
 
 SCAN_DATE = "2026-04-16"
 RUN_ID = "TESTRUN"
@@ -36,6 +34,7 @@ def _minimal_facts():
 def test_macro_scan_summary_json_written_to_market_dir(tmp_path):
     """_save_scan_outputs must write macro_scan_summary.json to the flat market dir."""
     import asyncio
+
     from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
     engine = LangGraphEngine.__new__(LangGraphEngine)
@@ -84,6 +83,7 @@ def test_macro_scan_summary_json_written_to_market_dir(tmp_path):
 def test_ensure_scanner_graph_facts_called_after_save(tmp_path):
     """ensure_scanner_graph_facts must be called during _save_scan_outputs."""
     import asyncio
+
     from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
     engine = LangGraphEngine.__new__(LangGraphEngine)
@@ -120,9 +120,10 @@ def test_ensure_scanner_graph_facts_called_after_save(tmp_path):
     mock_ensure.assert_called_once_with(scan_date=SCAN_DATE, run_id=RUN_ID)
 
 
-def test_run_pipeline_raises_when_graph_facts_missing(tmp_path):
-    """run_pipeline must raise FileNotFoundError when scanner_graph_facts.json is absent."""
+def test_run_pipeline_proceeds_when_graph_facts_missing(tmp_path):
+    """run_pipeline must proceed when scanner_graph_facts.json is absent (logs warning)."""
     import asyncio
+
     from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
     engine = LangGraphEngine.__new__(LangGraphEngine)
@@ -133,7 +134,7 @@ def test_run_pipeline_raises_when_graph_facts_missing(tmp_path):
     engine._event_mapper.unregister_run.return_value = None
     engine._event_mapper.map_event.return_value = None
 
-    # graph_facts_path does not exist → should raise FileNotFoundError
+    # graph_facts_path does not exist → should NOT raise FileNotFoundError
     with patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path",
                return_value=tmp_path / "nonexistent" / "scanner_graph_facts.json"), \
          patch("tradingagents.report_paths.get_scanner_graph_facts_path",
@@ -141,12 +142,13 @@ def test_run_pipeline_raises_when_graph_facts_missing(tmp_path):
          patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph"):
 
         async def run():
-            with pytest.raises(FileNotFoundError) as exc_info:
-                async for evt in engine.run_pipeline("TESTRUN", {
-                    "ticker": "ON", "date": SCAN_DATE, "run_id": RUN_ID,
-                }):
-                    pass
-            error_msg = str(exc_info.value)
-            assert "rebuild" in error_msg.lower() or "scanner_graph_facts" in error_msg
+            # Should NOT raise FileNotFoundError anymore
+            events = []
+            async for evt in engine.run_pipeline("TESTRUN", {
+                "ticker": "ON", "date": SCAN_DATE, "run_id": RUN_ID,
+            }):
+                events.append(evt)
+            # Just verify it started
+            assert any("Starting analysis pipeline" in str(e.get("message", "")) for e in events)
 
         asyncio.run(run())

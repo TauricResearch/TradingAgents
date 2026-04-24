@@ -4,11 +4,11 @@ This module provides validation functions to check if agent outputs are actually
 analyzing the provided data rather than hallucinating generic content.
 """
 
-import json
-import re
 import logging
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional, Tuple
+from typing import Any
 
 from tradingagents.agents.utils.json_utils import extract_json
 
@@ -222,14 +222,25 @@ def _extract_key_levels(report: str, *, max_levels: int = 3) -> list[str]:
 
 
 def _extract_current_price_from_report(report: str) -> str | None:
-    """Extract the current/live price from a market analyst report prose."""
+    """Extract the current/live price from a market analyst report prose.
+
+    Patterns are ordered most-specific to least-specific. Pattern 3 has a
+    negative lookbehind to avoid matching "target price at", "support price at",
+    "strike price at", etc. Returns None (with a warning) when no pattern matches.
+    """
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
     patterns = [
         r"current\s+price\s+(?:of\s+)?\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
         r"currently\s+trading\s+at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
-        r"price\s+(?:is\s+)?at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"(?:closed?|last|open(?:ing)?|traded?)\s+(?:at|@)\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"(?:shares?\s+)?(?:trading|trades?)\s+(?:near|around|at)\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        r"(?<!target\s)(?<!support\s)(?<!strike\s)(?<!resistance\s)price\s+(?:is\s+)?at\s+\$([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
     ]
+    report_str = str(report or "")
     for pat in patterns:
-        m = re.search(pat, str(report or ""), re.IGNORECASE)
+        m = re.search(pat, report_str, re.IGNORECASE)
         if m:
             token = m.group(1).replace(",", "")
             try:
@@ -238,6 +249,11 @@ def _extract_current_price_from_report(report: str) -> str | None:
                     return f"${val:.2f}"
             except ValueError:
                 continue
+    _logger.warning(
+        "output_validation: could not extract current price from market report — "
+        "drift guardrail will be skipped. Report excerpt: %.200s",
+        report_str,
+    )
     return None
 
 
@@ -1070,7 +1086,7 @@ def build_final_decision_structured(
 def canonicalize_source_name(
     raw_source: str,
     allowed_source_names: Iterable[str] | None = None,
-) -> Optional[str]:
+) -> str | None:
     """Return a canonical source id for an explicit citation string."""
     normalized = _normalize_source_name(raw_source)
     if not normalized:
@@ -1703,7 +1719,7 @@ def validate_ticker_relevance(
     ticker: str,
     min_mentions: int = 3,
     check_article_refs: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Validate that agent output actually references the ticker.
     
@@ -1780,7 +1796,7 @@ def validate_ticker_relevance(
     return (True, "Valid ticker-relevant output")
 
 
-def validate_news_analysis(output: str, ticker: str) -> Tuple[bool, str]:
+def validate_news_analysis(output: str, ticker: str) -> tuple[bool, str]:
     """
     Specialized validation for news analyst output.
     

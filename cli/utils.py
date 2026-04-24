@@ -1,7 +1,6 @@
+
 import questionary
 import requests
-from typing import List, Optional, Tuple, Dict
-
 from rich.console import Console
 
 from cli.models import AnalystType
@@ -89,7 +88,7 @@ def get_analysis_date() -> str:
     return date.strip()
 
 
-def select_analysts() -> List[AnalystType]:
+def select_analysts() -> list[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
@@ -147,7 +146,7 @@ def select_research_depth() -> int:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
+def select_shallow_thinking_agent(provider: str) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
     _provider = provider.lower()
@@ -220,7 +219,7 @@ def select_shallow_thinking_agent(provider) -> str:
     return choice
 
 
-def select_mid_thinking_agent(provider) -> str:
+def select_mid_thinking_agent(provider: str) -> str:
     """Select mid thinking llm engine using an interactive selection."""
 
     _provider = provider.lower()
@@ -290,7 +289,7 @@ def select_mid_thinking_agent(provider) -> str:
     return choice
 
 
-def select_deep_thinking_agent(provider) -> str:
+def select_deep_thinking_agent(provider: str) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
     _provider = provider.lower()

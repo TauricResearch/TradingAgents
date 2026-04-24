@@ -1,0 +1,31 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	load_portfolio(load_portfolio)
+	compute_risk(compute_risk)
+	prioritize_candidates(prioritize_candidates)
+	execute_trades(execute_trades)
+	review_holdings(review_holdings)
+	macro_summary(macro_summary)
+	micro_summary(micro_summary)
+	make_pm_decision(make_pm_decision)
+	cash_sweep(cash_sweep)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> load_portfolio;
+	cash_sweep --> execute_trades;
+	compute_risk --> review_holdings;
+	load_portfolio --> compute_risk;
+	macro_summary --> make_pm_decision;
+	make_pm_decision --> cash_sweep;
+	micro_summary --> make_pm_decision;
+	prioritize_candidates --> macro_summary;
+	prioritize_candidates --> micro_summary;
+	review_holdings --> prioritize_candidates;
+	execute_trades --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

@@ -1,5 +1,3 @@
-import pandas as pd
-import time
 
 # Let's create a large dataframe and compare
 # df.columns = [str(c).lower() for c in df.columns]

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from io import StringIO
-from typing import Optional
 
 import pandas as pd
-
 
 # ---------------------------------------------------------------------------
 # Column name normalisers for inconsistent vendor schemas
@@ -72,7 +70,7 @@ _CASHFLOW_CAPEX_COLS = [
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _find_col(df: pd.DataFrame, candidates: list[str]) -> Optional[str]:
+def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     """Return the first matching column name, or None."""
     for col in candidates:
         if col in df.columns:
@@ -80,7 +78,7 @@ def _find_col(df: pd.DataFrame, candidates: list[str]) -> Optional[str]:
     return None
 
 
-def _parse_financial_csv(csv_text: str) -> Optional[pd.DataFrame]:
+def _parse_financial_csv(csv_text: str) -> pd.DataFrame | None:
     """
     Parse a CSV string returned by vendor data functions.
 
@@ -109,7 +107,7 @@ def _parse_financial_csv(csv_text: str) -> Optional[pd.DataFrame]:
 
     # Detect orientation: if index looks like dates, columns are metrics.
     # If columns look like dates, transpose.
-    def _looks_like_dates(values) -> bool:
+    def _looks_like_dates(values: Any) -> bool:
         count = 0
         for v in list(values)[:5]:
             try:
@@ -138,7 +136,7 @@ def _parse_financial_csv(csv_text: str) -> Optional[pd.DataFrame]:
     return df
 
 
-def _safe_get(df: pd.DataFrame, col_candidates: list[str], row_idx: int) -> Optional[float]:
+def _safe_get(df: pd.DataFrame, col_candidates: list[str], row_idx: int) -> float | None:
     """Get a value from a DataFrame by column candidates and row index."""
     col = _find_col(df, col_candidates)
     if col is None:
@@ -150,13 +148,13 @@ def _safe_get(df: pd.DataFrame, col_candidates: list[str], row_idx: int) -> Opti
         return None
 
 
-def _pct_change(new: Optional[float], old: Optional[float]) -> Optional[float]:
+def _pct_change(new: float | None, old: float | None) -> float | None:
     if new is None or old is None or old == 0:
         return None
     return (new - old) / abs(old) * 100
 
 
-def _fmt(val: Optional[float], billions: bool = True, suffix: str = "") -> str:
+def _fmt(val: float | None, billions: bool = True, suffix: str = "") -> str:
     if val is None:
         return "N/A"
     if billions:
@@ -164,7 +162,7 @@ def _fmt(val: Optional[float], billions: bool = True, suffix: str = "") -> str:
     return f"{val:.2f}{suffix}"
 
 
-def _fmt_pct(val: Optional[float]) -> str:
+def _fmt_pct(val: float | None) -> str:
     if val is None:
         return "N/A"
     sign = "+" if val >= 0 else ""
@@ -230,14 +228,14 @@ def compute_ttm_metrics(
     ttm_n = min(4, n)
     ttm_income = income_df.tail(ttm_n)
 
-    def _ttm_sum(df, cols) -> Optional[float]:
+    def _ttm_sum(df: pd.DataFrame, cols: list[str]) -> float | None:
         col = _find_col(df, cols)
         if col is None:
             return None
         vals = pd.to_numeric(df.tail(ttm_n)[col], errors="coerce").dropna()
         return float(vals.sum()) if len(vals) > 0 else None
 
-    def _ttm_latest(df, cols) -> Optional[float]:
+    def _ttm_latest(df: pd.DataFrame, cols: list[str]) -> float | None:
         """Stock items: use most recent value."""
         if df is None:
             return None
@@ -378,8 +376,8 @@ def format_ttm_report(metrics: dict, ticker: str) -> str:
     lines += [
         "## Trailing Twelve Months (TTM) Summary",
         "",
-        f"| Metric | TTM Value |",
-        f"|--------|-----------|",
+        "| Metric | TTM Value |",
+        "|--------|-----------|",
         f"| Revenue | {_fmt(ttm.get('revenue'))} |",
         f"| Gross Profit | {_fmt(ttm.get('gross_profit'))} |",
         f"| Operating Income | {_fmt(ttm.get('operating_income'))} |",
@@ -402,8 +400,8 @@ def format_ttm_report(metrics: dict, ticker: str) -> str:
         lines += [
             "## Trend Signals",
             "",
-            f"| Signal | Value |",
-            f"|--------|-------|",
+            "| Signal | Value |",
+            "|--------|-------|",
             f"| Revenue QoQ Growth | {_fmt_pct(trends.get('revenue_qoq_pct'))} |",
             f"| Revenue YoY Growth | {_fmt_pct(trends.get('revenue_yoy_pct'))} |",
             f"| Gross Margin Trend | {trends.get('gross_margin_direction', 'N/A')} |",

@@ -7,9 +7,8 @@ separate from orchestration (Single Responsibility Principle).
 from __future__ import annotations
 
 import logging
-import re
 import time
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger("agent_os.engine")
 
@@ -23,7 +22,7 @@ _GRACEFUL_SKIP_KEYWORDS = ("gracefully", "fallback", "skipped")
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool-name → primary service mapping (best-effort, used for display only)
 # ──────────────────────────────────────────────────────────────────────────────
-TOOL_SERVICE_MAP: Dict[str, str] = {
+TOOL_SERVICE_MAP: dict[str, str] = {
     # Core stock APIs
     "get_stock_data": "yfinance",
     "get_indicators": "yfinance",
@@ -65,7 +64,7 @@ TOOL_SERVICE_MAP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-def is_root_chain_end(event: Dict[str, Any]) -> bool:
+def is_root_chain_end(event: dict[str, Any]) -> bool:
     """Return True for the root-graph terminal event in a LangGraph v2 stream.
 
     LangGraph v2 emits one ``on_chain_end`` event per node AND one for the
@@ -86,7 +85,7 @@ def is_root_chain_end(event: Dict[str, Any]) -> bool:
     return parent_ids is not None and len(parent_ids) == 0
 
 
-def extract_node_name(event: Dict[str, Any]) -> str:
+def extract_node_name(event: dict[str, Any]) -> str:
     """Extract the LangGraph node name from event metadata or tags."""
     metadata = event.get("metadata") or {}
     node = metadata.get("langgraph_node")
@@ -100,7 +99,7 @@ def extract_node_name(event: Dict[str, Any]) -> str:
     return event.get("name", "unknown")
 
 
-def system_log(message: str) -> Dict[str, Any]:
+def system_log(message: str) -> dict[str, Any]:
     """Create a log-type event for informational messages."""
     return {
         "id": f"log_{time.time_ns()}",
@@ -126,7 +125,7 @@ def _truncate(text: str, max_len: int = _MAX_CONTENT_LEN) -> str:
     return text[:max_len] + "…"
 
 
-def _safe_dict(obj: object) -> Dict[str, Any]:
+def _safe_dict(obj: object) -> dict[str, Any]:
     """Return *obj* if it is a dict, otherwise an empty dict."""
     return obj if isinstance(obj, dict) else {}
 
@@ -159,7 +158,7 @@ def _extract_all_messages_content(messages: Any) -> str:
     return "\n\n".join(parts)
 
 
-def _extract_model(event: Dict[str, Any]) -> str:
+def _extract_model(event: dict[str, Any]) -> str:
     """Best-effort extraction of the model name from a LangGraph event."""
     data = event.get("data") or {}
 
@@ -195,9 +194,9 @@ class EventMapper:
     """
 
     def __init__(self) -> None:
-        self._node_start_times: Dict[str, Dict[str, float]] = {}
-        self._node_prompts: Dict[str, Dict[str, str]] = {}
-        self._run_identifiers: Dict[str, str] = {}
+        self._node_start_times: dict[str, dict[str, float]] = {}
+        self._node_prompts: dict[str, dict[str, str]] = {}
+        self._run_identifiers: dict[str, str] = {}
 
     # -- lifecycle helpers ---------------------------------------------------
 
@@ -213,8 +212,8 @@ class EventMapper:
     # -- core mapping --------------------------------------------------------
 
     def map_event(
-        self, run_id: str, event: Dict[str, Any]
-    ) -> Dict[str, Any] | None:
+        self, run_id: str, event: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Map a LangGraph v2 event to an AgentOS frontend event dict.
 
         Each branch is wrapped in ``try / except`` so that a single
@@ -285,13 +284,13 @@ class EventMapper:
 
     @staticmethod
     def _map_llm_start(
-        event: Dict[str, Any],
+        event: dict[str, Any],
         run_id: str,
         node_name: str,
-        starts: Dict[str, float],
-        prompts: Dict[str, str],
+        starts: dict[str, float],
+        prompts: dict[str, str],
         identifier: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             starts[node_name] = time.monotonic()
 
@@ -349,12 +348,12 @@ class EventMapper:
 
     @staticmethod
     def _map_tool_start(
-        event: Dict[str, Any],
+        event: dict[str, Any],
         run_id: str,
         name: str,
         node_name: str,
         identifier: str,
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         try:
             full_input = ""
             tool_input = ""
@@ -387,12 +386,12 @@ class EventMapper:
 
     @staticmethod
     def _map_tool_end(
-        event: Dict[str, Any],
+        event: dict[str, Any],
         run_id: str,
         name: str,
         node_name: str,
         identifier: str,
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         try:
             full_output = ""
             tool_output = ""
@@ -446,16 +445,16 @@ class EventMapper:
 
     @staticmethod
     def _map_llm_end(
-        event: Dict[str, Any],
+        event: dict[str, Any],
         run_id: str,
         node_name: str,
-        starts: Dict[str, float],
-        prompts: Dict[str, str],
+        starts: dict[str, float],
+        prompts: dict[str, str],
         identifier: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             output = (event.get("data") or {}).get("output")
-            usage: Dict[str, Any] = {}
+            usage: dict[str, Any] = {}
             model = "unknown"
             response_snippet = ""
             full_response = ""

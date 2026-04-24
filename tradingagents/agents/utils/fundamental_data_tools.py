@@ -1,9 +1,14 @@
-from langchain_core.tools import tool
 from typing import Annotated
+
+from langchain_core.tools import tool
+
 from tradingagents.dataflows.interface import route_to_vendor
-from tradingagents.dataflows.ttm_analysis import compute_ttm_metrics, format_ttm_report
-from tradingagents.dataflows.peer_comparison import get_peer_comparison_report, get_sector_relative_report
 from tradingagents.dataflows.macro_regime import classify_macro_regime, format_macro_report
+from tradingagents.dataflows.peer_comparison import (
+    get_peer_comparison_report,
+    get_sector_relative_report,
+)
+from tradingagents.dataflows.ttm_analysis import compute_ttm_metrics, format_ttm_report
 
 
 @tool

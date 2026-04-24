@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tradingagents.graph.scanner_facts.normalize import (
     ConfidenceSource,
@@ -24,6 +24,9 @@ from tradingagents.graph.scanner_facts.normalize import (
     infer_polarity,
     is_equity_ticker,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
@@ -159,7 +162,7 @@ def facts_from_macro_scan_summary(
         if not theme_label:
             continue
         description = str(theme_obj.get("description") or "")
-        conviction = str(theme_obj.get("conviction") or "")
+        str(theme_obj.get("conviction") or "")
         polarity = infer_polarity(theme_label, description)
         hedging = any(w in description.lower() for w in ("may", "could", "potential", "uncertain"))
         conf = compute_confidence(
@@ -188,7 +191,7 @@ def facts_from_macro_scan_summary(
         sector = canonicalize_sector(sector_raw) if sector_raw else ""
         rationale = str(stock.get("rationale") or "")
         thesis = str(stock.get("thesis_angle") or "")
-        conviction = str(stock.get("conviction") or "")
+        str(stock.get("conviction") or "")
 
         hedging = any(w in rationale.lower() for w in ("may", "could", "potential", "uncertain"))
         conf = compute_confidence(

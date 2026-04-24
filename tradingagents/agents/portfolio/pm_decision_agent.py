@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Literal
+from typing import Any, Callable, Literal
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -21,7 +21,7 @@ from tradingagents.agents.utils.json_utils import extract_json
 logger = logging.getLogger(__name__)
 
 
-def _parse_candidates_safely(raw: str) -> list[dict]:
+def _parse_candidates_safely(raw: str) -> list[dict[str, Any]]:
     """Parse prioritized candidates JSON, returning an empty list on failure."""
     if not raw or not raw.strip():
         return []
@@ -129,11 +129,11 @@ class PMDecisionSchema(BaseModel):
 
 
 def create_pm_decision_agent(
-    llm,
-    config: dict | None = None,
-    macro_memory=None,
-    micro_memory=None,
-):
+    llm: Any,
+    config: dict[str, Any] | None = None,
+    macro_memory: Any = None,
+    micro_memory: Any = None,
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Create a PM decision agent node.
 
     Args:
@@ -153,7 +153,7 @@ def create_pm_decision_agent(
         f"- Max total positions: {cfg.get('max_positions', 15)}\n"
     )
 
-    def pm_decision_node(state):
+    def pm_decision_node(state: dict[str, Any]) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
 
         # Read brief fields written by upstream summary agents

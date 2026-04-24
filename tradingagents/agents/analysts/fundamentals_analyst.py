@@ -1,6 +1,7 @@
+from typing import Any, Callable
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.observability import get_run_logger
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     format_prefetched_context,
@@ -15,15 +16,16 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_sector_relative,
     get_ttm_analysis,
 )
-from tradingagents.agents.utils.tool_runner import run_tool_loop
 from tradingagents.agents.utils.output_validation import (
     build_fundamentals_report_structured,
     render_fundamentals_report_structured,
 )
+from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.observability import get_run_logger
 
 
-def create_fundamentals_analyst(llm):
-    def fundamentals_analyst_node(state):
+def create_fundamentals_analyst(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def fundamentals_analyst_node(state: dict[str, Any]) -> dict[str, Any]:
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)

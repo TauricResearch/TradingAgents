@@ -1,14 +1,13 @@
 import asyncio
 import os
 import sys
-import json
-from datetime import datetime
 
 # Ensure we can import from the project root
 sys.path.append(os.getcwd())
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+
 
 async def run_live():
     # Configure for OpenRouter

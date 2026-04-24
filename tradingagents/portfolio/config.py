@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from tradingagents.default_config import _env, _env_float, _env_int, get_env_value
 
-
 PORTFOLIO_CONFIG: dict = {
     "supabase_connection_string": get_env_value("SUPABASE_CONNECTION_STRING", ""),
     # PORTFOLIO_DATA_DIR takes precedence; falls back to TRADINGAGENTS_REPORTS_DIR,

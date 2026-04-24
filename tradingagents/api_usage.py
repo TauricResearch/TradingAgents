@@ -150,8 +150,8 @@ class UsageEstimate:
 def _resolve_vendor(config: dict, method: str) -> str:
     """Determine which vendor a method will use given the config."""
     from tradingagents.dataflows.interface import (
-        get_category_for_method,
         VENDOR_METHODS,
+        get_category_for_method,
     )
 
     # Tool-level override first
@@ -536,7 +536,7 @@ def format_estimate(est: UsageEstimate) -> str:
         f"API Usage Estimate — {est.command}",
         f"  {est.description}",
         "",
-        f"  Vendor calls (estimated):",
+        "  Vendor calls (estimated):",
     ]
 
     vc = est.vendor_calls

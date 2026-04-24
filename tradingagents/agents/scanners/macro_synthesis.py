@@ -2,18 +2,17 @@ import json
 import logging
 import re
 from collections import defaultdict
-from typing import Any, Dict
+from typing import Any, Callable
 
-from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+
 from tradingagents.agents.utils.json_utils import extract_json
-from tradingagents.instruments import CanonicalInstrument, resolve_instrument, is_equity_pipeline_supported
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
 )
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 _TICKER_RE = re.compile(r"\b[A-Z]{1,5}\b")
@@ -251,8 +250,10 @@ def _repair_macro_summary(
     return repaired
 
 
-def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: int = 30):
-    def macro_synthesis_node(state):
+def create_macro_synthesis(
+    llm: Any, max_scan_tickers: int = 10, scan_horizon_days: int = 30
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def macro_synthesis_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "macro_scan_summary")
         if existing_report:
@@ -376,17 +377,16 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
         result_message = result
 
         # Sanitize LLM output: strip markdown fences / <think> blocks before storing
-        if invoke_error is None:
-            try:
-                parsed = extract_json(report)
-                parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
-                report = json.dumps(parsed)
-            except (ValueError, json.JSONDecodeError):
-                logger.warning(
-                    "macro_synthesis: could not extract JSON from LLM output; "
-                    "storing raw content (first 200 chars): %s",
-                    report[:200],
-                )
+        try:
+            parsed = extract_json(report)
+            parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
+            report = json.dumps(parsed)
+        except (ValueError, json.JSONDecodeError):
+            logger.warning(
+                "macro_synthesis: could not extract JSON from LLM output; "
+                "storing raw content (first 200 chars): %s",
+                report[:200],
+            )
 
         # 3. Resumability: Save after completion
         if report:

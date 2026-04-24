@@ -1,7 +1,6 @@
-import pandas as pd
-import yfinance as yf
 import time
-import os
+
+import yfinance as yf
 
 start_date_str = '2020-01-01'
 end_date_str = '2023-01-01'

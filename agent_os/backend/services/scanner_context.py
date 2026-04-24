@@ -10,7 +10,7 @@ import datetime as _dt
 import logging
 import re
 import time
-from typing import Any, Dict
+from typing import Any
 
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.scanner_tools import (
@@ -227,11 +227,11 @@ def format_filtered_economic_events(raw: Any, *, max_rows: int = 8) -> list[str]
 # ---------------------------------------------------------------------------
 
 
-def build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str:
+def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str:
     """Build a compact summary-first scanner packet for Phase 2 analyst prompts."""
     ticker = ticker.upper()
 
-    summary_data: Dict[str, Any] = {}
+    summary_data: dict[str, Any] = {}
     macro_summary = scan_state.get("macro_scan_summary", "")
     try:
         parsed = extract_json(macro_summary) if isinstance(macro_summary, str) else macro_summary
@@ -241,7 +241,7 @@ def build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str
         logger.warning("Failed to parse macro_scan_summary for scanner context packet")
 
     candidates = summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
-    ticker_candidate: Dict[str, Any] = {}
+    ticker_candidate: dict[str, Any] = {}
     peer_tickers: list[str] = []
     for candidate in candidates:
         if not isinstance(candidate, dict):

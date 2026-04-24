@@ -1,24 +1,26 @@
 """Scanner graph — orchestrates the 4-phase macro scanner pipeline."""
 
-from copy import deepcopy
 import threading
-from typing import Any, List, Optional
+from collections.abc import Callable
+from copy import deepcopy
+from typing import Any
 
+from tradingagents.agents.scanners import (
+    create_drift_scanner,
+    create_factor_alignment_scanner,
+    create_gatekeeper_scanner,
+    create_geopolitical_scanner,
+    create_industry_deep_dive,
+    create_macro_synthesis,
+    create_market_movers_scanner,
+    create_scanner_summarizer,
+    create_sector_scanner,
+    create_smart_money_scanner,
+)
 from tradingagents.dataflows.config import set_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
-from tradingagents.agents.scanners import (
-    create_gatekeeper_scanner,
-    create_geopolitical_scanner,
-    create_market_movers_scanner,
-    create_sector_scanner,
-    create_factor_alignment_scanner,
-    create_drift_scanner,
-    create_smart_money_scanner,
-    create_industry_deep_dive,
-    create_macro_synthesis,
-    create_scanner_summarizer,
-)
+
 from .scanner_setup import ScannerGraphSetup
 
 
@@ -36,7 +38,7 @@ class ScannerGraph:
         self,
         config: dict[str, Any] | None = None,
         debug: bool = False,
-        callbacks: Optional[List] = None,
+        callbacks: list | None = None,
     ) -> None:
         """Initialize the scanner graph.
 
@@ -64,11 +66,13 @@ class ScannerGraph:
         concurrency = int(self.config.get("scanner_concurrency") or 2)
         semaphore = threading.Semaphore(concurrency)
 
-        def _wrap_scanner(node_fn):
-            def wrapped(state):
+        def _wrap_scanner(node_fn: Callable) -> Callable:
+            def wrapped(state: Any) -> Any:
                 with semaphore:
                     return node_fn(state)
+
             return wrapped
+
 
         # Scanner nodes use the scanner_llm tier (tool-call compliant model).
         # Summarizers use quick_llm (no tool calling needed).
@@ -255,6 +259,37 @@ class ScannerGraph:
 
         return self.graph.invoke(initial_state)
 
-    def graph_from(self, start_node: str):
+    def graph_from(self, start_node: str) -> Any:
         """Return a compiled partial scanner graph that starts at *start_node*."""
         return self.setup.setup_graph_from(start_node)
+
+    def visualize(self, output_path: str | None = None, format: str = "mermaid") -> str | bytes | None:
+        """Visualize the graph in various formats.
+
+        Args:
+            output_path: If provided, saves the visualization to this file.
+            format: "mermaid", "ascii", or "png".
+        """
+        graph = self.graph.get_graph()
+        if format == "ascii":
+            try:
+                res = graph.print_ascii()
+            except Exception as e:
+                res = f"Could not print ASCII: {e}"
+                print(res)
+            if output_path:
+                with open(output_path, "w") as f:
+                    f.write(res if isinstance(res, str) else "ASCII representation printed to console.")
+            return res
+        elif format == "png":
+            png_data = graph.draw_mermaid_png()
+            if output_path:
+                with open(output_path, "wb") as f:
+                    f.write(png_data)
+            return png_data
+        else:
+            mermaid_code = graph.draw_mermaid()
+            if output_path:
+                with open(output_path, "w") as f:
+                    f.write(mermaid_code)
+            return mermaid_code

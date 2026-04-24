@@ -20,7 +20,6 @@ def test_market_analyst_uses_quick_llm():
         quick_thinking_llm=quick_llm,
         mid_thinking_llm=mid_llm,
         deep_thinking_llm=deep_llm,
-        tool_nodes=tool_nodes,
         bull_memory=None, bear_memory=None, trader_memory=None,
         invest_judge_memory=None, portfolio_manager_memory=None,
         conditional_logic=MagicMock(),
@@ -34,7 +33,6 @@ def test_market_analyst_uses_quick_llm():
              patch("tradingagents.graph.setup.create_fundamentals_analyst"), \
              patch("tradingagents.graph.setup.create_bull_researcher"), \
              patch("tradingagents.graph.setup.create_bear_researcher"), \
-             patch("tradingagents.graph.setup.create_research_packet_summary"), \
              patch("tradingagents.graph.setup.create_research_manager"), \
              patch("tradingagents.graph.setup.create_trader"), \
              patch("tradingagents.graph.setup.create_aggressive_debator"), \
@@ -65,7 +63,6 @@ def test_social_analyst_uses_quick_llm():
         quick_thinking_llm=quick_llm,
         mid_thinking_llm=mid_llm,
         deep_thinking_llm=deep_llm,
-        tool_nodes=tool_nodes,
         bull_memory=None, bear_memory=None, trader_memory=None,
         invest_judge_memory=None, portfolio_manager_memory=None,
         conditional_logic=MagicMock(),
@@ -79,7 +76,6 @@ def test_social_analyst_uses_quick_llm():
              patch("tradingagents.graph.setup.create_fundamentals_analyst"), \
              patch("tradingagents.graph.setup.create_bull_researcher"), \
              patch("tradingagents.graph.setup.create_bear_researcher"), \
-             patch("tradingagents.graph.setup.create_research_packet_summary"), \
              patch("tradingagents.graph.setup.create_research_manager"), \
              patch("tradingagents.graph.setup.create_trader"), \
              patch("tradingagents.graph.setup.create_aggressive_debator"), \
@@ -111,7 +107,6 @@ def test_fundamentals_analyst_uses_quick_llm():
         quick_thinking_llm=quick_llm,
         mid_thinking_llm=mid_llm,
         deep_thinking_llm=deep_llm,
-        tool_nodes=tool_nodes,
         bull_memory=None, bear_memory=None, trader_memory=None,
         invest_judge_memory=None, portfolio_manager_memory=None,
         conditional_logic=MagicMock(),
@@ -127,7 +122,6 @@ def test_fundamentals_analyst_uses_quick_llm():
              patch("tradingagents.graph.setup.create_news_fact_checker"), \
              patch("tradingagents.graph.setup.create_bull_researcher"), \
              patch("tradingagents.graph.setup.create_bear_researcher"), \
-             patch("tradingagents.graph.setup.create_research_packet_summary"), \
              patch("tradingagents.graph.setup.create_research_manager"), \
              patch("tradingagents.graph.setup.create_trader"), \
              patch("tradingagents.graph.setup.create_aggressive_debator"), \
@@ -146,19 +140,12 @@ def test_news_analyst_and_fact_checker_share_injected_evidence_store():
     quick_llm = MagicMock(name="quick")
     mid_llm = MagicMock(name="mid")
     deep_llm = MagicMock(name="deep")
-    tool_nodes = {
-        "market": MagicMock(),
-        "social": MagicMock(),
-        "news": MagicMock(),
-        "fundamentals": MagicMock(),
-    }
     news_evidence_store = MagicMock(name="news_evidence_store")
 
     setup = GraphSetup(
         quick_thinking_llm=quick_llm,
         mid_thinking_llm=mid_llm,
         deep_thinking_llm=deep_llm,
-        tool_nodes=tool_nodes,
         bull_memory=None,
         bear_memory=None,
         trader_memory=None,
@@ -175,7 +162,6 @@ def test_news_analyst_and_fact_checker_share_injected_evidence_store():
          patch("tradingagents.graph.setup.create_fundamentals_analyst"), \
          patch("tradingagents.graph.setup.create_bull_researcher"), \
          patch("tradingagents.graph.setup.create_bear_researcher"), \
-         patch("tradingagents.graph.setup.create_research_packet_summary"), \
          patch("tradingagents.graph.setup.create_research_manager"), \
          patch("tradingagents.graph.setup.create_trader"), \
          patch("tradingagents.graph.setup.create_aggressive_debator"), \
@@ -223,7 +209,6 @@ def test_build_debate_subgraph_skips_research_packet_summary_node():
         quick_thinking_llm=quick_llm,
         mid_thinking_llm=mid_llm,
         deep_thinking_llm=deep_llm,
-        tool_nodes={},
         bull_memory=MagicMock(),
         bear_memory=MagicMock(),
         trader_memory=MagicMock(),
@@ -233,8 +218,7 @@ def test_build_debate_subgraph_skips_research_packet_summary_node():
         news_evidence_store=MagicMock(),
     )
 
-    with patch("tradingagents.graph.setup.create_research_packet_summary") as mock_summary, \
-         patch("tradingagents.graph.setup.create_bull_researcher", return_value=MagicMock()), \
+    with patch("tradingagents.graph.setup.create_bull_researcher", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_bear_researcher", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_research_manager", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_trader", return_value=MagicMock()), \
@@ -247,8 +231,6 @@ def test_build_debate_subgraph_skips_research_packet_summary_node():
          patch("tradingagents.graph.setup.create_portfolio_manager", return_value=MagicMock()):
         setup.build_debate_subgraph()
 
-    mock_summary.assert_not_called()
-
 
 def test_build_risk_subgraph_skips_research_packet_summary_node():
     quick_llm = MagicMock(name="quick")
@@ -258,7 +240,6 @@ def test_build_risk_subgraph_skips_research_packet_summary_node():
         quick_thinking_llm=quick_llm,
         mid_thinking_llm=mid_llm,
         deep_thinking_llm=deep_llm,
-        tool_nodes={},
         bull_memory=MagicMock(),
         bear_memory=MagicMock(),
         trader_memory=MagicMock(),
@@ -268,13 +249,10 @@ def test_build_risk_subgraph_skips_research_packet_summary_node():
         news_evidence_store=MagicMock(),
     )
 
-    with patch("tradingagents.graph.setup.create_research_packet_summary") as mock_summary, \
-         patch("tradingagents.graph.setup.create_aggressive_debator", return_value=MagicMock()), \
+    with patch("tradingagents.graph.setup.create_aggressive_debator", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_conservative_debator", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_neutral_debator", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_risk_round_barrier", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_risk_synthesis", return_value=MagicMock()), \
          patch("tradingagents.graph.setup.create_portfolio_manager", return_value=MagicMock()):
         setup.build_risk_subgraph()
-
-    mock_summary.assert_not_called()

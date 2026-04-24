@@ -6,11 +6,10 @@ Tests cover:
   3. _filter_csv_by_date_range — explicit date column discovery (no positional assumption)
 """
 
-import os
-import pytest
-import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -53,7 +52,7 @@ class TestLoadOrFetchOhlcv:
             patch("tradingagents.dataflows.stockstats_utils.yf.download",
                   return_value=expected_df.set_index("Date")) as mock_dl,
         ):
-            result = _load_or_fetch_ohlcv("AAPL")
+            _load_or_fetch_ohlcv("AAPL")
             mock_dl.assert_called_once()
 
         # Cache file must exist after the call
@@ -100,7 +99,7 @@ class TestLoadOrFetchOhlcv:
             patch("tradingagents.dataflows.stockstats_utils.yf.download",
                   return_value=fresh_df.set_index("Date")) as mock_dl,
         ):
-            result = _load_or_fetch_ohlcv("AAPL")
+            _load_or_fetch_ohlcv("AAPL")
             mock_dl.assert_called_once()
 
     def test_truncated_cache_triggers_refetch(self, tmp_path):
@@ -122,12 +121,12 @@ class TestLoadOrFetchOhlcv:
             patch("tradingagents.dataflows.stockstats_utils.yf.download",
                   return_value=fresh_df.set_index("Date")) as mock_dl,
         ):
-            result = _load_or_fetch_ohlcv("AAPL")
+            _load_or_fetch_ohlcv("AAPL")
             mock_dl.assert_called_once()
 
     def test_empty_download_raises_yfinance_error(self, tmp_path):
         """An empty DataFrame from yfinance raises YFinanceError (not a silent return)."""
-        from tradingagents.dataflows.stockstats_utils import _load_or_fetch_ohlcv, YFinanceError
+        from tradingagents.dataflows.stockstats_utils import YFinanceError, _load_or_fetch_ohlcv
 
         with (
             patch("tradingagents.dataflows.stockstats_utils.get_config",

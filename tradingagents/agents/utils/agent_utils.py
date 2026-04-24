@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Callable
 
 from langchain_core.messages import HumanMessage, RemoveMessage
 
@@ -66,8 +67,8 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
-def create_msg_delete():
-    def delete_messages(state):
+def create_msg_delete() -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def delete_messages(state: dict[str, Any]) -> dict[str, Any]:
         """Clear messages and add placeholder for Anthropic compatibility"""
         messages = state.get("messages", [])
         if not messages:

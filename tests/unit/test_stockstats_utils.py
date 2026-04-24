@@ -1,9 +1,10 @@
-import pandas as pd
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-import pytest
-import re
-from unittest.mock import patch, MagicMock
+import pandas as pd
+
 from tradingagents.dataflows.stockstats_utils import _clean_dataframe
+
 
 def test_clean_dataframe_valid_data():
     """Test _clean_dataframe with valid data where no rows should be dropped."""

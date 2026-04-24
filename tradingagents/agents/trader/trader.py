@@ -1,5 +1,6 @@
 import functools
 import re
+from typing import Any, Callable
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
@@ -50,8 +51,8 @@ def _extract_entry_price_from_plan(plan: str) -> float | None:
     return None
 
 
-def create_trader(llm, memory):
-    def trader_node(state, name):
+def create_trader(llm: Any, memory: Any) -> Callable[[dict[str, Any], str], dict[str, Any]]:
+    def trader_node(state: dict[str, Any], name: str) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
         investment_plan = state["investment_plan"]
@@ -67,7 +68,7 @@ def create_trader(llm, memory):
 
         past_memory_str = ""
         if past_memories:
-            for i, rec in enumerate(past_memories, 1):
+            for _i, rec in enumerate(past_memories, 1):
                 past_memory_str += rec["recommendation"] + "\n\n"
         else:
             past_memory_str = "No past memories found."

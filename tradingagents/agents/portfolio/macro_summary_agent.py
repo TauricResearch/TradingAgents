@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import TYPE_CHECKING, Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.memory.macro_memory import MacroMemory
+if TYPE_CHECKING:
+    from tradingagents.memory.macro_memory import MacroMemory
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,9 @@ def _build_candidate_context(scan_summary: dict, limit: int = 5) -> str:
     return "\n".join(f"- {row}" for row in rows) or "None"
 
 
-def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
+def create_macro_summary_agent(
+    llm: Any, macro_memory: MacroMemory | None = None
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Create a macro summary agent node.
 
     Args:
@@ -53,7 +57,7 @@ def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
         A node function ``macro_summary_node(state)`` compatible with LangGraph.
     """
 
-    def macro_summary_node(state: dict) -> dict:
+    def macro_summary_node(state: dict[str, Any]) -> dict[str, Any]:
         scan_summary = state.get("scan_summary") or {}
 
         # Guard: abort early if scan data is absent or *only* contains an error

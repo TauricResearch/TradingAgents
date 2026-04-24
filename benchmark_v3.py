@@ -1,7 +1,3 @@
-import yfinance as yf
-import pandas as pd
-import time
-import os
 
 symbol = 'AAPL'
 start_date_str = '2020-01-01'

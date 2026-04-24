@@ -3,17 +3,17 @@
 import logging
 import os
 from time import sleep
-from typing import Annotated
+from typing import Annotated, Any, Callable
 
 from langchain_core.tools import tool
 
-from tradingagents.dataflows.sovereign_cds import get_todays_sovereign_cds_snapshot
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.sovereign_cds import get_todays_sovereign_cds_snapshot
 
 logger = logging.getLogger(__name__)
 
 
-def _fetch_finviz_soup(url: str, params: dict, timeout_sec: float):
+def _fetch_finviz_soup(url: str, params: dict, timeout_sec: float) -> Any:
     from bs4 import BeautifulSoup
     from finvizfinance.util import headers, proxy_dict, session
 
@@ -29,14 +29,14 @@ def _fetch_finviz_soup(url: str, params: dict, timeout_sec: float):
 
 
 def _screener_view_with_timeout(
-    foverview,
+    foverview: Any,
     *,
     timeout_sec: float,
     order: str = "Volume",
     ascend: bool = False,
     limit: int = 50,
-    columns=None,
-):
+    columns: list[str] | None = None,
+) -> Any:
     from finvizfinance.constants import order_dict
 
     if order not in order_dict:

@@ -9,13 +9,14 @@ Run with:
 """
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from tradingagents.dataflows.alpha_vantage_common import (
     AlphaVantageError,
-    _make_api_request,
     ThirdPartyTimeoutError,
+    _make_api_request,
 )
 
 

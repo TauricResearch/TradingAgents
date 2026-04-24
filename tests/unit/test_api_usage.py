@@ -1,6 +1,5 @@
 """Tests for tradingagents/api_usage.py — API consumption estimation."""
 
-import pytest
 
 from tradingagents.api_usage import (
     AV_FREE_DAILY_LIMIT,
@@ -16,7 +15,6 @@ from tradingagents.api_usage import (
     format_estimate,
     format_vendor_breakdown,
 )
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # VendorEstimate

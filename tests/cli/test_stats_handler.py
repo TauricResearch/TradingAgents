@@ -1,9 +1,11 @@
 import threading
-import pytest
-from cli.stats_handler import StatsCallbackHandler
-from langchain_core.outputs import LLMResult, Generation, ChatGeneration
+
 from langchain_core.messages import AIMessage
 from langchain_core.messages.ai import UsageMetadata
+from langchain_core.outputs import ChatGeneration, Generation, LLMResult
+
+from cli.stats_handler import StatsCallbackHandler
+
 
 def test_stats_handler_initial_state():
     handler = StatsCallbackHandler()

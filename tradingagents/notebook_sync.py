@@ -10,10 +10,14 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from rich.console import Console
+
 from tradingagents.default_config import get_env_value
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 console = Console()
 

@@ -5,10 +5,11 @@ rate-limit concerns.  The mocks reproduce realistic yfinance return shapes so
 that the code-under-test (y_finance.py) exercises every branch that matters.
 """
 
-import pytest
-import pandas as pd
-from unittest.mock import patch, MagicMock, PropertyMock
+from datetime import UTC
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -99,7 +100,7 @@ class TestGetYFinDataOnline:
 
         # Timezone strings like "+00:00" or "UTC" should not appear in the CSV portion
         csv_lines = result.split("\n")
-        data_lines = [l for l in csv_lines if l and not l.startswith("#")]
+        data_lines = [line for line in csv_lines if line and not line.startswith("#")]
         for line in data_lines:
             assert "+00:00" not in line
             assert "UTC" not in line
@@ -483,8 +484,9 @@ class TestExtractArticleData:
     """Tests for _extract_article_data in yfinance_news."""
 
     def test_extract_nested_content_success(self):
+        from datetime import datetime
+
         from tradingagents.dataflows.yfinance_news import _extract_article_data
-        from datetime import datetime, timezone
 
         article = {
             "content": {
@@ -502,7 +504,7 @@ class TestExtractArticleData:
         assert result["summary"] == "Stocks are up today."
         assert result["publisher"] == "FinNews"
         assert result["link"] == "https://example.com/stocks"
-        assert result["pub_date"] == datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        assert result["pub_date"] == datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
 
     def test_extract_nested_content_clickthrough_url(self):
         from tradingagents.dataflows.yfinance_news import _extract_article_data

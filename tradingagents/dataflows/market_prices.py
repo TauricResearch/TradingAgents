@@ -8,11 +8,9 @@ from datetime import UTC, datetime
 
 import pandas as pd
 import requests
-import yfinance as yf
 
 from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import YFinanceError, safe_yf_download
-
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +79,7 @@ class MarketPricesClient:
         return rows
 
     @staticmethod
-    def _extract_latest_closes(download_df, symbol: str):
+    def _extract_latest_closes(download_df: pd.DataFrame, symbol: str) -> list[float] | None:
         if download_df is None or getattr(download_df, "empty", True):
             return None
 

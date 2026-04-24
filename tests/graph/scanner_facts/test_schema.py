@@ -1,15 +1,9 @@
-import pytest
 from tradingagents.graph.scanner_facts.schema import (
-    SCHEMA_VERSION,
     NODE_TYPES,
     RELATION_TYPES,
-    GraphNode,
-    GraphEdge,
-    GlobalRegime,
-    ScannerGraphFacts,
+    SCHEMA_VERSION,
     validate_graph_facts,
 )
-
 
 # ---- constants ----
 

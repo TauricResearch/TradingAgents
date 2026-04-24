@@ -21,9 +21,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import re
-import threading
 from datetime import timedelta
-from pathlib import Path
 
 import pandas as pd
 import pytest

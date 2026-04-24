@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Any, Callable
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -14,8 +15,8 @@ from tradingagents.agents.utils.output_validation import build_sentiment_report_
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_social_media_analyst(llm):
-    def social_media_analyst_node(state):
+def create_social_media_analyst(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def social_media_analyst_node(state: dict[str, Any]) -> dict[str, Any]:
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)

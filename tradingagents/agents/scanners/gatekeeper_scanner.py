@@ -1,16 +1,18 @@
+from typing import Any, Callable
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.scanner_tools import get_gatekeeper_universe
-from tradingagents.agents.utils.tool_runner import run_tool_loop
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_tools import get_gatekeeper_universe
+from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
-def create_gatekeeper_scanner(llm):
-    def gatekeeper_scanner_node(state):
+def create_gatekeeper_scanner(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def gatekeeper_scanner_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "gatekeeper_universe_report")
         if existing_report:

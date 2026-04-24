@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-
 TRACKED_MARKET_INSTRUMENTS: dict[str, dict[str, Any]] = {
     "SPY": {"instrument_type": "broad_market_etf"},
     "QQQ": {"instrument_type": "broad_market_etf"},

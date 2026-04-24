@@ -9,13 +9,10 @@ Run with:
 """
 
 import json
-import os
-import time
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -1074,7 +1071,7 @@ class TestGetMarketIndicesFinnhub:
             result = get_market_indices_finnhub()
 
         lines = result.split("\n")
-        vix_lines = [l for l in lines if "VIX" in l]
+        vix_lines = [line for line in lines if "VIX" in line]
         assert vix_lines, "Expected a VIX row"
         # The VIX price cell must not start with '$'
         for vix_line in vix_lines:

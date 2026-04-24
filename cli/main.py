@@ -1,37 +1,53 @@
-from typing import Optional
 import datetime
 import json
-from tradingagents.agents.utils.json_utils import extract_json
-import typer
-from pathlib import Path
-from functools import wraps
-from rich.console import Console
-
-from rich.panel import Panel
-from rich.spinner import Spinner
-from rich.live import Live
-from rich.markdown import Markdown
-from rich.layout import Layout
-from rich.text import Text
-from rich.table import Table
-from collections import deque
 import time
+from collections import deque
+from functools import wraps
+from pathlib import Path
+from typing import Any, Callable
+
+import typer
 from rich import box
 from rich.align import Align
+from rich.console import Console
+from rich.layout import Layout
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.rule import Rule
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.spinner import Spinner
+from rich.table import Table
+from rich.text import Text
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.report_paths import generate_run_id, get_daily_dir, get_market_dir, get_ticker_dir
-from tradingagents.daily_digest import append_to_digest
-from tradingagents.notebook_sync import sync_to_notebooklm
-from tradingagents.default_config import DEFAULT_CONFIG
-from cli.utils import *
-from tradingagents.graph.scanner_graph import ScannerGraph
-from cli.announcements import fetch_announcements, display_announcements
+from cli.announcements import display_announcements, fetch_announcements
 from cli.stats_handler import StatsCallbackHandler
+from cli.utils import (
+    ask_gemini_thinking_config,
+    ask_openai_reasoning_effort,
+    get_analysis_date,
+    get_ticker,
+    select_analysts,
+    select_deep_thinking_agent,
+    select_llm_provider,
+    select_mid_thinking_agent,
+    select_research_depth,
+    select_shallow_thinking_agent,
+)
+from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.api_usage import format_av_assessment, format_vendor_breakdown
+from tradingagents.daily_digest import append_to_digest
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.scanner_graph import ScannerGraph
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.observability import RunLogger, set_run_logger
-from tradingagents.api_usage import format_vendor_breakdown, format_av_assessment
+from tradingagents.report_paths import (
+    generate_run_id,
+    get_daily_dir,
+    get_market_dir,
+    get_ticker_dir,
+)
 
 console = Console()
 
@@ -77,19 +93,19 @@ class MessageBuffer:
         "final_trade_decision": (None, "Portfolio Manager"),
     }
 
-    def __init__(self, max_length=100):
-        self.messages = deque(maxlen=max_length)
-        self.tool_calls = deque(maxlen=max_length)
-        self.current_report = None
-        self.final_report = None  # Store the complete final report
-        self.agent_status = {}
-        self.current_agent = None
-        self.report_sections = {}
-        self.report_finalizers = {}
-        self.selected_analysts = []
-        self._last_message_id = None
+    def __init__(self, max_length: int = 100) -> None:
+        self.messages: deque[tuple[str, str, str]] = deque(maxlen=max_length)
+        self.tool_calls: deque[tuple[str, str, Any]] = deque(maxlen=max_length)
+        self.current_report: str | None = None
+        self.final_report: dict[str, Any] | None = None  # Store the complete final report
+        self.agent_status: dict[str, str] = {}
+        self.current_agent: str | None = None
+        self.report_sections: dict[str, str | None] = {}
+        self.report_finalizers: dict[str, str] = {}
+        self.selected_analysts: list[str] = []
+        self._last_message_id: str | None = None
 
-    def init_for_analysis(self, selected_analysts):
+    def init_for_analysis(self, selected_analysts: list[str]) -> None:
         """Initialize agent status and report sections based on selected analysts.
 
         Args:
@@ -126,7 +142,7 @@ class MessageBuffer:
         self.tool_calls.clear()
         self._last_message_id = None
 
-    def get_completed_reports_count(self):
+    def get_completed_reports_count(self) -> int:
         """Count reports that are finalized (their finalizing agent is completed).
 
         A report is considered complete when:
@@ -145,25 +161,25 @@ class MessageBuffer:
                     count += 1
         return count
 
-    def add_message(self, message_type, content):
+    def add_message(self, message_type: str, content: str) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
 
-    def add_tool_call(self, tool_name, args):
+    def add_tool_call(self, tool_name: str, args: Any) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
 
-    def update_agent_status(self, agent, status):
+    def update_agent_status(self, agent: str, status: str) -> None:
         if agent in self.agent_status:
             self.agent_status[agent] = status
             self.current_agent = agent
 
-    def update_report_section(self, section_name, content):
+    def update_report_section(self, section_name: str, content: str) -> None:
         if section_name in self.report_sections:
             self.report_sections[section_name] = content
             self._update_current_report()
 
-    def _update_current_report(self):
+    def _update_current_report(self) -> None:
         # For the panel display, only show the most recently updated section
         latest_section = None
         latest_content = None
@@ -242,7 +258,7 @@ class MessageBuffer:
 message_buffer = MessageBuffer()
 
 
-def create_layout():
+def create_layout() -> Layout:
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=3),
@@ -258,14 +274,19 @@ def create_layout():
     return layout
 
 
-def format_tokens(n):
+def format_tokens(n: int) -> str:
     """Format token count for display."""
     if n >= 1000:
         return f"{n / 1000:.1f}k"
     return str(n)
 
 
-def update_display(layout, spinner_text=None, stats_handler=None, start_time=None):
+def update_display(
+    layout: Layout,
+    spinner_text: str | None = None,
+    stats_handler: StatsCallbackHandler | None = None,
+    start_time: float | None = None,
+) -> None:
     # Header with welcome message
     layout["header"].update(
         Panel(
@@ -477,7 +498,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def _ask_provider_thinking_config(provider: str):
+def _ask_provider_thinking_config(provider: str) -> tuple[str | None, str | None]:
     """Ask for provider-specific thinking config. Returns (thinking_level, reasoning_effort)."""
     provider_lower = provider.lower()
     if provider_lower == "google":
@@ -487,10 +508,10 @@ def _ask_provider_thinking_config(provider: str):
     return None, None
 
 
-def get_user_selections():
+def get_user_selections() -> dict[str, Any]:
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
+    with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
@@ -519,7 +540,7 @@ def get_user_selections():
     display_announcements(console, announcements)
 
     # Create a boxed questionnaire for each step
-    def create_question_box(title, prompt, default=None):
+    def create_question_box(title: str, prompt: str, default: str | None = None) -> Panel:
         box_content = f"[bold]{title}[/bold]\n"
         box_content += f"[dim]{prompt}[/dim]"
         if default:
@@ -631,7 +652,7 @@ def get_user_selections():
     }
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def save_report_to_disk(final_state: dict[str, Any], ticker: str, save_path: Path) -> None:
     """Save complete analysis report to disk with organized subfolders."""
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
@@ -731,7 +752,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     return save_path / "complete_report.md"
 
 
-def display_complete_report(final_state):
+def display_complete_report(final_state: dict[str, Any]) -> None:
     """Display the complete analysis report sequentially (avoids truncation)."""
     console.print()
     console.print(Rule("Complete Analysis Report", style="bold green"))
@@ -838,7 +859,7 @@ def display_complete_report(final_state):
             )
 
 
-def update_research_team_status(status):
+def update_research_team_status(status: str) -> None:
     """Update status for research team members (not Trader)."""
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager"]
     for agent in research_team:
@@ -861,7 +882,7 @@ ANALYST_REPORT_MAP = {
 }
 
 
-def update_analyst_statuses(message_buffer, chunk):
+def update_analyst_statuses(message_buffer_inst: MessageBuffer, chunk: dict[str, Any]) -> None:
     """Update analyst statuses based on accumulated report state.
 
     Logic:
@@ -872,7 +893,7 @@ def update_analyst_statuses(message_buffer, chunk):
     - Remaining analysts without reports = pending
     - When all analysts done, set Bull Researcher to in_progress
     """
-    selected = message_buffer.selected_analysts
+    selected = message_buffer_inst.selected_analysts
     found_active = False
 
     for analyst_key in ANALYST_ORDER:
@@ -884,30 +905,30 @@ def update_analyst_statuses(message_buffer, chunk):
 
         # Capture new report content from current chunk
         if chunk.get(report_key):
-            message_buffer.update_report_section(report_key, chunk[report_key])
+            message_buffer_inst.update_report_section(report_key, chunk[report_key])
 
         # Determine status from accumulated sections, not just current chunk
-        has_report = bool(message_buffer.report_sections.get(report_key))
+        has_report = bool(message_buffer_inst.report_sections.get(report_key))
 
         if has_report:
-            message_buffer.update_agent_status(agent_name, "completed")
+            message_buffer_inst.update_agent_status(agent_name, "completed")
         elif not found_active:
-            message_buffer.update_agent_status(agent_name, "in_progress")
+            message_buffer_inst.update_agent_status(agent_name, "in_progress")
             found_active = True
         else:
-            message_buffer.update_agent_status(agent_name, "pending")
+            message_buffer_inst.update_agent_status(agent_name, "pending")
 
     # When all analysts complete, transition research team to in_progress
     if not found_active and selected:
-        if message_buffer.agent_status.get("Bull Researcher") == "pending":
-            message_buffer.update_agent_status("Bull Researcher", "in_progress")
+        if message_buffer_inst.agent_status.get("Bull Researcher") == "pending":
+            message_buffer_inst.update_agent_status("Bull Researcher", "in_progress")
 
 
-def extract_content_string(content):
+def extract_content_string(content: Any) -> str | None:
     """Extract string content from various message formats.
     Returns None if no meaningful text content is found.
     """
-    def is_empty(val):
+    def is_empty(val: Any) -> bool:
         """Check if value is empty using Python's truthiness."""
         if val is None or val == "":
             return True
@@ -945,7 +966,7 @@ def extract_content_string(content):
     return str(content).strip() if not is_empty(content) else None
 
 
-def classify_message_type(message) -> tuple[str, str | None]:
+def classify_message_type(message: Any) -> tuple[str, str | None]:
     """Classify LangChain message into display type and extract content.
 
     Returns:
@@ -971,7 +992,7 @@ def classify_message_type(message) -> tuple[str, str | None]:
     return ("System", content)
 
 
-def parse_tool_call(tool_call) -> tuple[str, dict | str]:
+def parse_tool_call(tool_call: Any) -> tuple[str, dict[str, Any] | str]:
     """Parse a tool call into a name and arguments dictionary.
     Handles dicts, objects with name/args attributes, and string representations.
     """
@@ -1007,7 +1028,7 @@ def parse_tool_call(tool_call) -> tuple[str, dict | str]:
     return tool_name, args
 
 
-def format_tool_args(args, max_length=80) -> str:
+def format_tool_args(args: Any, max_length: int = 80) -> str:
     """Format tool arguments for terminal display."""
     result = str(args)
     if len(result) > max_length:
@@ -1078,11 +1099,11 @@ def run_analysis():
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
 
-    def save_message_decorator(obj, func_name):
+    def save_message_decorator(obj: MessageBuffer, func_name: str) -> Callable[..., Any]:
         func = getattr(obj, func_name)
 
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
@@ -1091,33 +1112,33 @@ def run_analysis():
 
         return wrapper
 
-    def save_tool_call_decorator(obj, func_name):
+    def save_tool_call_decorator(obj: MessageBuffer, func_name: str) -> Callable[..., Any]:
         func = getattr(obj, func_name)
 
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             func(*args, **kwargs)
-            timestamp, tool_name, args = obj.tool_calls[-1]
-            args_str = ", ".join(f"{k}={v}" for k, v in args.items())
+            timestamp, tool_name, tool_args = obj.tool_calls[-1]
+            args_str = ", ".join(f"{k}={v}" for k, v in tool_args.items()) if isinstance(tool_args, dict) else str(tool_args)
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
 
         return wrapper
 
-    def save_report_section_decorator(obj, func_name):
+    def save_report_section_decorator(obj: MessageBuffer, func_name: str) -> Callable[..., Any]:
         func = getattr(obj, func_name)
 
         @wraps(func)
-        def wrapper(section_name, content):
+        def wrapper(section_name: str, content: str) -> Any:
             func(section_name, content)
             if (
                 section_name in obj.report_sections
                 and obj.report_sections[section_name] is not None
             ):
-                content = obj.report_sections[section_name]
-                if content:
+                report_content = obj.report_sections[section_name]
+                if report_content:
                     file_name = f"{section_name}.md"
-                    text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
+                    text = "\n".join(str(item) for item in report_content) if isinstance(report_content, list) else str(report_content)
                     with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(text)
         return wrapper
@@ -1133,7 +1154,7 @@ def run_analysis():
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=4):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1308,7 +1329,7 @@ def run_analysis():
 
         # Get final state and decision
         final_state = trace[-1]
-        decision = graph.process_signal(final_state["final_trade_decision"])
+        graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1415,26 +1436,26 @@ def run_reflect(date: str | None = None, horizons_str: str = "30,90"):
         table.add_column("Sentiment")
         table.add_column("Screening Advice")
         table.add_column("Exit Advice")
-        for l in all_lessons:
-            color = "green" if l.get("sentiment") == "positive" else ("red" if l.get("sentiment") == "negative" else "yellow")
+        for lesson in all_lessons:
+            color = "green" if lesson.get("sentiment") == "positive" else ("red" if lesson.get("sentiment") == "negative" else "yellow")
 
-            alpha_str = f"{l.get('terminal_return_pct', 0.0) - l.get('spy_return_pct', 0.0):+.1f}%"
-            mfe_mae_str = f"+{l.get('mfe_pct', 0.0):.1f}% / {l.get('mae_pct', 0.0):.1f}%"
+            alpha_str = f"{lesson.get('terminal_return_pct', 0.0) - lesson.get('spy_return_pct', 0.0):+.1f}%"
+            mfe_mae_str = f"+{lesson.get('mfe_pct', 0.0):.1f}% / {lesson.get('mae_pct', 0.0):.1f}%"
 
             table.add_row(
-                l.get("ticker", ""),
-                l.get("scan_date", ""),
-                str(l.get("horizon_days", "")),
+                lesson.get("ticker", ""),
+                lesson.get("scan_date", ""),
+                str(lesson.get("horizon_days", "")),
                 alpha_str,
                 mfe_mae_str,
-                f"[{color}]{l.get('sentiment', '')}[/{color}]",
-                l.get("screening_advice", ""),
-                l.get("exit_advice", "")
+                f"[{color}]{lesson.get('sentiment', '')}[/{color}]",
+                lesson.get("screening_advice", ""),
+                lesson.get("exit_advice", "")
             )
         console.print(table)
 
 
-def run_scan(date: Optional[str] = None):
+def run_scan(date: str | None = None):
     """Run the 3-phase LLM scanner pipeline via ScannerGraph."""
     console.print(
         Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green")
@@ -1467,7 +1488,7 @@ def run_scan(date: Optional[str] = None):
             result = scanner.scan(scan_date)
     except Exception as e:
         console.print(f"[red]Scanner failed: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # Save reports
     for key in [
@@ -1557,18 +1578,19 @@ def run_scan(date: Optional[str] = None):
 
 
 def run_pipeline(
-    macro_path_str: Optional[str] = None,
-    min_conviction_opt: Optional[str] = None,
-    ticker_filter_list: Optional[list[str]] = None,
-    analysis_date_opt: Optional[str] = None,
-    dry_run_opt: Optional[bool] = None,
-    holdings_candidates: Optional[list] = None,
+    macro_path_str: str | None = None,
+    min_conviction_opt: str | None = None,
+    ticker_filter_list: list[str] | None = None,
+    analysis_date_opt: str | None = None,
+    dry_run_opt: bool | None = None,
+    holdings_candidates: list | None = None,
 ):
     """Full pipeline: scan -> filter -> per-ticker deep dive."""
     import asyncio
+
     from tradingagents.pipeline.macro_bridge import (
-        parse_macro_output,
         filter_candidates,
+        parse_macro_output,
         run_all_tickers,
         save_results,
     )
@@ -1588,7 +1610,7 @@ def run_pipeline(
     macro_path = Path(macro_output)
     if not macro_path.exists():
         console.print(f"[red]File not found: {macro_path}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     if min_conviction_opt is None:
         min_conviction = typer.prompt(
@@ -1692,7 +1714,7 @@ def run_pipeline(
     ) as progress:
         overall = progress.add_task("[bold]Pipeline progress[/bold]", total=len(candidates))
 
-        def on_done(result, done_count, total_count):
+        def on_done(result: Any, done_count: int, total_count: int) -> None:
             ticker_elapsed = result.elapsed_seconds
             if result.error:
                 console.print(
@@ -1718,7 +1740,7 @@ def run_pipeline(
             )
         except Exception as e:
             console.print(f"[red]Pipeline failed: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     elapsed_total = time.monotonic() - pipeline_start
     console.print(
@@ -1773,7 +1795,7 @@ def analyze():
 
 @app.command()
 def scan(
-    date: Optional[str] = typer.Option(
+    date: str | None = typer.Option(
         None, "--date", "-d", help="Scan date in YYYY-MM-DD format (default: today)"
     ),
 ):
@@ -1783,7 +1805,7 @@ def scan(
 
 @app.command()
 def reflect(
-    date: Optional[str] = typer.Option(None, "--date", "-d", help="Reference date YYYY-MM-DD"),
+    date: str | None = typer.Option(None, "--date", "-d", help="Reference date YYYY-MM-DD"),
     horizons: str = typer.Option("30,90", "--horizons", help="Comma-separated lookback days"),
 ):
     """Reflect on past scan picks: compute returns, fetch news, generate screening lessons."""
@@ -1799,7 +1821,9 @@ def pipeline():
 def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
     """Run the Portfolio Manager end-to-end workflow."""
     import json
+
     import yfinance as yf
+
     from tradingagents.graph.portfolio_graph import PortfolioGraph
     from tradingagents.portfolio.repository import PortfolioRepository
 
@@ -1811,14 +1835,14 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
 
     if not macro_path.exists():
         console.print(f"[red]Scan summary not found: {macro_path}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
-    with open(macro_path, "r") as f:
+    with open(macro_path) as f:
         try:
             scan_summary = json.load(f)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as err:
             console.print(f"[red]Failed to parse JSON at {macro_path}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from err
 
     repo = PortfolioRepository()
 
@@ -1830,7 +1854,7 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
             f"[yellow]Failed to load portfolio '{portfolio_id}': {e}[/yellow]\n"
             "Please ensure it is created in the database using 'python -m cli.main init-portfolio'."
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     # scan_summary["stocks_to_investigate"] is a list of dicts, we just want the tickers
     candidate_dicts = scan_summary.get("stocks_to_investigate", [])
@@ -1866,7 +1890,7 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
             )
     except Exception as e:
         console.print(f"[red]Portfolio execution failed: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     console.print("[green]Portfolio execution completed successfully![/green]")
     if "pm_decision" in result:
@@ -1914,7 +1938,7 @@ def init_portfolio(
         console.print("\n[dim]Copy this UUID and paste it when the Portfolio Manager asks for 'Portfolio ID'.[/dim]\n")
     except Exception as e:
         console.print(f"[red]Failed to create portfolio: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command(name="check-portfolio")
@@ -1922,7 +1946,7 @@ def check_portfolio(
     portfolio_id: str = typer.Option(
         "main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"
     ),
-    date: Optional[str] = typer.Option(
+    date: str | None = typer.Option(
         None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"
     ),
 ):
@@ -1956,7 +1980,7 @@ def auto(
     portfolio_id: str = typer.Option(
         "main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"
     ),
-    date: Optional[str] = typer.Option(
+    date: str | None = typer.Option(
         None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"
     ),
 ):
@@ -2015,12 +2039,12 @@ def estimate_api(
 ):
     """Estimate API usage per vendor (helps decide if AV premium is needed)."""
     from tradingagents.api_usage import (
-        estimate_analyze,
-        estimate_scan,
-        estimate_pipeline,
-        format_estimate,
         AV_FREE_DAILY_LIMIT,
         AV_PREMIUM_PER_MINUTE,
+        estimate_analyze,
+        estimate_pipeline,
+        estimate_scan,
+        format_estimate,
     )
 
     console.print(Panel("[bold green]API Usage Estimation[/bold green]", border_style="green"))
@@ -2039,7 +2063,7 @@ def estimate_api(
 
     if not estimates:
         console.print(f"[red]Unknown command: {command}. Use: analyze, scan, pipeline, or all[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     for est in estimates:
         console.print(Panel(format_estimate(est), title=est.command, border_style="cyan"))

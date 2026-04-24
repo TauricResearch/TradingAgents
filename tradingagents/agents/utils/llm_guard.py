@@ -67,15 +67,20 @@ def invoke_with_timeout(
             )
             time.sleep(delay)
 
-        result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
+        result_queue: queue.Queue[tuple[str, object]] = queue.Queue(maxsize=1)
         parent_context = contextvars.copy_context()
 
-        def _runner() -> None:
+        def _runner(
+            ctx: contextvars.Context = parent_context,
+            llm_inst: Any = guarded_llm,
+            msgs: Any = prompt_or_messages,
+            q: queue.Queue[tuple[str, object]] = result_queue,
+        ) -> None:
             try:
-                result = parent_context.run(guarded_llm.invoke, prompt_or_messages)
-                result_queue.put(("ok", result))
-            except Exception as exc:  # pragma: no cover - exercised through callers
-                result_queue.put(("err", exc))
+                result = ctx.run(llm_inst.invoke, msgs)
+                q.put(("ok", result))
+            except Exception as err:  # pragma: no cover - exercised through callers
+                q.put(("err", err))
 
         thread = threading.Thread(target=_runner, daemon=True)
         thread.start()

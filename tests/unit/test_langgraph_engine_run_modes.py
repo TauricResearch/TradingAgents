@@ -14,12 +14,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, call
-
-# Ensure project root is on sys.path (works in CI and local)
-_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 from agent_os.backend.services.langgraph_engine import (
     LangGraphEngine,
@@ -32,6 +27,10 @@ from agent_os.backend.services.run_helpers import (
     resolve_tier_model_provider,
 )
 
+# Ensure project root is on sys.path (works in CI and local)
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -253,7 +252,7 @@ class TestRunScanReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             mock_rs_cls.return_value.save_scan = MagicMock()
-            events = asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
+            asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
 
         # All five report keys should have been written (the path uses f"{key}.md")
         for key in ("geopolitical_report", "market_movers_report", "sector_performance_report",
@@ -358,7 +357,7 @@ class TestRunScanReportStorage(unittest.TestCase):
             mock_rs_cls.return_value = mock_store
 
             # Should not raise
-            events = asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
+            asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
 
         mock_store.save_scan.assert_not_called()
         # .md files should still have been written
@@ -449,11 +448,18 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
+
+            # Mock facts path to exist so FileNotFoundError is not raised
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = True
+            mock_path.read_text.return_value = "{}"
+            mock_gfp.return_value = mock_path
             mock_store = MagicMock()
             mock_rs_cls.return_value = mock_store
 
@@ -498,11 +504,18 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
+
+            # Mock facts path to exist so FileNotFoundError is not raised
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = True
+            mock_path.read_text.return_value = "{}"
+            mock_gfp.return_value = mock_path
             mock_store = MagicMock()
             mock_rs_cls.return_value = mock_store
 
@@ -525,14 +538,20 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
+             patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
              patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
             mock_rs_cls.return_value.save_analysis = MagicMock()
 
-            asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
+            # Mock facts path to exist so FileNotFoundError is not raised
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = True
+            mock_path.read_text.return_value = "{}"
+            mock_gfp.return_value = mock_path
 
+            asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
         mock_digest.assert_called_once()
         call_args = mock_digest.call_args[0]
         self.assertEqual(call_args[0], "2026-01-01")
@@ -547,11 +566,18 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
+
+            # Mock facts path to exist so FileNotFoundError is not raised
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = True
+            mock_path.read_text.return_value = "{}"
+            mock_gfp.return_value = mock_path
             mock_rs_cls.return_value.save_analysis = MagicMock()
 
             events = asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
@@ -591,10 +617,22 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         engine = LangGraphEngine()
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest:
+             patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
+            fake_dir = MagicMock(spec=Path)
+            fake_dir.mkdir = MagicMock()
+            mock_gtd.return_value = fake_dir
             mock_store = MagicMock()
             mock_rs_cls.return_value = mock_store
+
+            # Mock facts path to exist so FileNotFoundError is not raised
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = True
+            mock_path.read_text.return_value = "{}"
+            mock_gfp.return_value = mock_path
 
             asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
 
@@ -614,12 +652,19 @@ class TestRunPipelineReportStorage(unittest.TestCase):
             with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
                  patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
                  patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+                 patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
                  patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
                  patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
                 fake_dir = MagicMock(spec=Path)
                 fake_dir.mkdir = MagicMock()
                 mock_gtd.return_value = fake_dir
                 mock_rs_cls.return_value.save_analysis = MagicMock()
+
+                # Mock facts path to exist so FileNotFoundError is not raised
+                mock_path = MagicMock(spec=Path)
+                mock_path.exists.return_value = True
+                mock_path.read_text.return_value = "{}"
+                mock_gfp.return_value = mock_path
 
                 asyncio.run(
                     _collect(
@@ -652,11 +697,18 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper) as mock_graph_cls, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path") as mock_gfp, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
+
+            # Mock facts path to exist so FileNotFoundError is not raised
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = True
+            mock_path.read_text.return_value = "{}"
+            mock_gfp.return_value = mock_path
             mock_rs_cls.return_value.save_analysis = MagicMock()
 
             asyncio.run(
@@ -859,7 +911,7 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             mock_rs_cls.return_value = mock_store
 
             # Should not raise
-            events = asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
+            asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
 
         self.assertEqual(captured_state.get("ticker_analyses"), {})
         mock_store.load_analysis.assert_not_called()
@@ -1170,7 +1222,6 @@ class TestRunAutoTickerSource(unittest.TestCase):
         completed_tickers = set()
 
         engine = LangGraphEngine()
-        original_run_pipeline = engine.run_pipeline
 
         async def fake_run_pipeline(run_id, params):
             ticker = params.get("ticker")

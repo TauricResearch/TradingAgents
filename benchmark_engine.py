@@ -1,7 +1,6 @@
-import pandas as pd
+
 import yfinance as yf
-import time
-import os
+
 
 def run_benchmark():
     symbol = "AAPL"

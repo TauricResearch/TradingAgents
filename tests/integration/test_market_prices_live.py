@@ -1,6 +1,5 @@
 """Live integration tests for gold, oil, and bitcoin price tools."""
 
-from datetime import UTC, datetime
 
 import pytest
 
@@ -10,7 +9,6 @@ from tradingagents.agents.utils.scanner_tools import (
     get_oil_prices,
 )
 from tradingagents.dataflows.market_prices import MarketPricesClient
-
 
 pytestmark = [pytest.mark.integration, pytest.mark.enable_socket()]
 

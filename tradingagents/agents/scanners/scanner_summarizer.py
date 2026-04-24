@@ -11,6 +11,8 @@ deterministic ``[NO_EVIDENCE]`` marker without invoking the LLM.
 from __future__ import annotations
 
 import logging
+from typing import Any, Callable
+
 from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,
@@ -52,7 +54,7 @@ def _build_scanner_summary_prompt(report_key: str, raw_report: str) -> str:
     )
 
 
-def create_scanner_summarizer(llm, report_key: str, summary_key: str):
+def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Create a node that summarizes a specific scanner report.
 
     Args:
@@ -61,7 +63,7 @@ def create_scanner_summarizer(llm, report_key: str, summary_key: str):
         summary_key: The key in the state to store the summary.
     """
 
-    def summarizer_node(state: dict) -> dict:
+    def summarizer_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_summary = check_and_load_report(state, summary_key)
         if existing_summary and existing_summary != "No data available for summarization.":

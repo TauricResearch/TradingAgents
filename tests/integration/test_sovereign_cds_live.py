@@ -10,7 +10,6 @@ from tradingagents.agents.scanners.geopolitical_scanner import create_geopolitic
 from tradingagents.agents.utils.scanner_tools import get_todays_sovereign_cds
 from tradingagents.dataflows.sovereign_cds import WorldGovernmentBondsCDSClient
 
-
 pytestmark = [pytest.mark.integration, pytest.mark.enable_socket()]
 
 

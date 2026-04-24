@@ -6,10 +6,10 @@ mocks so that no real network calls are made.
 """
 
 import json
-import pytest
-import pandas as pd
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Shared mock data
@@ -88,8 +88,8 @@ class TestRouteToVendor:
 
     def test_routes_stock_data_to_alpha_vantage_when_configured(self):
         """When the vendor is overridden to alpha_vantage, the AV implementation is called."""
-        from tradingagents.dataflows.interface import route_to_vendor
         from tradingagents.dataflows.config import get_config
+        from tradingagents.dataflows.interface import route_to_vendor
 
         original_config = get_config()
         patched_config = {
@@ -106,8 +106,8 @@ class TestRouteToVendor:
 
     def test_fallback_to_yfinance_when_alpha_vantage_rate_limited(self):
         """When AV hits a rate limit, the router falls back to yfinance automatically."""
-        from tradingagents.dataflows.interface import route_to_vendor
         from tradingagents.dataflows.config import get_config
+        from tradingagents.dataflows.interface import route_to_vendor
 
         original_config = get_config()
         patched_config = {
@@ -135,9 +135,8 @@ class TestRouteToVendor:
 
     def test_raises_runtime_error_when_all_vendors_fail(self):
         """When every vendor fails, a RuntimeError is raised."""
-        from tradingagents.dataflows.interface import route_to_vendor
         from tradingagents.dataflows.config import get_config
-        from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
+        from tradingagents.dataflows.interface import route_to_vendor
 
         original_config = get_config()
         patched_config = {
@@ -268,8 +267,8 @@ class TestFullPipeline:
           2. Fetch company fundamentals from Alpha Vantage.
           3. Verify both results contain expected data and can be used together.
         """
-        from tradingagents.dataflows.y_finance import get_YFin_data_online
         from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
+        from tradingagents.dataflows.y_finance import get_YFin_data_online
 
         # --- Step 1: yfinance price data ---
         df = _make_yf_ohlcv_df()
@@ -305,9 +304,9 @@ class TestFullPipeline:
         continue with yfinance data alone – the error is surfaced rather than
         silently swallowed.
         """
-        from tradingagents.dataflows.y_finance import get_YFin_data_online
-        from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
+        from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
+        from tradingagents.dataflows.y_finance import get_YFin_data_online
 
         # yfinance succeeds
         df = _make_yf_ohlcv_df()

@@ -9,11 +9,11 @@ from pathlib import Path
 import pytest
 
 from tradingagents.graph.scanner_facts.builder import (
-    build_scanner_graph_facts_from_market_dir,
-    save_scanner_graph_facts,
-    load_scanner_graph_facts,
-    ensure_scanner_graph_facts,
     _merge_partial_facts,
+    build_scanner_graph_facts_from_market_dir,
+    ensure_scanner_graph_facts,
+    load_scanner_graph_facts,
+    save_scanner_graph_facts,
 )
 from tradingagents.graph.scanner_facts.schema import validate_graph_facts
 from tradingagents.report_paths import get_scanner_graph_facts_path

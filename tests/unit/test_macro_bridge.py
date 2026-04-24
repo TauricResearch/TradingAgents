@@ -1,11 +1,8 @@
 """Tests for the macro bridge module — JSON parsing, filtering, and report rendering."""
 
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
-
 
 EXAMPLE_MACRO_JSON = {
     "timeframe": "1 month",
@@ -114,8 +111,8 @@ class TestFilterCandidates:
 
     def test_filter_high_conviction(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             filter_candidates,
+            parse_macro_output,
         )
 
         _, candidates = parse_macro_output(macro_json_file)
@@ -125,8 +122,8 @@ class TestFilterCandidates:
 
     def test_filter_medium_conviction(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             filter_candidates,
+            parse_macro_output,
         )
 
         _, candidates = parse_macro_output(macro_json_file)
@@ -155,8 +152,8 @@ class TestFilterCandidates:
 
     def test_filter_by_ticker(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             filter_candidates,
+            parse_macro_output,
         )
 
         _, candidates = parse_macro_output(macro_json_file)
@@ -166,8 +163,8 @@ class TestFilterCandidates:
 
     def test_sorted_by_conviction_desc(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             filter_candidates,
+            parse_macro_output,
         )
 
         _, candidates = parse_macro_output(macro_json_file)
@@ -180,8 +177,8 @@ class TestReportRendering:
 
     def test_render_ticker_report(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             TickerResult,
+            parse_macro_output,
             render_ticker_report,
         )
 
@@ -201,8 +198,8 @@ class TestReportRendering:
 
     def test_render_combined_summary(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             TickerResult,
+            parse_macro_output,
             render_combined_summary,
         )
 
@@ -224,8 +221,8 @@ class TestReportRendering:
 
     def test_save_results(self, macro_json_file, tmp_path):
         from tradingagents.pipeline.macro_bridge import (
-            parse_macro_output,
             TickerResult,
+            parse_macro_output,
             save_results,
         )
 

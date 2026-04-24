@@ -1,4 +1,5 @@
 import pandas as pd
+
 df = pd.DataFrame({"A": [1,2,3]})
 df.to_csv("test_cache.csv", index=False)
 try:

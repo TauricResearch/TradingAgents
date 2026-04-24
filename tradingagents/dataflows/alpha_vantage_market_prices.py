@@ -6,9 +6,9 @@ import json
 from datetime import UTC, datetime
 
 from .alpha_vantage_common import (
-    _make_api_request,
     AlphaVantageError,
     ThirdPartyParseError,
+    _make_api_request,
 )
 
 

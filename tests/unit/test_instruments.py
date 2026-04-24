@@ -1,10 +1,10 @@
+from tradingagents.graph.propagation import Propagator
+from tradingagents.graph.setup import GraphSetup
 from tradingagents.instruments import (
     is_equity_pipeline_supported,
     normalize_symbol,
     resolve_instrument,
 )
-from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.setup import GraphSetup
 
 
 def test_normalize_symbol_preserves_exchange_suffix():

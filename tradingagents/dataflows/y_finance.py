@@ -1,9 +1,11 @@
 import logging
-from typing import Annotated
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
-import yfinance as yf
+from typing import Annotated
+
 import requests
+import yfinance as yf
+from dateutil.relativedelta import relativedelta
+
 from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
 
@@ -14,7 +16,7 @@ def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
-):
+) -> str:
 
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
@@ -321,7 +323,7 @@ def get_stockstats_indicator(
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     """Get company fundamentals overview from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -383,7 +385,7 @@ def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     """Get balance sheet data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -417,7 +419,7 @@ def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     """Get cash flow data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -451,7 +453,7 @@ def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     """Get income statement data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -483,7 +485,7 @@ def get_income_statement(
 
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
-):
+) -> str:
     """Get insider transactions data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())

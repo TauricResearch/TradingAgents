@@ -93,7 +93,7 @@ class SupabaseClient:
                 pass
             cls._instance = None
 
-    def _cursor(self):
+    def _cursor(self) -> Any:
         """Return a RealDictCursor, reconnecting if the connection was dropped."""
         if self._conn.closed:
             self._conn = psycopg2.connect(self._dsn)

@@ -2,7 +2,6 @@ import contextvars
 
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 
-
 _TRACE_ID = contextvars.ContextVar("trace_id", default=None)
 
 

@@ -1,11 +1,13 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import Runnable
+
 from tradingagents.agents.analysts.fundamentals_analyst import create_fundamentals_analyst
 from tradingagents.agents.analysts.market_analyst import create_market_analyst
-from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 from tradingagents.agents.analysts.news_analyst import create_news_analyst
+from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 from tradingagents.memory.news_evidence import NewsEvidenceRecord
 
 
@@ -52,7 +54,7 @@ class FakeNewsEvidenceStore:
             )
         ]
 
-    def build_prompt_context(self, records):
+    def build_prompt_context(self, records) -> str:
         return (
             "## Evidence Records\n\n"
             "These are SQLite-backed evidence records persisted for this run.\n\n"
@@ -262,7 +264,7 @@ def test_news_analyst_prefetch_total_failure_aborts(mock_state):
             # Simulate total prefetch failure — no evidence records at all
             return []
 
-        def build_prompt_context(self, records):
+        def build_prompt_context(self, records) -> str:
             return "## Evidence Records\n\nNo evidence records available."
 
     with patch(
@@ -293,7 +295,7 @@ def test_news_analyst_no_prefetched_evidence_returns_no_news(mock_state):
             # Prefetch succeeded (returned sections), but no articles matched the criteria
             return []
 
-        def build_prompt_context(self, records):
+        def build_prompt_context(self, records) -> str:
             return "## Evidence Records\n\nNo evidence records available."
 
     with patch(
@@ -321,7 +323,7 @@ def test_news_analyst_uses_scanner_context_when_no_articles_ingested(mock_state)
         def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
             return []
 
-        def build_prompt_context(self, records):
+        def build_prompt_context(self, records) -> str:
             return "## Evidence Records\n\nNo evidence records available."
 
     scanner_report = AIMessage(

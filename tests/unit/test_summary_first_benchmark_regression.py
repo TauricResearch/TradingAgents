@@ -14,7 +14,6 @@ import pytest
 
 from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
 
-
 _ANALYST_NODES = {"Market Analyst", "News Analyst", "Fundamentals Analyst"}
 _BASELINE_RUN_ID = "01KN7AX94HC86NENW9QCSPP2KB"
 _BASELINE_DATE = "2026-04-02"

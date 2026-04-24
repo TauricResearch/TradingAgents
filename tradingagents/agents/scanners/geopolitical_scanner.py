@@ -1,4 +1,12 @@
+from typing import Any, Callable
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from tradingagents.agents.utils.report_quality import tag_report
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 from tradingagents.agents.utils.scanner_tools import (
     get_bitcoin_price,
     get_cny_usd_rate,
@@ -10,15 +18,10 @@ from tradingagents.agents.utils.scanner_tools import (
     get_topic_news,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.agents.utils.report_quality import tag_report
-from tradingagents.agents.utils.scanner_idempotency import (
-    check_and_load_report,
-    save_node_report,
-)
 
 
-def create_geopolitical_scanner(llm):
-    def geopolitical_scanner_node(state):
+def create_geopolitical_scanner(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def geopolitical_scanner_node(state: dict[str, Any]) -> dict[str, Any]:
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "geopolitical_report")
         if existing_report:

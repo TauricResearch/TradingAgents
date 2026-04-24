@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Callable
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -59,7 +59,7 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     }
 
 
-def create_holding_reviewer(llm):
+def create_holding_reviewer(llm: Any) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Create a holding reviewer agent node.
 
     Args:
@@ -69,7 +69,7 @@ def create_holding_reviewer(llm):
         A node function ``holding_reviewer_node(state)`` compatible with LangGraph.
     """
 
-    def holding_reviewer_node(state):
+    def holding_reviewer_node(state: dict[str, Any]) -> dict[str, Any]:
         portfolio_data_str = state.get("portfolio_data") or "{}"
         analysis_date = state.get("analysis_date") or ""
 
