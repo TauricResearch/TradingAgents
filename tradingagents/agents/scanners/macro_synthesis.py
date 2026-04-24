@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import time
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
@@ -264,7 +265,7 @@ def create_macro_synthesis(
                 "sender": "macro_synthesis",
             }
 
-        scan_date = state["scan_date"]
+        scan_date = state.get("scan_date") or time.strftime("%Y-%m-%d")
         horizon_label = _format_horizon_label(scan_horizon_days)
 
         # Inject all previous reports for synthesis — keep it concise to avoid token bloat

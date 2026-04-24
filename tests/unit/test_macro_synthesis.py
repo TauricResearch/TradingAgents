@@ -157,3 +157,29 @@ def test_macro_synthesis_ignores_prior_message_history_when_prompting_llm():
     assert messages[1].content == "Produce the final macro synthesis now as JSON only."
     assert "provider-native block" not in captured_prompt.to_string()
     assert result["macro_scan_summary"]
+
+
+def test_macro_synthesis_falls_back_when_scan_date_missing():
+    def _invoke(_prompt_value):
+        return AIMessage(
+            content='{"timeframe":"1 month","executive_summary":"Summary","macro_context":{},'
+            '"key_themes":[],"stocks_to_investigate":[],"risk_factors":[]}'
+        )
+
+    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3, scan_horizon_days=30)
+
+    result = agent(
+        {
+            "messages": [],
+            "gatekeeper_universe_report": "NVDA AAPL MSFT",
+            "geopolitical_report": "Geopolitical context",
+            "market_movers_report": "Market movers context",
+            "sector_performance_report": "Sector context",
+            "factor_alignment_report": "Factor context",
+            "drift_opportunities_report": "Drift context",
+            "smart_money_report": "Smart money context",
+            "industry_deep_dive_report": "Industry context",
+        }
+    )
+
+    assert result["macro_scan_summary"]

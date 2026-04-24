@@ -25,7 +25,8 @@ class ScannerState(MessagesState):
     """
 
     # Input
-    scan_date: str
+    scan_date: Annotated[str, _last_value]
+    run_id: Annotated[str, _last_value]
 
     # Phase 1: Parallel scanner outputs — each written by exactly one node
     gatekeeper_universe_report: Annotated[str, _last_value]

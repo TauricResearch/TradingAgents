@@ -9,9 +9,18 @@ from __future__ import annotations
 import logging
 
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.observability import get_run_logger
 from tradingagents.report_paths import get_market_dir
 
 logger = logging.getLogger(__name__)
+
+
+def _state_run_id(state: AgentState) -> str | None:
+    run_id = state.get("run_id")
+    if run_id:
+        return str(run_id)
+    run_logger = get_run_logger()
+    return run_logger.run_id if run_logger else None
 
 
 def check_and_load_report(state: AgentState, field: str) -> str | None:
@@ -30,7 +39,7 @@ def check_and_load_report(state: AgentState, field: str) -> str | None:
         return report
 
     # 2. Check disk if run_id and scan_date are available
-    run_id = state.get("run_id")
+    run_id = _state_run_id(state)
     scan_date = state.get("scan_date")
     if run_id and scan_date:
         report_path = get_market_dir(scan_date, run_id) / f"{field}.md"
@@ -53,7 +62,7 @@ def save_node_report(state: AgentState, field: str, content: str) -> None:
         field: The field name to save (e.g., 'geopolitical_report').
         content: The report content to save.
     """
-    run_id = state.get("run_id")
+    run_id = _state_run_id(state)
     scan_date = state.get("scan_date")
     if run_id and scan_date and content:
         try:

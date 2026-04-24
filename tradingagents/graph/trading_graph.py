@@ -3,7 +3,7 @@
 import json
 import os
 from copy import deepcopy
-from typing import Any
+from typing import Any, Dict, List, Optional, Set
 
 # Import the new abstract tool methods
 from tradingagents.agents.utils.memory import FinancialSituationMemory

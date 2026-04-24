@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -141,7 +142,7 @@ def create_industry_deep_dive(llm: Any) -> Callable[[AgentState], dict[str, Any]
                 "sender": "industry_deep_dive",
             }
 
-        scan_date = state["scan_date"]
+        scan_date = state.get("scan_date") or time.strftime("%Y-%m-%d")
 
         tools = [get_industry_performance, get_topic_news]
 

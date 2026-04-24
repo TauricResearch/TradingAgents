@@ -74,7 +74,7 @@ def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Ca
                 "sender": f"summarizer_{report_key}",
             }
 
-        raw_report = state.get(report_key, "")
+        raw_report = state.get(report_key, "") or check_and_load_report(state, report_key) or ""
         report_label = report_key.replace("_report", "").replace("_", " ").strip() or report_key
 
         # Gate: skip LLM for empty, degenerate, or quality-tagged-empty reports.

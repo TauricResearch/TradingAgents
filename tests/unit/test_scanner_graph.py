@@ -193,6 +193,19 @@ def test_scanner_states_import():
     assert ScannerState is not None
 
 
+def test_scanner_state_preserves_scan_date_across_fan_in():
+    """scan_date is required by downstream fan-in nodes such as industry_deep_dive."""
+    from typing import Annotated, get_args, get_origin, get_type_hints
+
+    from tradingagents.agents.utils.scanner_states import ScannerState, _last_value
+
+    hints = get_type_hints(ScannerState, include_extras=True)
+    scan_date_hint = hints["scan_date"]
+
+    assert get_origin(scan_date_hint) is Annotated
+    assert get_args(scan_date_hint)[1] is _last_value
+
+
 if __name__ == "__main__":
     test_scanner_graph_import()
     test_scanner_graph_instantiates()
