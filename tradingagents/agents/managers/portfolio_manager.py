@@ -1,7 +1,7 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
 
 
-def create_portfolio_manager(llm, memory):
+def create_portfolio_manager(llm):
     def portfolio_manager_node(state) -> dict:
 
         instrument_context = build_instrument_context(state["company_of_interest"])
@@ -15,21 +15,14 @@ def create_portfolio_manager(llm, memory):
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
-
-        past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
-
+        past_context = state.get("past_context", "")
         lessons_line = (
-            f"- Lessons from past decisions: **{past_memory_str.strip()}**\n"
-            if past_memories
-            else ""
+            f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
+            if past_context else ""
         )
         thesis_instruction = (
-            "3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and past reflections."
-            if past_memories
+            "3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and the lessons from prior decisions."
+            if past_context
             else "3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate."
         )
 
@@ -50,6 +43,7 @@ def create_portfolio_manager(llm, memory):
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
+
 **Required Output Structure:**
 1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
 2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon.
