@@ -44,19 +44,24 @@ Adopt a two-layer contract for every node, with explicit ownership.
 
 ### Layer A — Robustness (always present)
 
-Every node, regardless of category, must implement:
+Every node participates in the robustness layer, but ownership is
+split by responsibility: nodes validate their own inputs/outputs,
+client wrappers handle local retries/timeouts, and `LangGraphEngine`
+owns model substitution and phase retry.
 
 | Mechanism | Purpose | Reference |
 |---|---|---|
 | Bounded timeout | No hung node, ever | `quick/mid/deep_think_llm_timeout` per ADR 017 |
-| Per-tier model fallback | Survive provider policy / 429 | ADR 017 |
+| Engine-owned per-tier model fallback | Survive provider policy / 429 | ADR 017 |
 | Retry on transient errors | Survive flaky network | client-level retry in `openai_client.py` |
 | Idempotent persistence | Survive partial reruns | `check_and_load_report` + `save_node_report` |
 | Schema/type validation on inputs | Refuse impossible state early | new (this ADR) |
 | Structured error payload | Diagnose without prose-parsing | ADR 025 |
 
-Layer A failures are **caught and retried**. They do not propagate
-unless retries are exhausted.
+Layer A failures are **caught and retried by their owning layer**. A
+node must not synthesize a valid-looking decision to recover from an
+invalid output. If client retry and any engine-owned fallback retry are
+exhausted, the failure propagates.
 
 ### Layer B — Fail-loud (decision-effecting nodes only)
 
@@ -72,7 +77,7 @@ result.
 | `pm_decision_agent.py` | Raise on schema failure. Remove the plain-LLM + `extract_json` fallback. |
 | `macro_summary_agent.py` | Raise on missing/error-only `scan_summary`. Remove the `"NO DATA AVAILABLE"` sentinel. |
 | `risk_synthesis.py` | Already raises — reference behavior. |
-| `pm_decision_postcheck` (new) | Raise on cash-adequacy / position-cap / sector-cap / orphan-hold violation. Never clamp. |
+| `pm_decision_postcheck` (new) | Run after `cash_sweep`; raise on final post-sweep cash-adequacy / projected position-cap / projected sector-cap / orphan-hold violation. Never clamp. |
 | `portfolio_integrity_guard` (new) | Raise on `total_value=None`, conservation breach, mixed currency, or `(cash=0 AND no holdings)`. |
 | News Fact Checker | Raise (via structured abort) on missing evidence rather than silently dropping claims. |
 
@@ -88,9 +93,13 @@ rather than degrade:
 
 1. **Cash conservation.** `total_value == cash + Σ holdings.market_value`
    (within $1 tolerance) at every node boundary.
-2. **Buy affordability.** `Σ buy.shares × buy.price <= cash × (1 - min_cash_pct)`.
-3. **Position-cap.** Every buy fits the configured `max_position_pct`.
-4. **Sector-cap.** Aggregate per-sector ≤ `max_sector_pct`.
+2. **Buy affordability.** After same-run sells and all final buys
+   including cash-sweep mutations, projected cash remains above the
+   configured reserve floor.
+3. **Position-cap.** Every projected post-trade ticker exposure fits
+   the configured `max_position_pct`.
+4. **Sector-cap.** Every projected post-trade sector exposure is
+   `<= max_sector_pct`.
 5. **Hold/sell reference.** Every `hold.ticker` / `sell.ticker`
    exists in current holdings.
 6. **Decision-rationale grounding.** Every PM `buy.ticker` has a

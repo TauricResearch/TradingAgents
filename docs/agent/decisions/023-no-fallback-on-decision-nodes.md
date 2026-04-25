@@ -81,21 +81,39 @@ deterministic fallback is acceptable:
   failure is fine because the decision has already been made.
 - Observability layers (token counting, run logs) — never block.
 
-### Retry policy (mandatory before raise)
+### Retry and fallback ownership
 
-Hard-fail does not mean "no retry". Each decision-effecting node
-must:
+Hard-fail does not mean "no retry", but retry ownership must match
+the current architecture.
+
+Decision-effecting nodes own **output integrity**:
+
+1. Invoke their configured LLM/client path.
+2. Validate that the returned content is non-empty, parseable, and
+   schema-valid for the node's contract.
+3. On timeout, empty output, parse failure, schema failure, or other
+   invalid decision output, raise `RuntimeError` with a message that
+   names the node and failure class.
+
+Decision-effecting nodes must not perform synthetic decision fallback
+and must not attempt engine-level model substitution themselves. Node
+closures receive an already-built LLM and do not know the full
+primary/fallback model chain.
+
+`LangGraphEngine` owns **model substitution and phase retry**:
 
 1. Apply the existing per-tier client-level retry (`openai_client.py`).
-2. Apply the existing engine-level fallback model substitution per
-   ADR 017 (`langgraph_engine.py::_build_fallback_config`).
-3. Only after both layers are exhausted, raise `RuntimeError` with a
-   message that names the node, the failure class
-   (timeout/parse/empty), and the models tried.
+2. For fallback-eligible failures, apply the engine-level fallback
+   model substitution per ADR 017 (`run_helpers.build_fallback_config`)
+   and retry the relevant scan, ticker pipeline, portfolio phase, or
+   documented subgraph.
+3. If the fallback path is also exhausted, raise/persist an engine
+   error that includes the phase, node when known, failure class, and
+   primary/fallback models tried.
 
-This is **escalation, not duplication** — same wording as ADR 017.
-The change in this ADR is that step 3 is `raise`, not "emit a
-synthetic decision".
+This is **escalation, not duplication**. The change in this ADR is
+that decision-effecting nodes raise instead of emitting a synthetic
+decision; the engine remains the single owner of model fallback policy.
 
 ## Consequences
 

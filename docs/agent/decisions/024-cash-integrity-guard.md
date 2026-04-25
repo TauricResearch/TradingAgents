@@ -58,17 +58,31 @@ On any check failure the node raises
 with enough context to diagnose the loader bug. No fallback, no
 substitution.
 
-Add a parallel **`pm_decision_postcheck`** deterministic node
-between `make_pm_decision` and `cash_sweep`:
+Add a deterministic **`pm_decision_postcheck`** node after all
+decision-mutating nodes and before `execute_trades`:
 
-1. **Cash adequacy.** `sum(buy.shares * buy.price_target for buy in
-   pm_decision.buys) <= portfolio.cash * (1 - min_cash_pct)`. If
-   the PM proposed buying more than available cash allows, raise.
-2. **Position-cap compliance.** Every buy must satisfy
-   `(shares * price) / total_value <= max_position_pct`. The PM
-   prompt asks for this but the LLM does not always honor it.
-3. **Sector-cap compliance.** Aggregate per-sector allocation must
-   satisfy `<= max_sector_pct`.
+```text
+make_pm_decision -> cash_sweep -> pm_decision_postcheck -> execute_trades
+```
+
+The postcheck validates the **final** `pm_decision` that will reach
+trade execution, including any deterministic SGOV buy appended by
+`cash_sweep`. If a future node mutates `pm_decision`, it must run
+before this postcheck or add an equivalent final validation step.
+
+1. **Cash adequacy.** Starting from current portfolio cash, apply
+   same-run sells first, then all buys in final execution order.
+   `available_cash_after_buys` must remain `>=
+   projected_total_value * min_cash_pct`. If the final decision spends
+   more cash than allowed, raise.
+2. **Position-cap compliance.** Validate projected post-trade
+   exposure, not each buy in isolation. For every ticker:
+   `projected_ticker_value = current_holding_value - same_run_sells
+   + same_run_buys`; then `projected_ticker_value /
+   projected_total_value <= max_position_pct`.
+3. **Sector-cap compliance.** Validate projected post-trade aggregate
+   sector exposure after applying same-run sells and buys. Each
+   projected sector allocation must satisfy `<= max_sector_pct`.
 4. **Cash-reserve floor.** `cash_reserve_pct >= min_cash_pct`.
 5. **Sells reference real holdings.** Every `sell.ticker` must
    exist in current holdings.
@@ -77,8 +91,8 @@ between `make_pm_decision` and `cash_sweep`:
 
 Each violation raises immediately. **No clamping, no shrinking, no
 silent adjustment** — that would be a fallback per ADR 023.
-`cash_sweep` is then free to assume the decision is internally
-consistent and only needs to top up cash.
+`execute_trades` is then free to assume the decision is internally
+consistent.
 
 ## Implementation outline
 
@@ -107,8 +121,11 @@ def _make_portfolio_integrity_guard_node():
     return node
 ```
 
-`pm_decision_postcheck` follows the same pattern, reading the freshly
-emitted `pm_decision` JSON and the upstream `portfolio_data`.
+`pm_decision_postcheck` follows the same pattern, reading the final
+post-sweep `pm_decision` JSON, upstream `portfolio_data`, current
+prices, and portfolio constraints. It computes projected cash,
+position, and sector exposure after same-run sells and buys before
+checking caps.
 
 ## Consequences
 
@@ -117,7 +134,8 @@ emitted `pm_decision` JSON and the upstream `portfolio_data`.
 - Constraint compliance becomes verifiable in the graph, not just
   hopeful in the prompt. The PM prompt's "MUST ensure all buys
   adhere to the portfolio constraints" becomes load-bearing again.
-- `cash_sweep` simplifies — it can assume input is valid.
+- `cash_sweep` may append its SGOV buy, but it cannot bypass the final
+  portfolio invariant check.
 - Operators see a stack trace pointing at the actual problem
   (loader returned bad data) instead of a suspicious-looking trade
   list to debug.

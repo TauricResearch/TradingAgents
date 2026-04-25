@@ -123,7 +123,7 @@ For each pending `MacroMemory` record:
    - `risk-off` confirmed iff VIX rose or defensives outperformed.
    - `transition` / `neutral` confirmed iff neither extreme held.
 
-### Same-day duplicate prevention
+### Same-day duplicate prevention and outcome addressing
 
 `MacroMemory.record_macro_state()` should refuse to insert when a
 record with the same `regime_date` already exists for the same
@@ -131,6 +131,27 @@ record with the same `regime_date` already exists for the same
 `build_macro_context()` then renders as a self-reference. Add a
 unique index on `(regime_date, run_id)` and convert insert
 collisions into updates.
+
+The same key must be used when writing outcomes. Change
+`MacroMemory.record_outcome(...)` from a date-only update to a
+deterministic addressable update:
+
+```python
+def record_outcome(
+    self,
+    date: str,
+    outcome: dict[str, Any],
+    *,
+    run_id: str | None = None,
+) -> bool: ...
+```
+
+When `run_id` is available, MongoDB and local JSON updates must match
+`{"regime_date": date, "run_id": run_id, "outcome": None}`. Date-only
+updates are permitted only for legacy records with missing `run_id`,
+and must update at most one newest pending record while logging that
+legacy addressing was used. The back-fill job should pass `run_id`
+from each pending record so same-day runs are updated deterministically.
 
 ### Operator interface
 

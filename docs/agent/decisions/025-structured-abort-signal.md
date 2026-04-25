@@ -126,22 +126,24 @@ signal to disk for forensic inspection.
 
 ## Migration plan
 
-1. Add `abort_signal` to `AgentState` (default `None`). Keep
-   `critical_abort.py`'s old API as deprecation shims that
-   internally set the structured field.
-2. Update each analyst factory to call `raise_abort(...)` instead of
-   prefixing report text. Remove the old prefix from analyst
-   prompts.
-3. Update conditional routers to use `has_abort(state)`.
-4. Update the terminal node to read the structured field.
-5. Remove the deprecated string-prefix shims and constant. Update
-   ADR 023's references to `[CRITICAL ABORT]`.
-6. Update tests — string-prefix assertions become field assertions.
+1. Add `abort_signal` to `AgentState` (default `None`) and add a
+   structured producer helper such as `raise_abort(...)`.
+2. Update each analyst factory to return `raise_abort(...)` instead of
+   prefixing report text. Remove the old prefix from analyst prompts.
+3. Update conditional routers to use `has_abort(state)`, where
+   `has_abort` checks only `state["abort_signal"]`.
+4. Update the terminal node to read `state["abort_signal"]` directly.
+5. Delete `CRITICAL_ABORT_PREFIX`, `report_has_critical_abort`,
+   `state_has_critical_abort`, and `extract_abort_report` in the same
+   change. Update ADR 023's references to `[CRITICAL ABORT]`.
+6. Update tests — string-prefix assertions become field assertions,
+   and any test fixture that emits `[CRITICAL ABORT]` must emit an
+   `abort_signal` instead.
 
-The migration is mechanical and can land as a single PR. There is no
-backwards-compat to preserve in the wire format because the field is
-graph-internal — checkpoints written under the old format are
-already invalidated by code changes.
+The migration is a hard cutover. There is no backwards-compat bridge
+for legacy string-prefixed checkpoints or intermediate producers; the
+field is graph-internal and checkpoints written under the old format
+are invalidated by this code change.
 
 ## Consequences
 
