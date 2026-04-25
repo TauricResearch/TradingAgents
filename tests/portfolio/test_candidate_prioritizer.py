@@ -86,7 +86,9 @@ def test_score_high_conviction_growth_new_sector():
 
 def test_score_already_held_penalty():
     """Penalty of 0.5 when ticker already in holdings."""
-    candidate = _make_candidate(ticker="AAPL", conviction="high", thesis_angle="growth", sector="Healthcare")
+    candidate = _make_candidate(
+        ticker="AAPL", conviction="high", thesis_angle="growth", sector="Healthcare"
+    )
     holdings = [_make_holding("AAPL", sector="Technology")]
     portfolio = _make_portfolio(cash=50_000.0, total_value=100_000.0)
     # score = 3 * 3 * 2 * 0.5 = 9
@@ -116,7 +118,9 @@ def test_score_medium_momentum_existing_sector_under_70pct():
     # Technology at 10% of 100k → under 70% of 35% max (24.5%)
     h = _make_holding("AAPL", shares=100, avg_cost=100, sector="Technology", current_value=10_000)
     # Use a different ticker so it's not already held
-    candidate = _make_candidate("GOOG", conviction="medium", thesis_angle="momentum", sector="Technology")
+    candidate = _make_candidate(
+        "GOOG", conviction="medium", thesis_angle="momentum", sector="Technology"
+    )
     result = score_candidate(candidate, [h], 100_000.0, _DEFAULT_CONFIG)
     assert result == pytest.approx(5.0)
 

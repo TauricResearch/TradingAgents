@@ -225,7 +225,10 @@ class TestNewsFactCheckerCanonicalContract:
         structured = result["news_report_structured"]
         assert structured["status"] == "aborted"
         assert structured["contract_version"] == "news_report_v1"
-        assert "timeout" in structured["abort_reason"].lower() or "abort" in structured["abort_reason"].lower()
+        assert (
+            "timeout" in structured["abort_reason"].lower()
+            or "abort" in structured["abort_reason"].lower()
+        )
 
     def test_fact_checker_blank_report_with_valid_structured_payload_completes(self):
         """Test fact-checker validates structured payload even when markdown report is blank."""

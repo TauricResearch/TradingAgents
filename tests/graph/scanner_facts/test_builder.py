@@ -3,6 +3,7 @@
 Uses real fixtures from F2 to verify full pipeline:
   fixtures/ → from_macro_json + from_markdown → builder → saved JSON
 """
+
 import json
 from pathlib import Path
 
@@ -23,6 +24,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 # ---- report_paths helper ----
 
+
 def test_get_scanner_graph_facts_path():
     p = get_scanner_graph_facts_path("2026-04-16", "RUN001")
     assert p.name == "scanner_graph_facts.json"
@@ -33,15 +35,34 @@ def test_get_scanner_graph_facts_path():
 
 # ---- _merge_partial_facts ----
 
+
 def test_merge_dedupes_nodes_by_type_and_id():
     a = {
-        "nodes": [{"id": "ON", "type": "Ticker", "label": "ON",
-                   "aliases": [], "provenance": ["src_a"], "evidence": ["ev_a"], "confidence": 0.9}],
+        "nodes": [
+            {
+                "id": "ON",
+                "type": "Ticker",
+                "label": "ON",
+                "aliases": [],
+                "provenance": ["src_a"],
+                "evidence": ["ev_a"],
+                "confidence": 0.9,
+            }
+        ],
         "edges": [],
     }
     b = {
-        "nodes": [{"id": "ON", "type": "Ticker", "label": "ON",
-                   "aliases": [], "provenance": ["src_b"], "evidence": ["ev_b"], "confidence": 0.95}],
+        "nodes": [
+            {
+                "id": "ON",
+                "type": "Ticker",
+                "label": "ON",
+                "aliases": [],
+                "provenance": ["src_b"],
+                "evidence": ["ev_b"],
+                "confidence": 0.95,
+            }
+        ],
         "edges": [],
     }
     merged = _merge_partial_facts([a, b])
@@ -54,13 +75,31 @@ def test_merge_dedupes_nodes_by_type_and_id():
 
 def test_merge_keeps_different_types_with_same_id():
     a = {
-        "nodes": [{"id": "Technology", "type": "Sector", "label": "Technology",
-                   "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.9}],
+        "nodes": [
+            {
+                "id": "Technology",
+                "type": "Sector",
+                "label": "Technology",
+                "aliases": [],
+                "provenance": ["s"],
+                "evidence": [],
+                "confidence": 0.9,
+            }
+        ],
         "edges": [],
     }
     b = {
-        "nodes": [{"id": "Technology", "type": "Theme", "label": "Technology",
-                   "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.8}],
+        "nodes": [
+            {
+                "id": "Technology",
+                "type": "Theme",
+                "label": "Technology",
+                "aliases": [],
+                "provenance": ["s"],
+                "evidence": [],
+                "confidence": 0.8,
+            }
+        ],
         "edges": [],
     }
     merged = _merge_partial_facts([a, b])
@@ -74,8 +113,17 @@ def test_merge_keeps_different_types_with_same_id():
 
 def test_merge_nodes_adds_curated_aliases():
     partial = {
-        "nodes": [{"id": "NVDA", "type": "Ticker", "label": "NVDA",
-                   "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.9}],
+        "nodes": [
+            {
+                "id": "NVDA",
+                "type": "Ticker",
+                "label": "NVDA",
+                "aliases": [],
+                "provenance": ["s"],
+                "evidence": [],
+                "confidence": 0.9,
+            }
+        ],
         "edges": [],
     }
     merged = _merge_partial_facts([partial])
@@ -83,8 +131,15 @@ def test_merge_nodes_adds_curated_aliases():
 
 
 def test_merge_dedupes_edges_by_source_relation_target_provenance():
-    edge = {"source": "ON", "relation": "BELONGS_TO", "target": "Technology",
-            "polarity": "", "provenance": "src_a", "evidence": "ev", "confidence": 0.9}
+    edge = {
+        "source": "ON",
+        "relation": "BELONGS_TO",
+        "target": "Technology",
+        "polarity": "",
+        "provenance": "src_a",
+        "evidence": "ev",
+        "confidence": 0.9,
+    }
     same_edge_lower = dict(edge, confidence=0.7)
     a = {"nodes": [], "edges": [edge]}
     b = {"nodes": [], "edges": [same_edge_lower]}
@@ -95,15 +150,30 @@ def test_merge_dedupes_edges_by_source_relation_target_provenance():
 
 
 def test_merge_keeps_different_edges():
-    e1 = {"source": "ON", "relation": "BELONGS_TO", "target": "Technology",
-          "polarity": "", "provenance": "src_a", "evidence": "ev", "confidence": 0.9}
-    e2 = {"source": "ON", "relation": "DRIVES_SENTIMENT", "target": "Technology",
-          "polarity": "bullish", "provenance": "src_a", "evidence": "ev2", "confidence": 0.8}
+    e1 = {
+        "source": "ON",
+        "relation": "BELONGS_TO",
+        "target": "Technology",
+        "polarity": "",
+        "provenance": "src_a",
+        "evidence": "ev",
+        "confidence": 0.9,
+    }
+    e2 = {
+        "source": "ON",
+        "relation": "DRIVES_SENTIMENT",
+        "target": "Technology",
+        "polarity": "bullish",
+        "provenance": "src_a",
+        "evidence": "ev2",
+        "confidence": 0.8,
+    }
     merged = _merge_partial_facts([{"nodes": [], "edges": [e1, e2]}])
     assert len(merged["edges"]) == 2
 
 
 # ---- build_scanner_graph_facts_from_market_dir ----
+
 
 def test_build_from_market_dir_returns_valid_facts():
     facts = build_scanner_graph_facts_from_market_dir(
@@ -171,6 +241,7 @@ def test_build_missing_macro_json_raises(tmp_path):
 
 
 # ---- save and load ----
+
 
 def test_save_creates_file(tmp_path):
     facts = build_scanner_graph_facts_from_market_dir(
@@ -243,15 +314,19 @@ def test_load_malformed_json_raises(tmp_path):
 
 # ---- ensure_scanner_graph_facts ----
 
+
 def test_ensure_builds_when_missing(tmp_path, monkeypatch):
     # Redirect get_scanner_graph_facts_path to tmp_path
     import tradingagents.graph.scanner_facts.builder as bmod
+
     monkeypatch.setattr(
-        bmod, "_resolve_market_dir",
+        bmod,
+        "_resolve_market_dir",
         lambda date, rid: FIXTURES,
     )
     monkeypatch.setattr(
-        bmod, "_resolve_artifact_path",
+        bmod,
+        "_resolve_artifact_path",
         lambda date, rid: tmp_path / "scanner_graph_facts.json",
     )
     path = ensure_scanner_graph_facts(scan_date="2026-04-16", run_id="test-run-001")

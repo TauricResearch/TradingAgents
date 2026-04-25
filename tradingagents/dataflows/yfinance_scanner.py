@@ -43,6 +43,7 @@ def _ensure_yfinance_session_warm(timeout: float = 15.0) -> None:
             return
         try:
             import yfinance.data as _yfdata
+
             _shared = _yfdata.YfData()
             _shared._get_cookie_and_crumb(timeout=timeout)
             logger.debug("yfinance session warmed (cookie+crumb fetched).")
@@ -50,20 +51,22 @@ def _ensure_yfinance_session_warm(timeout: float = 15.0) -> None:
             # Non-fatal: the screener call itself will attempt a lazy warm-up;
             # log and continue — the retry logic in get_gatekeeper_universe_yfinance
             # will handle any resulting 401.
-            logger.warning("yfinance session pre-warm failed (%s: %s); continuing.", type(exc).__name__, exc)
+            logger.warning(
+                "yfinance session pre-warm failed (%s: %s); continuing.", type(exc).__name__, exc
+            )
         finally:
             _session_warm_event.set()
 
 
 def get_market_movers_yfinance(
-    category: Annotated[str, "Category: 'day_gainers', 'day_losers', or 'most_actives'"]
+    category: Annotated[str, "Category: 'day_gainers', 'day_losers', or 'most_actives'"],
 ) -> str:
     """
     Get market movers using yfinance Screener.
-    
+
     Args:
         category: One of 'day_gainers', 'day_losers', or 'most_actives'
-        
+
     Returns:
         Formatted string containing top market movers
     """
@@ -71,43 +74,43 @@ def get_market_movers_yfinance(
         # Map category to yfinance screener predefined screener
         screener_keys = {
             "day_gainers": "DAY_GAINERS",
-            "day_losers": "DAY_LOSERS", 
-            "most_actives": "MOST_ACTIVES"
+            "day_losers": "DAY_LOSERS",
+            "most_actives": "MOST_ACTIVES",
         }
-        
+
         if category not in screener_keys:
             return f"Invalid category '{category}'. Must be one of: {list(screener_keys.keys())}"
-        
+
         # Use yfinance screener module's screen function
         data = yf.screener.screen(screener_keys[category], count=25)
-        
-        if not data or not isinstance(data, dict) or 'quotes' not in data:
+
+        if not data or not isinstance(data, dict) or "quotes" not in data:
             return f"No data found for {category}"
-        
-        quotes = data['quotes']
-        
+
+        quotes = data["quotes"]
+
         if not quotes:
             return f"No quotes found for {category}"
-        
+
         # Format the output
         header = f"# Market Movers: {category.replace('_', ' ').title()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         # Optimized: Used list collection and string join to avoid memory reallocation overhead
         lines = [
             header,
             "| Symbol | Name | Price | Change % | Volume | Market Cap |",
-            "|--------|------|-------|----------|--------|------------|"
+            "|--------|------|-------|----------|--------|------------|",
         ]
-        
+
         for quote in quotes[:15]:  # Top 15
-            symbol = quote.get('symbol', 'N/A')
-            name = quote.get('shortName', quote.get('longName', 'N/A'))
-            price = quote.get('regularMarketPrice', 'N/A')
-            change_pct = quote.get('regularMarketChangePercent', 'N/A')
-            volume = quote.get('regularMarketVolume', 'N/A')
-            market_cap = quote.get('marketCap', 'N/A')
-            
+            symbol = quote.get("symbol", "N/A")
+            name = quote.get("shortName", quote.get("longName", "N/A"))
+            price = quote.get("regularMarketPrice", "N/A")
+            change_pct = quote.get("regularMarketChangePercent", "N/A")
+            volume = quote.get("regularMarketVolume", "N/A")
+            market_cap = quote.get("marketCap", "N/A")
+
             # Format numbers
             if isinstance(price, (int, float)):
                 price = f"${price:.2f}"
@@ -117,11 +120,13 @@ def get_market_movers_yfinance(
                 volume = f"{volume:,.0f}"
             if isinstance(market_cap, (int, float)):
                 market_cap = f"${market_cap:,.0f}"
-            
-            lines.append(f"| {symbol} | {name[:30]} | {price} | {change_pct} | {volume} | {market_cap} |")
-        
+
+            lines.append(
+                f"| {symbol} | {name[:30]} | {price} | {change_pct} | {volume} | {market_cap} |"
+            )
+
         return "\n".join(lines) + "\n"
-        
+
     except requests.exceptions.Timeout:
         raise ThirdPartyTimeoutError("Request timed out fetching market movers") from None
     except ThirdPartyTimeoutError:
@@ -179,7 +184,11 @@ def get_gap_candidates_yfinance() -> str:
 
             gap_pct = (open_price - prev_close) / prev_close * 100
             rel_volume = None
-            if isinstance(volume, (int, float)) and isinstance(avg_volume, (int, float)) and avg_volume > 0:
+            if (
+                isinstance(volume, (int, float))
+                and isinstance(avg_volume, (int, float))
+                and avg_volume > 0
+            ):
                 rel_volume = volume / avg_volume
 
             # Bounded long-bias filter for drift setups.
@@ -294,7 +303,9 @@ def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
             price_str = f"${price:.2f}" if isinstance(price, (int, float)) else "N/A"
             avg_vol_str = f"{avg_vol:,.0f}" if isinstance(avg_vol, (int, float)) else "N/A"
             cur_vol_str = f"{cur_vol:,.0f}" if isinstance(cur_vol, (int, float)) else "N/A"
-            market_cap_str = f"${market_cap:,.0f}" if isinstance(market_cap, (int, float)) else "N/A"
+            market_cap_str = (
+                f"${market_cap:,.0f}" if isinstance(market_cap, (int, float)) else "N/A"
+            )
             lines.append(
                 f"| {symbol} | {name[:30]} | {exchange} | {price_str} | {avg_vol_str} | {cur_vol_str} | {market_cap_str} |"
             )
@@ -378,22 +389,21 @@ def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
         return "No stocks matched the gatekeeper universe today."
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe (fallback)") from None
+        raise ThirdPartyTimeoutError(
+            "Request timed out fetching gatekeeper universe (fallback)"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as fb_exc:
         # Both paths failed — surface the original error for clarity.
         original = f" (original error: {last_primary_error})" if last_primary_error else ""
-        raise YFinanceError(
-            f"Error fetching gatekeeper universe: {fb_exc}{original}"
-        ) from fb_exc
-
+        raise YFinanceError(f"Error fetching gatekeeper universe: {fb_exc}{original}") from fb_exc
 
 
 def get_market_indices_yfinance() -> str:
     """
     Get major market indices data.
-    
+
     Returns:
         Formatted string containing index values and daily changes
     """
@@ -404,19 +414,19 @@ def get_market_indices_yfinance() -> str:
             "^DJI": "Dow Jones",
             "^IXIC": "NASDAQ",
             "^VIX": "VIX (Volatility Index)",
-            "^RUT": "Russell 2000"
+            "^RUT": "Russell 2000",
         }
-        
+
         header = "# Major Market Indices\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         # Optimized: Used list collection and string join to avoid memory reallocation overhead
         lines = [
             header,
             "| Index | Current Price | Change | Change % | 52W High | 52W Low |",
-            "|-------|---------------|--------|----------|----------|----------|"
+            "|-------|---------------|--------|----------|----------|----------|",
         ]
-        
+
         # Batch-download 1-day history for all symbols in a single request
         symbols = list(indices.keys())
         # threads=False: this function already runs inside LangGraph's thread pool;
@@ -458,16 +468,20 @@ def get_market_indices_yfinance() -> str:
                 current_str = f"{current_price:.2f}"
                 change_str = f"{change:+.2f}"
                 change_pct_str = f"{change_pct:+.2f}%"
-                high_str = f"{high_52w:.2f}" if isinstance(high_52w, (int, float)) else str(high_52w)
+                high_str = (
+                    f"{high_52w:.2f}" if isinstance(high_52w, (int, float)) else str(high_52w)
+                )
                 low_str = f"{low_52w:.2f}" if isinstance(low_52w, (int, float)) else str(low_52w)
-                
-                lines.append(f"| {name} | {current_str} | {change_str} | {change_pct_str} | {high_str} | {low_str} |")
-                
+
+                lines.append(
+                    f"| {name} | {current_str} | {change_str} | {change_pct_str} | {high_str} | {low_str} |"
+                )
+
             except Exception as e:
                 lines.append(f"| {name} | Error: {str(e)} | - | - | - | - |")
-        
+
         return "\n".join(lines) + "\n"
-        
+
     except requests.exceptions.Timeout:
         raise ThirdPartyTimeoutError("Request timed out fetching market indices") from None
     except ThirdPartyTimeoutError:
@@ -517,7 +531,7 @@ def get_sector_performance_yfinance() -> str:
         lines = [
             header,
             "| Sector | 1-Day % | 1-Week % | 1-Month % | YTD % |",
-            "|--------|---------|----------|-----------|-------|"
+            "|--------|---------|----------|-----------|-------|",
         ]
 
         for sector_name, etf in sector_etfs.items():
@@ -555,7 +569,9 @@ def get_sector_performance_yfinance() -> str:
                 month_str = f"{month_pct:+.2f}%" if month_pct is not None else "N/A"
                 ytd_str = f"{ytd_pct:+.2f}%" if ytd_pct is not None else "N/A"
 
-                lines.append(f"| {sector_name} | {day_str} | {week_str} | {month_str} | {ytd_str} |")
+                lines.append(
+                    f"| {sector_name} | {day_str} | {week_str} | {month_str} | {ytd_str} |"
+                )
 
             except Exception as e:
                 lines.append(f"| {sector_name} | Error: {str(e)[:30]} | - | - | - |")
@@ -582,7 +598,7 @@ def _safe_pct(closes: Any, days_back: int) -> float | None:
 
 
 def get_industry_performance_yfinance(
-    sector_key: Annotated[str, "Sector key (e.g., 'technology', 'healthcare')"]
+    sector_key: Annotated[str, "Sector key (e.g., 'technology', 'healthcare')"],
 ) -> str:
     """
     Get industry-level drill-down within a sector.
@@ -590,20 +606,20 @@ def get_industry_performance_yfinance(
     Returns top companies with metadata (rating, market weight) **plus**
     recent price performance (1-day, 1-week, 1-month returns) obtained
     via a single batched ``yf.download()`` call for the top 10 tickers.
-    
+
     Args:
         sector_key: Sector identifier (e.g., 'technology', 'healthcare')
-        
+
     Returns:
         Formatted string containing industry performance data within the sector
     """
     try:
         # Normalize sector key to yfinance format
         sector_key = sector_key.lower().replace(" ", "-")
-        
+
         sector = yf.Sector(sector_key)
         top_companies = sector.top_companies
-        
+
         if top_companies is None or top_companies.empty:
             return f"No industry data found for sector '{sector_key}'"
 
@@ -612,7 +628,10 @@ def get_industry_performance_yfinance(
         price_returns: dict[str, dict[str, float | None]] = {}
         try:
             hist = safe_yf_download(
-                tickers, period="1mo", auto_adjust=True, progress=False,
+                tickers,
+                period="1mo",
+                auto_adjust=True,
+                progress=False,
             )
             for tkr in tickers:
                 try:
@@ -635,37 +654,39 @@ def get_industry_performance_yfinance(
 
         header = f"# Industry Performance: {sector_key.replace('-', ' ').title()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         # Optimized: Used list collection and string join to avoid memory reallocation overhead
         lines = [
             header,
             "| Company | Symbol | Rating | Market Weight | 1-Day % | 1-Week % | 1-Month % |",
-            "|---------|--------|--------|---------------|---------|----------|-----------|"
+            "|---------|--------|--------|---------------|---------|----------|-----------|",
         ]
-        
+
         # top_companies has ticker as the DataFrame index (index.name == 'symbol')
         # Columns: name, rating, market weight
         # Display only the tickers we downloaded prices for to avoid N/A gaps
         for symbol, row in top_companies.head(10).iterrows():
-            name = row.get('name', 'N/A')
-            rating = row.get('rating', 'N/A')
-            market_weight = row.get('market weight', None)
+            name = row.get("name", "N/A")
+            rating = row.get("rating", "N/A")
+            market_weight = row.get("market weight", None)
 
             name_short = name[:30] if isinstance(name, str) else str(name)
-            weight_str = f"{market_weight:.2%}" if isinstance(market_weight, (int, float)) else "N/A"
+            weight_str = (
+                f"{market_weight:.2%}" if isinstance(market_weight, (int, float)) else "N/A"
+            )
 
             ret = price_returns.get(symbol, {})
-            day_str = f"{ret['1d']:+.2f}%" if ret.get('1d') is not None else "N/A"
-            week_str = f"{ret['1w']:+.2f}%" if ret.get('1w') is not None else "N/A"
-            month_str = f"{ret['1m']:+.2f}%" if ret.get('1m') is not None else "N/A"
+            day_str = f"{ret['1d']:+.2f}%" if ret.get("1d") is not None else "N/A"
+            week_str = f"{ret['1w']:+.2f}%" if ret.get("1w") is not None else "N/A"
+            month_str = f"{ret['1m']:+.2f}%" if ret.get("1m") is not None else "N/A"
 
             lines.append(
                 f"| {name_short} | {symbol} | {rating} | {weight_str}"
                 f" | {day_str} | {week_str} | {month_str} |"
             )
-        
+
         return "\n".join(lines) + "\n"
-        
+
     except requests.exceptions.Timeout:
         raise ThirdPartyTimeoutError("Request timed out fetching industry performance") from None
     except ThirdPartyTimeoutError:
@@ -676,15 +697,15 @@ def get_industry_performance_yfinance(
 
 def get_topic_news_yfinance(
     topic: Annotated[str, "Search topic/query (e.g., 'artificial intelligence', 'semiconductor')"],
-    limit: Annotated[int, "Maximum number of articles to return"] = 10
+    limit: Annotated[int, "Maximum number of articles to return"] = 10,
 ) -> str:
     """
     Search news by arbitrary topic using yfinance Search.
-    
+
     Args:
         topic: Search query/topic
         limit: Maximum number of articles to return
-        
+
     Returns:
         Formatted string containing news articles for the topic
     """
@@ -694,16 +715,16 @@ def get_topic_news_yfinance(
             news_count=limit,
             enable_fuzzy_query=True,
         )
-        
+
         if not search.news:
             return f"No news found for topic '{topic}'"
-        
+
         header = f"# News for Topic: {topic}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         # Optimized: Used list collection and string join to avoid memory reallocation overhead
         lines = [header.strip(), ""]
-        
+
         for article in search.news[:limit]:
             # Handle nested content structure
             if "content" in article:
@@ -712,7 +733,7 @@ def get_topic_news_yfinance(
                 summary = content.get("summary", "")
                 provider = content.get("provider", {})
                 publisher = provider.get("displayName", "Unknown")
-                
+
                 # Get URL
                 url_obj = content.get("canonicalUrl") or content.get("clickThroughUrl") or {}
                 link = url_obj.get("url", "")
@@ -721,18 +742,20 @@ def get_topic_news_yfinance(
                 summary = article.get("summary", "")
                 publisher = article.get("publisher", "Unknown")
                 link = article.get("link", "")
-            
+
             lines.append(f"### {title} (source: {publisher})")
             if summary:
                 lines.append(f"{summary}")
             if link:
                 lines.append(f"Link: {link}")
             lines.append("")
-        
+
         return "\n".join(lines) + "\n"
-        
+
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching news for topic '{topic}'") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out fetching news for topic '{topic}'"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

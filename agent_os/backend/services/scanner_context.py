@@ -240,7 +240,9 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     except Exception:
         logger.warning("Failed to parse macro_scan_summary for scanner context packet")
 
-    candidates = summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
+    candidates = (
+        summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
+    )
     ticker_candidate: dict[str, Any] = {}
     peer_tickers: list[str] = []
     for candidate in candidates:
@@ -259,9 +261,7 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
 
     sector_text = str(ticker_candidate.get("sector") or "")
     sector_tokens = [
-        tok.strip().lower()
-        for tok in re.split(r"[/,|&\\-]+", sector_text)
-        if tok and tok.strip()
+        tok.strip().lower() for tok in re.split(r"[/,|&\\-]+", sector_text) if tok and tok.strip()
     ]
     primary_sector = clean_line(sector_text, max_chars=60) or "Unknown"
 
@@ -320,16 +320,28 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     industry_summary = scan_state.get("industry_deep_dive_summary", "")
 
     smart_lines = extract_ticker_relevant_lines(
-        smart_money_summary, ticker, sector_tokens=sector_tokens, max_lines=5,
+        smart_money_summary,
+        ticker,
+        sector_tokens=sector_tokens,
+        max_lines=5,
     ) or ["N/A"]
     factor_lines = extract_ticker_relevant_lines(
-        factor_summary, ticker, sector_tokens=sector_tokens, max_lines=5,
+        factor_summary,
+        ticker,
+        sector_tokens=sector_tokens,
+        max_lines=5,
     ) or ["N/A"]
     drift_lines = extract_ticker_relevant_lines(
-        drift_summary, ticker, sector_tokens=sector_tokens, max_lines=5,
+        drift_summary,
+        ticker,
+        sector_tokens=sector_tokens,
+        max_lines=5,
     ) or ["N/A"]
     sector_lines = extract_ticker_relevant_lines(
-        sector_summary, ticker, sector_tokens=sector_tokens, max_lines=3,
+        sector_summary,
+        ticker,
+        sector_tokens=sector_tokens,
+        max_lines=3,
     ) or ["N/A"]
     market_pulse_lines = top_summary_lines(market_movers_summary, max_lines=2) or ["N/A"]
     geo_pulse_lines = top_summary_lines(geopolitical_summary, max_lines=2) or ["N/A"]
@@ -390,7 +402,7 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     risk_block = _bullet_lines(macro_risk_lines)
 
     packet = f"""# SCANNER CONTEXT PACKET: {ticker}
-Date: {scan_state.get('scan_date', 'N/A')}
+Date: {scan_state.get("scan_date", "N/A")}
 
 ## 1) Selection Context
 - Ticker: {ticker}

@@ -29,11 +29,19 @@ def _extract_scanner_citation_hint(scanner_context: str, fallback_date: str) -> 
     date_match = None
     if scanner_context:
         source_match = next(
-            (line.split(":", 1)[1].strip() for line in scanner_context.splitlines() if line.startswith("Source:")),
+            (
+                line.split(":", 1)[1].strip()
+                for line in scanner_context.splitlines()
+                if line.startswith("Source:")
+            ),
             None,
         )
         date_match = next(
-            (line.split(":", 1)[1].strip() for line in scanner_context.splitlines() if line.startswith("Scan Date:")),
+            (
+                line.split(":", 1)[1].strip()
+                for line in scanner_context.splitlines()
+                if line.startswith("Scan Date:")
+            ),
             None,
         )
 
@@ -83,7 +91,9 @@ def _build_compact_news_context(
     return "\n".join(lines).strip()
 
 
-def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = None) -> Callable[[AgentState], dict[str, Any]]:
+def create_news_analyst(
+    llm: Any, evidence_store: NewsEvidenceStore | None = None
+) -> Callable[[AgentState], dict[str, Any]]:
     store = evidence_store or NewsEvidenceStore()
 
     def news_analyst_node(state: AgentState, /) -> dict[str, Any]:
@@ -96,9 +106,7 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
         # Use scanner_graph_context_text directly — it's already ticker-focused
         # Do NOT re-filter graph context by ticker string
         scanner_context = state.get("scanner_graph_context_text", "")
-        scanner_citation_hint = _extract_scanner_citation_hint(
-            scanner_context, current_date
-        )
+        scanner_citation_hint = _extract_scanner_citation_hint(scanner_context, current_date)
 
         # ── Pre-fetch company-specific and global news in parallel ────────────
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
@@ -132,13 +140,17 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
             trade_date=current_date,
             prefetched=prefetched,
         )
-        
+
         # Prefetch health gate: check if all or most prefetch sections failed
         company_news = prefetched.get("Company-Specific News (Last 7 Days)", "")
         global_news = prefetched.get("Global Macroeconomic News (Last 7 Days)", "")
-        company_failed = str(company_news).strip().startswith("[Error fetching") or str(company_news).strip().startswith("[Error]")
-        global_failed = str(global_news).strip().startswith("[Error fetching") or str(global_news).strip().startswith("[Error]")
-        
+        company_failed = str(company_news).strip().startswith("[Error fetching") or str(
+            company_news
+        ).strip().startswith("[Error]")
+        global_failed = str(global_news).strip().startswith("[Error fetching") or str(
+            global_news
+        ).strip().startswith("[Error]")
+
         # If both prefetch sections failed and no evidence records were persisted, abort
         if company_failed and global_failed and not evidence_records:
             report = f"[CRITICAL ABORT] Reason: News prefetch failed for {ticker} - both company-specific and global news feeds returned errors"
@@ -147,7 +159,7 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
                 "news_report": report,
                 "news_report_structured": {},
             }
-        
+
         # If prefetch succeeded but neither article evidence nor scanner context is
         # available, return deterministic no-news. Scanner context is not persisted
         # in NewsEvidenceStore, but it can still support Finviz scanner claims.
@@ -158,7 +170,7 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
                 "news_report": report,
                 "news_report_structured": {},
             }
-        
+
         compact_news_context = _build_compact_news_context(records=evidence_records)
         macro_regime_report = state.get("macro_regime_report", "")
         macro_regime_section = (
@@ -186,7 +198,7 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
             "STRICT CONSTRAINTS:\n"
             "- Prefer valid JSON using the schema below. If you cannot produce valid JSON, return a concise cited markdown report instead of inventing structure.\n"
             "- Do not wrap JSON in markdown fences.\n"
-            "- Cite exact values in standard format inside claim text: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
+            '- Cite exact values in standard format inside claim text: $X.XX, +Y.Y% YoY. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.\n'
             "- Prioritize material news with quantifiable impact over speculative commentary.\n"
             "- Attribute each claim to a specific source and date.\n\n"
             "Preferred JSON schema:\n"
@@ -221,8 +233,8 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
             "`[Evidence ID: ...]` so the claim can be traced back later.\n"
             "Only cite publications or data sources that appear in the provided news feeds or the exact scanner citation above.\n"
             "Internal prompt labels and section headers are NOT sources. Never cite labels such as "
-            "\"Macro Regime Classification\", \"Scanner Context\", \"Pre-loaded Context\", or "
-            "\"Economic Calendar\" as publications.\n"
+            '"Macro Regime Classification", "Scanner Context", "Pre-loaded Context", or '
+            '"Economic Calendar" as publications.\n'
             "Do not invent source names. Do not describe Finviz scanner output as SEC or Form 4 evidence unless SEC filing data is explicitly present in the provided news context.\n\n"
             "If the evidence window is sparse, return only the claims you can verify from the provided context. "
             "Do not invent filler claims to satisfy a target count.\n\n"
@@ -243,7 +255,9 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
         scanner_context_block = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context as ticker-focused prior context; do not re-filter it by ticker string because it has already been retrieved for this ticker."
-            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            scanner_context_block = (
+                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -274,7 +288,11 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
 
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("mid_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         first_result, invoke_error = invoke_with_timeout(
@@ -333,8 +351,8 @@ def create_news_analyst(llm: Any, evidence_store: NewsEvidenceStore | None = Non
                     "Prefer valid JSON using the schema provided earlier. If you cannot produce valid JSON, return a concise cited markdown report. "
                     "Only cite publications or data sources present in the provided feeds. "
                     "Do not cite internal prompt labels or section headers like "
-                    "\"Macro Regime Classification\", \"Scanner Context\", or "
-                    "\"Pre-loaded Context\" as sources. "
+                    '"Macro Regime Classification", "Scanner Context", or '
+                    '"Pre-loaded Context" as sources. '
                     f"If you cite scanner-derived claims, you must use {scanner_citation_hint} exactly. "
                     "Every article-based claim must include exact `source`, `published_at`, and `evidence_id` fields."
                 )

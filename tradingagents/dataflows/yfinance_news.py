@@ -133,14 +133,38 @@ def get_social_sentiment_yfinance(
         publisher distribution, and sentiment trend.
     """
     POSITIVE_KEYWORDS = {
-        "surge", "jump", "beat", "strong", "growth", "upgrade", "rally",
-        "gain", "profit", "breakthrough", "record", "soar", "boom",
-        "outperform", "bullish",
+        "surge",
+        "jump",
+        "beat",
+        "strong",
+        "growth",
+        "upgrade",
+        "rally",
+        "gain",
+        "profit",
+        "breakthrough",
+        "record",
+        "soar",
+        "boom",
+        "outperform",
+        "bullish",
     }
     NEGATIVE_KEYWORDS = {
-        "fall", "drop", "miss", "weak", "decline", "downgrade", "crash",
-        "loss", "risk", "warning", "cut", "plunge", "slump",
-        "underperform", "bearish",
+        "fall",
+        "drop",
+        "miss",
+        "weak",
+        "decline",
+        "downgrade",
+        "crash",
+        "loss",
+        "risk",
+        "warning",
+        "cut",
+        "plunge",
+        "slump",
+        "underperform",
+        "bearish",
     }
 
     def _score_headline(title: str) -> int:
@@ -170,12 +194,14 @@ def get_social_sentiment_yfinance(
                     continue
 
             score = _score_headline(data["title"])
-            articles.append({
-                "title": data["title"],
-                "publisher": data["publisher"],
-                "pub_date": data["pub_date"],
-                "score": score,
-            })
+            articles.append(
+                {
+                    "title": data["title"],
+                    "publisher": data["publisher"],
+                    "pub_date": data["pub_date"],
+                    "score": score,
+                }
+            )
 
         if not articles:
             return f"No social sentiment data available for {ticker} between {start_date} and {end_date}"
@@ -214,8 +240,10 @@ def get_social_sentiment_yfinance(
         avg_first = sum(a["score"] for a in first_half) / len(first_half) if first_half else 0
         avg_second = sum(a["score"] for a in second_half) / len(second_half) if second_half else 0
         trend_direction = (
-            "improving" if avg_second > avg_first
-            else "deteriorating" if avg_second < avg_first
+            "improving"
+            if avg_second > avg_first
+            else "deteriorating"
+            if avg_second < avg_first
             else "stable"
         )
 
@@ -235,7 +263,9 @@ def get_social_sentiment_yfinance(
         return output
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out fetching sentiment data for {ticker}") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out fetching sentiment data for {ticker}"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

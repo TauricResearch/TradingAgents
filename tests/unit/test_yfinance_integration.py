@@ -15,15 +15,16 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_ohlcv_df(start="2024-01-02", periods=5):
     """Return a minimal OHLCV DataFrame with a timezone-aware DatetimeIndex."""
     idx = pd.date_range(start, periods=periods, freq="B", tz="America/New_York")
     return pd.DataFrame(
         {
-            "Open":   [150.0, 151.0, 152.0, 153.0, 154.0][:periods],
-            "High":   [155.0, 156.0, 157.0, 158.0, 159.0][:periods],
-            "Low":    [148.0, 149.0, 150.0, 151.0, 152.0][:periods],
-            "Close":  [152.0, 153.0, 154.0, 155.0, 156.0][:periods],
+            "Open": [150.0, 151.0, 152.0, 153.0, 154.0][:periods],
+            "High": [155.0, 156.0, 157.0, 158.0, 159.0][:periods],
+            "Low": [148.0, 149.0, 150.0, 151.0, 152.0][:periods],
+            "Close": [152.0, 153.0, 154.0, 155.0, 156.0][:periods],
             "Volume": [1_000_000] * periods,
         },
         index=idx,
@@ -33,6 +34,7 @@ def _make_ohlcv_df(start="2024-01-02", periods=5):
 # ---------------------------------------------------------------------------
 # get_YFin_data_online
 # ---------------------------------------------------------------------------
+
 
 class TestGetYFinDataOnline:
     """Tests for get_YFin_data_online."""
@@ -61,7 +63,9 @@ class TestGetYFinDataOnline:
         mock_ticker = MagicMock()
         mock_ticker.history.return_value = df
 
-        with patch("tradingagents.dataflows.y_finance.yf.Ticker", return_value=mock_ticker) as mock_cls:
+        with patch(
+            "tradingagents.dataflows.y_finance.yf.Ticker", return_value=mock_ticker
+        ) as mock_cls:
             get_YFin_data_online("aapl", "2024-01-02", "2024-01-08")
             mock_cls.assert_called_once_with("AAPL")
 
@@ -111,7 +115,13 @@ class TestGetYFinDataOnline:
 
         idx = pd.date_range("2024-01-02", periods=1, freq="B", tz="UTC")
         df = pd.DataFrame(
-            {"Open": [150.123456], "High": [155.987654], "Low": [148.0], "Close": [152.999999], "Volume": [1_000_000]},
+            {
+                "Open": [150.123456],
+                "High": [155.987654],
+                "Low": [148.0],
+                "Close": [152.999999],
+                "Volume": [1_000_000],
+            },
             index=idx,
         )
         mock_ticker = MagicMock()
@@ -138,6 +148,7 @@ class TestGetYFinDataOnline:
 # ---------------------------------------------------------------------------
 # get_fundamentals
 # ---------------------------------------------------------------------------
+
 
 class TestGetFundamentals:
     """Tests for the yfinance get_fundamentals function."""
@@ -195,6 +206,7 @@ class TestGetFundamentals:
 # ---------------------------------------------------------------------------
 # get_balance_sheet
 # ---------------------------------------------------------------------------
+
 
 class TestGetBalanceSheet:
     """Tests for yfinance get_balance_sheet."""
@@ -257,6 +269,7 @@ class TestGetBalanceSheet:
 # get_cashflow
 # ---------------------------------------------------------------------------
 
+
 class TestGetCashflow:
     """Tests for yfinance get_cashflow."""
 
@@ -307,6 +320,7 @@ class TestGetCashflow:
 # get_income_statement
 # ---------------------------------------------------------------------------
 
+
 class TestGetIncomeStatement:
     """Tests for yfinance get_income_statement."""
 
@@ -343,6 +357,7 @@ class TestGetIncomeStatement:
 # ---------------------------------------------------------------------------
 # get_insider_transactions
 # ---------------------------------------------------------------------------
+
 
 class TestGetInsiderTransactions:
     """Tests for yfinance get_insider_transactions."""
@@ -410,6 +425,7 @@ class TestGetInsiderTransactions:
 # get_stock_stats_indicators_window
 # ---------------------------------------------------------------------------
 
+
 class TestGetStockStatsIndicatorsWindow:
     """Tests for get_stock_stats_indicators_window (technical indicators)."""
 
@@ -417,8 +433,8 @@ class TestGetStockStatsIndicatorsWindow:
         """Return a realistic dict of date→rsi_value as _get_stock_stats_bulk would."""
         return {
             "2024-01-08": "62.34",
-            "2024-01-07": "N/A",       # weekend
-            "2024-01-06": "N/A",       # weekend
+            "2024-01-07": "N/A",  # weekend
+            "2024-01-06": "N/A",  # weekend
             "2024-01-05": "59.12",
             "2024-01-04": "55.67",
             "2024-01-03": "50.00",
@@ -480,6 +496,7 @@ class TestGetStockStatsIndicatorsWindow:
 # _extract_article_data
 # ---------------------------------------------------------------------------
 
+
 class TestExtractArticleData:
     """Tests for _extract_article_data in yfinance_news."""
 
@@ -535,9 +552,7 @@ class TestExtractArticleData:
     def test_extract_nested_content_missing_pubdate(self):
         from tradingagents.dataflows.yfinance_news import _extract_article_data
 
-        article = {
-            "content": {}
-        }
+        article = {"content": {}}
 
         result = _extract_article_data(article)
 
@@ -581,6 +596,7 @@ class TestExtractArticleData:
 # ---------------------------------------------------------------------------
 # get_global_news_yfinance
 # ---------------------------------------------------------------------------
+
 
 class TestGetGlobalNewsYfinance:
     """Tests for get_global_news_yfinance."""

@@ -261,10 +261,12 @@ class TestLangGraphEngineExtraction(unittest.TestCase):
     # ── extract_tickers_from_scan_data ──────────────────────────────
 
     def test_extract_tickers_list_of_dicts(self):
-        scan = {"stocks_to_investigate": [
-            {"ticker": "AAPL", "name": "Apple"},
-            {"ticker": "tsla", "sector": "EV"},
-        ]}
+        scan = {
+            "stocks_to_investigate": [
+                {"ticker": "AAPL", "name": "Apple"},
+                {"ticker": "tsla", "sector": "EV"},
+            ]
+        }
         self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
 
     def test_extract_tickers_list_of_strings(self):

@@ -182,7 +182,9 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
                     _logger.warning(
                         "VIX divergence for %s: scanner=%.2f, macro_regime=%.2f (>20%%). "
                         "Patching macro regime to use scanner value.",
-                        ticker, scanner_vix, regime_vix,
+                        ticker,
+                        scanner_vix,
+                        regime_vix,
                     )
                     macro_regime_report = macro_regime_report.replace(
                         regime_vix_match.group(0),
@@ -252,7 +254,7 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
             "## Normal Operation\n\n"
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"
-            "- Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n\n"
+            '- Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.\n\n'
             "- Keep the report concise: maximum 12 bullets and one compact markdown table.\n"
             "- Target <= 700 words total.\n\n"
             "If no catastrophic conditions are detected, continue with your analysis:\n\n"
@@ -271,7 +273,9 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         scanner_context_block = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context as verified cross-market context: sector, index, volatility, commodity, and FX edges are ground truth for this run."
-            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            scanner_context_block = (
+                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -303,7 +307,11 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         chain = prompt | llm_for_market
         _cap = float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
         invoke_timeout = min(
-            float(DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("quick_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         result, invoke_error = invoke_with_timeout(

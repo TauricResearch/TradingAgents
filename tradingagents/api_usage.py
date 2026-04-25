@@ -32,23 +32,23 @@ AV_PREMIUM_PER_MINUTE = 75
 # ──────────────────────────────────────────────────────────────────────────────
 
 _AV_CALLS_PER_METHOD: dict[str, int] = {
-    "get_stock_data": 1,             # TIME_SERIES_DAILY_ADJUSTED
-    "get_indicators": 1,             # SMA / EMA / RSI / MACD / BBANDS / ATR (1 call each)
-    "get_fundamentals": 1,           # OVERVIEW
-    "get_balance_sheet": 1,          # BALANCE_SHEET
-    "get_cashflow": 1,               # CASH_FLOW
-    "get_income_statement": 1,       # INCOME_STATEMENT
-    "get_news": 1,                   # NEWS_SENTIMENT
-    "get_global_news": 1,            # NEWS_SENTIMENT (no ticker)
-    "get_insider_transactions": 1,   # INSIDER_TRANSACTIONS
-    "get_market_movers": 1,          # TOP_GAINERS_LOSERS
-    "get_market_indices": 1,         # multiple quote calls
-    "get_gold_price": 1,             # GOLD_SILVER_SPOT
-    "get_oil_prices": 2,             # WTI + BRENT
-    "get_bitcoin_price": 1,          # CURRENCY_EXCHANGE_RATE
-    "get_sector_performance": 1,     # SECTOR
-    "get_industry_performance": 1,   # sector ETF lookup
-    "get_topic_news": 1,             # NEWS_SENTIMENT (topic filter)
+    "get_stock_data": 1,  # TIME_SERIES_DAILY_ADJUSTED
+    "get_indicators": 1,  # SMA / EMA / RSI / MACD / BBANDS / ATR (1 call each)
+    "get_fundamentals": 1,  # OVERVIEW
+    "get_balance_sheet": 1,  # BALANCE_SHEET
+    "get_cashflow": 1,  # CASH_FLOW
+    "get_income_statement": 1,  # INCOME_STATEMENT
+    "get_news": 1,  # NEWS_SENTIMENT
+    "get_global_news": 1,  # NEWS_SENTIMENT (no ticker)
+    "get_insider_transactions": 1,  # INSIDER_TRANSACTIONS
+    "get_market_movers": 1,  # TOP_GAINERS_LOSERS
+    "get_market_indices": 1,  # multiple quote calls
+    "get_gold_price": 1,  # GOLD_SILVER_SPOT
+    "get_oil_prices": 2,  # WTI + BRENT
+    "get_bitcoin_price": 1,  # CURRENCY_EXCHANGE_RATE
+    "get_sector_performance": 1,  # SECTOR
+    "get_industry_performance": 1,  # sector ETF lookup
+    "get_topic_news": 1,  # NEWS_SENTIMENT (topic filter)
 }
 
 
@@ -90,12 +90,7 @@ class TokenTierEstimate:
 
     @property
     def total_requests(self) -> int:
-        return (
-            self.scanner.requests
-            + self.quick.requests
-            + self.mid.requests
-            + self.deep.requests
-        )
+        return self.scanner.requests + self.quick.requests + self.mid.requests + self.deep.requests
 
     @property
     def total_input_tokens(self) -> int:
@@ -147,6 +142,7 @@ class UsageEstimate:
 # Estimators for each command type
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _resolve_vendor(config: dict, method: str) -> str:
     """Determine which vendor a method will use given the config."""
     from tradingagents.dataflows.interface import (
@@ -170,6 +166,7 @@ def _resolve_vendor(config: dict, method: str) -> str:
         # Method not in any category — may be a new/unknown method.
         # Return "unknown" so estimation can continue gracefully.
         import logging
+
         logging.getLogger(__name__).debug(
             "Method %r not found in TOOLS_CATEGORIES — skipping vendor resolution", method
         )
@@ -231,6 +228,7 @@ def estimate_analyze(
     """
     if config is None:
         from tradingagents.default_config import DEFAULT_CONFIG
+
         config = DEFAULT_CONFIG
 
     if selected_analysts is None:
@@ -358,6 +356,7 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
     """
     if config is None:
         from tradingagents.default_config import DEFAULT_CONFIG
+
         config = DEFAULT_CONFIG
 
     est = UsageEstimate(
@@ -458,8 +457,7 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
         output_per_request=3_000,
     )
     est.notes.append(
-        "LLM token estimate: quick=scanner summaries, mid=industry deep dive, "
-        "deep=macro synthesis."
+        "LLM token estimate: quick=scanner summaries, mid=industry deep dive, deep=macro synthesis."
     )
 
     est.method_breakdown = breakdown
@@ -530,6 +528,7 @@ def estimate_pipeline(
 # Formatting helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def format_estimate(est: UsageEstimate) -> str:
     """Format an estimate as a human-readable multi-line string."""
     lines = [
@@ -543,7 +542,9 @@ def format_estimate(est: UsageEstimate) -> str:
     if vc.yfinance:
         lines.append(f"    yfinance:      {vc.yfinance:>4} calls  (free, no key needed)")
     if vc.alpha_vantage:
-        lines.append(f"    Alpha Vantage:  {vc.alpha_vantage:>3} calls  (free tier: {AV_FREE_DAILY_LIMIT}/day)")
+        lines.append(
+            f"    Alpha Vantage:  {vc.alpha_vantage:>3} calls  (free tier: {AV_FREE_DAILY_LIMIT}/day)"
+        )
     if vc.finnhub:
         lines.append(f"    Finnhub:        {vc.finnhub:>3} calls  (free tier: 60/min)")
     if vc.finviz:
@@ -591,9 +592,7 @@ def format_estimate(est: UsageEstimate) -> str:
             )
     else:
         lines.append("")
-        lines.append(
-            "  Alpha Vantage Assessment:"
-        )
+        lines.append("  Alpha Vantage Assessment:")
         lines.append(
             "    ✓ No Alpha Vantage calls — AV subscription NOT needed with current config."
         )

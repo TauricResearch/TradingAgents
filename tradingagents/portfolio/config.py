@@ -85,7 +85,4 @@ def validate_config(cfg: PortfolioConfig) -> None:
     if budget <= 0:
         raise ValueError(f"default_budget must be > 0, got {budget}")
     if min_cash + max_pct > 1.0:
-        raise ValueError(
-            f"min_cash_pct ({min_cash}) + max_position_pct ({max_pct}) "
-            f"must be <= 1.0"
-        )
+        raise ValueError(f"min_cash_pct ({min_cash}) + max_position_pct ({max_pct}) must be <= 1.0")

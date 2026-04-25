@@ -4,13 +4,13 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     require_scan_context,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.scanner_tools import (
     get_earnings_calendar,
     get_sector_performance,
@@ -57,7 +57,7 @@ def create_factor_alignment_scanner(llm: Any) -> Callable[[ScannerState], dict[s
             "(2) Sectors with deteriorating revision pressure, "
             "(3) 5-8 primary tickers surfaced from aggregate revision flow, "
             "(4) Factor alignment/divergence vs current sector tailwinds. "
-            f"Sector Context: {sector_context[:500]}..." # Truncated to avoid bloat
+            f"Sector Context: {sector_context[:500]}..."  # Truncated to avoid bloat
         )
 
         prompt = ChatPromptTemplate.from_messages(

@@ -46,10 +46,10 @@ from tradingagents.portfolio.models import PortfolioSnapshot
 # ---------------------------------------------------------------------------
 
 TRADING_DAYS_PER_YEAR: int = 252
-MIN_PERIODS_SHARPE: int = 2       # minimum data points for Sharpe / Sortino
-MIN_PERIODS_VAR: int = 5          # minimum data points for VaR
-MIN_PERIODS_DRAWDOWN: int = 2     # minimum data points for max drawdown
-MIN_PERIODS_BETA: int = 2         # minimum data points for beta
+MIN_PERIODS_SHARPE: int = 2  # minimum data points for Sharpe / Sortino
+MIN_PERIODS_VAR: int = 5  # minimum data points for VaR
+MIN_PERIODS_DRAWDOWN: int = 2  # minimum data points for max drawdown
+MIN_PERIODS_BETA: int = 2  # minimum data points for beta
 
 
 # ---------------------------------------------------------------------------
@@ -273,9 +273,9 @@ def compute_risk_metrics(
             mu_p = _mean(r_p)
             mu_b = _mean(r_b)
             # Optimized: Use zip to iterate over lists directly instead of expensive indexing
-            covariance = sum(
-                (p - mu_p) * (b - mu_b) for p, b in zip(r_p, r_b, strict=False)
-            ) / (min_len - 1)
+            covariance = sum((p - mu_p) * (b - mu_b) for p, b in zip(r_p, r_b, strict=False)) / (
+                min_len - 1
+            )
             var_b = _std(r_b) ** 2
             if var_b > 0.0:
                 beta = covariance / var_b

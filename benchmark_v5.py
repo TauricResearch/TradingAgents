@@ -1,3 +1,2 @@
-
 def optimized():
     pass

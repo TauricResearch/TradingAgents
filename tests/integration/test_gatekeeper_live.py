@@ -42,10 +42,14 @@ def test_gatekeeper_universe_tool_live():
 
     result = get_gatekeeper_universe.invoke({})
     assert isinstance(result, str)
-    assert result.startswith("# Gatekeeper Universe") or result == "No stocks matched the gatekeeper universe today."
+    assert (
+        result.startswith("# Gatekeeper Universe")
+        or result == "No stocks matched the gatekeeper universe today."
+    )
 
 
 # ── New tests for the retry + fallback redesign ───────────────────────────────
+
 
 def test_gatekeeper_universe_yfinance_primary_path_live():
     """Primary path: custom EquityQuery returns real data with expected structure."""
@@ -64,7 +68,11 @@ def test_gatekeeper_universe_yfinance_primary_path_live():
     assert "| Market Cap |" in result, "Missing Market Cap column"
 
     # At least one data row beyond the header rows
-    rows = [line for line in result.splitlines() if line.startswith("| ") and "Symbol" not in line and "---" not in line]
+    rows = [
+        line
+        for line in result.splitlines()
+        if line.startswith("| ") and "Symbol" not in line and "---" not in line
+    ]
     assert len(rows) >= 1, f"No data rows found in result:\n{result[:500]}"
 
     # Every data row must have a real ticker (non-empty first cell)
@@ -127,7 +135,11 @@ def test_gatekeeper_universe_yfinance_fallback_path_live():
     assert "fallback" in result, "Fallback header note missing from result"
 
     # The fallback still returns real data
-    rows = [line for line in result.splitlines() if line.startswith("| ") and "Symbol" not in line and "---" not in line]
+    rows = [
+        line
+        for line in result.splitlines()
+        if line.startswith("| ") and "Symbol" not in line and "---" not in line
+    ]
     assert len(rows) >= 1, "No data rows in fallback result"
 
 

@@ -49,10 +49,12 @@ def _hydrate_run_record(meta: dict) -> dict:
         record["error"] = error
     return record
 
+
 async def hydrate_runs_from_disk():
     """Populate the in-memory runs store from persisted run_meta.json files."""
     from agent_os.backend.store import runs
     from tradingagents.portfolio.report_store import ReportStore
+
     try:
         metas = ReportStore.list_run_metas()
         for meta in metas:
@@ -105,9 +107,9 @@ app.include_router(websocket.router)
 @app.get("/api/config")
 async def get_config() -> dict[str, Any]:
     from tradingagents.default_config import DEFAULT_CONFIG
-    return {
-        "default_portfolio_id": DEFAULT_CONFIG.get("default_portfolio_id", "main_portfolio")
-    }
+
+    return {"default_portfolio_id": DEFAULT_CONFIG.get("default_portfolio_id", "main_portfolio")}
+
 
 @app.get("/")
 async def health_check() -> dict[str, str]:
@@ -135,6 +137,7 @@ def _port_is_bound(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.5)
         return sock.connect_ex((host, port)) == 0
+
 
 if __name__ == "__main__":
     import uvicorn

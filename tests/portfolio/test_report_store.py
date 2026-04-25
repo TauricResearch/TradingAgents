@@ -72,9 +72,9 @@ def test_analysis_ticker_stored_as_uppercase(report_store, tmp_reports):
     data = {"ticker": "aapl"}
     report_store.save_analysis("2026-03-20", "aapl", data)
     matches = list(
-        (
-            tmp_reports / "daily" / "2026-03-20" / "test-run" / "AAPL" / "report"
-        ).glob("*_complete_report.json")
+        (tmp_reports / "daily" / "2026-03-20" / "test-run" / "AAPL" / "report").glob(
+            "*_complete_report.json"
+        )
     )
     assert len(matches) == 1
     # load with lowercase should still work
@@ -132,9 +132,7 @@ def test_save_pm_decision_writes_markdown_when_provided(report_store, tmp_report
     decision = {"sells": [], "buys": []}
     md_text = "# Decision\n\nHold everything."
     report_store.save_pm_decision("2026-03-20", "pid-123", decision, markdown=md_text)
-    report_dir = (
-        tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio" / "report"
-    )
+    report_dir = tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio" / "report"
     matches = list(report_dir.glob("*_pid-123_pm_decision.md"))
     assert len(matches) == 1
     assert matches[0].read_text(encoding="utf-8") == md_text
@@ -144,9 +142,7 @@ def test_save_pm_decision_no_markdown_file_when_not_provided(report_store, tmp_r
     """When markdown=None, no .md file should be written."""
     decision = {"sells": [], "buys": []}
     report_store.save_pm_decision("2026-03-20", "pid-123", decision, markdown=None)
-    report_dir = (
-        tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio" / "report"
-    )
+    report_dir = tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio" / "report"
     assert not list(report_dir.glob("*_pid-123_pm_decision.md"))
 
 

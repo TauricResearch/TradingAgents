@@ -214,7 +214,7 @@ def test_sector_concentration_single():
 def test_sector_concentration_multi():
     """Two sectors → proportional fractions summing to < 1 (cash excluded)."""
     h1 = _make_holding("AAPL", shares=10, avg_cost=100, sector="Technology")  # 1000
-    h2 = _make_holding("JPM", shares=5, avg_cost=100, sector="Financials")    # 500
+    h2 = _make_holding("JPM", shares=5, avg_cost=100, sector="Financials")  # 500
     result = sector_concentration([h1, h2], portfolio_total_value=2000.0)
     assert abs(result["Technology"] - 0.5) < 1e-9
     assert abs(result["Financials"] - 0.25) < 1e-9
@@ -264,8 +264,13 @@ def test_check_constraints_max_positions():
         _make_holding("GOOG", sector="Technology"),
     ]
     violations = check_constraints(
-        p, holdings, _DEFAULT_CONFIG,
-        new_ticker="AMZN", new_shares=5, new_price=200, new_sector="Technology"
+        p,
+        holdings,
+        _DEFAULT_CONFIG,
+        new_ticker="AMZN",
+        new_shares=5,
+        new_price=200,
+        new_sector="Technology",
     )
     assert any("Max positions" in v for v in violations)
 
@@ -274,8 +279,13 @@ def test_check_constraints_min_cash():
     """BUY that would drain cash below 5 % → violation."""
     p = _make_portfolio(cash=500.0, total_value=10_000.0)
     violations = check_constraints(
-        p, [], _DEFAULT_CONFIG,
-        new_ticker="AAPL", new_shares=2, new_price=200, new_sector="Technology"
+        p,
+        [],
+        _DEFAULT_CONFIG,
+        new_ticker="AAPL",
+        new_shares=2,
+        new_price=200,
+        new_sector="Technology",
     )
     assert any("Min cash" in v for v in violations)
 
@@ -285,8 +295,13 @@ def test_check_constraints_max_position_size():
     p = _make_portfolio(cash=9_000.0, total_value=10_000.0)
     # Buying 25 % worth of total_value
     violations = check_constraints(
-        p, [], _DEFAULT_CONFIG,
-        new_ticker="AAPL", new_shares=25, new_price=100, new_sector="Technology"
+        p,
+        [],
+        _DEFAULT_CONFIG,
+        new_ticker="AAPL",
+        new_shares=25,
+        new_price=100,
+        new_sector="Technology",
     )
     assert any("Max position size" in v for v in violations)
 

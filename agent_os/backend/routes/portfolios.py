@@ -11,6 +11,7 @@ from tradingagents.report_paths import get_market_dir
 
 router = APIRouter(prefix="/api/portfolios", tags=["portfolios"])
 
+
 def _resolve_portfolio_id(portfolio_id: str, db: SupabaseClient) -> str:
     """Resolves the 'main_portfolio' alias to the first available portfolio ID."""
     if portfolio_id == "main_portfolio":
@@ -21,19 +22,20 @@ def _resolve_portfolio_id(portfolio_id: str, db: SupabaseClient) -> str:
             raise PortfolioNotFoundError("No portfolios found to resolve 'main_portfolio' alias.")
     return portfolio_id
 
+
 @router.get("/")
 async def list_portfolios(
-    user: dict = Depends(get_current_user),
-    db: SupabaseClient = Depends(get_db_client)
+    user: dict = Depends(get_current_user), db: SupabaseClient = Depends(get_db_client)
 ) -> list[dict[str, Any]]:
     portfolios = db.list_portfolios()
     return [p.to_dict() for p in portfolios]
+
 
 @router.get("/{portfolio_id}")
 async def get_portfolio(
     portfolio_id: str,
     user: dict = Depends(get_current_user),
-    db: SupabaseClient = Depends(get_db_client)
+    db: SupabaseClient = Depends(get_db_client),
 ) -> dict[str, Any]:
     try:
         portfolio_id = _resolve_portfolio_id(portfolio_id, db)
@@ -42,24 +44,25 @@ async def get_portfolio(
     except PortfolioNotFoundError as e:
         raise HTTPException(status_code=404, detail="Portfolio not found") from e
 
+
 @router.get("/{portfolio_id}/summary")
 async def get_portfolio_summary(
     portfolio_id: str,
     date: str | None = None,
     user: dict = Depends(get_current_user),
-    db: SupabaseClient = Depends(get_db_client)
+    db: SupabaseClient = Depends(get_db_client),
 ) -> dict[str, Any]:
     """Returns the 'Top 3 Metrics' for the dashboard header."""
     if not date:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
-    
+
     try:
         portfolio_id = _resolve_portfolio_id(portfolio_id, db)
         # 1. Sharpe & Drawdown from latest snapshot
         snapshot = db.get_latest_snapshot(portfolio_id)
         sharpe = 0.0
         drawdown = 0.0
-        
+
         if snapshot and snapshot.metadata:
             # Try to get calculated risk metrics from snapshot metadata
             risk = snapshot.metadata.get("risk_metrics", {})
@@ -69,7 +72,7 @@ async def get_portfolio_summary(
         # 2. Market Regime from latest scan summary
         regime = "NEUTRAL"
         beta = 1.0
-        
+
         scan_path = get_market_dir(date) / "scan_summary.json"
         if scan_path.exists():
             try:
@@ -82,12 +85,12 @@ async def get_portfolio_summary(
                 pass
 
         return {
-            "sharpe_ratio": sharpe or 2.42, # Fallback to demo values if 0
+            "sharpe_ratio": sharpe or 2.42,  # Fallback to demo values if 0
             "market_regime": regime,
             "beta": beta,
             "drawdown": drawdown or -2.4,
-            "var_1d": 4200.0, # Placeholder
-            "efficiency_label": "High Efficiency" if sharpe > 2.0 else "Normal"
+            "var_1d": 4200.0,  # Placeholder
+            "efficiency_label": "High Efficiency" if sharpe > 2.0 else "Normal",
         }
     except Exception:
         # Fallback for demo
@@ -97,14 +100,15 @@ async def get_portfolio_summary(
             "beta": 1.15,
             "drawdown": -2.4,
             "var_1d": 4200.0,
-            "efficiency_label": "High Efficiency"
+            "efficiency_label": "High Efficiency",
         }
+
 
 @router.get("/{portfolio_id}/latest")
 async def get_latest_portfolio_state(
     portfolio_id: str,
     user: dict = Depends(get_current_user),
-    db: SupabaseClient = Depends(get_db_client)
+    db: SupabaseClient = Depends(get_db_client),
 ) -> dict[str, Any]:
     try:
         portfolio_id = _resolve_portfolio_id(portfolio_id, db)
@@ -128,31 +132,35 @@ async def get_latest_portfolio_state(
             d = h.to_dict()
             market_value = (h.current_value or 0.0) if h.current_value is not None else 0.0
             unrealized_pnl = (h.unrealized_pnl or 0.0) if h.unrealized_pnl is not None else 0.0
-            holdings_out.append({
-                "ticker": d.get("ticker", ""),
-                "quantity": d.get("shares", 0),
-                "avg_cost": d.get("avg_cost", 0.0),
-                "current_price": h.current_price if h.current_price is not None else 0.0,
-                "market_value": market_value,
-                "unrealized_pnl": unrealized_pnl,
-                "sector": d.get("sector"),
-            })
+            holdings_out.append(
+                {
+                    "ticker": d.get("ticker", ""),
+                    "quantity": d.get("shares", 0),
+                    "avg_cost": d.get("avg_cost", 0.0),
+                    "current_price": h.current_price if h.current_price is not None else 0.0,
+                    "market_value": market_value,
+                    "unrealized_pnl": unrealized_pnl,
+                    "sector": d.get("sector"),
+                }
+            )
 
         # Map trades: shares→quantity, trade_date→executed_at
         trades_out = []
         for t in trades:
             d = t.to_dict()
-            trades_out.append({
-                "id": d.get("trade_id", ""),
-                "ticker": d.get("ticker", ""),
-                "action": d.get("action", ""),
-                "quantity": d.get("shares", 0),
-                "price": d.get("price", 0.0),
-                "executed_at": d.get("trade_date", ""),
-                "rationale": d.get("rationale"),
-                "stop_loss": d.get("stop_loss"),
-                "take_profit": d.get("take_profit"),
-            })
+            trades_out.append(
+                {
+                    "id": d.get("trade_id", ""),
+                    "ticker": d.get("ticker", ""),
+                    "action": d.get("action", ""),
+                    "quantity": d.get("shares", 0),
+                    "price": d.get("price", 0.0),
+                    "executed_at": d.get("trade_date", ""),
+                    "rationale": d.get("rationale"),
+                    "stop_loss": d.get("stop_loss"),
+                    "take_profit": d.get("take_profit"),
+                }
+            )
 
         return {
             "portfolio": portfolio_out,

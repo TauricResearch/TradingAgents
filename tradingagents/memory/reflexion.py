@@ -68,9 +68,7 @@ class ReflexionMemory:
                 client = MongoClient(mongo_uri)
                 db = client[db_name]
                 self._col = db[collection_name]
-                self._col.create_index(
-                    [("ticker", 1), ("decision_date", DESCENDING)]
-                )
+                self._col.create_index([("ticker", 1), ("decision_date", DESCENDING)])
                 self._col.create_index("created_at")
                 logger.info("ReflexionMemory using MongoDB (db=%s)", db_name)
             except Exception:
@@ -184,10 +182,16 @@ class ReflexionMemory:
         if self._col is not None:
             from pymongo import DESCENDING
 
-            cursor = self._col.find(
-                {"ticker": ticker.upper()},  # Hard metadata filter — prevents cross-ticker contamination
-                {"_id": 0},
-            ).sort("decision_date", DESCENDING).limit(limit)
+            cursor = (
+                self._col.find(
+                    {
+                        "ticker": ticker.upper()
+                    },  # Hard metadata filter — prevents cross-ticker contamination
+                    {"_id": 0},
+                )
+                .sort("decision_date", DESCENDING)
+                .limit(limit)
+            )
             return list(cursor)
         else:
             return self._load_local(ticker.upper(), limit)
@@ -226,10 +230,7 @@ class ReflexionMemory:
             else:
                 outcome_str = "  Outcome: pending"
 
-            lines.append(
-                f"- [{dt}] {dec} (confidence: {conf})\n"
-                f"  Rationale: {rat}\n{outcome_str}"
-            )
+            lines.append(f"- [{dt}] {dec} (confidence: {conf})\n  Rationale: {rat}\n{outcome_str}")
         return "\n".join(lines)
 
     # ------------------------------------------------------------------
@@ -248,9 +249,7 @@ class ReflexionMemory:
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:
         """Overwrite the local JSON file with all records."""
         self._fallback_path.parent.mkdir(parents=True, exist_ok=True)
-        self._fallback_path.write_text(
-            json.dumps(records, indent=2), encoding="utf-8"
-        )
+        self._fallback_path.write_text(json.dumps(records, indent=2), encoding="utf-8")
 
     def _append_local(self, doc: dict[str, Any]) -> None:
         """Append a single record to the local file."""
@@ -261,7 +260,9 @@ class ReflexionMemory:
     def _load_local(self, ticker: str, limit: int) -> list[dict[str, Any]]:
         """Load and filter records for a ticker from the local file."""
         records = self._load_all_local()
-        filtered = [r for r in records if r.get("ticker") == ticker]  # Hard metadata filter — local fallback
+        filtered = [
+            r for r in records if r.get("ticker") == ticker
+        ]  # Hard metadata filter — local fallback
         filtered.sort(key=lambda r: r.get("decision_date", ""), reverse=True)
         return filtered[:limit]
 

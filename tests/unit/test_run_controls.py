@@ -151,7 +151,9 @@ def test_resume_run_auto_reuses_same_run_id(monkeypatch):
     }
 
     try:
-        result = asyncio.run(runs_route.resume_run(run_id, background_tasks=None, user={"user_id": "u"}))
+        result = asyncio.run(
+            runs_route.resume_run(run_id, background_tasks=None, user={"user_id": "u"})
+        )
     finally:
         runs_route.runs.pop(run_id, None)
 
@@ -241,7 +243,9 @@ def test_submit_phase3_decision_retries_selected_tickers(monkeypatch):
         captured["run_id"] = target_run_id
         coro.close()
 
-    def _fake_run_auto_phase3_decision(execution_run_id: str, params: dict, retry_tickers: list[str]):
+    def _fake_run_auto_phase3_decision(
+        execution_run_id: str, params: dict, retry_tickers: list[str]
+    ):
         captured["execution_run_id"] = execution_run_id
         captured["params"] = params
         captured["retry_tickers"] = retry_tickers
@@ -249,7 +253,9 @@ def test_submit_phase3_decision_retries_selected_tickers(monkeypatch):
 
     monkeypatch.setattr(runs_route, "_set_run_task", _fake_set_run_task)
     monkeypatch.setattr(runs_route, "_append_system_event", lambda *args, **kwargs: None)
-    monkeypatch.setattr(runs_route.engine, "run_auto_phase3_decision", _fake_run_auto_phase3_decision)
+    monkeypatch.setattr(
+        runs_route.engine, "run_auto_phase3_decision", _fake_run_auto_phase3_decision
+    )
 
     runs_route.runs[run_id] = {
         "id": run_id,

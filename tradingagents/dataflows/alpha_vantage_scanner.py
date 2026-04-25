@@ -42,13 +42,35 @@ _SECTOR_TICKERS: dict[str, list[str]] = {
     "healthcare": ["UNH", "JNJ", "LLY", "PFE", "ABT", "MRK", "TMO", "ABBV", "DHR", "AMGN"],
     "financials": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "AXP", "C", "USB"],
     "energy": ["XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HES"],
-    "consumer-discretionary": ["AMZN", "TSLA", "HD", "MCD", "NKE", "SBUX", "LOW", "TJX", "BKNG", "CMG"],
+    "consumer-discretionary": [
+        "AMZN",
+        "TSLA",
+        "HD",
+        "MCD",
+        "NKE",
+        "SBUX",
+        "LOW",
+        "TJX",
+        "BKNG",
+        "CMG",
+    ],
     "consumer-staples": ["PG", "KO", "PEP", "COST", "WMT", "PM", "MDLZ", "CL", "KHC", "GIS"],
     "industrials": ["CAT", "HON", "UNP", "UPS", "BA", "RTX", "DE", "LMT", "GE", "MMM"],
     "materials": ["LIN", "APD", "SHW", "ECL", "FCX", "NEM", "NUE", "DOW", "DD", "PPG"],
     "real-estate": ["PLD", "AMT", "CCI", "EQIX", "SPG", "PSA", "O", "WELL", "DLR", "AVB"],
     "utilities": ["NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "WEC", "ED"],
-    "communication-services": ["META", "GOOGL", "NFLX", "DIS", "CMCSA", "T", "VZ", "CHTR", "TMUS", "EA"],
+    "communication-services": [
+        "META",
+        "GOOGL",
+        "NFLX",
+        "DIS",
+        "CMCSA",
+        "T",
+        "VZ",
+        "CHTR",
+        "TMUS",
+        "EA",
+    ],
 }
 
 _TOPIC_MAP: dict[str, str] = {
@@ -80,6 +102,7 @@ _TOPIC_MAP: dict[str, str] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_json(text: str, context: str) -> dict:
     """Parse a JSON string, raising ThirdPartyParseError on failure.
 
@@ -96,9 +119,7 @@ def _parse_json(text: str, context: str) -> dict:
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
-        raise ThirdPartyParseError(
-            f"Failed to parse JSON response for {context}: {exc}"
-        ) from exc
+        raise ThirdPartyParseError(f"Failed to parse JSON response for {context}: {exc}") from exc
 
 
 def _fetch_global_quote(symbol: str) -> dict:
@@ -232,6 +253,7 @@ def _now_str() -> str:
 # Public scanner functions
 # ---------------------------------------------------------------------------
 
+
 def get_market_movers_alpha_vantage(
     category: Annotated[str, "Category: 'day_gainers', 'day_losers', or 'most_actives'"],
 ) -> str:
@@ -250,8 +272,7 @@ def get_market_movers_alpha_vantage(
     """
     if category not in _CATEGORY_KEY_MAP:
         raise ValueError(
-            f"Invalid category '{category}'. "
-            f"Must be one of: {list(_CATEGORY_KEY_MAP.keys())}"
+            f"Invalid category '{category}'. Must be one of: {list(_CATEGORY_KEY_MAP.keys())}"
         )
 
     text = _rate_limited_request("TOP_GAINERS_LOSERS", {})
@@ -324,10 +345,7 @@ def get_market_indices_alpha_vantage() -> str:
         ("Russell 2000 (IWM)", "IWM"),
     ]
 
-    header = (
-        f"# Major Market Indices (Alpha Vantage)\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
-    )
+    header = f"# Major Market Indices (Alpha Vantage)\n# Data retrieved on: {_now_str()}\n\n"
     result = header
     result += "| Index | Price | Change | Change % |\n"
     result += "|-------|-------|--------|----------|\n"
@@ -401,10 +419,7 @@ def get_sector_performance_alpha_vantage() -> str:
         AlphaVantageError: On API-level errors.
         ThirdPartyParseError: On malformed JSON.
     """
-    header = (
-        f"# Sector Performance Overview (Alpha Vantage)\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
-    )
+    header = f"# Sector Performance Overview (Alpha Vantage)\n# Data retrieved on: {_now_str()}\n\n"
     result = header
     result += "| Sector | 1-Day % | 1-Week % | 1-Month % | YTD % |\n"
     result += "|--------|---------|----------|-----------|-------|\n"
@@ -432,9 +447,7 @@ def get_sector_performance_alpha_vantage() -> str:
 
         except (AlphaVantageError, ThirdPartyParseError, RateLimitError) as exc:
             last_error = exc
-            day_pct_str = week_pct_str = month_pct_str = ytd_pct_str = (
-                f"Error: {exc!s:.30}"
-            )
+            day_pct_str = week_pct_str = month_pct_str = ytd_pct_str = f"Error: {exc!s:.30}"
 
         result += (
             f"| {sector_name} | {day_pct_str} | {week_pct_str} | "
@@ -470,13 +483,14 @@ def get_industry_performance_alpha_vantage(
     normalised = sector_key.lower().replace(" ", "-")
     if normalised not in _SECTOR_TICKERS:
         raise ValueError(
-            f"Unknown sector '{sector_key}'. "
-            f"Valid keys: {list(_SECTOR_TICKERS.keys())}"
+            f"Unknown sector '{sector_key}'. Valid keys: {list(_SECTOR_TICKERS.keys())}"
         )
 
     tickers = _SECTOR_TICKERS[normalised]
 
-    rows: list[tuple[str, str, float | None, str]] = []  # (symbol, price_str, raw_change_float, change_str)
+    rows: list[
+        tuple[str, str, float | None, str]
+    ] = []  # (symbol, price_str, raw_change_float, change_str)
     errors: list[str] = []
 
     for symbol in tickers:
@@ -570,10 +584,7 @@ def get_topic_news_alpha_vantage(
 
     articles: list[dict] = data["feed"]
 
-    header = (
-        f"# News for Topic: {topic} (Alpha Vantage)\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
-    )
+    header = f"# News for Topic: {topic} (Alpha Vantage)\n# Data retrieved on: {_now_str()}\n\n"
     result = header
 
     if not articles:
@@ -596,9 +607,7 @@ def get_topic_news_alpha_vantage(
             except ValueError:
                 pass  # keep raw value if unparseable
 
-        sentiment_str = (
-            f"{sentiment_score:.4f}" if isinstance(sentiment_score, float) else "N/A"
-        )
+        sentiment_str = f"{sentiment_score:.4f}" if isinstance(sentiment_score, float) else "N/A"
 
         result += f"### {title}\n"
         result += f"**Source:** {source}"

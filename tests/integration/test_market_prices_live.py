@@ -1,6 +1,5 @@
 """Live integration tests for gold, oil, and bitcoin price tools."""
 
-
 import pytest
 
 from tradingagents.agents.utils.scanner_tools import (

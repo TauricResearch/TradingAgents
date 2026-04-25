@@ -72,6 +72,13 @@ select = [
 ]
 ignore = [
     "E501",    # line length handled by formatter
+    "ANN001",  # missing type annotation for function argument — codebase not yet fully annotated
+    "ANN002",  # missing type annotation for *args
+    "ANN003",  # missing type annotation for **kwargs
+    "ANN201",  # missing return type annotation for public function
+    "ANN202",  # missing return type annotation for private function
+    "ANN204",  # missing return type annotation for special method
+    "ANN206",  # missing return type annotation for classmethod
     "ANN401",  # dynamically typed expressions (Any) — we use Any in many places for flexibility
     "B008",    # function call in argument defaults (standard for FastAPI Depends)
     "TCH",     # type-checking blocks (can break runtime usage of types)

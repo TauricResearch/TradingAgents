@@ -66,8 +66,12 @@ def create_macro_summary_agent(
         # Hard sentinel: if scan data is absent or only contains an error, return the "NO DATA
         # AVAILABLE" marker immediately without invoking the LLM.  pm_decision_agent checks for
         # this string to apply its conservative-posture override (hold positions, avoid new buys).
-        if not scan_summary or (isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}):
-            logger.warning("macro_summary_agent: scan_summary missing or contains only error — returning NO DATA sentinel.")
+        if not scan_summary or (
+            isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}
+        ):
+            logger.warning(
+                "macro_summary_agent: scan_summary missing or contains only error — returning NO DATA sentinel."
+            )
             return {
                 "macro_brief": "NO DATA AVAILABLE - ABORT MACRO",
                 "macro_memory_context": "",
@@ -88,11 +92,14 @@ def create_macro_summary_agent(
         )
 
         key_themes: list = scan_summary.get("key_themes", [])
-        key_themes_str = "\n".join(
-            f"- {t.get('theme', '?')} [{t.get('conviction', '?')}] "
-            f"({t.get('timeframe', '?')}): {t.get('description', '')}"
-            for t in key_themes
-        ) or "None"
+        key_themes_str = (
+            "\n".join(
+                f"- {t.get('theme', '?')} [{t.get('conviction', '?')}] "
+                f"({t.get('timeframe', '?')}): {t.get('description', '')}"
+                for t in key_themes
+            )
+            or "None"
+        )
 
         ticker_conviction_str = _build_candidate_context(scan_summary)
 

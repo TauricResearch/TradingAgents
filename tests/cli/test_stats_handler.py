@@ -17,11 +17,13 @@ def test_stats_handler_initial_state():
         "tokens_out": 0,
     }
 
+
 def test_stats_handler_on_llm_start():
     handler = StatsCallbackHandler()
     handler.on_llm_start(serialized={}, prompts=["test"])
     assert handler.llm_calls == 1
     assert handler.get_stats()["llm_calls"] == 1
+
 
 def test_stats_handler_on_chat_model_start():
     handler = StatsCallbackHandler()
@@ -29,11 +31,13 @@ def test_stats_handler_on_chat_model_start():
     assert handler.llm_calls == 1
     assert handler.get_stats()["llm_calls"] == 1
 
+
 def test_stats_handler_on_tool_start():
     handler = StatsCallbackHandler()
     handler.on_tool_start(serialized={}, input_str="test tool")
     assert handler.tool_calls == 1
     assert handler.get_stats()["tool_calls"] == 1
+
 
 def test_stats_handler_on_llm_end_with_usage():
     handler = StatsCallbackHandler()
@@ -50,6 +54,7 @@ def test_stats_handler_on_llm_end_with_usage():
     assert stats["tokens_in"] == 10
     assert stats["tokens_out"] == 20
 
+
 def test_stats_handler_on_llm_end_no_usage():
     handler = StatsCallbackHandler()
 
@@ -63,6 +68,7 @@ def test_stats_handler_on_llm_end_no_usage():
     assert stats["tokens_in"] == 0
     assert stats["tokens_out"] == 0
 
+
 def test_stats_handler_on_llm_end_empty_generations():
     handler = StatsCallbackHandler()
     response = LLMResult(generations=[[]])
@@ -74,6 +80,7 @@ def test_stats_handler_on_llm_end_empty_generations():
 
     assert handler.tokens_in == 0
     assert handler.tokens_out == 0
+
 
 def test_stats_handler_thread_safety():
     handler = StatsCallbackHandler()

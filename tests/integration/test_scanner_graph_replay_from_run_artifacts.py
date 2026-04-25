@@ -20,7 +20,6 @@ from tradingagents.agents.scanners.macro_synthesis import create_macro_synthesis
 from tradingagents.agents.scanners.scanner_summarizer import create_scanner_summarizer
 from tradingagents.graph.scanner_setup import ScannerGraphSetup
 
-
 RUN_DATE = "2026-04-24"
 SOURCE_RUN_ID = "01KPZYDEPYJ10ZFJFGQ5YT1Z91"
 REPLAY_RUN_ID = "REPLAY_GRAPH_STATE_FROM_ARTIFACTS"
@@ -114,18 +113,22 @@ def test_scanner_graph_replays_prior_reports_and_tool_inputs_without_fallback(mo
     tool_names = _load_tool_names(market_dir)
     llm_prompts = _load_llm_prompts(market_dir)
     missing_tools = EXPECTED_TOOLS - tool_names
-    assert not missing_tools, f"Prior run did not record expected tool inputs: {sorted(missing_tools)}"
+    assert not missing_tools, (
+        f"Prior run did not record expected tool inputs: {sorted(missing_tools)}"
+    )
     assert llm_prompts, "Prior run did not record scanner LLM prompts."
-    assert all(
-        f"current date is {RUN_DATE}" in prompt for prompt in llm_prompts
-    ), "Prior scanner prompts did not consistently receive the propagated scan date."
+    assert all(f"current date is {RUN_DATE}" in prompt for prompt in llm_prompts), (
+        "Prior scanner prompts did not consistently receive the propagated scan date."
+    )
 
     summary_sources_seen: list[str] = []
 
     class SummaryLLM:
         def invoke(self, prompt: str):
             assert "Scanner source:" in prompt
-            source_line = next(line for line in prompt.splitlines() if line.startswith("Scanner source:"))
+            source_line = next(
+                line for line in prompt.splitlines() if line.startswith("Scanner source:")
+            )
             summary_sources_seen.append(source_line)
             return SimpleNamespace(content=f"- replay | {source_line} | evidence propagated")
 
@@ -162,8 +165,7 @@ def test_scanner_graph_replays_prior_reports_and_tool_inputs_without_fallback(mo
         return _node
 
     agents = {
-        node_name: make_replay_node(node_name, field)
-        for node_name, field in REPORT_FIELDS.items()
+        node_name: make_replay_node(node_name, field) for node_name, field in REPORT_FIELDS.items()
     }
     for node_name, (report_key, summary_key) in SUMMARY_NODES.items():
         agents[node_name] = create_scanner_summarizer(SummaryLLM(), report_key, summary_key)

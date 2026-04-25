@@ -6,14 +6,12 @@ from tradingagents.agents.analysts.fundamentals_analyst import create_fundamenta
 def test_fundamentals_analyst_prefetches_tools():
     llm = MagicMock()
     node = create_fundamentals_analyst(llm)
-    state = {
-        "trade_date": "2024-01-01",
-        "company_of_interest": "AAPL",
-        "messages": []
-    }
-    
-    with patch("tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel") as mock_prefetch:
-        mock_prefetch.return_value = {} # Return empty prefetched data
+    state = {"trade_date": "2024-01-01", "company_of_interest": "AAPL", "messages": []}
+
+    with patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel"
+    ) as mock_prefetch:
+        mock_prefetch.return_value = {}  # Return empty prefetched data
         with patch("tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop") as mock_run:
             mock_run.return_value = MagicMock(content="Report")
             node(state)

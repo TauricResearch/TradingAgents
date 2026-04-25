@@ -58,8 +58,8 @@ def _is_transient_openai_error(exc: Exception) -> bool:
                 "timeout",
                 "temporarily unavailable",
                 "provider returned error",  # OpenRouter SSE stream error; usually transient
-                "json error",              # SSE stream JSON corruption; transient
-                "injected into sse",       # openai._streaming SSE parse failure
+                "json error",  # SSE stream JSON corruption; transient
+                "injected into sse",  # openai._streaming SSE parse failure
             )
         )
 
@@ -76,6 +76,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
     Also strips temperature/top_p for GPT-5 family models which use
     reasoning natively and reject these params.
     """
+
     _manual_retry_attempts: int = PrivateAttr(default=2)
     _manual_retry_base_delay_s: float = PrivateAttr(default=1.0)
 
@@ -99,10 +100,16 @@ class NormalizedChatOpenAI(ChatOpenAI):
                     raise
                 time.sleep(self._manual_retry_base_delay_s * attempt)
 
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
-    "timeout", "max_retries", "reasoning_effort",
-    "api_key", "callbacks", "http_client", "http_async_client",
+    "timeout",
+    "max_retries",
+    "reasoning_effort",
+    "api_key",
+    "callbacks",
+    "http_client",
+    "http_async_client",
 )
 
 # Provider base URLs and API key env vars

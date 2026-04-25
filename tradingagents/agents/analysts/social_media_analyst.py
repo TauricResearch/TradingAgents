@@ -73,7 +73,7 @@ def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
             "Cross-reference any sentiment-driving events against the Scanner Context calendars.\n\n"
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"
-            "- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
+            '- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.\n'
             "- Focus on sentiment polarity shifts and volume-weighted signal strength.\n"
             "- Separate verified corporate actions from speculative social chatter.\n\n"
             "Using the pre-loaded sentiment signals, write a comprehensive report covering:\n"
@@ -94,7 +94,9 @@ def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
         scanner_context_block = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context to anchor social sentiment against verified scanner themes and risk factors."
-            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            scanner_context_block = (
+                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -125,7 +127,11 @@ def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
 
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("mid_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         result, invoke_error = invoke_with_timeout(

@@ -54,23 +54,30 @@ class MockEngine:
 
         # Analysts (sequential for simplicity in mock)
         analysts = [
-            ("news_analyst",         "gpt-4o-mini", 1.4, 480, 310),
-            ("market_analyst",       "gpt-4o-mini", 1.2, 390, 240),
-            ("fundamentals_analyst", "gpt-4o",      2.1, 620, 430),
-            ("social_analyst",       "gpt-4o-mini", 0.9, 310, 190),
+            ("news_analyst", "gpt-4o-mini", 1.4, 480, 310),
+            ("market_analyst", "gpt-4o-mini", 1.2, 390, 240),
+            ("fundamentals_analyst", "gpt-4o", 2.1, 620, 430),
+            ("social_analyst", "gpt-4o-mini", 0.9, 310, 190),
         ]
         for node, model, latency, tok_in, tok_out in analysts:
             async for evt in self._agent_with_tool(
-                run_id, node, ticker, model, latency, tok_in, tok_out, speed,
+                run_id,
+                node,
+                ticker,
+                model,
+                latency,
+                tok_in,
+                tok_out,
+                speed,
                 tool_name=f"get_{node.split('_')[0]}_data",
             ):
                 yield evt
 
         # Research debate
         for node, model, latency, tok_in, tok_out in [
-            ("bull_researcher", "gpt-4o",      1.8, 540, 360),
-            ("bear_researcher", "gpt-4o",      1.7, 510, 340),
-            ("research_manager","gpt-4o",      2.3, 680, 480),
+            ("bull_researcher", "gpt-4o", 1.8, 540, 360),
+            ("bear_researcher", "gpt-4o", 1.7, 510, 340),
+            ("research_manager", "gpt-4o", 2.3, 680, 480),
         ]:
             async for evt in self._agent_no_tool(
                 run_id, node, ticker, model, latency, tok_in, tok_out, speed
@@ -79,9 +86,9 @@ class MockEngine:
 
         # Trading decision
         for node, model, latency, tok_in, tok_out in [
-            ("trader",       "gpt-4o",  2.0, 600, 420),
-            ("risk_manager", "gpt-4o",  1.5, 450, 310),
-            ("risk_judge",   "gpt-4o",  1.1, 380, 260),
+            ("trader", "gpt-4o", 2.0, 600, 420),
+            ("risk_manager", "gpt-4o", 1.5, 450, 310),
+            ("risk_judge", "gpt-4o", 1.1, 380, 260),
         ]:
             async for evt in self._agent_no_tool(
                 run_id, node, ticker, model, latency, tok_in, tok_out, speed
@@ -106,20 +113,29 @@ class MockEngine:
         # Phase 1 — three scanners in "parallel" (interleaved)
         yield self._log("[MOCK] Phase 1: Running geopolitical, market-movers, sector scanners…")
         phase1 = [
-            ("geopolitical_scanner",  "gpt-4o-mini", 1.5, 420, 280),
+            ("geopolitical_scanner", "gpt-4o-mini", 1.5, 420, 280),
             ("market_movers_scanner", "gpt-4o-mini", 1.3, 380, 250),
-            ("sector_scanner",        "gpt-4o-mini", 1.4, 400, 265),
+            ("sector_scanner", "gpt-4o-mini", 1.4, 400, 265),
         ]
         # Emit thought events for all three before any complete
         for node, model, _, _, _ in phase1:
-            yield self._thought(node, identifier, model, f"[MOCK] Scanning {node.replace('_', ' ')}…")
+            yield self._thought(
+                node, identifier, model, f"[MOCK] Scanning {node.replace('_', ' ')}…"
+            )
             await self._sleep(0.1, speed)
 
         # Then complete them in order
         for node, model, latency, tok_in, tok_out in phase1:
             await self._sleep(latency, speed)
-            yield self._result(node, identifier, model, tok_in, tok_out, round(latency * 1000),
-                               f"[MOCK] {node.replace('_', ' ').title()} report ready.")
+            yield self._result(
+                node,
+                identifier,
+                model,
+                tok_in,
+                tok_out,
+                round(latency * 1000),
+                f"[MOCK] {node.replace('_', ' ').title()} report ready.",
+            )
 
         # Phase 2 — industry deep dive
         yield self._log("[MOCK] Phase 2: Industry deep dive…")
@@ -191,12 +207,20 @@ class MockEngine:
         yield self._tool_call(node, identifier, tool_name, f'{{"ticker": "{identifier}"}}')
         await self._sleep(0.6, speed)
 
-        yield self._tool_result(node, identifier, tool_name,
-                                f"[MOCK] Retrieved {tool_name} data for {identifier}.")
+        yield self._tool_result(
+            node, identifier, tool_name, f"[MOCK] Retrieved {tool_name} data for {identifier}."
+        )
         await self._sleep(latency - 1.0, speed)
 
-        yield self._result(node, identifier, model, tok_in, tok_out, round(latency * 1000),
-                           f"[MOCK] {node.replace('_', ' ').title()} analysis complete for {identifier}.")
+        yield self._result(
+            node,
+            identifier,
+            model,
+            tok_in,
+            tok_out,
+            round(latency * 1000),
+            f"[MOCK] {node.replace('_', ' ').title()} analysis complete for {identifier}.",
+        )
 
     async def _agent_no_tool(
         self,
@@ -212,8 +236,15 @@ class MockEngine:
         yield self._thought(node, identifier, model, f"[MOCK] {node} processing {identifier}…")
         await self._sleep(latency, speed)
 
-        yield self._result(node, identifier, model, tok_in, tok_out, round(latency * 1000),
-                           f"[MOCK] {node.replace('_', ' ').title()} decision for {identifier}.")
+        yield self._result(
+            node,
+            identifier,
+            model,
+            tok_in,
+            tok_out,
+            round(latency * 1000),
+            f"[MOCK] {node.replace('_', ' ').title()} decision for {identifier}.",
+        )
 
     # ------------------------------------------------------------------
     # Event constructors

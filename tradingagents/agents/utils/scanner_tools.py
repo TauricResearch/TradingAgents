@@ -74,10 +74,10 @@ def get_market_movers(
     """
     Get top market movers (gainers, losers, or most active stocks).
     Uses the configured scanner_data vendor.
-    
+
     Args:
         category (str): Category of market movers - 'day_gainers', 'day_losers', or 'most_actives'
-        
+
     Returns:
         str: Formatted table of top market movers with symbol, price, change %, volume, market cap
     """
@@ -89,7 +89,7 @@ def get_market_indices() -> str:
     """
     Get major market indices data (S&P 500, Dow Jones, NASDAQ, VIX, Russell 2000).
     Uses the configured scanner_data vendor.
-    
+
     Returns:
         str: Formatted table of index values with current price, daily change, 52W high/low
     """
@@ -211,7 +211,7 @@ def get_sector_performance() -> str:
     """
     Get sector-level performance overview for all 11 GICS sectors.
     Uses the configured scanner_data vendor.
-    
+
     Returns:
         str: Formatted table of sector performance with 1-day, 1-week, 1-month, and YTD returns
     """
@@ -220,20 +220,22 @@ def get_sector_performance() -> str:
 
 @tool
 def get_industry_performance(
-    sector_key: Annotated[str, "Sector key (e.g., 'technology', 'healthcare', 'financial-services')"],
+    sector_key: Annotated[
+        str, "Sector key (e.g., 'technology', 'healthcare', 'financial-services')"
+    ],
 ) -> str:
     """
     Get industry-level drill-down within a specific sector.
     Shows top companies with rating, market weight, and recent price performance
     (1-day, 1-week, 1-month returns).
     Uses the configured scanner_data vendor.
-    
+
     Args:
         sector_key (str): Sector identifier. Must be one of:
             'technology', 'healthcare', 'financial-services', 'energy',
             'consumer-cyclical', 'consumer-defensive', 'industrials',
             'basic-materials', 'real-estate', 'utilities', 'communication-services'
-        
+
     Returns:
         str: Formatted table of top companies/industries in the sector with performance data
     """
@@ -242,7 +244,10 @@ def get_industry_performance(
 
 @tool
 def get_topic_news(
-    topic: Annotated[str, "Search topic/query (e.g., 'artificial intelligence', 'semiconductor', 'renewable energy')"],
+    topic: Annotated[
+        str,
+        "Search topic/query (e.g., 'artificial intelligence', 'semiconductor', 'renewable energy')",
+    ],
     limit: Annotated[int, "Maximum number of articles to return"] = 10,
 ) -> str:
     """

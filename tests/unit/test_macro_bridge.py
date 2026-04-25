@@ -12,9 +12,7 @@ EXAMPLE_MACRO_JSON = {
         "economic_cycle": "Late expansion",
         "central_bank_stance": "Fed on hold",
         "geopolitical_risks": ["US-China tensions"],
-        "key_indicators": [
-            {"name": "10Y UST", "status": "4.45%", "signal": "neutral"}
-        ],
+        "key_indicators": [{"name": "10Y UST", "status": "4.45%", "signal": "neutral"}],
     },
     "key_themes": [
         {
@@ -70,7 +68,6 @@ def macro_json_file(tmp_path):
 
 
 class TestParseMacroOutput:
-
     def test_parses_context_and_candidates(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import parse_macro_output
 
@@ -108,7 +105,6 @@ class TestParseMacroOutput:
 
 
 class TestFilterCandidates:
-
     def test_filter_high_conviction(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
             filter_candidates,
@@ -174,7 +170,6 @@ class TestFilterCandidates:
 
 
 class TestReportRendering:
-
     def test_render_ticker_report(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
             TickerResult,
@@ -249,6 +244,7 @@ class TestCandidatesFromHoldings:
     def _make_holding(self, ticker, sector=None, industry=None):
         """Minimal holding-like object with .ticker, .sector, .industry."""
         from types import SimpleNamespace
+
         return SimpleNamespace(ticker=ticker, sector=sector, industry=industry)
 
     def test_basic_conversion(self):

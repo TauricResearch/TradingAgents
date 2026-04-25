@@ -161,7 +161,7 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
             "## Normal Operation\n\n"
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"
-            "- Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n\n"
+            '- Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.\n\n'
             "If no catastrophic conditions are detected, write a comprehensive report covering: "
             "multi-quarter revenue and margin trends, TTM metrics, relative valuation vs peers, "
             "sector outperformance or underperformance, and a clear medium-term fundamental thesis. "
@@ -176,7 +176,9 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
         scanner_context_block = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context to keep sector, catalyst, risk, and macro exposures consistent with the scanner run."
-            scanner_context_block = f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            scanner_context_block = (
+                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -225,8 +227,7 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
                 report = (
                     "[CRITICAL ABORT] Reason: Fundamentals Analyst returned no data — "
                     "all tool calls failed or produced empty output. "
-                    "Cannot proceed without financial statements.\n\n"
-                    + report
+                    "Cannot proceed without financial statements.\n\n" + report
                 )
 
         return {

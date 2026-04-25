@@ -14,6 +14,7 @@ def mock_nlm_path(tmp_path):
     nlm.touch(mode=0o755)
     return str(nlm)
 
+
 def test_security_argument_injection(mock_nlm_path, tmp_path):
     """
     Test that positional arguments starting with a hyphen are handled safely
@@ -69,6 +70,7 @@ def test_security_argument_injection(mock_nlm_path, tmp_path):
                 id_idx = add_args.index(notebook_id)
                 assert dash_idx < id_idx
 
+
 def test_security_delete_injection(mock_nlm_path):
     """Test that source_id in delete is also handled safely with --."""
     notebook_id = "normal-id"
@@ -80,7 +82,9 @@ def test_security_delete_injection(mock_nlm_path):
                 # Mock 'source list' finding the malicious source_id
                 list_result = MagicMock()
                 list_result.returncode = 0
-                list_result.stdout = json.dumps([{"id": source_id, "title": "Daily Trading Digest (2026-03-19)"}])
+                list_result.stdout = json.dumps(
+                    [{"id": source_id, "title": "Daily Trading Digest (2026-03-19)"}]
+                )
 
                 # Mock 'source delete'
                 delete_result = MagicMock()

@@ -1,9 +1,11 @@
 """Tests for robust JSON extraction from LLM output."""
+
 import pytest
 
 from tradingagents.agents.utils.json_utils import extract_json
 
 # ─── Happy-path tests ─────────────────────────────────────────────────────────
+
 
 def test_pure_json():
     assert extract_json('{"key": "value"}') == {"key": "value"}
@@ -48,7 +50,12 @@ def test_nested_json():
             "geopolitical_risks": ["trade tensions", "energy prices"],
         },
         "key_themes": [
-            {"theme": "AI Infrastructure", "description": "Data center boom", "conviction": "high", "timeframe": "3-6 months"}
+            {
+                "theme": "AI Infrastructure",
+                "description": "Data center boom",
+                "conviction": "high",
+                "timeframe": "3-6 months",
+            }
         ],
         "stocks_to_investigate": [
             {
@@ -65,6 +72,7 @@ def test_nested_json():
         "risk_factors": ["Fed rate hikes", "China tensions"],
     }
     import json
+
     text = json.dumps(data)
     result = extract_json(text)
     assert result["timeframe"] == "1 month"
@@ -93,11 +101,14 @@ def test_deepseek_r1_realistic():
 
 def test_preamble_and_postamble():
     """JSON buried in prose before and after."""
-    text = 'Based on my analysis of the market data:\n\n{"result": 42}\n\nThis concludes my analysis.'
+    text = (
+        'Based on my analysis of the market data:\n\n{"result": 42}\n\nThis concludes my analysis.'
+    )
     assert extract_json(text) == {"result": 42}
 
 
 # ─── Error cases ──────────────────────────────────────────────────────────────
+
 
 def test_empty_input():
     with pytest.raises(ValueError, match="Empty input"):
@@ -127,4 +138,4 @@ def test_array_input_raises_value_error():
     enforces dict-only return at runtime.
     """
     with pytest.raises(ValueError, match="Expected a JSON object"):
-        extract_json('[1, 2, 3]')
+        extract_json("[1, 2, 3]")

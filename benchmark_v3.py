@@ -1,7 +1,6 @@
-
-symbol = 'AAPL'
-start_date_str = '2020-01-01'
-end_date_str = '2023-01-01'
+symbol = "AAPL"
+start_date_str = "2020-01-01"
+end_date_str = "2023-01-01"
 
 # The issue description says:
 # Missing optimization on DataFrame creation from iteration

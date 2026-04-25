@@ -111,10 +111,13 @@ def test_mongo_failure_falls_back_to_filesystem():
 def test_env_var_mongo_uri():
     """TRADINGAGENTS_MONGO_URI env var should trigger MongoDB store."""
     mock_mc = MagicMock(side_effect=Exception("connection refused"))
-    with patch.dict(
-        "os.environ",
-        {"TRADINGAGENTS_MONGO_URI": "mongodb://envhost:27017"},
-    ), patch.dict(sys.modules, _stub_pymongo(mock_mc)):
+    with (
+        patch.dict(
+            "os.environ",
+            {"TRADINGAGENTS_MONGO_URI": "mongodb://envhost:27017"},
+        ),
+        patch.dict(sys.modules, _stub_pymongo(mock_mc)),
+    ):
         sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
         # Will fail to connect, but should try and then fall back
         store = create_report_store()

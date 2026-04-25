@@ -32,12 +32,15 @@ def test_factor_alignment_uses_sector_tool_and_wider_tool_output_budget():
         captured["max_tool_output_chars"] = max_tool_output_chars
         return AIMessage(content="- Quant summary with % return evidence")
 
-    with patch(
-        "tradingagents.agents.scanners.factor_alignment_scanner.run_tool_loop",
-        side_effect=_fake_run_tool_loop,
-    ), patch(
-        "tradingagents.agents.scanners.factor_alignment_scanner.save_node_report",
-        lambda *_args, **_kwargs: None,
+    with (
+        patch(
+            "tradingagents.agents.scanners.factor_alignment_scanner.run_tool_loop",
+            side_effect=_fake_run_tool_loop,
+        ),
+        patch(
+            "tradingagents.agents.scanners.factor_alignment_scanner.save_node_report",
+            lambda *_args, **_kwargs: None,
+        ),
     ):
         result = node(
             {

@@ -88,7 +88,9 @@ def test_geopolitical_node_can_call_todays_sovereign_cds_live():
         }
     )
 
-    assert "Geopolitical report with live sovereign CDS validation." in result["geopolitical_report"]
+    assert (
+        "Geopolitical report with live sovereign CDS validation." in result["geopolitical_report"]
+    )
     assert result["sender"] == "geopolitical_scanner"
     # Use subset check so future tool additions don't break this assertion.
     # The geopolitical scanner currently binds 8 tools including FX-rate tools.

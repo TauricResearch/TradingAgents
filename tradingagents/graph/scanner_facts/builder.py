@@ -4,6 +4,7 @@ Immutability invariant:
   save_scanner_graph_facts(..., overwrite=False) is the only path used in normal
   execution. overwrite=True is reserved for rebuild.py exclusively.
 """
+
 from __future__ import annotations
 
 import json
@@ -28,6 +29,7 @@ _logger = logging.getLogger(__name__)
 
 # ---------- internal path helpers (monkeypatched in tests) ----------
 
+
 def _resolve_market_dir(scan_date: str, run_id: str) -> Path:
     return get_market_dir(scan_date, run_id)
 
@@ -37,6 +39,7 @@ def _resolve_artifact_path(scan_date: str, run_id: str) -> Path:
 
 
 # ---------- merge ----------
+
 
 def _merge_partial_facts(partials: list[dict]) -> dict:
     """Merge a list of partial {nodes, edges} dicts into one."""
@@ -92,6 +95,7 @@ def _merge_partial_facts(partials: list[dict]) -> dict:
 
 # ---------- build ----------
 
+
 def build_scanner_graph_facts_from_market_dir(
     market_dir: Path,
     *,
@@ -108,9 +112,7 @@ def build_scanner_graph_facts_from_market_dir(
     # Macro JSON (required — fail loudly)
     macro_path = market_dir / "macro_scan_summary.json"
     payload = load_and_parse_macro_scan_summary(macro_path)
-    macro_partial = facts_from_macro_scan_summary(
-        payload, scan_date=scan_date, run_id=run_id
-    )
+    macro_partial = facts_from_macro_scan_summary(payload, scan_date=scan_date, run_id=run_id)
 
     # Markdown summaries (optional files — quality-gated ones are skipped)
     md_partial = facts_from_all_markdown_summaries(market_dir)
@@ -131,9 +133,9 @@ def build_scanner_graph_facts_from_market_dir(
         "scan_date": scan_date,
         "run_id": run_id,
         "source_dir": str(market_dir),
-        "global_regime": macro_partial.get("global_regime", {
-            "summary": "", "bullets": [], "source": "macro_scan_summary.json"
-        }),
+        "global_regime": macro_partial.get(
+            "global_regime", {"summary": "", "bullets": [], "source": "macro_scan_summary.json"}
+        ),
         "nodes": merged["nodes"],
         "edges": merged["edges"],
         "metadata": {
@@ -155,6 +157,7 @@ def build_scanner_graph_facts_from_market_dir(
 
 
 # ---------- save / load ----------
+
 
 def save_scanner_graph_facts(
     facts: dict,
@@ -184,8 +187,12 @@ def save_scanner_graph_facts(
     )
 
     path.write_text(json.dumps(ordered, indent=2, ensure_ascii=False, sort_keys=False))
-    _logger.info("builder: saved scanner_graph_facts to %s (%d nodes, %d edges)",
-                 path, len(facts["nodes"]), len(facts["edges"]))
+    _logger.info(
+        "builder: saved scanner_graph_facts to %s (%d nodes, %d edges)",
+        path,
+        len(facts["nodes"]),
+        len(facts["edges"]),
+    )
     return path
 
 
@@ -208,6 +215,7 @@ def load_scanner_graph_facts(path: Path) -> dict:
 
 
 # ---------- ensure ----------
+
 
 def ensure_scanner_graph_facts(
     *,

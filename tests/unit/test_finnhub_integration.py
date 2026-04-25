@@ -381,9 +381,7 @@ class TestMakeApiRequest:
             _make_api_request,
         )
 
-        with patch(
-            self._PATCH_TARGET, side_effect=requests.exceptions.Timeout("timed out")
-        ):
+        with patch(self._PATCH_TARGET, side_effect=requests.exceptions.Timeout("timed out")):
             with pytest.raises(ThirdPartyTimeoutError):
                 _make_api_request("quote", {"symbol": "AAPL"})
 
@@ -558,8 +556,15 @@ class TestGetQuote:
             result = get_quote("AAPL")
 
         expected_keys = {
-            "symbol", "current_price", "change", "change_percent",
-            "high", "low", "open", "prev_close", "timestamp",
+            "symbol",
+            "current_price",
+            "change",
+            "change_percent",
+            "high",
+            "low",
+            "open",
+            "prev_close",
+            "timestamp",
         }
         assert expected_keys == set(result.keys())
 
@@ -712,7 +717,14 @@ class TestGetFinancialStatements:
                     "form": "10-Q",
                     "cik": "0000320193",
                     "report": {
-                        "bs": [{"concept": "us-gaap:Assets", "label": "Assets", "unit": "USD", "value": 352_583_000_000}],
+                        "bs": [
+                            {
+                                "concept": "us-gaap:Assets",
+                                "label": "Assets",
+                                "unit": "USD",
+                                "value": 352_583_000_000,
+                            }
+                        ],
                         "ic": [],
                         "cf": [],
                     },
@@ -785,6 +797,7 @@ class TestGetBasicFinancials:
 # 10.5 finnhub_news — _fetch_company_news_data helper
 # ---------------------------------------------------------------------------
 
+
 class TestFetchCompanyNewsData:
     """_fetch_company_news_data handles errors by returning an empty list."""
 
@@ -805,6 +818,7 @@ class TestFetchCompanyNewsData:
             result = _fetch_company_news_data("AAPL", {"symbol": "AAPL"})
 
         assert result == []
+
 
 # 10. finnhub_news — get_company_news
 # ---------------------------------------------------------------------------
@@ -980,7 +994,16 @@ def _make_quote_side_effect(symbols_quotes: dict) -> callable:
         if symbol in symbols_quotes:
             return symbols_quotes[symbol]
         # Default: valid but flat quote so it is not skipped
-        return {"c": 100.0, "d": 0.0, "dp": 0.0, "h": 101.0, "l": 99.0, "o": 100.0, "pc": 100.0, "t": 1704153600}
+        return {
+            "c": 100.0,
+            "d": 0.0,
+            "dp": 0.0,
+            "h": 101.0,
+            "l": 99.0,
+            "o": 100.0,
+            "pc": 100.0,
+            "t": 1704153600,
+        }
 
     return side_effect
 
@@ -993,9 +1016,36 @@ class TestGetMarketMoversFinnhub:
     def _build_movers_side_effect(self) -> callable:
         """Return a mock that assigns unique change% values to the first few symbols."""
         quotes_by_symbol = {
-            "AAPL": {"c": 200.0, "d": 5.0, "dp": 2.5, "h": 202.0, "l": 198.0, "o": 195.0, "pc": 195.0, "t": 1704153600},
-            "MSFT": {"c": 400.0, "d": 3.0, "dp": 0.75, "h": 402.0, "l": 398.0, "o": 397.0, "pc": 397.0, "t": 1704153600},
-            "NVDA": {"c": 600.0, "d": 30.0, "dp": 5.26, "h": 605.0, "l": 595.0, "o": 570.0, "pc": 570.0, "t": 1704153600},
+            "AAPL": {
+                "c": 200.0,
+                "d": 5.0,
+                "dp": 2.5,
+                "h": 202.0,
+                "l": 198.0,
+                "o": 195.0,
+                "pc": 195.0,
+                "t": 1704153600,
+            },
+            "MSFT": {
+                "c": 400.0,
+                "d": 3.0,
+                "dp": 0.75,
+                "h": 402.0,
+                "l": 398.0,
+                "o": 397.0,
+                "pc": 397.0,
+                "t": 1704153600,
+            },
+            "NVDA": {
+                "c": 600.0,
+                "d": 30.0,
+                "dp": 5.26,
+                "h": 605.0,
+                "l": 595.0,
+                "o": 570.0,
+                "pc": 570.0,
+                "t": 1704153600,
+            },
         }
         return _make_quote_side_effect(quotes_by_symbol)
 
@@ -1024,8 +1074,26 @@ class TestGetMarketMoversFinnhub:
         from tradingagents.dataflows.finnhub_scanner import get_market_movers_finnhub
 
         losers_quotes = {
-            "AAPL": {"c": 180.0, "d": -5.0, "dp": -2.7, "h": 186.0, "l": 179.0, "o": 185.0, "pc": 185.0, "t": 1704153600},
-            "MSFT": {"c": 390.0, "d": -1.0, "dp": -0.26, "h": 392.0, "l": 389.0, "o": 391.0, "pc": 391.0, "t": 1704153600},
+            "AAPL": {
+                "c": 180.0,
+                "d": -5.0,
+                "dp": -2.7,
+                "h": 186.0,
+                "l": 179.0,
+                "o": 185.0,
+                "pc": 185.0,
+                "t": 1704153600,
+            },
+            "MSFT": {
+                "c": 390.0,
+                "d": -1.0,
+                "dp": -0.26,
+                "h": 392.0,
+                "l": 389.0,
+                "o": 391.0,
+                "pc": 391.0,
+                "t": 1704153600,
+            },
         }
 
         with patch(self._RATE_PATCH, side_effect=_make_quote_side_effect(losers_quotes)):
@@ -1216,7 +1284,13 @@ class TestGetTopicNewsFinnhub:
         from tradingagents.dataflows.finnhub_scanner import get_topic_news_finnhub
 
         many_articles = [
-            {"headline": f"Headline {i}", "source": "src", "summary": "", "url": "", "datetime": 1704153600}
+            {
+                "headline": f"Headline {i}",
+                "source": "src",
+                "summary": "",
+                "url": "",
+                "datetime": 1704153600,
+            }
             for i in range(30)
         ]
 

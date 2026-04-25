@@ -102,9 +102,7 @@ class Portfolio:
             holdings: List of Holding objects with current_value populated
                       (i.e., ``holding.enrich()`` already called).
         """
-        self.equity_value = sum(
-            h.current_value for h in holdings if h.current_value is not None
-        )
+        self.equity_value = sum(h.current_value for h in holdings if h.current_value is not None)
         self.total_value = self.cash + self.equity_value
         self.cash_pct = self.cash / self.total_value if self.total_value != 0.0 else 1.0
         return self
@@ -219,7 +217,9 @@ class Trade:
     trade_date: str = ""
     rationale: str | None = None
     signal_source: str | None = None  # "scanner" | "holding_review" | "pm_agent"
-    stop_loss: float | None = None    # Price level at which the position should be exited to limit loss
+    stop_loss: float | None = (
+        None  # Price level at which the position should be exited to limit loss
+    )
     take_profit: float | None = None  # Price target at which the position should be sold for profit
     metadata: dict[str, Any] = field(default_factory=dict)
 

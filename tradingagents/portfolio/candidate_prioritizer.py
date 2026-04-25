@@ -97,8 +97,10 @@ def score_candidate(
 
 def _build_candidate_description(candidate: dict) -> str:
     """Concatenate ticker, sector, thesis_angle, rationale, conviction for BM25 query."""
-    parts = [candidate.get(k, "") for k in
-             ("ticker", "sector", "thesis_angle", "rationale", "conviction")]
+    parts = [
+        candidate.get(k, "")
+        for k in ("ticker", "sector", "thesis_angle", "rationale", "conviction")
+    ]
     return " ".join(p for p in parts if p)
 
 
@@ -129,7 +131,8 @@ def prioritize_candidates(
         return []
 
     total_value = portfolio.total_value or (
-        portfolio.cash + sum(
+        portfolio.cash
+        + sum(
             h.current_value if h.current_value is not None else h.shares * h.avg_cost
             for h in holdings
         )

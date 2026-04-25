@@ -50,15 +50,18 @@ def test_ollama_tags_timeout_rejects_invalid_values(monkeypatch, raw_timeout):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("raw_value,expected", [
-    ("30", 30.0),
-    ("120.5", 120.5),
-    ("0", 60.0),        # zero → fallback
-    ("-1", 60.0),       # negative → fallback
-    ("inf", 60.0),      # non-finite → fallback
-    ("nan", 60.0),      # non-finite → fallback
-    ("not_a_number", 60.0),  # parse error → fallback
-])
+@pytest.mark.parametrize(
+    "raw_value,expected",
+    [
+        ("30", 30.0),
+        ("120.5", 120.5),
+        ("0", 60.0),  # zero → fallback
+        ("-1", 60.0),  # negative → fallback
+        ("inf", 60.0),  # non-finite → fallback
+        ("nan", 60.0),  # non-finite → fallback
+        ("not_a_number", 60.0),  # parse error → fallback
+    ],
+)
 def test_env_timeout_seconds_validates_and_falls_back(raw_value, expected, monkeypatch):
     from tradingagents import default_config
 
@@ -81,16 +84,19 @@ def test_env_timeout_seconds_uses_default_when_key_missing():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("config_key,default_value", [
-    ("llm_timeout", 300.0),
-    ("tool_loop_timeout_cap", 300.0),
-    ("scanner_summarizer_timeout", 180.0),
-    ("tool_execution_timeout", 60.0),
-    ("scan_timeout_seconds", 1800.0),
-    ("deep_think_llm_timeout_cap", 360.0),
-    ("mid_think_llm_timeout_cap", 240.0),
-    ("quick_think_llm_timeout_cap", 300.0),
-])
+@pytest.mark.parametrize(
+    "config_key,default_value",
+    [
+        ("llm_timeout", 300.0),
+        ("tool_loop_timeout_cap", 300.0),
+        ("scanner_summarizer_timeout", 180.0),
+        ("tool_execution_timeout", 60.0),
+        ("scan_timeout_seconds", 1800.0),
+        ("deep_think_llm_timeout_cap", 360.0),
+        ("mid_think_llm_timeout_cap", 240.0),
+        ("quick_think_llm_timeout_cap", 300.0),
+    ],
+)
 def test_default_config_timeout_keys_are_finite_positive(config_key, default_value):
     from tradingagents.default_config import build_default_config
 
@@ -114,11 +120,14 @@ def test_optional_per_tier_timeout_is_none_when_not_configured():
         assert cfg.get(key) is None, f"{key} must be None when env var is absent"
 
 
-@pytest.mark.parametrize("env_key,config_key", [
-    ("TRADINGAGENTS_LLM_TIMEOUT_SEC", "llm_timeout"),
-    ("TRADINGAGENTS_SCANNER_SUMMARIZER_TIMEOUT_SEC", "scanner_summarizer_timeout"),
-    ("TRADINGAGENTS_TOOL_EXECUTION_TIMEOUT_SEC", "tool_execution_timeout"),
-])
+@pytest.mark.parametrize(
+    "env_key,config_key",
+    [
+        ("TRADINGAGENTS_LLM_TIMEOUT_SEC", "llm_timeout"),
+        ("TRADINGAGENTS_SCANNER_SUMMARIZER_TIMEOUT_SEC", "scanner_summarizer_timeout"),
+        ("TRADINGAGENTS_TOOL_EXECUTION_TIMEOUT_SEC", "tool_execution_timeout"),
+    ],
+)
 @pytest.mark.parametrize("bad_value", ["0", "-5", "inf", "nan"])
 def test_default_config_rejects_invalid_timeout_env(env_key, config_key, bad_value, monkeypatch):
     """Invalid env values for timeout keys must fall back to the hardcoded default."""

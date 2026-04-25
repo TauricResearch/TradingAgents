@@ -2,9 +2,9 @@ import time
 
 import yfinance as yf
 
-start_date_str = '2020-01-01'
-end_date_str = '2023-01-01'
-symbol = 'AAPL'
+start_date_str = "2020-01-01"
+end_date_str = "2023-01-01"
+symbol = "AAPL"
 
 data_file = "test_cache.csv"
 

@@ -41,11 +41,12 @@ _py_logger = logging.getLogger("tradingagents.observability")
 # Event dataclass — each logged event becomes one JSON line
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class _Event:
-    kind: str               # "llm", "tool", "vendor", "report"
-    ts: float               # time.time()
-    data: dict              # kind-specific payload
+    kind: str  # "llm", "tool", "vendor", "report"
+    ts: float  # time.time()
+    data: dict  # kind-specific payload
 
     def to_dict(self) -> dict:
         return {"kind": self.kind, "ts": self.ts, **self.data}
@@ -54,6 +55,7 @@ class _Event:
 # ──────────────────────────────────────────────────────────────────────────────
 # RunLogger — accumulates events and writes a JSON-lines log file
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class RunLogger:
     """Accumulates structured events for a single run (analyze / scan / pipeline).
@@ -254,6 +256,7 @@ class RunLogger:
 # LangChain callback handler — captures LLM call details
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class _LLMCallbackHandler(BaseCallbackHandler):
     """LangChain callback that feeds LLM events into a ``RunLogger``."""
 
@@ -283,9 +286,13 @@ class _LLMCallbackHandler(BaseCallbackHandler):
         try:
             if messages and isinstance(messages[0], list):
                 # batched messages
-                prompt = "\n\n".join([str(m.content) if hasattr(m, "content") else str(m) for m in messages[0]])
+                prompt = "\n\n".join(
+                    [str(m.content) if hasattr(m, "content") else str(m) for m in messages[0]]
+                )
             else:
-                prompt = "\n\n".join([str(m.content) if hasattr(m, "content") else str(m) for m in messages])
+                prompt = "\n\n".join(
+                    [str(m.content) if hasattr(m, "content") else str(m) for m in messages]
+                )
         except Exception:
             pass
 
@@ -335,11 +342,17 @@ class _LLMCallbackHandler(BaseCallbackHandler):
             if hasattr(generation, "message"):
                 msg = generation.message
                 full_response = msg.content if hasattr(msg, "content") else full_response
-                if isinstance(msg, AIMessage) and hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                if (
+                    isinstance(msg, AIMessage)
+                    and hasattr(msg, "usage_metadata")
+                    and msg.usage_metadata
+                ):
                     tokens_in = msg.usage_metadata.get("input_tokens", 0)
                     tokens_out = msg.usage_metadata.get("output_tokens", 0)
                 if hasattr(msg, "response_metadata"):
-                    model_from_response = msg.response_metadata.get("model_name", "") or msg.response_metadata.get("model", "")
+                    model_from_response = msg.response_metadata.get(
+                        "model_name", ""
+                    ) or msg.response_metadata.get("model", "")
         except (IndexError, TypeError, AttributeError):
             pass
 
@@ -367,6 +380,7 @@ class _LLMCallbackHandler(BaseCallbackHandler):
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _extract_model(serialized: dict, kwargs: dict) -> str:
     """Best-effort model name from LangChain callback metadata."""

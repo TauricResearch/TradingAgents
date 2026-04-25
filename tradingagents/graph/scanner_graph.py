@@ -73,7 +73,6 @@ class ScannerGraph:
 
             return wrapped
 
-
         # Scanner nodes use the scanner_llm tier (tool-call compliant model).
         # Summarizers use quick_llm (no tool calling needed).
         self.agents = {
@@ -137,10 +136,7 @@ class ScannerGraph:
 
         if tier == "scanner":
             # Scanner tier falls back to quick_think when unset.
-            model = (
-                self.config.get("scanner_llm")
-                or self.config["quick_think_llm"]
-            )
+            model = self.config.get("scanner_llm") or self.config["quick_think_llm"]
             provider = (
                 self.config.get("scanner_llm_provider")
                 or self.config.get("quick_think_llm_provider")
@@ -263,7 +259,9 @@ class ScannerGraph:
         """Return a compiled partial scanner graph that starts at *start_node*."""
         return self.setup.setup_graph_from(start_node)
 
-    def visualize(self, output_path: str | None = None, format: str = "mermaid") -> str | bytes | None:
+    def visualize(
+        self, output_path: str | None = None, format: str = "mermaid"
+    ) -> str | bytes | None:
         """Visualize the graph in various formats.
 
         Args:
@@ -279,7 +277,9 @@ class ScannerGraph:
                 print(res)
             if output_path:
                 with open(output_path, "w") as f:
-                    f.write(res if isinstance(res, str) else "ASCII representation printed to console.")
+                    f.write(
+                        res if isinstance(res, str) else "ASCII representation printed to console."
+                    )
             return res
         elif format == "png":
             png_data = graph.draw_mermaid_png()

@@ -76,7 +76,7 @@ def sample_prices() -> dict[str, float]:
 @pytest.fixture
 def sample_snapshots() -> list[dict]:
     """30 snapshot dicts for risk metrics computation."""
-    navs = [100_000.0 * (1.001 ** i) for i in range(30)]
+    navs = [100_000.0 * (1.001**i) for i in range(30)]
     return [
         {
             "snapshot_id": f"snap-{i}",
@@ -107,9 +107,7 @@ def tmp_reports(tmp_path: Path) -> Path:
 
 
 class TestGetEnrichedHoldings:
-    def test_happy_path_returns_enriched_data(
-        self, sample_holdings_list, sample_prices
-    ):
+    def test_happy_path_returns_enriched_data(self, sample_holdings_list, sample_prices):
         result_str = get_enriched_holdings.invoke(
             {
                 "holdings_json": json.dumps(sample_holdings_list),
@@ -136,9 +134,7 @@ class TestGetEnrichedHoldings:
         assert summary["cash"] == pytest.approx(10_000.0)
         assert summary["cash_pct"] == pytest.approx(10_000.0 / total)
 
-    def test_holding_with_missing_price_has_none_enrichment(
-        self, sample_holdings_list
-    ):
+    def test_holding_with_missing_price_has_none_enrichment(self, sample_holdings_list):
         # Only AAPL price provided — MSFT enrichment should remain None
         prices = {"AAPL": 182.50}
         result_str = get_enriched_holdings.invoke(
@@ -187,9 +183,7 @@ class TestGetEnrichedHoldings:
         result = json.loads(result_str)
         assert "error" in result
 
-    def test_weight_sums_to_equity_fraction(
-        self, sample_holdings_list, sample_prices
-    ):
+    def test_weight_sums_to_equity_fraction(self, sample_holdings_list, sample_prices):
         result_str = get_enriched_holdings.invoke(
             {
                 "holdings_json": json.dumps(sample_holdings_list),
@@ -198,9 +192,7 @@ class TestGetEnrichedHoldings:
             }
         )
         result = json.loads(result_str)
-        total_weight = sum(
-            h["weight"] for h in result["holdings"] if h["weight"] is not None
-        )
+        total_weight = sum(h["weight"] for h in result["holdings"] if h["weight"] is not None)
         assert total_weight == pytest.approx(1.0, rel=1e-4)
 
     def test_zero_cash_with_holdings(self, sample_holdings_list, sample_prices):

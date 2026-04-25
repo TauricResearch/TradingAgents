@@ -1,7 +1,7 @@
 """Tests for ScannerGraph and ScannerGraphSetup."""
 
-from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 
 def test_scanner_graph_import():

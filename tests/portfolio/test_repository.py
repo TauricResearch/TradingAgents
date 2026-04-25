@@ -33,29 +33,41 @@ requires_supabase = pytest.mark.skipif(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_repo(mock_client, report_store):
     """Build a PortfolioRepository with mock client and real report store."""
     return PortfolioRepository(
         client=mock_client,
         store=report_store,
-        config={"data_dir": "reports", "max_positions": 15,
-                "max_position_pct": 0.15, "max_sector_pct": 0.35,
-                "min_cash_pct": 0.05, "default_budget": 100_000.0,
-                "supabase_connection_string": ""},
+        config={
+            "data_dir": "reports",
+            "max_positions": 15,
+            "max_position_pct": 0.15,
+            "max_sector_pct": 0.35,
+            "min_cash_pct": 0.05,
+            "default_budget": 100_000.0,
+            "supabase_connection_string": "",
+        },
     )
 
 
 def _mock_portfolio(pid="pid-1", cash=10_000.0):
     return Portfolio(
-        portfolio_id=pid, name="Test", cash=cash,
-        initial_cash=100_000.0, currency="USD",
+        portfolio_id=pid,
+        name="Test",
+        cash=cash,
+        initial_cash=100_000.0,
+        currency="USD",
     )
 
 
 def _mock_holding(pid="pid-1", ticker="AAPL", shares=50.0, avg_cost=190.0):
     return Holding(
-        holding_id="hid-1", portfolio_id=pid, ticker=ticker,
-        shares=shares, avg_cost=avg_cost,
+        holding_id="hid-1",
+        portfolio_id=pid,
+        ticker=ticker,
+        shares=shares,
+        avg_cost=avg_cost,
     )
 
 
@@ -285,7 +297,9 @@ def test_get_portfolio_with_holdings_uses_canonical_uuid_for_holdings_query(
     mock_supabase_client, report_store
 ):
     canonical_id = "11111111-1111-1111-1111-111111111111"
-    mock_supabase_client.get_portfolio.return_value = _mock_portfolio(pid=canonical_id, cash=5_000.0)
+    mock_supabase_client.get_portfolio.return_value = _mock_portfolio(
+        pid=canonical_id, cash=5_000.0
+    )
     mock_supabase_client.list_holdings.return_value = []
 
     repo = _make_repo(mock_supabase_client, report_store)
@@ -294,9 +308,7 @@ def test_get_portfolio_with_holdings_uses_canonical_uuid_for_holdings_query(
     mock_supabase_client.list_holdings.assert_called_once_with(canonical_id)
 
 
-def test_batch_remove_holdings_uses_canonical_uuid_for_db_calls(
-    mock_supabase_client, report_store
-):
+def test_batch_remove_holdings_uses_canonical_uuid_for_db_calls(mock_supabase_client, report_store):
     canonical_id = "22222222-2222-2222-2222-222222222222"
     portfolio = _mock_portfolio(pid=canonical_id, cash=5_000.0)
     holding = _mock_holding(pid=canonical_id, ticker="AAPL", shares=10.0, avg_cost=100.0)
@@ -332,8 +344,10 @@ def test_batch_remove_holdings_uses_canonical_uuid_for_db_calls(
 def test_integration_create_and_get_portfolio():
     """Integration: create a portfolio, retrieve it, verify fields match."""
     from tradingagents.portfolio.supabase_client import SupabaseClient
+
     client = SupabaseClient.get_instance()
     from tradingagents.portfolio.report_store import ReportStore
+
     store = ReportStore()
 
     repo = PortfolioRepository(client=client, store=store)
@@ -351,15 +365,20 @@ def test_integration_create_and_get_portfolio():
 def test_integration_add_and_remove_holding():
     """Integration: add holding, verify; remove, verify deletion."""
     from tradingagents.portfolio.supabase_client import SupabaseClient
+
     client = SupabaseClient.get_instance()
     from tradingagents.portfolio.report_store import ReportStore
+
     store = ReportStore()
 
     repo = PortfolioRepository(client=client, store=store)
     portfolio = repo.create_portfolio("Hold Test", initial_cash=50_000.0)
     try:
         holding = repo.add_holding(
-            portfolio.portfolio_id, "AAPL", shares=10, price=200.0,
+            portfolio.portfolio_id,
+            "AAPL",
+            shares=10,
+            price=200.0,
             sector="Technology",
         )
         assert holding.ticker == "AAPL"
@@ -384,8 +403,10 @@ def test_integration_add_and_remove_holding():
 def test_integration_record_and_list_trades():
     """Integration: trades are recorded automatically via add/remove holding."""
     from tradingagents.portfolio.supabase_client import SupabaseClient
+
     client = SupabaseClient.get_instance()
     from tradingagents.portfolio.report_store import ReportStore
+
     store = ReportStore()
 
     repo = PortfolioRepository(client=client, store=store)
@@ -406,8 +427,10 @@ def test_integration_record_and_list_trades():
 def test_integration_save_and_load_snapshot():
     """Integration: take snapshot, retrieve latest, verify total_value."""
     from tradingagents.portfolio.supabase_client import SupabaseClient
+
     client = SupabaseClient.get_instance()
     from tradingagents.portfolio.report_store import ReportStore
+
     store = ReportStore()
 
     repo = PortfolioRepository(client=client, store=store)

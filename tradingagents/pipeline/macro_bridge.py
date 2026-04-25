@@ -30,7 +30,9 @@ CONVICTION_RANK: dict[str, int] = {"high": 3, "medium": 2, "low": 1}
 def _supports_equity_pipeline(candidate: StockCandidate) -> bool:
     if candidate.asset_class or candidate.instrument_type:
         return candidate.asset_class == "equity" and candidate.instrument_type == "common_stock"
-    return is_equity_pipeline_supported(resolve_instrument(candidate.ticker, source_context="candidate"))
+    return is_equity_pipeline_supported(
+        resolve_instrument(candidate.ticker, source_context="candidate")
+    )
 
 
 @dataclass
@@ -237,7 +239,11 @@ def filter_candidates(
         Filtered and sorted list (high conviction first, then alphabetically).
     """
     min_rank = CONVICTION_RANK[min_conviction]
-    filtered = [c for c in candidates if CONVICTION_RANK[c.conviction] >= min_rank and _supports_equity_pipeline(c)]
+    filtered = [
+        c
+        for c in candidates
+        if CONVICTION_RANK[c.conviction] >= min_rank and _supports_equity_pipeline(c)
+    ]
     if ticker_filter:
         tickers_upper = {t.upper() for t in ticker_filter}
         filtered = [c for c in filtered if c.ticker in tickers_upper]
@@ -266,7 +272,9 @@ def run_ticker_analysis(
     t0 = time.monotonic()
     logger.info(
         "[%s] ▶ Starting analysis (%s, %s conviction)",
-        candidate.ticker, candidate.sector, candidate.conviction,
+        candidate.ticker,
+        candidate.sector,
+        candidate.conviction,
     )
 
     try:
@@ -291,7 +299,9 @@ def run_ticker_analysis(
         result.elapsed_seconds = elapsed
         logger.info(
             "[%s] ✓ Analysis complete in %.0fs — decision: %s",
-            candidate.ticker, elapsed, str(decision)[:80],
+            candidate.ticker,
+            elapsed,
+            str(decision)[:80],
         )
 
     except Exception as exc:
@@ -299,12 +309,14 @@ def run_ticker_analysis(
         result.elapsed_seconds = elapsed
         logger.error(
             "[%s] ✗ Analysis FAILED after %.0fs: %s",
-            candidate.ticker, elapsed, exc, exc_info=True,
+            candidate.ticker,
+            elapsed,
+            exc,
+            exc_info=True,
         )
         result.error = str(exc)
 
     return result
-
 
 
 async def run_all_tickers(
@@ -366,7 +378,6 @@ async def run_all_tickers(
     return results
 
 
-
 # ─── Reporting ────────────────────────────────────────────────────────────────
 
 
@@ -388,7 +399,7 @@ def _macro_preamble(ctx: MacroContext) -> str:
 **Key macro themes:**
 {themes_text}
 
-**Geopolitical risks:** {', '.join(ctx.geopolitical_risks)}
+**Geopolitical risks:** {", ".join(ctx.geopolitical_risks)}
 
 **Macro risk factors:**
 {risks_text}
@@ -417,8 +428,8 @@ def render_ticker_report(result: TickerResult) -> str:
 {c.rationale}
 
 **Macro theme alignment:** {c.macro_theme}
-**Key catalysts:** {', '.join(c.key_catalysts)}
-**Macro-level risks:** {', '.join(c.risks)}
+**Key catalysts:** {", ".join(c.key_catalysts)}
+**Macro-level risks:** {", ".join(c.risks)}
 
 ---
 """
@@ -464,9 +475,7 @@ def render_combined_summary(
 
     for r in results:
         decision_preview = (
-            "ERROR"
-            if r.error
-            else str(r.final_trade_decision)[:60].replace("\n", " ")
+            "ERROR" if r.error else str(r.final_trade_decision)[:60].replace("\n", " ")
         )
         lines.append(
             f"| {r.ticker} | {r.candidate.name} "

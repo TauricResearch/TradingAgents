@@ -113,8 +113,6 @@ def _format_news_structured(structured: object) -> str:
     return "\n".join(line for line in lines if _has_value_after_colon(line))
 
 
-
-
 def build_debate_evidence_brief(state: AgentState) -> str:
     """Build a compact evidence brief for debaters from structured contracts.
 
@@ -180,7 +178,7 @@ def build_debate_evidence_brief(state: AgentState) -> str:
             lines.append(f"- Sentiment claims: {claim_count}")
         if lines:
             sections.append("## Sentiment\n" + "\n".join(lines))
-    
+
     # News structured: status + claim metrics (exclude claim text)
     news_s = state.get("news_report_structured")
     if isinstance(news_s, dict):
@@ -243,11 +241,19 @@ def build_research_packet(state: AgentState) -> str:
     news_structured = _format_news_structured(state.get("news_report_structured"))
     if news_structured:
         sections.append(f"## News Structured Contract\n{news_structured}")
-    
+
     # Check if news has usable evidence for gating raw report inclusion
     news_report_structured = state.get("news_report_structured")
-    news_status = str(news_report_structured.get("status") or "").strip() if isinstance(news_report_structured, dict) else ""
-    key_metrics = news_report_structured.get("key_metrics") or {} if isinstance(news_report_structured, dict) else {}
+    news_status = (
+        str(news_report_structured.get("status") or "").strip()
+        if isinstance(news_report_structured, dict)
+        else ""
+    )
+    key_metrics = (
+        news_report_structured.get("key_metrics") or {}
+        if isinstance(news_report_structured, dict)
+        else {}
+    )
     claim_count = key_metrics.get("claim_count", 0) if isinstance(key_metrics, dict) else 0
     news_has_usable_evidence = news_status == "completed" and claim_count > 0
 
@@ -255,7 +261,12 @@ def build_research_packet(state: AgentState) -> str:
     block_specs = [
         ("## Market Report", state.get("market_report"), 10, 2200),
         ("## Sentiment Report", state.get("sentiment_report"), 8, 1600),
-        ("## News Report", state.get("news_report") if news_has_usable_evidence else None, 10, 2200),
+        (
+            "## News Report",
+            state.get("news_report") if news_has_usable_evidence else None,
+            10,
+            2200,
+        ),
         ("## Fundamentals Report", state.get("fundamentals_report"), 10, 2200),
         ("## Macro Regime Report", state.get("macro_regime_report"), 6, 1000),
     ]

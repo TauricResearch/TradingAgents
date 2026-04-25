@@ -120,14 +120,23 @@ def _looks_like_prompt_leak(line: str) -> bool:
     normalized = " ".join(str(line or "").strip().split()).lower()
     if not normalized:
         return False
-    if normalized.startswith(("strongest bull evidence:", "strongest bear evidence:", "recommendation:", "rationale:", "strategic actions:")):
+    if normalized.startswith(
+        (
+            "strongest bull evidence:",
+            "strongest bear evidence:",
+            "recommendation:",
+            "rationale:",
+            "strategic actions:",
+        )
+    ):
         return True
-    if "final transaction proposal:" in normalized and normalized.startswith("if you or any other assistant"):
+    if "final transaction proposal:" in normalized and normalized.startswith(
+        "if you or any other assistant"
+    ):
         return True
-    return any(
-        normalized.startswith(prefix)
-        for prefix in _PROMPT_LEAK_PREFIXES
-    ) or any(fragment in normalized for fragment in _PROMPT_LEAK_SUBSTRINGS)
+    return any(normalized.startswith(prefix) for prefix in _PROMPT_LEAK_PREFIXES) or any(
+        fragment in normalized for fragment in _PROMPT_LEAK_SUBSTRINGS
+    )
 
 
 def sanitize_report_text_for_persistence(text: Any) -> str:
@@ -253,9 +262,7 @@ def format_report_section_for_persistence(section_key: str, text: Any) -> str:
     return sanitize_report_text_for_persistence(text)
 
 
-def write_complete_report_md(
-    final_state: dict[str, Any], ticker: str, save_dir: Path
-) -> None:
+def write_complete_report_md(final_state: dict[str, Any], ticker: str, save_dir: Path) -> None:
     """Write a human-readable complete_report.md from the pipeline final state."""
     sections = []
     header = (
@@ -276,15 +283,21 @@ def write_complete_report_md(
     if analyst_parts:
         sections.append("## I. Analyst Team Reports\n\n" + "\n\n".join(analyst_parts))
 
-    investment_plan = format_report_section_for_persistence("investment_plan", final_state.get("investment_plan"))
+    investment_plan = format_report_section_for_persistence(
+        "investment_plan", final_state.get("investment_plan")
+    )
     if investment_plan:
         sections.append(f"## II. Research Team Decision\n\n{investment_plan}")
 
-    trader_plan = format_report_section_for_persistence("trader_investment_plan", final_state.get("trader_investment_plan"))
+    trader_plan = format_report_section_for_persistence(
+        "trader_investment_plan", final_state.get("trader_investment_plan")
+    )
     if trader_plan:
         sections.append(f"## III. Trading Team Plan\n\n{trader_plan}")
 
-    final_decision = format_report_section_for_persistence("final_trade_decision", final_state.get("final_trade_decision"))
+    final_decision = format_report_section_for_persistence(
+        "final_trade_decision", final_state.get("final_trade_decision")
+    )
     if final_decision:
         sections.append(f"## IV. Final Decision\n\n{final_decision}")
 
@@ -303,7 +316,12 @@ def extract_tickers_from_scan_data(scan_data: dict[str, Any] | None) -> list[str
     """
     if not scan_data:
         return []
-    raw_stocks = scan_data.get("equity_candidates") or scan_data.get("stocks_to_investigate") or scan_data.get("watchlist") or []
+    raw_stocks = (
+        scan_data.get("equity_candidates")
+        or scan_data.get("stocks_to_investigate")
+        or scan_data.get("watchlist")
+        or []
+    )
     seen: set[str] = set()
     tickers: list[str] = []
     for item in raw_stocks:
@@ -328,7 +346,12 @@ def extract_pipeline_instruments_from_scan_data(
     """Extract resolved instruments from scan data for pipeline queuing."""
     if not scan_data:
         return []
-    raw_stocks = scan_data.get("equity_candidates") or scan_data.get("stocks_to_investigate") or scan_data.get("watchlist") or []
+    raw_stocks = (
+        scan_data.get("equity_candidates")
+        or scan_data.get("stocks_to_investigate")
+        or scan_data.get("watchlist")
+        or []
+    )
     seen: set[str] = set()
     instruments: list[CanonicalInstrument] = []
     for item in raw_stocks:

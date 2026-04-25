@@ -1,4 +1,5 @@
 """Canonical schema contract for scanner_graph_facts.v1."""
+
 from __future__ import annotations
 
 from typing import Any, TypedDict
@@ -27,8 +28,14 @@ RELATION_TYPES: tuple[str, ...] = (
 )
 
 _REQUIRED_TOP_LEVEL = (
-    "schema_version", "scan_date", "run_id",
-    "source_dir", "global_regime", "nodes", "edges", "metadata",
+    "schema_version",
+    "scan_date",
+    "run_id",
+    "source_dir",
+    "global_regime",
+    "nodes",
+    "edges",
+    "metadata",
 )
 
 

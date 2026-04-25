@@ -44,9 +44,18 @@ def test_get_daily_dir_with_run_id(tmp_path):
 def test_nested_path_helpers_use_run_id_directory(tmp_path):
     run_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
     with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        assert get_market_dir("2026-03-20", run_id) == tmp_path / "daily" / "2026-03-20" / run_id / "market"
-        assert get_ticker_dir("2026-03-20", "AAPL", run_id) == tmp_path / "daily" / "2026-03-20" / run_id / "AAPL"
-        assert get_eval_dir("2026-03-20", "AAPL", run_id) == tmp_path / "daily" / "2026-03-20" / run_id / "AAPL" / "eval"
+        assert (
+            get_market_dir("2026-03-20", run_id)
+            == tmp_path / "daily" / "2026-03-20" / run_id / "market"
+        )
+        assert (
+            get_ticker_dir("2026-03-20", "AAPL", run_id)
+            == tmp_path / "daily" / "2026-03-20" / run_id / "AAPL"
+        )
+        assert (
+            get_eval_dir("2026-03-20", "AAPL", run_id)
+            == tmp_path / "daily" / "2026-03-20" / run_id / "AAPL" / "eval"
+        )
 
 
 def test_get_digest_path_stays_at_date_level(tmp_path):

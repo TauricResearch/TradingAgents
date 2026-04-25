@@ -4,6 +4,7 @@ This is a living file. When a new surface form appears in scanner output
 that doesn't resolve to a canonical node id, add it here in the same PR.
 Build warnings for heuristic-only classifications are the update backlog.
 """
+
 from __future__ import annotations
 
 TICKER_ALIASES: dict[str, list[str]] = {

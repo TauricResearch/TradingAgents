@@ -726,9 +726,6 @@ function buildGraph(
   const maxScanLevel = scanRecords.length > 0
     ? Math.max(...scanRecords.map((r) => SCAN_LEVELS[r.normalizedId] ?? 0))
     : -1;
-  const maxPortfolioLevel = portfolioRecords.length > 0
-    ? Math.max(...portfolioRecords.map((r) => PORTFOLIO_LEVELS[r.normalizedId] ?? 0))
-    : -1;
 
   // LR: sections are placed left→right; scan first, then ticker, then portfolio
   const scanSectionSpanLR = maxScanLevel >= 0 ? (maxScanLevel + 1) * COL_WIDTH : 0;

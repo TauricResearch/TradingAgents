@@ -29,6 +29,8 @@ def get_indicators(
     if len(indicators) > 1:
         results = []
         for ind in indicators:
-            results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
+            results.append(
+                route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days)
+            )
         return "\n\n".join(results)
     return route_to_vendor("get_indicators", symbol, indicator.strip(), curr_date, look_back_days)

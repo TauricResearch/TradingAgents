@@ -66,11 +66,14 @@ def test_gatekeeper_scanner_end_to_end():
         invoke=lambda args: "gatekeeper universe table",
     )
 
-    with patch(
-        "tradingagents.agents.scanners.gatekeeper_scanner.get_gatekeeper_universe",
-        gatekeeper_tool,
-    ), patch(
-        "tradingagents.agents.scanners.gatekeeper_scanner.save_node_report",
+    with (
+        patch(
+            "tradingagents.agents.scanners.gatekeeper_scanner.get_gatekeeper_universe",
+            gatekeeper_tool,
+        ),
+        patch(
+            "tradingagents.agents.scanners.gatekeeper_scanner.save_node_report",
+        ),
     ):
         node = create_gatekeeper_scanner(llm)
         state = _base_state()
@@ -88,9 +91,21 @@ def test_factor_alignment_scanner_end_to_end():
             AIMessage(
                 content="",
                 tool_calls=[
-                    {"name": "get_topic_news", "args": {"topic": "analyst upgrades downgrades", "limit": 3}, "id": "tc1"},
-                    {"name": "get_topic_news", "args": {"topic": "earnings estimate revisions", "limit": 3}, "id": "tc2"},
-                    {"name": "get_earnings_calendar", "args": {"from_date": "2026-03-27", "to_date": "2026-04-17"}, "id": "tc3"},
+                    {
+                        "name": "get_topic_news",
+                        "args": {"topic": "analyst upgrades downgrades", "limit": 3},
+                        "id": "tc1",
+                    },
+                    {
+                        "name": "get_topic_news",
+                        "args": {"topic": "earnings estimate revisions", "limit": 3},
+                        "id": "tc2",
+                    },
+                    {
+                        "name": "get_earnings_calendar",
+                        "args": {"from_date": "2026-03-27", "to_date": "2026-04-17"},
+                        "id": "tc3",
+                    },
                 ],
             ),
             AIMessage(content="Factor alignment report with globally surfaced tickers."),
@@ -106,14 +121,18 @@ def test_factor_alignment_scanner_end_to_end():
         invoke=lambda args: "earnings calendar",
     )
 
-    with patch(
-        "tradingagents.agents.scanners.factor_alignment_scanner.get_topic_news",
-        topic_tool,
-    ), patch(
-        "tradingagents.agents.scanners.factor_alignment_scanner.get_earnings_calendar",
-        earnings_tool,
-    ), patch(
-        "tradingagents.agents.scanners.factor_alignment_scanner.save_node_report",
+    with (
+        patch(
+            "tradingagents.agents.scanners.factor_alignment_scanner.get_topic_news",
+            topic_tool,
+        ),
+        patch(
+            "tradingagents.agents.scanners.factor_alignment_scanner.get_earnings_calendar",
+            earnings_tool,
+        ),
+        patch(
+            "tradingagents.agents.scanners.factor_alignment_scanner.save_node_report",
+        ),
     ):
         node = create_factor_alignment_scanner(llm)
         result = node(_base_state())
@@ -134,8 +153,16 @@ def test_drift_scanner_end_to_end():
                 content="",
                 tool_calls=[
                     {"name": "get_gap_candidates", "args": {}, "id": "tc1"},
-                    {"name": "get_topic_news", "args": {"topic": "earnings beats raised guidance", "limit": 3}, "id": "tc2"},
-                    {"name": "get_earnings_calendar", "args": {"from_date": "2026-03-27", "to_date": "2026-04-10"}, "id": "tc3"},
+                    {
+                        "name": "get_topic_news",
+                        "args": {"topic": "earnings beats raised guidance", "limit": 3},
+                        "id": "tc2",
+                    },
+                    {
+                        "name": "get_earnings_calendar",
+                        "args": {"from_date": "2026-03-27", "to_date": "2026-04-10"},
+                        "id": "tc3",
+                    },
                 ],
             ),
             AIMessage(content="Drift opportunities report with continuation setups."),
@@ -155,17 +182,22 @@ def test_drift_scanner_end_to_end():
         invoke=lambda args: "earnings calendar",
     )
 
-    with patch(
-        "tradingagents.agents.scanners.drift_scanner.get_gap_candidates",
-        gap_tool,
-    ), patch(
-        "tradingagents.agents.scanners.drift_scanner.get_topic_news",
-        topic_tool,
-    ), patch(
-        "tradingagents.agents.scanners.drift_scanner.get_earnings_calendar",
-        earnings_tool,
-    ), patch(
-        "tradingagents.agents.scanners.drift_scanner.save_node_report",
+    with (
+        patch(
+            "tradingagents.agents.scanners.drift_scanner.get_gap_candidates",
+            gap_tool,
+        ),
+        patch(
+            "tradingagents.agents.scanners.drift_scanner.get_topic_news",
+            topic_tool,
+        ),
+        patch(
+            "tradingagents.agents.scanners.drift_scanner.get_earnings_calendar",
+            earnings_tool,
+        ),
+        patch(
+            "tradingagents.agents.scanners.drift_scanner.save_node_report",
+        ),
     ):
         node = create_drift_scanner(llm)
         result = node(_base_state())

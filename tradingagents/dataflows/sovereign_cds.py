@@ -64,7 +64,9 @@ def _parse_last_update(raw: str) -> datetime:
     try:
         return datetime.strptime(raw.replace("GMT+0", "+0000"), "%d %b %Y %H:%M %z").astimezone(UTC)
     except ValueError as exc:
-        raise YFinanceError(f"Unexpected World Government Bonds last-update format: {raw!r}") from exc
+        raise YFinanceError(
+            f"Unexpected World Government Bonds last-update format: {raw!r}"
+        ) from exc
 
 
 class WorldGovernmentBondsCDSClient:
@@ -84,7 +86,9 @@ class WorldGovernmentBondsCDSClient:
         payload = response.json()
 
         if not payload.get("success"):
-            raise YFinanceError("World Government Bonds CDS endpoint returned an unsuccessful payload.")
+            raise YFinanceError(
+                "World Government Bonds CDS endpoint returned an unsuccessful payload."
+            )
 
         table_html = str(payload.get("table") or "")
         chart_html = str(payload.get("chart") or "")
@@ -93,7 +97,9 @@ class WorldGovernmentBondsCDSClient:
 
         last_update_match = _LAST_UPDATE_RE.search(chart_html)
         if not last_update_match:
-            raise YFinanceError("World Government Bonds CDS endpoint returned no last-update timestamp.")
+            raise YFinanceError(
+                "World Government Bonds CDS endpoint returned no last-update timestamp."
+            )
         last_update = _parse_last_update(last_update_match.group(1).strip())
 
         soup = BeautifulSoup(table_html, "html.parser")
@@ -132,9 +138,7 @@ class WorldGovernmentBondsCDSClient:
 
 
 def format_todays_sovereign_cds(snapshot: SovereignCDSSnapshot) -> str:
-    selected_rows = [
-        row for row in snapshot.rows if row.country in _MAJOR_SOVEREIGN_CDS_COUNTRIES
-    ]
+    selected_rows = [row for row in snapshot.rows if row.country in _MAJOR_SOVEREIGN_CDS_COUNTRIES]
     ordered_rows = sorted(
         selected_rows,
         key=lambda row: _MAJOR_SOVEREIGN_CDS_COUNTRIES.index(row.country),

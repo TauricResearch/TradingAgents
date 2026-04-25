@@ -17,7 +17,6 @@ from tradingagents.dataflows.alpha_vantage_scanner import (
 
 @pytest.mark.integration
 class TestMarketMovers:
-
     def test_day_gainers(self, av_api_key):
         result = get_market_movers_alpha_vantage("day_gainers")
         assert isinstance(result, str)
@@ -41,7 +40,6 @@ class TestMarketMovers:
 
 @pytest.mark.integration
 class TestMarketIndices:
-
     def test_returns_markdown_table(self, av_api_key):
         result = get_market_indices_alpha_vantage()
         assert isinstance(result, str)
@@ -53,7 +51,6 @@ class TestMarketIndices:
 
 @pytest.mark.integration
 class TestSectorPerformance:
-
     def test_returns_all_sectors(self, av_api_key):
         result = get_sector_performance_alpha_vantage()
         assert isinstance(result, str)
@@ -65,7 +62,6 @@ class TestSectorPerformance:
 
 @pytest.mark.integration
 class TestIndustryPerformance:
-
     def test_technology_sector(self, av_api_key):
         result = get_industry_performance_alpha_vantage("technology")
         assert isinstance(result, str)
@@ -80,7 +76,6 @@ class TestIndustryPerformance:
 
 @pytest.mark.integration
 class TestTopicNews:
-
     def test_market_news(self, av_api_key):
         result = get_topic_news_alpha_vantage("market", limit=5)
         assert isinstance(result, str)

@@ -68,11 +68,13 @@ class PortfolioGraph:
 
         agents = {
             "review_holdings": create_holding_reviewer(mid_llm),
-            "macro_summary":   create_macro_summary_agent(mid_llm, macro_mem),
-            "micro_summary":   create_micro_summary_agent(mid_llm, micro_mem),
-            "pm_decision":     create_pm_decision_agent(
-                deep_llm, config=portfolio_config,
-                macro_memory=macro_mem, micro_memory=micro_mem,
+            "macro_summary": create_macro_summary_agent(mid_llm, macro_mem),
+            "micro_summary": create_micro_summary_agent(mid_llm, micro_mem),
+            "pm_decision": create_pm_decision_agent(
+                deep_llm,
+                config=portfolio_config,
+                macro_memory=macro_mem,
+                micro_memory=micro_mem,
             ),
         }
 
@@ -118,12 +120,8 @@ class PortfolioGraph:
             )
         else:
             model = self.config[f"{tier}_llm"]
-            provider = (
-                self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]
-            )
-            backend_url = (
-                self.config.get(f"{tier}_backend_url") or self.config.get("backend_url")
-            )
+            provider = self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]
+            backend_url = self.config.get(f"{tier}_backend_url") or self.config.get("backend_url")
 
         if self.callbacks:
             kwargs["callbacks"] = self.callbacks
@@ -215,7 +213,9 @@ class PortfolioGraph:
 
         return self.graph.invoke(initial_state)
 
-    def visualize(self, output_path: str | None = None, format: str = "mermaid") -> str | bytes | None:
+    def visualize(
+        self, output_path: str | None = None, format: str = "mermaid"
+    ) -> str | bytes | None:
         """Visualize the graph in various formats.
 
         Args:
@@ -231,7 +231,9 @@ class PortfolioGraph:
                 print(res)
             if output_path:
                 with open(output_path, "w") as f:
-                    f.write(res if isinstance(res, str) else "ASCII representation printed to console.")
+                    f.write(
+                        res if isinstance(res, str) else "ASCII representation printed to console."
+                    )
             return res
         elif format == "png":
             png_data = graph.draw_mermaid_png()

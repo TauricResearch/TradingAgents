@@ -77,7 +77,9 @@ def test_invoke_retries_temporary_upstream_rate_limit():
         def __call__(self, _self, input, config=None, **kwargs):
             self.calls += 1
             if self.calls == 1:
-                raise openai.RateLimitError("rate limited", response=upstream_429, body=upstream_429.json())
+                raise openai.RateLimitError(
+                    "rate limited", response=upstream_429, body=upstream_429.json()
+                )
             return response
 
     flaky = FlakyInvoke()

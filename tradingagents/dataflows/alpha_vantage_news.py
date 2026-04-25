@@ -5,7 +5,9 @@ from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 _DEFAULT_COMPANY_NEWS_LIMIT = 12
 
 
-def _coerce_json_payload(response: dict[str, str] | str) -> tuple[dict | None, dict[str, str] | str]:
+def _coerce_json_payload(
+    response: dict[str, str] | str,
+) -> tuple[dict | None, dict[str, str] | str]:
     if isinstance(response, dict):
         return response, response
     try:
@@ -91,6 +93,7 @@ def _trim_global_news_payload(
         return json.dumps(trimmed, indent=4)
     return trimmed
 
+
 def get_news(ticker: str, start_date: str, end_date: str) -> dict[str, str] | str:
     """Returns live and historical market news & sentiment data from premier news outlets worldwide.
 
@@ -114,7 +117,10 @@ def get_news(ticker: str, start_date: str, end_date: str) -> dict[str, str] | st
     response = _make_api_request("NEWS_SENTIMENT", params)
     return _trim_company_news_payload(response, ticker=ticker)
 
-def get_global_news(curr_date: str, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
+
+def get_global_news(
+    curr_date: str, look_back_days: int = 7, limit: int = 50
+) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.

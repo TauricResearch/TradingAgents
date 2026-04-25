@@ -9,6 +9,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_price_series(n: int = 130, start: float = 100.0, growth: float = 0.001) -> pd.Series:
     """Create a synthetic daily price series."""
     dates = pd.date_range("2025-09-01", periods=n, freq="B")
@@ -20,6 +21,7 @@ def _make_price_series(n: int = 130, start: float = 100.0, growth: float = 0.001
 # Unit tests for get_sector_peers
 # ---------------------------------------------------------------------------
 
+
 class TestGetSectorPeers:
     def test_technology_sector_returns_peers(self):
         """get_sector_peers should return known tech tickers for a tech stock."""
@@ -27,6 +29,7 @@ class TestGetSectorPeers:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.info = mock_info
             from tradingagents.dataflows.peer_comparison import get_sector_peers
+
             sector_display, sector_key, peers = get_sector_peers("AAPL")
         assert sector_key == "technology"
         assert len(peers) > 0
@@ -38,6 +41,7 @@ class TestGetSectorPeers:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.info = mock_info
             from tradingagents.dataflows.peer_comparison import get_sector_peers
+
             sector_display, sector_key, peers = get_sector_peers("JNJ")
         assert sector_key == "healthcare"
         assert "JNJ" not in peers
@@ -47,6 +51,7 @@ class TestGetSectorPeers:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.info = mock_info
             from tradingagents.dataflows.peer_comparison import get_sector_peers
+
             sector_display, sector_key, peers = get_sector_peers("XYZ")
         assert peers == []
 
@@ -55,6 +60,7 @@ class TestGetSectorPeers:
             mock_ticker.return_value.info = {}
             mock_ticker.side_effect = Exception("network error")
             from tradingagents.dataflows.peer_comparison import get_sector_peers
+
             sector_display, sector_key, peers = get_sector_peers("AAPL")
         assert peers == []
 
@@ -62,6 +68,7 @@ class TestGetSectorPeers:
 # ---------------------------------------------------------------------------
 # Unit tests for compute_relative_performance
 # ---------------------------------------------------------------------------
+
 
 class TestComputeRelativePerformance:
     def _mock_download(self, tickers: list[str]) -> pd.DataFrame:
@@ -79,6 +86,7 @@ class TestComputeRelativePerformance:
 
         with patch("yfinance.download", return_value=mock_hist):
             from tradingagents.dataflows.peer_comparison import compute_relative_performance
+
             result = compute_relative_performance("AAPL", "technology", ["MSFT", "NVDA", "XLK"])
 
         assert "| Symbol |" in result
@@ -91,6 +99,7 @@ class TestComputeRelativePerformance:
 
         with patch("yfinance.download", return_value=mock_hist):
             from tradingagents.dataflows.peer_comparison import compute_relative_performance
+
             result = compute_relative_performance("AAPL", "technology", ["MSFT"])
 
         assert "► TARGET" in result
@@ -101,6 +110,7 @@ class TestComputeRelativePerformance:
 
         with patch("yfinance.download", return_value=mock_hist):
             from tradingagents.dataflows.peer_comparison import compute_relative_performance
+
             result = compute_relative_performance("AAPL", "technology", ["MSFT"])
 
         assert "ETF Benchmark" in result
@@ -111,6 +121,7 @@ class TestComputeRelativePerformance:
 
         with patch("yfinance.download", return_value=mock_hist):
             from tradingagents.dataflows.peer_comparison import compute_relative_performance
+
             result = compute_relative_performance("AAPL", "technology", [])
 
         assert "Alpha vs Sector ETF" in result
@@ -118,6 +129,7 @@ class TestComputeRelativePerformance:
     def test_download_failure_returns_error_string(self):
         with patch("yfinance.download", side_effect=Exception("timeout")):
             from tradingagents.dataflows.peer_comparison import compute_relative_performance
+
             result = compute_relative_performance("AAPL", "technology", ["MSFT"])
         assert "Error" in result
 
@@ -125,6 +137,7 @@ class TestComputeRelativePerformance:
 # ---------------------------------------------------------------------------
 # Unit tests for get_sector_relative_report
 # ---------------------------------------------------------------------------
+
 
 class TestGetSectorRelativeReport:
     def _mock_download(self) -> pd.DataFrame:
@@ -140,10 +153,13 @@ class TestGetSectorRelativeReport:
         mock_hist = self._mock_download()
         mock_info = {"sector": "Technology"}
 
-        with patch("yfinance.Ticker") as mock_ticker, \
-             patch("yfinance.download", return_value=mock_hist):
+        with (
+            patch("yfinance.Ticker") as mock_ticker,
+            patch("yfinance.download", return_value=mock_hist),
+        ):
             mock_ticker.return_value.info = mock_info
             from tradingagents.dataflows.peer_comparison import get_sector_relative_report
+
             result = get_sector_relative_report("AAPL")
 
         for period in ["1-Week", "1-Month", "3-Month", "6-Month", "YTD"]:
@@ -154,6 +170,7 @@ class TestGetSectorRelativeReport:
         with patch("yfinance.Ticker") as mock_ticker:
             mock_ticker.return_value.info = mock_info
             from tradingagents.dataflows.peer_comparison import get_sector_relative_report
+
             result = get_sector_relative_report("XYZ")
         assert "No ETF benchmark" in result
 
@@ -162,16 +179,19 @@ class TestGetSectorRelativeReport:
 # Integration test
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestPeerComparisonIntegration:
     def test_peer_comparison_tool(self):
         from tradingagents.agents.utils.fundamental_data_tools import get_peer_comparison
+
         result = get_peer_comparison.invoke({"ticker": "AAPL", "curr_date": "2026-03-17"})
         assert isinstance(result, str)
         assert len(result) > 50
 
     def test_sector_relative_tool(self):
         from tradingagents.agents.utils.fundamental_data_tools import get_sector_relative
+
         result = get_sector_relative.invoke({"ticker": "AAPL", "curr_date": "2026-03-17"})
         assert isinstance(result, str)
         assert len(result) > 50

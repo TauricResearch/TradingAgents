@@ -9,6 +9,7 @@ Key functions:
   infer_polarity(*parts)         → "bullish" | "bearish" | ""
   compute_confidence(source, **flags) → float in [0.10, 0.99]
 """
+
 from __future__ import annotations
 
 import enum
@@ -79,52 +80,147 @@ def canonicalize_sector(label: str) -> str:
 
 # ---------- Node type classification ----------
 
-_MARKET_INDEXES: frozenset[str] = frozenset({
-    "s&p 500", "sp500", "s&p500", "spx",
-    "nasdaq", "nasdaq composite", "ndx",
-    "dow jones", "djia", "dow",
-    "russell 2000", "rut",
-})
+_MARKET_INDEXES: frozenset[str] = frozenset(
+    {
+        "s&p 500",
+        "sp500",
+        "s&p500",
+        "spx",
+        "nasdaq",
+        "nasdaq composite",
+        "ndx",
+        "dow jones",
+        "djia",
+        "dow",
+        "russell 2000",
+        "rut",
+    }
+)
 
-_MACRO_INDICATORS: frozenset[str] = frozenset({
-    "vix", "cboe volatility index",
-    "cpi", "pce", "fed funds rate", "federal funds rate",
-    "10y yield", "10-year treasury",
-    "german cds", "us cds", "china cds", "sovereign cds",
-    "dxy", "us dollar index",
-})
+_MACRO_INDICATORS: frozenset[str] = frozenset(
+    {
+        "vix",
+        "cboe volatility index",
+        "cpi",
+        "pce",
+        "fed funds rate",
+        "federal funds rate",
+        "10y yield",
+        "10-year treasury",
+        "german cds",
+        "us cds",
+        "china cds",
+        "sovereign cds",
+        "dxy",
+        "us dollar index",
+    }
+)
 
-_COMMODITIES: frozenset[str] = frozenset({
-    "brent crude", "brent", "ice brent",
-    "wti crude", "wti", "nymex crude",
-    "gold", "xauusd", "spot gold",
-    "silver", "xagusd",
-    "natural gas", "nat gas",
-    "copper", "comex copper",
-})
+_COMMODITIES: frozenset[str] = frozenset(
+    {
+        "brent crude",
+        "brent",
+        "ice brent",
+        "wti crude",
+        "wti",
+        "nymex crude",
+        "gold",
+        "xauusd",
+        "spot gold",
+        "silver",
+        "xagusd",
+        "natural gas",
+        "nat gas",
+        "copper",
+        "comex copper",
+    }
+)
 
-_FX_PAIRS: frozenset[str] = frozenset({
-    "eur/usd", "eurusd",
-    "jpy/usd", "jpyusd", "usd/jpy", "usdjpy",
-    "cny/usd", "cnyusd", "usd/cny", "usdcny",
-    "gbp/usd", "gbpusd",
-})
+_FX_PAIRS: frozenset[str] = frozenset(
+    {
+        "eur/usd",
+        "eurusd",
+        "jpy/usd",
+        "jpyusd",
+        "usd/jpy",
+        "usdjpy",
+        "cny/usd",
+        "cnyusd",
+        "usd/cny",
+        "usdcny",
+        "gbp/usd",
+        "gbpusd",
+    }
+)
 
-_CRYPTO: frozenset[str] = frozenset({
-    "bitcoin", "btc", "xbtusd",
-    "ethereum", "eth",
-})
+_CRYPTO: frozenset[str] = frozenset(
+    {
+        "bitcoin",
+        "btc",
+        "xbtusd",
+        "ethereum",
+        "eth",
+    }
+)
 
 # Short uppercase strings that look like tickers but are not
-_TICKER_BLOCKLIST: frozenset[str] = frozenset({
-    "AI", "US", "FX", "ETF", "CEO", "SEC", "GDP", "CPI", "PCE",
-    "VIX", "FED", "BUY", "SELL", "HOLD", "TOP", "NET", "NEW",
-    "HIGH", "LOW", "ALL", "AND", "THE", "FOR", "ARE", "NOT", "BUT",
-    "YTD", "YOY", "QOQ", "MOM", "EPS", "PE", "PB", "ROE", "ROA",
-    "LNG", "IPO", "M&A", "ESG", "IT", "REIT", "IMF", "WTO",
-    "N/A", "NA", "SECTOR", "THEME",
-    "S&P", "SPX", "NDX", "DXY", "RUT", "VXX",
-})
+_TICKER_BLOCKLIST: frozenset[str] = frozenset(
+    {
+        "AI",
+        "US",
+        "FX",
+        "ETF",
+        "CEO",
+        "SEC",
+        "GDP",
+        "CPI",
+        "PCE",
+        "VIX",
+        "FED",
+        "BUY",
+        "SELL",
+        "HOLD",
+        "TOP",
+        "NET",
+        "NEW",
+        "HIGH",
+        "LOW",
+        "ALL",
+        "AND",
+        "THE",
+        "FOR",
+        "ARE",
+        "NOT",
+        "BUT",
+        "YTD",
+        "YOY",
+        "QOQ",
+        "MOM",
+        "EPS",
+        "PE",
+        "PB",
+        "ROE",
+        "ROA",
+        "LNG",
+        "IPO",
+        "M&A",
+        "ESG",
+        "IT",
+        "REIT",
+        "IMF",
+        "WTO",
+        "N/A",
+        "NA",
+        "SECTOR",
+        "THEME",
+        "S&P",
+        "SPX",
+        "NDX",
+        "DXY",
+        "RUT",
+        "VXX",
+    }
+)
 
 _TICKER_RE = re.compile(r"^[A-Z]{1,5}$")
 _FX_RE = re.compile(r"^[A-Z]{3}/[A-Z]{3}$")
@@ -223,13 +319,14 @@ def infer_polarity(*parts: str) -> str:
 
 # ---------- Confidence computation ----------
 
+
 class ConfidenceSource(enum.Enum):
-    MACRO_JSON_STRUCTURED = "macro_json_structured"     # base 0.90
-    MACRO_JSON_FREE_TEXT = "macro_json_free_text"       # base 0.70
-    MD_PIPE_FULL = "md_pipe_full"                       # base 0.95 (5-col row, evidence present)
-    MD_PIPE_PARTIAL = "md_pipe_partial"                 # base 0.75 (3–4 col, evidence present)
-    MD_FREE_BULLET = "md_free_bullet"                   # base 0.55 (no pipes, anchored)
-    INFERRED_EDGE = "inferred_edge"                     # base 0.50 (edge from implication phrasing)
+    MACRO_JSON_STRUCTURED = "macro_json_structured"  # base 0.90
+    MACRO_JSON_FREE_TEXT = "macro_json_free_text"  # base 0.70
+    MD_PIPE_FULL = "md_pipe_full"  # base 0.95 (5-col row, evidence present)
+    MD_PIPE_PARTIAL = "md_pipe_partial"  # base 0.75 (3–4 col, evidence present)
+    MD_FREE_BULLET = "md_free_bullet"  # base 0.55 (no pipes, anchored)
+    INFERRED_EDGE = "inferred_edge"  # base 0.50 (edge from implication phrasing)
 
 
 _BASE_CONFIDENCE: dict[ConfidenceSource, float] = {

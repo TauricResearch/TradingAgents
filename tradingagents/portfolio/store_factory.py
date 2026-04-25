@@ -54,8 +54,10 @@ def create_report_store(
     db = mongo_db or DEFAULT_CONFIG.get("mongo_db", "tradingagents")
 
     # Filesystem instance (always created as part of Dual or as standalone)
-    _base = base_dir or get_env_value("PORTFOLIO_DATA_DIR") or DEFAULT_CONFIG.get(
-        "results_dir", "reports"
+    _base = (
+        base_dir
+        or get_env_value("PORTFOLIO_DATA_DIR")
+        or DEFAULT_CONFIG.get("results_dir", "reports")
     )
     local_store = ReportStore(base_dir=_base, run_id=run_id)
 
@@ -70,7 +72,8 @@ def create_report_store(
             )
             logger.info(
                 "Using Dual report store (local + MongoDB db=%s, run_id=%s)",
-                db, run_id,
+                db,
+                run_id,
             )
             return DualReportStore(local_store, mongo_store)
         except Exception as exc:
@@ -82,6 +85,7 @@ def create_report_store(
 
     logger.info(
         "Using filesystem report store (base=%s, run_id=%s)",
-        _base, run_id,
+        _base,
+        run_id,
     )
     return local_store

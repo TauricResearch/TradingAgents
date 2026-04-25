@@ -43,11 +43,56 @@ def _safe_fmt(value: Any, fmt: str = "${:.2f}", fallback: str = "N/A") -> str:
 # Representative S&P 500 large-caps used as the movers basket.
 # Sorted roughly by market-cap weight — first 50 cover the bulk of the index.
 _SP500_SAMPLE: list[str] = [
-    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK.B", "UNH", "LLY",
-    "JPM", "XOM", "V", "AVGO", "PG", "MA", "JNJ", "HD", "MRK", "ABBV",
-    "CVX", "COST", "CRM", "AMD", "NFLX", "WMT", "BAC", "KO", "PEP", "ADBE",
-    "TMO", "ACN", "MCD", "CSCO", "ABT", "GE", "DHR", "TXN", "NKE", "PFE",
-    "NEE", "WFC", "ORCL", "COP", "CAT", "DIS", "MS", "LIN", "BMY", "HON",
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL",
+    "META",
+    "TSLA",
+    "BRK.B",
+    "UNH",
+    "LLY",
+    "JPM",
+    "XOM",
+    "V",
+    "AVGO",
+    "PG",
+    "MA",
+    "JNJ",
+    "HD",
+    "MRK",
+    "ABBV",
+    "CVX",
+    "COST",
+    "CRM",
+    "AMD",
+    "NFLX",
+    "WMT",
+    "BAC",
+    "KO",
+    "PEP",
+    "ADBE",
+    "TMO",
+    "ACN",
+    "MCD",
+    "CSCO",
+    "ABT",
+    "GE",
+    "DHR",
+    "TXN",
+    "NKE",
+    "PFE",
+    "NEE",
+    "WFC",
+    "ORCL",
+    "COP",
+    "CAT",
+    "DIS",
+    "MS",
+    "LIN",
+    "BMY",
+    "HON",
 ]
 
 # SPDR ETFs used as sector proxies (11 GICS sectors)
@@ -232,10 +277,7 @@ def get_market_indices_finnhub() -> str:
     Raises:
         FinnhubError: When all index fetches fail.
     """
-    header = (
-        f"# Major Market Indices (Finnhub)\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
-    )
+    header = f"# Major Market Indices (Finnhub)\n# Data retrieved on: {_now_str()}\n\n"
     result = header
     result += "| Index | Price | Change | Change % |\n"
     result += "|-------|-------|--------|----------|\n"
@@ -280,8 +322,7 @@ def get_sector_performance_finnhub() -> str:
         FinnhubError: When all sector fetches fail.
     """
     header = (
-        f"# Sector Performance (Finnhub — SPDR ETF Proxies)\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
+        f"# Sector Performance (Finnhub — SPDR ETF Proxies)\n# Data retrieved on: {_now_str()}\n\n"
     )
     result = header
     result += "| Sector | ETF | Price | Day Change % |\n"
@@ -418,7 +459,9 @@ def get_earnings_calendar_finnhub(from_date: str, to_date: str) -> str:
             float(rev_raw) / 1e9 if rev_raw is not None else None,
             fmt="${:.2f}B",
         )
-        lines.append(f"| {symbol} | {company} | {date} | {eps_est_s} | {eps_prior_s} | {rev_est_s} |")
+        lines.append(
+            f"| {symbol} | {company} | {date} | {eps_est_s} | {eps_prior_s} | {rev_est_s} |"
+        )
     return "\n".join(lines)
 
 
@@ -465,5 +508,7 @@ def get_economic_calendar_finnhub(from_date: str, to_date: str) -> str:
         impact = ev.get("impact", "N/A")
         estimate = str(ev.get("estimate", "N/A"))
         prior = str(ev.get("prev", "N/A"))
-        lines.append(f"| {date} | {time_str} | {event} | {country} | {impact} | {estimate} | {prior} |")
+        lines.append(
+            f"| {date} | {time_str} | {event} | {country} | {impact} | {estimate} | {prior} |"
+        )
     return "\n".join(lines)

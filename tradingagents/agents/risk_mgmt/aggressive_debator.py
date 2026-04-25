@@ -13,7 +13,9 @@ from tradingagents.agents.utils.summary_context import (
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_aggressive_debator(llm: Any, round_num: int = 1) -> Callable[[AgentState], dict[str, Any]]:
+def create_aggressive_debator(
+    llm: Any, round_num: int = 1
+) -> Callable[[AgentState], dict[str, Any]]:
     def aggressive_node(state: AgentState, /) -> dict[str, Any]:
         ticker = state["company_of_interest"]
         research_packet = build_research_packet(state)
@@ -24,15 +26,17 @@ def create_aggressive_debator(llm: Any, round_num: int = 1) -> Callable[[AgentSt
         anon_research_packet = anonymize_ticker(
             truncate_text(research_packet, max_chars=4500), ticker
         )
-        anon_risk_summary = anonymize_ticker(
-            truncate_text(risk_summary, max_chars=1600), ticker
-        )
+        anon_risk_summary = anonymize_ticker(truncate_text(risk_summary, max_chars=1600), ticker)
         anon_trader_decision = anonymize_ticker(
             truncate_text(trader_decision, max_chars=1800), ticker
         )
         _cap = float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("quick_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
 
@@ -64,7 +68,10 @@ Output in two sections:
 2. SUMMARY POINTS: 3 most critical risk/reward points.
 """
             response, invoke_error = invoke_with_timeout(
-                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=DEFAULT_CONFIG.get("quick_think_llm_max_tokens")
+                llm,
+                prompt,
+                timeout_seconds=timeout_seconds,
+                max_tokens=DEFAULT_CONFIG.get("quick_think_llm_max_tokens"),
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
@@ -122,7 +129,10 @@ Output in two sections:
 2. SUMMARY POINTS: 3 most critical risk/reward points.
 """
             response, invoke_error = invoke_with_timeout(
-                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=DEFAULT_CONFIG.get("quick_think_llm_max_tokens")
+                llm,
+                prompt,
+                timeout_seconds=timeout_seconds,
+                max_tokens=DEFAULT_CONFIG.get("quick_think_llm_max_tokens"),
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):

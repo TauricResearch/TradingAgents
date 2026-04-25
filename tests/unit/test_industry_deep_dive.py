@@ -13,8 +13,8 @@ from langchain_core.runnables import RunnableLambda
 from tradingagents.agents.scanners.industry_deep_dive import (
     _DISPLAY_TO_KEY,
     VALID_SECTOR_KEYS,
-    create_industry_deep_dive,
     _extract_top_sectors,
+    create_industry_deep_dive,
 )
 from tradingagents.agents.utils.tool_runner import (
     run_tool_loop,
@@ -91,9 +91,17 @@ class TestExtractTopSectors:
 
     def test_display_to_key_covers_all_sectors(self):
         display_names = [
-            "technology", "healthcare", "financials", "energy",
-            "consumer discretionary", "consumer staples", "industrials",
-            "materials", "real estate", "utilities", "communication services",
+            "technology",
+            "healthcare",
+            "financials",
+            "energy",
+            "consumer discretionary",
+            "consumer staples",
+            "industrials",
+            "materials",
+            "real estate",
+            "utilities",
+            "communication services",
         ]
         for name in display_names:
             assert name in _DISPLAY_TO_KEY, f"Missing mapping for '{name}'"
@@ -167,6 +175,7 @@ def test_industry_deep_dive_fails_when_scan_date_missing(monkeypatch):
 # ---------------------------------------------------------------------------
 # run_tool_loop nudge tests
 # ---------------------------------------------------------------------------
+
 
 class TestToolLoopNudge:
     """Verify the nudge mechanism in run_tool_loop."""

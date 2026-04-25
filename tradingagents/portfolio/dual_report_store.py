@@ -73,7 +73,9 @@ class DualReportStore:
         return local_result
 
     def load_scan(self, date: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_scan(date), None) or self._local.load_scan(date)
+        return self._try_mongo(lambda: self._mongo.load_scan(date), None) or self._local.load_scan(
+            date
+        )
 
     # ------------------------------------------------------------------
     # Per-Ticker Analysis
@@ -85,7 +87,9 @@ class DualReportStore:
         return local_result
 
     def load_analysis(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_analysis(date, ticker), None) or self._local.load_analysis(date, ticker)
+        return self._try_mongo(
+            lambda: self._mongo.load_analysis(date, ticker), None
+        ) or self._local.load_analysis(date, ticker)
 
     def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         local_result = self._local.save_pipeline_node_snapshot(date, ticker, data)
@@ -111,7 +115,9 @@ class DualReportStore:
         return local_result
 
     def load_holding_review(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_holding_review(date, ticker), None) or self._local.load_holding_review(date, ticker)
+        return self._try_mongo(
+            lambda: self._mongo.load_holding_review(date, ticker), None
+        ) or self._local.load_holding_review(date, ticker)
 
     # ------------------------------------------------------------------
     # Risk Metrics
@@ -123,7 +129,9 @@ class DualReportStore:
         return local_result
 
     def load_risk_metrics(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_risk_metrics(date, portfolio_id), None) or self._local.load_risk_metrics(date, portfolio_id)
+        return self._try_mongo(
+            lambda: self._mongo.load_risk_metrics(date, portfolio_id), None
+        ) or self._local.load_risk_metrics(date, portfolio_id)
 
     # ------------------------------------------------------------------
     # PM Decisions
@@ -137,11 +145,15 @@ class DualReportStore:
         markdown: str | None = None,
     ) -> str:
         local_result = self._local.save_pm_decision(date, portfolio_id, data, markdown=markdown)
-        self._try_mongo(lambda: self._mongo.save_pm_decision(date, portfolio_id, data, markdown=markdown), None)
+        self._try_mongo(
+            lambda: self._mongo.save_pm_decision(date, portfolio_id, data, markdown=markdown), None
+        )
         return local_result
 
     def load_pm_decision(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_pm_decision(date, portfolio_id), None) or self._local.load_pm_decision(date, portfolio_id)
+        return self._try_mongo(
+            lambda: self._mongo.load_pm_decision(date, portfolio_id), None
+        ) or self._local.load_pm_decision(date, portfolio_id)
 
     # ------------------------------------------------------------------
     # Execution Results
@@ -153,7 +165,9 @@ class DualReportStore:
         return local_result
 
     def load_execution_result(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_execution_result(date, portfolio_id), None) or self._local.load_execution_result(date, portfolio_id)
+        return self._try_mongo(
+            lambda: self._mongo.load_execution_result(date, portfolio_id), None
+        ) or self._local.load_execution_result(date, portfolio_id)
 
     # ------------------------------------------------------------------
     # Run Meta / Events persistence
@@ -186,18 +200,22 @@ class DualReportStore:
     ) -> str:
         local_result = self._local.save_portfolio_node_results(date, portfolio_id, data)
         self._try_mongo(
-            lambda: self._mongo.save_portfolio_node_results(date, portfolio_id, data)
-            if hasattr(self._mongo, "save_portfolio_node_results")
-            else None,
+            lambda: (
+                self._mongo.save_portfolio_node_results(date, portfolio_id, data)
+                if hasattr(self._mongo, "save_portfolio_node_results")
+                else None
+            ),
             None,
         )
         return local_result
 
     def load_portfolio_node_results(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
         return self._try_mongo(
-            lambda: self._mongo.load_portfolio_node_results(date, portfolio_id)
-            if hasattr(self._mongo, "load_portfolio_node_results")
-            else None,
+            lambda: (
+                self._mongo.load_portfolio_node_results(date, portfolio_id)
+                if hasattr(self._mongo, "load_portfolio_node_results")
+                else None
+            ),
             None,
         ) or self._local.load_portfolio_node_results(date, portfolio_id)
 

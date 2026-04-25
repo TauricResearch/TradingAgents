@@ -1,9 +1,7 @@
 """Tests that analyst/trader prompts consume scanner_graph_context_text and not scanner_context_packet."""
 
-
 GRAPH_CTX = (
-    "## Global Market Regime\n- Risk-On\n\n"
-    "## Ticker Graph Context: ON\n- ON belongs to Technology."
+    "## Global Market Regime\n- Risk-On\n\n## Ticker Graph Context: ON\n- ON belongs to Technology."
 )
 RAW_PACKET = "RAW PACKET SHOULD NOT APPEAR"
 
@@ -58,6 +56,7 @@ def _extract_prompt_text(mock_llm):
 def test_summary_context_uses_graph_context_header():
     """build_research_packet must emit ## Scanner Graph Context section."""
     from tradingagents.agents.utils.summary_context import build_research_packet
+
     state = _make_state()
     result = build_research_packet(state)
     assert "Scanner Graph Context" in result or "Ticker Graph Context: ON" in result
@@ -66,6 +65,7 @@ def test_summary_context_uses_graph_context_header():
 def test_summary_context_does_not_use_raw_packet():
     """build_research_packet must not include raw scanner_context_packet."""
     from tradingagents.agents.utils.summary_context import build_research_packet
+
     state = _make_state()
     result = build_research_packet(state)
     assert RAW_PACKET not in result
@@ -74,6 +74,7 @@ def test_summary_context_does_not_use_raw_packet():
 def test_debate_evidence_brief_uses_graph_context():
     """build_debate_evidence_brief must include scanner graph context."""
     from tradingagents.agents.utils.summary_context import build_debate_evidence_brief
+
     state = _make_state()
     result = build_debate_evidence_brief(state)
     assert "Ground Truth" in result or "Ticker Graph Context" in result
@@ -82,6 +83,7 @@ def test_debate_evidence_brief_uses_graph_context():
 def test_context_summaries_has_context_with_graph_text():
     """create_research_packet_summary must consider scanner_graph_context_text when deciding if context exists."""
     from tradingagents.agents.managers.context_summaries import create_research_packet_summary
+
     # With graph context set: has_context should produce non-empty output
     state_with = _make_state(graph_ctx=GRAPH_CTX, raw_packet="")
     node = create_research_packet_summary(None)
@@ -92,6 +94,7 @@ def test_context_summaries_has_context_with_graph_text():
 def test_context_summaries_no_context_without_either():
     """create_research_packet_summary returns empty when neither scanner field has content."""
     from tradingagents.agents.managers.context_summaries import create_research_packet_summary
+
     state_empty = _make_state(graph_ctx="", raw_packet="")
     # Remove other report fields too
     state_empty["market_report"] = ""

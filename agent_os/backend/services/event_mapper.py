@@ -211,9 +211,7 @@ class EventMapper:
 
     # -- core mapping --------------------------------------------------------
 
-    def map_event(
-        self, run_id: str, event: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def map_event(self, run_id: str, event: dict[str, Any]) -> dict[str, Any] | None:
         """Map a LangGraph v2 event to an AgentOS frontend event dict.
 
         Each branch is wrapped in ``try / except`` so that a single
@@ -298,7 +296,9 @@ class EventMapper:
             full_prompt = ""
             for source in (
                 data.get("messages"),
-                (data.get("input") or {}).get("messages") if isinstance(data.get("input"), dict) else None,
+                (data.get("input") or {}).get("messages")
+                if isinstance(data.get("input"), dict)
+                else None,
                 data.get("input") if isinstance(data.get("input"), (list, tuple)) else None,
                 (data.get("kwargs") or {}).get("messages"),
             ):
@@ -312,9 +312,9 @@ class EventMapper:
                 if raw_dump and raw_dump != "{}":
                     full_prompt = f"[raw event data] {raw_dump}"
 
-            prompt_snippet = _truncate(
-                full_prompt.replace("\n", " "), _MAX_CONTENT_LEN
-            ) if full_prompt else ""
+            prompt_snippet = (
+                _truncate(full_prompt.replace("\n", " "), _MAX_CONTENT_LEN) if full_prompt else ""
+            )
 
             prompts[node_name] = full_prompt
             model = _extract_model(event)
@@ -364,7 +364,9 @@ class EventMapper:
 
             service = TOOL_SERVICE_MAP.get(name, "")
 
-            logger.info("Tool start tool=%s service=%s node=%s run=%s", name, service, node_name, run_id)
+            logger.info(
+                "Tool start tool=%s service=%s node=%s run=%s", name, service, node_name, run_id
+            )
 
             return {
                 "id": event.get("run_id", f"tool_{time.time_ns()}").strip(),
@@ -373,8 +375,7 @@ class EventMapper:
                 "type": "tool",
                 "agent": node_name.upper(),
                 "identifier": identifier,
-                "message": f"▶ Tool: {name}"
-                + (f" | {tool_input}" if tool_input else ""),
+                "message": f"▶ Tool: {name}" + (f" | {tool_input}" if tool_input else ""),
                 "prompt": full_input,
                 "service": service,
                 "status": "running",
@@ -421,7 +422,10 @@ class EventMapper:
 
             logger.info(
                 "Tool end tool=%s status=%s node=%s run=%s",
-                name, status, node_name, run_id,
+                name,
+                status,
+                node_name,
+                run_id,
             )
 
             return {
@@ -477,9 +481,8 @@ class EventMapper:
                     if not isinstance(potential_text, str):
                         potential_text = str(potential_text)
 
-                    raw = (
-                        potential_text
-                        or (output.get("content", "") if isinstance(output, dict) else "")
+                    raw = potential_text or (
+                        output.get("content", "") if isinstance(output, dict) else ""
                     )
 
                 if not isinstance(raw, str):

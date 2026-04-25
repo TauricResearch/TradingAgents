@@ -26,12 +26,12 @@ class TestValidateTickerRelevance:
         Tudor Capital was identified as a forced seller of RIG shares.
         According to the article, RIG faces headwinds from declining day rates.
         """
-        
+
         is_valid, reason = validate_ticker_relevance(output, "RIG", min_mentions=3)
-        
+
         assert is_valid
         assert "Valid" in reason
-    
+
     def test_fails_for_insufficient_mentions(self):
         """Test validation fails when ticker mentioned too few times."""
         output = """
@@ -39,25 +39,25 @@ class TestValidateTickerRelevance:
         Offshore drilling remains under pressure.
         Portfolio diversification is recommended.
         """
-        
+
         is_valid, reason = validate_ticker_relevance(output, "RIG", min_mentions=3)
-        
+
         assert not is_valid
         assert "mentioned only" in reason
         assert "hallucinated" in reason.lower()
-    
+
     def test_fails_for_missing_article_references(self):
         """Test validation fails when no article references present."""
         output = """
         RIG is a company. RIG operates in energy. RIG trades on NYSE.
         RIG has various risk factors. RIG may face challenges.
         """
-        
+
         is_valid, reason = validate_ticker_relevance(output, "RIG", check_article_refs=True)
-        
+
         assert not is_valid
         assert "citation" in reason.lower() or "source" in reason.lower()
-    
+
     def test_detects_article_references(self):
         """Test validation recognizes various article reference patterns."""
         patterns = [
@@ -67,22 +67,26 @@ class TestValidateTickerRelevance:
             "Source: Bloomberg, March 15, 2026",
             "The report dated 03/15/2026 stated...",
         ]
-        
+
         for pattern in patterns:
             output = f"RIG RIG RIG {pattern} RIG details about the company."
             is_valid, _ = validate_ticker_relevance(output, "RIG", min_mentions=3)
             assert is_valid, f"Failed to recognize pattern: {pattern}"
-    
+
     def test_case_insensitive_ticker_matching(self):
         """Test ticker matching is case-insensitive."""
         output = "rig RIG Rig RiG analysis"
-        is_valid, _ = validate_ticker_relevance(output, "RIG", min_mentions=3, check_article_refs=False)
+        is_valid, _ = validate_ticker_relevance(
+            output, "RIG", min_mentions=3, check_article_refs=False
+        )
         assert is_valid
 
 
 class TestMarketStructuredContract:
     def test_infer_macro_regime_from_prefetched_report(self):
-        assert infer_macro_regime_from_prefetched_report("## Risk-On\nMarket is RISK-ON.") == "risk_on"
+        assert (
+            infer_macro_regime_from_prefetched_report("## Risk-On\nMarket is RISK-ON.") == "risk_on"
+        )
         assert infer_macro_regime_from_prefetched_report("[Error] failed fetch") == "unknown"
         assert infer_macro_regime_from_prefetched_report("") == "unknown"
         # Regression: "0 risk-off signals" in a RISK-ON report must not flip the result.
@@ -145,12 +149,12 @@ class TestValidateNewsAnalysis:
         
         Summary: RIG faces multiple headwinds with specific price targets.
         """
-        
+
         is_valid, reason = validate_news_analysis(output, "RIG")
-        
+
         assert is_valid
         assert "Valid" in reason
-    
+
     def test_fails_for_generic_portfolio_advice(self):
         """Test validation fails for generic portfolio strategy hallucination."""
         output = """
@@ -165,12 +169,12 @@ class TestValidateNewsAnalysis:
         Regular rebalancing strategy maintains target allocation.
         Portfolio diversification reduces unsystematic risk.
         """
-        
+
         is_valid, reason = validate_news_analysis(output, "RIG")
-        
+
         assert not is_valid
         assert "hallucinated" in reason.lower() or "mentioned only" in reason.lower()
-    
+
     def test_fails_for_missing_quantitative_data(self):
         """Test validation fails when no numbers or dates present."""
         output = """
@@ -189,7 +193,7 @@ class TestValidateNewsAnalysis:
             or "mentioned only" in reason.lower()
             or "citation" in reason.lower()
         )
-    
+
     def test_recognizes_quantitative_data(self):
         """Test validation recognizes various numeric formats."""
         numeric_patterns = [
@@ -200,13 +204,13 @@ class TestValidateNewsAnalysis:
             ("2026-03-15", True),
             ("03/15/2026", True),
         ]
-        
+
         for pattern, _should_have_numbers in numeric_patterns:
             output = f"RIG RIG RIG {pattern} RIG RIG analysis RIG report"
             is_valid, reason = validate_news_analysis(output, "RIG")
             # Should pass because it has numbers/dates + ticker mentions
             assert is_valid or "numbers" not in reason.lower(), f"Failed on: {pattern}"
-    
+
     def test_minimum_ticker_mentions_higher_than_basic_validation(self):
         """Test news analysis requires more mentions than basic validation."""
         # This would pass basic validation (3 mentions) but fail news validation (5 mentions)
@@ -215,9 +219,9 @@ class TestValidateNewsAnalysis:
         According to reports, RIG stock declined $2.50.
         RIG target price: $4.50 per share.
         """
-        
+
         is_valid, reason = validate_news_analysis(output, "RIG")
-        
+
         # Should fail because news analysis requires 5+ mentions
         assert not is_valid
         assert "mentioned only" in reason
@@ -374,30 +378,30 @@ class TestFormatValidationWarning:
         output = "Original output text"
         ticker = "RIG"
         reason = "Insufficient ticker mentions"
-        
+
         result = format_validation_warning(output, ticker, reason)
-        
+
         # Should include warning marker
         assert "⚠️" in result
         assert "WARNING" in result.upper()
-        
+
         # Should include ticker and reason
         assert ticker in result
         assert reason in result
-        
+
         # Should include original output
         assert "Original output text" in result
-        
+
         # Warning should come before original output
         warning_pos = result.index("⚠️")
         output_pos = result.index("Original output text")
         assert warning_pos < output_pos
-    
+
     def test_preserves_original_output(self):
         """Test original output is preserved intact."""
         output = "Line 1\nLine 2\nLine 3"
         result = format_validation_warning(output, "RIG", "Test reason")
-        
+
         # Original output should be present exactly
         assert "Line 1\nLine 2\nLine 3" in result
 
@@ -426,18 +430,18 @@ class TestValidationEdgeCases:
         is_valid, reason = validate_ticker_relevance("", "RIG")
         assert not is_valid
         assert "Empty" in reason
-    
+
     def test_handles_empty_ticker(self):
         """Test validation handles empty ticker gracefully."""
         is_valid, reason = validate_ticker_relevance("Some output", "")
         assert not is_valid
         assert "Empty" in reason
-    
+
     def test_handles_none_inputs(self):
         """Test validation handles None inputs gracefully."""
         is_valid, reason = validate_ticker_relevance(None, "RIG")
         assert not is_valid
-        
+
         is_valid, reason = validate_ticker_relevance("Output", None)
         assert not is_valid
 
@@ -455,7 +459,7 @@ class TestValidationEdgeCases:
 
         assert "AD HOC NEWS" in allowed
         assert "24/7 Wall St" in allowed
-    
+
     def test_word_boundary_matching(self):
         """Test ticker matching respects word boundaries."""
         # "TRIGGER" contains "RIG" but shouldn't count as a mention
@@ -465,7 +469,9 @@ class TestValidationEdgeCases:
         RIG is mentioned here correctly.
         """
 
-        is_valid, reason = validate_ticker_relevance(output, "RIG", min_mentions=2, check_article_refs=False)
+        is_valid, reason = validate_ticker_relevance(
+            output, "RIG", min_mentions=2, check_article_refs=False
+        )
 
         # Should only count the 2 standalone "RIG" mentions, not TRIGGER or RIGID
         assert is_valid  # Has exactly 2 valid mentions
@@ -553,7 +559,7 @@ class TestStructuredNewsValidation:
 
 class TestValidationScenarios:
     """Real-world validation scenarios based on actual issues."""
-    
+
     def test_detects_rig_hallucination_case(self):
         """Test the actual RIG hallucination case that motivated this fix."""
         # This is the type of output that was produced instead of news analysis
@@ -573,13 +579,13 @@ class TestValidationScenarios:
         Fixed income provides stability and income generation.
         Alternative investments offer diversification benefits.
         """
-        
+
         is_valid, reason = validate_news_analysis(hallucinated_output, "RIG")
-        
+
         # Should definitively fail this hallucination
         assert not is_valid
         assert "generic portfolio strategy" in reason.lower() or "mentioned only" in reason
-    
+
     def test_accepts_proper_news_analysis(self):
         """Test a proper news analysis passes validation."""
         proper_output = """
@@ -611,9 +617,9 @@ class TestValidationScenarios:
         
         RIG faces converging negative catalysts with quantified impact on valuation.
         """
-        
+
         is_valid, reason = validate_news_analysis(proper_output, "RIG")
-        
+
         # Should pass all validation checks
         assert is_valid, f"Valid output failed validation: {reason}"
 
@@ -621,6 +627,7 @@ class TestValidationScenarios:
 class TestSentimentStructuredContract:
     def test_build_completed(self):
         from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+
         structured = build_sentiment_report_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -634,6 +641,7 @@ class TestSentimentStructuredContract:
 
     def test_build_empty(self):
         from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+
         structured = build_sentiment_report_structured(
             ticker="MSFT",
             as_of_date="2026-04-03",
@@ -644,6 +652,7 @@ class TestSentimentStructuredContract:
 
     def test_build_timeout_fallback(self):
         from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+
         structured = build_sentiment_report_structured(
             ticker="TSLA",
             as_of_date="2026-04-03",
@@ -654,6 +663,7 @@ class TestSentimentStructuredContract:
 
     def test_bearish_direction_detected(self):
         from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+
         structured = build_sentiment_report_structured(
             ticker="XYZ",
             as_of_date="2026-04-03",
@@ -665,6 +675,7 @@ class TestSentimentStructuredContract:
 class TestInvestmentPlanStructuredContract:
     def test_build_completed_buy(self):
         from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+
         structured = build_investment_plan_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -677,6 +688,7 @@ class TestInvestmentPlanStructuredContract:
 
     def test_build_completed_sell(self):
         from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+
         structured = build_investment_plan_structured(
             ticker="XYZ",
             as_of_date="2026-04-03",
@@ -686,6 +698,7 @@ class TestInvestmentPlanStructuredContract:
 
     def test_build_empty(self):
         from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+
         structured = build_investment_plan_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -697,6 +710,7 @@ class TestInvestmentPlanStructuredContract:
 class TestTraderPlanStructuredContract:
     def test_build_completed_with_entry_and_stop(self):
         from tradingagents.agents.utils.output_validation import build_trader_plan_structured
+
         structured = build_trader_plan_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -718,6 +732,7 @@ class TestTraderPlanStructuredContract:
 
     def test_build_empty(self):
         from tradingagents.agents.utils.output_validation import build_trader_plan_structured
+
         structured = build_trader_plan_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -730,6 +745,7 @@ class TestTraderPlanStructuredContract:
 class TestRiskSynthesisStructuredContract:
     def test_build_completed(self):
         from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
+
         structured = build_risk_synthesis_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -748,6 +764,7 @@ class TestRiskSynthesisStructuredContract:
 
     def test_build_empty(self):
         from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
+
         structured = build_risk_synthesis_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -759,6 +776,7 @@ class TestRiskSynthesisStructuredContract:
 class TestFinalDecisionStructuredContract:
     def test_build_completed_buy(self):
         from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
         structured = build_final_decision_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -779,6 +797,7 @@ class TestFinalDecisionStructuredContract:
 
     def test_build_empty(self):
         from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
         structured = build_final_decision_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -789,6 +808,7 @@ class TestFinalDecisionStructuredContract:
 
     def test_decision_excerpt_truncated(self):
         from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
         long_text = "BUY " + "A" * 500
         structured = build_final_decision_structured(
             ticker="XYZ",
@@ -800,11 +820,11 @@ class TestFinalDecisionStructuredContract:
 
 class TestNewsStructuredContract:
     """Test suite for build_news_report_structured canonical normalizer."""
-    
+
     def test_build_news_report_structured_completed(self):
         """Test completed status with verified claims."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         payload = {
             "ticker": "MRVL",
             "report_title": "MRVL News Analysis",
@@ -824,39 +844,39 @@ class TestNewsStructuredContract:
             ],
             "summary_table": [],
         }
-        
+
         result = build_news_report_structured(
             ticker="MRVL",
             as_of_date="2026-04-10",
             payload=payload,
             status="completed",
         )
-        
+
         assert result["status"] == "completed"
         assert result["contract_version"] == "news_report_v1"
         assert result["key_metrics"]["claim_count"] == 2
         assert result["key_metrics"]["evidence_ids"] == 2
         assert result["key_metrics"]["removed_claims"] == 0
-    
+
     def test_build_news_report_structured_empty(self):
         """Test empty status with no claims."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         result = build_news_report_structured(
             ticker="LWLG",
             as_of_date="2026-04-10",
             payload={"ticker": "LWLG", "claims": [], "summary_table": []},
             status="empty",
         )
-        
+
         assert result["status"] == "empty"
         assert result["contract_version"] == "news_report_v1"
         assert result["key_metrics"]["claim_count"] == 0
-    
+
     def test_build_news_report_structured_strips_null_scan_date(self):
         """Test that scan_date is stripped from non-scanner claims."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         payload = {
             "claims": [
                 {
@@ -869,21 +889,21 @@ class TestNewsStructuredContract:
             ],
             "summary_table": [],
         }
-        
+
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
             payload=payload,
             status="completed",
         )
-        
+
         assert "scan_date" not in result["claims"][0]
         assert result["claims"][0]["evidence_id"] == "art_123"
-    
+
     def test_build_news_report_structured_retains_scanner_scan_date(self):
         """Test that scan_date is retained for scanner claims."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         payload = {
             "claims": [
                 {
@@ -896,35 +916,66 @@ class TestNewsStructuredContract:
             ],
             "summary_table": [],
         }
-        
+
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
             payload=payload,
             status="completed",
         )
-        
+
         assert result["claims"][0]["scan_date"] == "2026-04-10"
-        assert "evidence_id" not in result["claims"][0] or result["claims"][0].get("evidence_id") == ""
-    
+        assert (
+            "evidence_id" not in result["claims"][0] or result["claims"][0].get("evidence_id") == ""
+        )
+
     def test_build_news_report_structured_computes_key_metrics(self):
         """Test key_metrics computation."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         removed = [{"claim": "Rejected claim"}]
         payload = {
             "claims": [
-                {"claim": "C1", "source": "S1", "published_at": "2026-04-10", "evidence_id": "art_1"},
-                {"claim": "C2", "source": "S2", "published_at": "2026-04-10", "evidence_id": "art_2"},
-                {"claim": "C3", "source": "S3", "published_at": "2026-04-10", "evidence_id": "art_1"},  # Duplicate evidence_id
+                {
+                    "claim": "C1",
+                    "source": "S1",
+                    "published_at": "2026-04-10",
+                    "evidence_id": "art_1",
+                },
+                {
+                    "claim": "C2",
+                    "source": "S2",
+                    "published_at": "2026-04-10",
+                    "evidence_id": "art_2",
+                },
+                {
+                    "claim": "C3",
+                    "source": "S3",
+                    "published_at": "2026-04-10",
+                    "evidence_id": "art_1",
+                },  # Duplicate evidence_id
             ],
             "summary_table": [
-                {"date": "2026-04-10", "event": "E1", "metric": "M", "value": "V", "source": "S1", "evidence_id": "art_1"},
-                {"date": "2026-04-10", "event": "E2", "metric": "M", "value": "V", "source": "S2", "evidence_id": "art_2"},
+                {
+                    "date": "2026-04-10",
+                    "event": "E1",
+                    "metric": "M",
+                    "value": "V",
+                    "source": "S1",
+                    "evidence_id": "art_1",
+                },
+                {
+                    "date": "2026-04-10",
+                    "event": "E2",
+                    "metric": "M",
+                    "value": "V",
+                    "source": "S2",
+                    "evidence_id": "art_2",
+                },
             ],
             "below_min_claims": True,
         }
-        
+
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
@@ -932,18 +983,18 @@ class TestNewsStructuredContract:
             status="completed",
             removed_claims=removed,
         )
-        
+
         assert result["key_metrics"]["claim_count"] == 3
         assert result["key_metrics"]["summary_rows"] == 2
         assert result["key_metrics"]["evidence_ids"] == 2  # Unique count
         assert result["key_metrics"]["removed_claims"] == 1
         assert result["key_metrics"]["below_min_claims"] is True
-    
+
     def test_build_news_report_structured_survives_malformed_payload(self):
         """Test defensive behavior with malformed payload."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
-        # Malformed claim entry (not a dict) - should fail  
+
+        # Malformed claim entry (not a dict) - should fail
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
@@ -952,7 +1003,7 @@ class TestNewsStructuredContract:
         )
         assert result["status"] == "invalid_structured_payload"
         assert "Malformed claim entry" in result["abort_reason"]
-        
+
         # Malformed summary_table entry (not a dict) - should fail
         result = build_news_report_structured(
             ticker="TEST",
@@ -962,7 +1013,7 @@ class TestNewsStructuredContract:
         )
         assert result["status"] == "invalid_structured_payload"
         assert "Malformed summary_table entry" in result["abort_reason"]
-        
+
         # None payload with completed status - converts to {} and returns completed with 0 claims
         result = build_news_report_structured(
             ticker="TEST",
@@ -973,25 +1024,25 @@ class TestNewsStructuredContract:
         assert result["contract_version"] == "news_report_v1"
         assert result["status"] == "completed"
         assert result["key_metrics"]["claim_count"] == 0
-    
+
     def test_build_news_report_structured_rejects_unknown_status(self):
         """Test that non-canonical status is rejected."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
             payload={"claims": [], "summary_table": []},
             status="timeout_fallback",  # Non-canonical for news
         )
-        
+
         assert result["status"] == "invalid_structured_payload"
         assert "Non-canonical status" in result["abort_reason"]
-    
+
     def test_build_news_report_structured_requires_article_evidence_id(self):
         """Test that non-scanner claims must have evidence_id."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         payload = {
             "claims": [
                 {
@@ -1003,21 +1054,21 @@ class TestNewsStructuredContract:
             ],
             "summary_table": [],
         }
-        
+
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
             payload=payload,
             status="completed",
         )
-        
+
         assert result["status"] == "invalid_structured_payload"
         assert "evidence_id" in result["abort_reason"]
-    
+
     def test_build_news_report_structured_omits_blank_scanner_optional_fields(self):
         """Test that blank optional scanner fields are omitted."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         payload = {
             "claims": [
                 {
@@ -1025,31 +1076,37 @@ class TestNewsStructuredContract:
                     "source": "Finviz Smart Money Scanner",
                     "scan_date": "2026-04-10",
                     "published_at": "",  # Blank optional
-                    "evidence_id": "",   # Blank optional
+                    "evidence_id": "",  # Blank optional
                 },
             ],
             "summary_table": [],
         }
-        
+
         result = build_news_report_structured(
             ticker="TEST",
             as_of_date="2026-04-10",
             payload=payload,
             status="completed",
         )
-        
+
         claim = result["claims"][0]
         assert claim["scan_date"] == "2026-04-10"
         # Blank optional fields should be omitted, not included as empty strings
         assert "published_at" not in claim or claim.get("published_at") == ""
         assert "evidence_id" not in claim or claim.get("evidence_id") == ""
-    
+
     def test_regression_news_status_never_null(self):
         """Regression test: news_report_structured.status must never be null."""
         from tradingagents.agents.utils.output_validation import build_news_report_structured
-        
+
         # Test all canonical statuses
-        for status in ["completed", "empty", "invalid_structured_payload", "missing_structured_payload", "aborted"]:
+        for status in [
+            "completed",
+            "empty",
+            "invalid_structured_payload",
+            "missing_structured_payload",
+            "aborted",
+        ]:
             result = build_news_report_structured(
                 ticker="TEST",
                 as_of_date="2026-04-10",
@@ -1057,10 +1114,12 @@ class TestNewsStructuredContract:
                 status=status,
             )
             assert result["status"] in {
-                "completed", "empty", "invalid_structured_payload",
-                "missing_structured_payload", "aborted",
+                "completed",
+                "empty",
+                "invalid_structured_payload",
+                "missing_structured_payload",
+                "aborted",
             }
             assert result["contract_version"] == "news_report_v1"
             assert isinstance(result["key_metrics"], dict)
             assert isinstance(result["key_metrics"]["claim_count"], int)
-

@@ -74,4 +74,3 @@ def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str = 
     }
 
     return _make_api_request("INCOME_STATEMENT", params)
-

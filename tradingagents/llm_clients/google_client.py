@@ -33,7 +33,14 @@ class GoogleClient(BaseLLMClient):
         if google_api_key:
             llm_kwargs["google_api_key"] = google_api_key
 
-        for key in ("timeout", "max_retries", "google_api_key", "callbacks", "http_client", "http_async_client"):
+        for key in (
+            "timeout",
+            "max_retries",
+            "google_api_key",
+            "callbacks",
+            "http_client",
+            "http_async_client",
+        ):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 

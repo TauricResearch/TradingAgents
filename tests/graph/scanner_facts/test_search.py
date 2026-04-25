@@ -3,6 +3,7 @@
 Uses small inline facts dicts rather than full fixtures to keep tests fast
 and isolated. One integration test uses the full fixture set via the builder.
 """
+
 from pathlib import Path
 
 import pytest
@@ -13,16 +14,51 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 # ---------- minimal facts dict used across most tests ----------
 
-_ON = {"id": "ON", "type": "Ticker", "label": "ON",
-       "aliases": ["ON Semiconductor", "Onsemi"], "provenance": ["s"], "evidence": [], "confidence": 0.95}
-_TECH = {"id": "Technology", "type": "Sector", "label": "Technology",
-         "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.90}
-_AI = {"id": "AI Infrastructure", "type": "Theme", "label": "AI Infrastructure",
-       "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.85}
-_RISK = {"id": "Concentration risk", "type": "RiskFactor", "label": "Concentration risk",
-         "aliases": [], "provenance": ["s"], "evidence": [], "confidence": 0.80}
-_NVDA = {"id": "NVDA", "type": "Ticker", "label": "NVDA",
-         "aliases": ["Nvidia"], "provenance": ["s"], "evidence": [], "confidence": 0.95}
+_ON = {
+    "id": "ON",
+    "type": "Ticker",
+    "label": "ON",
+    "aliases": ["ON Semiconductor", "Onsemi"],
+    "provenance": ["s"],
+    "evidence": [],
+    "confidence": 0.95,
+}
+_TECH = {
+    "id": "Technology",
+    "type": "Sector",
+    "label": "Technology",
+    "aliases": [],
+    "provenance": ["s"],
+    "evidence": [],
+    "confidence": 0.90,
+}
+_AI = {
+    "id": "AI Infrastructure",
+    "type": "Theme",
+    "label": "AI Infrastructure",
+    "aliases": [],
+    "provenance": ["s"],
+    "evidence": [],
+    "confidence": 0.85,
+}
+_RISK = {
+    "id": "Concentration risk",
+    "type": "RiskFactor",
+    "label": "Concentration risk",
+    "aliases": [],
+    "provenance": ["s"],
+    "evidence": [],
+    "confidence": 0.80,
+}
+_NVDA = {
+    "id": "NVDA",
+    "type": "Ticker",
+    "label": "NVDA",
+    "aliases": ["Nvidia"],
+    "provenance": ["s"],
+    "evidence": [],
+    "confidence": 0.95,
+}
 
 _FACTS = {
     "schema_version": "scanner_graph_facts.v1",
@@ -32,20 +68,49 @@ _FACTS = {
     "global_regime": {"summary": "Risk-On", "bullets": [], "source": "macro_scan_summary.json"},
     "nodes": [_ON, _TECH, _AI, _RISK, _NVDA],
     "edges": [
-        {"source": "ON", "relation": "BELONGS_TO", "target": "Technology",
-         "polarity": "", "provenance": "s1", "evidence": "ev", "confidence": 0.95},
-        {"source": "NVDA", "relation": "BELONGS_TO", "target": "Technology",
-         "polarity": "", "provenance": "s1", "evidence": "ev", "confidence": 0.95},
-        {"source": "Technology", "relation": "DRIVES_SENTIMENT", "target": "AI Infrastructure",
-         "polarity": "bullish", "provenance": "s2", "evidence": "ev2", "confidence": 0.85},
-        {"source": "Technology", "relation": "EXPOSED_TO", "target": "Concentration risk",
-         "polarity": "bearish", "provenance": "s3", "evidence": "ev3", "confidence": 0.80},
+        {
+            "source": "ON",
+            "relation": "BELONGS_TO",
+            "target": "Technology",
+            "polarity": "",
+            "provenance": "s1",
+            "evidence": "ev",
+            "confidence": 0.95,
+        },
+        {
+            "source": "NVDA",
+            "relation": "BELONGS_TO",
+            "target": "Technology",
+            "polarity": "",
+            "provenance": "s1",
+            "evidence": "ev",
+            "confidence": 0.95,
+        },
+        {
+            "source": "Technology",
+            "relation": "DRIVES_SENTIMENT",
+            "target": "AI Infrastructure",
+            "polarity": "bullish",
+            "provenance": "s2",
+            "evidence": "ev2",
+            "confidence": 0.85,
+        },
+        {
+            "source": "Technology",
+            "relation": "EXPOSED_TO",
+            "target": "Concentration risk",
+            "polarity": "bearish",
+            "provenance": "s3",
+            "evidence": "ev3",
+            "confidence": 0.80,
+        },
     ],
     "metadata": {"node_count": 5, "edge_count": 4, "generated_at": "T", "inputs": []},
 }
 
 
 # ---- exact ticker lookup ----
+
 
 def test_exact_ticker_found():
     result = retrieve_ticker_subgraph(_FACTS, "ON")
@@ -68,6 +133,7 @@ def test_unknown_ticker_raises_key_error():
 
 # ---- alias lookup ----
 
+
 def test_alias_lookup_on_semiconductor():
     result = retrieve_ticker_subgraph(_FACTS, "ON Semiconductor")
     assert result["ticker"] == "ON"
@@ -86,6 +152,7 @@ def test_alias_unknown_raises():
 
 
 # ---- 1-hop subgraph ----
+
 
 def test_1hop_includes_direct_neighbours():
     result = retrieve_ticker_subgraph(_FACTS, "ON", hops=1)
@@ -110,13 +177,14 @@ def test_1hop_edges_only_direct():
 
 # ---- 2-hop subgraph ----
 
+
 def test_2hop_includes_second_degree_neighbours():
     result = retrieve_ticker_subgraph(_FACTS, "ON", hops=2)
     ids = {n["id"] for n in result["nodes"]}
     assert "ON" in ids
     assert "Technology" in ids
-    assert "AI Infrastructure" in ids    # 2 hops: ON → Technology → AI Infrastructure
-    assert "Concentration risk" in ids   # 2 hops: ON → Technology → Concentration risk
+    assert "AI Infrastructure" in ids  # 2 hops: ON → Technology → AI Infrastructure
+    assert "Concentration risk" in ids  # 2 hops: ON → Technology → Concentration risk
 
 
 def test_2hop_nvda_shares_technology_node():
@@ -148,6 +216,7 @@ def test_hops_clamped_to_3_maximum():
 
 # ---- max_edges ----
 
+
 def test_max_edges_limits_output():
     result = retrieve_ticker_subgraph(_FACTS, "ON", hops=2, max_edges=1)
     assert len(result["edges"]) <= 1
@@ -162,6 +231,7 @@ def test_max_edges_preserves_closest_first():
 
 
 # ---- result shape ----
+
 
 def test_result_has_required_keys():
     result = retrieve_ticker_subgraph(_FACTS, "ON")
@@ -180,9 +250,7 @@ def test_result_nodes_all_in_facts():
 
 def test_result_edges_all_in_facts():
     result = retrieve_ticker_subgraph(_FACTS, "ON")
-    facts_edges = {
-        (e["source"], e["relation"], e["target"]) for e in _FACTS["edges"]
-    }
+    facts_edges = {(e["source"], e["relation"], e["target"]) for e in _FACTS["edges"]}
     for edge in result["edges"]:
         assert (edge["source"], edge["relation"], edge["target"]) in facts_edges
 
@@ -197,11 +265,13 @@ def test_ticker_with_no_edges_returns_ticker_node_only():
 
 # ---- integration: build real facts and search ----
 
+
 def test_integration_search_on_in_real_facts():
     """Build from real fixtures and retrieve ON 2-hop subgraph."""
     from tradingagents.graph.scanner_facts.builder import (
         build_scanner_graph_facts_from_market_dir,
     )
+
     facts = build_scanner_graph_facts_from_market_dir(
         FIXTURES, scan_date="2026-04-16", run_id="test-search-int"
     )
@@ -216,6 +286,7 @@ def test_integration_search_alias_in_real_facts():
     from tradingagents.graph.scanner_facts.builder import (
         build_scanner_graph_facts_from_market_dir,
     )
+
     facts = build_scanner_graph_facts_from_market_dir(
         FIXTURES, scan_date="2026-04-16", run_id="test-search-alias"
     )
@@ -228,6 +299,7 @@ def test_integration_search_registry_alias_in_real_facts():
     from tradingagents.graph.scanner_facts.builder import (
         build_scanner_graph_facts_from_market_dir,
     )
+
     facts = build_scanner_graph_facts_from_market_dir(
         FIXTURES, scan_date="2026-04-16", run_id="test-search-registry-alias"
     )
@@ -239,6 +311,7 @@ def test_integration_unknown_ticker_raises_in_real_facts():
     from tradingagents.graph.scanner_facts.builder import (
         build_scanner_graph_facts_from_market_dir,
     )
+
     facts = build_scanner_graph_facts_from_market_dir(
         FIXTURES, scan_date="2026-04-16", run_id="test-search-unknown"
     )

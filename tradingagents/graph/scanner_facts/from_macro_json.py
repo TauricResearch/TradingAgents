@@ -11,6 +11,7 @@ Fails loudly:
   - FileNotFoundError if path is missing
   - ValueError if JSON is malformed
 """
+
 from __future__ import annotations
 
 import json
@@ -39,6 +40,7 @@ _SOURCE_EXEC = "macro_scan_summary.json#executive_summary"
 
 # ---------- file loading ----------
 
+
 def load_and_parse_macro_scan_summary(path: Path) -> dict:
     """Load and parse macro_scan_summary.json. Fails loudly."""
     if not path.exists():
@@ -50,12 +52,11 @@ def load_and_parse_macro_scan_summary(path: Path) -> dict:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"macro_scan_summary.json at {path} is not valid JSON: {exc}"
-        ) from exc
+        raise ValueError(f"macro_scan_summary.json at {path} is not valid JSON: {exc}") from exc
 
 
 # ---------- node/edge builders ----------
+
 
 def _make_node(
     node_id: str,
@@ -99,6 +100,7 @@ def _make_edge(
 
 # ---------- main adapter ----------
 
+
 def facts_from_macro_scan_summary(
     payload: dict,
     *,
@@ -128,8 +130,7 @@ def facts_from_macro_scan_summary(
         # Dedupe by (source, relation, target, provenance)
         key = (edge["source"], edge["relation"], edge["target"], edge["provenance"])
         if not any(
-            (e["source"], e["relation"], e["target"], e["provenance"]) == key
-            for e in edges
+            (e["source"], e["relation"], e["target"], e["provenance"]) == key for e in edges
         ):
             edges.append(edge)
 
@@ -170,14 +171,16 @@ def facts_from_macro_scan_summary(
             hedging=hedging,
             polarity_empty=(polarity == ""),
         )
-        _add_node(_make_node(
-            node_id=theme_label,
-            node_type="Theme",
-            label=theme_label,
-            provenance=[_SOURCE_THEMES],
-            evidence=[description[:200]] if description else [],
-            confidence=conf,
-        ))
+        _add_node(
+            _make_node(
+                node_id=theme_label,
+                node_type="Theme",
+                label=theme_label,
+                provenance=[_SOURCE_THEMES],
+                evidence=[description[:200]] if description else [],
+                confidence=conf,
+            )
+        )
 
     # ---- stocks_to_investigate → Ticker + Sector + edges ----
     for stock in payload.get("stocks_to_investigate") or []:
@@ -204,35 +207,41 @@ def facts_from_macro_scan_summary(
         if name and name != ticker:
             aliases.append(name)
 
-        _add_node(_make_node(
-            node_id=ticker,
-            node_type="Ticker",
-            label=ticker,
-            provenance=[_SOURCE_STOCKS],
-            evidence=[rationale[:200]] if rationale else [],
-            confidence=conf,
-            aliases=aliases,
-        ))
+        _add_node(
+            _make_node(
+                node_id=ticker,
+                node_type="Ticker",
+                label=ticker,
+                provenance=[_SOURCE_STOCKS],
+                evidence=[rationale[:200]] if rationale else [],
+                confidence=conf,
+                aliases=aliases,
+            )
+        )
 
         # Sector node
         if sector:
-            _add_node(_make_node(
-                node_id=sector,
-                node_type="Sector",
-                label=sector,
-                provenance=[_SOURCE_STOCKS],
-                evidence=[],
-                confidence=compute_confidence(ConfidenceSource.MACRO_JSON_STRUCTURED),
-            ))
+            _add_node(
+                _make_node(
+                    node_id=sector,
+                    node_type="Sector",
+                    label=sector,
+                    provenance=[_SOURCE_STOCKS],
+                    evidence=[],
+                    confidence=compute_confidence(ConfidenceSource.MACRO_JSON_STRUCTURED),
+                )
+            )
             # BELONGS_TO edge
-            _add_edge(_make_edge(
-                source=ticker,
-                relation="BELONGS_TO",
-                target=sector,
-                provenance=_SOURCE_STOCKS,
-                evidence=f"{ticker} | {sector} | {thesis or rationale[:100]}",
-                confidence=conf,
-            ))
+            _add_edge(
+                _make_edge(
+                    source=ticker,
+                    relation="BELONGS_TO",
+                    target=sector,
+                    provenance=_SOURCE_STOCKS,
+                    evidence=f"{ticker} | {sector} | {thesis or rationale[:100]}",
+                    confidence=conf,
+                )
+            )
 
         # key_catalysts → HAS_CATALYST edges (Ticker -> Theme)
         for catalyst in stock.get("key_catalysts") or []:
@@ -245,22 +254,26 @@ def facts_from_macro_scan_summary(
                 ConfidenceSource.MACRO_JSON_STRUCTURED,
                 hedging=any(w in cat_text.lower() for w in ("may", "could", "potential")),
             )
-            _add_node(_make_node(
-                node_id=theme_id,
-                node_type="Theme",
-                label=theme_id,
-                provenance=[_SOURCE_STOCKS],
-                evidence=[cat_text],
-                confidence=cat_conf,
-            ))
-            _add_edge(_make_edge(
-                source=ticker,
-                relation="HAS_CATALYST",
-                target=theme_id,
-                provenance=_SOURCE_STOCKS,
-                evidence=cat_text,
-                confidence=cat_conf,
-            ))
+            _add_node(
+                _make_node(
+                    node_id=theme_id,
+                    node_type="Theme",
+                    label=theme_id,
+                    provenance=[_SOURCE_STOCKS],
+                    evidence=[cat_text],
+                    confidence=cat_conf,
+                )
+            )
+            _add_edge(
+                _make_edge(
+                    source=ticker,
+                    relation="HAS_CATALYST",
+                    target=theme_id,
+                    provenance=_SOURCE_STOCKS,
+                    evidence=cat_text,
+                    confidence=cat_conf,
+                )
+            )
 
         # stock risks → EXPOSED_TO edges (Ticker -> RiskFactor)
         for risk in stock.get("risks") or []:
@@ -273,23 +286,27 @@ def facts_from_macro_scan_summary(
                 hedging=any(w in risk_text.lower() for w in ("may", "could", "potential", "if")),
                 polarity_empty=False,
             )
-            _add_node(_make_node(
-                node_id=rf_id,
-                node_type="RiskFactor",
-                label=rf_id,
-                provenance=[_SOURCE_STOCKS],
-                evidence=[risk_text],
-                confidence=rf_conf,
-            ))
-            _add_edge(_make_edge(
-                source=ticker,
-                relation="EXPOSED_TO",
-                target=rf_id,
-                provenance=_SOURCE_STOCKS,
-                evidence=risk_text,
-                confidence=rf_conf,
-                polarity="bearish",
-            ))
+            _add_node(
+                _make_node(
+                    node_id=rf_id,
+                    node_type="RiskFactor",
+                    label=rf_id,
+                    provenance=[_SOURCE_STOCKS],
+                    evidence=[risk_text],
+                    confidence=rf_conf,
+                )
+            )
+            _add_edge(
+                _make_edge(
+                    source=ticker,
+                    relation="EXPOSED_TO",
+                    target=rf_id,
+                    provenance=_SOURCE_STOCKS,
+                    evidence=risk_text,
+                    confidence=rf_conf,
+                    polarity="bearish",
+                )
+            )
 
     # ---- top-level risk_factors → RiskFactor nodes ----
     for rf_text in payload.get("risk_factors") or []:
@@ -301,14 +318,16 @@ def facts_from_macro_scan_summary(
             ConfidenceSource.MACRO_JSON_STRUCTURED,
             hedging=any(w in rf_str.lower() for w in ("may", "could", "potential", "if")),
         )
-        _add_node(_make_node(
-            node_id=rf_id,
-            node_type="RiskFactor",
-            label=rf_id,
-            provenance=[_SOURCE_RISKS],
-            evidence=[rf_str[:200]],
-            confidence=rf_conf,
-        ))
+        _add_node(
+            _make_node(
+                node_id=rf_id,
+                node_type="RiskFactor",
+                label=rf_id,
+                provenance=[_SOURCE_RISKS],
+                evidence=[rf_str[:200]],
+                confidence=rf_conf,
+            )
+        )
 
     return {
         "global_regime": global_regime,

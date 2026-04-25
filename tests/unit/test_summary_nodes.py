@@ -43,7 +43,6 @@ def test_research_packet_summary_node_returns_summary():
                 "key_metrics": {"claim_count": 1},
             },
             "fundamentals_report": "- Gross margin expanded 120bps.",
-
             "macro_regime_report": "## Risk-On\nMarket is RISK-ON.",
         }
     )
@@ -283,7 +282,9 @@ def test_risk_nodes_preserve_summary_and_metadata():
 def test_generate_summary_prompt_uses_ruleset_template():
     prompt = generate_summary_prompt(RESEARCH_PACKET_SUMMARY, "input block")
 
-    assert prompt.startswith("You are a ruthless, highly precise quantitative financial summarizer.")
+    assert prompt.startswith(
+        "You are a ruthless, highly precise quantitative financial summarizer."
+    )
     assert "## OBJECTIVE" in prompt
     assert RESEARCH_PACKET_SUMMARY.objective in prompt
     assert f"**Maximum Length:** {RESEARCH_PACKET_SUMMARY.max_words} words" in prompt

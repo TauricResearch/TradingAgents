@@ -97,17 +97,10 @@ from .yfinance_scanner import (
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
-    "core_stock_apis": {
-        "description": "OHLCV stock price data",
-        "tools": [
-            "get_stock_data"
-        ]
-    },
+    "core_stock_apis": {"description": "OHLCV stock price data", "tools": ["get_stock_data"]},
     "technical_indicators": {
         "description": "Technical analysis indicators",
-        "tools": [
-            "get_indicators"
-        ]
+        "tools": ["get_indicators"],
     },
     "fundamental_data": {
         "description": "Company fundamentals",
@@ -117,7 +110,7 @@ TOOLS_CATEGORIES = {
             "get_cashflow",
             "get_income_statement",
             "get_ttm_analysis",
-        ]
+        ],
     },
     "news_data": {
         "description": "News and insider data",
@@ -125,7 +118,7 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
-        ]
+        ],
     },
     "scanner_data": {
         "description": "Market-wide scanner data (movers, indices, sectors, industries)",
@@ -143,14 +136,14 @@ TOOLS_CATEGORIES = {
             "get_sector_performance",
             "get_industry_performance",
             "get_topic_news",
-        ]
+        ],
     },
     "calendar_data": {
         "description": "Earnings and economic event calendars",
         "tools": [
             "get_earnings_calendar",
             "get_economic_calendar",
-        ]
+        ],
     },
 }
 
@@ -164,12 +157,12 @@ VENDOR_LIST = [
 # Methods where cross-vendor fallback is safe (data contracts are fungible).
 # All other methods fail-fast on primary vendor failure — see ADR 011.
 FALLBACK_ALLOWED = {
-    "get_stock_data",           # OHLCV is fungible across vendors
-    "get_market_indices",       # SPY/DIA/QQQ quotes are fungible
-    "get_sector_performance",   # ETF-based proxy, same approach
-    "get_market_movers",        # Approximation acceptable for screening
-    "get_gap_candidates",       # Gap math from market data is fungible enough
-    "get_industry_performance", # ETF-based proxy
+    "get_stock_data",  # OHLCV is fungible across vendors
+    "get_market_indices",  # SPY/DIA/QQQ quotes are fungible
+    "get_sector_performance",  # ETF-based proxy, same approach
+    "get_market_movers",  # Approximation acceptable for screening
+    "get_gap_candidates",  # Gap math from market data is fungible enough
+    "get_industry_performance",  # ETF-based proxy
 }
 
 # Mapping of methods to their vendor-specific implementations
@@ -227,8 +220,8 @@ VENDOR_METHODS = {
         "yfinance": get_gatekeeper_universe_yfinance,
     },
     "get_gap_candidates": {
-        "finviz": get_gap_candidates_finviz,    # primary: native gap filter
-        "yfinance": get_gap_candidates_yfinance, # fallback: OHLC approximation
+        "finviz": get_gap_candidates_finviz,  # primary: native gap filter
+        "yfinance": get_gap_candidates_yfinance,  # fallback: OHLC approximation
     },
     "get_market_indices": {
         "finnhub": get_market_indices_finnhub,
@@ -279,12 +272,14 @@ VENDOR_METHODS = {
     },
 }
 
+
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""
     for category, info in TOOLS_CATEGORIES.items():
         if method in info["tools"]:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
+
 
 def get_vendor(category: str, method: str = None, *, config: dict | None = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
@@ -302,6 +297,7 @@ def get_vendor(category: str, method: str = None, *, config: dict | None = None)
 
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "yfinance")
+
 
 def route_to_vendor(method: str, *args: Any, **kwargs: Any) -> Any:
     """Route method calls to appropriate vendor implementation with fallback support.
@@ -350,11 +346,26 @@ def route_to_vendor(method: str, *args: Any, **kwargs: Any) -> Any:
         try:
             result = impl_func(*args, **kwargs)
             if rl:
-                rl.log_vendor_call(method, vendor, True, (time.time() - t0) * 1000, args_summary=args_summary)
+                rl.log_vendor_call(
+                    method, vendor, True, (time.time() - t0) * 1000, args_summary=args_summary
+                )
             return result
-        except (AlphaVantageError, FinnhubError, YFinanceError, ConnectionError, TimeoutError) as exc:
+        except (
+            AlphaVantageError,
+            FinnhubError,
+            YFinanceError,
+            ConnectionError,
+            TimeoutError,
+        ) as exc:
             if rl:
-                rl.log_vendor_call(method, vendor, False, (time.time() - t0) * 1000, error=str(exc)[:200], args_summary=args_summary)
+                rl.log_vendor_call(
+                    method,
+                    vendor,
+                    False,
+                    (time.time() - t0) * 1000,
+                    error=str(exc)[:200],
+                    args_summary=args_summary,
+                )
             last_error = exc
             continue
 

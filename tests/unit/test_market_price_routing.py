@@ -86,14 +86,17 @@ def test_oil_and_bitcoin_price_tools_use_explicit_alpha_vantage_selection():
     }
 
     with patch("tradingagents.dataflows.interface.get_config", return_value=patched_config):
-        with patch.dict(
-            VENDOR_METHODS["get_oil_prices"],
-            {"alpha_vantage": lambda: "# Oil Price Snapshot\n"},
-            clear=False,
-        ), patch.dict(
-            VENDOR_METHODS["get_bitcoin_price"],
-            {"alpha_vantage": lambda: "# Bitcoin Price Snapshot\n"},
-            clear=False,
+        with (
+            patch.dict(
+                VENDOR_METHODS["get_oil_prices"],
+                {"alpha_vantage": lambda: "# Oil Price Snapshot\n"},
+                clear=False,
+            ),
+            patch.dict(
+                VENDOR_METHODS["get_bitcoin_price"],
+                {"alpha_vantage": lambda: "# Bitcoin Price Snapshot\n"},
+                clear=False,
+            ),
         ):
             oil_result = get_oil_prices.invoke({})
             btc_result = get_bitcoin_price.invoke({})

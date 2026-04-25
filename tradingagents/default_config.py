@@ -239,25 +239,15 @@ def build_default_config(
         "quick_think_backend_url": _env("QUICK_THINK_BACKEND_URL", env=env),
         # Per-tier fallback LLM (used when primary model is unavailable).
         "quick_think_fallback_llm": _env("QUICK_THINK_FALLBACK_LLM", env=env),
-        "quick_think_fallback_llm_provider": _env(
-            "QUICK_THINK_FALLBACK_LLM_PROVIDER", env=env
-        ),
+        "quick_think_fallback_llm_provider": _env("QUICK_THINK_FALLBACK_LLM_PROVIDER", env=env),
         "mid_think_fallback_llm": _env("MID_THINK_FALLBACK_LLM", env=env),
-        "mid_think_fallback_llm_provider": _env(
-            "MID_THINK_FALLBACK_LLM_PROVIDER", env=env
-        ),
+        "mid_think_fallback_llm_provider": _env("MID_THINK_FALLBACK_LLM_PROVIDER", env=env),
         "deep_think_fallback_llm": _env("DEEP_THINK_FALLBACK_LLM", env=env),
-        "deep_think_fallback_llm_provider": _env(
-            "DEEP_THINK_FALLBACK_LLM_PROVIDER", env=env
-        ),
+        "deep_think_fallback_llm_provider": _env("DEEP_THINK_FALLBACK_LLM_PROVIDER", env=env),
         # Provider-specific thinking configuration (global + per role).
         "llm_timeout": _env_timeout_seconds("LLM_TIMEOUT_SEC", 300.0, env=env),
-        "deep_think_llm_timeout": _env_timeout_seconds(
-            "DEEP_THINK_LLM_TIMEOUT_SEC", None, env=env
-        ),
-        "mid_think_llm_timeout": _env_timeout_seconds(
-            "MID_THINK_LLM_TIMEOUT_SEC", None, env=env
-        ),
+        "deep_think_llm_timeout": _env_timeout_seconds("DEEP_THINK_LLM_TIMEOUT_SEC", None, env=env),
+        "mid_think_llm_timeout": _env_timeout_seconds("MID_THINK_LLM_TIMEOUT_SEC", None, env=env),
         "quick_think_llm_timeout": _env_timeout_seconds(
             "QUICK_THINK_LLM_TIMEOUT_SEC", None, env=env
         ),
@@ -275,39 +265,21 @@ def build_default_config(
         "mid_think_llm_max_tokens": _env_int("MID_THINK_LLM_MAX_TOKENS", env=env),
         "quick_think_llm_max_tokens": _env_int("QUICK_THINK_LLM_MAX_TOKENS", env=env),
         "scanner_llm_max_tokens": _env_int("SCANNER_LLM_MAX_TOKENS", env=env),
-        "tool_loop_timeout_cap": _env_timeout_seconds(
-            "TOOL_LOOP_TIMEOUT_CAP_SEC", 300.0, env=env
-        ),
+        "tool_loop_timeout_cap": _env_timeout_seconds("TOOL_LOOP_TIMEOUT_CAP_SEC", 300.0, env=env),
         "scanner_summarizer_timeout": _env_timeout_seconds(
             "SCANNER_SUMMARIZER_TIMEOUT_SEC", 180.0, env=env
         ),
-        "tool_execution_timeout": _env_timeout_seconds(
-            "TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env
-        ),
-        "scan_timeout_seconds": _env_timeout_seconds(
-            "SCAN_TIMEOUT_SEC", 1800.0, env=env
-        ),
+        "tool_execution_timeout": _env_timeout_seconds("TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env),
+        "scan_timeout_seconds": _env_timeout_seconds("SCAN_TIMEOUT_SEC", 1800.0, env=env),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),
         "anthropic_effort": _env("ANTHROPIC_EFFORT", env=env),
-        "deep_think_google_thinking_level": _env(
-            "DEEP_THINK_GOOGLE_THINKING_LEVEL", env=env
-        ),
-        "deep_think_openai_reasoning_effort": _env(
-            "DEEP_THINK_OPENAI_REASONING_EFFORT", env=env
-        ),
-        "mid_think_google_thinking_level": _env(
-            "MID_THINK_GOOGLE_THINKING_LEVEL", env=env
-        ),
-        "mid_think_openai_reasoning_effort": _env(
-            "MID_THINK_OPENAI_REASONING_EFFORT", env=env
-        ),
-        "quick_think_google_thinking_level": _env(
-            "QUICK_THINK_GOOGLE_THINKING_LEVEL", env=env
-        ),
-        "quick_think_openai_reasoning_effort": _env(
-            "QUICK_THINK_OPENAI_REASONING_EFFORT", env=env
-        ),
+        "deep_think_google_thinking_level": _env("DEEP_THINK_GOOGLE_THINKING_LEVEL", env=env),
+        "deep_think_openai_reasoning_effort": _env("DEEP_THINK_OPENAI_REASONING_EFFORT", env=env),
+        "mid_think_google_thinking_level": _env("MID_THINK_GOOGLE_THINKING_LEVEL", env=env),
+        "mid_think_openai_reasoning_effort": _env("MID_THINK_OPENAI_REASONING_EFFORT", env=env),
+        "quick_think_google_thinking_level": _env("QUICK_THINK_GOOGLE_THINKING_LEVEL", env=env),
+        "quick_think_openai_reasoning_effort": _env("QUICK_THINK_OPENAI_REASONING_EFFORT", env=env),
         # Debate and discussion settings
         "max_debate_rounds": _env_int("MAX_DEBATE_ROUNDS", 2, env=env),
         "max_risk_discuss_rounds": _env_int("MAX_RISK_DISCUSS_ROUNDS", 2, env=env),
@@ -317,14 +289,14 @@ def build_default_config(
         "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10, env=env),
         "scan_horizon_days": _env_int("SCAN_HORIZON_DAYS", 30, env=env),
         "trading_lookback_days": _env_int("TRADING_LOOKBACK_DAYS", 90, env=env),
-        "ohlcv_sma_plausibility_threshold": _env_float("OHLCV_SMA_PLAUSIBILITY_THRESHOLD", 3.0, env=env),
+        "ohlcv_sma_plausibility_threshold": _env_float(
+            "OHLCV_SMA_PLAUSIBILITY_THRESHOLD", 3.0, env=env
+        ),
         "ohlcv_cache_max_age_days": _env_int("OHLCV_CACHE_MAX_AGE_DAYS", 2, env=env),
         # Data vendor configuration
         "data_vendors": {
             "core_stock_apis": _env("VENDOR_CORE_STOCK_APIS", "yfinance", env=env),
-            "technical_indicators": _env(
-                "VENDOR_TECHNICAL_INDICATORS", "yfinance", env=env
-            ),
+            "technical_indicators": _env("VENDOR_TECHNICAL_INDICATORS", "yfinance", env=env),
             "fundamental_data": _env("VENDOR_FUNDAMENTAL_DATA", "yfinance", env=env),
             "news_data": _env("VENDOR_NEWS_DATA", "yfinance", env=env),
             "scanner_data": _env("VENDOR_SCANNER_DATA", "yfinance", env=env),

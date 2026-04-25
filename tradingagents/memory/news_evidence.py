@@ -285,7 +285,7 @@ def _extract_articles(payload: str) -> list[dict]:
         summary_lines: list[str] = []
         for line in lines[1:]:
             if line.startswith("Link:"):
-                url = line[len("Link:"):].strip()
+                url = line[len("Link:") :].strip()
             else:
                 summary_lines.append(line)
 
@@ -310,11 +310,7 @@ def _build_record(
     ordinal: int,
 ) -> NewsEvidenceRecord | None:
     title = str(article.get("title") or "").strip()
-    source = str(
-        article.get("source")
-        or article.get("source_domain")
-        or "Unknown"
-    ).strip()
+    source = str(article.get("source") or article.get("source_domain") or "Unknown").strip()
     url = str(article.get("url") or "").strip()
     published_at = _normalize_published_at(
         article.get("time_published") or article.get("published_at") or trade_date

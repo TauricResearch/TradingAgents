@@ -13,56 +13,84 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 
 _INCOME_REVENUE_COLS = [
-    "Total Revenue", "TotalRevenue", "totalRevenue",
-    "Revenue", "revenue",
+    "Total Revenue",
+    "TotalRevenue",
+    "totalRevenue",
+    "Revenue",
+    "revenue",
     # Banking / financial-sector equivalents — schema-based proxies only;
     # not financially equivalent to Total Revenue for non-bank firms.
-    "Net Interest Income", "Total Net Revenue", "Net Revenue",
-    "Interest And Dividend Income", "Total Banking Revenue",
+    "Net Interest Income",
+    "Total Net Revenue",
+    "Net Revenue",
+    "Interest And Dividend Income",
+    "Total Banking Revenue",
     "Interest Income",
 ]
 _INCOME_GROSS_PROFIT_COLS = [
-    "Gross Profit", "GrossProfit", "grossProfit",
+    "Gross Profit",
+    "GrossProfit",
+    "grossProfit",
 ]
 _INCOME_OPERATING_INCOME_COLS = [
-    "Operating Income", "OperatingIncome", "operatingIncome",
+    "Operating Income",
+    "OperatingIncome",
+    "operatingIncome",
     "Total Operating Income As Reported",
 ]
 _INCOME_EBITDA_COLS = [
-    "EBITDA", "Ebitda", "ebitda",
+    "EBITDA",
+    "Ebitda",
+    "ebitda",
     "Normalized EBITDA",
 ]
 _INCOME_NET_INCOME_COLS = [
-    "Net Income", "NetIncome", "netIncome",
+    "Net Income",
+    "NetIncome",
+    "netIncome",
     "Net Income From Continuing Operation Net Minority Interest",
 ]
 
 _BALANCE_TOTAL_ASSETS_COLS = [
-    "Total Assets", "TotalAssets", "totalAssets",
+    "Total Assets",
+    "TotalAssets",
+    "totalAssets",
 ]
 _BALANCE_TOTAL_DEBT_COLS = [
-    "Total Debt", "TotalDebt", "totalDebt",
-    "Long Term Debt", "LongTermDebt",
+    "Total Debt",
+    "TotalDebt",
+    "totalDebt",
+    "Long Term Debt",
+    "LongTermDebt",
     # Banking / financial-sector equivalents — schema-based proxies only;
     # not financially equivalent to Total Debt for non-bank firms.
     "Long Term Debt And Capital Lease Obligation",
     "Total Liabilities Net Minority Interest",
 ]
 _BALANCE_EQUITY_COLS = [
-    "Stockholders Equity", "StockholdersEquity",
-    "Total Stockholder Equity", "TotalStockholderEquity",
-    "Common Stock Equity", "CommonStockEquity",
+    "Stockholders Equity",
+    "StockholdersEquity",
+    "Total Stockholder Equity",
+    "TotalStockholderEquity",
+    "Common Stock Equity",
+    "CommonStockEquity",
 ]
 
 _CASHFLOW_FCF_COLS = [
-    "Free Cash Flow", "FreeCashFlow", "freeCashFlow",
+    "Free Cash Flow",
+    "FreeCashFlow",
+    "freeCashFlow",
 ]
 _CASHFLOW_OPERATING_COLS = [
-    "Operating Cash Flow", "OperatingCashflow", "operatingCashflow",
+    "Operating Cash Flow",
+    "OperatingCashflow",
+    "operatingCashflow",
     "Total Cash From Operating Activities",
 ]
 _CASHFLOW_CAPEX_COLS = [
-    "Capital Expenditure", "CapitalExpenditure", "capitalExpenditure",
+    "Capital Expenditure",
+    "CapitalExpenditure",
+    "capitalExpenditure",
     "Capital Expenditures",
 ]
 
@@ -70,6 +98,7 @@ _CASHFLOW_CAPEX_COLS = [
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
     """Return the first matching column name, or None."""
@@ -97,9 +126,7 @@ def _parse_financial_csv(csv_text: str) -> pd.DataFrame | None:
         # line as the column-header row (1 field), then the actual data rows have
         # many more fields → ParserError.  comment='#' makes pandas skip those
         # lines and skip_blank_lines=True drops the trailing blank separator.
-        df = pd.read_csv(
-            StringIO(csv_text), index_col=0, comment="#", skip_blank_lines=True
-        )
+        df = pd.read_csv(StringIO(csv_text), index_col=0, comment="#", skip_blank_lines=True)
     except Exception:
         return None
 
@@ -173,6 +200,7 @@ def _fmt_pct(val: float | None) -> str:
 # ---------------------------------------------------------------------------
 # Core computation
 # ---------------------------------------------------------------------------
+
 
 def compute_ttm_metrics(
     income_csv: str,
@@ -257,14 +285,28 @@ def compute_ttm_metrics(
     ttm_equity = _ttm_latest(balance_df, _BALANCE_EQUITY_COLS)
 
     ttm_fcf = _ttm_sum(cashflow_df, _CASHFLOW_FCF_COLS) if cashflow_df is not None else None
-    ttm_operating_cf = _ttm_sum(cashflow_df, _CASHFLOW_OPERATING_COLS) if cashflow_df is not None else None
+    ttm_operating_cf = (
+        _ttm_sum(cashflow_df, _CASHFLOW_OPERATING_COLS) if cashflow_df is not None else None
+    )
 
     # Derived ratios
-    ttm_gross_margin = (ttm_gross_profit / ttm_revenue * 100) if ttm_revenue and ttm_gross_profit else None
-    ttm_operating_margin = (ttm_operating_income / ttm_revenue * 100) if ttm_revenue and ttm_operating_income else None
-    ttm_net_margin = (ttm_net_income / ttm_revenue * 100) if ttm_revenue and ttm_net_income else None
-    ttm_roe = (ttm_net_income / ttm_equity * 100) if ttm_net_income and ttm_equity and ttm_equity != 0 else None
-    ttm_debt_to_equity = (ttm_total_debt / ttm_equity) if ttm_total_debt and ttm_equity and ttm_equity != 0 else None
+    ttm_gross_margin = (
+        (ttm_gross_profit / ttm_revenue * 100) if ttm_revenue and ttm_gross_profit else None
+    )
+    ttm_operating_margin = (
+        (ttm_operating_income / ttm_revenue * 100) if ttm_revenue and ttm_operating_income else None
+    )
+    ttm_net_margin = (
+        (ttm_net_income / ttm_revenue * 100) if ttm_revenue and ttm_net_income else None
+    )
+    ttm_roe = (
+        (ttm_net_income / ttm_equity * 100)
+        if ttm_net_income and ttm_equity and ttm_equity != 0
+        else None
+    )
+    ttm_debt_to_equity = (
+        (ttm_total_debt / ttm_equity) if ttm_total_debt and ttm_equity and ttm_equity != 0 else None
+    )
 
     result["ttm"] = {
         "revenue": ttm_revenue,
@@ -287,7 +329,11 @@ def compute_ttm_metrics(
     # --- Quarterly breakdown ---
     quarterly = []
     for i in range(n):
-        q_date = income_df.index[i].strftime("%Y-%m-%d") if hasattr(income_df.index[i], "strftime") else str(income_df.index[i])
+        q_date = (
+            income_df.index[i].strftime("%Y-%m-%d")
+            if hasattr(income_df.index[i], "strftime")
+            else str(income_df.index[i])
+        )
         q_rev = _safe_get(income_df, _INCOME_REVENUE_COLS, i)
         q_gp = _safe_get(income_df, _INCOME_GROSS_PROFIT_COLS, i)
         q_oi = _safe_get(income_df, _INCOME_OPERATING_INCOME_COLS, i)
@@ -296,23 +342,37 @@ def compute_ttm_metrics(
         q_om = (q_oi / q_rev * 100) if q_rev and q_oi else None
         q_nm = (q_ni / q_rev * 100) if q_rev and q_ni else None
 
-        q_eq = _safe_get(balance_df, _BALANCE_EQUITY_COLS, i) if balance_df is not None and i < len(balance_df) else None
-        q_debt = _safe_get(balance_df, _BALANCE_TOTAL_DEBT_COLS, i) if balance_df is not None and i < len(balance_df) else None
-        q_fcf = _safe_get(cashflow_df, _CASHFLOW_FCF_COLS, i) if cashflow_df is not None and i < len(cashflow_df) else None
+        q_eq = (
+            _safe_get(balance_df, _BALANCE_EQUITY_COLS, i)
+            if balance_df is not None and i < len(balance_df)
+            else None
+        )
+        q_debt = (
+            _safe_get(balance_df, _BALANCE_TOTAL_DEBT_COLS, i)
+            if balance_df is not None and i < len(balance_df)
+            else None
+        )
+        q_fcf = (
+            _safe_get(cashflow_df, _CASHFLOW_FCF_COLS, i)
+            if cashflow_df is not None and i < len(cashflow_df)
+            else None
+        )
 
-        quarterly.append({
-            "date": q_date,
-            "revenue": q_rev,
-            "gross_profit": q_gp,
-            "operating_income": q_oi,
-            "net_income": q_ni,
-            "gross_margin_pct": q_gm,
-            "operating_margin_pct": q_om,
-            "net_margin_pct": q_nm,
-            "equity": q_eq,
-            "total_debt": q_debt,
-            "free_cash_flow": q_fcf,
-        })
+        quarterly.append(
+            {
+                "date": q_date,
+                "revenue": q_rev,
+                "gross_profit": q_gp,
+                "operating_income": q_oi,
+                "net_income": q_ni,
+                "gross_margin_pct": q_gm,
+                "operating_margin_pct": q_om,
+                "net_margin_pct": q_nm,
+                "equity": q_eq,
+                "total_debt": q_debt,
+                "free_cash_flow": q_fcf,
+            }
+        )
 
     result["quarterly"] = quarterly
 
@@ -326,7 +386,9 @@ def compute_ttm_metrics(
             "revenue_qoq_pct": _pct_change(latest_rev, prev_rev),
             "revenue_yoy_pct": _pct_change(latest_rev, yoy_rev),
             "gross_margin_direction": _margin_trend([q["gross_margin_pct"] for q in quarterly]),
-            "operating_margin_direction": _margin_trend([q["operating_margin_pct"] for q in quarterly]),
+            "operating_margin_direction": _margin_trend(
+                [q["operating_margin_pct"] for q in quarterly]
+            ),
             "net_margin_direction": _margin_trend([q["net_margin_pct"] for q in quarterly]),
         }
 
@@ -349,6 +411,7 @@ def _margin_trend(margins: list) -> str:
 # ---------------------------------------------------------------------------
 # Report formatting
 # ---------------------------------------------------------------------------
+
 
 def format_ttm_report(metrics: dict, ticker: str) -> str:
     """Format compute_ttm_metrics output as a detailed Markdown report."""

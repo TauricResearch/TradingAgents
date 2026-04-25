@@ -15,7 +15,7 @@ from tradingagents.agents.utils.summary_context import (
 
 def _build_investment_debate_input(prior_summary: str, current_response: str) -> str:
     return f"""Previous summary:
-{prior_summary or 'No prior summary.'}
+{prior_summary or "No prior summary."}
 
 Latest response:
 {current_response}"""
@@ -23,7 +23,7 @@ Latest response:
 
 def _build_risk_debate_input(prior_summary: str, latest_speaker: str, current_response: str) -> str:
     return f"""Previous summary:
-{prior_summary or 'No prior summary.'}
+{prior_summary or "No prior summary."}
 
 Latest speaker:
 {latest_speaker}
@@ -68,9 +68,10 @@ def create_investment_debate_summary(llm: Any) -> Callable[[AgentState], dict[st
     # inline by research_manager.
     def investment_debate_summary_node(state: AgentState, /) -> dict[str, Any]:
 
-
         debate_state = state["investment_debate_state"]
-        summary = build_investment_debate_summary(debate_state) or "Investment debate in progress..."
+        summary = (
+            build_investment_debate_summary(debate_state) or "Investment debate in progress..."
+        )
 
         return {
             "investment_debate_state": {

@@ -10,6 +10,7 @@ Uses the real 2026-04-16 fixtures. Tests verify correct handling of:
 - Quality-gated files: skipped with warning
 - All fixtures together: no crash, expected node types present
 """
+
 from pathlib import Path
 
 from tradingagents.graph.scanner_facts.from_markdown import (
@@ -23,6 +24,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 # ---- helpers ----
+
 
 def _node_ids(result: dict) -> set[str]:
     return {n["id"] for n in result["nodes"]}
@@ -44,6 +46,7 @@ def _edge_exists(result: dict, source: str, relation: str, target: str) -> bool:
 
 
 # ---- quality gate ----
+
 
 def test_quality_gate_no_evidence():
     assert is_quality_gated("[NO_EVIDENCE] nothing found") is True
@@ -70,6 +73,7 @@ def test_quality_gate_whitespace_only():
 
 
 # ---- smart_money_summary.md: Candidate Rows ----
+
 
 def test_smart_money_on_ticker_node():
     text = (FIXTURES / "smart_money_summary.md").read_text()
@@ -123,6 +127,7 @@ def test_smart_money_risk_section_creates_risk_factor_nodes():
 
 # ---- gatekeeper_summary.md: Candidate Rows ----
 
+
 def test_gatekeeper_nvda_aapl_msft_present():
     text = (FIXTURES / "gatekeeper_summary.md").read_text()
     result = facts_from_markdown_summary(text, source="gatekeeper_summary.md")
@@ -148,11 +153,14 @@ def test_gatekeeper_nflx_belongs_to_communication_services():
 
 # ---- geopolitical_summary.md: Not Applicable rows ----
 
+
 def test_geopolitical_not_applicable_rows_produce_no_ticker_nodes():
     text = (FIXTURES / "geopolitical_summary.md").read_text()
     result = facts_from_markdown_summary(text, source="geopolitical_summary.md")
     ticker_nodes = _nodes_by_type(result, "Ticker")
-    assert ticker_nodes == [], f"Geopolitical adapter should produce no Ticker nodes, got: {ticker_nodes}"
+    assert ticker_nodes == [], (
+        f"Geopolitical adapter should produce no Ticker nodes, got: {ticker_nodes}"
+    )
 
 
 def test_geopolitical_sector_macro_rows_produce_nodes():
@@ -173,6 +181,7 @@ def test_geopolitical_fx_nodes_classified_correctly():
 
 # ---- sector_summary.md: heading-style sections, SECTOR/THEME rows ----
 
+
 def test_sector_summary_no_candidate_ticker_rows():
     """sector_summary.md Candidate Rows section contains only '- N/A'."""
     text = (FIXTURES / "sector_summary.md").read_text()
@@ -185,7 +194,9 @@ def test_sector_summary_sector_nodes_produced():
     text = (FIXTURES / "sector_summary.md").read_text()
     result = facts_from_markdown_summary(text, source="sector_summary.md")
     sector_nodes = _nodes_by_type(result, "Sector")
-    assert len(sector_nodes) >= 4, f"Expected Sector nodes from Sector/Macro section, got: {sector_nodes}"
+    assert len(sector_nodes) >= 4, (
+        f"Expected Sector nodes from Sector/Macro section, got: {sector_nodes}"
+    )
 
 
 def test_sector_summary_sector_theme_rows_skipped():
@@ -203,6 +214,7 @@ def test_sector_summary_technology_canonicalized_from_upper():
 
 
 # ---- industry_deep_dive_summary.md ----
+
 
 def test_industry_deep_dive_tickers_present():
     text = (FIXTURES / "industry_deep_dive_summary.md").read_text()
@@ -225,11 +237,13 @@ def test_industry_deep_dive_risk_factor_for_technology():
     result = facts_from_markdown_summary(text, source="industry_deep_dive_summary.md")
     # Risk / Failure Modes: "Technology | High valuation premiums, concentration risk | ..."
     et_edges = _edges_by_relation(result, "EXPOSED_TO")
-    assert any("Technology" in e["source"] or "Technology" in e["target"]
-               for e in et_edges), f"Expected Technology EXPOSED_TO edge, got: {et_edges}"
+    assert any("Technology" in e["source"] or "Technology" in e["target"] for e in et_edges), (
+        f"Expected Technology EXPOSED_TO edge, got: {et_edges}"
+    )
 
 
 # ---- market_movers_summary.md ----
+
 
 def test_market_movers_no_ticker_nodes():
     text = (FIXTURES / "market_movers_summary.md").read_text()
@@ -266,6 +280,7 @@ def test_market_movers_macro_rows_emit_impacts_edges():
 
 # ---- quality gating ----
 
+
 def test_quality_gated_text_returns_empty_facts():
     result = facts_from_markdown_summary(
         "[NO_EVIDENCE] nothing qualified", source="test_summary.md"
@@ -283,6 +298,7 @@ def test_quality_degraded_returns_empty_facts():
 
 
 # ---- facts_from_all_markdown_summaries ----
+
 
 def test_all_summaries_combined_ticker_count():
     result = facts_from_all_markdown_summaries(FIXTURES)

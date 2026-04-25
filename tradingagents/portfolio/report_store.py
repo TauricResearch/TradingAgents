@@ -77,7 +77,9 @@ class ReportStore:
         except (json.JSONDecodeError, OSError):
             return None
 
-    def _load_latest_from_runs(self, date: str, relative_dir: str, name: str) -> dict[str, Any] | None:
+    def _load_latest_from_runs(
+        self, date: str, relative_dir: str, name: str
+    ) -> dict[str, Any] | None:
         for root in self._run_roots(date):
             data = self._load_latest_ts(root / relative_dir, name)
             if data is not None:
@@ -112,7 +114,6 @@ class ReportStore:
             return obj
         except (TypeError, ValueError):
             return str(obj)
-
 
     def _write_json(self, path: Path, data: dict[str, Any]) -> Path:
         try:
@@ -158,7 +159,9 @@ class ReportStore:
     def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> Path:
         root = self._date_root(date, for_write=True)
         node_slug = self._slug(str(data.get("node_name") or "unknown"))
-        path = root / ticker.upper() / "report" / f"{ts_now()}_{node_slug}_pipeline_node_snapshot.json"
+        path = (
+            root / ticker.upper() / "report" / f"{ts_now()}_{node_slug}_pipeline_node_snapshot.json"
+        )
         return self._write_json(path, data)
 
     def load_latest_pipeline_node_snapshot(self, date: str, ticker: str) -> dict[str, Any] | None:
@@ -178,7 +181,9 @@ class ReportStore:
         return self._write_json(path, data)
 
     def load_holding_review(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._load_latest_from_runs(date, "portfolio/report", f"{ticker.upper()}_holding_review.json")
+        return self._load_latest_from_runs(
+            date, "portfolio/report", f"{ticker.upper()}_holding_review.json"
+        )
 
     # ------------------------------------------------------------------
     # Risk Metrics
@@ -190,7 +195,9 @@ class ReportStore:
         return self._write_json(path, data)
 
     def load_risk_metrics(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
-        return self._load_latest_from_runs(date, "portfolio/report", f"{portfolio_id}_risk_metrics.json")
+        return self._load_latest_from_runs(
+            date, "portfolio/report", f"{portfolio_id}_risk_metrics.json"
+        )
 
     # ------------------------------------------------------------------
     # PM Decisions
@@ -217,7 +224,9 @@ class ReportStore:
         return json_path
 
     def load_pm_decision(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
-        return self._load_latest_from_runs(date, "portfolio/report", f"{portfolio_id}_pm_decision.json")
+        return self._load_latest_from_runs(
+            date, "portfolio/report", f"{portfolio_id}_pm_decision.json"
+        )
 
     def save_execution_result(self, date: str, portfolio_id: str, data: dict[str, Any]) -> Path:
         pdir = self._portfolio_dir(date, for_write=True)
@@ -225,7 +234,9 @@ class ReportStore:
         return self._write_json(path, data)
 
     def load_execution_result(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
-        return self._load_latest_from_runs(date, "portfolio/report", f"{portfolio_id}_execution_result.json")
+        return self._load_latest_from_runs(
+            date, "portfolio/report", f"{portfolio_id}_execution_result.json"
+        )
 
     def save_portfolio_node_results(
         self,
@@ -240,7 +251,9 @@ class ReportStore:
 
     def load_portfolio_node_results(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
         """Load the latest node-level portfolio output payload."""
-        return self._load_latest_from_runs(date, "portfolio/report", f"{portfolio_id}_node_results.json")
+        return self._load_latest_from_runs(
+            date, "portfolio/report", f"{portfolio_id}_node_results.json"
+        )
 
     def clear_portfolio_stage(self, date: str, portfolio_id: str) -> list[str]:
         deleted: list[str] = []
@@ -329,7 +342,9 @@ class ReportStore:
         return self._write_json(path, data)
 
     def load_analysts_checkpoint(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._load_latest_from_runs(date, f"{ticker.upper()}/report", "analysts_checkpoint.json")
+        return self._load_latest_from_runs(
+            date, f"{ticker.upper()}/report", "analysts_checkpoint.json"
+        )
 
     def save_trader_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> Path:
         root = self._date_root(date, for_write=True)
@@ -337,7 +352,9 @@ class ReportStore:
         return self._write_json(path, data)
 
     def load_trader_checkpoint(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._load_latest_from_runs(date, f"{ticker.upper()}/report", "trader_checkpoint.json")
+        return self._load_latest_from_runs(
+            date, f"{ticker.upper()}/report", "trader_checkpoint.json"
+        )
 
     # ------------------------------------------------------------------
     # Utility

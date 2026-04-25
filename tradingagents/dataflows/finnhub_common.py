@@ -44,9 +44,7 @@ def get_api_key() -> str:
     """
     api_key = get_env_value("FINNHUB_API_KEY")
     if not api_key:
-        raise APIKeyInvalidError(
-            "FINNHUB_API_KEY environment variable is not set or is empty."
-        )
+        raise APIKeyInvalidError("FINNHUB_API_KEY environment variable is not set or is empty.")
     return api_key
 
 
@@ -179,13 +177,9 @@ def _make_api_request(endpoint: str, params: dict, timeout: float | None = None)
             f"Request timed out: endpoint={endpoint}, params={params}"
         ) from None
     except requests.exceptions.ConnectionError as exc:
-        raise ThirdPartyError(
-            f"Connection error: endpoint={endpoint}, error={exc}"
-        ) from None
+        raise ThirdPartyError(f"Connection error: endpoint={endpoint}, error={exc}") from None
     except requests.exceptions.RequestException as exc:
-        raise ThirdPartyError(
-            f"Request failed: endpoint={endpoint}, error={exc}"
-        ) from None
+        raise ThirdPartyError(f"Request failed: endpoint={endpoint}, error={exc}") from None
 
     # HTTP-level error mapping
     if response.status_code == 401:

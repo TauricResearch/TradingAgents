@@ -57,10 +57,7 @@ def make_snapshot(
 
 def nav_snapshots(nav_values: list[float]) -> list[PortfolioSnapshot]:
     """Build a list of snapshots from NAV values, one per day."""
-    return [
-        make_snapshot(v, date=f"2026-01-{i + 1:02d}")
-        for i, v in enumerate(nav_values)
-    ]
+    return [make_snapshot(v, date=f"2026-01-{i + 1:02d}") for i, v in enumerate(nav_values)]
 
 
 # ---------------------------------------------------------------------------
@@ -185,14 +182,14 @@ class TestSharpe:
 
     def test_positive_trend_positive_sharpe(self):
         # Uniformly rising NAV → positive mean return, positive Sharpe
-        nav = [100.0 * (1.001 ** i) for i in range(30)]
+        nav = [100.0 * (1.001**i) for i in range(30)]
         snaps = nav_snapshots(nav)
         result = compute_risk_metrics(snaps)
         assert result["sharpe"] is not None
         assert result["sharpe"] > 0.0
 
     def test_negative_trend_negative_sharpe(self):
-        nav = [100.0 * (0.999 ** i) for i in range(30)]
+        nav = [100.0 * (0.999**i) for i in range(30)]
         snaps = nav_snapshots(nav)
         result = compute_risk_metrics(snaps)
         assert result["sharpe"] is not None
@@ -244,7 +241,7 @@ class TestSortino:
         # In a right-skewed return series, Sortino > Sharpe
         nav = [100.0]
         for _ in range(25):
-            nav.append(nav[-1] * 1.003)   # small daily gain
+            nav.append(nav[-1] * 1.003)  # small daily gain
         # Add a few moderate losses
         for _ in range(5):
             nav.append(nav[-1] * 0.988)
@@ -384,7 +381,7 @@ class TestSectorConcentration:
     def test_multiple_sectors_sum_to_equity_fraction(self):
         holdings = [
             {"ticker": "AAPL", "shares": 100, "avg_cost": 100.0, "sector": "Technology"},
-            {"ticker": "JPM",  "shares": 50,  "avg_cost": 200.0, "sector": "Financials"},
+            {"ticker": "JPM", "shares": 50, "avg_cost": 200.0, "sector": "Financials"},
         ]
         total_nav = 100_000.0
         last_snap = make_snapshot(total_nav, holdings=holdings)
@@ -467,7 +464,7 @@ class TestFullScenario:
 
         holdings = [
             {"ticker": "AAPL", "shares": 100, "avg_cost": 175.0, "sector": "Technology"},
-            {"ticker": "JPM",  "shares": 50,  "avg_cost": 200.0, "sector": "Financials"},
+            {"ticker": "JPM", "shares": 50, "avg_cost": 200.0, "sector": "Financials"},
         ]
         snaps = []
         for i, v in enumerate(nav):
@@ -476,7 +473,11 @@ class TestFullScenario:
                 PortfolioSnapshot(
                     snapshot_id=f"snap-{i}",
                     portfolio_id="pid",
-                    snapshot_date=f"2026-01-{i + 1:02d}" if i < 31 else f"2026-02-{i - 30:02d}" if i < 59 else f"2026-03-{i - 58:02d}",
+                    snapshot_date=f"2026-01-{i + 1:02d}"
+                    if i < 31
+                    else f"2026-02-{i - 30:02d}"
+                    if i < 59
+                    else f"2026-03-{i - 58:02d}",
                     total_value=v,
                     cash=0.0,
                     equity_value=v,

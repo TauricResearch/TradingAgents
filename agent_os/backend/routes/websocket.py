@@ -16,14 +16,15 @@ _EVENT_POLL_INTERVAL_SECONDS = 0.05
 # Send a lightweight keepalive when a run is active but temporarily quiet.
 _HEARTBEAT_INTERVAL_SECONDS = 10.0
 
+
 @router.websocket("/stream/{run_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, 
+    websocket: WebSocket,
     run_id: str,
 ):
     await websocket.accept()
     logger.info("WebSocket connected run=%s", run_id)
-    
+
     if run_id not in runs:
         logger.warning("Run not found run=%s", run_id)
         await websocket.send_json({"type": "system", "message": f"Error: Run {run_id} not found."})
@@ -47,9 +48,7 @@ async def websocket_endpoint(
         if status in ("running", "completed", "failed", "awaiting_decision"):
             # Background task is already executing (or finished) — stream its cached events
             # then wait for completion if still running.
-            logger.info(
-                "WebSocket streaming from cache run=%s status=%s", run_id, status
-            )
+            logger.info("WebSocket streaming from cache run=%s status=%s", run_id, status)
             sent = 0
             last_send_monotonic = time.monotonic()
             while True:
@@ -78,7 +77,10 @@ async def websocket_endpoint(
 
             if run_info.get("status") == "failed":
                 await websocket.send_json(
-                    {"type": "system", "message": f"Error: Run failed: {run_info.get('error', 'unknown error')}"}
+                    {
+                        "type": "system",
+                        "message": f"Error: Run failed: {run_info.get('error', 'unknown error')}",
+                    }
                 )
             elif run_info.get("status") == "awaiting_decision":
                 await websocket.send_json(
@@ -105,13 +107,15 @@ async def websocket_endpoint(
         elif run_info.get("status") == "awaiting_decision":
             logger.info("Run paused awaiting decision run=%s type=%s", run_id, run_type)
         else:
-            logger.info("Run ended with status=%s run=%s type=%s", run_info.get("status"), run_id, run_type)
+            logger.info(
+                "Run ended with status=%s run=%s type=%s", run_info.get("status"), run_id, run_type
+            )
 
         try:
             await websocket.close()
         except Exception:
             logger.debug("WebSocket already closed run=%s", run_id)
-        
+
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected run=%s", run_id)
     except asyncio.CancelledError:

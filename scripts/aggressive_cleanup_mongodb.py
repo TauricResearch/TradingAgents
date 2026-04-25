@@ -15,11 +15,13 @@ if not MONGO_URI:
 client = MongoClient(MONGO_URI)
 db = client[MONGO_DB]
 
+
 def delete_all(col_name):
     col = db[col_name]
     print(f"Deleting ALL documents from '{col_name}'...")
     result = col.delete_many({})
     print(f"Deleted {result.deleted_count} documents from '{col_name}'.")
+
 
 if __name__ == "__main__":
     delete_all("reports")

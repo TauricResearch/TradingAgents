@@ -9,6 +9,7 @@ async def get_current_user() -> dict[str, str]:
     # V2 (Multi-Tenant): Decode the JWT using supabase-py and return auth.uid()
     return {"user_id": "tenant_001", "role": "admin"}
 
+
 def get_db_client() -> SupabaseClient:
     try:
         return SupabaseClient.get_instance()

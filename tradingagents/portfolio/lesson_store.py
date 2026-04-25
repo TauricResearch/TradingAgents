@@ -11,6 +11,7 @@ class LessonStore:
     Deduplicates on (ticker, scan_date, horizon_days).
     Atomic writes: write to .tmp, then os.replace().
     """
+
     DEFAULT_PATH = REPORTS_ROOT / "memory" / "selection_lessons.json"
 
     def __init__(self, path: Path | str | None = None):
@@ -54,7 +55,7 @@ class LessonStore:
 
         new_lessons = existing_lessons + to_add
 
-        tmp_path = self.path.with_suffix('.tmp')
+        tmp_path = self.path.with_suffix(".tmp")
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(new_lessons, f, indent=2)
 

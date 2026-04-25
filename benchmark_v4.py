@@ -1,4 +1,3 @@
-
 # We'll test whether passing data structure properly when creating a DataFrame is the issue.
 # Wait, let's re-read the issue.
 # The user issue title: "Missing optimization on DataFrame creation from iteration"

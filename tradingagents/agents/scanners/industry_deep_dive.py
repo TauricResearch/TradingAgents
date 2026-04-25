@@ -6,13 +6,13 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     require_scan_context,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.scanner_tools import get_industry_performance, get_topic_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
@@ -99,7 +99,7 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
     for line in lines:
         line_clean = line.strip()
         # Regex to match list formats: e.g., "- Technology:", "1. Energy -", "* Healthcare:"
-        match = re.match(r'^(?:-|\*|\d+\.)?\s*([a-zA-Z\s]+?)\s*[:\-]', line_clean)
+        match = re.match(r"^(?:-|\*|\d+\.)?\s*([a-zA-Z\s]+?)\s*[:\-]", line_clean)
         if match:
             sector_name = match.group(1).strip().lower()
             key = _DISPLAY_TO_KEY.get(sector_name)
