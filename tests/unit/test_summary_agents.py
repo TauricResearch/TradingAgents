@@ -183,6 +183,19 @@ class TestMacroSummaryAgentReturnShape:
         result = agent(state)
         assert result["macro_brief"] == content
 
+    def test_llm_path_empty_output_raises_runtime_error(self):
+        """Empty LLM output raises instead of returning an empty macro brief."""
+        llm_mock, _ = _make_chain_mock("")
+        agent = create_macro_summary_agent(llm_mock)
+        state = {
+            "scan_summary": {"executive_summary": "Flat markets"},
+            "messages": [],
+            "analysis_date": "2026-03-26",
+        }
+
+        with pytest.raises(RuntimeError, match="macro_summary_agent.*empty"):
+            agent(state)
+
     def test_macro_prompt_includes_candidate_catalysts_and_risks(self):
         captured = []
 

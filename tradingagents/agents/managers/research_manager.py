@@ -120,8 +120,16 @@ Debate History:
         if response:
             output_content = response.content.replace("TICKER_A", ticker)
 
-        if is_timeout or not str(output_content).strip() or output_contains_scratchpad(output_content):
-            failure_class = "timeout" if is_timeout else ("empty" if not str(output_content).strip() else "scratchpad")
+        if (
+            is_timeout
+            or not str(output_content).strip()
+            or output_contains_scratchpad(output_content)
+        ):
+            failure_class = (
+                "timeout"
+                if is_timeout
+                else ("empty" if not str(output_content).strip() else "scratchpad")
+            )
             raise RuntimeError(
                 f"Research Manager node failed: {failure_class} — no valid output after exhausting retries"
             )

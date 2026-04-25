@@ -163,16 +163,21 @@ def create_macro_summary_agent(
 
         chain = prompt | llm
         result = chain.invoke([])
+        macro_brief = str(getattr(result, "content", "") or "")
+        if not macro_brief.strip():
+            raise RuntimeError(
+                "macro_summary_agent: empty LLM response — cannot produce macro brief"
+            )
 
         # ------------------------------------------------------------------
         # Persist macro regime call to memory
         # ------------------------------------------------------------------
         if macro_memory is not None:
-            _persist_regime(result.content, scan_summary, macro_memory, state)
+            _persist_regime(macro_brief, scan_summary, macro_memory, state)
 
         return {
             "messages": [result],
-            "macro_brief": result.content,
+            "macro_brief": macro_brief,
             "macro_memory_context": past_context,
             "sender": "macro_summary_agent",
         }
