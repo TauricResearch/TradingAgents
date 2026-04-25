@@ -18,7 +18,9 @@ import pytest
 
 def _minimal_ohlcv_df(periods: int = 200) -> pd.DataFrame:
     """Return a minimal valid OHLCV DataFrame with a Date column ending today."""
-    end = pd.Timestamp.today()
+    end = pd.Timestamp.today().normalize()
+    if end.dayofweek >= 5:
+        end -= pd.offsets.BDay(1)
     idx = pd.bdate_range(end=end, periods=periods)
     return pd.DataFrame(
         {
