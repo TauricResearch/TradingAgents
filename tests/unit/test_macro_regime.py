@@ -37,6 +37,15 @@ def test_finviz_vix_scrape_uses_env_timeout(monkeypatch):
     assert mocked_get.call_args.kwargs["timeout"] == 11.0
 
 
+@pytest.mark.parametrize("raw_timeout", ["0", "-1", "inf", "nan"])
+def test_env_float_timeout_rejects_non_positive_or_non_finite(monkeypatch, raw_timeout):
+    from tradingagents.dataflows.macro_regime import _env_float
+
+    monkeypatch.setenv("TRADINGAGENTS_MACRO_REGIME_FINVIZ_TIMEOUT_SEC", raw_timeout)
+
+    assert _env_float("TRADINGAGENTS_MACRO_REGIME_FINVIZ_TIMEOUT_SEC", 20.0) == 20.0
+
+
 # ---------------------------------------------------------------------------
 # Helpers tests
 # ---------------------------------------------------------------------------

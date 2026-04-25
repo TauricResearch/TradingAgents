@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import math
 import os
 import sys
 import time
@@ -15,9 +16,12 @@ import requests
 def _request_timeout() -> float:
     raw = os.getenv("TRADINGAGENTS_RUN_NODE_LIVE_REQUEST_TIMEOUT_SEC", "30")
     try:
-        return float(raw)
+        timeout = float(raw)
     except ValueError:
         return 30.0
+    if not math.isfinite(timeout) or timeout <= 0:
+        return 30.0
+    return timeout
 
 
 def _parse_csv(value: str | None) -> list[str]:

@@ -109,6 +109,16 @@ def test_mongo_server_selection_timeout_uses_env(monkeypatch):
     assert mock_client_cls.call_args.kwargs["serverSelectionTimeoutMS"] == 7000
 
 
+@pytest.mark.parametrize("raw_timeout", ["0", "-1", "bad"])
+def test_mongo_server_selection_timeout_rejects_invalid_values(monkeypatch, raw_timeout):
+    monkeypatch.setenv("TRADINGAGENTS_MONGO_SERVER_SELECTION_TIMEOUT_MS", raw_timeout)
+    mock_client_cls = MagicMock()
+
+    mongo_report_store = _load_mongo_module(mock_client_cls)
+
+    assert mongo_report_store.MongoReportStore._server_selection_timeout_ms() == 5_000
+
+
 def test_load_scan_finds_latest(mongo_store, mock_col):
     """load_scan should call find_one with date and report_type, sorted by created_at."""
     mock_col.find_one.return_value = {"data": {"watchlist": ["AAPL"]}}

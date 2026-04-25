@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from datetime import datetime
 from io import StringIO
@@ -36,9 +37,12 @@ _CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]    # Discretionary, Technology, Industria
 def _env_float(key: str, default: float) -> float:
     raw = get_env_value(key, default)
     try:
-        return float(raw)
+        value = float(raw)
     except (TypeError, ValueError):
         return default
+    if not math.isfinite(value) or value <= 0:
+        return default
+    return value
 
 def _download(symbols: list[str], period: str = "3mo") -> pd.DataFrame | None:
     """Download closing prices, returning None on failure."""

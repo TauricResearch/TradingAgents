@@ -5,6 +5,7 @@ the Finnhub free tier), and the core HTTP request helper used by all other
 finnhub_* modules.
 """
 
+import math
 import threading
 import time as _time
 from datetime import datetime
@@ -19,9 +20,12 @@ API_BASE_URL = "https://finnhub.io/api/v1"
 def _default_timeout() -> float:
     raw = get_env_value("TRADINGAGENTS_FINNHUB_TIMEOUT_SEC", 30.0)
     try:
-        return float(raw)
+        timeout = float(raw)
     except (TypeError, ValueError):
         return 30.0
+    if not math.isfinite(timeout) or timeout <= 0:
+        return 30.0
+    return timeout
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import socket
 import urllib.error
@@ -119,6 +120,8 @@ def _agent_os_already_running(host: str, port: int) -> bool:
     try:
         timeout = float(os.getenv("AGENT_OS_HEALTHCHECK_TIMEOUT_SEC", "1.0"))
     except ValueError:
+        timeout = 1.0
+    if not math.isfinite(timeout) or timeout <= 0:
         timeout = 1.0
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:

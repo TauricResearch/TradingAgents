@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import threading
 import time as _time
 from datetime import datetime
@@ -125,9 +126,12 @@ def _rate_limited_request(function_name: str, params: dict, timeout: int = 30) -
 def _default_timeout() -> float:
     raw = get_env_value("TRADINGAGENTS_ALPHA_VANTAGE_TIMEOUT_SEC", 30.0)
     try:
-        return float(raw)
+        timeout = float(raw)
     except (TypeError, ValueError):
         return 30.0
+    if not math.isfinite(timeout) or timeout <= 0:
+        return 30.0
+    return timeout
 
 
 def _make_api_request(function_name: str, params: dict, timeout: float | None = None) -> dict | str:

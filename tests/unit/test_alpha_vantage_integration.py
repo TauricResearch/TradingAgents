@@ -115,6 +115,14 @@ class TestMakeApiRequest:
 
         assert mocked_get.call_args.kwargs["timeout"] == 42.0
 
+    @pytest.mark.parametrize("raw_timeout", ["0", "-1", "inf", "nan"])
+    def test_invalid_env_timeout_falls_back_to_default(self, monkeypatch, raw_timeout):
+        from tradingagents.dataflows.alpha_vantage_common import _default_timeout
+
+        monkeypatch.setenv("TRADINGAGENTS_ALPHA_VANTAGE_TIMEOUT_SEC", raw_timeout)
+
+        assert _default_timeout() == 30.0
+
     def test_raises_rate_limit_error_on_information_field(self):
         from tradingagents.dataflows.alpha_vantage_common import (
             AlphaVantageRateLimitError,

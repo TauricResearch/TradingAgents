@@ -75,9 +75,12 @@ class MongoReportStore:
             str(cls._SERVER_SELECTION_TIMEOUT_MS),
         )
         try:
-            return int(raw)
+            timeout_ms = int(raw)
         except (TypeError, ValueError):
             return cls._SERVER_SELECTION_TIMEOUT_MS
+        if timeout_ms <= 0:
+            return cls._SERVER_SELECTION_TIMEOUT_MS
+        return timeout_ms
 
     def __init__(
         self,

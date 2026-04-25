@@ -1,4 +1,5 @@
 
+import math
 import os
 
 import questionary
@@ -18,6 +19,8 @@ def _fetch_ollama_models(base_url: str = "http://localhost:11434") -> list[tuple
     try:
         timeout = float(os.getenv("TRADINGAGENTS_OLLAMA_TAGS_TIMEOUT_SEC", "5"))
     except ValueError:
+        timeout = 5.0
+    if not math.isfinite(timeout) or timeout <= 0:
         timeout = 5.0
     try:
         resp = requests.get(f"{base_url}/api/tags", timeout=timeout)
