@@ -80,8 +80,13 @@ class Portfolio:
         """Deserialise from a DB row or JSON dict.
 
         Missing optional fields default gracefully. Extra keys are ignored.
+
+        ``total_value`` is a runtime-computed field that is not persisted to the
+        database, but ``load_portfolio_node`` serialises it into ``portfolio_data``
+        state so that downstream nodes (cash_sweep, pm_decision_postcheck) can use
+        it without re-enriching from prices.  If present in *data*, it is restored.
         """
-        return cls(
+        p = cls(
             portfolio_id=data["portfolio_id"],
             name=data["name"],
             cash=float(data["cash"]),
@@ -92,6 +97,9 @@ class Portfolio:
             report_path=data.get("report_path"),
             metadata=data.get("metadata") or {},
         )
+        if data.get("total_value") is not None:
+            p.total_value = float(data["total_value"])
+        return p
 
     def enrich(self, holdings: list[Holding]) -> Portfolio:
         """Compute total_value, equity_value, cash_pct from holdings.

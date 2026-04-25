@@ -1,7 +1,7 @@
 # ADR 024: Cash-Integrity Guard Before PM Decision
 
 **Date**: 2026-04-25
-**Status**: Proposed
+**Status**: Accepted
 **Tags**: [portfolio, decision-integrity, fail-loud, invariants]
 **Related files**:
 - `tradingagents/graph/portfolio_setup.py`
