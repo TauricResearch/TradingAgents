@@ -7,7 +7,6 @@ from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
-    build_research_manager_fallback,
     output_contains_scratchpad,
 )
 from tradingagents.agents.utils.summary_context import (
@@ -121,21 +120,17 @@ Debate History:
         if response:
             output_content = response.content.replace("TICKER_A", ticker)
 
-        if (
-            is_timeout
-            or not str(output_content).strip()
-            or output_contains_scratchpad(output_content)
-        ):
-            output_content = build_research_manager_fallback(state)
-            is_fallback = True
-        else:
-            is_fallback = False
+        if is_timeout or not str(output_content).strip() or output_contains_scratchpad(output_content):
+            failure_class = "timeout" if is_timeout else ("empty" if not str(output_content).strip() else "scratchpad")
+            raise RuntimeError(
+                f"Research Manager node failed: {failure_class} — no valid output after exhausting retries"
+            )
 
         structured = build_investment_plan_structured(
             ticker=ticker,
             as_of_date=state.get("trade_date", ""),
             investment_plan=output_content,
-            is_timeout_fallback=is_timeout or is_fallback,
+            is_timeout_fallback=False,
         )
 
         new_investment_debate_state = {

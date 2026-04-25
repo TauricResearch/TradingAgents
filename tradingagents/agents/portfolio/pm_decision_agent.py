@@ -17,7 +17,6 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel
 
-from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 
 logger = logging.getLogger(__name__)
@@ -160,15 +159,7 @@ def create_pm_decision_agent(
 
         # Read brief fields written by upstream summary agents
         _macro_brief_raw = state.get("macro_brief") or ""
-        if not _macro_brief_raw or "NO DATA AVAILABLE" in _macro_brief_raw:
-            # Macro scanner failed — give PM explicit guidance rather than passing sentinel
-            macro_brief = (
-                "MACRO DATA UNAVAILABLE: No scanner output was produced. "
-                "Proceed with micro brief only. Adopt a conservative posture: "
-                "hold existing positions and avoid new buys unless micro thesis is very strong."
-            )
-        else:
-            macro_brief = _macro_brief_raw
+        macro_brief = _macro_brief_raw or ""
         micro_brief = state.get("micro_brief") or "No micro brief available."
         candidate_deep_dive_context = _build_candidate_deep_dive_context(
             state.get("prioritized_candidates") or "[]"
@@ -243,23 +234,9 @@ def create_pm_decision_agent(
             result = chain.invoke([])
             decision_str = result.model_dump_json()
         except Exception as exc:
-            logger.warning(
-                "pm_decision_agent: structured output failed (%s); falling back to raw", exc
-            )
-            # Fallback: plain LLM + extract_json
-            chain_raw = prompt | llm
-            raw_result = chain_raw.invoke([])
-            raw = raw_result.content or "{}"
-            try:
-                parsed = extract_json(raw)
-                decision_str = json.dumps(parsed)
-            except (ValueError, json.JSONDecodeError):
-                decision_str = raw
-            return {
-                "messages": [raw_result],
-                "pm_decision": decision_str,
-                "sender": "pm_decision_agent",
-            }
+            raise RuntimeError(
+                f"pm_decision_agent: structured output failed ({type(exc).__name__}: {exc})"
+            ) from exc
 
         # with_structured_output returns the Pydantic model directly, not an AIMessage.
         # Wrap in a synthetic AIMessage so downstream message-history nodes stay consistent.

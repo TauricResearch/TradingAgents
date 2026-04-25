@@ -69,15 +69,10 @@ def create_macro_summary_agent(
         if not scan_summary or (
             isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}
         ):
-            logger.warning(
-                "macro_summary_agent: scan_summary missing or contains only error — returning NO DATA sentinel."
+            raise RuntimeError(
+                "macro_summary_agent: scan_summary missing or contains only error — "
+                "cannot produce macro brief without valid scan data"
             )
-            return {
-                "macro_brief": "NO DATA AVAILABLE - ABORT MACRO",
-                "macro_memory_context": "",
-                "messages": [],
-                "sender": "macro_summary_agent",
-            }
 
         # ------------------------------------------------------------------
         # Compress scan data to save tokens
