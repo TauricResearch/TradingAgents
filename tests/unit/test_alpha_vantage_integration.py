@@ -103,6 +103,18 @@ class TestMakeApiRequest:
         assert "timestamp" in result
         assert "186.00" in result
 
+    def test_env_timeout_used_when_not_passed(self, monkeypatch):
+        from tradingagents.dataflows.alpha_vantage_common import _make_api_request
+
+        monkeypatch.setenv("TRADINGAGENTS_ALPHA_VANTAGE_TIMEOUT_SEC", "42")
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(CSV_DAILY_ADJUSTED),
+        ) as mocked_get:
+            _make_api_request("TIME_SERIES_DAILY_ADJUSTED", {"symbol": "AAPL", "datatype": "csv"})
+
+        assert mocked_get.call_args.kwargs["timeout"] == 42.0
+
     def test_raises_rate_limit_error_on_information_field(self):
         from tradingagents.dataflows.alpha_vantage_common import (
             AlphaVantageRateLimitError,

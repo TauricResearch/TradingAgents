@@ -2,6 +2,7 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
+import tradingagents.agents.scanners.macro_synthesis as macro_synthesis_module
 from tradingagents.agents.scanners.macro_synthesis import (
     _build_candidate_rankings,
     _extract_rankable_tickers,
@@ -163,6 +164,52 @@ def test_macro_synthesis_ignores_prior_message_history_when_prompting_llm(monkey
     assert messages[1].content == "Produce the final macro synthesis now as JSON only."
     assert "provider-native block" not in captured_prompt.to_string()
     assert result["macro_scan_summary"]
+
+
+def test_macro_synthesis_respects_configured_deep_timeout_cap(monkeypatch):
+    captured_timeout = None
+
+    def _invoke_with_timeout(_chain, _input, *, timeout_seconds, max_tokens=None):
+        nonlocal captured_timeout
+        captured_timeout = timeout_seconds
+        return (
+            AIMessage(
+                content='{"timeframe":"1 month","executive_summary":"Summary","macro_context":{},'
+                '"key_themes":[],"stocks_to_investigate":[],"risk_factors":[]}'
+            ),
+            None,
+        )
+
+    monkeypatch.setitem(macro_synthesis_module.DEFAULT_CONFIG, "deep_think_llm_timeout", 600.0)
+    monkeypatch.setitem(macro_synthesis_module.DEFAULT_CONFIG, "deep_think_llm_timeout_cap", 600.0)
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.invoke_with_timeout",
+        _invoke_with_timeout,
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.save_node_report",
+        lambda *_args, **_kwargs: None,
+    )
+
+    agent = create_macro_synthesis(RunnableLambda(lambda _value: AIMessage(content="{}")))
+
+    agent(
+        {
+            "scan_date": "2026-03-30",
+            "run_id": "RUN1",
+            "messages": [],
+            "gatekeeper_universe_report": "NVDA AAPL MSFT",
+            "geopolitical_report": "Geopolitical context",
+            "market_movers_report": "Market movers context",
+            "sector_performance_report": "Sector context",
+            "factor_alignment_report": "Factor context",
+            "drift_opportunities_report": "Drift context",
+            "smart_money_report": "Smart money context",
+            "industry_deep_dive_report": "Industry context",
+        }
+    )
+
+    assert captured_timeout == 600.0
 
 
 def test_macro_synthesis_fails_when_scan_date_missing():

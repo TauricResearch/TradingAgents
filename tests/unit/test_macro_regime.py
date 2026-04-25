@@ -23,6 +23,20 @@ def _trending_series(start: float, end: float, n: int = 100) -> pd.Series:
     return _make_series(list(np.linspace(start, end, n)))
 
 
+def test_finviz_vix_scrape_uses_env_timeout(monkeypatch):
+    from tradingagents.dataflows.macro_regime import _download_vix_from_finviz_vx_futures
+
+    class _Response:
+        status_code = 200
+        text = "<title>VIX Futures</title>"
+
+    monkeypatch.setenv("TRADINGAGENTS_MACRO_REGIME_FINVIZ_TIMEOUT_SEC", "11")
+    with patch("tradingagents.dataflows.macro_regime.requests.get", return_value=_Response()) as mocked_get:
+        _download_vix_from_finviz_vx_futures()
+
+    assert mocked_get.call_args.kwargs["timeout"] == 11.0
+
+
 # ---------------------------------------------------------------------------
 # Helpers tests
 # ---------------------------------------------------------------------------

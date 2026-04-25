@@ -19,6 +19,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -67,6 +68,17 @@ class MongoReportStore:
     # instead of blocking for pymongo's 30-second default.
     _SERVER_SELECTION_TIMEOUT_MS: int = 5_000
 
+    @classmethod
+    def _server_selection_timeout_ms(cls) -> int:
+        raw = os.getenv(
+            "TRADINGAGENTS_MONGO_SERVER_SELECTION_TIMEOUT_MS",
+            str(cls._SERVER_SELECTION_TIMEOUT_MS),
+        )
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return cls._SERVER_SELECTION_TIMEOUT_MS
+
     def __init__(
         self,
         connection_string: str,
@@ -78,7 +90,7 @@ class MongoReportStore:
         try:
             self._client: MongoClient = MongoClient(
                 connection_string,
-                serverSelectionTimeoutMS=self._SERVER_SELECTION_TIMEOUT_MS,
+                serverSelectionTimeoutMS=self._server_selection_timeout_ms(),
             )
             self._db: Database = self._client[db_name]
             self._col: Collection = self._db[_REPORTS_COLLECTION]

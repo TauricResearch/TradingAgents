@@ -122,7 +122,15 @@ def _rate_limited_request(function_name: str, params: dict, timeout: int = 30) -
 
 # ─── Core API request ────────────────────────────────────────────────────────
 
-def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> dict | str:
+def _default_timeout() -> float:
+    raw = get_env_value("TRADINGAGENTS_ALPHA_VANTAGE_TIMEOUT_SEC", 30.0)
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 30.0
+
+
+def _make_api_request(function_name: str, params: dict, timeout: float | None = None) -> dict | str:
     """Make an Alpha Vantage API request with proper error handling.
 
     Returns the response text (JSON string or CSV).
@@ -135,6 +143,8 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
         ThirdPartyParseError: Response could not be parsed.
     """
     api_key = get_api_key()
+    if timeout is None:
+        timeout = _default_timeout()
     api_params = params.copy()
     api_params.update({
         "function": function_name,

@@ -26,6 +26,7 @@ from tradingagents.agents.utils.scanner_idempotency import (
     save_node_report,
 )
 from tradingagents.agents.utils.scanner_states import ScannerState
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Ca
         result, invoke_error = invoke_with_timeout(
             llm=llm,
             prompt_or_messages=prompt,
-            timeout_seconds=180.0,
+            timeout_seconds=float(DEFAULT_CONFIG.get("scanner_summarizer_timeout") or 180.0),
         )
         if invoke_error is not None:
             raise RuntimeError(

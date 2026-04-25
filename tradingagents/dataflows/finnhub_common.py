@@ -16,6 +16,14 @@ from tradingagents.default_config import get_env_value
 API_BASE_URL = "https://finnhub.io/api/v1"
 
 
+def _default_timeout() -> float:
+    raw = get_env_value("TRADINGAGENTS_FINNHUB_TIMEOUT_SEC", 30.0)
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 30.0
+
+
 # ---------------------------------------------------------------------------
 # API key helpers
 # ---------------------------------------------------------------------------
@@ -126,7 +134,7 @@ def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dic
 # ---------------------------------------------------------------------------
 
 
-def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict | list:
+def _make_api_request(endpoint: str, params: dict, timeout: float | None = None) -> dict | list:
     """Make a Finnhub API request with proper error handling.
 
     Calls ``https://finnhub.io/api/v1/{endpoint}`` and returns the parsed JSON
@@ -153,6 +161,8 @@ def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict | 
     """
     api_params = params.copy()
     api_params["token"] = get_api_key()
+    if timeout is None:
+        timeout = _default_timeout()
 
     url = f"{API_BASE_URL}/{endpoint}"
 

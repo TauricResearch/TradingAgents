@@ -256,6 +256,15 @@ def build_default_config(
         "tool_loop_timeout_cap": _env_float(
             "TOOL_LOOP_TIMEOUT_CAP_SEC", 300.0, env=env
         ),
+        "scanner_summarizer_timeout": _env_float(
+            "SCANNER_SUMMARIZER_TIMEOUT_SEC", 180.0, env=env
+        ),
+        "tool_execution_timeout": _env_float(
+            "TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env
+        ),
+        "scan_timeout_seconds": _env_float(
+            "SCAN_TIMEOUT_SEC", 1800.0, env=env
+        ),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),
         "anthropic_effort": _env("ANTHROPIC_EFFORT", env=env),

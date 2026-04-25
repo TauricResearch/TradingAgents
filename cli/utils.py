@@ -1,4 +1,6 @@
 
+import os
+
 import questionary
 import requests
 from rich.console import Console
@@ -14,7 +16,11 @@ TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
 def _fetch_ollama_models(base_url: str = "http://localhost:11434") -> list[tuple[str, str]]:
     """Fetch available models from a running Ollama instance."""
     try:
-        resp = requests.get(f"{base_url}/api/tags", timeout=5)
+        timeout = float(os.getenv("TRADINGAGENTS_OLLAMA_TAGS_TIMEOUT_SEC", "5"))
+    except ValueError:
+        timeout = 5.0
+    try:
+        resp = requests.get(f"{base_url}/api/tags", timeout=timeout)
         resp.raise_for_status()
         models = resp.json().get("models", [])
         return [(m["name"], m["name"]) for m in models] if models else []

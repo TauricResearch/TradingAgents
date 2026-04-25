@@ -4,11 +4,20 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
 import requests
+
+
+def _request_timeout() -> float:
+    raw = os.getenv("TRADINGAGENTS_RUN_NODE_LIVE_REQUEST_TIMEOUT_SEC", "30")
+    try:
+        return float(raw)
+    except ValueError:
+        return 30.0
 
 
 def _parse_csv(value: str | None) -> list[str]:
@@ -18,7 +27,7 @@ def _parse_csv(value: str | None) -> list[str]:
 
 
 def _api_get(base_url: str, run_id: str) -> dict:
-    response = requests.get(f"{base_url}/api/run/{run_id}", timeout=30)
+    response = requests.get(f"{base_url}/api/run/{run_id}", timeout=_request_timeout())
     response.raise_for_status()
     return response.json()
 
@@ -40,7 +49,11 @@ def _trigger_pipeline(
     }
     if market_report_file:
         payload["market_report_file"] = market_report_file
-    response = requests.post(f"{base_url}/api/run/pipeline", json=payload, timeout=30)
+    response = requests.post(
+        f"{base_url}/api/run/pipeline",
+        json=payload,
+        timeout=_request_timeout(),
+    )
     response.raise_for_status()
     data = response.json()
     return str(data["run_id"])
@@ -652,7 +665,7 @@ def main() -> int:
             if args.stop_on_stall:
                 response = requests.post(
                     f"{args.base_url}/api/run/{run_id}/stop",
-                    timeout=30,
+                    timeout=_request_timeout(),
                 )
                 print(
                     "stall_stop_requested "
@@ -667,7 +680,7 @@ def main() -> int:
             if args.stop_on_timeout:
                 response = requests.post(
                     f"{args.base_url}/api/run/{run_id}/stop",
-                    timeout=30,
+                    timeout=_request_timeout(),
                 )
                 print(f"stop_status={response.status_code} stop_response={response.text}")
             _write_artifact(args.base_url, run_id, args.write_run_json)
