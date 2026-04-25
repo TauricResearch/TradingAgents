@@ -13,3 +13,4 @@
 # limitations under the License.
 
 from .models import TradeRecord, PerformanceMetrics, BacktestResult
+from .performance import PerformanceCalculator
