@@ -14,3 +14,4 @@
 
 from .models import TradeRecord, PerformanceMetrics, BacktestResult
 from .performance import PerformanceCalculator
+from .engine import BacktestEngine
