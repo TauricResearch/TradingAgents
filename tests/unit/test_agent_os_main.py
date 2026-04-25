@@ -18,13 +18,35 @@ class _FakeResponse:
 
 
 def test_agent_os_already_running_returns_true_for_agent_health(monkeypatch):
+    captured = {}
+
+    def _urlopen(url, timeout=1.0):
+        captured["timeout"] = timeout
+        return _FakeResponse('{"status":"ok","service":"AgentOS API"}')
+
+    monkeypatch.setenv("AGENT_OS_HEALTHCHECK_TIMEOUT_SEC", "2.5")
     monkeypatch.setattr(
         main.urllib.request,
         "urlopen",
-        lambda url, timeout=1.0: _FakeResponse('{"status":"ok","service":"AgentOS API"}'),
+        _urlopen,
     )
 
     assert main._agent_os_already_running("0.0.0.0", 8088) is True
+    assert captured["timeout"] == 2.5
+
+
+def test_agent_os_healthcheck_timeout_rejects_invalid_values(monkeypatch):
+    captured = {}
+
+    def _urlopen(url, timeout=1.0):
+        captured["timeout"] = timeout
+        return _FakeResponse('{"status":"ok","service":"AgentOS API"}')
+
+    monkeypatch.setenv("AGENT_OS_HEALTHCHECK_TIMEOUT_SEC", "inf")
+    monkeypatch.setattr(main.urllib.request, "urlopen", _urlopen)
+
+    assert main._agent_os_already_running("0.0.0.0", 8088) is True
+    assert captured["timeout"] == 1.0
 
 
 def test_agent_os_already_running_returns_false_on_non_agent_response(monkeypatch):

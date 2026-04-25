@@ -10,6 +10,7 @@ This module is the single owner of .env loading behavior.
 
 from __future__ import annotations
 
+import math
 import os
 import sys
 from pathlib import Path
@@ -156,6 +157,27 @@ def _env_float(key: str, default: Any = None, *, env: Mapping[str, str] | None =
         return default
 
 
+def _env_timeout_seconds(
+    key: str, default: float | None, *, env: Mapping[str, str] | None = None
+) -> float | None:
+    """Read a timeout value (in seconds) from config, validating it is finite and > 0.
+
+    Falls back to *default* when the env variable is missing, empty, non-numeric,
+    zero, negative, or non-finite (``inf`` / ``nan``).  Pass ``default=None`` for
+    optional per-tier overrides that should remain ``None`` when not configured.
+    """
+    val = _env(key, env=env)
+    if val is None:
+        return default
+    try:
+        parsed = float(val)
+    except (ValueError, TypeError):
+        return default
+    if not math.isfinite(parsed) or parsed <= 0:
+        return default
+    return parsed
+
+
 def _tool_vendor_overrides(*, env: Mapping[str, str]) -> dict[str, str]:
     tool_env_map = {
         "get_insider_transactions": "VENDOR_INSIDER_TRANSACTIONS",
@@ -229,23 +251,23 @@ def build_default_config(
             "DEEP_THINK_FALLBACK_LLM_PROVIDER", env=env
         ),
         # Provider-specific thinking configuration (global + per role).
-        "llm_timeout": _env_float("LLM_TIMEOUT_SEC", 300.0, env=env),
-        "deep_think_llm_timeout": _env_float(
-            "DEEP_THINK_LLM_TIMEOUT_SEC", env=env
+        "llm_timeout": _env_timeout_seconds("LLM_TIMEOUT_SEC", 300.0, env=env),
+        "deep_think_llm_timeout": _env_timeout_seconds(
+            "DEEP_THINK_LLM_TIMEOUT_SEC", None, env=env
         ),
-        "mid_think_llm_timeout": _env_float(
-            "MID_THINK_LLM_TIMEOUT_SEC", env=env
+        "mid_think_llm_timeout": _env_timeout_seconds(
+            "MID_THINK_LLM_TIMEOUT_SEC", None, env=env
         ),
-        "quick_think_llm_timeout": _env_float(
-            "QUICK_THINK_LLM_TIMEOUT_SEC", env=env
+        "quick_think_llm_timeout": _env_timeout_seconds(
+            "QUICK_THINK_LLM_TIMEOUT_SEC", None, env=env
         ),
-        "deep_think_llm_timeout_cap": _env_float(
+        "deep_think_llm_timeout_cap": _env_timeout_seconds(
             "DEEP_THINK_LLM_TIMEOUT_CAP_SEC", 360.0, env=env
         ),
-        "mid_think_llm_timeout_cap": _env_float(
+        "mid_think_llm_timeout_cap": _env_timeout_seconds(
             "MID_THINK_LLM_TIMEOUT_CAP_SEC", 240.0, env=env
         ),
-        "quick_think_llm_timeout_cap": _env_float(
+        "quick_think_llm_timeout_cap": _env_timeout_seconds(
             "QUICK_THINK_LLM_TIMEOUT_CAP_SEC", 300.0, env=env
         ),
         # Per-tier max output tokens (None = let the model decide).
@@ -253,8 +275,17 @@ def build_default_config(
         "mid_think_llm_max_tokens": _env_int("MID_THINK_LLM_MAX_TOKENS", env=env),
         "quick_think_llm_max_tokens": _env_int("QUICK_THINK_LLM_MAX_TOKENS", env=env),
         "scanner_llm_max_tokens": _env_int("SCANNER_LLM_MAX_TOKENS", env=env),
-        "tool_loop_timeout_cap": _env_float(
+        "tool_loop_timeout_cap": _env_timeout_seconds(
             "TOOL_LOOP_TIMEOUT_CAP_SEC", 300.0, env=env
+        ),
+        "scanner_summarizer_timeout": _env_timeout_seconds(
+            "SCANNER_SUMMARIZER_TIMEOUT_SEC", 180.0, env=env
+        ),
+        "tool_execution_timeout": _env_timeout_seconds(
+            "TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env
+        ),
+        "scan_timeout_seconds": _env_timeout_seconds(
+            "SCAN_TIMEOUT_SEC", 1800.0, env=env
         ),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),

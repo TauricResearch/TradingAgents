@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import math
 import re
 from datetime import datetime
 from io import StringIO
 
 import pandas as pd
 import requests
+
+from tradingagents.default_config import get_env_value
 
 from .alpha_vantage_common import AlphaVantageError, _make_api_request
 from .stockstats_utils import safe_yf_download
@@ -30,6 +33,16 @@ _CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]    # Discretionary, Technology, Industria
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _env_float(key: str, default: float) -> float:
+    raw = get_env_value(key, default)
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(value) or value <= 0:
+        return default
+    return value
 
 def _download(symbols: list[str], period: str = "3mo") -> pd.DataFrame | None:
     """Download closing prices, returning None on failure."""
@@ -73,7 +86,11 @@ def _download_vix_from_finviz_vx_futures() -> tuple[float | None, str | None, fl
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=20)
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=_env_float("TRADINGAGENTS_MACRO_REGIME_FINVIZ_TIMEOUT_SEC", 20.0),
+        )
     except requests.RequestException:
         return None, None, None
 

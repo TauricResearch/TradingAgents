@@ -41,11 +41,17 @@ def test_process_env_overrides_defaults():
             "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
             "TRADINGAGENTS_LLM_TIMEOUT_SEC": "45",
             "TRADINGAGENTS_MID_THINK_LLM_TIMEOUT_SEC": "12.5",
+            "TRADINGAGENTS_SCANNER_SUMMARIZER_TIMEOUT_SEC": "210",
+            "TRADINGAGENTS_TOOL_EXECUTION_TIMEOUT_SEC": "75",
+            "TRADINGAGENTS_SCAN_TIMEOUT_SEC": "2400",
         }
     )
     assert cfg["llm_provider"] == "openrouter"
     assert cfg["llm_timeout"] == 45.0
     assert cfg["mid_think_llm_timeout"] == 12.5
+    assert cfg["scanner_summarizer_timeout"] == 210.0
+    assert cfg["tool_execution_timeout"] == 75.0
+    assert cfg["scan_timeout_seconds"] == 2400.0
 
 
 def test_dotenv_overrides_defaults(tmp_path: Path):
