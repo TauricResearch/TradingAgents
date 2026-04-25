@@ -48,4 +48,3 @@ def get_config() -> dict[str, Any]:
     if _config is None:
         initialize_config()
     return deepcopy(_config)
-

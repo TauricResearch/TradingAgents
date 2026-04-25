@@ -10,6 +10,7 @@ CLI usage:
         [--reports-root /path/to/reports] \
         [--no-overwrite]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,6 +34,7 @@ _logger = logging.getLogger(__name__)
 def _has_usable_markdown(market_dir: Path) -> bool:
     """Return True if at least one non-quality-gated *_summary.md exists."""
     from tradingagents.graph.scanner_facts.from_markdown import is_quality_gated
+
     for f in market_dir.glob("*_summary.md"):
         text = f.read_text(encoding="utf-8")
         if not is_quality_gated(text):
@@ -77,8 +79,7 @@ def _build_from_markdown_only(
     errors = validate_graph_facts(facts)
     if errors:
         raise ValueError(
-            f"Degraded build failed validation ({len(errors)} errors): "
-            + "; ".join(errors[:5])
+            f"Degraded build failed validation ({len(errors)} errors): " + "; ".join(errors[:5])
         )
     return facts
 
@@ -119,7 +120,9 @@ def rebuild_scanner_graph_facts(
     artifact_path = market_dir / "scanner_graph_facts.json"
 
     if artifact_path.exists() and not overwrite:
-        _logger.info("rebuild: artifact already exists at %s — skipping (--no-overwrite)", artifact_path)
+        _logger.info(
+            "rebuild: artifact already exists at %s — skipping (--no-overwrite)", artifact_path
+        )
         return artifact_path
 
     # Try primary path: macro JSON + markdown
@@ -139,16 +142,15 @@ def rebuild_scanner_graph_facts(
         if "macro_scan_summary" in str(exc) or "not valid JSON" in str(exc):
             _logger.warning(
                 "rebuild: macro_scan_summary.json malformed (%s) — "
-                "attempting markdown-only fallback", exc
+                "attempting markdown-only fallback",
+                exc,
             )
             if not _has_usable_markdown(market_dir):
                 raise ValueError(
                     f"macro_scan_summary.json malformed and no usable Markdown "
                     f"summaries found in {market_dir}. Cannot rebuild."
                 ) from exc
-            facts = _build_from_markdown_only(
-                market_dir, scan_date=scan_date, run_id=run_id
-            )
+            facts = _build_from_markdown_only(market_dir, scan_date=scan_date, run_id=run_id)
         else:
             raise
 
@@ -156,6 +158,7 @@ def rebuild_scanner_graph_facts(
 
 
 # ---------- CLI ----------
+
 
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -165,11 +168,15 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--date", required=True, help="Scan date (YYYY-MM-DD)")
     parser.add_argument("--run-id", required=True, dest="run_id", help="Run ID")
     parser.add_argument(
-        "--reports-root", dest="reports_root", default=None,
+        "--reports-root",
+        dest="reports_root",
+        default=None,
         help="Override reports root directory",
     )
     parser.add_argument(
-        "--no-overwrite", dest="no_overwrite", action="store_true",
+        "--no-overwrite",
+        dest="no_overwrite",
+        action="store_true",
         help="Skip rebuild if artifact already exists",
     )
     args = parser.parse_args(argv)

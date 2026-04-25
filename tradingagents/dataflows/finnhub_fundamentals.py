@@ -54,8 +54,7 @@ def get_company_profile(symbol: str) -> str:
 
     if not data:
         raise FinnhubError(
-            f"Empty profile response for symbol={symbol}. "
-            "Symbol may be invalid or not covered."
+            f"Empty profile response for symbol={symbol}. Symbol may be invalid or not covered."
         )
 
     name = data.get("name", "N/A")

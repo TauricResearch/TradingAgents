@@ -166,9 +166,7 @@ def _validate_market_checkpoint(
     macro_regime_report = str(payload.get("macro_regime_report") or "").strip()
 
     macro_fallback_detected = (
-        bool(market_report)
-        and bool(macro_regime_report)
-        and market_report == macro_regime_report
+        bool(market_report) and bool(macro_regime_report) and market_report == macro_regime_report
     )
     print(f"macro_fallback_detected={macro_fallback_detected}")
     if disallow_macro_fallback and macro_fallback_detected:
@@ -370,9 +368,7 @@ def _validate_bypass_summary_flow(
     missing_analysts: list[str] = []
     for node in required_analyst_nodes:
         found = any(
-            str(event.get("node_id") or "") == node
-            and _matches_ticker(event)
-            and idx < bull_index
+            str(event.get("node_id") or "") == node and _matches_ticker(event) and idx < bull_index
             for idx, event in enumerate(events)
         )
         if not found:
@@ -386,9 +382,7 @@ def _validate_bypass_summary_flow(
     hit_forbidden: list[str] = []
     for node in forbidden_nodes:
         found = any(
-            str(event.get("node_id") or "") == node
-            and _matches_ticker(event)
-            and idx < bull_index
+            str(event.get("node_id") or "") == node and _matches_ticker(event) and idx < bull_index
             for idx, event in enumerate(events)
         )
         if found:
@@ -655,8 +649,7 @@ def main() -> int:
                     timeout=30,
                 )
                 print(
-                    "stall_stop_requested "
-                    f"status={response.status_code} response={response.text}"
+                    f"stall_stop_requested status={response.status_code} response={response.text}"
                 )
             _write_artifact(args.base_url, run_id, args.write_run_json)
             if args.exit_on_stall:

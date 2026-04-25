@@ -85,52 +85,64 @@ class TradeExecutor:
             rationale = sell.get("rationale") or ""
 
             if not ticker or shares <= 0:
-                failed_trades.append({
-                    "action": "SELL",
-                    "ticker": ticker,
-                    "reason": "Invalid ticker or shares",
-                    "detail": str(sell),
-                })
+                failed_trades.append(
+                    {
+                        "action": "SELL",
+                        "ticker": ticker,
+                        "reason": "Invalid ticker or shares",
+                        "detail": str(sell),
+                    }
+                )
                 continue
 
             price = prices.get(ticker)
             if price is None:
-                failed_trades.append({
-                    "action": "SELL",
-                    "ticker": ticker,
-                    "reason": f"No price found for {ticker}",
-                })
+                failed_trades.append(
+                    {
+                        "action": "SELL",
+                        "ticker": ticker,
+                        "reason": f"No price found for {ticker}",
+                    }
+                )
                 logger.warning("execute_decisions: no price for %s — skipping SELL", ticker)
                 continue
 
-            sells_to_process.append({
-                "ticker": ticker,
-                "shares": shares,
-                "price": price,
-                "rationale": rationale,
-            })
+            sells_to_process.append(
+                {
+                    "ticker": ticker,
+                    "shares": shares,
+                    "price": price,
+                    "rationale": rationale,
+                }
+            )
 
         if sells_to_process:
             try:
-                executed, failed = self.repo.batch_remove_holdings(portfolio_id, sells_to_process, trade_date)
+                executed, failed = self.repo.batch_remove_holdings(
+                    portfolio_id, sells_to_process, trade_date
+                )
                 executed_trades.extend(executed)
                 for f in failed:
-                    failed_trades.append({
-                        "action": "SELL",
-                        "ticker": f.get("ticker", "UNKNOWN"),
-                        "reason": f.get("reason", "Batch execution failed"),
-                    })
+                    failed_trades.append(
+                        {
+                            "action": "SELL",
+                            "ticker": f.get("ticker", "UNKNOWN"),
+                            "reason": f.get("reason", "Batch execution failed"),
+                        }
+                    )
                     logger.warning("SELL failed for %s: %s", f.get("ticker"), f.get("reason"))
                 for e in executed:
                     logger.info("SELL %s x %.2f @ %.2f", e["ticker"], e["shares"], e["price"])
             except PortfolioError as exc:
                 logger.error("Batch sell execution failed: %s", exc)
                 for s in sells_to_process:
-                    failed_trades.append({
-                        "action": "SELL",
-                        "ticker": s["ticker"],
-                        "reason": str(exc),
-                    })
+                    failed_trades.append(
+                        {
+                            "action": "SELL",
+                            "ticker": s["ticker"],
+                            "reason": str(exc),
+                        }
+                    )
 
         # --- BUYs second ---
         for buy in buys:
@@ -148,35 +160,39 @@ class TradeExecutor:
             take_profit = float(raw_tp) if raw_tp is not None else None
 
             if not ticker or shares <= 0:
-                failed_trades.append({
-                    "action": "BUY",
-                    "ticker": ticker,
-                    "reason": "Invalid ticker or shares",
-                    "detail": str(buy),
-                })
+                failed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "reason": "Invalid ticker or shares",
+                        "detail": str(buy),
+                    }
+                )
                 continue
 
             price = prices.get(ticker)
             if price is None:
-                failed_trades.append({
-                    "action": "BUY",
-                    "ticker": ticker,
-                    "reason": f"No price found for {ticker}",
-                })
+                failed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "reason": f"No price found for {ticker}",
+                    }
+                )
                 logger.warning("execute_decisions: no price for %s — skipping BUY", ticker)
                 continue
 
             # Pre-flight constraint check
             try:
-                portfolio, holdings = self.repo.get_portfolio_with_holdings(
-                    portfolio_id, prices
-                )
+                portfolio, holdings = self.repo.get_portfolio_with_holdings(portfolio_id, prices)
             except PortfolioError as exc:
-                failed_trades.append({
-                    "action": "BUY",
-                    "ticker": ticker,
-                    "reason": f"Could not load portfolio: {exc}",
-                })
+                failed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "reason": f"Could not load portfolio: {exc}",
+                    }
+                )
                 continue
 
             # Auto-liquidate cash-sweep ETF (SGOV) if cash is insufficient
@@ -196,18 +212,21 @@ class TradeExecutor:
                         if sgov_shares_to_sell > 0:
                             logger.info(
                                 "TradeExecutor: Auto-liquidating %d shares of SGOV to cover shortfall for %s",
-                                sgov_shares_to_sell, ticker
+                                sgov_shares_to_sell,
+                                ticker,
                             )
                             try:
                                 executed, failed = self.repo.batch_remove_holdings(
                                     portfolio_id,
-                                    [{
-                                        "ticker": "SGOV",
-                                        "shares": sgov_shares_to_sell,
-                                        "price": sgov_price,
-                                        "rationale": f"Auto-liquidated to fund {ticker} purchase"
-                                    }],
-                                    trade_date
+                                    [
+                                        {
+                                            "ticker": "SGOV",
+                                            "shares": sgov_shares_to_sell,
+                                            "price": sgov_price,
+                                            "rationale": f"Auto-liquidated to fund {ticker} purchase",
+                                        }
+                                    ],
+                                    trade_date,
                                 )
                                 executed_trades.extend(executed)
                                 # Reload portfolio to reflect new cash balance
@@ -227,12 +246,14 @@ class TradeExecutor:
                 new_sector=sector,
             )
             if violations:
-                failed_trades.append({
-                    "action": "BUY",
-                    "ticker": ticker,
-                    "reason": "Constraint violation",
-                    "violations": violations,
-                })
+                failed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "reason": "Constraint violation",
+                        "violations": violations,
+                    }
+                )
                 logger.warning("BUY %s rejected — constraints: %s", ticker, violations)
                 continue
 
@@ -246,29 +267,35 @@ class TradeExecutor:
                     stop_loss=stop_loss,
                     take_profit=take_profit,
                 )
-                executed_trades.append({
-                    "action": "BUY",
-                    "ticker": ticker,
-                    "shares": shares,
-                    "price": price,
-                    "sector": sector,
-                    "rationale": rationale,
-                    "stop_loss": stop_loss,
-                    "take_profit": take_profit,
-                    "trade_date": trade_date,
-                })
+                executed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "shares": shares,
+                        "price": price,
+                        "sector": sector,
+                        "rationale": rationale,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit,
+                        "trade_date": trade_date,
+                    }
+                )
                 logger.info(
                     "BUY %s x %.2f @ %.2f (SL=%s TP=%s)",
-                    ticker, shares, price,
+                    ticker,
+                    shares,
+                    price,
                     f"{stop_loss:.2f}" if stop_loss is not None else "N/A",
                     f"{take_profit:.2f}" if take_profit is not None else "N/A",
                 )
             except (InsufficientCashError, PortfolioError) as exc:
-                failed_trades.append({
-                    "action": "BUY",
-                    "ticker": ticker,
-                    "reason": str(exc),
-                })
+                failed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "reason": str(exc),
+                    }
+                )
                 logger.warning("BUY failed for %s: %s", ticker, exc)
 
         # --- EOD snapshot ---

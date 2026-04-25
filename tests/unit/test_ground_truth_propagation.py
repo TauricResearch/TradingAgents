@@ -89,15 +89,15 @@ def _mock_llm(response_text: str = "mock response") -> MagicMock:
     """Build a MagicMock LLM compatible with llm_guard.invoke_with_timeout."""
     response = SimpleNamespace(content=response_text)
     mock_llm = MagicMock()
-    
+
     # This is what invoke_with_timeout uses: llm.bind(...).invoke(...)
     bound = MagicMock()
     bound.invoke.return_value = response
     mock_llm.bind.return_value = bound
-    
+
     # Support direct .invoke calls
     mock_llm.invoke.return_value = response
-    
+
     return mock_llm
 
 
@@ -110,6 +110,7 @@ def _mock_memory():
 # ---------------------------------------------------------------------------
 # build_research_packet includes scanner context
 # ---------------------------------------------------------------------------
+
 
 class TestBuildResearchPacketIncludesScanner:
     def test_scanner_context_included_when_no_summary(self):
@@ -154,6 +155,7 @@ class TestBuildResearchPacketIncludesScanner:
 # Research Manager — ground-truth constraint
 # ---------------------------------------------------------------------------
 
+
 class TestResearchManagerGroundTruth:
     def test_ground_truth_in_prompt(self):
         from tradingagents.agents.managers.research_manager import create_research_manager
@@ -176,7 +178,7 @@ class TestResearchManagerGroundTruth:
         # Trigger phrase: "we need to"
         llm = _mock_llm("We need to follow instruction.\nWe can create bull arguments.")
         node = create_research_manager(llm, _mock_memory())
-        
+
         result = node(
             _base_state(
                 news_report_structured={
@@ -187,25 +189,31 @@ class TestResearchManagerGroundTruth:
                             "source": "Reuters",
                             "published_at": "2026-03-30",
                         }
-                    ]
+                    ],
                 },
                 fundamentals_report_structured={
                     "status": "timeout_fallback",
                     "macro_regime": "unknown",
                     "key_metrics": {"numeric_mentions": 0},
-                    },
-                )
+                },
             )
+        )
 
         # Should use fallback because scratchpad was detected
         final_out = result.get("investment_plan") or result.get("trader_investment_plan") or ""
         assert "We need to follow instruction" not in final_out
-        assert "Market Evidence" in final_out or "Macro Regime" in final_out or "Price Levels" in final_out or "Strategic Action" in final_out
+        assert (
+            "Market Evidence" in final_out
+            or "Macro Regime" in final_out
+            or "Price Levels" in final_out
+            or "Strategic Action" in final_out
+        )
 
 
 # ---------------------------------------------------------------------------
 # Trader — ground-truth constraint
 # ---------------------------------------------------------------------------
+
 
 class TestTraderGroundTruth:
     def test_scanner_context_in_user_message(self):
@@ -240,12 +248,16 @@ class TestTraderGroundTruth:
         # Contains trigger phrases like "Let's craft" and "produce final answer"
         llm = _mock_llm("Let's craft the final answer.\nNow produce final answer. Buy AAPL.")
         node = create_trader(llm, _mock_memory())
-        
+
         result = node(_base_state())
-        
+
         # Should NOT contain the scratchpad text, but rather the fallback
         assert "Let's craft" not in result["trader_investment_plan"]
-        assert "Market Evidence" in result["trader_investment_plan"] or "Price Levels" in result["trader_investment_plan"] or "Research Manager" in result["trader_investment_plan"]
+        assert (
+            "Market Evidence" in result["trader_investment_plan"]
+            or "Price Levels" in result["trader_investment_plan"]
+            or "Research Manager" in result["trader_investment_plan"]
+        )
 
     def test_empty_upstream_plan_raises_runtime_error(self):
         from tradingagents.agents.trader.trader import create_trader
@@ -279,7 +291,7 @@ class TestTraderGroundTruth:
                     investment_plan_structured={"status": "completed"},
                     market_report_structured={
                         "current_price": "$130.49",
-                        "key_levels": ["$130.49", "$128.47"]
+                        "key_levels": ["$130.49", "$128.47"],
                     },
                 )
             )
@@ -290,6 +302,7 @@ class TestTraderGroundTruth:
 # ---------------------------------------------------------------------------
 # Risk Debators — ground-truth constraint (all 3, both rounds)
 # ---------------------------------------------------------------------------
+
 
 class TestRiskDebatorsGroundTruth:
     def test_aggressive_r1_has_ground_truth(self):
@@ -360,6 +373,7 @@ class TestRiskDebatorsGroundTruth:
 # Risk Synthesis — ground-truth constraint
 # ---------------------------------------------------------------------------
 
+
 class TestRiskSynthesisGroundTruth:
     def test_ground_truth_in_synthesis_prompt(self):
         from tradingagents.agents.risk_mgmt.risk_synthesis import create_risk_synthesis
@@ -401,6 +415,7 @@ class TestRiskSynthesisGroundTruth:
 # Social Media Analyst — ground-truth constraint
 # ---------------------------------------------------------------------------
 
+
 class TestSocialMediaAnalystGroundTruth:
     def test_ground_truth_in_system_prompt(self):
         """Verify the social media analyst prompt template includes ground-truth instruction."""
@@ -417,6 +432,7 @@ class TestSocialMediaAnalystGroundTruth:
 # ---------------------------------------------------------------------------
 # Summary rules preserve ground-truth data
 # ---------------------------------------------------------------------------
+
 
 class TestSummaryRulesPreserveGroundTruth:
     def test_research_packet_summary_preserves_prices(self):
@@ -435,6 +451,7 @@ class TestSummaryRulesPreserveGroundTruth:
 # ---------------------------------------------------------------------------
 # Structured contract emission — every downstream node
 # ---------------------------------------------------------------------------
+
 
 class TestStructuredContractEmission:
     """Each agent must emit its canonical structured field alongside the prose report."""
@@ -459,9 +476,13 @@ class TestStructuredContractEmission:
         llm = _mock_llm("")
         node = create_research_manager(llm, _mock_memory())
         result = node(_base_state())
-        
+
         final_out = result["investment_plan"]
-        assert "Market Evidence" in final_out or "Macro Regime" in final_out or "Strategic Action" in final_out
+        assert (
+            "Market Evidence" in final_out
+            or "Macro Regime" in final_out
+            or "Strategic Action" in final_out
+        )
 
     def test_trader_emits_trader_plan_structured(self):
         from tradingagents.agents.trader.trader import create_trader

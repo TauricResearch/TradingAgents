@@ -1,4 +1,3 @@
-
 from collections.abc import Callable
 from typing import Any
 
@@ -20,7 +19,6 @@ from tradingagents.observability import get_run_logger
 
 def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any]]:
     def portfolio_manager_node(state: AgentState, /) -> dict[str, Any]:
-
 
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -49,7 +47,11 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
         for _i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nEnsure your risk assessment reflects the macro environment — in risk-off regimes, apply higher standards for position entry and tighter risk controls.\n" if macro_regime_report else ""
+        macro_context = (
+            f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nEnsure your risk assessment reflects the macro environment — in risk-off regimes, apply higher standards for position entry and tighter risk controls.\n"
+            if macro_regime_report
+            else ""
+        )
 
         if is_critical_abort:
             # Critical abort: Use the aborting analyst's report and recommend SELL/AVOID
@@ -83,7 +85,11 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
 
             _cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
             timeout_seconds = min(
-                float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+                float(
+                    DEFAULT_CONFIG.get("deep_think_llm_timeout")
+                    or DEFAULT_CONFIG.get("llm_timeout")
+                    or _cap
+                ),
                 _cap,
             )
             response, invoke_error = invoke_with_timeout(
@@ -94,7 +100,9 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
             )
             if invoke_error is not None:
                 err_type = type(invoke_error).__name__
-                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+                raise RuntimeError(
+                    f"Node execution failed: {err_type} - {str(invoke_error)}"
+                ) from invoke_error
         else:
             # Normal flow: Synthesize all reports and make decision
             prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
@@ -135,7 +143,11 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
 
             _cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
             timeout_seconds = min(
-                float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+                float(
+                    DEFAULT_CONFIG.get("deep_think_llm_timeout")
+                    or DEFAULT_CONFIG.get("llm_timeout")
+                    or _cap
+                ),
                 _cap,
             )
             response, invoke_error = invoke_with_timeout(
@@ -146,8 +158,9 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             )
             if invoke_error is not None:
                 err_type = type(invoke_error).__name__
-                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
-
+                raise RuntimeError(
+                    f"Node execution failed: {err_type} - {str(invoke_error)}"
+                ) from invoke_error
 
         new_risk_debate_state = {
             "judge_decision": response.content,
@@ -158,7 +171,9 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             "summary": risk_debate_state.get("summary", ""),
             "latest_speaker": "Judge",
             "current_aggressive_response": risk_debate_state.get("current_aggressive_response", ""),
-            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
+            "current_conservative_response": risk_debate_state.get(
+                "current_conservative_response", ""
+            ),
             "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
             "count": risk_debate_state.get("count", 0),
         }
@@ -169,11 +184,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             # Derive a minimal decision from the risk synthesis so the pipeline
             # produces a usable final_trade_decision instead of blocking the run.
             risk_syn = state.get("risk_synthesis_structured") or {}
-            action = (
-                risk_syn.get("action", "HOLD")
-                if isinstance(risk_syn, dict)
-                else "HOLD"
-            )
+            action = risk_syn.get("action", "HOLD") if isinstance(risk_syn, dict) else "HOLD"
             final_decision_text = (
                 f"[PM_EMPTY_RESPONSE] Portfolio Manager LLM returned empty content — "
                 f"no genuine rating was produced.\n\n"

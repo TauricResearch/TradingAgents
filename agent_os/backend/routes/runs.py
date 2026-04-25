@@ -64,7 +64,9 @@ def _append_system_event(run_id: str, message: str) -> None:
     _checkpoint_run_events(run_id)
 
 
-def _set_failed_with_event(run_id: str, reason: str, *, log_exception: Exception | None = None) -> None:
+def _set_failed_with_event(
+    run_id: str, reason: str, *, log_exception: Exception | None = None
+) -> None:
     """Mark run failed and append a visible system event with the failure reason."""
     run = runs.get(run_id)
     if not run:
@@ -103,18 +105,18 @@ def _ensure_run_events_loaded(run_id: str) -> None:
                 # Deduplicate by 'id' to avoid doubling up on refresh/resume
                 current_events = run.get("events") or []
                 seen_ids = {e.get("id") for e in current_events if e.get("id")}
-                
+
                 merged = list(current_events)
                 for de in disk_events:
                     if de.get("id") not in seen_ids:
                         merged.append(de)
-                
+
                 # Sort by timestamp if available
                 # (events are usually appended, but sort is safer)
                 # merged.sort(key=lambda x: x.get("ts", 0))
-                
+
                 run["events"] = merged
-            
+
             # Clear the flag so we don't keep doing expensive disk reads
             run.pop("hydrated_from_disk", None)
         except Exception:
@@ -163,7 +165,12 @@ def _infer_scan_resume_node(events: list[dict[str, Any]]) -> str | None:
 
     if any(
         node not in completed
-        for node in ("sector_scanner", "factor_alignment_scanner", "smart_money_scanner", "drift_scanner")
+        for node in (
+            "sector_scanner",
+            "factor_alignment_scanner",
+            "smart_money_scanner",
+            "drift_scanner",
+        )
     ):
         return "sector_scanner"
     if "industry_deep_dive" not in completed:
@@ -173,7 +180,9 @@ def _infer_scan_resume_node(events: list[dict[str, Any]]) -> str | None:
     return None
 
 
-def _infer_pipeline_resume_phase(run_id: str, params: dict[str, Any]) -> tuple[str | None, str | None]:
+def _infer_pipeline_resume_phase(
+    run_id: str, params: dict[str, Any]
+) -> tuple[str | None, str | None]:
     ticker = str(params.get("ticker") or params.get("identifier") or "").strip()
     date = str(params.get("date") or "").strip()
     if not ticker or not date:
@@ -208,6 +217,7 @@ def _persist_run_to_disk(run_id: str, *, include_meta: bool = True) -> None:
         return
     try:
         from tradingagents.portfolio.store_factory import create_report_store
+
         store = create_report_store(run_id=run_id)
         date = (run.get("params") or {}).get("date", "")
         if not date:
@@ -314,7 +324,7 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], Non
 async def trigger_scan(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict[str, Any] = Depends(get_current_user)
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, str]:
     p = normalize_run_params("scan", params or {})
     run_id = generate_run_id()
@@ -332,11 +342,12 @@ async def trigger_scan(
     _set_run_task(run_id, _run_and_store(run_id, engine.run_scan(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
 
+
 @router.post("/pipeline")
 async def trigger_pipeline(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict[str, Any] = Depends(get_current_user)
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, str]:
     p = normalize_run_params("pipeline", params or {})
     run_id = generate_run_id()
@@ -351,14 +362,17 @@ async def trigger_pipeline(
     }
     _persist_run_to_disk(run_id)
     logger.info("Queued PIPELINE run=%s user=%s", run_id, user["user_id"])
-    _set_run_task(run_id, _run_and_store(run_id, engine.run_pipeline(run_id, runs[run_id]["params"])))
+    _set_run_task(
+        run_id, _run_and_store(run_id, engine.run_pipeline(run_id, runs[run_id]["params"]))
+    )
     return {"run_id": run_id, "status": "queued"}
+
 
 @router.post("/portfolio")
 async def trigger_portfolio(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict[str, Any] = Depends(get_current_user)
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, str]:
     p = normalize_run_params("portfolio", params or {})
     run_id = generate_run_id()
@@ -373,14 +387,17 @@ async def trigger_portfolio(
     }
     _persist_run_to_disk(run_id)
     logger.info("Queued PORTFOLIO run=%s user=%s", run_id, user["user_id"])
-    _set_run_task(run_id, _run_and_store(run_id, engine.run_portfolio(run_id, runs[run_id]["params"])))
+    _set_run_task(
+        run_id, _run_and_store(run_id, engine.run_portfolio(run_id, runs[run_id]["params"]))
+    )
     return {"run_id": run_id, "status": "queued"}
+
 
 @router.post("/auto")
 async def trigger_auto(
     background_tasks: BackgroundTasks,
     params: dict[str, Any] | None = None,
-    user: dict[str, Any] = Depends(get_current_user)
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, str]:
     p = normalize_run_params("auto", params or {})
     run_id = generate_run_id()
@@ -397,6 +414,7 @@ async def trigger_auto(
     logger.info("Queued AUTO run=%s user=%s", run_id, user["user_id"])
     _set_run_task(run_id, _run_and_store(run_id, engine.run_auto(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
+
 
 @router.post("/mock")
 async def trigger_mock(
@@ -427,19 +445,35 @@ async def trigger_mock(
     _persist_run_to_disk(run_id)
     logger.info(
         "Queued MOCK run=%s mock_type=%s user=%s",
-        run_id, p.get("mock_type", "pipeline"), user["user_id"],
+        run_id,
+        p.get("mock_type", "pipeline"),
+        user["user_id"],
     )
     _set_run_task(run_id, _run_and_store(run_id, mock_engine.run_mock(run_id, p)))
     return {"run_id": run_id, "status": "queued"}
 
+
 # Nodes produced by each phase (used to selectively remove stale events on re-run)
-_DEBATE_TRADER_NODES = frozenset({
-    "Bull Researcher", "Bear Researcher", "Research Manager", "Trader",
-    "Aggressive Analyst", "Conservative Analyst", "Neutral Analyst", "Portfolio Manager",
-})
-_RISK_NODES = frozenset({
-    "Aggressive Analyst", "Conservative Analyst", "Neutral Analyst", "Portfolio Manager",
-})
+_DEBATE_TRADER_NODES = frozenset(
+    {
+        "Bull Researcher",
+        "Bear Researcher",
+        "Research Manager",
+        "Trader",
+        "Aggressive Analyst",
+        "Conservative Analyst",
+        "Neutral Analyst",
+        "Portfolio Manager",
+    }
+)
+_RISK_NODES = frozenset(
+    {
+        "Aggressive Analyst",
+        "Conservative Analyst",
+        "Neutral Analyst",
+        "Portfolio Manager",
+    }
+)
 # Portfolio-level cascade nodes always re-run after any phase re-run
 _PORTFOLIO_NODES = frozenset({"review_holdings", "make_pm_decision"})
 
@@ -520,7 +554,12 @@ def _build_scan_rerun_state(events: list) -> dict[str, Any]:
     return state
 
 
-async def _append_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None], ticker: str | None = None, phase: str | None = None) -> None:
+async def _append_and_store(
+    run_id: str,
+    gen: AsyncGenerator[dict[str, Any], None],
+    ticker: str | None = None,
+    phase: str | None = None,
+) -> None:
     """Drive a re-run generator, preserving events from other tickers/phases."""
     run = runs.get(run_id)
     if not run:
@@ -556,7 +595,9 @@ async def _append_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], Non
         _clear_run_task(run_id)
 
 
-async def _append_scan_rerun_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None], start_node: str) -> None:
+async def _append_scan_rerun_and_store(
+    run_id: str, gen: AsyncGenerator[dict[str, Any], None], start_node: str
+) -> None:
     """Drive a market-scan rerun while preserving unaffected node events."""
     run = runs.get(run_id)
     if not run:
@@ -620,14 +661,18 @@ async def trigger_rerun_node(
         }
         logger.info(
             "Queued SCAN RERUN run=%s node=%s user=%s",
-            run_id, node_id, user["user_id"],
+            run_id,
+            node_id,
+            user["user_id"],
         )
         runs[run_id]["status"] = "running"
         _set_run_task(
             run_id,
             _append_scan_rerun_and_store(
                 run_id,
-                engine.run_scan_from_node(f"{run_id}_rerun_{node_id}", rerun_params, node_id, rerun_state),
+                engine.run_scan_from_node(
+                    f"{run_id}_rerun_{node_id}", rerun_params, node_id, rerun_state
+                ),
                 start_node=node_id,
             ),
         )
@@ -648,7 +693,11 @@ async def trigger_rerun_node(
 
     logger.info(
         "Queued RERUN run=%s node=%s phase=%s ticker=%s user=%s",
-        run_id, node_id, phase, identifier, user["user_id"],
+        run_id,
+        node_id,
+        phase,
+        identifier,
+        user["user_id"],
     )
     # Set status synchronously so the WebSocket that reconnects immediately after
     # this response sees "running" and enters the polling loop instead of closing.
@@ -706,11 +755,18 @@ async def resume_run(
                 run_id,
                 _append_scan_rerun_and_store(
                     run_id,
-                    engine.run_scan_from_node(f"{run_id}_resume_{resume_node}", rerun_params, resume_node, rerun_state),
+                    engine.run_scan_from_node(
+                        f"{run_id}_resume_{resume_node}", rerun_params, resume_node, rerun_state
+                    ),
                     start_node=resume_node,
                 ),
             )
-            return {"run_id": run_id, "status": "queued", "mode": "partial_scan", "phase": resume_node}
+            return {
+                "run_id": run_id,
+                "status": "queued",
+                "mode": "partial_scan",
+                "phase": resume_node,
+            }
 
         resume_params = {"date": date, "run_id": run_id, "_execution_key": f"{run_id}:resume:scan"}
         if params.get("max_tickers"):
@@ -726,7 +782,9 @@ async def resume_run(
 
     run["status"] = "running"
     run.pop("error", None)
-    _append_system_event(run_id, f"Resume requested — continuing {run_type} run on the same run id.")
+    _append_system_event(
+        run_id, f"Resume requested — continuing {run_type} run on the same run id."
+    )
     resume_params = {**params, "run_id": run_id, "_execution_key": f"{run_id}:resume:{run_type}"}
 
     if run_type == "pipeline":
@@ -754,7 +812,12 @@ async def resume_run(
                     phase,
                 )
             _set_run_task(run_id, _resume_and_store(run_id, gen))
-            return {"run_id": run_id, "status": "queued", "mode": "pipeline_checkpoint", "phase": phase}
+            return {
+                "run_id": run_id,
+                "status": "queued",
+                "mode": "pipeline_checkpoint",
+                "phase": phase,
+            }
 
     if run_type == "auto":
         gen = engine.run_auto(f"{run_id}:resume:auto", resume_params)
@@ -781,12 +844,16 @@ async def submit_phase3_decision(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     if run.get("type") != "auto":
-        raise HTTPException(status_code=422, detail="Phase 3 decisions are only supported for auto runs")
+        raise HTTPException(
+            status_code=422, detail="Phase 3 decisions are only supported for auto runs"
+        )
     if run.get("status") != "awaiting_decision":
         raise HTTPException(status_code=409, detail="Run is not waiting for a Phase 3 decision")
     pending = run.get("pending_phase3_decision")
     if not pending:
-        raise HTTPException(status_code=409, detail="No pending Phase 3 decision found for this run")
+        raise HTTPException(
+            status_code=409, detail="No pending Phase 3 decision found for this run"
+        )
 
     raw_retry = (params or {}).get("retry_tickers") or []
     if isinstance(raw_retry, str):
@@ -801,7 +868,9 @@ async def submit_phase3_decision(
 
     logger.info(
         "Queued PHASE3_DECISION run=%s retry_tickers=%s user=%s",
-        run_id, retry_tickers, user["user_id"],
+        run_id,
+        retry_tickers,
+        user["user_id"],
     )
     run["status"] = "running"
     run.pop("error", None)
@@ -818,7 +887,9 @@ async def submit_phase3_decision(
         run_id,
         _resume_and_store(
             run_id,
-            engine.run_auto_phase3_decision(f"{run_id}:phase3-decision", decision_params, retry_tickers),
+            engine.run_auto_phase3_decision(
+                f"{run_id}:phase3-decision", decision_params, retry_tickers
+            ),
         ),
     )
     return {
@@ -854,7 +925,9 @@ async def stop_run(
     if current_status in {"completed", "failed"}:
         return {"run_id": run_id, "status": current_status, "stopped": False}
 
-    logger.info("Stop requested but no active task was found run=%s user=%s", run_id, user["user_id"])
+    logger.info(
+        "Stop requested but no active task was found run=%s user=%s", run_id, user["user_id"]
+    )
     return {"run_id": run_id, "status": current_status or "running", "stopped": False}
 
 
@@ -869,13 +942,20 @@ async def reset_portfolio_stage(
     (Phases 1 & 2 are skipped if their cached results still exist).
     """
     from tradingagents.portfolio.store_factory import create_report_store
+
     date = params.get("date")
     portfolio_id = params.get("portfolio_id")
     if not date or not portfolio_id:
         raise HTTPException(status_code=422, detail="date and portfolio_id are required")
     store = create_report_store()
     deleted = store.clear_portfolio_stage(date, portfolio_id)
-    logger.info("reset_portfolio_stage date=%s portfolio=%s deleted=%s user=%s", date, portfolio_id, deleted, user["user_id"])
+    logger.info(
+        "reset_portfolio_stage date=%s portfolio=%s deleted=%s user=%s",
+        date,
+        portfolio_id,
+        deleted,
+        user["user_id"],
+    )
     return {"deleted": deleted, "date": date, "portfolio_id": portfolio_id}
 
 
@@ -886,6 +966,7 @@ def _get_mongo_col() -> Any | None:
     if uri:
         try:
             from pymongo import MongoClient
+
             client = MongoClient(uri)
             return client[db_name]["run_events"]
         except Exception:
@@ -906,16 +987,18 @@ async def list_runs(user: dict[str, Any] = Depends(get_current_user)) -> list[di
             # In a real app, we'd have a separate 'runs' collection for metadata.
             # Here we use the events collection and group by run_id.
             pipeline = [
-                {"$match": {"type": "log", "agent": "SYSTEM"}}, # Filter for start logs
+                {"$match": {"type": "log", "agent": "SYSTEM"}},  # Filter for start logs
                 {"$sort": {"ts": -1}},
-                {"$group": {
-                    "_id": "$run_id",
-                    "id": {"$first": "$run_id"},
-                    "type": {"$first": "$type"},
-                    "created_at": {"$first": "$ts"},
-                    # Status is harder to get from events without a dedicated meta doc
-                }},
-                {"$limit": 50}
+                {
+                    "$group": {
+                        "_id": "$run_id",
+                        "id": {"$first": "$run_id"},
+                        "type": {"$first": "$type"},
+                        "created_at": {"$first": "$ts"},
+                        # Status is harder to get from events without a dedicated meta doc
+                    }
+                },
+                {"$limit": 50},
             ]
             for doc in col.aggregate(pipeline):
                 rid = doc["id"]
@@ -932,8 +1015,11 @@ async def list_runs(user: dict[str, Any] = Depends(get_current_user)) -> list[di
 
     return list(all_runs.values())
 
+
 @router.get("/{run_id}")
-async def get_run_status(run_id: str, user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+async def get_run_status(
+    run_id: str, user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
     if run_id in runs:
         run = runs[run_id]
         _ensure_run_events_loaded(run_id)
@@ -941,10 +1027,13 @@ async def get_run_status(run_id: str, user: dict[str, Any] = Depends(get_current
             _set_failed_with_event(run_id, "Run did not complete (server restarted)")
         # Derive nodes_fired from events for client compatibility
         events = run.get("events") or []
-        run["nodes_fired"] = sorted({
-            e["node_id"] for e in events
-            if isinstance(e, dict) and e.get("node_id") and e.get("node_id") != "__system__"
-        })
+        run["nodes_fired"] = sorted(
+            {
+                e["node_id"]
+                for e in events
+                if isinstance(e, dict) and e.get("node_id") and e.get("node_id") != "__system__"
+            }
+        )
         return run
 
     # Not in memory — try MongoDB

@@ -172,7 +172,9 @@ def test_macro_synthesis_fails_when_scan_date_missing():
             '"key_themes":[],"stocks_to_investigate":[],"risk_factors":[]}'
         )
 
-    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3, scan_horizon_days=30)
+    agent = create_macro_synthesis(
+        RunnableLambda(_invoke), max_scan_tickers=3, scan_horizon_days=30
+    )
 
     with pytest.raises(RuntimeError) as exc:
         agent(

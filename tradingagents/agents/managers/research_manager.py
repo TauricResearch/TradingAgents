@@ -1,4 +1,3 @@
-
 from collections.abc import Callable
 from typing import Any
 
@@ -42,7 +41,11 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
         for _i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nWeight your decision in line with this macro environment — a risk-off regime raises the bar for BUY decisions, while risk-on supports them.\n" if macro_regime_report else ""
+        macro_context = (
+            f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nWeight your decision in line with this macro environment — a risk-off regime raises the bar for BUY decisions, while risk-on supports them.\n"
+            if macro_regime_report
+            else ""
+        )
 
         # Anonymize data variables to prevent training-data bias
         anon_research_packet = anonymize_ticker(
@@ -89,7 +92,11 @@ Debate History:
 {anon_history}"""
         _cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("deep_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         response, invoke_error = invoke_with_timeout(
@@ -105,14 +112,20 @@ Debate History:
                 is_timeout = True
             else:
                 err_type = type(invoke_error).__name__
-                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+                raise RuntimeError(
+                    f"Node execution failed: {err_type} - {str(invoke_error)}"
+                ) from invoke_error
 
         # If it was a timeout or if the content is empty/garbage, apply the deterministic fallback.
         output_content = ""
         if response:
             output_content = response.content.replace("TICKER_A", ticker)
 
-        if is_timeout or not str(output_content).strip() or output_contains_scratchpad(output_content):
+        if (
+            is_timeout
+            or not str(output_content).strip()
+            or output_contains_scratchpad(output_content)
+        ):
             output_content = build_research_manager_fallback(state)
             is_fallback = True
         else:

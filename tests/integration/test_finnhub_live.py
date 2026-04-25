@@ -135,8 +135,15 @@ class TestLiveGetQuote:
 
         result = get_quote(_SYMBOL)
         expected_keys = {
-            "symbol", "current_price", "change", "change_percent",
-            "high", "low", "open", "prev_close", "timestamp",
+            "symbol",
+            "current_price",
+            "change",
+            "change_percent",
+            "high",
+            "low",
+            "open",
+            "prev_close",
+            "timestamp",
         }
         assert expected_keys == set(result.keys())
 
@@ -186,7 +193,9 @@ class TestLiveGetCompanyProfile:
 
 @_skip_if_no_key
 @_paid_tier
-@pytest.mark.skip(reason="Requires paid Finnhub tier — /financials-reported returns HTTP 403 on free tier")
+@pytest.mark.skip(
+    reason="Requires paid Finnhub tier — /financials-reported returns HTTP 403 on free tier"
+)
 class TestLiveGetFinancialStatements:
     """Live smoke tests for XBRL as-filed financial statements (PAID TIER ONLY)."""
 

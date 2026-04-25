@@ -29,6 +29,7 @@ _TEST_TICKER = "AAPL"
 # StockstatsUtils.get_stock_stats
 # ---------------------------------------------------------------------------
 
+
 class TestStockstatsUtilsLive:
     """Live tests for StockstatsUtils.get_stock_stats against real yfinance data."""
 
@@ -97,6 +98,7 @@ class TestStockstatsUtilsLive:
 # ---------------------------------------------------------------------------
 # _get_stock_stats_bulk
 # ---------------------------------------------------------------------------
+
 
 class TestGetStockStatsBulkLive:
     """Live tests for _get_stock_stats_bulk against real yfinance data."""
@@ -174,6 +176,7 @@ class TestGetStockStatsBulkLive:
 # get_stock_stats_indicators_window (end-to-end with live data)
 # ---------------------------------------------------------------------------
 
+
 class TestGetStockStatsIndicatorsWindowLive:
     """Live end-to-end tests for get_stock_stats_indicators_window."""
 
@@ -181,7 +184,9 @@ class TestGetStockStatsIndicatorsWindowLive:
         """Window function returns a multi-line string with RSI values over a date range."""
         from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
 
-        result = get_stock_stats_indicators_window(_TEST_TICKER, "rsi", _TEST_DATE, look_back_days=5)
+        result = get_stock_stats_indicators_window(
+            _TEST_TICKER, "rsi", _TEST_DATE, look_back_days=5
+        )
 
         assert isinstance(result, str)
         assert "rsi" in result.lower()
@@ -200,7 +205,9 @@ class TestGetStockStatsIndicatorsWindowLive:
 
         assert isinstance(result, str)
         # At least some lines should have numeric values (not all N/A)
-        value_lines = [line for line in result.split("\n") if ":" in line and line.strip().startswith("20")]
+        value_lines = [
+            line for line in result.split("\n") if ":" in line and line.strip().startswith("20")
+        ]
         numeric_values = []
         for line in value_lines:
             try:

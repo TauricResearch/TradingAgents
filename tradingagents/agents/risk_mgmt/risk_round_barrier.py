@@ -14,4 +14,5 @@ def create_risk_round_barrier() -> Callable[[AgentState], dict[str, Any]]:
     def risk_round_barrier_node(state: AgentState, /) -> dict[str, Any]:
 
         return {"sender": "risk_round_barrier"}
+
     return risk_round_barrier_node

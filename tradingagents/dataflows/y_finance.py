@@ -29,9 +29,7 @@ def get_YFin_data_online(
 
     # Check if data is empty
     if data.empty:
-        return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
-        )
+        return f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
 
     # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
@@ -53,6 +51,7 @@ def get_YFin_data_online(
 
     return header + csv_string
 
+
 def get_stock_data(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -73,9 +72,7 @@ def get_stock_data(
     data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
 
     if data.empty:
-        return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
-        )
+        return f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
 
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
@@ -102,9 +99,7 @@ def get_stock_data(
         sma50 = round(float(close.iloc[-50:].mean()), 2)
         pct_vs_50 = round((current_price - sma50) / sma50 * 100, 2)
         direction_50 = "above" if current_price >= sma50 else "below"
-        stats_lines.append(
-            f"50-Day SMA: {sma50}  ({direction_50} by {abs(pct_vs_50):.2f}%)"
-        )
+        stats_lines.append(f"50-Day SMA: {sma50}  ({direction_50} by {abs(pct_vs_50):.2f}%)")
     else:
         stats_lines.append("50-Day SMA: insufficient data")
 
@@ -112,9 +107,7 @@ def get_stock_data(
         sma200 = round(float(close.iloc[-200:].mean()), 2)
         pct_vs_200 = round((current_price - sma200) / sma200 * 100, 2)
         direction_200 = "above" if current_price >= sma200 else "below"
-        stats_lines.append(
-            f"200-Day SMA: {sma200}  ({direction_200} by {abs(pct_vs_200):.2f}%)"
-        )
+        stats_lines.append(f"200-Day SMA: {sma200}  ({direction_200} by {abs(pct_vs_200):.2f}%)")
     else:
         stats_lines.append("200-Day SMA: insufficient data (< 200 trading days)")
 
@@ -134,9 +127,7 @@ def get_stock_data(
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
-    curr_date: Annotated[
-        str, "The current trading date you are trading on, YYYY-mm-dd"
-    ],
+    curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
 
@@ -225,30 +216,35 @@ def get_stock_stats_indicators_window(
     # Optimized: Get stock data once and calculate indicators for all dates
     try:
         indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
-        
+
         # Generate the date range we need
         current_dt = curr_date_dt
         date_values = []
-        
+
         while current_dt >= before:
-            date_str = current_dt.strftime('%Y-%m-%d')
-            
+            date_str = current_dt.strftime("%Y-%m-%d")
+
             # Look up the indicator value for this date
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
                 indicator_value = "N/A: Not a trading day (weekend or holiday)"
-            
+
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
-        
+
         # Build the result string
         ind_string = ""
         for date_str, value in date_values:
             ind_string += f"{date_str}: {value}\n"
-        
+
     except Exception as e:
-        logger.warning("Bulk stockstats failed for %s/%s, falling back to per-day loop: %s", symbol, indicator, e)
+        logger.warning(
+            "Bulk stockstats failed for %s/%s, falling back to per-day loop: %s",
+            symbol,
+            indicator,
+            e,
+        )
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -272,7 +268,7 @@ def get_stock_stats_indicators_window(
 def _get_stock_stats_bulk(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to calculate"],
-    curr_date: Annotated[str, "current date for reference"]
+    curr_date: Annotated[str, "current date for reference"],
 ) -> dict:
     """
     Optimized bulk calculation of stock stats indicators.
@@ -303,13 +299,10 @@ def _get_stock_stats_bulk(
     return series.fillna("N/A").astype(str).to_dict()
 
 
-
 def get_stockstats_indicator(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
-    curr_date: Annotated[
-        str, "The current trading date you are trading on, YYYY-mm-dd"
-    ],
+    curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
 ) -> str:
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     curr_date = curr_date_dt.strftime("%Y-%m-%d")
@@ -319,10 +312,9 @@ def get_stockstats_indicator(
     return str(indicator_value)
 
 
-
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     """Get company fundamentals overview from yfinance."""
     try:
@@ -374,7 +366,9 @@ def get_fundamentals(
         return header + "\n".join(lines)
 
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving fundamentals for {ticker}") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out retrieving fundamentals for {ticker}"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -384,7 +378,7 @@ def get_fundamentals(
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     """Get balance sheet data from yfinance."""
     try:
@@ -394,21 +388,23 @@ def get_balance_sheet(
             data = yf_retry(lambda: ticker_obj.quarterly_balance_sheet)
         else:
             data = yf_retry(lambda: ticker_obj.balance_sheet)
-            
+
         if data.empty:
             return f"No balance sheet data found for symbol '{ticker}'"
-            
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
         header = f"# Balance Sheet data for {ticker.upper()} ({freq})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving balance sheet for {ticker}") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out retrieving balance sheet for {ticker}"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -418,7 +414,7 @@ def get_balance_sheet(
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     """Get cash flow data from yfinance."""
     try:
@@ -428,21 +424,23 @@ def get_cashflow(
             data = yf_retry(lambda: ticker_obj.quarterly_cashflow)
         else:
             data = yf_retry(lambda: ticker_obj.cashflow)
-            
+
         if data.empty:
             return f"No cash flow data found for symbol '{ticker}'"
-            
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
         header = f"# Cash Flow data for {ticker.upper()} ({freq})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving cash flow for {ticker}") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out retrieving cash flow for {ticker}"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
@@ -452,7 +450,7 @@ def get_cashflow(
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     """Get income statement data from yfinance."""
     try:
@@ -462,49 +460,51 @@ def get_income_statement(
             data = yf_retry(lambda: ticker_obj.quarterly_income_stmt)
         else:
             data = yf_retry(lambda: ticker_obj.income_stmt)
-            
+
         if data.empty:
             return f"No income statement data found for symbol '{ticker}'"
-            
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
         header = f"# Income Statement data for {ticker.upper()} ({freq})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving income statement for {ticker}") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out retrieving income statement for {ticker}"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
 
-def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol of the company"]
-) -> str:
+def get_insider_transactions(ticker: Annotated[str, "ticker symbol of the company"]) -> str:
     """Get insider transactions data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         data = yf_retry(lambda: ticker_obj.insider_transactions)
-        
+
         if data is None or data.empty:
             return f"No insider transactions data found for symbol '{ticker}'"
-            
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
         header = f"# Insider Transactions data for {ticker.upper()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except requests.exceptions.Timeout:
-        raise ThirdPartyTimeoutError(f"Request timed out retrieving insider transactions for {ticker}") from None
+        raise ThirdPartyTimeoutError(
+            f"Request timed out retrieving insider transactions for {ticker}"
+        ) from None
     except ThirdPartyTimeoutError:
         raise
     except Exception as e:

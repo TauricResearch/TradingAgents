@@ -2,7 +2,15 @@
 
 from tradingagents.agents.utils.scanner_states import ScannerState
 
-_ERROR_PREFIXES = ("Error", "No data", "No quotes", "No movers", "No news", "No industry", "Invalid")
+_ERROR_PREFIXES = (
+    "Error",
+    "No data",
+    "No quotes",
+    "No movers",
+    "No news",
+    "No industry",
+    "Invalid",
+)
 
 
 def _report_is_valid(report: str) -> bool:

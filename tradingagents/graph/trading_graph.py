@@ -3,7 +3,7 @@
 import json
 import os
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 # Import the new abstract tool methods
 from tradingagents.agents.utils.memory import FinancialSituationMemory
@@ -25,10 +25,10 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "news", "fundamentals"],
+        selected_analysts=None,
         debug=False,
-        config: Dict[str, Any] = None,
-        callbacks: Optional[List] = None,
+        config: dict[str, Any] = None,
+        callbacks: list | None = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -65,17 +65,13 @@ class TradingAgentsGraph:
             mid_kwargs["callbacks"] = self.callbacks
             quick_kwargs["callbacks"] = self.callbacks
 
-        deep_provider = (
-            self.config.get("deep_think_llm_provider") or self.config["llm_provider"]
+        deep_provider = self.config.get("deep_think_llm_provider") or self.config["llm_provider"]
+        deep_backend_url = self.config.get("deep_think_backend_url") or self.config.get(
+            "backend_url"
         )
-        deep_backend_url = (
-            self.config.get("deep_think_backend_url") or self.config.get("backend_url")
-        )
-        quick_provider = (
-            self.config.get("quick_think_llm_provider") or self.config["llm_provider"]
-        )
-        quick_backend_url = (
-            self.config.get("quick_think_backend_url") or self.config.get("backend_url")
+        quick_provider = self.config.get("quick_think_llm_provider") or self.config["llm_provider"]
+        quick_backend_url = self.config.get("quick_think_backend_url") or self.config.get(
+            "backend_url"
         )
 
         # mid_think falls back to quick_think when not configured
@@ -113,13 +109,15 @@ class TradingAgentsGraph:
         self.deep_thinking_llm = deep_client.get_llm()
         self.mid_thinking_llm = mid_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
-        
+
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
         self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.portfolio_manager_memory = FinancialSituationMemory("portfolio_manager_memory", self.config)
+        self.portfolio_manager_memory = FinancialSituationMemory(
+            "portfolio_manager_memory", self.config
+        )
         self.news_evidence_store = NewsEvidenceStore()
 
         # Initialize components — wire debate/risk rounds from config
@@ -170,7 +168,6 @@ class TradingAgentsGraph:
             self._risk_graph = self.setup.build_risk_subgraph()
         return self._risk_graph
 
-
     def _get_provider_kwargs(self, role: str = "") -> dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation.
 
@@ -181,8 +178,7 @@ class TradingAgentsGraph:
         kwargs = {}
         prefix = f"{role}_" if role else ""
         provider = (
-            self.config.get(f"{prefix}llm_provider")
-            or self.config.get("llm_provider", "")
+            self.config.get(f"{prefix}llm_provider") or self.config.get("llm_provider", "")
         ).lower()
         timeout = self.config.get(f"{prefix}llm_timeout")
         if timeout is None:
@@ -191,18 +187,16 @@ class TradingAgentsGraph:
             kwargs["timeout"] = float(timeout)
 
         if provider == "google":
-            thinking_level = (
-                self.config.get(f"{prefix}google_thinking_level")
-                or self.config.get("google_thinking_level")
+            thinking_level = self.config.get(f"{prefix}google_thinking_level") or self.config.get(
+                "google_thinking_level"
             )
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
         elif provider in ("openai", "xai", "openrouter", "ollama"):
-            reasoning_effort = (
-                self.config.get(f"{prefix}openai_reasoning_effort")
-                or self.config.get("openai_reasoning_effort")
-            )
+            reasoning_effort = self.config.get(
+                f"{prefix}openai_reasoning_effort"
+            ) or self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
 
@@ -253,7 +247,7 @@ class TradingAgentsGraph:
         # Defensive access for nested debate state fields
         investment_debate = final_state.get("investment_debate_state", {})
         risk_debate = final_state.get("risk_debate_state", {})
-        
+
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -299,15 +293,9 @@ class TradingAgentsGraph:
 
     def reflect_and_remember(self, returns_losses: float) -> None:
         """Reflect on decisions and update memory based on returns."""
-        self.reflector.reflect_bull_researcher(
-            self.curr_state, returns_losses, self.bull_memory
-        )
-        self.reflector.reflect_bear_researcher(
-            self.curr_state, returns_losses, self.bear_memory
-        )
-        self.reflector.reflect_trader(
-            self.curr_state, returns_losses, self.trader_memory
-        )
+        self.reflector.reflect_bull_researcher(self.curr_state, returns_losses, self.bull_memory)
+        self.reflector.reflect_bear_researcher(self.curr_state, returns_losses, self.bear_memory)
+        self.reflector.reflect_trader(self.curr_state, returns_losses, self.trader_memory)
         self.reflector.reflect_invest_judge(
             self.curr_state, returns_losses, self.invest_judge_memory
         )
@@ -319,7 +307,9 @@ class TradingAgentsGraph:
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
 
-    def visualize(self, output_path: str | None = None, format: str = "mermaid") -> str | bytes | None:
+    def visualize(
+        self, output_path: str | None = None, format: str = "mermaid"
+    ) -> str | bytes | None:
         """Visualize the graph in various formats.
 
         Args:
@@ -335,7 +325,9 @@ class TradingAgentsGraph:
                 print(res)
             if output_path:
                 with open(output_path, "w") as f:
-                    f.write(res if isinstance(res, str) else "ASCII representation printed to console.")
+                    f.write(
+                        res if isinstance(res, str) else "ASCII representation printed to console."
+                    )
             return res
         elif format == "png":
             png_data = graph.draw_mermaid_png()

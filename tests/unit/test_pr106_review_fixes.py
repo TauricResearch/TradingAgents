@@ -31,6 +31,7 @@ if _project_root not in sys.path:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _collect(agen):
     """Collect all events from an async generator into a list."""
     events = []
@@ -56,14 +57,17 @@ def _root_chain_end_event(output: dict) -> dict:
 # Fix 1: save_holding_review per-ticker iteration
 # ---------------------------------------------------------------------------
 
+
 class TestSaveHoldingReviewIteration(unittest.TestCase):
     """Verify save_holding_review is called per-ticker, not once with portfolio_id."""
 
     _FINAL_STATE = {
-        "holding_reviews": json.dumps({
-            "AAPL": {"rating": "hold", "reason": "stable"},
-            "MSFT": {"rating": "buy", "reason": "growth"},
-        }),
+        "holding_reviews": json.dumps(
+            {
+                "AAPL": {"rating": "hold", "reason": "stable"},
+                "MSFT": {"rating": "buy", "reason": "growth"},
+            }
+        ),
         "risk_metrics": "",
         "pm_decision": "",
         "execution_result": "",
@@ -92,19 +96,35 @@ class TestSaveHoldingReviewIteration(unittest.TestCase):
         mock_store.load_scan.return_value = {}
         mock_store.load_analysis.return_value = None
 
-        with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
-             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest"):
+        with (
+            patch(
+                "agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg
+            ),
+            patch(
+                "agent_os.backend.services.langgraph_engine.create_report_store",
+                return_value=mock_store,
+            ),
+            patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd,
+            patch("agent_os.backend.services.langgraph_engine.append_to_digest"),
+        ):
             fake_daily = MagicMock(spec=Path)
             fake_daily.exists.return_value = False
-            fake_daily.__truediv__ = MagicMock(return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False)))
+            fake_daily.__truediv__ = MagicMock(
+                return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False))
+            )
             mock_gdd.return_value = fake_daily
 
-            asyncio.run(_collect(engine.run_portfolio("run1", {
-                "date": "2026-03-20",
-                "portfolio_id": "pid-123",
-            })))
+            asyncio.run(
+                _collect(
+                    engine.run_portfolio(
+                        "run1",
+                        {
+                            "date": "2026-03-20",
+                            "portfolio_id": "pid-123",
+                        },
+                    )
+                )
+            )
 
         # save_holding_review should be called once per ticker
         calls = mock_store.save_holding_review.call_args_list
@@ -125,19 +145,35 @@ class TestSaveHoldingReviewIteration(unittest.TestCase):
         mock_store.load_scan.return_value = {}
         mock_store.load_analysis.return_value = None
 
-        with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
-             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest"):
+        with (
+            patch(
+                "agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg
+            ),
+            patch(
+                "agent_os.backend.services.langgraph_engine.create_report_store",
+                return_value=mock_store,
+            ),
+            patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd,
+            patch("agent_os.backend.services.langgraph_engine.append_to_digest"),
+        ):
             fake_daily = MagicMock(spec=Path)
             fake_daily.exists.return_value = False
-            fake_daily.__truediv__ = MagicMock(return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False)))
+            fake_daily.__truediv__ = MagicMock(
+                return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False))
+            )
             mock_gdd.return_value = fake_daily
 
-            asyncio.run(_collect(engine.run_portfolio("run1", {
-                "date": "2026-03-20",
-                "portfolio_id": "pid-123",
-            })))
+            asyncio.run(
+                _collect(
+                    engine.run_portfolio(
+                        "run1",
+                        {
+                            "date": "2026-03-20",
+                            "portfolio_id": "pid-123",
+                        },
+                    )
+                )
+            )
 
         # save_holding_review should NOT be called
         mock_store.save_holding_review.assert_not_called()
@@ -146,6 +182,7 @@ class TestSaveHoldingReviewIteration(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Fix 2: contextvars-based RunLogger isolation
 # ---------------------------------------------------------------------------
+
 
 class TestContextVarRunLogger(unittest.TestCase):
     """Verify RunLogger uses contextvars (isolated per asyncio task)."""
@@ -197,6 +234,7 @@ class TestContextVarRunLogger(unittest.TestCase):
 # Fix 3: list_pm_decisions excludes _id
 # ---------------------------------------------------------------------------
 
+
 @unittest.skipUnless(importlib.util.find_spec("pymongo"), "pymongo not installed")
 class TestListPmDecisionsExcludesId(unittest.TestCase):
     """Verify list_pm_decisions uses {_id: 0} projection."""
@@ -220,13 +258,16 @@ class TestListPmDecisionsExcludesId(unittest.TestCase):
 
             # Verify the projection argument includes _id: 0
             find_call = mock_col.find.call_args
-            projection = find_call[0][1] if len(find_call[0]) > 1 else find_call[1].get("projection")
+            projection = (
+                find_call[0][1] if len(find_call[0]) > 1 else find_call[1].get("projection")
+            )
             self.assertEqual(projection, {"_id": 0})
 
 
 # ---------------------------------------------------------------------------
 # Fix 4: ReflexionMemory created_at is native datetime for MongoDB
 # ---------------------------------------------------------------------------
+
 
 class TestReflexionCreatedAtType(unittest.TestCase):
     """Verify created_at is native datetime for MongoDB, ISO string for local."""
@@ -272,6 +313,7 @@ class TestReflexionCreatedAtType(unittest.TestCase):
 # Fix 5: RunLogger callback wired into astream_events config
 # ---------------------------------------------------------------------------
 
+
 class TestRunLoggerCallbackWiring(unittest.TestCase):
     """Verify astream_events receives the RunLogger callback in config."""
 
@@ -290,22 +332,33 @@ class TestRunLoggerCallbackWiring(unittest.TestCase):
     def test_run_scan_wires_callback(self):
         from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
-        mock_graph, captured = self._make_mock_graph({
-            "geopolitical_report": "", "market_movers_report": "",
-            "sector_performance_report": "", "industry_deep_dive_report": "",
-            "macro_scan_summary": "",
-        })
+        mock_graph, captured = self._make_mock_graph(
+            {
+                "geopolitical_report": "",
+                "market_movers_report": "",
+                "sector_performance_report": "",
+                "industry_deep_dive_report": "",
+                "macro_scan_summary": "",
+            }
+        )
         mock_scanner = MagicMock()
         mock_scanner.graph = mock_graph
 
         engine = LangGraphEngine()
         mock_store = MagicMock()
 
-        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
-             patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
-             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
+        with (
+            patch(
+                "agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner
+            ),
+            patch(
+                "agent_os.backend.services.langgraph_engine.create_report_store",
+                return_value=mock_store,
+            ),
+            patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd,
+            patch("agent_os.backend.services.langgraph_engine.append_to_digest"),
+            patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}),
+        ):
             fake_dir = MagicMock(spec=Path)
             fake_dir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
             fake_dir.mkdir = MagicMock()
@@ -330,18 +383,34 @@ class TestRunLoggerCallbackWiring(unittest.TestCase):
         engine = LangGraphEngine()
         mock_store = MagicMock()
 
-        with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
-             patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
-             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest"):
+        with (
+            patch(
+                "agent_os.backend.services.langgraph_engine.TradingAgentsGraph",
+                return_value=mock_wrapper,
+            ),
+            patch(
+                "agent_os.backend.services.langgraph_engine.create_report_store",
+                return_value=mock_store,
+            ),
+            patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd,
+            patch("agent_os.backend.services.langgraph_engine.append_to_digest"),
+        ):
             fake_dir = MagicMock(spec=Path)
             fake_dir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
 
-            asyncio.run(_collect(engine.run_pipeline("run1", {
-                "ticker": "AAPL", "date": "2026-01-01",
-            })))
+            asyncio.run(
+                _collect(
+                    engine.run_pipeline(
+                        "run1",
+                        {
+                            "ticker": "AAPL",
+                            "date": "2026-01-01",
+                        },
+                    )
+                )
+            )
 
         self.assertIn("callbacks", captured)
         self.assertEqual(len(captured["callbacks"]), 1)
@@ -351,10 +420,14 @@ class TestRunLoggerCallbackWiring(unittest.TestCase):
     def test_run_portfolio_wires_callback(self):
         from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
-        mock_graph, captured = self._make_mock_graph({
-            "holding_reviews": "", "risk_metrics": "",
-            "pm_decision": "", "execution_result": "",
-        })
+        mock_graph, captured = self._make_mock_graph(
+            {
+                "holding_reviews": "",
+                "risk_metrics": "",
+                "pm_decision": "",
+                "execution_result": "",
+            }
+        )
         mock_pg = MagicMock()
         mock_pg.graph = mock_graph
 
@@ -363,18 +436,35 @@ class TestRunLoggerCallbackWiring(unittest.TestCase):
         mock_store.load_scan.return_value = {}
         mock_store.load_analysis.return_value = None
 
-        with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
-             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest"):
+        with (
+            patch(
+                "agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg
+            ),
+            patch(
+                "agent_os.backend.services.langgraph_engine.create_report_store",
+                return_value=mock_store,
+            ),
+            patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd,
+            patch("agent_os.backend.services.langgraph_engine.append_to_digest"),
+        ):
             fake_daily = MagicMock(spec=Path)
             fake_daily.exists.return_value = False
-            fake_daily.__truediv__ = MagicMock(return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False)))
+            fake_daily.__truediv__ = MagicMock(
+                return_value=MagicMock(spec=Path, exists=MagicMock(return_value=False))
+            )
             mock_gdd.return_value = fake_daily
 
-            asyncio.run(_collect(engine.run_portfolio("run1", {
-                "date": "2026-01-01", "portfolio_id": "pid-123",
-            })))
+            asyncio.run(
+                _collect(
+                    engine.run_portfolio(
+                        "run1",
+                        {
+                            "date": "2026-01-01",
+                            "portfolio_id": "pid-123",
+                        },
+                    )
+                )
+            )
 
         self.assertIn("callbacks", captured)
         self.assertEqual(len(captured["callbacks"]), 1)
@@ -383,6 +473,7 @@ class TestRunLoggerCallbackWiring(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Fix 6: ensure_indexes called in MongoReportStore.__init__
 # ---------------------------------------------------------------------------
+
 
 @unittest.skipUnless(importlib.util.find_spec("pymongo"), "pymongo not installed")
 class TestEnsureIndexesInInit(unittest.TestCase):

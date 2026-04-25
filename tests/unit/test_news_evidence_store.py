@@ -56,7 +56,10 @@ def test_ingest_prefetched_sections_persists_run_scoped_records(tmp_path):
     assert all(record.run_id == "run-001" for record in records)
 
     fetched = store.fetch_records(run_id="run-001", ticker="CSTM", trade_date="2026-04-02")
-    assert [record.ordinal for record in fetched if "Company-Specific" in record.section_label] == [1, 2]
+    assert [record.ordinal for record in fetched if "Company-Specific" in record.section_label] == [
+        1,
+        2,
+    ]
     assert fetched[0].evidence_id.startswith("art_")
     assert fetched[0].published_at == "2026-03-27"
 

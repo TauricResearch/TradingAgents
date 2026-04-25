@@ -33,15 +33,18 @@ def _is_retryable_error(exc: Exception) -> bool:
     if any(k in cls_name for k in ("Connection", "Timeout", "Network")):
         return True
     msg = str(exc).lower()
-    return any(k in msg for k in (
-        "json error",
-        "injected into sse",
-        "connection",
-        "timeout",
-        "timed out",
-        "network",
-        "stream",
-    ))
+    return any(
+        k in msg
+        for k in (
+            "json error",
+            "injected into sse",
+            "connection",
+            "timeout",
+            "timed out",
+            "network",
+            "stream",
+        )
+    )
 
 
 def invoke_with_timeout(
@@ -57,7 +60,7 @@ def invoke_with_timeout(
     last_error: Exception | None = None
     for attempt in range(max_retries + 1):
         if attempt > 0:
-            delay = 2 ** attempt  # 2s, 4s
+            delay = 2**attempt  # 2s, 4s
             logger.warning(
                 "invoke_with_timeout: retrying after transient error (attempt %d/%d, delay=%ds): %s",
                 attempt,
@@ -91,7 +94,9 @@ def invoke_with_timeout(
         try:
             status, payload = result_queue.get(timeout=1.0)
         except queue.Empty:
-            return None, TimeoutError(f"llm invoke exceeded {timeout_seconds:.1f}s (queue empty after join)")
+            return None, TimeoutError(
+                f"llm invoke exceeded {timeout_seconds:.1f}s (queue empty after join)"
+            )
 
         if status == "ok":
             return payload, None  # type: ignore[return-value]

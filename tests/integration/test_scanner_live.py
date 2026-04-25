@@ -98,9 +98,17 @@ def test_yfinance_sector_performance_all_11_sectors():
     result = get_sector_performance_yfinance()
     assert "| Sector |" in result
     for sector in [
-        "Technology", "Healthcare", "Financials", "Energy",
-        "Consumer Discretionary", "Consumer Staples", "Industrials",
-        "Materials", "Real Estate", "Utilities", "Communication Services",
+        "Technology",
+        "Healthcare",
+        "Financials",
+        "Energy",
+        "Consumer Discretionary",
+        "Consumer Staples",
+        "Industrials",
+        "Materials",
+        "Real Estate",
+        "Utilities",
+        "Communication Services",
     ]:
         assert sector in result, f"Missing sector: {sector}"
 
@@ -112,7 +120,8 @@ def test_yfinance_sector_performance_numeric_percentages():
     result = get_sector_performance_yfinance()
     lines = result.strip().split("\n")
     data_lines = [
-        line for line in lines
+        line
+        for line in lines
         if line.startswith("| ") and "Sector" not in line and "---" not in line
     ]
     assert len(data_lines) == 11, f"Expected 11 data rows, got {len(data_lines)}"
@@ -139,7 +148,8 @@ def test_yfinance_industry_performance_no_na_symbols():
     result = get_industry_performance_yfinance("technology")
     lines = result.strip().split("\n")
     data_lines = [
-        line for line in lines
+        line
+        for line in lines
         if line.startswith("| ") and "Company" not in line and "---" not in line
     ]
     for line in data_lines:

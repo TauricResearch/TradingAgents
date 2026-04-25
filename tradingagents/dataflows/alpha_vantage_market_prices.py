@@ -16,9 +16,7 @@ def _parse_json(text: str, context: str) -> dict:
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
-        raise ThirdPartyParseError(
-            f"Failed to parse JSON response for {context}: {exc}"
-        ) from exc
+        raise ThirdPartyParseError(f"Failed to parse JSON response for {context}: {exc}") from exc
 
 
 def _format_price_table(title: str, rows: list[dict[str, str]]) -> str:

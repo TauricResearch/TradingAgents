@@ -48,10 +48,14 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
     return bool(str(analysis.get("final_trade_decision") or "").strip())
 
 
-def _completed_scan_candidates(scan_summary: dict, ticker_analyses: dict[str, Any]) -> list[dict[str, Any]]:
+def _completed_scan_candidates(
+    scan_summary: dict, ticker_analyses: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Return only scan candidates with completed ticker deep-dive analyses."""
     completed: list[dict[str, Any]] = []
-    raw_candidates = scan_summary.get("equity_candidates") or scan_summary.get("stocks_to_investigate") or []
+    raw_candidates = (
+        scan_summary.get("equity_candidates") or scan_summary.get("stocks_to_investigate") or []
+    )
     for raw_candidate in raw_candidates:
         if isinstance(raw_candidate, dict):
             candidate = dict(raw_candidate)
@@ -61,8 +65,13 @@ def _completed_scan_candidates(scan_summary: dict, ticker_analyses: dict[str, An
             candidate = {"ticker": ticker}
         if not ticker:
             continue
-        instrument_key = candidate.get("instrument_key") or resolve_instrument(ticker, source_context="scan").instrument_key
-        analysis = ticker_analyses.get(instrument_key, {}) if isinstance(ticker_analyses, dict) else {}
+        instrument_key = (
+            candidate.get("instrument_key")
+            or resolve_instrument(ticker, source_context="scan").instrument_key
+        )
+        analysis = (
+            ticker_analyses.get(instrument_key, {}) if isinstance(ticker_analyses, dict) else {}
+        )
         if not _analysis_has_deep_dive(analysis):
             continue
         candidate["ticker"] = ticker
@@ -118,12 +127,11 @@ class PortfolioGraphSetup:
             try:
                 if repo is None:
                     from tradingagents.portfolio.repository import PortfolioRepository
+
                     _repo = PortfolioRepository(config=config)
                 else:
                     _repo = repo
-                portfolio, holdings = _repo.get_portfolio_with_holdings(
-                    portfolio_id, prices
-                )
+                portfolio, holdings = _repo.get_portfolio_with_holdings(portfolio_id, prices)
                 data = {
                     "portfolio": portfolio.to_dict(),
                     "holdings": [h.to_dict() for h in holdings],
@@ -146,10 +154,10 @@ class PortfolioGraphSetup:
                 portfolio_data = json.loads(portfolio_data_str)
                 from tradingagents.portfolio.models import Holding, Portfolio
 
-                portfolio = Portfolio.from_dict(portfolio_data.get("portfolio") or _EMPTY_PORTFOLIO_DICT)
-                holdings = [
-                    Holding.from_dict(h) for h in (portfolio_data.get("holdings") or [])
-                ]
+                portfolio = Portfolio.from_dict(
+                    portfolio_data.get("portfolio") or _EMPTY_PORTFOLIO_DICT
+                )
+                holdings = [Holding.from_dict(h) for h in (portfolio_data.get("holdings") or [])]
 
                 # Enrich holdings with prices so current_value is populated
                 if prices and portfolio.total_value is None:
@@ -194,10 +202,10 @@ class PortfolioGraphSetup:
                 portfolio_data = json.loads(portfolio_data_str)
                 from tradingagents.portfolio.models import Holding, Portfolio
 
-                portfolio = Portfolio.from_dict(portfolio_data.get("portfolio") or _EMPTY_PORTFOLIO_DICT)
-                holdings = [
-                    Holding.from_dict(h) for h in (portfolio_data.get("holdings") or [])
-                ]
+                portfolio = Portfolio.from_dict(
+                    portfolio_data.get("portfolio") or _EMPTY_PORTFOLIO_DICT
+                )
+                holdings = [Holding.from_dict(h) for h in (portfolio_data.get("holdings") or [])]
                 candidates = _completed_scan_candidates(scan_summary, ticker_analyses)
                 prices = state.get("prices") or {}
                 if prices:
@@ -213,10 +221,14 @@ class PortfolioGraphSetup:
                 try:
                     selection_memory = build_selection_memory()
                 except Exception as exc:
-                    logger.warning("prioritize_candidates_node: could not load selection_memory: %s", exc)
+                    logger.warning(
+                        "prioritize_candidates_node: could not load selection_memory: %s", exc
+                    )
                     selection_memory = None
 
-                ranked = prioritize_candidates(candidates, portfolio, holdings, config, selection_memory=selection_memory)
+                ranked = prioritize_candidates(
+                    candidates, portfolio, holdings, config, selection_memory=selection_memory
+                )
             except Exception as exc:
                 logger.error("prioritize_candidates_node: %s", exc)
                 ranked = []
@@ -229,6 +241,7 @@ class PortfolioGraphSetup:
 
     def _make_cash_sweep_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Node to automatically sweep excess cash into a cash-equivalent ETF."""
+
         def cash_sweep_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_data_str = state.get("portfolio_data") or "{}"
             pm_decision_str = state.get("pm_decision") or "{}"
@@ -237,7 +250,10 @@ class PortfolioGraphSetup:
             try:
                 portfolio_data = json.loads(portfolio_data_str)
                 from tradingagents.portfolio.models import Holding, Portfolio
-                portfolio = Portfolio.from_dict(portfolio_data.get("portfolio") or _EMPTY_PORTFOLIO_DICT)
+
+                portfolio = Portfolio.from_dict(
+                    portfolio_data.get("portfolio") or _EMPTY_PORTFOLIO_DICT
+                )
                 holdings = [Holding.from_dict(h) for h in (portfolio_data.get("holdings") or [])]
 
                 if prices and portfolio.total_value is None:
@@ -253,7 +269,7 @@ class PortfolioGraphSetup:
                 # Default target cash threshold
                 target_cash_pct = 0.05
                 sweep_etf = "SGOV"
-                sweep_etf_price = prices.get(sweep_etf, 100.0) # Assume 100.0 if not in prices
+                sweep_etf_price = prices.get(sweep_etf, 100.0)  # Assume 100.0 if not in prices
 
                 try:
                     decisions = json.loads(pm_decision_str)
@@ -276,7 +292,7 @@ class PortfolioGraphSetup:
                                 "ticker": sweep_etf,
                                 "shares": float(shares_to_buy),
                                 "sector": "Cash Equivalent",
-                                "rationale": f"Automatic cash sweep of excess cash (${excess_cash:.2f}) to maintain {target_cash_pct*100:.1f}% target."
+                                "rationale": f"Automatic cash sweep of excess cash (${excess_cash:.2f}) to maintain {target_cash_pct * 100:.1f}% target.",
                             }
                             decisions["buys"].append(sweep_buy)
                             pm_decision_str = json.dumps(decisions)
@@ -311,6 +327,7 @@ class PortfolioGraphSetup:
             try:
                 if repo is None:
                     from tradingagents.portfolio.repository import PortfolioRepository
+
                     _repo = PortfolioRepository(config=config)
                 else:
                     _repo = repo

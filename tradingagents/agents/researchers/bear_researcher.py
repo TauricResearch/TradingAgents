@@ -43,8 +43,8 @@ def create_bear_researcher(llm: Any, memory: Any) -> Callable[[AgentState], dict
             truncate_text(debate_summary, max_chars=1800), ticker
         )
         # Round 2: rely on rolling summary only, skip raw history to cut tokens
-        anon_history = "" if is_round2 else anonymize_ticker(
-            truncate_text(history, max_chars=1200), ticker
+        anon_history = (
+            "" if is_round2 else anonymize_ticker(truncate_text(history, max_chars=1200), ticker)
         )
         anon_current_response = anonymize_ticker(
             truncate_text(current_response, max_chars=800), ticker
@@ -84,7 +84,11 @@ Rules: Exactly 3 claims max. One counterpoint. One rebuttal. No paragraphs.
 
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("mid_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         response, invoke_error = invoke_with_timeout(
@@ -121,9 +125,10 @@ Rules: Exactly 3 claims max. One counterpoint. One rebuttal. No paragraphs.
         elif "SUMMARY POINTS:" in response.content:
             summary_section = response.content.split("SUMMARY POINTS:")[-1].strip()
 
-        current_bear_summary = summary_section or str(
-            investment_debate_state.get("current_bear_summary") or ""
-        ).strip()
+        current_bear_summary = (
+            summary_section
+            or str(investment_debate_state.get("current_bear_summary") or "").strip()
+        )
         next_summary = build_investment_debate_summary(
             {
                 **investment_debate_state,

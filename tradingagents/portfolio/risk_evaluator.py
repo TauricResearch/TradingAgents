@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 # Core financial metrics
 # ---------------------------------------------------------------------------
 
+
 # Optimized: Pure-Python statistical helpers to avoid `statistics` module overhead
 def _mean(values: list[float]) -> float:
     if not values:
@@ -255,11 +256,7 @@ def sector_concentration(
     sector_totals: dict[str, float] = {}
     for h in holdings:
         sector = h.sector or "Unknown"
-        value = (
-            h.current_value
-            if h.current_value is not None
-            else h.shares * h.avg_cost
-        )
+        value = h.current_value if h.current_value is not None else h.shares * h.avg_cost
         sector_totals[sector] = sector_totals.get(sector, 0.0) + value
     return {s: v / portfolio_total_value for s, v in sector_totals.items()}
 
@@ -301,6 +298,7 @@ _SECTOR_NORMALISE: dict[str, str] = {
     "Communication Services": "communication-services",
 }
 
+
 def compute_holding_risk(
     holding: Holding,
     price_history: list[float],
@@ -328,7 +326,9 @@ def compute_holding_risk(
         is_proxy_risk = True
         sector_key = ""
         if holding.sector:
-            sector_key = _SECTOR_NORMALISE.get(holding.sector, holding.sector.lower().replace(" ", "-"))
+            sector_key = _SECTOR_NORMALISE.get(
+                holding.sector, holding.sector.lower().replace(" ", "-")
+            )
 
         etf_ticker = _SECTOR_ETFS.get(sector_key)
 
@@ -373,7 +373,8 @@ def compute_portfolio_risk(
         Dict with portfolio-level risk metrics.
     """
     total_value = portfolio.total_value or (
-        portfolio.cash + sum(
+        portfolio.cash
+        + sum(
             h.current_value if h.current_value is not None else h.shares * h.avg_cost
             for h in holdings
         )
@@ -392,7 +393,11 @@ def compute_portfolio_risk(
                 sector_key = _SECTOR_NORMALISE.get(h.sector, h.sector.lower().replace(" ", "-"))
 
             etf_ticker = _SECTOR_ETFS.get(sector_key)
-            if etf_ticker and etf_ticker in price_histories and len(price_histories[etf_ticker]) >= 30:
+            if (
+                etf_ticker
+                and etf_ticker in price_histories
+                and len(price_histories[etf_ticker]) >= 30
+            ):
                 active_history = price_histories[etf_ticker]
             elif "SPY" in price_histories and len(price_histories["SPY"]) >= 30:
                 active_history = price_histories["SPY"]
@@ -404,21 +409,14 @@ def compute_portfolio_risk(
 
         rets = compute_returns(active_history)
         holding_returns[h.ticker] = rets
-        hv = (
-            h.current_value
-            if h.current_value is not None
-            else h.shares * h.avg_cost
-        )
+        hv = h.current_value if h.current_value is not None else h.shares * h.avg_cost
         holding_weights[h.ticker] = hv / total_value if total_value > 0 else 0.0
 
     portfolio_returns: list[float] = []
     if holding_returns:
         min_len = min(len(v) for v in holding_returns.values())
         for i in range(min_len):
-            day_ret = sum(
-                holding_weights[t] * holding_returns[t][i]
-                for t in holding_returns
-            )
+            day_ret = sum(holding_weights[t] * holding_returns[t][i] for t in holding_returns)
             portfolio_returns.append(day_ret)
 
     # NAV series from portfolio returns (for drawdown)
@@ -441,7 +439,7 @@ def compute_portfolio_risk(
             h,
             price_histories.get(h.ticker, []),
             price_histories=price_histories,
-            benchmark_prices=benchmark_prices
+            benchmark_prices=benchmark_prices,
         )
         for h in holdings
     ]
@@ -495,7 +493,8 @@ def check_constraints(
     min_cash_pct: float = config.get("min_cash_pct", 0.05)
 
     total_value = portfolio.total_value or (
-        portfolio.cash + sum(
+        portfolio.cash
+        + sum(
             h.current_value if h.current_value is not None else h.shares * h.avg_cost
             for h in holdings
         )
@@ -508,9 +507,7 @@ def check_constraints(
     is_new_position = new_ticker and new_ticker not in existing_tickers
     projected_positions = len(holdings) + (1 if is_new_position else 0)
     if projected_positions > max_positions:
-        violations.append(
-            f"Max positions exceeded: {projected_positions} > {max_positions}"
-        )
+        violations.append(f"Max positions exceeded: {projected_positions} > {max_positions}")
 
     if total_value > 0:
         # --- min cash ---
@@ -524,13 +521,13 @@ def check_constraints(
 
         # --- max position size ---
         if new_ticker and new_price > 0:
-            existing_holding = next(
-                (h for h in holdings if h.ticker == new_ticker), None
-            )
+            existing_holding = next((h for h in holdings if h.ticker == new_ticker), None)
             existing_value = (
                 existing_holding.current_value
                 if existing_holding and existing_holding.current_value is not None
-                else (existing_holding.shares * existing_holding.avg_cost if existing_holding else 0.0)
+                else (
+                    existing_holding.shares * existing_holding.avg_cost if existing_holding else 0.0
+                )
             )
             projected_position_value = existing_value + new_cost
             position_pct = projected_position_value / total_value

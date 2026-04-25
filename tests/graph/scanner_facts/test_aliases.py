@@ -37,7 +37,13 @@ def test_resolve_alias_not_found_returns_none():
 
 
 def test_all_registry_values_are_lists():
-    for registry in (TICKER_ALIASES, SECTOR_ALIASES, INDEX_ALIASES,
-                     MACRO_ALIASES, COMMODITY_ALIASES, FX_ALIASES):
+    for registry in (
+        TICKER_ALIASES,
+        SECTOR_ALIASES,
+        INDEX_ALIASES,
+        MACRO_ALIASES,
+        COMMODITY_ALIASES,
+        FX_ALIASES,
+    ):
         for key, val in registry.items():
             assert isinstance(val, list), f"{key} value must be a list"

@@ -48,6 +48,7 @@ def _assert_clean_df(df: pd.DataFrame, label: str) -> None:
 # Part 1 — Concurrent safe_yf_download() calls
 # ---------------------------------------------------------------------------
 
+
 class TestConcurrentSafeYfDownload:
     """Verify that simultaneous safe_yf_download calls don't cross-contaminate."""
 
@@ -57,6 +58,7 @@ class TestConcurrentSafeYfDownload:
 
     def _download_one(self, ticker: str) -> tuple[str, pd.DataFrame]:
         from tradingagents.dataflows.stockstats_utils import safe_yf_download
+
         df = safe_yf_download(
             ticker,
             start=_ONE_YEAR_AGO,
@@ -94,8 +96,9 @@ class TestConcurrentSafeYfDownload:
         """Single-ticker download produces flat (non-MultiIndex) columns."""
         from tradingagents.dataflows.stockstats_utils import safe_yf_download
 
-        df = safe_yf_download("AAPL", start=_ONE_YEAR_AGO, end=_TODAY_STR,
-                               auto_adjust=True, progress=False)
+        df = safe_yf_download(
+            "AAPL", start=_ONE_YEAR_AGO, end=_TODAY_STR, auto_adjust=True, progress=False
+        )
 
         assert not isinstance(df.columns, pd.MultiIndex), (
             "safe_yf_download returned a MultiIndex column structure — "
@@ -109,8 +112,9 @@ class TestConcurrentSafeYfDownload:
         from tradingagents.dataflows.stockstats_utils import safe_yf_download
 
         tickers = ["STM", "TSM"]
-        df = safe_yf_download(tickers, start=_ONE_YEAR_AGO, end=_TODAY_STR,
-                               auto_adjust=True, progress=False)
+        df = safe_yf_download(
+            tickers, start=_ONE_YEAR_AGO, end=_TODAY_STR, auto_adjust=True, progress=False
+        )
 
         assert not df.empty
         # Columns should be like Close/STM, Close/TSM or Close (flat) — never Close.1
@@ -120,17 +124,18 @@ class TestConcurrentSafeYfDownload:
         """Calling safe_yf_download 10× in a tight loop never produces .N columns."""
         from tradingagents.dataflows.stockstats_utils import safe_yf_download
 
-        tickers_cycle = ["STM", "TSM", "AAPL", "NVDA", "MSFT",
-                         "STM", "TSM", "AAPL", "NVDA", "MSFT"]
+        tickers_cycle = ["STM", "TSM", "AAPL", "NVDA", "MSFT", "STM", "TSM", "AAPL", "NVDA", "MSFT"]
         for ticker in tickers_cycle:
-            df = safe_yf_download(ticker, start=_ONE_YEAR_AGO, end=_TODAY_STR,
-                                  auto_adjust=True, progress=False)
+            df = safe_yf_download(
+                ticker, start=_ONE_YEAR_AGO, end=_TODAY_STR, auto_adjust=True, progress=False
+            )
             _assert_clean_df(df, f"serial loop {ticker}")
 
 
 # ---------------------------------------------------------------------------
 # Part 2 — Guard pipeline with real data
 # ---------------------------------------------------------------------------
+
 
 class TestOhlcvGuardPipelineLive:
     """_load_or_fetch_ohlcv() guard pipeline with real network data."""
@@ -188,15 +193,17 @@ class TestOhlcvGuardPipelineLive:
         # Write 200 rows with contaminated column names (Close.1 present)
         dates = pd.bdate_range(end=today, periods=200)
         n = len(dates)
-        contaminated_df = pd.DataFrame({
-            "Date": dates.strftime("%Y-%m-%d"),
-            "Open": [170.0] * n,   # TSM-level prices in STM's cache
-            "High": [175.0] * n,
-            "Low":  [165.0] * n,
-            "Close":   [170.0] * n,
-            "Close.1": [36.0] * n,  # <-- contamination marker
-            "Volume":  [1_000_000] * n,
-        })
+        contaminated_df = pd.DataFrame(
+            {
+                "Date": dates.strftime("%Y-%m-%d"),
+                "Open": [170.0] * n,  # TSM-level prices in STM's cache
+                "High": [175.0] * n,
+                "Low": [165.0] * n,
+                "Close": [170.0] * n,
+                "Close.1": [36.0] * n,  # <-- contamination marker
+                "Volume": [1_000_000] * n,
+            }
+        )
         contaminated_df.to_csv(cache_path, index=False)
         assert cache_path.exists(), "Precondition: contaminated cache must exist"
 
@@ -229,22 +236,28 @@ class TestOhlcvGuardPipelineLive:
         stale_end = today - timedelta(days=10)
         dates = pd.bdate_range(end=stale_end, periods=200)
         n = len(dates)  # guard against bdate_range rounding differences
-        stale_df = pd.DataFrame({
-            "Date": dates.strftime("%Y-%m-%d"),
-            "Open": [36.0] * n,
-            "High": [37.0] * n,
-            "Low":  [35.0] * n,
-            "Close": [36.0] * n,
-            "Volume": [500_000] * n,
-        })
+        stale_df = pd.DataFrame(
+            {
+                "Date": dates.strftime("%Y-%m-%d"),
+                "Open": [36.0] * n,
+                "High": [37.0] * n,
+                "Low": [35.0] * n,
+                "Close": [36.0] * n,
+                "Volume": [500_000] * n,
+            }
+        )
         stale_df.to_csv(cache_path, index=False)
         assert cache_path.exists()
 
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(su, "get_config", lambda: {
-                "data_cache_dir": str(tmp_path),
-                "ohlcv_cache_max_age_days": 2,  # stale after 2 days
-            })
+            mp.setattr(
+                su,
+                "get_config",
+                lambda: {
+                    "data_cache_dir": str(tmp_path),
+                    "ohlcv_cache_max_age_days": 2,  # stale after 2 days
+                },
+            )
             df = su._load_or_fetch_ohlcv(self._TICKER)
 
         # The staleness guard fired, deleted the stale file, re-fetched fresh data,

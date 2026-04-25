@@ -35,9 +35,11 @@ def _load_mongo_module(mock_client_cls: MagicMock):
         sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
         return importlib.import_module("tradingagents.portfolio.mongo_report_store")
 
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_col():
@@ -171,9 +173,7 @@ def test_save_pm_decision_with_markdown(mongo_store, mock_col):
     """save_pm_decision should include markdown in the document."""
     mock_col.insert_one.return_value = MagicMock(inserted_id="abc")
 
-    mongo_store.save_pm_decision(
-        "2026-03-20", "pid-123", {"buys": []}, markdown="# Decision"
-    )
+    mongo_store.save_pm_decision("2026-03-20", "pid-123", {"buys": []}, markdown="# Decision")
 
     doc = mock_col.insert_one.call_args[0][0]
     assert doc["portfolio_id"] == "pid-123"

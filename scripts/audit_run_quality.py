@@ -104,21 +104,25 @@ def audit_run(reports_dir: Path) -> dict:
         if header:
             report_qualities[key] = header
             if header["quality"] != "ok":
-                issues.append({
-                    "file": filename,
-                    "issue": "quality_degraded",
-                    "detail": header,
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "issue": "quality_degraded",
+                        "detail": header,
+                    }
+                )
         else:
             # No header — assess directly
             assessment = assess_report_quality(text, node_name=key)
             report_qualities[key] = assessment
             if assessment["quality"] != "ok":
-                issues.append({
-                    "file": filename,
-                    "issue": "quality_degraded",
-                    "detail": assessment,
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "issue": "quality_degraded",
+                        "detail": assessment,
+                    }
+                )
 
     # 2. Audit summaries
     for key, filename in _SUMMARY_FILES.items():
@@ -130,10 +134,12 @@ def audit_run(reports_dir: Path) -> dict:
             summary_qualities[key] = "no_evidence"
         elif "pending" in text.lower() or "awaiting" in text.lower():
             summary_qualities[key] = "placeholder_propagated"
-            issues.append({
-                "file": filename,
-                "issue": "placeholder_in_summary",
-            })
+            issues.append(
+                {
+                    "file": filename,
+                    "issue": "placeholder_in_summary",
+                }
+            )
         else:
             summary_qualities[key] = "ok"
 
@@ -158,10 +164,12 @@ def audit_run(reports_dir: Path) -> dict:
         min_vix = min(vix_values.values())
         max_vix = max(vix_values.values())
         if min_vix > 0 and (max_vix - min_vix) / min_vix > 0.20:
-            issues.append({
-                "issue": "vix_inconsistency",
-                "values": {k: v for k, v in sorted(vix_values.items())},
-            })
+            issues.append(
+                {
+                    "issue": "vix_inconsistency",
+                    "values": {k: v for k, v in sorted(vix_values.items())},
+                }
+            )
 
     # 4. Ticker count check
     meta_file = reports_dir / "run_meta.json"
@@ -171,21 +179,22 @@ def audit_run(reports_dir: Path) -> dict:
         if max_tickers:
             market_dir / "report"
             ticker_dirs = [
-                d.name for d in reports_dir.iterdir()
+                d.name
+                for d in reports_dir.iterdir()
                 if d.is_dir() and d.name not in ("market", "portfolio", "report")
             ]
             if len(ticker_dirs) > max_tickers:
-                issues.append({
-                    "issue": "ticker_count_exceeded",
-                    "max_tickers": max_tickers,
-                    "actual": len(ticker_dirs),
-                    "tickers": ticker_dirs,
-                })
+                issues.append(
+                    {
+                        "issue": "ticker_count_exceeded",
+                        "max_tickers": max_tickers,
+                        "actual": len(ticker_dirs),
+                        "tickers": ticker_dirs,
+                    }
+                )
 
     # Summarize
-    usable_reports = sum(
-        1 for q in report_qualities.values() if q.get("quality") == "ok"
-    )
+    usable_reports = sum(1 for q in report_qualities.values() if q.get("quality") == "ok")
     total_reports = len(_REPORT_FILES)
 
     return {

@@ -25,6 +25,7 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+
 def _clean_dataframe_optimized(data: pd.DataFrame) -> pd.DataFrame:
     df = data.copy()
     df.columns = df.columns.astype(str).str.lower()
@@ -45,9 +46,10 @@ def _clean_dataframe_optimized(data: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-start_date_str = '2020-01-01'
-end_date_str = '2023-01-01'
-symbol = 'AAPL'
+
+start_date_str = "2020-01-01"
+end_date_str = "2023-01-01"
+symbol = "AAPL"
 
 data = yf.download(
     symbol,

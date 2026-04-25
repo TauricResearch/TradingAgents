@@ -78,23 +78,17 @@ def mock_llm_with_tool_call():
     # 1. First call: The LLM decides to use a tool
     tool_call_msg = AIMessage(
         content="",
-        tool_calls=[
-            {"name": "get_balance_sheet", "args": {"ticker": "AAPL"}, "id": "call_123"}
-        ]
+        tool_calls=[{"name": "get_balance_sheet", "args": {"ticker": "AAPL"}, "id": "call_123"}],
     )
     # 2. Second call: The LLM receives the tool output and writes the report
-    final_report_msg = AIMessage(
-        content="This is the final report after running the tool."
-    )
+    final_report_msg = AIMessage(content="This is the final report after running the tool.")
     return MockLLM([tool_call_msg, final_report_msg])
 
 
 @pytest.fixture
 def mock_llm_direct_report():
     """LLM that returns the final report directly (no tool calls — full pre-fetch path)."""
-    final_report_msg = AIMessage(
-        content="This is the final report after running the tool."
-    )
+    final_report_msg = AIMessage(content="This is the final report after running the tool.")
     return MockLLM([final_report_msg])
 
 
@@ -142,17 +136,20 @@ def valid_news_report():
 
 def test_fundamentals_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
     """Fundamentals analyst: pre-fetches 4 tools, runs iterative loop for raw statements."""
-    with patch(
-        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
-        return_value={
-            "TTM Analysis (8-Quarter Trend)": "TTM context",
-            "Fundamental Ratios Snapshot": "Ratios context",
-            "Peer Comparison": "Peer context",
-            "Sector Relative Performance": "Sector context",
-        },
-    ), patch(
-        "tradingagents.agents.analysts.fundamentals_analyst.get_balance_sheet"
-    ) as mock_tool_fn:
+    with (
+        patch(
+            "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+            return_value={
+                "TTM Analysis (8-Quarter Trend)": "TTM context",
+                "Fundamental Ratios Snapshot": "Ratios context",
+                "Peer Comparison": "Peer context",
+                "Sector Relative Performance": "Sector context",
+            },
+        ),
+        patch(
+            "tradingagents.agents.analysts.fundamentals_analyst.get_balance_sheet"
+        ) as mock_tool_fn,
+    ):
         mock_tool_fn.name = "get_balance_sheet"
         mock_tool_fn.invoke.return_value = "Mocked Balance Sheet data"
         node = create_fundamentals_analyst(mock_llm_with_tool_call)
@@ -164,22 +161,25 @@ def test_fundamentals_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
 
 
 def test_fundamentals_analyst_timeout_fallback_builds_structured_report(mock_state):
-    with patch(
-        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
-        return_value={
-            "TTM Analysis (8-Quarter Trend)": "TTM context",
-            "Fundamental Ratios Snapshot": "Ratios context",
-            "Peer Comparison": "Peer context",
-            "Sector Relative Performance": "Sector context",
-        },
-    ), patch(
-        "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
-        return_value=AIMessage(
-            content=(
-                "- Tool-using analyst timed out after 60s.\n"
-                "- Available tools for this node: get_balance_sheet, get_cashflow, get_income_statement.\n"
-                "- Treat this node as incomplete and do not infer additional unsourced claims."
-            )
+    with (
+        patch(
+            "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+            return_value={
+                "TTM Analysis (8-Quarter Trend)": "TTM context",
+                "Fundamental Ratios Snapshot": "Ratios context",
+                "Peer Comparison": "Peer context",
+                "Sector Relative Performance": "Sector context",
+            },
+        ),
+        patch(
+            "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
+            return_value=AIMessage(
+                content=(
+                    "- Tool-using analyst timed out after 60s.\n"
+                    "- Available tools for this node: get_balance_sheet, get_cashflow, get_income_statement.\n"
+                    "- Treat this node as incomplete and do not infer additional unsourced claims."
+                )
+            ),
         ),
     ):
         node = create_fundamentals_analyst(MockLLM([]))
@@ -198,17 +198,20 @@ def test_fundamentals_analyst_timeout_fallback_builds_structured_report(mock_sta
 
 
 def test_fundamentals_analyst_empty_output_uses_structured_fallback(mock_state):
-    with patch(
-        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
-        return_value={
-            "TTM Analysis (8-Quarter Trend)": "TTM context",
-            "Fundamental Ratios Snapshot": "Ratios context",
-            "Peer Comparison": "Peer context",
-            "Sector Relative Performance": "Sector context",
-        },
-    ), patch(
-        "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
-        return_value=AIMessage(content=""),
+    with (
+        patch(
+            "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+            return_value={
+                "TTM Analysis (8-Quarter Trend)": "TTM context",
+                "Fundamental Ratios Snapshot": "Ratios context",
+                "Peer Comparison": "Peer context",
+                "Sector Relative Performance": "Sector context",
+            },
+        ),
+        patch(
+            "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
+            return_value=AIMessage(content=""),
+        ),
     ):
         node = create_fundamentals_analyst(MockLLM([]))
         result = node(mock_state)
@@ -241,6 +244,7 @@ def test_social_media_analyst_direct_invoke(mock_state, mock_llm_direct_report):
     assert structured["ticker"] == "AAPL"
     assert structured["status"] in {"completed", "timeout_fallback", "empty", "aborted"}
     assert structured["contract_version"] == "sentiment_summary_v1"
+
 
 def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     """News analyst: full pre-fetch, direct LLM invoke (no tool loop)."""
@@ -474,7 +478,13 @@ def test_market_analyst_macro_regime_empty_when_prefetch_missing(mock_state):
         ],
     ):
         node = create_market_analyst(
-            MockLLM([AIMessage(content="Macro Regime Classification: RISK-ON but sourced from report text only.")])
+            MockLLM(
+                [
+                    AIMessage(
+                        content="Macro Regime Classification: RISK-ON but sourced from report text only."
+                    )
+                ]
+            )
         )
         result = node(mock_state)
     assert result["macro_regime_report"] == ""
@@ -496,7 +506,9 @@ def test_market_analyst_macro_regime_empty_when_prefetch_errors(mock_state):
             },
         ],
     ):
-        node = create_market_analyst(MockLLM([AIMessage(content="TRANSITION regime discussed in report body.")]))
+        node = create_market_analyst(
+            MockLLM([AIMessage(content="TRANSITION regime discussed in report body.")])
+        )
         result = node(mock_state)
     assert result["macro_regime_report"] == ""
     assert result["market_report_structured"]["macro_regime"] == "unknown"
@@ -529,20 +541,23 @@ def test_market_analyst_structured_status_aborted_on_critical_abort(mock_state):
 
 def test_market_analyst_timeout_fallback_returns_report(mock_state, mock_llm_direct_report):
     """Timeout in market LLM invoke should return deterministic fallback instead of stalling."""
-    with patch(
-        "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
-        side_effect=[
-            {
-                "Macro Regime Classification": "## Risk-Off\nMarket is RISK-OFF.",
-                "Stock Price Data": "Date,Close\n2024-05-14,189.0",
-            },
-            {
-                "Technical Indicator: atr": "ATR context",
-            },
-        ],
-    ), patch(
-        "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
-        return_value=(None, TimeoutError("forced timeout")),
+    with (
+        patch(
+            "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+            side_effect=[
+                {
+                    "Macro Regime Classification": "## Risk-Off\nMarket is RISK-OFF.",
+                    "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+                },
+                {
+                    "Technical Indicator: atr": "ATR context",
+                },
+            ],
+        ),
+        patch(
+            "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
+            return_value=(None, TimeoutError("forced timeout")),
+        ),
     ):
         node = create_market_analyst(mock_llm_direct_report)
         result = node(mock_state)
@@ -577,10 +592,10 @@ def test_prefetched_context_injected_into_prompt(mock_state):
             return AIMessage(content="This is the final report after running the tool.")
 
     long_stock = "Date,Close\n" + "\n".join(
-        [f"2024-04-{i:02d},{180 + i/10:.2f}" for i in range(1, 62)]
+        [f"2024-04-{i:02d},{180 + i / 10:.2f}" for i in range(1, 62)]
     )
     long_indicator = "Date,Value\n" + "\n".join(
-        [f"2024-04-{i:02d},{50 + i/100:.2f}" for i in range(1, 28)]
+        [f"2024-04-{i:02d},{50 + i / 100:.2f}" for i in range(1, 28)]
     )
 
     with patch(
@@ -603,10 +618,7 @@ def test_prefetched_context_injected_into_prompt(mock_state):
     assert captured_inputs, "LLM was never called"
     # The input to the runnable is a list of messages; find the system message text
     messages = captured_inputs[0]
-    full_text = " ".join(
-        m.content if hasattr(m, "content") else str(m)
-        for m in messages
-    )
+    full_text = " ".join(m.content if hasattr(m, "content") else str(m) for m in messages)
     assert "RISK-ON" in full_text
     assert "Pre-loaded Context" in full_text
     assert "Technical Indicator: macd" in full_text
@@ -659,12 +671,15 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
 
 
 def test_news_analyst_timeout_returns_critical_abort(mock_state):
-    with patch(
-        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
-        return_value={},
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.invoke_with_timeout",
-        return_value=(None, TimeoutError("llm invoke exceeded")),
+    with (
+        patch(
+            "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+            return_value={},
+        ),
+        patch(
+            "tradingagents.agents.analysts.news_analyst.invoke_with_timeout",
+            return_value=(None, TimeoutError("llm invoke exceeded")),
+        ),
     ):
         node = create_news_analyst(
             MockLLM([]),
@@ -738,11 +753,8 @@ def test_news_analyst_prompt_forbids_internal_headers_as_sources():
 
     assert captured_inputs, "LLM was never called"
     messages = captured_inputs[0]
-    full_text = " ".join(
-        m.content if hasattr(m, "content") else str(m)
-        for m in messages
-    )
-    assert "Never cite labels such as \"Macro Regime Classification\"" in full_text
+    full_text = " ".join(m.content if hasattr(m, "content") else str(m) for m in messages)
+    assert 'Never cite labels such as "Macro Regime Classification"' in full_text
     assert "Internal prompt labels and section headers are NOT sources." in full_text
     assert "[Evidence ID: art_cstm_001]" in full_text
 
@@ -812,10 +824,10 @@ def test_news_analyst_retry_instruction_restates_internal_header_rule():
 
     assert len(captured_inputs) == 2
     retry_messages = captured_inputs[1]
-    retry_text = " ".join(
-        m.content if hasattr(m, "content") else str(m)
-        for m in retry_messages
+    retry_text = " ".join(m.content if hasattr(m, "content") else str(m) for m in retry_messages)
+    assert (
+        "The same full scanner context, pre-loaded news feeds, and persisted evidence records remain available on this retry."
+        in retry_text
     )
-    assert "The same full scanner context, pre-loaded news feeds, and persisted evidence records remain available on this retry." in retry_text
     assert "Do not cite internal prompt labels or section headers like" in retry_text
-    assert "\"Macro Regime Classification\", \"Scanner Context\", or \"Pre-loaded Context\"" in retry_text
+    assert '"Macro Regime Classification", "Scanner Context", or "Pre-loaded Context"' in retry_text

@@ -15,6 +15,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _minimal_ohlcv_df(periods: int = 200) -> pd.DataFrame:
     """Return a minimal valid OHLCV DataFrame with a Date column ending today."""
     end = pd.Timestamp.today()
@@ -35,6 +36,7 @@ def _minimal_ohlcv_df(periods: int = 200) -> pd.DataFrame:
 # _load_or_fetch_ohlcv — cache + download logic
 # ---------------------------------------------------------------------------
 
+
 class TestLoadOrFetchOhlcv:
     """Tests for the unified OHLCV loader."""
 
@@ -47,10 +49,17 @@ class TestLoadOrFetchOhlcv:
         mock_downloaded.index = pd.RangeIndex(len(mock_downloaded))  # simulate reset_index output
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=expected_df.set_index("Date")) as mock_dl,
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download",
+                return_value=expected_df.set_index("Date"),
+            ) as mock_dl,
         ):
             _load_or_fetch_ohlcv("AAPL")
             mock_dl.assert_called_once()
@@ -72,8 +81,13 @@ class TestLoadOrFetchOhlcv:
         df.to_csv(cache_file, index=False)
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
             patch("tradingagents.dataflows.stockstats_utils.yf.download") as mock_dl,
         ):
             result = _load_or_fetch_ohlcv("AAPL")
@@ -94,10 +108,17 @@ class TestLoadOrFetchOhlcv:
         fresh_df = _minimal_ohlcv_df()
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=fresh_df.set_index("Date")) as mock_dl,
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download",
+                return_value=fresh_df.set_index("Date"),
+            ) as mock_dl,
         ):
             _load_or_fetch_ohlcv("AAPL")
             mock_dl.assert_called_once()
@@ -116,10 +137,17 @@ class TestLoadOrFetchOhlcv:
         fresh_df = _minimal_ohlcv_df()
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=fresh_df.set_index("Date")) as mock_dl,
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download",
+                return_value=fresh_df.set_index("Date"),
+            ) as mock_dl,
         ):
             _load_or_fetch_ohlcv("AAPL")
             mock_dl.assert_called_once()
@@ -129,10 +157,16 @@ class TestLoadOrFetchOhlcv:
         from tradingagents.dataflows.stockstats_utils import YFinanceError, _load_or_fetch_ohlcv
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=pd.DataFrame()),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download", return_value=pd.DataFrame()
+            ),
         ):
             with pytest.raises(YFinanceError, match="no data"):
                 _load_or_fetch_ohlcv("INVALID_TICKER_XYZ")
@@ -144,10 +178,17 @@ class TestLoadOrFetchOhlcv:
         df = _minimal_ohlcv_df()
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=df.set_index("Date")),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download",
+                return_value=df.set_index("Date"),
+            ),
         ):
             _load_or_fetch_ohlcv("AAPL")
 
@@ -167,6 +208,7 @@ class TestLoadOrFetchOhlcv:
 # YFinanceError propagation (no more silent return "")
 # ---------------------------------------------------------------------------
 
+
 class TestYFinanceErrorPropagation:
     """Tests that YFinanceError is raised (not swallowed) by get_stockstats_indicator."""
 
@@ -176,10 +218,16 @@ class TestYFinanceErrorPropagation:
         from tradingagents.dataflows.y_finance import get_stockstats_indicator
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=pd.DataFrame()),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download", return_value=pd.DataFrame()
+            ),
         ):
             with pytest.raises(YFinanceError):
                 get_stockstats_indicator("INVALID", "rsi", "2025-01-02")
@@ -190,10 +238,16 @@ class TestYFinanceErrorPropagation:
         from tradingagents.dataflows.y_finance import get_stockstats_indicator
 
         with (
-            patch("tradingagents.dataflows.stockstats_utils.get_config",
-                  return_value={"data_cache_dir": str(tmp_path), "data_vendors": {"technical_indicators": "yfinance"}}),
-            patch("tradingagents.dataflows.stockstats_utils.yf.download",
-                  return_value=pd.DataFrame()),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.get_config",
+                return_value={
+                    "data_cache_dir": str(tmp_path),
+                    "data_vendors": {"technical_indicators": "yfinance"},
+                },
+            ),
+            patch(
+                "tradingagents.dataflows.stockstats_utils.yf.download", return_value=pd.DataFrame()
+            ),
         ):
             result = None
             try:
@@ -211,16 +265,12 @@ class TestYFinanceErrorPropagation:
 # _filter_csv_by_date_range — explicit column discovery
 # ---------------------------------------------------------------------------
 
+
 class TestFilterCsvByDateRange:
     """Tests for the fixed _filter_csv_by_date_range in alpha_vantage_common."""
 
     def _make_av_csv(self, date_col_name: str = "time") -> str:
-        return (
-            f"{date_col_name},SMA\n"
-            "2024-01-02,230.5\n"
-            "2024-01-03,231.0\n"
-            "2024-01-08,235.5\n"
-        )
+        return f"{date_col_name},SMA\n2024-01-02,230.5\n2024-01-03,231.0\n2024-01-08,235.5\n"
 
     def test_filters_with_standard_time_column(self):
         """Standard Alpha Vantage CSV with 'time' header filters correctly."""
@@ -235,7 +285,9 @@ class TestFilterCsvByDateRange:
         """CSV with 'timestamp' header (alternative AV format) also works."""
         from tradingagents.dataflows.alpha_vantage_common import _filter_csv_by_date_range
 
-        result = _filter_csv_by_date_range(self._make_av_csv("timestamp"), "2024-01-03", "2024-01-08")
+        result = _filter_csv_by_date_range(
+            self._make_av_csv("timestamp"), "2024-01-03", "2024-01-08"
+        )
         assert "2024-01-02" not in result
         assert "2024-01-03" in result
 

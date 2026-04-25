@@ -127,14 +127,22 @@ Apply lessons from past decisions:
         # Guardrail: do not fabricate an executable trader plan if the
         # upstream research-manager decision is missing or non-terminal.
         plan_status = str(investment_plan_structured.get("status") or "").strip().lower()
-        if not str(investment_plan or "").strip() or plan_status in {"empty", "timeout_fallback", "aborted"}:
+        if not str(investment_plan or "").strip() or plan_status in {
+            "empty",
+            "timeout_fallback",
+            "aborted",
+        }:
             raise RuntimeError(
                 "upstream Research Manager plan was empty or non-completed, so trader cannot derive entry/stop/target safely"
             )
 
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("mid_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         result, invoke_error = invoke_with_timeout(
@@ -150,14 +158,20 @@ Apply lessons from past decisions:
                 is_timeout = True
             else:
                 err_type = type(invoke_error).__name__
-                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+                raise RuntimeError(
+                    f"Node execution failed: {err_type} - {str(invoke_error)}"
+                ) from invoke_error
 
         # If it was a timeout or if the content is empty/garbage, apply the deterministic fallback.
         output_content = ""
         if result:
             output_content = result.content.replace("TICKER_A", ticker)
 
-        if is_timeout or not str(output_content).strip() or output_contains_scratchpad(output_content):
+        if (
+            is_timeout
+            or not str(output_content).strip()
+            or output_contains_scratchpad(output_content)
+        ):
             output_content = build_trader_plan_fallback(state)
             is_fallback = True
         else:

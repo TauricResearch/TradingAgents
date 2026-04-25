@@ -70,6 +70,7 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
+
 def create_msg_delete() -> Callable[[AgentState], dict[str, Any]]:
     def delete_messages(state: AgentState, /) -> dict[str, Any]:
         """Clear messages and add placeholder for Anthropic compatibility"""
@@ -81,8 +82,7 @@ def create_msg_delete() -> Callable[[AgentState], dict[str, Any]]:
         # Messages without IDs cannot be targeted by RemoveMessage and would
         # trigger a TypeError if we attempted to instantiate one with a null ID.
         removal_operations = [
-            RemoveMessage(id=m.id) for m in messages
-            if hasattr(m, "id") and m.id is not None
+            RemoveMessage(id=m.id) for m in messages if hasattr(m, "id") and m.id is not None
         ]
 
         # Add a minimal placeholder message to ensure the message list is never empty,
@@ -92,6 +92,3 @@ def create_msg_delete() -> Callable[[AgentState], dict[str, Any]]:
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
-
-        

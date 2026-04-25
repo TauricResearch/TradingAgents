@@ -86,7 +86,11 @@ Output a structured risk synthesis in under 400 words."""
 
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            float(
+                DEFAULT_CONFIG.get("mid_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or _cap
+            ),
             _cap,
         )
         response, invoke_error = invoke_with_timeout(
@@ -97,7 +101,9 @@ Output a structured risk synthesis in under 400 words."""
         )
         if invoke_error is not None:
             err_type = type(invoke_error).__name__
-            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+            raise RuntimeError(
+                f"Node execution failed: {err_type} - {str(invoke_error)}"
+            ) from invoke_error
         summary = response.content.strip()
         is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         structured = build_risk_synthesis_structured(

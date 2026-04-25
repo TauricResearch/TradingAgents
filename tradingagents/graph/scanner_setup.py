@@ -71,7 +71,7 @@ def get_scanner_descendants(start_node: str) -> frozenset[str]:
             if child not in reachable:
                 reachable.add(child)
                 stack.append(child)
-    
+
     return frozenset(reachable)
 
 

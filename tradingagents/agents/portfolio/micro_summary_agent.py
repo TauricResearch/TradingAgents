@@ -129,9 +129,13 @@ def create_micro_summary_agent(
         candidates: list = _parse_json_safely(candidates_raw, default=[])
 
         if not holding_reviews:
-            logger.warning("micro_summary_agent: No holding reviews found in state. Proceeding with partial synthesis.")
+            logger.warning(
+                "micro_summary_agent: No holding reviews found in state. Proceeding with partial synthesis."
+            )
         if not candidates:
-            logger.warning("micro_summary_agent: No prioritized candidates found in state. Proceeding with partial synthesis.")
+            logger.warning(
+                "micro_summary_agent: No prioritized candidates found in state. Proceeding with partial synthesis."
+            )
 
         # Optional: per-ticker trading graph analyses (fundamentals, technicals, etc.)
         ticker_analyses: dict = state.get("ticker_analyses") or {}
@@ -143,7 +147,9 @@ def create_micro_summary_agent(
         candidate_tickers = [
             c.get("ticker", "") for c in candidates if isinstance(c, dict) and c.get("ticker")
         ]
-        all_tickers = list(dict.fromkeys(holding_tickers + candidate_tickers))  # preserve order, dedupe
+        all_tickers = list(
+            dict.fromkeys(holding_tickers + candidate_tickers)
+        )  # preserve order, dedupe
 
         ticker_memory_dict: dict[str, str] = {}
         if micro_memory is not None:
@@ -180,7 +186,7 @@ def create_micro_summary_agent(
             analysis = deep_dive_context.get(ticker, {})
             rating = analysis.get("rating") or "NO DATA"
             key_number = f"rating:{rating}"
-            memory_snippet = (ticker_memory_dict.get(ticker, "")[:100] or "no memory")
+            memory_snippet = ticker_memory_dict.get(ticker, "")[:100] or "no memory"
             table_rows.append(f"{ticker} | {label} | {key_number} | {memory_snippet}")
 
         for c in candidates:
@@ -192,10 +198,14 @@ def create_micro_summary_agent(
             priority_score = c.get("priority_score", "")
             analysis = deep_dive_context.get(ticker, {})
             rating = analysis.get("rating", "")
-            score_text = f"priority_score:{priority_score}" if priority_score != "" else "priority_score:NO DATA"
+            score_text = (
+                f"priority_score:{priority_score}"
+                if priority_score != ""
+                else "priority_score:NO DATA"
+            )
             key_number = f"{score_text} | rating:{rating}" if rating else score_text
             label = f"CANDIDATE | {conviction} | {thesis}"
-            memory_snippet = (ticker_memory_dict.get(ticker, "")[:100] or "no memory")
+            memory_snippet = ticker_memory_dict.get(ticker, "")[:100] or "no memory"
             table_rows.append(f"{ticker} | {label} | {key_number} | {memory_snippet}")
 
         ticker_table = "\n".join(table_rows) or "No tickers available."
@@ -207,9 +217,7 @@ def create_micro_summary_agent(
             else "No holding reviews available."
         )
         candidates_str = (
-            json.dumps(candidates, indent=2)
-            if candidates
-            else "No candidates available."
+            json.dumps(candidates, indent=2) if candidates else "No candidates available."
         )
         deep_dive_str = (
             json.dumps(deep_dive_context, indent=2)
@@ -238,11 +246,11 @@ def create_micro_summary_agent(
             "HOLDINGS TABLE:\n"
             "| TICKER | ACTION | KEY NUMBER | FLAG | MEMORY |\n"
             "|--------|--------|------------|------|--------|\n"
-            "[one row per holding — use \"NO DATA\" if missing]\n\n"
+            '[one row per holding — use "NO DATA" if missing]\n\n'
             "CANDIDATES TABLE:\n"
             "| TICKER | CONVICTION | THESIS ANGLE | KEY NUMBER | FLAG | MEMORY |\n"
             "|--------|------------|--------------|------------|------|--------|\n"
-            "[one row per candidate — use \"NO DATA\" if missing]\n\n"
+            '[one row per candidate — use "NO DATA" if missing]\n\n'
             "RED FLAGS: [clinical list of accounting anomalies, leverage breaches, or losses with exact numbers]\n"
             "GREEN FLAGS: [clinical list of momentum leads, insider buying, or positive memory with exact numbers]\n"
         )

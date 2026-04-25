@@ -55,6 +55,4 @@ def test_scan_command_creates_output_files():
                 f"Output file '{filename}' does not match the expected naming "
                 f"convention.  run_scan() should only write {sorted(valid_names)}"
             )
-            assert len(content) > 50, (
-                f"File {filename} appears to be empty or too short"
-            )
+            assert len(content) > 50, f"File {filename} appears to be empty or too short"

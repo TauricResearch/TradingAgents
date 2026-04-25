@@ -88,8 +88,14 @@ def test_holding_to_dict_round_trip(sample_holding):
 def test_holding_to_dict_excludes_runtime_fields(sample_holding):
     """to_dict() must not include current_price, current_value, weight, etc."""
     d = sample_holding.to_dict()
-    for field in ("current_price", "current_value", "cost_basis",
-                  "unrealized_pnl", "unrealized_pnl_pct", "weight"):
+    for field in (
+        "current_price",
+        "current_value",
+        "cost_basis",
+        "unrealized_pnl",
+        "unrealized_pnl_pct",
+        "weight",
+    ):
         assert field not in d
 
 
@@ -187,6 +193,7 @@ def test_snapshot_to_dict_round_trip(sample_snapshot):
 def test_snapshot_from_dict_parses_holdings_snapshot_json_string():
     """from_dict() must parse holdings_snapshot when it arrives as a JSON string."""
     import json
+
     holdings = [{"ticker": "AAPL", "shares": 10.0}]
     data = {
         "snapshot_id": "snap-1",
@@ -262,7 +269,9 @@ def test_holding_enrich_handles_zero_portfolio_value(sample_holding):
 
 def test_portfolio_enrich_computes_total_value(sample_portfolio, sample_holding):
     """Portfolio.enrich() must compute total_value = cash + sum(holding.current_value)."""
-    sample_holding.enrich(current_price=200.0, portfolio_total_value=1.0)  # sets current_value; dummy total is overwritten by portfolio.enrich()
+    sample_holding.enrich(
+        current_price=200.0, portfolio_total_value=1.0
+    )  # sets current_value; dummy total is overwritten by portfolio.enrich()
     sample_portfolio.enrich([sample_holding])
     expected_equity = 200.0 * sample_holding.shares
     assert sample_portfolio.total_value == pytest.approx(sample_portfolio.cash + expected_equity)
@@ -270,14 +279,18 @@ def test_portfolio_enrich_computes_total_value(sample_portfolio, sample_holding)
 
 def test_portfolio_enrich_computes_equity_value(sample_portfolio, sample_holding):
     """Portfolio.enrich() must set equity_value = sum(holding.current_value)."""
-    sample_holding.enrich(current_price=200.0, portfolio_total_value=1.0)  # sets current_value; dummy total is overwritten by portfolio.enrich()
+    sample_holding.enrich(
+        current_price=200.0, portfolio_total_value=1.0
+    )  # sets current_value; dummy total is overwritten by portfolio.enrich()
     sample_portfolio.enrich([sample_holding])
     assert sample_portfolio.equity_value == pytest.approx(200.0 * sample_holding.shares)
 
 
 def test_portfolio_enrich_computes_cash_pct(sample_portfolio, sample_holding):
     """Portfolio.enrich() must compute cash_pct = cash / total_value."""
-    sample_holding.enrich(current_price=200.0, portfolio_total_value=1.0)  # sets current_value; dummy total is overwritten by portfolio.enrich()
+    sample_holding.enrich(
+        current_price=200.0, portfolio_total_value=1.0
+    )  # sets current_value; dummy total is overwritten by portfolio.enrich()
     sample_portfolio.enrich([sample_holding])
     expected_pct = sample_portfolio.cash / sample_portfolio.total_value
     assert sample_portfolio.cash_pct == pytest.approx(expected_pct)

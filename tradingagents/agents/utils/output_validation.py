@@ -230,6 +230,7 @@ def _extract_current_price_from_report(report: str) -> str | None:
     "strike price at", etc. Returns None (with a warning) when no pattern matches.
     """
     import logging as _logging
+
     _logger = _logging.getLogger(__name__)
 
     patterns = [
@@ -272,7 +273,7 @@ def build_market_report_structured(
     abort_prefix = "[CRITICAL ABORT]"
     if report.startswith(abort_prefix):
         status = "aborted"
-        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+        abort_reason = report[len(abort_prefix) :].strip(" :\n\t")
     elif is_timeout_fallback:
         status = "timeout_fallback"
         abort_reason = ""
@@ -284,7 +285,9 @@ def build_market_report_structured(
         abort_reason = ""
 
     bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", report))
-    numeric_mentions = len(re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE)
+    )
     summary_table_rows = _count_summary_table_rows(report)
 
     return {
@@ -349,7 +352,7 @@ def build_fundamentals_report_structured(
     timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
     if report.startswith(abort_prefix):
         status = "aborted"
-        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+        abort_reason = report[len(abort_prefix) :].strip(" :\n\t")
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
@@ -396,7 +399,9 @@ def build_fundamentals_report_structured(
 def render_fundamentals_report_structured(payload: dict[str, Any]) -> str:
     """Render fundamentals structured data into a deterministic markdown fallback."""
     ticker_upper = str(payload.get("ticker") or "").strip().upper()
-    report_title = f"{ticker_upper} Fundamentals Analysis" if ticker_upper else "Fundamentals Analysis"
+    report_title = (
+        f"{ticker_upper} Fundamentals Analysis" if ticker_upper else "Fundamentals Analysis"
+    )
     key_metrics = payload.get("key_metrics") or {}
     prefetch = payload.get("prefetch") or {}
     sections = prefetch.get("sections") if isinstance(prefetch, dict) else {}
@@ -435,7 +440,9 @@ def render_fundamentals_report_structured(payload: dict[str, Any]) -> str:
                 lines.append(f"  - {excerpt}")
 
     if present_sections:
-        lines.extend(["", f"- Present Sections: {', '.join(str(item) for item in present_sections)}"])
+        lines.extend(
+            ["", f"- Present Sections: {', '.join(str(item) for item in present_sections)}"]
+        )
     if error_sections:
         lines.extend(["", f"- Error Sections: {', '.join(str(item) for item in error_sections)}"])
 
@@ -462,7 +469,7 @@ def build_research_manager_fallback(state: AgentState) -> str:
     key_metrics = news_structured.get("key_metrics") or {}
     claim_count = key_metrics.get("claim_count", 0) if isinstance(key_metrics, dict) else 0
     news_has_usable_evidence = news_status == "completed" and claim_count > 0
-    
+
     if news_has_usable_evidence:
         # Gate news claim iteration behind usable evidence check
         for claim in (news_structured.get("claims") or [])[:3]:
@@ -473,7 +480,9 @@ def build_research_manager_fallback(state: AgentState) -> str:
             published_at = str(claim.get("published_at") or "").strip()
             if claim_text:
                 provenance = " ".join(part for part in (source, published_at) if part)
-                lines.append(f"- Bull: {claim_text}" + (f" [{provenance}]" if provenance else "") + " (MED)")
+                lines.append(
+                    f"- Bull: {claim_text}" + (f" [{provenance}]" if provenance else "") + " (MED)"
+                )
     else:
         # News structured contract is not usable evidence
         if news_status:
@@ -481,16 +490,22 @@ def build_research_manager_fallback(state: AgentState) -> str:
 
     key_levels = market_structured.get("key_levels") or []
     if isinstance(key_levels, list) and key_levels:
-        lines.append(f"- Bull: Market context includes {len(key_levels)} validated price levels ({', '.join(str(v) for v in key_levels[:3])}) (LOW)")
+        lines.append(
+            f"- Bull: Market context includes {len(key_levels)} validated price levels ({', '.join(str(v) for v in key_levels[:3])}) (LOW)"
+        )
 
     key_metrics = fundamentals_structured.get("key_metrics") or {}
     if fundamentals_structured.get("status") == "timeout_fallback":
-        lines.append("- Bear: Fundamentals analysis timed out after 60s, leaving quantitative coverage incomplete (HIGH)")
+        lines.append(
+            "- Bear: Fundamentals analysis timed out after 60s, leaving quantitative coverage incomplete (HIGH)"
+        )
     if key_metrics.get("numeric_mentions", 0) == 0:
         lines.append("- Bear: Fundamentals structured contract reports 0 numeric mentions (HIGH)")
     macro_regime = str(fundamentals_structured.get("macro_regime") or "").strip().lower()
     if macro_regime in {"", "unknown"}:
-        lines.append("- Bear: Fundamentals structured contract classifies macro regime as unknown (MED)")
+        lines.append(
+            "- Bear: Fundamentals structured contract classifies macro regime as unknown (MED)"
+        )
 
     has_high_bear = any("(HIGH)" in line and line.startswith("- Bear:") for line in lines)
     has_bull = any(line.startswith("- Bull:") for line in lines)
@@ -503,7 +518,9 @@ def build_research_manager_fallback(state: AgentState) -> str:
     key_level_count = len(key_levels) if isinstance(key_levels, list) else 0
     lines.append(f"- Recommendation: {recommendation} (HIGH)")
     lines.append(f"- Rationale: {rationale} for {ticker or 'the instrument'} (HIGH)")
-    lines.append(f"- Strategic Action: wait for refreshed fundamentals and {key_level_count} validated market price levels before sizing new risk (HIGH)")
+    lines.append(
+        f"- Strategic Action: wait for refreshed fundamentals and {key_level_count} validated market price levels before sizing new risk (HIGH)"
+    )
     return "\n".join(lines).strip()
 
 
@@ -533,12 +550,12 @@ def build_trader_plan_fallback(
         recommendation = "HOLD"
 
     lines = [
-            f"- Research Manager's Verdict: {recommendation} derived from validated upstream evidence (HIGH)",
-            f"- Entry Setup: no new entry because {price_level_count} validated market price levels are available in the structured packet (HIGH)",
-            "- Risk Parameters: preserve existing risk controls and do not place a fresh order until fundamentals are complete (HIGH)",
-            "- Catalyst Timeline: use only scanner ground-truth dates already present upstream; no new date inference was added here (MED)",
-            f"- FINAL TRANSACTION PROPOSAL: **{recommendation}**",
-        ]
+        f"- Research Manager's Verdict: {recommendation} derived from validated upstream evidence (HIGH)",
+        f"- Entry Setup: no new entry because {price_level_count} validated market price levels are available in the structured packet (HIGH)",
+        "- Risk Parameters: preserve existing risk controls and do not place a fresh order until fundamentals are complete (HIGH)",
+        "- Catalyst Timeline: use only scanner ground-truth dates already present upstream; no new date inference was added here (MED)",
+        f"- FINAL TRANSACTION PROPOSAL: **{recommendation}**",
+    ]
     if reason:
         lines.insert(1, f"- Validation Guardrail: {reason} (HIGH)")
     return "\n".join(lines).strip()
@@ -582,7 +599,7 @@ def build_sentiment_report_structured(
     timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
     if report.startswith(abort_prefix):
         status = "aborted"
-        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+        abort_reason = report[len(abort_prefix) :].strip(" :\n\t")
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
@@ -597,7 +614,13 @@ def build_sentiment_report_structured(
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE)
     )
-    source_mentions = len(re.findall(r"\b(?:twitter|reddit|stocktwits|seeking alpha|social media|forum|youtube)\b", report, re.IGNORECASE))
+    source_mentions = len(
+        re.findall(
+            r"\b(?:twitter|reddit|stocktwits|seeking alpha|social media|forum|youtube)\b",
+            report,
+            re.IGNORECASE,
+        )
+    )
     sentiment_direction = _infer_sentiment_direction(report)
 
     return {
@@ -626,20 +649,20 @@ def build_news_report_structured(
     removed_claims: list[dict] | None = None,
 ) -> dict[str, Any]:
     """Build a canonical news_report_v1 contract from a sanitized payload.
-    
+
     This is the sole normalization point for news structured output. It validates
     the status, stamps contract metadata, computes key_metrics, and ensures the
     returned contract is always valid, even when given malformed inputs.
-    
+
     Args:
         ticker: Company ticker symbol
         as_of_date: Report date in YYYY-MM-DD format
         payload: Sanitized news payload from validate/sanitize flow, or {} for failures
-        status: One of: completed, empty, invalid_structured_payload, 
+        status: One of: completed, empty, invalid_structured_payload,
                 missing_structured_payload, aborted
         abort_reason: Error description for non-completed statuses
         removed_claims: Claims rejected during sanitization (for metrics)
-    
+
     Returns:
         dict: Always a valid news_report_v1 contract, never raises
     """
@@ -652,7 +675,7 @@ def build_news_report_structured(
             "missing_structured_payload",
             "aborted",
         }
-        
+
         # Validate status
         status_str = str(status or "").strip()
         if status_str not in canonical_statuses:
@@ -674,16 +697,16 @@ def build_news_report_structured(
                     "below_min_claims": False,
                 },
             }
-        
+
         # Validate payload is a dict
         if not isinstance(payload, dict):
             payload = {}
-        
+
         # Extract and validate claims
         claims_raw = payload.get("claims") or []
         if not isinstance(claims_raw, list):
             claims_raw = []
-        
+
         # Reconstruct claims with whitelisted fields and scan_date cleanup
         output_claims = []
         for claim in claims_raw:
@@ -706,16 +729,16 @@ def build_news_report_structured(
                         "below_min_claims": False,
                     },
                 }
-            
+
             source = str(claim.get("source") or "").strip()
             is_scanner = source == "Finviz Smart Money Scanner"
-            
+
             # Build output claim with whitelisted fields
             output_claim = {
                 "claim": str(claim.get("claim") or "").strip(),
                 "source": source,
             }
-            
+
             if is_scanner:
                 # Scanner claims: retain scan_date, omit blank optional fields
                 scan_date = str(claim.get("scan_date") or "").strip()
@@ -754,14 +777,14 @@ def build_news_report_structured(
                 output_claim["published_at"] = published_at
                 output_claim["evidence_id"] = evidence_id
                 # scan_date is stripped for non-scanner claims
-            
+
             output_claims.append(output_claim)
-        
+
         # Extract and validate summary table
         summary_raw = payload.get("summary_table") or []
         if not isinstance(summary_raw, list):
             summary_raw = []
-        
+
         # Reconstruct summary rows with whitelisted fields
         output_summary = []
         for row in summary_raw:
@@ -784,10 +807,10 @@ def build_news_report_structured(
                         "below_min_claims": False,
                     },
                 }
-            
+
             source = str(row.get("source") or "").strip()
             is_scanner = source == "Finviz Smart Money Scanner"
-            
+
             # Build output row with whitelisted fields
             output_row = {
                 "date": str(row.get("date") or "").strip(),
@@ -796,7 +819,7 @@ def build_news_report_structured(
                 "value": str(row.get("value") or "").strip(),
                 "source": source,
             }
-            
+
             if is_scanner:
                 # Scanner rows: retain scan_date
                 scan_date = str(row.get("scan_date") or "").strip()
@@ -829,13 +852,13 @@ def build_news_report_structured(
                         },
                     }
                 output_row["evidence_id"] = evidence_id
-            
+
             output_summary.append(output_row)
-        
+
         # Compute key_metrics
         claim_count = len(output_claims)
         summary_rows = len(output_summary)
-        
+
         # Count unique evidence_ids across claims (non-empty)
         evidence_ids = set()
         for claim in output_claims:
@@ -843,16 +866,16 @@ def build_news_report_structured(
             if eid:
                 evidence_ids.add(eid)
         evidence_id_count = len(evidence_ids)
-        
+
         removed_count = len(removed_claims or [])
         below_min_claims = bool(payload.get("below_min_claims"))
-        
+
         # Synthesize report_title if missing
         report_title = payload.get("report_title")
         if not report_title:
             ticker_upper = str(ticker or "").strip().upper()
             report_title = f"{ticker_upper} News Analysis"
-        
+
         # Build canonical contract
         return {
             "ticker": str(ticker or "").strip().upper(),
@@ -871,7 +894,7 @@ def build_news_report_structured(
                 "below_min_claims": below_min_claims,
             },
         }
-    
+
     except Exception as e:
         # Defensive: if anything fails, return a valid invalid_structured_payload contract
         logger.exception("build_news_report_structured failed with exception")
@@ -967,7 +990,9 @@ def build_trader_plan_structured(
     has_entry = bool(re.search(r"entry\s*(price|setup|point)", plan, re.IGNORECASE))
     has_stop = bool(re.search(r"stop[.\- ]?loss", plan, re.IGNORECASE))
     has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", plan, re.IGNORECASE))
-    has_catalyst = bool(re.search(r"catalyst|timeline|earnings|fomc|cpi|ex[.\- ]?div", plan, re.IGNORECASE))
+    has_catalyst = bool(
+        re.search(r"catalyst|timeline|earnings|fomc|cpi|ex[.\- ]?div", plan, re.IGNORECASE)
+    )
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
     )
@@ -1012,9 +1037,18 @@ def build_risk_synthesis_structured(
         abort_reason = ""
 
     consensus_direction = _infer_recommendation(text)
-    agreements = len(re.findall(r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)", text))
-    disagreements = len(re.findall(r"(?i)\b(disagree|dissent|contention|conflict\s+between|opposing\s+view)", text))
-    risk_mentions = len(re.findall(r"(?i)\b(risk|downside|drawdown|tail\s+risk|volatility)\b", text))
+    agreements = len(
+        re.findall(
+            r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)",
+            text,
+        )
+    )
+    disagreements = len(
+        re.findall(r"(?i)\b(disagree|dissent|contention|conflict\s+between|opposing\s+view)", text)
+    )
+    risk_mentions = len(
+        re.findall(r"(?i)\b(risk|downside|drawdown|tail\s+risk|volatility)\b", text)
+    )
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
     )
@@ -1063,7 +1097,9 @@ def build_final_decision_structured(
     )
     has_stop = bool(re.search(r"stop[.\- ]?loss", text, re.IGNORECASE))
     has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", text, re.IGNORECASE))
-    has_position_size = bool(re.search(r"position\s*(size|sizing|weight|allocation)", text, re.IGNORECASE))
+    has_position_size = bool(
+        re.search(r"position\s*(size|sizing|weight|allocation)", text, re.IGNORECASE)
+    )
     excerpt = " ".join(text.split())[:200]
 
     return {
@@ -1102,9 +1138,10 @@ def canonicalize_source_name(
         return normalized
 
     for canonical_id, metadata in CANONICAL_SOURCE_REGISTRY.items():
-        aliases = {_normalize_source_name(metadata["display_name"]), *{
-            _normalize_source_name(alias) for alias in metadata["aliases"]
-        }}
+        aliases = {
+            _normalize_source_name(metadata["display_name"]),
+            *{_normalize_source_name(alias) for alias in metadata["aliases"]},
+        }
         if normalized in aliases:
             return canonical_id
     return None
@@ -1294,7 +1331,9 @@ def sanitize_structured_news_payload(
     if not isinstance(rows, list):
         rows = []
 
-    allowed_sources = {str(item).strip() for item in (allowed_source_names or []) if str(item).strip()}
+    allowed_sources = {
+        str(item).strip() for item in (allowed_source_names or []) if str(item).strip()
+    }
     allowed_ids = {str(item).strip() for item in (allowed_evidence_ids or []) if str(item).strip()}
     records_by_id = evidence_records_by_id or {}
 
@@ -1359,7 +1398,9 @@ def sanitize_structured_news_payload(
         if record is None:
             continue
         normalized["source"] = getattr(record, "source", source)
-        normalized["date"] = str(normalized.get("date") or getattr(record, "published_at", "")).strip()
+        normalized["date"] = str(
+            normalized.get("date") or getattr(record, "published_at", "")
+        ).strip()
         kept_rows.append(normalized)
 
     sanitized = {
@@ -1372,7 +1413,9 @@ def sanitize_structured_news_payload(
         sanitized["below_min_claims"] = True
         logger.warning(
             "sanitize_structured_news_payload: only %d claims kept (min_claims=%d) for %s",
-            len(kept_claims), min_claims, ticker,
+            len(kept_claims),
+            min_claims,
+            ticker,
         )
     return sanitized, removed_claims
 
@@ -1409,7 +1452,15 @@ def render_structured_news_payload(payload: dict[str, Any], ticker: str) -> str:
 
     rows = payload.get("summary_table") or []
     if rows:
-        lines.extend(["", "### Summary Table", "", "| Date | Event | Metric | Value | Source | Evidence ID |", "|------|-------|--------|-------|--------|-------------|"])
+        lines.extend(
+            [
+                "",
+                "### Summary Table",
+                "",
+                "| Date | Event | Metric | Value | Source | Evidence ID |",
+                "|------|-------|--------|-------|--------|-------------|",
+            ]
+        )
         for row in rows:
             if not isinstance(row, dict):
                 continue
@@ -1419,9 +1470,7 @@ def render_structured_news_payload(payload: dict[str, Any], ticker: str) -> str:
             value = str(row.get("value") or "").strip()
             source = str(row.get("source") or "").strip()
             evidence_id = str(row.get("evidence_id") or "").strip()
-            lines.append(
-                f"| {date} | {event} | {metric} | {value} | {source} | {evidence_id} |"
-            )
+            lines.append(f"| {date} | {event} | {metric} | {value} | {source} | {evidence_id} |")
 
     return "\n".join(line for line in lines if line is not None).strip()
 
@@ -1451,17 +1500,16 @@ def validate_news_analysis_detailed(
 
     # Check for anti-patterns (generic portfolio advice instead of news analysis)
     generic_patterns = [
-        r'portfolio\s+diversification',
-        r'asset\s+allocation',
-        r'risk\s+tolerance',
-        r'investment\s+horizon',
-        r'dollar-cost averaging',
-        r'rebalancing\s+strategy',
+        r"portfolio\s+diversification",
+        r"asset\s+allocation",
+        r"risk\s+tolerance",
+        r"investment\s+horizon",
+        r"dollar-cost averaging",
+        r"rebalancing\s+strategy",
     ]
 
     generic_matches = sum(
-        1 for pattern in generic_patterns
-        if re.search(pattern, output, re.IGNORECASE)
+        1 for pattern in generic_patterns if re.search(pattern, output, re.IGNORECASE)
     )
 
     if generic_matches >= 3:
@@ -1473,8 +1521,8 @@ def validate_news_analysis_detailed(
             "generic_portfolio_advice",
         )
 
-    has_numbers = bool(re.search(r'\$\d+|\d+%|\d+\.\d+%', output))
-    has_dates = bool(re.search(r'\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}', output))
+    has_numbers = bool(re.search(r"\$\d+|\d+%|\d+\.\d+%", output))
+    has_dates = bool(re.search(r"\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}", output))
 
     if not has_numbers and not has_dates:
         return ValidationResult(
@@ -1491,8 +1539,10 @@ def validate_news_analysis_detailed(
         )
         unknown_sources = sorted(
             {
-                source for source in explicit_sources
-                if canonicalize_source_name(source, allowed_source_names=allowed_source_names) is None
+                source
+                for source in explicit_sources
+                if canonicalize_source_name(source, allowed_source_names=allowed_source_names)
+                is None
             }
         )
         if unknown_sources:
@@ -1505,7 +1555,9 @@ def validate_news_analysis_detailed(
             )
 
         explicit_evidence_ids = extract_evidence_ids(output)
-        allowed_ids = {str(item).strip() for item in (allowed_evidence_ids or []) if str(item).strip()}
+        allowed_ids = {
+            str(item).strip() for item in (allowed_evidence_ids or []) if str(item).strip()
+        }
         unknown_evidence_ids = sorted(
             {evidence_id for evidence_id in explicit_evidence_ids if evidence_id not in allowed_ids}
         )
@@ -1677,15 +1729,17 @@ def _has_scanner_sec_conflation(output: str) -> bool:
     output_lower = output.lower()
     if not SCANNER_CITATION_PATTERN.search(output):
         return False
-    if "sec form 4" not in output_lower and "form 4" not in output_lower and "sec filing" not in output_lower:
+    if (
+        "sec form 4" not in output_lower
+        and "form 4" not in output_lower
+        and "sec filing" not in output_lower
+    ):
         return False
 
     for block in _iter_output_blocks(output):
         block_lower = block.lower()
         if SCANNER_CITATION_PATTERN.search(block) and (
-            "sec form 4" in block_lower
-            or "form 4" in block_lower
-            or "sec filing" in block_lower
+            "sec form 4" in block_lower or "form 4" in block_lower or "sec filing" in block_lower
         ):
             return True
     return False
@@ -1716,102 +1770,98 @@ def _iter_output_blocks(output: str) -> list[str]:
 
 
 def validate_ticker_relevance(
-    output: str,
-    ticker: str,
-    min_mentions: int = 3,
-    check_article_refs: bool = True
+    output: str, ticker: str, min_mentions: int = 3, check_article_refs: bool = True
 ) -> tuple[bool, str]:
     """
     Validate that agent output actually references the ticker.
-    
+
     This catches hallucinations where the LLM produces generic content
     instead of analyzing the ticker-specific data provided.
-    
+
     Args:
         output: Agent's generated report
         ticker: Expected ticker symbol
         min_mentions: Minimum times ticker should appear
         check_article_refs: Check for explicit article/source references
-    
+
     Returns:
         (is_valid, reason) tuple
             - is_valid: True if output passes validation
             - reason: Human-readable explanation of validation result
-    
+
     Examples:
         >>> validate_ticker_relevance("Generic risk advice...", "RIG", min_mentions=3)
         (False, "Ticker 'RIG' mentioned only 0 times (expected 3+). ...")
-        
+
         >>> validate_ticker_relevance("RIG downgrade by Clarksons on 2026-03-15...", "RIG")
         (True, "Valid ticker-relevant output")
     """
     if not output or not ticker:
         return (False, "Empty output or ticker")
-    
+
     ticker_upper = ticker.upper()
-    
+
     # Count ticker mentions (case-insensitive, word boundaries)
-    mentions = len(re.findall(rf'\b{re.escape(ticker_upper)}\b', output, re.IGNORECASE))
-    
+    mentions = len(re.findall(rf"\b{re.escape(ticker_upper)}\b", output, re.IGNORECASE))
+
     if mentions < min_mentions:
         return (
             False,
             f"Ticker '{ticker}' mentioned only {mentions} times (expected {min_mentions}+). "
-            "Output may be hallucinated generic content rather than ticker-specific analysis."
+            "Output may be hallucinated generic content rather than ticker-specific analysis.",
         )
-    
+
     # Check for actual source citations (indicates grounding in provided news data).
     # Patterns require explicit attribution syntax — not just words that happen to appear
     # in generic prose (e.g. "analysts expect..." is NOT a citation).
     if check_article_refs:
         article_indicators = [
             # Explicit attribution: "According to Reuters", "per Bloomberg", etc.
-            r'\baccording\s+to\s+\w+',
+            r"\baccording\s+to\s+\w+",
             # Named source with a reporting verb: "Reuters reported", "Bloomberg said"
-            r'\b\w+\s+(?:reported|said|noted|wrote|published|revealed)',
+            r"\b\w+\s+(?:reported|said|noted|wrote|published|revealed)",
             # Inline source attribution: "(Source: ...)"
-            r'\bsource\s*:',
+            r"\bsource\s*:",
             # Date + source combo: signals a real citation with temporal grounding
-            r'\d{4}-\d{2}-\d{2}',   # YYYY-MM-DD
-            r'\d{1,2}/\d{1,2}/\d{4}',  # MM/DD/YYYY
+            r"\d{4}-\d{2}-\d{2}",  # YYYY-MM-DD
+            r"\d{1,2}/\d{1,2}/\d{4}",  # MM/DD/YYYY
             # Quoted headline patterns: text in quotes following a verb or "titled"
             r'["\']\s*[A-Z][^"\']{10,}["\']',
             # News publication names that imply a real source
-            r'\b(?:Reuters|Bloomberg|CNBC|WSJ|Wall Street Journal|Financial Times|'
-            r'MarketWatch|Seeking Alpha|Barron\'s|Forbes|StocksToTrade|'
-            r'Zacks|TheStreet|Motley Fool)\b',
+            r"\b(?:Reuters|Bloomberg|CNBC|WSJ|Wall Street Journal|Financial Times|"
+            r"MarketWatch|Seeking Alpha|Barron\'s|Forbes|StocksToTrade|"
+            r"Zacks|TheStreet|Motley Fool)\b",
         ]
 
         has_article_ref = any(
-            re.search(pattern, output, re.IGNORECASE)
-            for pattern in article_indicators
+            re.search(pattern, output, re.IGNORECASE) for pattern in article_indicators
         )
 
         if not has_article_ref:
             return (
                 False,
                 "No article citations, named sources, publication names, or dated references found. "
-                "Output may not be grounded in the provided news data."
+                "Output may not be grounded in the provided news data.",
             )
-    
+
     return (True, "Valid ticker-relevant output")
 
 
 def validate_news_analysis(output: str, ticker: str) -> tuple[bool, str]:
     """
     Specialized validation for news analyst output.
-    
+
     Checks for:
     - Ticker mentions
     - Source citations
     - Dates
     - Specific facts/numbers
     - NOT generic portfolio advice
-    
+
     Args:
         output: News analyst's generated report
         ticker: Expected ticker symbol
-    
+
     Returns:
         (is_valid, reason) tuple
     """
@@ -1822,12 +1872,12 @@ def validate_news_analysis(output: str, ticker: str) -> tuple[bool, str]:
 def format_validation_warning(output: str, ticker: str, reason: str) -> str:
     """
     Format a validation warning to prepend to output.
-    
+
     Args:
         output: Original agent output
         ticker: Ticker symbol
         reason: Validation failure reason
-    
+
     Returns:
         Output with prepended warning banner
     """
@@ -1843,20 +1893,16 @@ The agent may have hallucinated generic content instead of analyzing the provide
 ---
 
 """.strip()
-    
+
     return f"{warning_banner}\n\n{output}"
 
 
 def log_validation_result(
-    agent_name: str,
-    ticker: str,
-    is_valid: bool,
-    reason: str,
-    output_preview: str = ""
+    agent_name: str, ticker: str, is_valid: bool, reason: str, output_preview: str = ""
 ):
     """
     Log validation results for monitoring and debugging.
-    
+
     Args:
         agent_name: Name of the agent being validated
         ticker: Ticker symbol
@@ -1865,14 +1911,13 @@ def log_validation_result(
         output_preview: First 200 chars of output for debugging
     """
     log_level = logging.INFO if is_valid else logging.WARNING
-    
+
     preview = output_preview[:200] + "..." if len(output_preview) > 200 else output_preview
-    
+
     logger.log(
         log_level,
-        f"{agent_name} validation for {ticker}: "
-        f"{'PASS' if is_valid else 'FAIL'} - {reason}"
+        f"{agent_name} validation for {ticker}: {'PASS' if is_valid else 'FAIL'} - {reason}",
     )
-    
+
     if not is_valid and output_preview:
         logger.debug(f"Output preview: {preview}")

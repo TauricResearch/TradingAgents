@@ -46,7 +46,9 @@ _skip_if_no_finviz = pytest.mark.skipif(
 @cache
 def _cached_live_tool_output(tool_name: str) -> str:
     from tradingagents.agents.utils import scanner_tools as _scanner_tools
+
     return getattr(_scanner_tools, tool_name).invoke({})
+
 
 # ---------------------------------------------------------------------------
 # Helpers

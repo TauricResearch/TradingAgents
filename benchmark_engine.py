@@ -1,4 +1,3 @@
-
 import yfinance as yf
 
 
@@ -8,7 +7,14 @@ def run_benchmark():
     end_date_str = "2023-01-01"
 
     # Let's download first to make sure we measure what we need to measure
-    data_orig = yf.download(symbol, start=start_date_str, end=end_date_str, multi_level_index=False, progress=False, auto_adjust=True)
+    data_orig = yf.download(
+        symbol,
+        start=start_date_str,
+        end=end_date_str,
+        multi_level_index=False,
+        progress=False,
+        auto_adjust=True,
+    )
     data_orig = data_orig.reset_index()
 
     print("Columns:", data_orig.columns)

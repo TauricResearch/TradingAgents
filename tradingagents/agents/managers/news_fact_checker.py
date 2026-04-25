@@ -34,6 +34,8 @@ def _has_scanner_structured_claims(payload: object) -> bool:
         if source == "Finviz Smart Money Scanner" and scan_date:
             return True
     return False
+
+
 def create_news_fact_checker(
     llm: Any, evidence_store: NewsEvidenceStore | None = None
 ) -> Callable[[AgentState], dict[str, Any]]:
@@ -46,13 +48,13 @@ def create_news_fact_checker(
         run_id = str(state["run_id"])
         report = str(state.get("news_report") or "").strip()
         structured_payload = state.get("news_report_structured")
-        
+
         # Fetch persisted evidence records
         records = store.fetch_records(run_id=run_id, ticker=ticker, trade_date=trade_date)
         allowed_source_names = {record.source for record in records if record.source}
         allowed_evidence_ids = {record.evidence_id for record in records if record.evidence_id}
         records_by_id = {record.evidence_id: record for record in records if record.evidence_id}
-        
+
         # Branch: No persisted evidence records and no critical abort
         # (Evidence acquisition succeeded but no news found, or all prefetch failed)
         if (
@@ -71,10 +73,14 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Branch: Existing [CRITICAL ABORT] report (analyst timeout or prefetch failure)
         if report_has_critical_abort(report):
-            abort_reason = report.split("[CRITICAL ABORT]", 1)[1].strip(" :\n\t") if "[CRITICAL ABORT]" in report else "Critical abort"
+            abort_reason = (
+                report.split("[CRITICAL ABORT]", 1)[1].strip(" :\n\t")
+                if "[CRITICAL ABORT]" in report
+                else "Critical abort"
+            )
             return {
                 "news_report": report,  # Preserve upstream critical abort markdown
                 "news_report_structured": build_news_report_structured(
@@ -86,7 +92,7 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Branch: Blank report with missing payload
         if not report and (not isinstance(structured_payload, dict) or not structured_payload):
             return {
@@ -100,10 +106,10 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Branch: Blank report with structured payload present
         # Continue to validation/sanitization flow - if claims validate, render from canonical claims
-        
+
         # Branch: Missing payload (not a dict or empty dict)
         if not isinstance(structured_payload, dict) or not structured_payload:
             return {
@@ -117,14 +123,14 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Validate structured payload schema
         structured_validation = validate_structured_news_payload(
             json.dumps(structured_payload),
             ticker,
             min_claims=1,
         )
-        
+
         # Branch: Invalid payload (validation fails)
         # DO NOT emit new [CRITICAL ABORT] - return deterministic non-evidence message
         if not structured_validation.is_valid or structured_validation.payload is None:
@@ -140,7 +146,7 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Sanitize payload against persisted evidence
         sanitized_payload, removed_claims = sanitize_structured_news_payload(
             structured_validation.payload,
@@ -150,9 +156,9 @@ def create_news_fact_checker(
             evidence_records_by_id=records_by_id,
             min_claims=1,
         )
-        
+
         claim_count = len(sanitized_payload.get("claims") or [])
-        
+
         # Branch: Zero claims after sanitization with removed claims
         # All submitted claims were rejected
         if claim_count == 0 and removed_claims:
@@ -168,7 +174,7 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Branch: Zero claims after sanitization without removed claims
         # No validated claims were produced (empty but valid)
         if claim_count == 0:
@@ -184,10 +190,10 @@ def create_news_fact_checker(
                 ),
                 "sender": "news_fact_checker",
             }
-        
+
         # Render markdown from canonical sanitized claims
         rendered_report = render_structured_news_payload(sanitized_payload, ticker)
-        
+
         # Validate rendered report (secondary quality check)
         validation = validate_news_analysis_detailed(
             rendered_report,
@@ -197,7 +203,7 @@ def create_news_fact_checker(
             enforce_provenance=True,
             min_ticker_mentions=max(1, min(3, claim_count)),
         )
-        
+
         # Branch: Rendered report fails validation
         # DO NOT critical abort - sanitized claims already passed evidence-based provenance checks
         # Log warning and return completed contract
@@ -207,7 +213,7 @@ def create_news_fact_checker(
                 f"for {ticker} ({validation.code}): {validation.reason}. "
                 "Returning completed contract with sanitized claims."
             )
-        
+
         # Branch: Happy path - 1+ verified claims remaining
         return {
             "news_report": rendered_report,

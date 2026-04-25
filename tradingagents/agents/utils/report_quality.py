@@ -26,21 +26,21 @@ _PLACEHOLDER_PHRASES = (
 # Patterns indicating the model emitted a tool call as text rather than
 # executing it through the structured tool-calling API.
 _TOOL_CALL_TEXT_RE = re.compile(
-    r'(?:'
+    r"(?:"
     r'\{"(?:name|type)":\s*"(?:function|get_)'  # OpenAI-style JSON
-    r'|get_\w+\('                                # Python-style invocation
-    r')',
+    r"|get_\w+\("  # Python-style invocation
+    r")",
 )
 
 # Counts numeric evidence tokens: dates (YYYY-MM-DD), percentages, dollar
 # amounts, and plain numbers with decimal points.
 _NUMERIC_EVIDENCE_RE = re.compile(
-    r'(?:'
-    r'\d{4}-\d{2}-\d{2}'            # dates
-    r'|[+-]?\d+\.?\d*%'             # percentages
-    r'|\$[\d,]+\.?\d*'              # dollar amounts
-    r'|(?<!\w)\d+\.\d+(?!\w)'       # decimal numbers
-    r')',
+    r"(?:"
+    r"\d{4}-\d{2}-\d{2}"  # dates
+    r"|[+-]?\d+\.?\d*%"  # percentages
+    r"|\$[\d,]+\.?\d*"  # dollar amounts
+    r"|(?<!\w)\d+\.\d+(?!\w)"  # decimal numbers
+    r")",
 )
 
 # Minimum report length (chars) below which a scanner report is "empty".
@@ -164,18 +164,18 @@ def parse_quality_header(text: str) -> dict | None:
     if not text:
         return None
 
-    match = re.match(r'^\[QUALITY:\s*(\w+)\s*(?:\|.*)?\]', text.strip())
+    match = re.match(r"^\[QUALITY:\s*(\w+)\s*(?:\|.*)?\]", text.strip())
     if not match:
         return None
 
     quality = match.group(1)
 
     # Parse evidence count
-    evidence_match = re.search(r'evidence=(\d+)', text)
+    evidence_match = re.search(r"evidence=(\d+)", text)
     evidence_count = int(evidence_match.group(1)) if evidence_match else 0
 
     # Parse issues
-    issues_match = re.search(r'issues=([^\]|]+)', text)
+    issues_match = re.search(r"issues=([^\]|]+)", text)
     issues = issues_match.group(1).strip().split(",") if issues_match else []
 
     return {

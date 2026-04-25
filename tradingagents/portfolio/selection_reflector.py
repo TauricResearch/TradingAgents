@@ -12,6 +12,7 @@ from tradingagents.report_paths import get_market_dir
 
 logger = logging.getLogger(__name__)
 
+
 def load_scan_candidates(scan_date: str) -> list[dict]:
     """Read macro_scan_summary.md for scan_date, extract stocks_to_investigate.
     Falls back to report_store.load_scan() if .md absent."""
@@ -38,7 +39,10 @@ def load_scan_candidates(scan_date: str) -> list[dict]:
 
     return []
 
-def fetch_price_trend(ticker: str, start_date: str, end_date: str) -> tuple[float | None, float | None, float | None, float | None, int | None, list[str]]:
+
+def fetch_price_trend(
+    ticker: str, start_date: str, end_date: str
+) -> tuple[float | None, float | None, float | None, float | None, int | None, list[str]]:
     """Download [ticker, SPY] via yf.download().
     Returns (terminal_return, spy_return, mfe_pct, mae_pct, days_to_peak, top_move_dates).
     - mfe_pct: Maximum Favorable Excursion (peak return vs entry)
@@ -47,6 +51,7 @@ def fetch_price_trend(ticker: str, start_date: str, end_date: str) -> tuple[floa
     - top_move_dates: up to 3 dates with largest single-day absolute price moves
     Returns (None, None, None, None, None, []) if < 2 trading days or download fails.
     """
+
     def _local_safe_pct(closes: pd.Series, days_back: int) -> float | None:
         if len(closes) < days_back + 1:
             return None
@@ -73,7 +78,7 @@ def fetch_price_trend(ticker: str, start_date: str, end_date: str) -> tuple[floa
             closes = hist
 
         if ticker not in closes.columns or "SPY" not in closes.columns:
-             return None, None, None, None, None, []
+            return None, None, None, None, None, []
 
         stock_closes = closes[ticker].dropna()
         spy_closes = closes["SPY"].dropna()
@@ -113,7 +118,10 @@ def fetch_price_trend(ticker: str, start_date: str, end_date: str) -> tuple[floa
         logger.warning(f"Error fetching price data for {ticker}: {e}")
         return None, None, None, None, None, []
 
-def fetch_news_summary(ticker: str, start_date: str, end_date: str, top_move_dates: list[str], n: int = 5) -> str:
+
+def fetch_news_summary(
+    ticker: str, start_date: str, end_date: str, top_move_dates: list[str], n: int = 5
+) -> str:
     """Fetch n headlines, weighted toward largest-move dates.
     Strategy: 2 headlines from window start (initial catalyst context),
     3 headlines from dates nearest top_move_dates (outcome context).
@@ -126,7 +134,9 @@ def fetch_news_summary(ticker: str, start_date: str, end_date: str, top_move_dat
         start_news_md = get_company_news(ticker, start_date, start_date)
         # Assuming get_company_news returns markdown list, extract lines starting with -
         if start_news_md:
-            start_lines = [line for line in start_news_md.split('\n') if line.strip().startswith('-')]
+            start_lines = [
+                line for line in start_news_md.split("\n") if line.strip().startswith("-")
+            ]
             headlines.extend(start_lines[:2])
     except Exception as e:
         logger.warning(f"Failed to fetch start news for {ticker}: {e}")
@@ -137,9 +147,9 @@ def fetch_news_summary(ticker: str, start_date: str, end_date: str, top_move_dat
         for date_str in top_move_dates:
             news_md = get_company_news(ticker, date_str, date_str)
             if news_md:
-                lines = [line for line in news_md.split('\n') if line.strip().startswith('-')]
+                lines = [line for line in news_md.split("\n") if line.strip().startswith("-")]
                 if lines:
-                    top_news_lines.append(lines[0]) # Get best headline for each top move date
+                    top_news_lines.append(lines[0])  # Get best headline for each top move date
 
         headlines.extend(top_news_lines[:3])
     except Exception as e:
@@ -150,10 +160,18 @@ def fetch_news_summary(ticker: str, start_date: str, end_date: str, top_move_dat
 
     return "\n".join(headlines)
 
-def generate_lesson(llm: Any, candidate: dict, terminal_return: float | None,
-                    spy_return: float | None, mfe_pct: float | None,
-                    mae_pct: float | None, days_to_peak: int | None,
-                    news_summary: str, horizon_days: int) -> dict | None:
+
+def generate_lesson(
+    llm: Any,
+    candidate: dict,
+    terminal_return: float | None,
+    spy_return: float | None,
+    mfe_pct: float | None,
+    mae_pct: float | None,
+    days_to_peak: int | None,
+    news_summary: str,
+    horizon_days: int,
+) -> dict | None:
     """Invoke quick_think LLM, parse JSON via extract_json(), return lesson dict.
     Returns None on parse failure (logs warning)."""
     if terminal_return is None or spy_return is None:
@@ -161,8 +179,8 @@ def generate_lesson(llm: Any, candidate: dict, terminal_return: float | None,
 
     prompt = f"""STOCK SELECTION REVIEW (0 TO {horizon_days} DAYS)
 ======================
-Ticker:       {candidate.get('ticker')} | Sector: {candidate.get('sector')}
-Original thesis: {candidate.get('thesis_angle')} — {candidate.get('rationale')}
+Ticker:       {candidate.get("ticker")} | Sector: {candidate.get("sector")}
+Original thesis: {candidate.get("thesis_angle")} — {candidate.get("rationale")}
 
 THE TREND STORY
 ------------------
@@ -182,14 +200,16 @@ Return ONLY a JSON object with the following keys:
 """
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
-        data = extract_json(response.content if hasattr(response, 'content') else response)
+        data = extract_json(response.content if hasattr(response, "content") else response)
 
         if not data or not isinstance(data, dict):
             logger.warning(f"LLM response parse failure: {response}")
             return None
 
         # Verify required keys
-        if not all(k in data for k in ["situation", "screening_advice", "exit_advice", "sentiment"]):
+        if not all(
+            k in data for k in ["situation", "screening_advice", "exit_advice", "sentiment"]
+        ):
             logger.warning(f"LLM response missing required keys: {data}")
             return None
 
@@ -197,6 +217,7 @@ Return ONLY a JSON object with the following keys:
     except Exception as e:
         logger.warning(f"Error generating lesson: {e}")
         return None
+
 
 def reflect_on_scan(scan_date: str, reflect_date: str, llm: Any, horizon_days: int) -> list[dict]:
     """Top-level: load candidates, fetch data, generate lessons, return list."""
@@ -208,7 +229,9 @@ def reflect_on_scan(scan_date: str, reflect_date: str, llm: Any, horizon_days: i
         if not ticker:
             continue
 
-        terminal_return, spy_return, mfe_pct, mae_pct, days_to_peak, top_move_dates = fetch_price_trend(ticker, scan_date, reflect_date)
+        terminal_return, spy_return, mfe_pct, mae_pct, days_to_peak, top_move_dates = (
+            fetch_price_trend(ticker, scan_date, reflect_date)
+        )
         if terminal_return is None:
             continue
 
@@ -223,7 +246,7 @@ def reflect_on_scan(scan_date: str, reflect_date: str, llm: Any, horizon_days: i
             mae_pct=mae_pct,
             days_to_peak=days_to_peak,
             news_summary=news_summary,
-            horizon_days=horizon_days
+            horizon_days=horizon_days,
         )
 
         if lesson_data:
@@ -241,10 +264,12 @@ def reflect_on_scan(scan_date: str, reflect_date: str, llm: Any, horizon_days: i
                 "days_to_peak": days_to_peak,
                 "news_summary": news_summary,
                 "situation": lesson_data["situation"],
-                "screening_advice": lesson_data.get("screening_advice", lesson_data.get("advice", "")),
+                "screening_advice": lesson_data.get(
+                    "screening_advice", lesson_data.get("advice", "")
+                ),
                 "exit_advice": lesson_data.get("exit_advice", ""),
                 "sentiment": lesson_data["sentiment"],
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
             lessons.append(lesson)
 

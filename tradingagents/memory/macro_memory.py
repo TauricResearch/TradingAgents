@@ -182,10 +182,14 @@ class MacroMemory:
         if self._col is not None:
             from pymongo import DESCENDING
 
-            cursor = self._col.find(
-                {},
-                {"_id": 0},
-            ).sort("regime_date", DESCENDING).limit(limit)
+            cursor = (
+                self._col.find(
+                    {},
+                    {"_id": 0},
+                )
+                .sort("regime_date", DESCENDING)
+                .limit(limit)
+            )
             return list(cursor)
         else:
             return self._load_recent_local(limit)
@@ -225,7 +229,11 @@ class MacroMemory:
             if outcome:
                 confirmed = outcome.get("regime_confirmed", "?")
                 notes = outcome.get("notes", "")
-                outcome_str = f"  Outcome: confirmed={confirmed} — {notes}" if notes else f"  Outcome: confirmed={confirmed}"
+                outcome_str = (
+                    f"  Outcome: confirmed={confirmed} — {notes}"
+                    if notes
+                    else f"  Outcome: confirmed={confirmed}"
+                )
             else:
                 outcome_str = "  Outcome: pending"
 
@@ -253,9 +261,7 @@ class MacroMemory:
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:
         """Overwrite the local JSON file with all records."""
         self._fallback_path.parent.mkdir(parents=True, exist_ok=True)
-        self._fallback_path.write_text(
-            json.dumps(records, indent=2), encoding="utf-8"
-        )
+        self._fallback_path.write_text(json.dumps(records, indent=2), encoding="utf-8")
 
     def _append_local(self, doc: dict[str, Any]) -> None:
         """Append a single record to the local file."""

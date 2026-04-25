@@ -30,12 +30,14 @@ from tradingagents.agents.utils.scanner_states import ScannerState
 logger = logging.getLogger(__name__)
 
 # Degenerate outputs that should bypass the LLM entirely.
-_DEGENERATE_OUTPUTS = frozenset({
-    "Completed.",
-    "N/A",
-    "Not available",
-    "{}",
-})
+_DEGENERATE_OUTPUTS = frozenset(
+    {
+        "Completed.",
+        "N/A",
+        "Not available",
+        "{}",
+    }
+)
 
 
 def _build_scanner_summary_prompt(report_key: str, raw_report: str) -> str:
@@ -57,7 +59,9 @@ def _build_scanner_summary_prompt(report_key: str, raw_report: str) -> str:
     )
 
 
-def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Callable[[ScannerState], dict[str, Any]]:
+def create_scanner_summarizer(
+    llm: Any, report_key: str, summary_key: str
+) -> Callable[[ScannerState], dict[str, Any]]:
     """Create a node that summarizes a specific scanner report.
 
     Args:
@@ -94,7 +98,9 @@ def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Ca
         ):
             issues = ", ".join(quality.get("issues", [])) or "unknown"
             no_ev = f"[NO_EVIDENCE] Source: {report_label}. Upstream quality: {quality['quality']} ({issues}). Exclude from synthesis."
-            logger.info("Summarizer skipping LLM for %s: quality=%s", report_key, quality["quality"])
+            logger.info(
+                "Summarizer skipping LLM for %s: quality=%s", report_key, quality["quality"]
+            )
             return {summary_key: no_ev, "sender": f"summarizer_{report_key}"}
 
         prompt = _build_scanner_summary_prompt(report_key, raw_report)

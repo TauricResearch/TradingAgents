@@ -100,9 +100,7 @@ class PortfolioRepository:
         holdings = self._client.list_holdings(canonical_id)
         if prices:
             # First pass: compute equity for total_value
-            equity = sum(
-                prices.get(h.ticker, 0.0) * h.shares for h in holdings
-            )
+            equity = sum(prices.get(h.ticker, 0.0) * h.shares for h in holdings)
             total_value = portfolio.cash + equity
             # Second pass: enrich each holding with weight
             for h in holdings:
@@ -145,9 +143,7 @@ class PortfolioRepository:
         existing = self._client.get_holding(canonical_id, ticker)
         if existing:
             new_total_shares = existing.shares + shares
-            new_avg_cost = (
-                (existing.shares * existing.avg_cost + shares * price) / new_total_shares
-            )
+            new_avg_cost = (existing.shares * existing.avg_cost + shares * price) / new_total_shares
             existing.shares = new_total_shares
             existing.avg_cost = new_avg_cost
             if sector:
@@ -206,9 +202,7 @@ class PortfolioRepository:
         canonical_id = portfolio.portfolio_id
         existing = self._client.get_holding(canonical_id, ticker)
         if not existing:
-            raise HoldingNotFoundError(
-                f"No holding for {ticker} in portfolio {portfolio_id}"
-            )
+            raise HoldingNotFoundError(f"No holding for {ticker} in portfolio {portfolio_id}")
 
         if existing.shares < shares:
             raise InsufficientSharesError(
@@ -244,7 +238,6 @@ class PortfolioRepository:
         self._client.record_trade(trade)
 
         return result
-
 
     def batch_remove_holdings(
         self,
@@ -286,19 +279,23 @@ class PortfolioRepository:
 
             existing = current_holdings.get(ticker.upper())
             if not existing:
-                failed_trades.append({
-                    "action": "SELL",
-                    "ticker": ticker,
-                    "reason": f"No holding for {ticker} in portfolio {portfolio_id}",
-                })
+                failed_trades.append(
+                    {
+                        "action": "SELL",
+                        "ticker": ticker,
+                        "reason": f"No holding for {ticker} in portfolio {portfolio_id}",
+                    }
+                )
                 continue
 
             if existing.shares < shares:
-                failed_trades.append({
-                    "action": "SELL",
-                    "ticker": ticker,
-                    "reason": f"Hold {existing.shares} shares of {ticker}, cannot sell {shares}",
-                })
+                failed_trades.append(
+                    {
+                        "action": "SELL",
+                        "ticker": ticker,
+                        "reason": f"Hold {existing.shares} shares of {ticker}, cannot sell {shares}",
+                    }
+                )
                 continue
 
             proceeds = shares * price
@@ -329,14 +326,16 @@ class PortfolioRepository:
             )
             trades_to_record.append(trade)
 
-            executed_trades.append({
-                "action": "SELL",
-                "ticker": ticker,
-                "shares": shares,
-                "price": price,
-                "rationale": rationale,
-                "trade_date": trade_date,
-            })
+            executed_trades.append(
+                {
+                    "action": "SELL",
+                    "ticker": ticker,
+                    "shares": shares,
+                    "price": price,
+                    "rationale": rationale,
+                    "trade_date": trade_date,
+                }
+            )
 
         if not executed_trades:
             return executed_trades, failed_trades

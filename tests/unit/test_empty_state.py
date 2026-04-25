@@ -38,11 +38,13 @@ class TestEmptyStateGuards:
         """scan_summary with 'error' key triggers NO DATA sentinel."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({
-            "scan_summary": {"error": "rate limit exceeded"},
-            "messages": [],
-            "analysis_date": "",
-        })
+        result = agent(
+            {
+                "scan_summary": {"error": "rate limit exceeded"},
+                "messages": [],
+                "analysis_date": "",
+            }
+        )
         assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
 
     def test_macro_agent_missing_scan_key(self):
@@ -88,11 +90,13 @@ class TestEmptyStateGuards:
         """scan_summary that ONLY contains 'error' (no other keys) triggers guard."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({
-            "scan_summary": {"error": "vendor offline"},
-            "messages": [],
-            "analysis_date": "2026-03-26",
-        })
+        result = agent(
+            {
+                "scan_summary": {"error": "vendor offline"},
+                "messages": [],
+                "analysis_date": "2026-03-26",
+            }
+        )
         assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
 
     def test_macro_agent_scan_with_data_and_error_key_proceeds(self):
@@ -104,15 +108,19 @@ class TestEmptyStateGuards:
         from langchain_core.messages import AIMessage
         from langchain_core.runnables import RunnableLambda
 
-        mock_llm = RunnableLambda(lambda _: AIMessage(content="MACRO REGIME: neutral\nPartial data processed"))
+        mock_llm = RunnableLambda(
+            lambda _: AIMessage(content="MACRO REGIME: neutral\nPartial data processed")
+        )
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({
-            "scan_summary": {
-                "executive_summary": "Partial data",
-                "error": "partial failure",
-            },
-            "messages": [],
-            "analysis_date": "2026-03-26",
-        })
+        result = agent(
+            {
+                "scan_summary": {
+                    "executive_summary": "Partial data",
+                    "error": "partial failure",
+                },
+                "messages": [],
+                "analysis_date": "2026-03-26",
+            }
+        )
         # Should NOT be sentinel — the LLM was invoked
         assert result["macro_brief"] != "NO DATA AVAILABLE - ABORT MACRO"

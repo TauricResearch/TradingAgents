@@ -7,7 +7,6 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.scanner_idempotency import (
@@ -15,17 +14,50 @@ from tradingagents.agents.utils.scanner_idempotency import (
     require_scan_context,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 _TICKER_RE = re.compile(r"\b[A-Z]{1,5}\b")
 _STRICT_TICKER_RE = re.compile(r"^[A-Z]{1,5}$")
 _TICKER_STOPWORDS = {
-    "A", "I", "AI", "AN", "AND", "ARE", "AS", "AT", "BE", "BY", "END", "ETF",
-    "GDP", "GICS", "JSON", "LOW", "NFP", "NOT", "NOW", "OIL", "ONLY", "OR",
-    "THE", "TO", "USD", "VIX", "YTD", "CPI", "PPI", "EPS", "CEO", "CFO", "N/A",
+    "A",
+    "I",
+    "AI",
+    "AN",
+    "AND",
+    "ARE",
+    "AS",
+    "AT",
+    "BE",
+    "BY",
+    "END",
+    "ETF",
+    "GDP",
+    "GICS",
+    "JSON",
+    "LOW",
+    "NFP",
+    "NOT",
+    "NOW",
+    "OIL",
+    "ONLY",
+    "OR",
+    "THE",
+    "TO",
+    "USD",
+    "VIX",
+    "YTD",
+    "CPI",
+    "PPI",
+    "EPS",
+    "CEO",
+    "CFO",
+    "N/A",
     # Exchange codes that appear in the gatekeeper universe report's Exchange column
-    "NMS", "NYQ", "ASE",
+    "NMS",
+    "NYQ",
+    "ASE",
 }
 
 
@@ -139,8 +171,7 @@ def _normalize_candidate_item(
     candidate["name"] = str(candidate.get("name") or gatekeeper_row.get("name") or ticker)
     candidate["sector"] = str(candidate.get("sector") or "Unknown")
     candidate["rationale"] = str(
-        candidate.get("rationale")
-        or "Candidate selected from scanner synthesis output."
+        candidate.get("rationale") or "Candidate selected from scanner synthesis output."
     )
     candidate["thesis_angle"] = str(candidate.get("thesis_angle") or "momentum")
     candidate["conviction"] = str(candidate.get("conviction") or "medium")
@@ -222,7 +253,9 @@ def _repair_macro_summary(
             if ticker in seen or (gatekeeper_lookup and ticker not in gatekeeper_lookup):
                 continue
             normalized_candidates.append(
-                _fallback_candidate_from_ranking(ticker, gatekeeper_lookup, ranking_lookup.get(ticker))
+                _fallback_candidate_from_ranking(
+                    ticker, gatekeeper_lookup, ranking_lookup.get(ticker)
+                )
             )
             seen.add(ticker)
             if len(normalized_candidates) >= max_scan_tickers:
@@ -233,7 +266,9 @@ def _repair_macro_summary(
             ticker = row["ticker"]
             if ticker in seen:
                 continue
-            normalized_candidates.append(_fallback_candidate_from_ranking(ticker, gatekeeper_lookup))
+            normalized_candidates.append(
+                _fallback_candidate_from_ranking(ticker, gatekeeper_lookup)
+            )
             seen.add(ticker)
             if len(normalized_candidates) >= max_scan_tickers:
                 break
@@ -292,14 +327,18 @@ def create_macro_synthesis(
 
         # Count usable vs unavailable sources for the synthesis prompt.
         _summary_keys = [
-            "geopolitical_summary", "market_movers_summary", "sector_summary",
-            "factor_alignment_summary", "drift_opportunities_summary",
-            "smart_money_summary", "industry_deep_dive_summary",
+            "geopolitical_summary",
+            "market_movers_summary",
+            "sector_summary",
+            "factor_alignment_summary",
+            "drift_opportunities_summary",
+            "smart_money_summary",
+            "industry_deep_dive_summary",
         ]
         _usable = sum(
-            1 for k in _summary_keys
-            if not (state.get(k, "") or "").startswith("[NO_EVIDENCE]")
-            and state.get(k, "").strip()
+            1
+            for k in _summary_keys
+            if not (state.get(k, "") or "").startswith("[NO_EVIDENCE]") and state.get(k, "").strip()
         )
         _total = len(_summary_keys)
 

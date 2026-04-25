@@ -24,13 +24,17 @@ def test_smart_money_preserves_insufficient_evidence_before_provenance(caplog):
         )
     )
 
-    with patch(
-        "tradingagents.agents.scanners.smart_money_scanner.run_tool_loop",
-        return_value=insufficient,
-    ), patch(
-        "tradingagents.agents.scanners.smart_money_scanner.save_node_report",
-        lambda *_args, **_kwargs: None,
-    ), caplog.at_level(logging.WARNING):
+    with (
+        patch(
+            "tradingagents.agents.scanners.smart_money_scanner.run_tool_loop",
+            return_value=insufficient,
+        ),
+        patch(
+            "tradingagents.agents.scanners.smart_money_scanner.save_node_report",
+            lambda *_args, **_kwargs: None,
+        ),
+        caplog.at_level(logging.WARNING),
+    ):
         result = node(
             {
                 "scan_date": "2026-04-10",
@@ -42,9 +46,7 @@ def test_smart_money_preserves_insufficient_evidence_before_provenance(caplog):
         )
 
     report = result["smart_money_report"]
-    assert report.startswith(
-        "[QUALITY: empty | issues=insufficient_evidence_marker | evidence=0"
-    )
+    assert report.startswith("[QUALITY: empty | issues=insufficient_evidence_marker | evidence=0")
     assert "[INSUFFICIENT_EVIDENCE]" in report
     assert "Source: Finviz Smart Money Scanner" in report
     assert "insufficient evidence" in caplog.text

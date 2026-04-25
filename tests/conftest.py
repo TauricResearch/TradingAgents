@@ -45,12 +45,12 @@ def av_api_key():
 
     try:
         socket.setdefaulttimeout(3)
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(
-            ("www.alphavantage.co", 443)
-        )
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("www.alphavantage.co", 443))
     except Exception as exc:
         if _SocketBlockedError is not None and isinstance(exc, _SocketBlockedError):
-            pytest.skip("pytest-socket blocked — cannot reach Alpha Vantage; skipping live API test")
+            pytest.skip(
+                "pytest-socket blocked — cannot reach Alpha Vantage; skipping live API test"
+            )
         if isinstance(exc, (socket.error, OSError, RuntimeError)):
             pytest.skip("Alpha Vantage API not reachable — skipping live API test")
         raise

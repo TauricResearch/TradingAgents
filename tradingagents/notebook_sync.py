@@ -106,13 +106,26 @@ def _add_source(nlm: str, notebook_id: str, digest_path: Path, title: str) -> No
         # Use --file instead of --text to avoid ARG_MAX issues and shell injection.
         # Use -- to separate options from positional arguments.
         result = subprocess.run(
-            [nlm, "source", "add", "--title", title, "--file", str(digest_path), "--wait", "--", notebook_id],
+            [
+                nlm,
+                "source",
+                "add",
+                "--title",
+                title,
+                "--file",
+                str(digest_path),
+                "--wait",
+                "--",
+                notebook_id,
+            ],
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
             console.print(f"[green]✓ Synced NotebookLM source: {title}[/green]")
         else:
-            console.print(f"[yellow]Warning: nlm source add failed: {result.stderr.strip()}[/yellow]")
+            console.print(
+                f"[yellow]Warning: nlm source add failed: {result.stderr.strip()}[/yellow]"
+            )
     except OSError as exc:
         console.print(f"[yellow]Warning: could not add NotebookLM source: {exc}[/yellow]")

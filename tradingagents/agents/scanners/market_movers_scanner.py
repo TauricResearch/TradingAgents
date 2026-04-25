@@ -3,13 +3,13 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     require_scan_context,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.scanner_tools import get_market_indices
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 

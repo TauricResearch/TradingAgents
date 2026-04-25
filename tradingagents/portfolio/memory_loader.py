@@ -4,8 +4,7 @@ from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.portfolio.lesson_store import LessonStore
 
 
-def load_into_memory(lesson_store: LessonStore,
-                     memory: FinancialSituationMemory) -> int:
+def load_into_memory(lesson_store: LessonStore, memory: FinancialSituationMemory) -> int:
     """Populate memory with ONLY negative-sentiment lessons. Returns count loaded."""
     lessons = lesson_store.load_all()
     pairs = [
@@ -16,6 +15,7 @@ def load_into_memory(lesson_store: LessonStore,
     if pairs:
         memory.add_situations(pairs)
     return len(pairs)
+
 
 def build_selection_memory(path: Path | None = None) -> FinancialSituationMemory:
     """Convenience: LessonStore + FinancialSituationMemory + load. Used by CLI."""

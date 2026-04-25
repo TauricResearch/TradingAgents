@@ -29,7 +29,9 @@ news_report_abort = "[CRITICAL ABORT] Reason: News analysis failed source-valida
 normal_market_report = "Market analysis shows strong bullish trend with positive momentum..."
 
 # Normal fundamentals report
-normal_fundamentals_report = "Company fundamentals are strong with healthy margins and growth prospects..."
+normal_fundamentals_report = (
+    "Company fundamentals are strong with healthy margins and growth prospects..."
+)
 
 # Bearish but non-terminal reports
 strong_sell_market_report = "Market view: strong sell due to weak momentum and downside risk, but no hard-stop event detected."
@@ -54,12 +56,15 @@ HOLD / CAUTIOUS DEFENSIVE
 """
 
 # Macro regime report
-macro_regime_report = "Current macro environment shows stable interest rates and moderate inflation."
+macro_regime_report = (
+    "Current macro environment shows stable interest rates and moderate inflation."
+)
 
 
 # ---------------------------------------------------------------------------
 # ConditionalLogic Tests
 # ---------------------------------------------------------------------------
+
 
 class TestConditionalLogicAbortDetection:
     """Tests for critical abort detection in ConditionalLogic."""
@@ -442,6 +447,7 @@ class TestCriticalAbortTerminal:
 # Analyst Report Tests
 # ---------------------------------------------------------------------------
 
+
 class TestMarketAnalystAbortInstructions:
     """Tests for market analyst abort instructions in system prompt."""
 
@@ -453,8 +459,16 @@ class TestMarketAnalystAbortInstructions:
         mock_result.content = market_report_abort
         mock_result.tool_calls = []
 
-        with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_result, None)):
+        with (
+            patch(
+                "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+                return_value={},
+            ),
+            patch(
+                "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
+                return_value=(mock_result, None),
+            ),
+        ):
             market_analyst = create_market_analyst(MagicMock())
             state = {
                 "trade_date": "2024-01-01",
@@ -473,10 +487,7 @@ class TestMarketAnalystAbortInstructions:
         # The system_message is built from adjacent string literals that the compiler
         # concatenates into one big string constant stored in co_consts.
         # Check that at least one constant contains the trigger phrase as a substring.
-        assert any(
-            "CRITICAL ABORT TRIGGER" in str(c)
-            for c in market_analyst.__code__.co_consts
-        )
+        assert any("CRITICAL ABORT TRIGGER" in str(c) for c in market_analyst.__code__.co_consts)
 
 
 class TestFundamentalsAnalystAbortInstructions:
@@ -488,8 +499,16 @@ class TestFundamentalsAnalystAbortInstructions:
         mock_result.content = fundamentals_report_abort
         mock_result.tool_calls = []
 
-        with patch("tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop", return_value=mock_result):
+        with (
+            patch(
+                "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+                return_value={},
+            ),
+            patch(
+                "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
+                return_value=mock_result,
+            ),
+        ):
             fundamentals_analyst = create_fundamentals_analyst(MagicMock())
             state = {
                 "trade_date": "2024-01-01",
@@ -507,14 +526,14 @@ class TestFundamentalsAnalystAbortInstructions:
 
         # The system_message is built from adjacent string literals compiled into one constant.
         assert any(
-            "CRITICAL ABORT TRIGGER" in str(c)
-            for c in fundamentals_analyst.__code__.co_consts
+            "CRITICAL ABORT TRIGGER" in str(c) for c in fundamentals_analyst.__code__.co_consts
         )
 
 
 # ---------------------------------------------------------------------------
 # Portfolio Manager Tests
 # ---------------------------------------------------------------------------
+
 
 class TestPortfolioManagerAbortDetection:
     """Tests for portfolio manager abort detection and response."""
@@ -524,15 +543,15 @@ class TestPortfolioManagerAbortDetection:
         """Build a MagicMock LLM compatible with llm_guard.invoke_with_timeout."""
         response = MagicMock(content=content)
         mock_llm = MagicMock()
-        
+
         # This is what invoke_with_timeout uses: llm.bind(...).invoke(...)
         bound = MagicMock()
         bound.invoke.return_value = response
         mock_llm.bind.return_value = bound
-        
+
         # Support fallback path which might use plain .invoke
         mock_llm.invoke.return_value = response
-        
+
         return mock_llm
 
     def _make_abort_state(self, market_report, fundamentals_report, news_report=""):
@@ -627,9 +646,7 @@ class TestPortfolioManagerAbortDetection:
         assert "AVOID" in result.get("final_trade_decision", "").upper()
 
     def test_portfolio_manager_uses_news_abort_report(self):
-        mock_llm = self._make_mock_llm(
-            "RECOMMENDATION: AVOID - Source validation failed twice"
-        )
+        mock_llm = self._make_mock_llm("RECOMMENDATION: AVOID - Source validation failed twice")
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(
             normal_market_report,
@@ -642,9 +659,7 @@ class TestPortfolioManagerAbortDetection:
         assert "SOURCE VALIDATION FAILED" in result.get("final_trade_decision", "").upper()
 
     def test_portfolio_manager_uses_trader_plan_field_in_normal_flow_prompt(self):
-        mock_llm = self._make_mock_llm(
-            "RECOMMENDATION: BUY - coherent with trader plan"
-        )
+        mock_llm = self._make_mock_llm("RECOMMENDATION: BUY - coherent with trader plan")
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(normal_market_report, normal_fundamentals_report)
         state["investment_plan"] = "RESEARCH PLAN: SHOULD NOT APPEAR"
@@ -659,9 +674,7 @@ class TestPortfolioManagerAbortDetection:
         assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
 
     def test_portfolio_manager_uses_trader_plan_field_in_abort_flow_prompt(self):
-        mock_llm = self._make_mock_llm(
-            "RECOMMENDATION: SELL - critical abort"
-        )
+        mock_llm = self._make_mock_llm("RECOMMENDATION: SELL - critical abort")
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(market_report_abort, normal_fundamentals_report)
         state["investment_plan"] = "RESEARCH PLAN: SHOULD NOT APPEAR"
@@ -679,6 +692,7 @@ class TestPortfolioManagerAbortDetection:
 # ---------------------------------------------------------------------------
 # Integration Tests
 # ---------------------------------------------------------------------------
+
 
 class TestFastRejectFullFlow:
     """Integration tests for the complete fast-reject short-circuit flow."""
@@ -714,7 +728,11 @@ class TestFastRejectFullFlow:
     }
 
     def _make_state(self, market_report, fundamentals_report):
-        return {**self._base_state, "market_report": market_report, "fundamentals_report": fundamentals_report}
+        return {
+            **self._base_state,
+            "market_report": market_report,
+            "fundamentals_report": fundamentals_report,
+        }
 
     def test_fast_reject_full_flow(self):
         """Test the complete short-circuit flow from analyst to portfolio manager."""
@@ -725,8 +743,16 @@ class TestFastRejectFullFlow:
         state = self._make_state(market_report_abort, normal_fundamentals_report)
 
         # Patch network-calling helpers; control analyst output via invoke_with_timeout mock
-        with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_market_ai, None)):
+        with (
+            patch(
+                "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+                return_value={},
+            ),
+            patch(
+                "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
+                return_value=(mock_market_ai, None),
+            ),
+        ):
             market_analyst = create_market_analyst(MagicMock())
             analyst_result = market_analyst(state)
             state = {**state, **analyst_result}  # merge so all keys are preserved
@@ -754,8 +780,16 @@ class TestFastRejectFullFlow:
 
         state = self._make_state(normal_market_report, fundamentals_report_abort)
 
-        with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_market_ai, None)):
+        with (
+            patch(
+                "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+                return_value={},
+            ),
+            patch(
+                "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
+                return_value=(mock_market_ai, None),
+            ),
+        ):
             market_analyst = create_market_analyst(MagicMock())
             analyst_result = market_analyst(state)
             state = {**state, **analyst_result}
@@ -784,8 +818,16 @@ class TestFastRejectFullFlow:
 
         state = self._make_state(normal_market_report, normal_fundamentals_report)
 
-        with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_market_ai, None)):
+        with (
+            patch(
+                "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+                return_value={},
+            ),
+            patch(
+                "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
+                return_value=(mock_market_ai, None),
+            ),
+        ):
             market_analyst = create_market_analyst(MagicMock())
             analyst_result = market_analyst(state)
             state = {**state, **analyst_result}

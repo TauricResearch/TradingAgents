@@ -10,6 +10,7 @@ import pytest
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_series(values: list[float], freq: str = "B") -> pd.Series:
     dates = pd.date_range("2025-09-01", periods=len(values), freq=freq)
     return pd.Series(values, index=dates)
@@ -27,9 +28,11 @@ def _trending_series(start: float, end: float, n: int = 100) -> pd.Series:
 # Helpers tests
 # ---------------------------------------------------------------------------
 
+
 class TestFmtPct:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _fmt_pct
+
         self.fn = _fmt_pct
 
     @pytest.mark.parametrize(
@@ -49,9 +52,11 @@ class TestFmtPct:
 # Individual signal tests
 # ---------------------------------------------------------------------------
 
+
 class TestSignalVixLevel:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _signal_vix_level
+
         self.fn = _signal_vix_level
 
     def test_low_vix_is_risk_on(self):
@@ -87,6 +92,7 @@ class TestSignalVixLevel:
 class TestSignalVixTrend:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _signal_vix_trend
+
         self.fn = _signal_vix_trend
 
     def test_declining_vix_is_risk_on(self):
@@ -122,6 +128,7 @@ class TestSignalVixTrend:
 class TestSignalCreditSpread:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _signal_credit_spread
+
         self.fn = _signal_credit_spread
 
     def test_improving_spread_is_risk_on(self):
@@ -153,6 +160,7 @@ class TestSignalCreditSpread:
 class TestSignalYieldCurve:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _signal_yield_curve
+
         self.fn = _signal_yield_curve
 
     def test_flight_to_safety_is_risk_off(self):
@@ -182,6 +190,7 @@ class TestSignalYieldCurve:
 class TestSignalMarketBreadth:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _signal_market_breadth
+
         self.fn = _signal_market_breadth
 
     def test_above_200sma_is_risk_on(self):
@@ -218,6 +227,7 @@ class TestSignalMarketBreadth:
 class TestSignalSectorRotation:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import _signal_sector_rotation
+
         self.fn = _signal_sector_rotation
 
     def test_defensives_leading_is_risk_off(self):
@@ -248,6 +258,7 @@ class TestSignalSectorRotation:
 # Classify macro regime
 # ---------------------------------------------------------------------------
 
+
 class TestClassifyMacroRegime:
     def _mock_download(self, scenario: str):
         """Return mock yfinance download data for different scenarios."""
@@ -256,9 +267,9 @@ class TestClassifyMacroRegime:
         if scenario == "risk_on":
             vix = _trending_series(30, 12, n)  # VIX falling → +1 trend AND +1 level at end
             spx = _trending_series(4000, 6000, n)  # Above 200-SMA → +1
-            hyg = _trending_series(75, 90, n)   # HYG rising sharply (credit improving) → +1
+            hyg = _trending_series(75, 90, n)  # HYG rising sharply (credit improving) → +1
             lqd = _flat_series(100, n)
-            tlt = _flat_series(100, n)     # TLT flat (no flight to safety) → 0
+            tlt = _flat_series(100, n)  # TLT flat (no flight to safety) → 0
             shy = _flat_series(100, n)
             xlu = _flat_series(60, n)
             xlp = _flat_series(70, n)
@@ -267,9 +278,9 @@ class TestClassifyMacroRegime:
             xlk = _trending_series(100, 120, n)
             xli = _trending_series(100, 120, n)  # cyclicals up → +1
         elif scenario == "risk_off":
-            vix = _flat_series(30.0, n)    # High VIX
+            vix = _flat_series(30.0, n)  # High VIX
             spx = _trending_series(6000, 4000, n)  # Below 200-SMA
-            hyg = _trending_series(85, 80, n)   # Deteriorating credit
+            hyg = _trending_series(85, 80, n)  # Deteriorating credit
             lqd = _flat_series(100, n)
             tlt = _trending_series(95, 105, n)  # TLT outperforming (flight to safety)
             shy = _flat_series(100, n)
@@ -280,7 +291,7 @@ class TestClassifyMacroRegime:
             xlk = _flat_series(180, n)
             xli = _flat_series(100, n)
         else:  # transition
-            vix = _flat_series(20.0, n)    # Mid VIX
+            vix = _flat_series(20.0, n)  # Mid VIX
             spx = _trending_series(4900, 5100, n)  # Near 200-SMA
             hyg = _flat_series(82, n)
             lqd = _flat_series(100, n)
@@ -294,11 +305,18 @@ class TestClassifyMacroRegime:
             xli = _flat_series(100, n)
 
         return {
-            "^VIX": vix, "^GSPC": spx,
-            "HYG": hyg, "LQD": lqd,
-            "TLT": tlt, "SHY": shy,
-            "XLU": xlu, "XLP": xlp, "XLV": xlv,
-            "XLY": xly, "XLK": xlk, "XLI": xli,
+            "^VIX": vix,
+            "^GSPC": spx,
+            "HYG": hyg,
+            "LQD": lqd,
+            "TLT": tlt,
+            "SHY": shy,
+            "XLU": xlu,
+            "XLP": xlp,
+            "XLV": xlv,
+            "XLY": xly,
+            "XLK": xlk,
+            "XLI": xli,
         }
 
     def _patch_download(self, scenario: str):
@@ -318,6 +336,7 @@ class TestClassifyMacroRegime:
     def test_risk_on_regime(self):
         with self._patch_download("risk_on"):
             from tradingagents.dataflows.macro_regime import classify_macro_regime
+
             result = classify_macro_regime()
         assert result["regime"] == "risk-on"
         assert result["score"] >= 3
@@ -325,6 +344,7 @@ class TestClassifyMacroRegime:
     def test_risk_off_regime(self):
         with self._patch_download("risk_off"):
             from tradingagents.dataflows.macro_regime import classify_macro_regime
+
             result = classify_macro_regime()
         assert result["regime"] == "risk-off"
         assert result["score"] <= -3
@@ -332,6 +352,7 @@ class TestClassifyMacroRegime:
     def test_result_has_required_keys(self):
         with self._patch_download("transition"):
             from tradingagents.dataflows.macro_regime import classify_macro_regime
+
             result = classify_macro_regime()
         for key in ("regime", "score", "confidence", "signals", "summary"):
             assert key in result
@@ -339,12 +360,14 @@ class TestClassifyMacroRegime:
     def test_signals_list_has_6_entries(self):
         with self._patch_download("transition"):
             from tradingagents.dataflows.macro_regime import classify_macro_regime
+
             result = classify_macro_regime()
         assert len(result["signals"]) == 6
 
     def test_each_signal_has_score_and_description(self):
         with self._patch_download("transition"):
             from tradingagents.dataflows.macro_regime import classify_macro_regime
+
             result = classify_macro_regime()
         for sig in result["signals"]:
             assert "score" in sig
@@ -354,6 +377,7 @@ class TestClassifyMacroRegime:
     def test_confidence_is_valid(self):
         with self._patch_download("risk_on"):
             from tradingagents.dataflows.macro_regime import classify_macro_regime
+
             result = classify_macro_regime()
         assert result["confidence"] in ("high", "medium", "low")
 
@@ -362,9 +386,11 @@ class TestClassifyMacroRegime:
 # Format macro report
 # ---------------------------------------------------------------------------
 
+
 class TestFormatMacroReport:
     def setup_method(self):
         from tradingagents.dataflows.macro_regime import format_macro_report
+
         self.format = format_macro_report
 
     def _sample_regime(self, regime: str) -> dict:
@@ -412,10 +438,12 @@ class TestFormatMacroReport:
 # Integration test
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestMacroRegimeIntegration:
     def test_get_macro_regime_tool(self):
         from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
+
         result = get_macro_regime.invoke({"curr_date": "2026-03-17"})
         assert isinstance(result, str)
         assert len(result) > 100

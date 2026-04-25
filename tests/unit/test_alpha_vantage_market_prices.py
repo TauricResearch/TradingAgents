@@ -66,7 +66,9 @@ def test_make_api_request_omits_source_for_demo_key():
     response.raise_for_status = MagicMock()
 
     with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get", return_value=response) as mock_get:
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get", return_value=response
+        ) as mock_get:
             _make_api_request("WTI", {"interval": "monthly"})
 
     params = mock_get.call_args.kwargs["params"]

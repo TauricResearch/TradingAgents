@@ -21,40 +21,36 @@ CSV_DAILY_ADJUSTED = (
     "2024-01-03,181.00,184.00,180.00,183.00,183.00,48000000,0.0000,1.0\n"
 )
 
-RATE_LIMIT_JSON = json.dumps({
-    "Information": (
-        "Thank you for using Alpha Vantage! Our standard API rate limit is 25 requests "
-        "per day. Please subscribe to any of the premium plans at "
-        "https://www.alphavantage.co/premium/ to instantly remove all daily rate limits."
-    )
-})
-
-INVALID_KEY_JSON = json.dumps({
-    "Information": "Invalid API key. Please claim your free API key at https://www.alphavantage.co/support/"
-})
-
-CSV_SMA = (
-    "time,SMA\n"
-    "2024-01-05,182.50\n"
-    "2024-01-04,181.00\n"
-    "2024-01-03,179.50\n"
+RATE_LIMIT_JSON = json.dumps(
+    {
+        "Information": (
+            "Thank you for using Alpha Vantage! Our standard API rate limit is 25 requests "
+            "per day. Please subscribe to any of the premium plans at "
+            "https://www.alphavantage.co/premium/ to instantly remove all daily rate limits."
+        )
+    }
 )
 
-CSV_RSI = (
-    "time,RSI\n"
-    "2024-01-05,55.30\n"
-    "2024-01-04,53.10\n"
-    "2024-01-03,51.90\n"
+INVALID_KEY_JSON = json.dumps(
+    {
+        "Information": "Invalid API key. Please claim your free API key at https://www.alphavantage.co/support/"
+    }
 )
 
-OVERVIEW_JSON = json.dumps({
-    "Symbol": "AAPL",
-    "Name": "Apple Inc",
-    "Sector": "TECHNOLOGY",
-    "MarketCapitalization": "3000000000000",
-    "PERatio": "30.5",
-    "Beta": "1.2",
-})
+CSV_SMA = "time,SMA\n2024-01-05,182.50\n2024-01-04,181.00\n2024-01-03,179.50\n"
+
+CSV_RSI = "time,RSI\n2024-01-05,55.30\n2024-01-04,53.10\n2024-01-03,51.90\n"
+
+OVERVIEW_JSON = json.dumps(
+    {
+        "Symbol": "AAPL",
+        "Name": "Apple Inc",
+        "Sector": "TECHNOLOGY",
+        "MarketCapitalization": "3000000000000",
+        "PERatio": "30.5",
+        "Beta": "1.2",
+    }
+)
 
 
 def _mock_response(text: str, status_code: int = 200):
@@ -69,6 +65,7 @@ def _mock_response(text: str, status_code: int = 200):
 # ---------------------------------------------------------------------------
 # AlphaVantageRateLimitError
 # ---------------------------------------------------------------------------
+
 
 class TestAlphaVantageRateLimitError:
     """Tests for the custom AlphaVantageRateLimitError exception class."""
@@ -89,16 +86,20 @@ class TestAlphaVantageRateLimitError:
 # _make_api_request
 # ---------------------------------------------------------------------------
 
+
 class TestMakeApiRequest:
     """Tests for the internal _make_api_request helper."""
 
     def test_returns_csv_text_on_success(self):
         from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(CSV_DAILY_ADJUSTED)):
-            result = _make_api_request("TIME_SERIES_DAILY_ADJUSTED",
-                                       {"symbol": "AAPL", "datatype": "csv"})
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(CSV_DAILY_ADJUSTED),
+        ):
+            result = _make_api_request(
+                "TIME_SERIES_DAILY_ADJUSTED", {"symbol": "AAPL", "datatype": "csv"}
+            )
 
         assert "timestamp" in result
         assert "186.00" in result
@@ -109,8 +110,10 @@ class TestMakeApiRequest:
             _make_api_request,
         )
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(RATE_LIMIT_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(RATE_LIMIT_JSON),
+        ):
             with pytest.raises(AlphaVantageRateLimitError):
                 _make_api_request("TIME_SERIES_DAILY_ADJUSTED", {"symbol": "AAPL"})
 
@@ -123,8 +126,10 @@ class TestMakeApiRequest:
         """
         from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(INVALID_KEY_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(INVALID_KEY_JSON),
+        ):
             with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "invalid_key"}):
                 with pytest.raises(Exception, match="(?i)(api.?key|invalid.?key|invalid api)"):
                     _make_api_request("OVERVIEW", {"symbol": "AAPL"})
@@ -142,8 +147,10 @@ class TestMakeApiRequest:
     def test_network_timeout_propagates(self):
         from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   side_effect=TimeoutError("connection timed out")):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            side_effect=TimeoutError("connection timed out"),
+        ):
             with pytest.raises(TimeoutError):
                 _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
@@ -163,8 +170,9 @@ class TestMakeApiRequest:
 
         from tradingagents.dataflows.alpha_vantage_common import ThirdPartyError
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=bad_resp):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get", return_value=bad_resp
+        ):
             with pytest.raises(ThirdPartyError):
                 _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
@@ -172,6 +180,7 @@ class TestMakeApiRequest:
 # ---------------------------------------------------------------------------
 # _filter_csv_by_date_range
 # ---------------------------------------------------------------------------
+
 
 class TestFilterCsvByDateRange:
     """Tests for the _filter_csv_by_date_range helper."""
@@ -209,6 +218,7 @@ class TestFilterCsvByDateRange:
 # ---------------------------------------------------------------------------
 # format_datetime_for_api
 # ---------------------------------------------------------------------------
+
 
 class TestFormatDatetimeForApi:
     """Tests for format_datetime_for_api."""
@@ -251,6 +261,7 @@ class TestFormatDatetimeForApi:
 # get_stock (alpha_vantage_stock)
 # ---------------------------------------------------------------------------
 
+
 class TestAlphaVantageGetStock:
     """Tests for the Alpha Vantage get_stock function."""
 
@@ -258,8 +269,10 @@ class TestAlphaVantageGetStock:
         """Recent dates → compact outputsize; CSV data is filtered to range."""
         from tradingagents.dataflows.alpha_vantage_stock import get_stock
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(CSV_DAILY_ADJUSTED)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(CSV_DAILY_ADJUSTED),
+        ):
             result = get_stock("AAPL", "2024-01-01", "2024-01-05")
 
         assert isinstance(result, str)
@@ -274,8 +287,9 @@ class TestAlphaVantageGetStock:
             captured_params.update(params)
             return _mock_response(CSV_DAILY_ADJUSTED)
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   side_effect=capture_request):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get", side_effect=capture_request
+        ):
             get_stock("AAPL", "2020-01-01", "2020-01-05")
 
         assert captured_params.get("outputsize") == "full"
@@ -284,8 +298,10 @@ class TestAlphaVantageGetStock:
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
         from tradingagents.dataflows.alpha_vantage_stock import get_stock
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(RATE_LIMIT_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(RATE_LIMIT_JSON),
+        ):
             with pytest.raises(AlphaVantageRateLimitError):
                 get_stock("AAPL", "2024-01-01", "2024-01-05")
 
@@ -295,14 +311,17 @@ class TestAlphaVantageGetStock:
 # (alpha_vantage_fundamentals)
 # ---------------------------------------------------------------------------
 
+
 class TestAlphaVantageGetFundamentals:
     """Tests for Alpha Vantage get_fundamentals."""
 
     def test_returns_json_string_on_success(self):
         from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(OVERVIEW_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(OVERVIEW_JSON),
+        ):
             result = get_fundamentals("AAPL")
 
         assert "Apple Inc" in result
@@ -312,8 +331,10 @@ class TestAlphaVantageGetFundamentals:
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
         from tradingagents.dataflows.alpha_vantage_fundamentals import get_fundamentals
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(RATE_LIMIT_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(RATE_LIMIT_JSON),
+        ):
             with pytest.raises(AlphaVantageRateLimitError):
                 get_fundamentals("AAPL")
 
@@ -323,8 +344,10 @@ class TestAlphaVantageGetBalanceSheet:
         from tradingagents.dataflows.alpha_vantage_fundamentals import get_balance_sheet
 
         payload = json.dumps({"symbol": "AAPL", "annualReports": [], "quarterlyReports": []})
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(payload)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(payload),
+        ):
             result = get_balance_sheet("AAPL")
 
         assert "AAPL" in result
@@ -335,8 +358,10 @@ class TestAlphaVantageGetCashflow:
         from tradingagents.dataflows.alpha_vantage_fundamentals import get_cashflow
 
         payload = json.dumps({"symbol": "AAPL", "annualReports": [], "quarterlyReports": []})
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(payload)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(payload),
+        ):
             result = get_cashflow("AAPL")
 
         assert "AAPL" in result
@@ -347,8 +372,10 @@ class TestAlphaVantageGetIncomeStatement:
         from tradingagents.dataflows.alpha_vantage_fundamentals import get_income_statement
 
         payload = json.dumps({"symbol": "AAPL", "annualReports": [], "quarterlyReports": []})
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(payload)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(payload),
+        ):
             result = get_income_statement("AAPL")
 
         assert "AAPL" in result
@@ -358,38 +385,44 @@ class TestAlphaVantageGetIncomeStatement:
 # get_news / get_global_news / get_insider_transactions (alpha_vantage_news)
 # ---------------------------------------------------------------------------
 
-NEWS_JSON = json.dumps({
-    "feed": [
-        {
-            "title": "Apple Hits Record High",
-            "url": "https://example.com/news/1",
-            "time_published": "20240105T150000",
-            "authors": ["John Doe"],
-            "summary": "Apple stock reached a new record.",
-            "overall_sentiment_label": "Bullish",
-        }
-    ]
-})
+NEWS_JSON = json.dumps(
+    {
+        "feed": [
+            {
+                "title": "Apple Hits Record High",
+                "url": "https://example.com/news/1",
+                "time_published": "20240105T150000",
+                "authors": ["John Doe"],
+                "summary": "Apple stock reached a new record.",
+                "overall_sentiment_label": "Bullish",
+            }
+        ]
+    }
+)
 
-INSIDER_JSON = json.dumps({
-    "data": [
-        {
-            "executive": "Tim Cook",
-            "transactionDate": "2024-01-15",
-            "transactionType": "Sale",
-            "sharesTraded": "10000",
-            "sharePrice": "150.00",
-        }
-    ]
-})
+INSIDER_JSON = json.dumps(
+    {
+        "data": [
+            {
+                "executive": "Tim Cook",
+                "transactionDate": "2024-01-15",
+                "transactionType": "Sale",
+                "sharesTraded": "10000",
+                "sharePrice": "150.00",
+            }
+        ]
+    }
+)
 
 
 class TestAlphaVantageGetNews:
     def test_returns_news_response_on_success(self):
         from tradingagents.dataflows.alpha_vantage_news import get_news
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(NEWS_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(NEWS_JSON),
+        ):
             result = get_news("AAPL", "2024-01-01", "2024-01-05")
 
         assert "Apple Hits Record High" in result
@@ -398,46 +431,52 @@ class TestAlphaVantageGetNews:
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
         from tradingagents.dataflows.alpha_vantage_news import get_news
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(RATE_LIMIT_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(RATE_LIMIT_JSON),
+        ):
             with pytest.raises(AlphaVantageRateLimitError):
                 get_news("AAPL", "2024-01-01", "2024-01-05")
 
     def test_ranks_company_news_by_target_ticker_relevance(self):
         from tradingagents.dataflows.alpha_vantage_news import get_news
 
-        payload = json.dumps({
-            "items": "50",
-            "feed": [
-                {
-                    "title": "Low relevance mention",
-                    "url": "https://example.com/low",
-                    "time_published": "20240105T120000",
-                    "ticker_sentiment": [
-                        {"ticker": "MSFT", "relevance_score": "0.21"},
-                    ],
-                },
-                {
-                    "title": "High relevance feature story",
-                    "url": "https://example.com/high",
-                    "time_published": "20240105T130000",
-                    "ticker_sentiment": [
-                        {"ticker": "MSFT", "relevance_score": "0.91"},
-                    ],
-                },
-                {
-                    "title": "Duplicate high relevance feature story",
-                    "url": "https://example.com/high",
-                    "time_published": "20240105T130000",
-                    "ticker_sentiment": [
-                        {"ticker": "MSFT", "relevance_score": "0.91"},
-                    ],
-                },
-            ],
-        })
+        payload = json.dumps(
+            {
+                "items": "50",
+                "feed": [
+                    {
+                        "title": "Low relevance mention",
+                        "url": "https://example.com/low",
+                        "time_published": "20240105T120000",
+                        "ticker_sentiment": [
+                            {"ticker": "MSFT", "relevance_score": "0.21"},
+                        ],
+                    },
+                    {
+                        "title": "High relevance feature story",
+                        "url": "https://example.com/high",
+                        "time_published": "20240105T130000",
+                        "ticker_sentiment": [
+                            {"ticker": "MSFT", "relevance_score": "0.91"},
+                        ],
+                    },
+                    {
+                        "title": "Duplicate high relevance feature story",
+                        "url": "https://example.com/high",
+                        "time_published": "20240105T130000",
+                        "ticker_sentiment": [
+                            {"ticker": "MSFT", "relevance_score": "0.91"},
+                        ],
+                    },
+                ],
+            }
+        )
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(payload)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(payload),
+        ):
             result = json.loads(get_news("MSFT", "2024-01-01", "2024-01-05"))
 
         assert result["items"] == "2"
@@ -451,8 +490,10 @@ class TestAlphaVantageGetGlobalNews:
     def test_returns_global_news_response_on_success(self):
         from tradingagents.dataflows.alpha_vantage_news import get_global_news
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(NEWS_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(NEWS_JSON),
+        ):
             result = get_global_news("2024-01-15", look_back_days=7)
 
         assert isinstance(result, str)
@@ -467,8 +508,9 @@ class TestAlphaVantageGetGlobalNews:
             captured_params.update(params)
             return _mock_response(NEWS_JSON)
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   side_effect=capture):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get", side_effect=capture
+        ):
             get_global_news("2024-01-15", look_back_days=7)
 
         # time_from should be 7 days before 2024-01-15 → 2024-01-08
@@ -477,16 +519,20 @@ class TestAlphaVantageGetGlobalNews:
     def test_limit_is_enforced_locally_when_feed_is_oversized(self):
         from tradingagents.dataflows.alpha_vantage_news import get_global_news
 
-        payload = json.dumps({
-            "items": "50",
-            "feed": [
-                {"title": f"Article {idx}", "url": f"https://example.com/{idx}"}
-                for idx in range(6)
-            ],
-        })
+        payload = json.dumps(
+            {
+                "items": "50",
+                "feed": [
+                    {"title": f"Article {idx}", "url": f"https://example.com/{idx}"}
+                    for idx in range(6)
+                ],
+            }
+        )
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(payload)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(payload),
+        ):
             result = json.loads(get_global_news("2024-01-15", look_back_days=7, limit=3))
 
         assert result["items"] == "3"
@@ -497,8 +543,10 @@ class TestAlphaVantageGetInsiderTransactions:
     def test_returns_insider_data_on_success(self):
         from tradingagents.dataflows.alpha_vantage_news import get_insider_transactions
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(INSIDER_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(INSIDER_JSON),
+        ):
             result = get_insider_transactions("AAPL")
 
         assert "Tim Cook" in result
@@ -507,8 +555,10 @@ class TestAlphaVantageGetInsiderTransactions:
         from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
         from tradingagents.dataflows.alpha_vantage_news import get_insider_transactions
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(RATE_LIMIT_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(RATE_LIMIT_JSON),
+        ):
             with pytest.raises(AlphaVantageRateLimitError):
                 get_insider_transactions("AAPL")
 
@@ -517,17 +567,18 @@ class TestAlphaVantageGetInsiderTransactions:
 # get_indicator (alpha_vantage_indicator)
 # ---------------------------------------------------------------------------
 
+
 class TestAlphaVantageGetIndicator:
     """Tests for the Alpha Vantage get_indicator function."""
 
     def test_rsi_returns_formatted_string_on_success(self):
         from tradingagents.dataflows.alpha_vantage_indicator import get_indicator
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(CSV_RSI)):
-            result = get_indicator(
-                "AAPL", "rsi", "2024-01-05", look_back_days=5
-            )
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(CSV_RSI),
+        ):
+            result = get_indicator("AAPL", "rsi", "2024-01-05", look_back_days=5)
 
         assert isinstance(result, str)
         assert "RSI" in result.upper()
@@ -535,11 +586,11 @@ class TestAlphaVantageGetIndicator:
     def test_sma_50_returns_formatted_string_on_success(self):
         from tradingagents.dataflows.alpha_vantage_indicator import get_indicator
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(CSV_SMA)):
-            result = get_indicator(
-                "AAPL", "close_50_sma", "2024-01-05", look_back_days=5
-            )
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(CSV_SMA),
+        ):
+            result = get_indicator("AAPL", "close_50_sma", "2024-01-05", look_back_days=5)
 
         assert isinstance(result, str)
         assert "SMA" in result.upper()
@@ -554,8 +605,10 @@ class TestAlphaVantageGetIndicator:
         """Rate limit errors during indicator fetch result in an error string (not a raise)."""
         from tradingagents.dataflows.alpha_vantage_indicator import get_indicator
 
-        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
-                   return_value=_mock_response(RATE_LIMIT_JSON)):
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            return_value=_mock_response(RATE_LIMIT_JSON),
+        ):
             result = get_indicator("AAPL", "rsi", "2024-01-05", look_back_days=5)
 
         assert "Error" in result or "rate limit" in result.lower()

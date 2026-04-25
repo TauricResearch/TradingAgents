@@ -73,7 +73,9 @@ def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents():
 
     def _micro_llm(prompt_value):
         capture["micro"] = prompt_value.to_string()
-        return AIMessage(content="CANDIDATES TABLE:\n| AAPL | high | growth | rating:Overweight | ok | no memory |")
+        return AIMessage(
+            content="CANDIDATES TABLE:\n| AAPL | high | growth | rating:Overweight | ok | no memory |"
+        )
 
     agents = {
         "review_holdings": lambda _state: {"holding_reviews": "{}", "sender": "review_holdings"},

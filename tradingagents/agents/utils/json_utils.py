@@ -36,9 +36,7 @@ def extract_json(text: str) -> dict[str, Any]:
 
     def _ensure_dict(obj: object) -> dict[str, Any]:
         if not isinstance(obj, dict):
-            raise ValueError(
-                f"Expected a JSON object (dict), got {type(obj).__name__}"
-            )
+            raise ValueError(f"Expected a JSON object (dict), got {type(obj).__name__}")
         return obj
 
     # 1. Direct parse

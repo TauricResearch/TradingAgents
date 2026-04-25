@@ -8,6 +8,7 @@ Requires ALPHA_VANTAGE_API_KEY environment variable.
 Run with:
     pytest tests/integration/test_scanner_context_filtering_live.py -v -m integration
 """
+
 import json
 from datetime import datetime, timedelta
 
@@ -196,7 +197,9 @@ TO: Energy, Materials, Industrials (cyclical rotation)
 """
 
     if articles:
-        context += f"\n## IX. REAL ALPHAVANTAGE NEWS (LAST 7 DAYS)\n\nTotal articles: {len(articles)}\n\n"
+        context += (
+            f"\n## IX. REAL ALPHAVANTAGE NEWS (LAST 7 DAYS)\n\nTotal articles: {len(articles)}\n\n"
+        )
         for i, article in enumerate(articles[:15], 1):
             title = article.get("title", "N/A")
             source = article.get("source", "N/A")
@@ -243,9 +246,7 @@ class TestScannerContextFilteringLiveAV:
         context, _ = _build_context_with_real_news("RIG")
         result = filter_scanner_context_for_ticker(context, "RIG")
         ratio = len(result) / len(context)
-        assert ratio <= 1.15, (
-            f"Filtered context is {ratio:.0%} of original — expected ≤115%"
-        )
+        assert ratio <= 1.15, f"Filtered context is {ratio:.0%} of original — expected ≤115%"
 
     def test_ticker_still_present_after_filter(self):
         """Ticker symbol must appear in filtered output."""

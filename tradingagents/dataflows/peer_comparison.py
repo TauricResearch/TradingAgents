@@ -34,13 +34,35 @@ _SECTOR_TICKERS: dict[str, list[str]] = {
     "healthcare": ["UNH", "JNJ", "LLY", "PFE", "ABT", "MRK", "TMO", "ABBV", "DHR", "AMGN"],
     "financials": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "AXP", "C", "USB"],
     "energy": ["XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HES"],
-    "consumer-discretionary": ["AMZN", "TSLA", "HD", "MCD", "NKE", "SBUX", "LOW", "TJX", "BKNG", "CMG"],
+    "consumer-discretionary": [
+        "AMZN",
+        "TSLA",
+        "HD",
+        "MCD",
+        "NKE",
+        "SBUX",
+        "LOW",
+        "TJX",
+        "BKNG",
+        "CMG",
+    ],
     "consumer-staples": ["PG", "KO", "PEP", "COST", "WMT", "PM", "MDLZ", "CL", "KHC", "GIS"],
     "industrials": ["CAT", "HON", "UNP", "UPS", "BA", "RTX", "DE", "LMT", "GE", "MMM"],
     "materials": ["LIN", "APD", "SHW", "ECL", "FCX", "NEM", "NUE", "DOW", "DD", "PPG"],
     "real-estate": ["PLD", "AMT", "CCI", "EQIX", "SPG", "PSA", "O", "WELL", "DLR", "AVB"],
     "utilities": ["NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "WEC", "ED"],
-    "communication-services": ["META", "GOOGL", "NFLX", "DIS", "CMCSA", "T", "VZ", "CHTR", "TMUS", "EA"],
+    "communication-services": [
+        "META",
+        "GOOGL",
+        "NFLX",
+        "DIS",
+        "CMCSA",
+        "T",
+        "VZ",
+        "CHTR",
+        "TMUS",
+        "EA",
+    ],
 }
 
 # Yahoo Finance sector string → normalised key
@@ -67,6 +89,7 @@ _SECTOR_NORMALISE: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _safe_pct(closes: pd.Series, days_back: int) -> float | None:
     if len(closes) < days_back + 1:
@@ -101,6 +124,7 @@ def _fmt_pct(val: float | None) -> str:
 # ---------------------------------------------------------------------------
 # Public functions
 # ---------------------------------------------------------------------------
+
 
 def get_sector_peers(ticker: str) -> tuple[str, str, list[str]]:
     """
@@ -179,12 +203,18 @@ def compute_relative_performance(
             m3 = _safe_pct(s, 63)
             m6 = _safe_pct(s, 126)
             ytd = _ytd_pct(s)
-            rows.append({
-                "symbol": sym,
-                "1W": w1, "1M": m1, "3M": m3, "6M": m6, "YTD": ytd,
-                "is_target": sym.upper() == ticker.upper(),
-                "is_etf": sym == etf,
-            })
+            rows.append(
+                {
+                    "symbol": sym,
+                    "1W": w1,
+                    "1M": m1,
+                    "3M": m3,
+                    "6M": m6,
+                    "YTD": ytd,
+                    "is_target": sym.upper() == ticker.upper(),
+                    "is_etf": sym == etf,
+                }
+            )
         except Exception:
             continue
 
@@ -195,9 +225,7 @@ def compute_relative_performance(
     rows.sort(key=lambda r: r["3M"] if r["3M"] is not None else float("-inf"), reverse=True)
 
     # Determine ticker rank
-    target_rank = next(
-        (i + 1 for i, r in enumerate(rows) if r["is_target"]), None
-    )
+    target_rank = next((i + 1 for i, r in enumerate(rows) if r["is_target"]), None)
     n_peers = sum(1 for r in rows if not r["is_etf"])
 
     header = [
@@ -236,7 +264,9 @@ def compute_relative_performance(
         ]:
             if tk is not None and bm is not None:
                 alpha = tk - bm
-                alpha_lines.append(f"- **{period}**: {_fmt_pct(tk)} vs ETF {_fmt_pct(bm)} → Alpha {_fmt_pct(alpha)}")
+                alpha_lines.append(
+                    f"- **{period}**: {_fmt_pct(tk)} vs ETF {_fmt_pct(bm)} → Alpha {_fmt_pct(alpha)}"
+                )
             else:
                 alpha_lines.append(f"- **{period}**: N/A")
 
@@ -310,7 +340,12 @@ def get_sector_relative_report(ticker: str, curr_date: str = None) -> str:
         "|--------|-------------|------------|-------|",
     ]
 
-    for period_label, days_back in [("1-Week", 5), ("1-Month", 21), ("3-Month", 63), ("6-Month", 126)]:
+    for period_label, days_back in [
+        ("1-Week", 5),
+        ("1-Month", 21),
+        ("3-Month", 63),
+        ("6-Month", 126),
+    ]:
         tk_ret = etf_ret = None
         for sym, col_type in [(ticker.upper(), "stock"), (etf, "etf")]:
             if sym in closes.columns:

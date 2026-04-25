@@ -497,13 +497,15 @@ class TestPMDecisionAgentInputs:
         assert "macro" in llm.captured_prompt
         assert "micro" in llm.captured_prompt
 
+
 class TestSummaryAgentsRobustness:
     def test_macro_summary_agent_ignores_prior_message_history(self):
         captured = []
+
         def _invoke(input, config=None, **kwargs):
             captured.append(input)
             return AIMessage(content="MACRO REGIME: neutral")
-        
+
         llm = RunnableLambda(_invoke)
         agent = create_macro_summary_agent(llm)
         state = {
@@ -522,10 +524,11 @@ class TestSummaryAgentsRobustness:
 
     def test_micro_summary_agent_ignores_prior_message_history(self):
         captured = []
+
         def _invoke(input, config=None, **kwargs):
             captured.append(input)
             return AIMessage(content="Micro brief")
-        
+
         llm = RunnableLambda(_invoke)
         agent = create_micro_summary_agent(llm)
         state = {
@@ -541,18 +544,21 @@ class TestSummaryAgentsRobustness:
         assert len(messages) == 1
         assert messages[0].type == "system"
         assert "This prior message should be ignored." not in messages[0].content
+
     def test_holding_reviewer_ignores_prior_message_history(self):
         captured = []
+
         def _invoke(input, config=None, **kwargs):
             captured.append(input)
             return AIMessage(content="{}")
-        
+
         class MockLLM:
             def __init__(self):
                 self.runnable = RunnableLambda(_invoke)
+
             def bind_tools(self, tools):
                 return self.runnable
-        
+
         llm = MockLLM()
         agent = create_holding_reviewer(llm)
         state = {

@@ -1,4 +1,3 @@
-
 import questionary
 import requests
 from rich.console import Console
@@ -8,8 +7,8 @@ from cli.models import AnalystType
 console = Console()
 
 
-
 TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+
 
 def _fetch_ollama_models(base_url: str = "http://localhost:11434") -> list[tuple[str, str]]:
     """Fetch available models from a running Ollama instance."""
@@ -71,8 +70,9 @@ def get_analysis_date() -> str:
 
     date = questionary.text(
         "Enter the analysis date (YYYY-MM-DD):",
-        validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
+        validate=lambda x: (
+            validate_date(x.strip()) or "Please enter a valid date in YYYY-MM-DD format."
+        ),
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -92,9 +92,7 @@ def select_analysts() -> list[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
-        choices=[
-            questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in ANALYST_ORDER],
         instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
@@ -126,9 +124,7 @@ def select_research_depth() -> int:
 
     choice = questionary.select(
         "Select Your [Research Depth]:",
-        choices=[
-            questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -154,7 +150,9 @@ def select_shallow_thinking_agent(provider: str) -> str:
     if _provider == "ollama":
         ollama_models = _fetch_ollama_models()
         if not ollama_models:
-            console.print("[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]")
+            console.print(
+                "[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]"
+            )
             model = questionary.text("Model name (e.g. qwen3.5:9b):").ask()
             if not model:
                 console.print("\n[red]No model entered. Exiting...[/red]")
@@ -183,7 +181,10 @@ def select_shallow_thinking_agent(provider: str) -> str:
                 ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
             ],
             "xai": [
-                ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+                (
+                    "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                    "grok-4-1-fast-non-reasoning",
+                ),
                 ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
                 ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
             ],
@@ -196,10 +197,7 @@ def select_shallow_thinking_agent(provider: str) -> str:
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in options
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in options],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -211,9 +209,7 @@ def select_shallow_thinking_agent(provider: str) -> str:
     ).ask()
 
     if choice is None:
-        console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
-        )
+        console.print("\n[red]No shallow thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
     return choice
@@ -227,7 +223,9 @@ def select_mid_thinking_agent(provider: str) -> str:
     if _provider == "ollama":
         ollama_models = _fetch_ollama_models()
         if not ollama_models:
-            console.print("[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]")
+            console.print(
+                "[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]"
+            )
             model = questionary.text("Model name (e.g. qwen3.5:27b):").ask()
             if not model:
                 console.print("\n[red]No model entered. Exiting...[/red]")
@@ -257,7 +255,10 @@ def select_mid_thinking_agent(provider: str) -> str:
             "xai": [
                 ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
                 ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-                ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+                (
+                    "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                    "grok-4-1-fast-non-reasoning",
+                ),
             ],
             "openrouter": [
                 ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
@@ -268,10 +269,7 @@ def select_mid_thinking_agent(provider: str) -> str:
 
     choice = questionary.select(
         "Select Your [Mid-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in options
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in options],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -297,7 +295,9 @@ def select_deep_thinking_agent(provider: str) -> str:
     if _provider == "ollama":
         ollama_models = _fetch_ollama_models()
         if not ollama_models:
-            console.print("[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]")
+            console.print(
+                "[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]"
+            )
             model = questionary.text("Model name (e.g. qwen3.5:27b):").ask()
             if not model:
                 console.print("\n[red]No model entered. Exiting...[/red]")
@@ -330,7 +330,10 @@ def select_deep_thinking_agent(provider: str) -> str:
                 ("Grok 4 - Flagship model", "grok-4-0709"),
                 ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
                 ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-                ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+                (
+                    "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                    "grok-4-1-fast-non-reasoning",
+                ),
             ],
             "openrouter": [
                 ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
@@ -341,10 +344,7 @@ def select_deep_thinking_agent(provider: str) -> str:
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in options
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in options],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -361,6 +361,7 @@ def select_deep_thinking_agent(provider: str) -> str:
 
     return choice
 
+
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
@@ -372,12 +373,11 @@ def select_llm_provider() -> tuple[str, str]:
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(display, value=(display, value)) for display, value in BASE_URLS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -388,11 +388,11 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
@@ -409,11 +409,13 @@ def ask_openai_reasoning_effort() -> str:
     return questionary.select(
         "Select Reasoning Effort:",
         choices=choices,
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -429,11 +431,13 @@ def ask_anthropic_effort() -> str | None:
             questionary.Choice("Medium (balanced)", "medium"),
             questionary.Choice("Low (faster, cheaper)", "low"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -449,9 +453,11 @@ def ask_gemini_thinking_config() -> str | None:
             questionary.Choice("Enable Thinking (recommended)", "high"),
             questionary.Choice("Minimal/Disable Thinking", "minimal"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:green noinherit"),
-            ("highlighted", "fg:green noinherit"),
-            ("pointer", "fg:green noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
+            ]
+        ),
     ).ask()

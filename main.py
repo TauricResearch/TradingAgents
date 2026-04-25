@@ -9,10 +9,10 @@ config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance, no extra API keys needed)
 config["data_vendors"] = {
-    "core_stock_apis": "alpha_vantage",           # Options: alpha_vantage, yfinance
-    "technical_indicators": "alpha_vantage",      # Options: alpha_vantage, yfinance
-    "fundamental_data": "alpha_vantage",          # Options: alpha_vantage, yfinance
-    "news_data": "alpha_vantage",                 # Options: alpha_vantage, yfinance
+    "core_stock_apis": "alpha_vantage",  # Options: alpha_vantage, yfinance
+    "technical_indicators": "alpha_vantage",  # Options: alpha_vantage, yfinance
+    "fundamental_data": "alpha_vantage",  # Options: alpha_vantage, yfinance
+    "news_data": "alpha_vantage",  # Options: alpha_vantage, yfinance
 }
 
 # Initialize with custom config
@@ -23,4 +23,4 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 
 # Memorize mistakes and reflect
-ta.reflect_and_remember(1000) # parameter is the position returns
+ta.reflect_and_remember(1000)  # parameter is the position returns

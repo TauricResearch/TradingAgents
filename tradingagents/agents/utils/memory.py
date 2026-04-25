@@ -30,7 +30,7 @@ class FinancialSituationMemory:
         Simple whitespace + punctuation tokenization with lowercasing.
         """
         # Lowercase and split on non-alphanumeric characters
-        tokens = re.findall(r'\b\w+\b', text.lower())
+        tokens = re.findall(r"\b\w+\b", text.lower())
         return tokens
 
     def _rebuild_index(self):
@@ -83,11 +83,13 @@ class FinancialSituationMemory:
         for idx in top_indices:
             # Normalize score to 0-1 range for consistency
             normalized_score = scores[idx] / max_score if max_score > 0 else 0
-            results.append({
-                "matched_situation": self.documents[idx],
-                "recommendation": self.recommendations[idx],
-                "similarity_score": normalized_score,
-            })
+            results.append(
+                {
+                    "matched_situation": self.documents[idx],
+                    "recommendation": self.recommendations[idx],
+                    "similarity_score": normalized_score,
+                }
+            )
 
         return results
 

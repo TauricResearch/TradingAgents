@@ -9,6 +9,7 @@ def anonymize_ticker(text: str, ticker: str, alias: str = "TICKER_A") -> str:
     if not ticker or not text:
         return text
     import re
+
     # Escape for regex (handles dots in tickers like BRK.B)
     pattern = re.compile(re.escape(ticker), re.IGNORECASE)
     return pattern.sub(alias, text)

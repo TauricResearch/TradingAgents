@@ -16,13 +16,13 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     require_scan_context,
     save_node_report,
 )
+from tradingagents.agents.utils.scanner_states import ScannerState
 from tradingagents.agents.utils.scanner_tools import (
     get_breakout_accumulation_stocks,
     get_insider_buying_stocks,
@@ -105,7 +105,9 @@ def create_smart_money_scanner(llm: Any) -> Callable[[ScannerState], dict[str, A
             )
             raw_report = f"{report_body}\n\n{provenance_header}"
         else:
-            raw_report = f"{provenance_header}\n\n{report_body}" if report_body else provenance_header
+            raw_report = (
+                f"{provenance_header}\n\n{report_body}" if report_body else provenance_header
+            )
         tool_names = ", ".join(t.name for t in tools)
         report = tag_report(
             raw_report,

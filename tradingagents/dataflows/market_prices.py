@@ -60,7 +60,9 @@ class MarketPricesClient:
         for asset, symbol in _MARKET_PRICE_SYMBOLS.items():
             closes = self._extract_latest_closes(prices_df, symbol)
             if closes is None:
-                logger.warning("Insufficient price history for %s (%s); skipping asset.", asset, symbol)
+                logger.warning(
+                    "Insufficient price history for %s (%s); skipping asset.", asset, symbol
+                )
                 continue
 
             current_price = float(closes.iloc[-1])
@@ -86,7 +88,7 @@ class MarketPricesClient:
         # yfinance can return a Series for single symbol or a DataFrame for multiple symbols.
         # Multi-symbol case with multi-index columns: download_df["Close"] is a DataFrame.
         # Single-symbol case: download_df["Close"] is usually a Series.
-        
+
         try:
             close_col = download_df["Close"]
             if isinstance(close_col, pd.DataFrame):

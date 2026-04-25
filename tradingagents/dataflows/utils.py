@@ -6,6 +6,7 @@ import pandas as pd
 
 SavePathType = Annotated[str, "File path to save data. If None, data is not saved."]
 
+
 def save_output(data: pd.DataFrame, tag: str, save_path: SavePathType = None) -> None:
     if save_path:
         data.to_csv(save_path)

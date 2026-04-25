@@ -138,9 +138,7 @@ def test_record_outcome_only_fills_null_outcome(local_memory):
     local_memory.record_outcome("AAPL", "2026-03-20", {"correct": True})
 
     # Second outcome should not overwrite
-    result = local_memory.record_outcome(
-        "AAPL", "2026-03-20", {"correct": False}
-    )
+    result = local_memory.record_outcome("AAPL", "2026-03-20", {"correct": False})
     assert result is False
 
     history = local_memory.get_history("AAPL")
@@ -154,13 +152,15 @@ def test_record_outcome_only_fills_null_outcome(local_memory):
 
 def test_build_context_with_history(local_memory):
     """build_context should return a formatted multi-line string."""
-    local_memory.record_decision(
-        "AAPL", "2026-03-20", "BUY", "Strong momentum signal", "high"
+    local_memory.record_decision("AAPL", "2026-03-20", "BUY", "Strong momentum signal", "high")
+    local_memory.record_outcome(
+        "AAPL",
+        "2026-03-20",
+        {
+            "price_change_pct": 5.4,
+            "correct": True,
+        },
     )
-    local_memory.record_outcome("AAPL", "2026-03-20", {
-        "price_change_pct": 5.4,
-        "correct": True,
-    })
 
     context = local_memory.build_context("AAPL")
 

@@ -71,24 +71,24 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         result = self.quick_thinking_llm.invoke(messages).content
         return result
 
-    def reflect_bull_researcher(self, current_state: Any, returns_losses: float, bull_memory: Any) -> None:
+    def reflect_bull_researcher(
+        self, current_state: Any, returns_losses: float, bull_memory: Any
+    ) -> None:
         """Reflect on bull researcher's analysis and update memory."""
         situation = self._extract_current_situation(current_state)
         bull_debate_history = current_state["investment_debate_state"]["bull_history"]
 
-        result = self._reflect_on_component(
-            "BULL", bull_debate_history, situation, returns_losses
-        )
+        result = self._reflect_on_component("BULL", bull_debate_history, situation, returns_losses)
         bull_memory.add_situations([(situation, result)])
 
-    def reflect_bear_researcher(self, current_state: Any, returns_losses: float, bear_memory: Any) -> None:
+    def reflect_bear_researcher(
+        self, current_state: Any, returns_losses: float, bear_memory: Any
+    ) -> None:
         """Reflect on bear researcher's analysis and update memory."""
         situation = self._extract_current_situation(current_state)
         bear_debate_history = current_state["investment_debate_state"]["bear_history"]
 
-        result = self._reflect_on_component(
-            "BEAR", bear_debate_history, situation, returns_losses
-        )
+        result = self._reflect_on_component("BEAR", bear_debate_history, situation, returns_losses)
         bear_memory.add_situations([(situation, result)])
 
     def reflect_trader(self, current_state: Any, returns_losses: float, trader_memory: Any) -> None:
@@ -96,12 +96,12 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         situation = self._extract_current_situation(current_state)
         trader_decision = current_state["trader_investment_plan"]
 
-        result = self._reflect_on_component(
-            "TRADER", trader_decision, situation, returns_losses
-        )
+        result = self._reflect_on_component("TRADER", trader_decision, situation, returns_losses)
         trader_memory.add_situations([(situation, result)])
 
-    def reflect_invest_judge(self, current_state: Any, returns_losses: float, invest_judge_memory: Any) -> None:
+    def reflect_invest_judge(
+        self, current_state: Any, returns_losses: float, invest_judge_memory: Any
+    ) -> None:
         """Reflect on investment judge's decision and update memory."""
         situation = self._extract_current_situation(current_state)
         judge_decision = current_state["investment_debate_state"]["judge_decision"]
@@ -111,7 +111,9 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         )
         invest_judge_memory.add_situations([(situation, result)])
 
-    def reflect_portfolio_manager(self, current_state: Any, returns_losses: float, portfolio_manager_memory: Any) -> None:
+    def reflect_portfolio_manager(
+        self, current_state: Any, returns_losses: float, portfolio_manager_memory: Any
+    ) -> None:
         """Reflect on portfolio manager's decision and update memory."""
         situation = self._extract_current_situation(current_state)
         judge_decision = current_state["risk_debate_state"]["judge_decision"]

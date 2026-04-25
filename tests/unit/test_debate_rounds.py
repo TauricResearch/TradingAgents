@@ -7,6 +7,7 @@ from tradingagents.graph.conditional_logic import ConditionalLogic
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_invest_state(count: int, current_response: str = "Bull: some argument") -> dict:
     return {
         "investment_debate_state": InvestDebateState(
@@ -41,6 +42,7 @@ def _make_risk_state(count: int, latest_speaker: str = "Aggressive") -> dict:
 # ConditionalLogic default initialization
 # ---------------------------------------------------------------------------
 
+
 class TestConditionalLogicDefaults:
     def test_default_max_debate_rounds(self):
         cl = ConditionalLogic()
@@ -54,6 +56,7 @@ class TestConditionalLogicDefaults:
 # ---------------------------------------------------------------------------
 # Investment debate routing — 2 rounds
 # ---------------------------------------------------------------------------
+
 
 class TestInvestDebateRounds2:
     def setup_method(self):
@@ -100,6 +103,7 @@ class TestInvestDebateRounds2:
 # Investment debate routing — 3 rounds
 # ---------------------------------------------------------------------------
 
+
 class TestInvestDebateRounds3:
     def setup_method(self):
         self.cl = ConditionalLogic(max_debate_rounds=3)
@@ -119,6 +123,7 @@ class TestInvestDebateRounds3:
 # ---------------------------------------------------------------------------
 # Risk debate routing — 2 rounds
 # ---------------------------------------------------------------------------
+
 
 class TestRiskDebateRounds2:
     def setup_method(self):
@@ -155,10 +160,12 @@ class TestRiskDebateRounds2:
 # Config wiring — verify TradingAgentsGraph passes config to ConditionalLogic
 # ---------------------------------------------------------------------------
 
+
 class TestConfigWiring:
     def test_trading_graph_wires_debate_rounds(self):
         """ConditionalLogic should use config values, not hardcoded defaults."""
         from tradingagents.graph.conditional_logic import ConditionalLogic
+
         cl = ConditionalLogic(max_debate_rounds=2, max_risk_discuss_rounds=2)
         assert cl.max_debate_rounds == 2
         assert cl.max_risk_discuss_rounds == 2
@@ -166,5 +173,6 @@ class TestConfigWiring:
     def test_default_config_has_updated_values(self):
         """Default config should now ship with max_debate_rounds=2."""
         from tradingagents.default_config import DEFAULT_CONFIG
+
         assert DEFAULT_CONFIG["max_debate_rounds"] == 2
         assert DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2

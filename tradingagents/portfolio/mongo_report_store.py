@@ -107,12 +107,8 @@ class MongoReportStore:
         if self._indexes_ensured:
             return
         self._col.create_index([("date", DESCENDING), ("report_type", 1)])
-        self._col.create_index(
-            [("date", DESCENDING), ("report_type", 1), ("ticker", 1)]
-        )
-        self._col.create_index(
-            [("date", DESCENDING), ("report_type", 1), ("portfolio_id", 1)]
-        )
+        self._col.create_index([("date", DESCENDING), ("report_type", 1), ("ticker", 1)])
+        self._col.create_index([("date", DESCENDING), ("report_type", 1), ("portfolio_id", 1)])
         self._col.create_index("run_id")
         self._col.create_index("created_at")
         self._indexes_ensured = True
@@ -153,9 +149,7 @@ class MongoReportStore:
                 f"MongoDB connection lost during insert ({report_type}): {exc}"
             ) from exc
         except Exception as exc:
-            raise ReportStoreError(
-                f"MongoDB insert failed ({report_type}): {exc}"
-            ) from exc
+            raise ReportStoreError(f"MongoDB insert failed ({report_type}): {exc}") from exc
 
     def _load(
         self,
@@ -182,7 +176,9 @@ class MongoReportStore:
             query["run_id"] = self._run_id
 
         try:
-            doc: ReportDocument | None = self._col.find_one(query, sort=[("created_at", DESCENDING)])
+            doc: ReportDocument | None = self._col.find_one(
+                query, sort=[("created_at", DESCENDING)]
+            )
             if doc is None:
                 return None
             data: dict[str, Any] | None = doc.get("data")
@@ -195,9 +191,7 @@ class MongoReportStore:
                 f"MongoDB connection lost during load ({report_type}): {exc}"
             ) from exc
         except Exception as exc:
-            raise ReportStoreError(
-                f"MongoDB load failed ({report_type}): {exc}"
-            ) from exc
+            raise ReportStoreError(f"MongoDB load failed ({report_type}): {exc}") from exc
 
     # ------------------------------------------------------------------
     # Macro Scan
@@ -247,9 +241,7 @@ class MongoReportStore:
     # Holding Reviews
     # ------------------------------------------------------------------
 
-    def save_holding_review(
-        self, date: str, ticker: str, data: dict[str, Any]
-    ) -> str:
+    def save_holding_review(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         return self._save(date, "holding_review", data, ticker=ticker)
 
     def load_holding_review(
@@ -261,17 +253,13 @@ class MongoReportStore:
     # Risk Metrics
     # ------------------------------------------------------------------
 
-    def save_risk_metrics(
-        self, date: str, portfolio_id: str, data: dict[str, Any]
-    ) -> str:
+    def save_risk_metrics(self, date: str, portfolio_id: str, data: dict[str, Any]) -> str:
         return self._save(date, "risk_metrics", data, portfolio_id=portfolio_id)
 
     def load_risk_metrics(
         self, date: str, portfolio_id: str, *, run_id: str | None = None
     ) -> dict[str, Any] | None:
-        return self._load(
-            date, "risk_metrics", portfolio_id=portfolio_id, run_id=run_id
-        )
+        return self._load(date, "risk_metrics", portfolio_id=portfolio_id, run_id=run_id)
 
     # ------------------------------------------------------------------
     # PM Decisions
@@ -285,33 +273,38 @@ class MongoReportStore:
         markdown: str | None = None,
     ) -> str:
         return self._save(
-            date, "pm_decision", data,
-            portfolio_id=portfolio_id, markdown=markdown,
+            date,
+            "pm_decision",
+            data,
+            portfolio_id=portfolio_id,
+            markdown=markdown,
         )
 
     def load_pm_decision(
         self, date: str, portfolio_id: str, *, run_id: str | None = None
     ) -> dict[str, Any] | None:
-        return self._load(
-            date, "pm_decision", portfolio_id=portfolio_id, run_id=run_id
-        )
+        return self._load(date, "pm_decision", portfolio_id=portfolio_id, run_id=run_id)
 
     # ------------------------------------------------------------------
     # Execution Results
     # ------------------------------------------------------------------
 
-    def save_execution_result(
-        self, date: str, portfolio_id: str, data: dict[str, Any]
-    ) -> str:
+    def save_execution_result(self, date: str, portfolio_id: str, data: dict[str, Any]) -> str:
         return self._save(
-            date, "execution_result", data, portfolio_id=portfolio_id,
+            date,
+            "execution_result",
+            data,
+            portfolio_id=portfolio_id,
         )
 
     def load_execution_result(
         self, date: str, portfolio_id: str, *, run_id: str | None = None
     ) -> dict[str, Any] | None:
         return self._load(
-            date, "execution_result", portfolio_id=portfolio_id, run_id=run_id,
+            date,
+            "execution_result",
+            portfolio_id=portfolio_id,
+            run_id=run_id,
         )
 
     # ------------------------------------------------------------------
@@ -334,9 +327,7 @@ class MongoReportStore:
                 f"MongoDB connection lost during delete ({portfolio_id}): {exc}"
             ) from exc
         except Exception as exc:
-            raise ReportStoreError(
-                f"MongoDB delete failed ({portfolio_id}): {exc}"
-            ) from exc
+            raise ReportStoreError(f"MongoDB delete failed ({portfolio_id}): {exc}") from exc
 
     def list_pm_decisions(self, portfolio_id: str) -> list[dict[str, Any]]:
         """Return all PM decisions for a portfolio, newest first.
@@ -356,9 +347,7 @@ class MongoReportStore:
                 f"MongoDB connection lost during find ({portfolio_id}): {exc}"
             ) from exc
         except Exception as exc:
-            raise ReportStoreError(
-                f"MongoDB find failed ({portfolio_id}): {exc}"
-            ) from exc
+            raise ReportStoreError(f"MongoDB find failed ({portfolio_id}): {exc}") from exc
 
     # ------------------------------------------------------------------
     # Run Meta / Events
@@ -395,17 +384,13 @@ class MongoReportStore:
                 f"MongoDB connection lost during find (run_meta): {exc}"
             ) from exc
         except Exception as exc:
-            raise ReportStoreError(
-                f"MongoDB find failed (run_meta): {exc}"
-            ) from exc
+            raise ReportStoreError(f"MongoDB find failed (run_meta): {exc}") from exc
 
     # ------------------------------------------------------------------
     # Analyst / Trader Checkpoints
     # ------------------------------------------------------------------
 
-    def save_analysts_checkpoint(
-        self, date: str, ticker: str, data: dict[str, Any]
-    ) -> str:
+    def save_analysts_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         return self._save(date, "analysts_checkpoint", data, ticker=ticker)
 
     def load_analysts_checkpoint(
@@ -413,9 +398,7 @@ class MongoReportStore:
     ) -> dict[str, Any] | None:
         return self._load(date, "analysts_checkpoint", ticker=ticker, run_id=run_id)
 
-    def save_trader_checkpoint(
-        self, date: str, ticker: str, data: dict[str, Any]
-    ) -> str:
+    def save_trader_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> str:
         return self._save(date, "trader_checkpoint", data, ticker=ticker)
 
     def load_trader_checkpoint(

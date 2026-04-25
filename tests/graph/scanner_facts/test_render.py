@@ -2,6 +2,7 @@
 
 All tests use in-memory facts dicts. No real files except the LangChain tool integration test.
 """
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +20,8 @@ def _make_facts(nodes, edges, global_regime=None):
         "scan_date": "2026-04-16",
         "run_id": "TESTRUN",
         "source_dir": "reports/daily/2026-04-16/TESTRUN/market",
-        "global_regime": global_regime or {
+        "global_regime": global_regime
+        or {
             "summary": "Risk-On regime with S&P 500 reaching new highs.",
             "bullets": [
                 "Technology leads 1-month returns.",
@@ -29,30 +31,78 @@ def _make_facts(nodes, edges, global_regime=None):
         },
         "nodes": nodes,
         "edges": edges,
-        "metadata": {"node_count": len(nodes), "edge_count": len(edges), "generated_at": "2026-04-16T00:00:00Z", "inputs": []},
+        "metadata": {
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "generated_at": "2026-04-16T00:00:00Z",
+            "inputs": [],
+        },
     }
 
 
 def _ticker(id_, aliases=None):
-    return {"id": id_, "type": "Ticker", "label": id_, "aliases": aliases or [], "provenance": ["smart_money_summary.md#Candidate Rows"], "evidence": [f"{id_} observed"], "confidence": 0.95}
+    return {
+        "id": id_,
+        "type": "Ticker",
+        "label": id_,
+        "aliases": aliases or [],
+        "provenance": ["smart_money_summary.md#Candidate Rows"],
+        "evidence": [f"{id_} observed"],
+        "confidence": 0.95,
+    }
 
 
 def _sector(id_):
-    return {"id": id_, "type": "Sector", "label": id_, "aliases": [], "provenance": ["sector_summary.md#Candidate Rows"], "evidence": [f"{id_} sector strength"], "confidence": 0.90}
+    return {
+        "id": id_,
+        "type": "Sector",
+        "label": id_,
+        "aliases": [],
+        "provenance": ["sector_summary.md#Candidate Rows"],
+        "evidence": [f"{id_} sector strength"],
+        "confidence": 0.90,
+    }
 
 
 def _theme(id_):
-    return {"id": id_, "type": "Theme", "label": id_, "aliases": [], "provenance": ["macro_scan_summary.json#key_themes"], "evidence": [f"{id_} theme active"], "confidence": 0.85}
+    return {
+        "id": id_,
+        "type": "Theme",
+        "label": id_,
+        "aliases": [],
+        "provenance": ["macro_scan_summary.json#key_themes"],
+        "evidence": [f"{id_} theme active"],
+        "confidence": 0.85,
+    }
 
 
 def _risk(id_):
-    return {"id": id_, "type": "RiskFactor", "label": id_, "aliases": [], "provenance": ["gatekeeper_summary.md#Risk / Failure Modes"], "evidence": [f"{id_} risk noted"], "confidence": 0.80}
-
-
-def _edge(src, rel, tgt, evidence="", polarity="", confidence=0.90, prov="smart_money_summary.md#Candidate Rows"):
     return {
-        "source": src, "relation": rel, "target": tgt,
-        "polarity": polarity, "provenance": prov,
+        "id": id_,
+        "type": "RiskFactor",
+        "label": id_,
+        "aliases": [],
+        "provenance": ["gatekeeper_summary.md#Risk / Failure Modes"],
+        "evidence": [f"{id_} risk noted"],
+        "confidence": 0.80,
+    }
+
+
+def _edge(
+    src,
+    rel,
+    tgt,
+    evidence="",
+    polarity="",
+    confidence=0.90,
+    prov="smart_money_summary.md#Candidate Rows",
+):
+    return {
+        "source": src,
+        "relation": rel,
+        "target": tgt,
+        "polarity": polarity,
+        "provenance": prov,
         "evidence": evidence or f"{src} {rel} {tgt}",
         "confidence": confidence,
     }
@@ -60,10 +110,15 @@ def _edge(src, rel, tgt, evidence="", polarity="", confidence=0.90, prov="smart_
 
 # ---- basic rendering ----
 
+
 def test_render_returns_string():
     facts = _make_facts(
         nodes=[_ticker("ON"), _sector("Technology")],
-        edges=[_edge("ON", "BELONGS_TO", "Technology", "ON | Technology | Breakout", polarity="bullish")],
+        edges=[
+            _edge(
+                "ON", "BELONGS_TO", "Technology", "ON | Technology | Breakout", polarity="bullish"
+            )
+        ],
     )
     result = render_ticker_graph_context(facts, "ON")
     assert isinstance(result, str)
@@ -102,7 +157,15 @@ def test_render_belongs_to_template():
 def test_render_drives_sentiment_template():
     facts = _make_facts(
         nodes=[_ticker("ON"), _theme("Breakout Accumulation")],
-        edges=[_edge("ON", "DRIVES_SENTIMENT", "Breakout Accumulation", "insider buying observed", polarity="bullish")],
+        edges=[
+            _edge(
+                "ON",
+                "DRIVES_SENTIMENT",
+                "Breakout Accumulation",
+                "insider buying observed",
+                polarity="bullish",
+            )
+        ],
     )
     result = render_ticker_graph_context(facts, "ON")
     assert "ON is linked to Breakout Accumulation" in result
@@ -134,7 +197,9 @@ def test_render_exposed_to_template():
 def test_render_contains_provenance_section():
     facts = _make_facts(
         nodes=[_ticker("ON"), _sector("Technology")],
-        edges=[_edge("ON", "BELONGS_TO", "Technology", prov="smart_money_summary.md#Candidate Rows")],
+        edges=[
+            _edge("ON", "BELONGS_TO", "Technology", prov="smart_money_summary.md#Candidate Rows")
+        ],
     )
     result = render_ticker_graph_context(facts, "ON")
     assert "Provenance" in result
@@ -143,13 +208,28 @@ def test_render_contains_provenance_section():
 
 # ---- dedup ----
 
+
 def test_render_dedup_same_triple():
     """Same (subject, relation, object) from two sources must appear only once in output."""
     facts = _make_facts(
         nodes=[_ticker("ON"), _sector("Technology")],
         edges=[
-            _edge("ON", "BELONGS_TO", "Technology", "source A evidence", confidence=0.90, prov="smart_money_summary.md#Candidate Rows"),
-            _edge("ON", "BELONGS_TO", "Technology", "source B evidence", confidence=0.95, prov="industry_deep_dive_summary.md#Candidate Rows"),
+            _edge(
+                "ON",
+                "BELONGS_TO",
+                "Technology",
+                "source A evidence",
+                confidence=0.90,
+                prov="smart_money_summary.md#Candidate Rows",
+            ),
+            _edge(
+                "ON",
+                "BELONGS_TO",
+                "Technology",
+                "source B evidence",
+                confidence=0.95,
+                prov="industry_deep_dive_summary.md#Candidate Rows",
+            ),
         ],
     )
     result = render_ticker_graph_context(facts, "ON")
@@ -164,7 +244,13 @@ def test_render_dedup_keeps_highest_confidence():
         nodes=[_ticker("ON"), _sector("Technology")],
         edges=[
             _edge("ON", "BELONGS_TO", "Technology", confidence=0.75, prov="low_conf_source.md"),
-            _edge("ON", "BELONGS_TO", "Technology", confidence=0.95, prov="industry_deep_dive_summary.md#Candidate Rows"),
+            _edge(
+                "ON",
+                "BELONGS_TO",
+                "Technology",
+                confidence=0.95,
+                prov="industry_deep_dive_summary.md#Candidate Rows",
+            ),
         ],
     )
     result = render_ticker_graph_context(facts, "ON")
@@ -173,10 +259,14 @@ def test_render_dedup_keeps_highest_confidence():
 
 # ---- budget truncation ----
 
+
 def test_render_char_budget_respected():
     """Output must not exceed char_budget."""
     nodes = [_ticker("ON")] + [_sector(f"Sector{i}") for i in range(30)]
-    edges = [_edge("ON", "BELONGS_TO", f"Sector{i}", f"evidence text for sector {i} " * 5) for i in range(30)]
+    edges = [
+        _edge("ON", "BELONGS_TO", f"Sector{i}", f"evidence text for sector {i} " * 5)
+        for i in range(30)
+    ]
     facts = _make_facts(nodes=nodes, edges=edges)
 
     result = render_ticker_graph_context(facts, "ON", char_budget=500)
@@ -186,7 +276,10 @@ def test_render_char_budget_respected():
 def test_render_budget_appends_omission_notice():
     """When truncation occurs, output must end with '... (N more facts omitted)'."""
     nodes = [_ticker("ON")] + [_sector(f"Sector{i}") for i in range(30)]
-    edges = [_edge("ON", "BELONGS_TO", f"Sector{i}", f"evidence text for sector {i} " * 5) for i in range(30)]
+    edges = [
+        _edge("ON", "BELONGS_TO", f"Sector{i}", f"evidence text for sector {i} " * 5)
+        for i in range(30)
+    ]
     facts = _make_facts(nodes=nodes, edges=edges)
 
     result = render_ticker_graph_context(facts, "ON", char_budget=300)
@@ -222,6 +315,7 @@ def test_render_provenance_truncated_first():
 
 # ---- empty / missing ----
 
+
 def test_render_empty_subgraph_empty_regime_returns_empty_string():
     _make_facts(
         nodes=[],
@@ -248,11 +342,19 @@ def test_render_unknown_ticker_raises():
 
 # ---- alias resolution ----
 
+
 def test_render_resolves_alias():
     """Rendering via alias should produce same output as canonical id."""
     nodes = [
-        {"id": "ON", "type": "Ticker", "label": "ON", "aliases": ["ON Semiconductor", "Onsemi"],
-         "provenance": ["smart_money_summary.md"], "evidence": ["ON breakout"], "confidence": 0.95},
+        {
+            "id": "ON",
+            "type": "Ticker",
+            "label": "ON",
+            "aliases": ["ON Semiconductor", "Onsemi"],
+            "provenance": ["smart_money_summary.md"],
+            "evidence": ["ON breakout"],
+            "confidence": 0.95,
+        },
         _sector("Technology"),
     ]
     facts = _make_facts(nodes=nodes, edges=[_edge("ON", "BELONGS_TO", "Technology")])
@@ -262,6 +364,7 @@ def test_render_resolves_alias():
 
 
 # ---- render tool ----
+
 
 def test_render_tool_produces_same_output(tmp_path):
     """LangChain render tool invocation must produce identical text to direct function call."""
@@ -281,6 +384,7 @@ def test_render_tool_produces_same_output(tmp_path):
         return_value=artifact_path,
     ):
         from tradingagents.graph.scanner_facts.render import get_render_tool
+
         tool = get_render_tool()
         assert tool.name == "render_ticker_graph_context"
         tool_result = tool.invoke({"scan_date": "2026-04-16", "run_id": "TESTRUN", "ticker": "ON"})
@@ -302,6 +406,7 @@ def test_render_tool_missing_ticker_raises(tmp_path):
         return_value=artifact_path,
     ):
         from tradingagents.graph.scanner_facts.render import get_render_tool
+
         tool = get_render_tool()
         with pytest.raises(KeyError):
             tool.invoke({"scan_date": "2026-04-16", "run_id": "TESTRUN", "ticker": "UNKNOWN_999"})

@@ -1,4 +1,5 @@
 """Tests for scanner_graph_context_text field in AgentState and Propagator."""
+
 from tradingagents.graph.propagation import Propagator
 
 
@@ -34,6 +35,7 @@ def test_create_initial_state_with_scanner_context():
 def test_agent_state_has_scanner_context_field():
     """AgentState TypedDict must include scanner_graph_context_text."""
     from tradingagents.agents.utils.agent_states import AgentState
+
     # AgentState is a TypedDict — check field is in __annotations__
     annotations = {}
     for cls in type(AgentState).__mro__:
@@ -45,6 +47,7 @@ def test_agent_state_has_scanner_context_field():
 def test_scanner_context_packet_still_present():
     """scanner_context_packet must remain (used by operator resume paths)."""
     from tradingagents.agents.utils.agent_states import AgentState
+
     annotations = {}
     for cls in type(AgentState).__mro__:
         annotations.update(getattr(cls, "__annotations__", {}))

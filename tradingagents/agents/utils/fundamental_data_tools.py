@@ -135,6 +135,7 @@ def get_ttm_analysis(
     quarters = metrics["quarters_available"]
     if parse_errors or quarters == 0:
         from tradingagents.observability import get_run_logger
+
         rl = get_run_logger()
         if rl:
             rl.log_warning(

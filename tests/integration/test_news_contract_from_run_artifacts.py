@@ -28,10 +28,7 @@ pytestmark = pytest.mark.integration
 
 
 FIXTURE_PATH = (
-    Path(__file__).parent
-    / "fixtures"
-    / "scanner_artifacts"
-    / "mrvl_2026_04_10_news_contract.json"
+    Path(__file__).parent / "fixtures" / "scanner_artifacts" / "mrvl_2026_04_10_news_contract.json"
 )
 
 

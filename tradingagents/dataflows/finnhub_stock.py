@@ -49,13 +49,10 @@ def get_stock_candles(symbol: str, start_date: str, end_date: str) -> str:
     status = data.get("s")
     if status == "no_data":
         raise FinnhubError(
-            f"No candle data returned for symbol={symbol}, "
-            f"start={start_date}, end={end_date}"
+            f"No candle data returned for symbol={symbol}, start={start_date}, end={end_date}"
         )
     if status != "ok":
-        raise FinnhubError(
-            f"Unexpected candle response status '{status}' for symbol={symbol}"
-        )
+        raise FinnhubError(f"Unexpected candle response status '{status}' for symbol={symbol}")
 
     # Finnhub returns parallel lists: t (timestamps), o, h, l, c, v
     timestamps: list[int] = data.get("t", [])
@@ -67,8 +64,7 @@ def get_stock_candles(symbol: str, start_date: str, end_date: str) -> str:
 
     if not timestamps:
         raise FinnhubError(
-            f"Empty candle data for symbol={symbol}, "
-            f"start={start_date}, end={end_date}"
+            f"Empty candle data for symbol={symbol}, start={start_date}, end={end_date}"
         )
 
     rows: list[str] = ["timestamp,open,high,low,close,volume"]

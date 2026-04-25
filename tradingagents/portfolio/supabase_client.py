@@ -57,6 +57,7 @@ class SupabaseClient:
     def _fix_dsn(dsn: str) -> str:
         """URL-encode the password if it contains special characters."""
         from urllib.parse import quote
+
         if "://" not in dsn:
             return dsn  # already key=value format
         scheme, rest = dsn.split("://", 1)
@@ -64,12 +65,12 @@ class SupabaseClient:
         if at_idx == -1:
             return dsn
         userinfo = rest[:at_idx]
-        hostinfo = rest[at_idx + 1:]
+        hostinfo = rest[at_idx + 1 :]
         colon_idx = userinfo.find(":")
         if colon_idx == -1:
             return dsn
         user = userinfo[:colon_idx]
-        password = userinfo[colon_idx + 1:]
+        password = userinfo[colon_idx + 1 :]
         encoded = quote(password, safe="")
         return f"{scheme}://{user}:{encoded}@{hostinfo}"
 
@@ -120,9 +121,15 @@ class SupabaseClient:
                        (portfolio_id, name, cash, initial_cash, currency, report_path, metadata)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                        RETURNING *""",
-                    (pid, portfolio.name, portfolio.cash, portfolio.initial_cash,
-                     portfolio.currency, portfolio.report_path,
-                     json.dumps(portfolio.metadata)),
+                    (
+                        pid,
+                        portfolio.name,
+                        portfolio.cash,
+                        portfolio.initial_cash,
+                        portfolio.currency,
+                        portfolio.report_path,
+                        json.dumps(portfolio.metadata),
+                    ),
                 )
                 row = cur.fetchone()
         except psycopg2.errors.UniqueViolation as exc:
@@ -146,7 +153,10 @@ class SupabaseClient:
         except psycopg2.errors.InvalidTextRepresentation:
             # portfolio_id is not a valid UUID — try by name instead.
             with self._cursor() as cur:
-                cur.execute("SELECT * FROM portfolios WHERE name = %s ORDER BY created_at DESC LIMIT 1", (portfolio_id,))
+                cur.execute(
+                    "SELECT * FROM portfolios WHERE name = %s ORDER BY created_at DESC LIMIT 1",
+                    (portfolio_id,),
+                )
                 row = cur.fetchone()
         if row is None:
             raise PortfolioNotFoundError(f"Portfolio not found: {portfolio_id}")
@@ -167,8 +177,12 @@ class SupabaseClient:
                    SET cash = %s, report_path = %s, metadata = %s
                    WHERE portfolio_id = %s
                    RETURNING *""",
-                (portfolio.cash, portfolio.report_path,
-                 json.dumps(portfolio.metadata), portfolio.portfolio_id),
+                (
+                    portfolio.cash,
+                    portfolio.report_path,
+                    json.dumps(portfolio.metadata),
+                    portfolio.portfolio_id,
+                ),
             )
             row = cur.fetchone()
         if row is None:
@@ -204,8 +218,15 @@ class SupabaseClient:
                                  sector = EXCLUDED.sector,
                                  industry = EXCLUDED.industry
                    RETURNING *""",
-                (hid, holding.portfolio_id, holding.ticker.upper(),
-                 holding.shares, holding.avg_cost, holding.sector, holding.industry),
+                (
+                    hid,
+                    holding.portfolio_id,
+                    holding.ticker.upper(),
+                    holding.shares,
+                    holding.avg_cost,
+                    holding.sector,
+                    holding.industry,
+                ),
             )
             row = cur.fetchone()
         if row is None:
@@ -243,15 +264,12 @@ class SupabaseClient:
             )
             row = cur.fetchone()
         if not row:
-            raise HoldingNotFoundError(
-                f"Holding not found: {ticker} in portfolio {portfolio_id}"
-            )
-
+            raise HoldingNotFoundError(f"Holding not found: {ticker} in portfolio {portfolio_id}")
 
     def batch_upsert_holdings(self, holdings: list[Holding]) -> None:
         if not holdings:
             return
-        query = '''
+        query = """
             INSERT INTO holdings
             (holding_id, portfolio_id, ticker, shares, avg_cost, sector, industry)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -260,9 +278,17 @@ class SupabaseClient:
                           avg_cost = EXCLUDED.avg_cost,
                           sector = EXCLUDED.sector,
                           industry = EXCLUDED.industry
-        '''
+        """
         params = [
-            (h.holding_id or str(uuid.uuid4()), h.portfolio_id, h.ticker.upper(), h.shares, h.avg_cost, h.sector, h.industry)
+            (
+                h.holding_id or str(uuid.uuid4()),
+                h.portfolio_id,
+                h.ticker.upper(),
+                h.shares,
+                h.avg_cost,
+                h.sector,
+                h.industry,
+            )
             for h in holdings
         ]
         with self._cursor() as cur:
@@ -290,10 +316,18 @@ class SupabaseClient:
                     total_value, rationale, signal_source, metadata)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                    RETURNING *""",
-                (tid, trade.portfolio_id, trade.ticker, trade.action,
-                 trade.shares, trade.price, trade.total_value,
-                 trade.rationale, trade.signal_source,
-                 json.dumps(trade.metadata)),
+                (
+                    tid,
+                    trade.portfolio_id,
+                    trade.ticker,
+                    trade.action,
+                    trade.shares,
+                    trade.price,
+                    trade.total_value,
+                    trade.rationale,
+                    trade.signal_source,
+                    json.dumps(trade.metadata),
+                ),
             )
             row = cur.fetchone()
         if row is None:
@@ -322,20 +356,28 @@ class SupabaseClient:
             rows = cur.fetchall()
         return [self._row_to_trade(r) for r in rows]
 
-
     def batch_record_trades(self, trades: list[Trade]) -> None:
         if not trades:
             return
-        query = '''
+        query = """
             INSERT INTO trades
             (trade_id, portfolio_id, ticker, action, shares, price,
              total_value, rationale, signal_source, metadata)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        '''
+        """
         params = [
-            (t.trade_id or str(uuid.uuid4()), t.portfolio_id, t.ticker, t.action,
-             t.shares, t.price, t.total_value, t.rationale, t.signal_source,
-             json.dumps(t.metadata))
+            (
+                t.trade_id or str(uuid.uuid4()),
+                t.portfolio_id,
+                t.ticker,
+                t.action,
+                t.shares,
+                t.price,
+                t.total_value,
+                t.rationale,
+                t.signal_source,
+                json.dumps(t.metadata),
+            )
             for t in trades
         ]
         with self._cursor() as cur:
@@ -355,10 +397,16 @@ class SupabaseClient:
                     num_positions, holdings_snapshot, metadata)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                    RETURNING *""",
-                (sid, snapshot.portfolio_id, snapshot.total_value,
-                 snapshot.cash, snapshot.equity_value, snapshot.num_positions,
-                 json.dumps(snapshot.holdings_snapshot),
-                 json.dumps(snapshot.metadata)),
+                (
+                    sid,
+                    snapshot.portfolio_id,
+                    snapshot.total_value,
+                    snapshot.cash,
+                    snapshot.equity_value,
+                    snapshot.num_positions,
+                    json.dumps(snapshot.holdings_snapshot),
+                    json.dumps(snapshot.metadata),
+                ),
             )
             row = cur.fetchone()
         if row is None:
@@ -441,7 +489,15 @@ class SupabaseClient:
 
     @staticmethod
     def _row_to_trade(row: RealDictRow) -> Trade:
-        required_keys = {"trade_id", "portfolio_id", "ticker", "action", "shares", "price", "total_value"}
+        required_keys = {
+            "trade_id",
+            "portfolio_id",
+            "ticker",
+            "action",
+            "shares",
+            "price",
+            "total_value",
+        }
         if not required_keys.issubset(row.keys()):
             missing = required_keys - row.keys()
             raise ValueError(f"Trade row missing required keys: {missing}")
@@ -471,7 +527,14 @@ class SupabaseClient:
 
     @staticmethod
     def _row_to_snapshot(row: RealDictRow) -> PortfolioSnapshot:
-        required_keys = {"snapshot_id", "portfolio_id", "total_value", "cash", "equity_value", "num_positions"}
+        required_keys = {
+            "snapshot_id",
+            "portfolio_id",
+            "total_value",
+            "cash",
+            "equity_value",
+            "num_positions",
+        }
         if not required_keys.issubset(row.keys()):
             missing = required_keys - row.keys()
             raise ValueError(f"Snapshot row missing required keys: {missing}")

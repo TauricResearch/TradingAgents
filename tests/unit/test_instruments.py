@@ -85,5 +85,10 @@ def test_instrument_preflight_allows_common_stock():
 
 
 def test_route_after_preflight_sends_aborted_runs_to_end():
-    assert GraphSetup._route_after_preflight({"analysis_status": "aborted"}, "Market Analyst") == "END"
-    assert GraphSetup._route_after_preflight({"analysis_status": "pending"}, "Market Analyst") == "Market Analyst"
+    assert (
+        GraphSetup._route_after_preflight({"analysis_status": "aborted"}, "Market Analyst") == "END"
+    )
+    assert (
+        GraphSetup._route_after_preflight({"analysis_status": "pending"}, "Market Analyst")
+        == "Market Analyst"
+    )

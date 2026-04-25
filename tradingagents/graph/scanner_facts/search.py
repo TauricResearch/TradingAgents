@@ -4,6 +4,7 @@ Traversal is undirected (edges followed in both directions).
 Output edges preserve their original stored direction.
 Unknown ticker raises KeyError — never returns empty silently.
 """
+
 from __future__ import annotations
 
 import logging
@@ -83,7 +84,7 @@ def retrieve_ticker_subgraph(
         adjacency.setdefault(tgt, []).append((edge, src))
 
     # BFS
-    visited_nodes: dict[str, dict] = {}   # id → node dict
+    visited_nodes: dict[str, dict] = {}  # id → node dict
     collected_edges: list[dict] = []
     seen_edge_keys: set[tuple] = set()
 

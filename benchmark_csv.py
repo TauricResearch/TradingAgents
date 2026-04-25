@@ -1,4 +1,3 @@
-
 # Test the performance difference of creating a DataFrame using `engine="c"`
 # vs `engine="python"` in `pd.read_csv`, or just checking the overhead of
 # `pd.read_csv` and iterating.

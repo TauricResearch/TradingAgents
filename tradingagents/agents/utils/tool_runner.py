@@ -39,9 +39,7 @@ MAX_TOOL_OUTPUT_CHARS = 5000
 # Hard cap on a single tool invocation.  yf.download() and similar network
 # calls can hang indefinitely on rate-limit or DNS issues; this prevents one
 # blocked tool call from deadlocking an entire LangGraph fan-out.
-TOOL_EXECUTION_TIMEOUT = float(
-    DEFAULT_CONFIG.get("tool_execution_timeout") or 60.0
-)
+TOOL_EXECUTION_TIMEOUT = float(DEFAULT_CONFIG.get("tool_execution_timeout") or 60.0)
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +90,21 @@ def run_tool_loop(
     attempted_tools: list[str] = []
     successful_tools: list[str] = []
     result = None
-    effective_max_tokens = max_tokens if max_tokens is not None else DEFAULT_CONFIG.get("scanner_llm_max_tokens")
-    _cap = float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
+    effective_max_tokens = (
+        max_tokens if max_tokens is not None else DEFAULT_CONFIG.get("scanner_llm_max_tokens")
+    )
+    _cap = float(
+        DEFAULT_CONFIG.get("tool_loop_timeout_cap")
+        or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap")
+        or 300.0
+    )
     timeout_seconds = min(
-        float(invoke_timeout_seconds or DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+        float(
+            invoke_timeout_seconds
+            or DEFAULT_CONFIG.get("quick_think_llm_timeout")
+            or DEFAULT_CONFIG.get("llm_timeout")
+            or _cap
+        ),
         _cap,
     )
 
@@ -103,8 +112,7 @@ def run_tool_loop(
         required_tools = ", ".join(tool_map.keys()) or "none"
         attempted = ", ".join(attempted_tools) or "none"
         missing_tools = [
-            tool_name for tool_name in tool_map
-            if tool_name not in set(successful_tools)
+            tool_name for tool_name in tool_map if tool_name not in set(successful_tools)
         ]
         missing = ", ".join(missing_tools) or "none"
         label = node_name or "unknown"
@@ -178,9 +186,7 @@ def run_tool_loop(
                     f"({tool_names}) before writing your final report. "
                     "Please call the tools now."
                 )
-                current_messages.append(
-                    HumanMessage(content=nudge)
-                )
+                current_messages.append(HumanMessage(content=nudge))
                 nudge_count += 1
                 continue
             if require_tool_result and not tools_ever_used:
@@ -212,7 +218,9 @@ def run_tool_loop(
                         f"LLM called unknown tool '{tool_name}' — hallucinated name; "
                         f"valid tools: {valid_names}"
                     )
-                    rl.log_tool_call(tool_name, str(tool_args)[:120], False, 0, error="unknown tool")
+                    rl.log_tool_call(
+                        tool_name, str(tool_args)[:120], False, 0, error="unknown tool"
+                    )
             else:
                 t0 = time.time()
                 try:
@@ -233,7 +241,9 @@ def run_tool_loop(
                     elapsed_ms = (time.time() - t0) * 1000
                     tool_output = f"Error calling {tool_name}: {e}"
                     if rl:
-                        rl.log_tool_call(tool_name, str(tool_args)[:120], False, elapsed_ms, error=str(e)[:200])
+                        rl.log_tool_call(
+                            tool_name, str(tool_args)[:120], False, elapsed_ms, error=str(e)[:200]
+                        )
 
             raw_tool_output = str(tool_output)
             tool_output_text = raw_tool_output
@@ -244,9 +254,7 @@ def run_tool_loop(
                     f"... [truncated {len(raw_tool_output) - head} chars for tool-loop context safety]"
                 )
 
-            current_messages.append(
-                ToolMessage(content=tool_output_text, tool_call_id=tc["id"])
-            )
+            current_messages.append(ToolMessage(content=tool_output_text, tool_call_id=tc["id"]))
 
         # Only count this round as "tools used" if at least one call succeeded.
         # Hallucinated tool names return error ToolMessages but should not

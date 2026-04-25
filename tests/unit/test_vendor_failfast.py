@@ -41,6 +41,7 @@ class TestFailFastMethods:
     def test_indicators_fail_fast_no_fallback(self):
         """get_indicators configured for alpha_vantage should NOT fall back to yfinance."""
         from tradingagents.dataflows.interface import VENDOR_METHODS
+
         config = _config_with_vendor("technical_indicators", "alpha_vantage")
 
         original = VENDOR_METHODS["get_indicators"]["alpha_vantage"]
@@ -69,6 +70,7 @@ class TestFailFastMethods:
     def test_insider_transactions_fail_fast_no_fallback(self):
         """get_insider_transactions configured for finnhub should NOT fall back."""
         from tradingagents.dataflows.interface import VENDOR_METHODS
+
         config = _config_with_vendor("news_data", "finnhub")
 
         original = VENDOR_METHODS["get_insider_transactions"]["finnhub"]
@@ -77,7 +79,9 @@ class TestFailFastMethods:
         )
         try:
             with patch("tradingagents.dataflows.interface.get_config", return_value=config):
-                with pytest.raises(RuntimeError, match="All vendors failed for 'get_insider_transactions'"):
+                with pytest.raises(
+                    RuntimeError, match="All vendors failed for 'get_insider_transactions'"
+                ):
                     route_to_vendor("get_insider_transactions", "AAPL")
         finally:
             VENDOR_METHODS["get_insider_transactions"]["finnhub"] = original
@@ -85,6 +89,7 @@ class TestFailFastMethods:
     def test_topic_news_fail_fast_no_fallback(self):
         """get_topic_news should NOT fall back across vendors."""
         from tradingagents.dataflows.interface import VENDOR_METHODS
+
         config = _config_with_vendor("scanner_data", "finnhub")
 
         original = VENDOR_METHODS["get_topic_news"]["finnhub"]
@@ -101,6 +106,7 @@ class TestFailFastMethods:
     def test_calendar_fail_fast_single_vendor(self):
         """get_earnings_calendar (Finnhub-only) fails fast."""
         from tradingagents.dataflows.interface import VENDOR_METHODS
+
         config = _config_with_vendor("calendar_data", "finnhub")
 
         original = VENDOR_METHODS["get_earnings_calendar"]["finnhub"]
@@ -109,7 +115,9 @@ class TestFailFastMethods:
         )
         try:
             with patch("tradingagents.dataflows.interface.get_config", return_value=config):
-                with pytest.raises(RuntimeError, match="All vendors failed for 'get_earnings_calendar'"):
+                with pytest.raises(
+                    RuntimeError, match="All vendors failed for 'get_earnings_calendar'"
+                ):
                     route_to_vendor("get_earnings_calendar", "2024-01-01", "2024-01-05")
         finally:
             VENDOR_METHODS["get_earnings_calendar"]["finnhub"] = original
@@ -171,8 +179,13 @@ class TestFallbackAllowedStillWorks:
 
         config = _config_with_vendor("core_stock_apis", "alpha_vantage")
         df = pd.DataFrame(
-            {"Open": [183.0], "High": [186.0], "Low": [182.5],
-             "Close": [185.0], "Volume": [45_000_000]},
+            {
+                "Open": [183.0],
+                "High": [186.0],
+                "Low": [182.5],
+                "Close": [185.0],
+                "Volume": [45_000_000],
+            },
             index=pd.date_range("2024-01-04", periods=1, freq="B", tz="America/New_York"),
         )
         mock_ticker = MagicMock()

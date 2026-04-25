@@ -13,6 +13,4 @@ def test_insufficient_evidence_marker_dominates_even_after_provenance():
 
     tagged = tag_report(report, node_name="smart_money_scanner")
 
-    assert tagged.startswith(
-        "[QUALITY: empty | issues=insufficient_evidence_marker | evidence=0]"
-    )
+    assert tagged.startswith("[QUALITY: empty | issues=insufficient_evidence_marker | evidence=0]")

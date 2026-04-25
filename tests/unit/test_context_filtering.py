@@ -95,9 +95,9 @@ class TestFilterEarningsCalendar:
 2026-04-04: SLB (Energy) - Q1 earnings
 2026-04-05: HAL (Energy) - Q2 earnings
 """
-        
+
         result = filter_earnings_calendar(earnings, "RIG", top_n_sector=3, top_n_overall=2)
-        
+
         # Should include RIG
         assert "RIG" in result
         # Should include same-sector companies (Energy)
@@ -106,11 +106,11 @@ class TestFilterEarningsCalendar:
         assert "AAPL" in result or "TSLA" in result
         # Should have filtering note
         assert "Filtered" in result
-    
+
     def test_handles_empty_input(self):
         result = filter_earnings_calendar("", "RIG")
         assert result == ""
-    
+
     def test_handles_no_ticker_match(self):
         earnings = "2026-04-01: AAPL - earnings\n2026-04-02: MSFT - earnings"
         result = filter_earnings_calendar(earnings, "XYZ", top_n_sector=5)
@@ -129,29 +129,29 @@ class TestFilterEconomicCalendar:
 2026-04-10: Building Permits (Low Importance)
 2026-04-12: Industrial Production (Medium Importance)
 """
-        
+
         result = filter_economic_calendar(econ, max_events=3)
-        
+
         # Should include high-importance events
         assert "FOMC" in result or "CPI" in result or "NFP" in result
         # Should be shorter
         assert len(result) < len(econ)
         # Should mention filtering
         assert "Filtered" in result or "high-priority" in result.lower()
-    
+
     def test_detects_key_indicators_without_tags(self):
         econ = """
 2026-04-01: FOMC Meeting
 2026-04-03: GDP Release
 2026-04-05: Unemployment Report
 """
-        
+
         result = filter_economic_calendar(econ, max_events=5)
-        
+
         # Should recognize FOMC, GDP, unemployment as high priority
         assert "FOMC" in result
         assert "GDP" in result or "Unemployment" in result
-    
+
     def test_handles_empty_input(self):
         result = filter_economic_calendar("")
         assert result == ""
@@ -174,9 +174,9 @@ Materials: +2.1% (commodities play)
 
 Financials: -0.8%
 """
-        
+
         result = extract_ticker_sector_from_rotation(sector_report, "RIG")
-        
+
         # Should include Energy (ticker's sector)
         assert "Energy" in result
         # Should include Materials (related sector)
@@ -184,11 +184,11 @@ Financials: -0.8%
         # Should NOT include unrelated Financials detail
         # (may mention in passing, but shouldn't dominate)
         assert result.count("Energy") > result.count("Financials")
-    
+
     def test_handles_unknown_ticker(self):
         sector_report = "Energy: +2%, Tech: +1%, Financials: -1%"
         result = extract_ticker_sector_from_rotation(sector_report, "XYZ")
-        
+
         # Should return truncated version with note
         assert len(result) > 0
         assert "Truncated" in result or "unable" in result.lower()
@@ -208,15 +208,15 @@ Institutional flow turning negative.
 SPY Analysis:
 Large call spread opened by institutional buyers.
 """
-        
+
         result = filter_smart_money_for_ticker(smart_money, "RIG")
-        
+
         # Should include RIG-specific section
         assert "RIG" in result
         assert "Tudor" in result or "put volume" in result
         # Should filter out unrelated SPY detail
         assert result.count("RIG") > result.count("SPY")
-    
+
     def test_returns_summary_when_no_ticker_match(self):
         smart_money = """
 Market Overview:
@@ -224,9 +224,9 @@ General options activity elevated.
 
 Detail on various tickers...
 """
-        
+
         result = filter_smart_money_for_ticker(smart_money, "XYZ")
-        
+
         # Should return first paragraph + note
         assert "XYZ" in result  # In the note
         assert "no" in result.lower() and "found" in result.lower()
@@ -269,9 +269,9 @@ AAPL Factor Score:
 - Quality: +3.0
 - Growth: +2.8
 """
-        
+
         result = filter_factor_alignment_for_ticker(factor_report, "RIG")
-        
+
         # Should include RIG factors
         assert "RIG" in result
         assert "Value" in result or "Momentum" in result
@@ -279,12 +279,12 @@ AAPL Factor Score:
         assert "Macro" in result or "regime" in result.lower()
         # Should filter out unrelated AAPL detail
         assert result.count("RIG") >= result.count("AAPL")
-    
+
     def test_handles_no_ticker_match(self):
         # Use text that doesn't match summary keywords
         factor_report = "Some random analysis text about companies..."
         result = filter_factor_alignment_for_ticker(factor_report, "XYZ")
-        
+
         # Should return truncated with note about no match
         assert "XYZ" in result
         assert "No" in result and "found" in result
@@ -295,12 +295,12 @@ class TestInferSectorFromText:
         text = "RIG is a leading Energy sector company specializing in offshore drilling."
         sector = _infer_sector_from_text(text, "RIG")
         assert sector == "Energy"
-    
+
     def test_infers_technology_sector(self):
         text = "AAPL: Technology sector leader in consumer electronics."
         sector = _infer_sector_from_text(text, "AAPL")
         assert sector == "Technology" or sector == "Information Technology"
-    
+
     def test_returns_none_when_not_found(self):
         text = "XYZ is a company."
         sector = _infer_sector_from_text(text, "XYZ")
@@ -311,52 +311,54 @@ class TestFilterScannerContextForTicker:
     def test_reduces_context_size(self):
         """Test that filtering reduces context size (or stays similar for small samples)."""
         result = filter_scanner_context_for_ticker(SAMPLE_SCANNER_CONTEXT, "RIG")
-        
+
         # Our sample is small (~2K chars), so filtering overhead (notes) may increase size slightly
         # Real contexts are 10K+ and will see 60-70% reduction
         # For test sample, just verify we don't explode the size (allow up to 15% increase)
         size_ratio = len(result) / len(SAMPLE_SCANNER_CONTEXT)
-        assert size_ratio < 1.15, f"Filtered size {len(result)} is {size_ratio:.0%} of original {len(SAMPLE_SCANNER_CONTEXT)}, expected <115%"
-        
+        assert size_ratio < 1.15, (
+            f"Filtered size {len(result)} is {size_ratio:.0%} of original {len(SAMPLE_SCANNER_CONTEXT)}, expected <115%"
+        )
+
         # Should still include critical sections
         assert "TICKER-SPECIFIC SCANNER THESIS" in result or "## I." in result
         assert "MACRO & GEOPOLITICAL CONTEXT" in result or "## V." in result
         assert "KEY GLOBAL THEMES" in result or "## VII." in result
-    
+
     def test_preserves_ticker_specific_content(self):
         """Test that ticker-specific content is preserved."""
         result = filter_scanner_context_for_ticker(SAMPLE_SCANNER_CONTEXT, "RIG")
-        
+
         # Should preserve RIG-specific content
         assert "RIG" in result
         assert "Energy" in result  # Ticker's sector
         assert "Tudor" in result or "put volume" in result  # Smart money signal
-    
+
     def test_filters_irrelevant_tickers(self):
         """Test that unrelated ticker details are filtered out."""
         result = filter_scanner_context_for_ticker(SAMPLE_SCANNER_CONTEXT, "RIG")
-        
+
         # Should reduce mentions of unrelated tickers
         # RIG should appear more than TSLA
         assert result.count("RIG") > result.count("TSLA")
-    
+
     def test_handles_empty_context(self):
         """Test graceful handling of empty input."""
         result = filter_scanner_context_for_ticker("", "RIG")
         assert result == ""
-    
+
     def test_handles_malformed_context(self):
         """Test that malformed context doesn't crash."""
         malformed = "Random text without proper sections"
         result = filter_scanner_context_for_ticker(malformed, "RIG")
-        
+
         # Should return something (fallback to original)
         assert len(result) > 0
-    
+
     def test_preserves_global_macro_sections(self):
         """Test that global macro context is preserved."""
         result = filter_scanner_context_for_ticker(SAMPLE_SCANNER_CONTEXT, "RIG")
-        
+
         # Should keep global context sections
         assert "MACRO & GEOPOLITICAL CONTEXT" in result
         assert "KEY GLOBAL THEMES" in result
@@ -367,20 +369,20 @@ class TestIntegration:
     def test_full_filtering_pipeline(self):
         """Integration test: full context filtering."""
         result = filter_scanner_context_for_ticker(SAMPLE_SCANNER_CONTEXT, "RIG")
-        
+
         # Verify structure
         assert "# SCANNER CONTEXT PACKET" in result
         assert result.startswith("# SCANNER CONTEXT PACKET")
-        
+
         # Verify key sections present
         assert "## I." in result
         assert "## II." in result
-        
+
         # Verify significant size reduction
         original_size = len(SAMPLE_SCANNER_CONTEXT)
         filtered_size = len(result)
         reduction_pct = (1 - filtered_size / original_size) * 100
-        
+
         print(f"\nContext reduction: {reduction_pct:.1f}%")
         print(f"Original: {original_size} chars, Filtered: {filtered_size} chars")
 

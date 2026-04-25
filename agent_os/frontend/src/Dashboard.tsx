@@ -719,7 +719,7 @@ export const Dashboard: React.FC = () => {
         isClosable: true,
         position: 'top',
       });
-    } catch (err) {
+    } catch {
       toast({ title: 'Failed to reset portfolio stage', status: 'error', duration: 3000, isClosable: true, position: 'top' });
     }
   };

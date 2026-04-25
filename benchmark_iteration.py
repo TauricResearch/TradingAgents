@@ -1,4 +1,3 @@
-
 import pandas as pd
 
 # Suppose data is an empty dataframe

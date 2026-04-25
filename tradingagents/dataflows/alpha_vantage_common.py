@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
+
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
     api_key = get_env_value("ALPHA_VANTAGE_API_KEY")
@@ -22,11 +23,12 @@ def get_api_key() -> str:
         raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
     return api_key
 
+
 def format_datetime_for_api(date_input: str | datetime) -> str:
     """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
     if isinstance(date_input, str):
         # If already in correct format, return as-is
-        if len(date_input) == 13 and 'T' in date_input:
+        if len(date_input) == 13 and "T" in date_input:
             return date_input
         # Try to parse common date formats
         try:
@@ -43,20 +45,25 @@ def format_datetime_for_api(date_input: str | datetime) -> str:
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
+
 # ─── Exception hierarchy ─────────────────────────────────────────────────────
+
 
 class AlphaVantageError(Exception):
     """Base exception for all Alpha Vantage API errors."""
+
     pass
 
 
 class APIKeyInvalidError(AlphaVantageError):
     """Raised when the API key is invalid or missing (401-equivalent)."""
+
     pass
 
 
 class RateLimitError(AlphaVantageError):
     """Raised when the API rate limit is exceeded (429-equivalent)."""
+
     pass
 
 
@@ -66,16 +73,19 @@ AlphaVantageRateLimitError = RateLimitError
 
 class ThirdPartyError(AlphaVantageError):
     """Raised on server-side errors (5xx status codes)."""
+
     pass
 
 
 class ThirdPartyTimeoutError(AlphaVantageError):
     """Raised when the request times out."""
+
     pass
 
 
 class ThirdPartyParseError(AlphaVantageError):
     """Raised when the response cannot be parsed (malformed JSON/CSV)."""
+
     pass
 
 
@@ -116,11 +126,11 @@ def _rate_limited_request(function_name: str, params: dict, timeout: int = 30) -
         # Sleep outside the lock to avoid blocking other threads
         _time.sleep(extra_sleep)
 
-
     return _make_api_request(function_name, params, timeout=timeout)
 
 
 # ─── Core API request ────────────────────────────────────────────────────────
+
 
 def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> dict | str:
     """Make an Alpha Vantage API request with proper error handling.
@@ -136,10 +146,12 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
     """
     api_key = get_api_key()
     api_params = params.copy()
-    api_params.update({
-        "function": function_name,
-        "apikey": api_key,
-    })
+    api_params.update(
+        {
+            "function": function_name,
+            "apikey": api_key,
+        }
+    )
     # Alpha Vantage's demo key returns reduced datasets and rejects some
     # requests when extra metadata params are present. Keep the runtime helper
     # compatible with demo so tests exercise the same code path.
@@ -147,7 +159,7 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
         api_params["source"] = "trading_agents"
 
     # Handle entitlement parameter
-    current_entitlement = globals().get('_current_entitlement')
+    current_entitlement = globals().get("_current_entitlement")
     entitlement = api_params.get("entitlement") or current_entitlement
     if entitlement:
         api_params["entitlement"] = entitlement
@@ -217,7 +229,6 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
         pass
 
     return response_text
-
 
 
 def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> str:

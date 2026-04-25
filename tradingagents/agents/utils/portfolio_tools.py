@@ -117,9 +117,7 @@ def get_enriched_holdings(
             return json.dumps({"error": f"Invalid holding record: {exc}"})
 
     # First pass — compute equity total for total_value
-    equity = sum(
-        prices.get(h.ticker, 0.0) * h.shares for h in holdings
-    )
+    equity = sum(prices.get(h.ticker, 0.0) * h.shares for h in holdings)
     total_value = portfolio_cash + equity
 
     # Second pass — enrich each holding
@@ -328,11 +326,6 @@ def load_portfolio_decision(
 
     if decision is None:
         return json.dumps(
-            {
-                "error": (
-                    f"No PM decision found for portfolio '{portfolio_id}' "
-                    f"on date '{date}'."
-                )
-            }
+            {"error": (f"No PM decision found for portfolio '{portfolio_id}' on date '{date}'.")}
         )
     return json.dumps(decision, indent=2)

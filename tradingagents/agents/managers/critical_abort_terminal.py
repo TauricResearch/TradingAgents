@@ -45,7 +45,9 @@ def create_critical_abort_terminal() -> Callable[[AgentState], dict[str, Any]]:
             "neutral_history": risk_debate_state.get("neutral_history", ""),
             "latest_speaker": CRITICAL_ABORT_NODE,
             "current_aggressive_response": risk_debate_state.get("current_aggressive_response", ""),
-            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
+            "current_conservative_response": risk_debate_state.get(
+                "current_conservative_response", ""
+            ),
             "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
             "count": risk_debate_state.get("count", 0),
         }

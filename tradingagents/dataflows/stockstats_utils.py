@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class YFinanceError(Exception):
     """Raised when yfinance or stockstats data fetching/processing fails."""
+
     pass
 
 
@@ -45,18 +46,14 @@ def safe_yf_download(
 
 def _has_contaminated_columns(df: pd.DataFrame) -> bool:
     """Return True if any column name ends with .N (multi-ticker contamination)."""
-    return any(
-        bool(re.search(r"\.\d+$", str(col)))
-        for col in df.columns
-    )
+    return any(bool(re.search(r"\.\d+$", str(col))) for col in df.columns)
 
 
 def _assert_sufficient_rows(df: pd.DataFrame, min_rows: int, ticker: str) -> None:
     """Raise RuntimeError if df has fewer rows than the minimum required."""
     if len(df) < min_rows:
         raise RuntimeError(
-            f"[OHLCV] Insufficient data for {ticker}: "
-            f"need {min_rows} rows, got {len(df)}"
+            f"[OHLCV] Insufficient data for {ticker}: need {min_rows} rows, got {len(df)}"
         )
 
 
@@ -75,14 +72,23 @@ def _is_close_plausible(df: pd.DataFrame, ticker: str) -> bool:
     last_close = closes.iloc[-1]
     rolling_mean = closes.tail(50).mean()
     if last_close <= 0 or rolling_mean <= 0:
-        logger.warning("[OHLCV] %s: non-positive close value detected (last=%.2f, mean=%.2f)", ticker, last_close, rolling_mean)
+        logger.warning(
+            "[OHLCV] %s: non-positive close value detected (last=%.2f, mean=%.2f)",
+            ticker,
+            last_close,
+            rolling_mean,
+        )
         return False
     threshold = DEFAULT_CONFIG.get("ohlcv_sma_plausibility_threshold") or 3.0
     ratio = max(last_close, rolling_mean) / min(last_close, rolling_mean)
     if ratio > threshold:
         logger.warning(
             "[OHLCV] Plausibility check failed for %s: last_close=%.2f, rolling_mean_50=%.2f, ratio=%.2f > %.1f",
-            ticker, last_close, rolling_mean, ratio, threshold,
+            ticker,
+            last_close,
+            rolling_mean,
+            ratio,
+            threshold,
         )
         return False
     return True
@@ -144,7 +150,9 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
     # ── Try to load from cache ────────────────────────────────────────────────
     if os.path.exists(data_file):
         try:
-            data = pd.read_csv(data_file)  # no on_bad_lines="skip" — we want to know about corruption
+            data = pd.read_csv(
+                data_file
+            )  # no on_bad_lines="skip" — we want to know about corruption
         except Exception as exc:
             logger.warning(
                 "Corrupt cache file for %s (%s) — deleting and re-fetching.", symbol, exc
@@ -156,14 +164,16 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
             if len(data) < 50:
                 logger.warning(
                     "Cache file for %s has only %d rows — likely truncated, re-fetching.",
-                    symbol, len(data),
+                    symbol,
+                    len(data),
                 )
                 os.remove(data_file)
                 data = None
             elif _has_contaminated_columns(data):
                 logger.warning(
                     "Cache file for %s has contaminated columns %s — deleting and re-fetching.",
-                    symbol, [c for c in data.columns if re.search(r"\.\d+$", str(c))],
+                    symbol,
+                    [c for c in data.columns if re.search(r"\.\d+$", str(c))],
                 )
                 os.remove(data_file)
                 data = None
@@ -181,12 +191,19 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
                         if (pd.Timestamp.today() - last_date).days > max_age:
                             logger.warning(
                                 "Cache file for %s is stale (last date %s, age %d days > %d) — re-fetching.",
-                                symbol, last_date.date(), (pd.Timestamp.today() - last_date).days, max_age,
+                                symbol,
+                                last_date.date(),
+                                (pd.Timestamp.today() - last_date).days,
+                                max_age,
                             )
                             os.remove(data_file)
                             data = None
                     except Exception as exc:
-                        logger.warning("Could not parse dates from cache for %s (%s) — re-fetching.", symbol, exc)
+                        logger.warning(
+                            "Could not parse dates from cache for %s (%s) — re-fetching.",
+                            symbol,
+                            exc,
+                        )
                         os.remove(data_file)
                         data = None
     else:
@@ -210,7 +227,12 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
                 )
             data = raw.reset_index()
             data.to_csv(data_file, index=False)
-            logger.debug("Downloaded and cached OHLCV for %s → %s (attempt %d)", symbol, data_file, _attempt + 1)
+            logger.debug(
+                "Downloaded and cached OHLCV for %s → %s (attempt %d)",
+                symbol,
+                data_file,
+                _attempt + 1,
+            )
 
         if not _is_close_plausible(data, symbol):
             if os.path.exists(data_file):
@@ -222,7 +244,11 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
                     f"{_MAX_PLAUSIBILITY_RETRIES} attempts — possible persistent data "
                     f"contamination. Delete data_cache/ and retry."
                 )
-            logger.warning("[OHLCV] Plausibility failure for %s on attempt %d — retrying.", symbol, _attempt + 1)
+            logger.warning(
+                "[OHLCV] Plausibility failure for %s on attempt %d — retrying.",
+                symbol,
+                _attempt + 1,
+            )
             continue
         break
 
@@ -247,8 +273,10 @@ def yf_retry(func: Callable[..., Any], max_retries: int = 3, base_delay: float =
             return func()
         except YFRateLimitError:
             if attempt < max_retries:
-                delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                delay = base_delay * (2**attempt)
+                logger.warning(
+                    f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(delay)
             else:
                 raise
@@ -261,9 +289,7 @@ class StockstatsUtils:
         indicator: Annotated[
             str, "quantitative indicators based off of the stock data for the company"
         ],
-        curr_date: Annotated[
-            str, "curr date for retrieving stock price data, YYYY-mm-dd"
-        ],
+        curr_date: Annotated[str, "curr date for retrieving stock price data, YYYY-mm-dd"],
     ) -> str:
         curr_date_dt = pd.to_datetime(curr_date)
         curr_date_str = curr_date_dt.strftime("%Y-%m-%d")

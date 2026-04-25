@@ -129,8 +129,7 @@ def _build_legacy_raw_packet_fixture(ticker: str) -> str:
         for day in range(1, 61)
     )
     smart_money_rows = "\n".join(
-        f"- TICK{idx:03d}: raw options/flow detail with long explanation"
-        for idx in range(1, 81)
+        f"- TICK{idx:03d}: raw options/flow detail with long explanation" for idx in range(1, 81)
     )
     factor_rows = "\n".join(
         f"- TICK{idx:03d}: factor alignment row with momentum/value/quality decomposition"
@@ -229,8 +228,7 @@ def test_audit_baseline_values_present_in_2026_04_02_run_artifacts():
     assert market_msft_scanner_len == _AUDIT_MARKET_MSFT_SCANNER_CONTEXT_CHARS
 
     windows = [
-        tuple(fundamentals_oxy_lengths[i : i + 4])
-        for i in range(len(fundamentals_oxy_lengths) - 3)
+        tuple(fundamentals_oxy_lengths[i : i + 4]) for i in range(len(fundamentals_oxy_lengths) - 3)
     ]
     assert _AUDIT_FUNDAMENTALS_OXY_ROUNDS in windows
 

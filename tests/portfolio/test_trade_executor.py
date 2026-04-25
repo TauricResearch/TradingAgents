@@ -86,8 +86,16 @@ def test_execute_sell_success():
     repo = _make_repo()
     # Mock batch_remove_holdings to return a tuple of (executed, failed)
     repo.batch_remove_holdings.return_value = (
-        [{"action": "SELL", "ticker": "AAPL", "shares": 5.0, "price": 150.0, "rationale": "Stop loss"}],
-        []
+        [
+            {
+                "action": "SELL",
+                "ticker": "AAPL",
+                "shares": 5.0,
+                "price": 150.0,
+                "rationale": "Stop loss",
+            }
+        ],
+        [],
     )
     executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
 
@@ -129,7 +137,13 @@ def test_execute_sell_insufficient_shares():
     repo = _make_repo()
     repo.batch_remove_holdings.return_value = (
         [],
-        [{"action": "SELL", "ticker": "AAPL", "reason": "Hold 10.0 shares of AAPL, cannot sell 999.0"}]
+        [
+            {
+                "action": "SELL",
+                "ticker": "AAPL",
+                "reason": "Hold 10.0 shares of AAPL, cannot sell 999.0",
+            }
+        ],
     )
     executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
 
@@ -160,7 +174,9 @@ def test_execute_buy_success():
     }
     result = executor.execute_decisions("p1", decisions, PRICES)
 
-    repo.add_holding.assert_called_once_with("p1", "MSFT", 10.0, 300.0, sector="Technology", stop_loss=None, take_profit=None)
+    repo.add_holding.assert_called_once_with(
+        "p1", "MSFT", 10.0, 300.0, sector="Technology", stop_loss=None, take_profit=None
+    )
     assert len(result["executed_trades"]) == 1
     assert result["executed_trades"][0]["action"] == "BUY"
 
@@ -185,8 +201,7 @@ def test_execute_buy_constraint_violation():
     """BUY exceeding max_positions → failed_trade with constraint violation."""
     # Fill portfolio to max positions (15)
     holdings = [
-        _make_holding(f"T{i}", shares=10, avg_cost=100, sector="Technology")
-        for i in range(15)
+        _make_holding(f"T{i}", shares=10, avg_cost=100, sector="Technology") for i in range(15)
     ]
     portfolio = _make_portfolio(cash=5_000.0, total_value=20_000.0)
     repo = _make_repo(portfolio=portfolio, holdings=holdings)
@@ -214,7 +229,7 @@ def test_execute_decisions_sells_before_buys():
     repo = _make_repo(portfolio=portfolio)
     repo.batch_remove_holdings.return_value = (
         [{"action": "SELL", "ticker": "AAPL", "shares": 5.0, "price": 150.0, "rationale": "Exit"}],
-        []
+        [],
     )
     executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
 
@@ -225,7 +240,9 @@ def test_execute_decisions_sells_before_buys():
     executor.execute_decisions("p1", decisions, PRICES)
 
     # Verify call order: batch_remove_holdings before add_holding
-    call_order = [c[0] for c in repo.method_calls if c[0] in ("batch_remove_holdings", "add_holding")]
+    call_order = [
+        c[0] for c in repo.method_calls if c[0] in ("batch_remove_holdings", "add_holding")
+    ]
     assert call_order.index("batch_remove_holdings") < call_order.index("add_holding")
 
 
@@ -255,19 +272,24 @@ def test_execute_buy_with_stop_loss_and_take_profit():
 
     decisions = {
         "sells": [],
-        "buys": [{
-            "ticker": "MSFT",
-            "shares": 5.0,
-            "sector": "Technology",
-            "rationale": "Breakout",
-            "stop_loss": 270.0,
-            "take_profit": 360.0,
-        }],
+        "buys": [
+            {
+                "ticker": "MSFT",
+                "shares": 5.0,
+                "sector": "Technology",
+                "rationale": "Breakout",
+                "stop_loss": 270.0,
+                "take_profit": 360.0,
+            }
+        ],
     }
     result = executor.execute_decisions("p1", decisions, PRICES)
 
     repo.add_holding.assert_called_once_with(
-        "p1", "MSFT", 5.0, 300.0,
+        "p1",
+        "MSFT",
+        5.0,
+        300.0,
         sector="Technology",
         stop_loss=270.0,
         take_profit=360.0,

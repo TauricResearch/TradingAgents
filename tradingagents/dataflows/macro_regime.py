@@ -16,20 +16,21 @@ from .stockstats_utils import safe_yf_download
 # Signal thresholds
 # ---------------------------------------------------------------------------
 
-VIX_RISK_ON_THRESHOLD = 16.0    # VIX < 16 → risk-on
-VIX_RISK_OFF_THRESHOLD = 25.0   # VIX > 25 → risk-off
+VIX_RISK_ON_THRESHOLD = 16.0  # VIX < 16 → risk-on
+VIX_RISK_OFF_THRESHOLD = 25.0  # VIX > 25 → risk-off
 
-REGIME_RISK_ON_THRESHOLD = 3    # score ≥ 3 → risk-on
+REGIME_RISK_ON_THRESHOLD = 3  # score ≥ 3 → risk-on
 REGIME_RISK_OFF_THRESHOLD = -3  # score ≤ -3 → risk-off
 
 # Sector ETFs used for rotation signal
-_DEFENSIVE_ETFS = ["XLU", "XLP", "XLV"]   # Utilities, Staples, Health Care
-_CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]    # Discretionary, Technology, Industrials
+_DEFENSIVE_ETFS = ["XLU", "XLP", "XLV"]  # Utilities, Staples, Health Care
+_CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]  # Discretionary, Technology, Industrials
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _download(symbols: list[str], period: str = "3mo") -> pd.DataFrame | None:
     """Download closing prices, returning None on failure."""
@@ -180,6 +181,7 @@ def _fmt_pct(val: float | None) -> str:
 # Individual signal evaluators (each returns +1, 0, or -1)
 # ---------------------------------------------------------------------------
 
+
 def _signal_vix_level(vix_price: float | None) -> tuple[int, str]:
     """VIX level: <16 risk-on (+1), >25 risk-off (-1), else transition (0)."""
     if vix_price is None:
@@ -188,7 +190,10 @@ def _signal_vix_level(vix_price: float | None) -> tuple[int, str]:
         return 1, f"VIX level: {vix_price:.1f} < {VIX_RISK_ON_THRESHOLD} → risk-on"
     if vix_price > VIX_RISK_OFF_THRESHOLD:
         return -1, f"VIX level: {vix_price:.1f} > {VIX_RISK_OFF_THRESHOLD} → risk-off"
-    return 0, f"VIX level: {vix_price:.1f} (neutral zone {VIX_RISK_ON_THRESHOLD}–{VIX_RISK_OFF_THRESHOLD})"
+    return (
+        0,
+        f"VIX level: {vix_price:.1f} (neutral zone {VIX_RISK_ON_THRESHOLD}–{VIX_RISK_OFF_THRESHOLD})",
+    )
 
 
 def _signal_vix_trend(vix_series: pd.Series | None) -> tuple[int, str]:
@@ -206,7 +211,9 @@ def _signal_vix_trend(vix_series: pd.Series | None) -> tuple[int, str]:
     return 0, f"VIX trend: flat (SMA5={sma5:.1f} ≈ SMA20={sma20:.1f}) → neutral"
 
 
-def _signal_credit_spread(hyg_series: pd.Series | None, lqd_series: pd.Series | None) -> tuple[int, str]:
+def _signal_credit_spread(
+    hyg_series: pd.Series | None, lqd_series: pd.Series | None
+) -> tuple[int, str]:
     """HYG/LQD ratio: declining ratio = credit spreads widening = risk-off."""
     if hyg_series is None or lqd_series is None:
         return 0, "Credit spread proxy (HYG/LQD): unavailable (neutral)"
@@ -232,7 +239,9 @@ def _signal_credit_spread(hyg_series: pd.Series | None, lqd_series: pd.Series | 
     return 0, f"Credit spread (HYG/LQD) 1M: {_fmt_pct(ratio_1m)} → stable (neutral)"
 
 
-def _signal_yield_curve(tlt_series: pd.Series | None, shy_series: pd.Series | None) -> tuple[int, str]:
+def _signal_yield_curve(
+    tlt_series: pd.Series | None, shy_series: pd.Series | None
+) -> tuple[int, str]:
     """TLT (20yr) vs SHY (1-3yr): TLT outperforming = flight to safety = risk-off."""
     if tlt_series is None or shy_series is None:
         return 0, "Yield curve proxy (TLT vs SHY): unavailable (neutral)"
@@ -247,9 +256,15 @@ def _signal_yield_curve(tlt_series: pd.Series | None, shy_series: pd.Series | No
 
     spread = tlt_1m - shy_1m
     if spread > 1.0:
-        return -1, f"Yield curve: TLT {_fmt_pct(tlt_1m)} vs SHY {_fmt_pct(shy_1m)} → flight to safety (risk-off)"
+        return (
+            -1,
+            f"Yield curve: TLT {_fmt_pct(tlt_1m)} vs SHY {_fmt_pct(shy_1m)} → flight to safety (risk-off)",
+        )
     if spread < -1.0:
-        return 1, f"Yield curve: TLT {_fmt_pct(tlt_1m)} vs SHY {_fmt_pct(shy_1m)} → risk appetite (risk-on)"
+        return (
+            1,
+            f"Yield curve: TLT {_fmt_pct(tlt_1m)} vs SHY {_fmt_pct(shy_1m)} → risk appetite (risk-on)",
+        )
     return 0, f"Yield curve: TLT {_fmt_pct(tlt_1m)} vs SHY {_fmt_pct(shy_1m)} → neutral"
 
 
@@ -273,6 +288,7 @@ def _signal_sector_rotation(
     cyclical_closes: dict[str, pd.Series],
 ) -> tuple[int, str]:
     """Defensive vs cyclical sector rotation over 1 month."""
+
     def avg_return(closes_dict: dict[str, pd.Series], days: int) -> float | None:
         returns = []
         for _sym, s in closes_dict.items():
@@ -307,10 +323,19 @@ def _signal_sector_rotation(
 # Main classifier helpers
 # ---------------------------------------------------------------------------
 
+
 def _fetch_macro_data() -> tuple[
-    pd.Series | None, pd.Series | None, pd.Series | None, pd.Series | None,
-    pd.Series | None, pd.Series | None, dict[str, pd.Series], dict[str, pd.Series],
-    float | None, str, float | None
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    dict[str, pd.Series],
+    dict[str, pd.Series],
+    float | None,
+    str,
+    float | None,
 ]:
     vix_data = _download(["^VIX"], period="3mo")
     market_data = _download(["^GSPC"], period="14mo")  # 14mo for 200-SMA
@@ -320,11 +345,21 @@ def _fetch_macro_data() -> tuple[
 
     # Extract series with validation
     vix_series = vix_data["^VIX"] if vix_data is not None and "^VIX" in vix_data.columns else None
-    spx_series = market_data["^GSPC"] if market_data is not None and "^GSPC" in market_data.columns else None
-    hyg_series = (hyg_lqd_data["HYG"] if hyg_lqd_data is not None and "HYG" in hyg_lqd_data.columns else None)
-    lqd_series = (hyg_lqd_data["LQD"] if hyg_lqd_data is not None and "LQD" in hyg_lqd_data.columns else None)
-    tlt_series = (tlt_shy_data["TLT"] if tlt_shy_data is not None and "TLT" in tlt_shy_data.columns else None)
-    shy_series = (tlt_shy_data["SHY"] if tlt_shy_data is not None and "SHY" in tlt_shy_data.columns else None)
+    spx_series = (
+        market_data["^GSPC"] if market_data is not None and "^GSPC" in market_data.columns else None
+    )
+    hyg_series = (
+        hyg_lqd_data["HYG"] if hyg_lqd_data is not None and "HYG" in hyg_lqd_data.columns else None
+    )
+    lqd_series = (
+        hyg_lqd_data["LQD"] if hyg_lqd_data is not None and "LQD" in hyg_lqd_data.columns else None
+    )
+    tlt_series = (
+        tlt_shy_data["TLT"] if tlt_shy_data is not None and "TLT" in tlt_shy_data.columns else None
+    )
+    shy_series = (
+        tlt_shy_data["SHY"] if tlt_shy_data is not None and "SHY" in tlt_shy_data.columns else None
+    )
 
     defensive_closes: dict[str, pd.Series] = {}
     cyclical_closes: dict[str, pd.Series] = {}
@@ -361,24 +396,39 @@ def _fetch_macro_data() -> tuple[
                 # VX futures provide direction context but not the VIX spot level here.
                 vix_price = None
                 if finviz_price is not None:
-                    vix_series = pd.Series([finviz_price], index=[pd.Timestamp.utcnow()], name=finviz_symbol)
+                    vix_series = pd.Series(
+                        [finviz_price], index=[pd.Timestamp.utcnow()], name=finviz_symbol
+                    )
             elif yfinance_vix_corrupt:
                 # No healthy fallback available.
                 vix_price = None
                 vix_source = "unavailable"
 
     return (
-        vix_series, spx_series, hyg_series, lqd_series, tlt_series, shy_series,
-        defensive_closes, cyclical_closes, vix_price, vix_source, vix_proxy_change_1d
+        vix_series,
+        spx_series,
+        hyg_series,
+        lqd_series,
+        tlt_series,
+        shy_series,
+        defensive_closes,
+        cyclical_closes,
+        vix_price,
+        vix_source,
+        vix_proxy_change_1d,
     )
 
 
 def _evaluate_signals(
-    vix_price: float | None, vix_series: pd.Series | None,
-    hyg_series: pd.Series | None, lqd_series: pd.Series | None,
-    tlt_series: pd.Series | None, shy_series: pd.Series | None,
-    spx_series: pd.Series | None, defensive_closes: dict[str, pd.Series],
-    cyclical_closes: dict[str, pd.Series]
+    vix_price: float | None,
+    vix_series: pd.Series | None,
+    hyg_series: pd.Series | None,
+    lqd_series: pd.Series | None,
+    tlt_series: pd.Series | None,
+    shy_series: pd.Series | None,
+    spx_series: pd.Series | None,
+    defensive_closes: dict[str, pd.Series],
+    cyclical_closes: dict[str, pd.Series],
 ) -> tuple[int, list[dict]]:
     evaluators = [
         _signal_vix_level(vix_price),
@@ -390,8 +440,12 @@ def _evaluate_signals(
     ]
 
     signal_names = [
-        "vix_level", "vix_trend", "credit_spread",
-        "yield_curve", "market_breadth", "sector_rotation",
+        "vix_level",
+        "vix_trend",
+        "credit_spread",
+        "yield_curve",
+        "market_breadth",
+        "sector_rotation",
     ]
 
     signals = []
@@ -446,9 +500,7 @@ def _generate_summary(
         summary = f"{prefix} VIX: {vix_price:.1f} ({vix_source})."
     elif vix_proxy_change_1d is not None:
         direction = "up" if vix_proxy_change_1d > 0 else "down"
-        source_phrase = (
-            "VX futures trend" if vix_source.startswith("finviz:VX") else "proxy trend"
-        )
+        source_phrase = "VX futures trend" if vix_source.startswith("finviz:VX") else "proxy trend"
         summary = (
             f"{prefix} VIX level unavailable; using {source_phrase} from {vix_source}: "
             f"{direction} {abs(vix_proxy_change_1d):.1f}% vs previous day."
@@ -462,6 +514,7 @@ def _generate_summary(
 # ---------------------------------------------------------------------------
 # Main classifier
 # ---------------------------------------------------------------------------
+
 
 def classify_macro_regime(curr_date: str | None = None) -> dict:
     """
@@ -480,14 +533,30 @@ def classify_macro_regime(curr_date: str | None = None) -> dict:
     """
     # --- Download all required data ---
     (
-        vix_series, spx_series, hyg_series, lqd_series, tlt_series, shy_series,
-        defensive_closes, cyclical_closes, vix_price, vix_source, vix_proxy_change_1d
+        vix_series,
+        spx_series,
+        hyg_series,
+        lqd_series,
+        tlt_series,
+        shy_series,
+        defensive_closes,
+        cyclical_closes,
+        vix_price,
+        vix_source,
+        vix_proxy_change_1d,
     ) = _fetch_macro_data()
 
     # --- Evaluate each signal ---
     total_score, signals = _evaluate_signals(
-        vix_price, vix_series, hyg_series, lqd_series, tlt_series, shy_series,
-        spx_series, defensive_closes, cyclical_closes
+        vix_price,
+        vix_series,
+        hyg_series,
+        lqd_series,
+        tlt_series,
+        shy_series,
+        spx_series,
+        defensive_closes,
+        cyclical_closes,
     )
 
     # --- Classify regime ---
@@ -557,7 +626,9 @@ def format_macro_report(regime_data: dict) -> str:
     score_labels = {1: "+1 (risk-on)", 0: " 0 (neutral)", -1: "-1 (risk-off)"}
     for sig in signals:
         score_label = score_labels.get(sig["score"], str(sig["score"]))
-        lines.append(f"| {sig['name'].replace('_', ' ').title()} | {score_label} | {sig['description']} |")
+        lines.append(
+            f"| {sig['name'].replace('_', ' ').title()} | {score_label} | {sig['description']} |"
+        )
 
     lines += [
         "",

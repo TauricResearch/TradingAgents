@@ -7,22 +7,33 @@ from tradingagents.graph.scanner_facts.schema import (
 
 # ---- constants ----
 
+
 def test_schema_version():
     assert SCHEMA_VERSION == "scanner_graph_facts.v1"
 
 
 def test_node_types_complete():
     assert set(NODE_TYPES) == {
-        "Ticker", "Sector", "Theme", "RiskFactor",
-        "MarketIndex", "MacroIndicator", "Commodity",
-        "CurrencyPair", "CryptoAsset",
+        "Ticker",
+        "Sector",
+        "Theme",
+        "RiskFactor",
+        "MarketIndex",
+        "MacroIndicator",
+        "Commodity",
+        "CurrencyPair",
+        "CryptoAsset",
     }
 
 
 def test_relation_types_complete():
     assert set(RELATION_TYPES) == {
-        "BELONGS_TO", "DRIVES_SENTIMENT", "EXPOSED_TO",
-        "IMPACTS", "RELATED_TO", "HAS_CATALYST",
+        "BELONGS_TO",
+        "DRIVES_SENTIMENT",
+        "EXPOSED_TO",
+        "IMPACTS",
+        "RELATED_TO",
+        "HAS_CATALYST",
     }
 
 
@@ -84,6 +95,7 @@ def test_valid_facts_returns_no_errors():
 
 
 # ---- validate_graph_facts: invalid cases ----
+
 
 def test_missing_required_top_level_key():
     bad = dict(_VALID_FACTS)

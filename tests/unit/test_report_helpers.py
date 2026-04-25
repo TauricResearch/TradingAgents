@@ -77,4 +77,7 @@ def test_format_report_section_for_persistence_renders_market_json():
     assert "- Timeframe: 1 month" in cleaned
     assert "- Executive Summary: Energy premium remains elevated." in cleaned
     assert "- Theme: Energy | WTI rose to $112.06.; conviction=high; timeframe=1 month" in cleaned
-    assert "- Candidate: JPM | Financial earnings catalyst.; conviction=high; catalysts=1; risks=1" in cleaned
+    assert (
+        "- Candidate: JPM | Financial earnings catalyst.; conviction=high; catalysts=1; risks=1"
+        in cleaned
+    )

@@ -1,6 +1,5 @@
 """Tests for tradingagents/api_usage.py — API consumption estimation."""
 
-
 from tradingagents.api_usage import (
     AV_FREE_DAILY_LIMIT,
     AV_PREMIUM_PER_MINUTE,
@@ -219,7 +218,9 @@ class TestEstimateScan:
 
     def test_macro_synthesis_has_no_external_calls(self):
         est = estimate_scan()
-        assert any("Macro Synthesis" in note and "no external tool calls" in note for note in est.notes)
+        assert any(
+            "Macro Synthesis" in note and "no external tool calls" in note for note in est.notes
+        )
 
     def test_scan_tokens_keep_scanner_separate_from_quick(self):
         est = estimate_scan()

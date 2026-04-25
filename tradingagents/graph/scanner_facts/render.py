@@ -7,6 +7,7 @@ Public API:
     render_ticker_graph_context(facts, ticker, *, char_budget=2400) -> str
     get_render_tool() -> LangChain tool
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,6 +21,7 @@ _DEFAULT_CHAR_BUDGET = 2400
 # Edge template dispatch
 # -----------------------------------------------------------------
 
+
 def _render_edge_line(edge: dict) -> str:
     src, rel, tgt = edge["source"], edge["relation"], edge["target"]
     ev = (edge.get("evidence") or "").strip()
@@ -29,15 +31,15 @@ def _render_edge_line(edge: dict) -> str:
         return f"{src} belongs to {tgt}."
     if rel == "DRIVES_SENTIMENT":
         pol_part = f" ({pol})" if pol else ""
-        return f"{src} is linked to {tgt}{pol_part}, with evidence: \"{ev}\"."
+        return f'{src} is linked to {tgt}{pol_part}, with evidence: "{ev}".'
     if rel == "HAS_CATALYST":
-        return f"{src} has catalyst {tgt}: \"{ev}\"."
+        return f'{src} has catalyst {tgt}: "{ev}".'
     if rel == "EXPOSED_TO":
-        return f"{src} is exposed to {tgt}: \"{ev}\"."
+        return f'{src} is exposed to {tgt}: "{ev}".'
     if rel == "IMPACTS":
-        return f"{src} impacts {tgt}: \"{ev}\"."
+        return f'{src} impacts {tgt}: "{ev}".'
     # RELATED_TO and fallback
-    return f"{src} is related to {tgt}: \"{ev}\"."
+    return f'{src} is related to {tgt}: "{ev}".'
 
 
 def _render_node_line(node: dict) -> str:
@@ -47,9 +49,9 @@ def _render_node_line(node: dict) -> str:
     pol = ""
 
     if ntype == "Sector":
-        return f"{nid} is {pol or 'noted'} with evidence: \"{ev}\"." if ev else f"{nid} sector."
+        return f'{nid} is {pol or "noted"} with evidence: "{ev}".' if ev else f"{nid} sector."
     if ntype == "Theme":
-        return f"Theme {nid} is active: \"{ev}\"." if ev else f"Theme {nid}."
+        return f'Theme {nid} is active: "{ev}".' if ev else f"Theme {nid}."
     if ntype in ("MarketIndex", "MacroIndicator", "Commodity", "CurrencyPair", "CryptoAsset"):
         return f"{nid}: {ev}." if ev else f"{nid}."
     return f"{nid}: {ev}." if ev else f"{nid}."
@@ -58,6 +60,7 @@ def _render_node_line(node: dict) -> str:
 # -----------------------------------------------------------------
 # Dedup
 # -----------------------------------------------------------------
+
 
 def _dedup_edges(edges: list[dict]) -> list[dict]:
     """Keep one edge per (source, relation, target); prefer highest confidence."""
@@ -72,6 +75,7 @@ def _dedup_edges(edges: list[dict]) -> list[dict]:
 # -----------------------------------------------------------------
 # Core renderer
 # -----------------------------------------------------------------
+
 
 def render_ticker_graph_context(
     facts: dict,
@@ -111,7 +115,8 @@ def render_ticker_graph_context(
         edge_endpoints.add(e["source"])
         edge_endpoints.add(e["target"])
     leaf_nodes = [
-        n for nid, n in subgraph_nodes.items()
+        n
+        for nid, n in subgraph_nodes.items()
         if nid not in edge_endpoints and n.get("type") != "Ticker"
     ]
 
@@ -190,6 +195,7 @@ def render_ticker_graph_context(
 # -----------------------------------------------------------------
 # LangChain render tool
 # -----------------------------------------------------------------
+
 
 def get_render_tool() -> Any:
     """Return a LangChain @tool that renders ticker graph context from state (scan_date, run_id, ticker).

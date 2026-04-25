@@ -1,4 +1,5 @@
 """Tests for the OHLCV plausibility guard and retry loop in _load_or_fetch_ohlcv."""
+
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -7,11 +8,16 @@ import pytest
 
 def _make_df(close_values: list[float]) -> pd.DataFrame:
     dates = pd.date_range("2024-01-01", periods=len(close_values), freq="B")
-    return pd.DataFrame({
-        "Date": dates.strftime("%Y-%m-%d"),
-        "Open": close_values, "High": close_values,
-        "Low": close_values, "Close": close_values, "Volume": [1_000_000] * len(close_values),
-    })
+    return pd.DataFrame(
+        {
+            "Date": dates.strftime("%Y-%m-%d"),
+            "Open": close_values,
+            "High": close_values,
+            "Low": close_values,
+            "Close": close_values,
+            "Volume": [1_000_000] * len(close_values),
+        }
+    )
 
 
 def test_is_close_plausible_detects_contamination():
@@ -61,6 +67,7 @@ def test_load_or_fetch_ohlcv_accepts_data_after_retry(tmp_path, monkeypatch):
     good_df = _make_df([36.0] * 60)
 
     call_count = {"n": 0}
+
     def fake_download(*args, **kwargs):
         call_count["n"] += 1
         m = MagicMock()

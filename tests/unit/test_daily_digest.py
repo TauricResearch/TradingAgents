@@ -16,15 +16,17 @@ def mock_get_digest_path(tmp_path):
     with patch("tradingagents.daily_digest.get_digest_path", side_effect=_mock_path) as mock:
         yield mock
 
+
 @pytest.fixture
 def mock_datetime():
     class MockDatetime:
         @classmethod
         def now(cls):
-            return datetime(2023, 10, 26, 14, 30) # 14:30
+            return datetime(2023, 10, 26, 14, 30)  # 14:30
 
     with patch("tradingagents.daily_digest.datetime", MockDatetime):
         yield MockDatetime
+
 
 def test_append_to_digest_new_file(mock_get_digest_path, mock_datetime, tmp_path):
     date = "2023-10-26"
@@ -45,6 +47,7 @@ def test_append_to_digest_new_file(mock_get_digest_path, mock_datetime, tmp_path
 
     assert result_path.read_text() == expected_content
 
+
 def test_append_to_digest_existing_file(mock_get_digest_path, mock_datetime, tmp_path):
     date = "2023-10-26"
 
@@ -53,7 +56,7 @@ def test_append_to_digest_existing_file(mock_get_digest_path, mock_datetime, tmp
 
     # Change time for second append
     with patch("tradingagents.daily_digest.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2023, 10, 26, 15, 45) # 15:45
+        mock_dt.now.return_value = datetime(2023, 10, 26, 15, 45)  # 15:45
 
         # Second append
         result_path = append_to_digest(date, "scan", "Market Scan", "Second content.")
@@ -69,17 +72,17 @@ def test_append_to_digest_existing_file(mock_get_digest_path, mock_datetime, tmp
 
     assert result_path.read_text() == expected_content
 
+
 def test_append_to_digest_existing_empty_file(mock_get_digest_path, mock_datetime, tmp_path):
     date = "2023-10-26"
     expected_path = tmp_path / "reports" / "daily" / date / "daily_digest.md"
     expected_path.parent.mkdir(parents=True, exist_ok=True)
-    expected_path.write_text("") # Empty file
+    expected_path.write_text("")  # Empty file
 
     append_to_digest(date, "analyze", "AAPL", "Content")
 
     # Should treat empty file like a non-existent file and add the header
     expected_content = (
-        f"# Daily Trading Report — {date}\n\n"
-        f"---\n### 14:30 — AAPL (analyze)\n\nContent\n\n"
+        f"# Daily Trading Report — {date}\n\n---\n### 14:30 — AAPL (analyze)\n\nContent\n\n"
     )
     assert expected_path.read_text() == expected_content

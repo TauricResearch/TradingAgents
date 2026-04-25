@@ -1,4 +1,3 @@
-
 # Wait, if "Missing optimization on DataFrame creation from iteration" refers to something specific, could it be this snippet?
 # The task says: "File: tradingagents/dataflows/stockstats_utils.py:52"
 # "Current Code:"

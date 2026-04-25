@@ -156,4 +156,3 @@ def instrument_metadata(raw_symbol: str, *, source_context: str = "") -> dict[st
 def is_equity_pipeline_supported(instrument: CanonicalInstrument) -> bool:
     """Return True for instruments allowed into the current stock deep-dive path."""
     return instrument.asset_class == "equity" and instrument.instrument_type == "common_stock"
-

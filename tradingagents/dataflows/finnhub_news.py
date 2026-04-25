@@ -66,6 +66,7 @@ def _fetch_company_news_data(symbol: str, params: dict) -> list[dict]:
 
     return response
 
+
 def get_company_news(symbol: str, start_date: str, end_date: str) -> str:
     """Fetch company-specific news via Finnhub /company-news.
 
@@ -154,10 +155,7 @@ def get_market_news(category: NewsCategory = "general") -> str:
 
     articles: list[dict] = _make_api_request("news", {"category": category})
 
-    header = (
-        f"# Market News: {category.title()} — Finnhub\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
-    )
+    header = f"# Market News: {category.title()} — Finnhub\n# Data retrieved on: {_now_str()}\n\n"
 
     if not articles:
         return header + f"_No news articles found for category '{category}'._\n"
@@ -203,10 +201,7 @@ def get_insider_transactions(symbol: str) -> str:
 
     transactions: list[dict] = data.get("data", [])
 
-    header = (
-        f"# Insider Transactions: {symbol} — Finnhub\n"
-        f"# Data retrieved on: {_now_str()}\n\n"
-    )
+    header = f"# Insider Transactions: {symbol} — Finnhub\n# Data retrieved on: {_now_str()}\n\n"
 
     if not transactions:
         return header + f"_No insider transactions found for {symbol}._\n"
