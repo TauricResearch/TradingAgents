@@ -5,6 +5,7 @@ the Finnhub free tier), and the core HTTP request helper used by all other
 finnhub_* modules.
 """
 
+import math
 import threading
 import time as _time
 from datetime import datetime
@@ -14,6 +15,17 @@ import requests
 from tradingagents.default_config import get_env_value
 
 API_BASE_URL = "https://finnhub.io/api/v1"
+
+
+def _default_timeout() -> float:
+    raw = get_env_value("TRADINGAGENTS_FINNHUB_TIMEOUT_SEC", 30.0)
+    try:
+        timeout = float(raw)
+    except (TypeError, ValueError):
+        return 30.0
+    if not math.isfinite(timeout) or timeout <= 0:
+        return 30.0
+    return timeout
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +86,7 @@ _call_timestamps: list[float] = []
 _RATE_LIMIT = 60  # calls per minute
 
 
-def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dict | list:
+def _rate_limited_request(endpoint: str, params: dict, timeout: float | None = None) -> dict | list:
     """Make a rate-limited Finnhub API request.
 
     Enforces the 60-calls-per-minute limit for the free tier using a sliding
@@ -84,7 +96,9 @@ def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dic
     Args:
         endpoint: Finnhub endpoint path (e.g. "quote").
         params: Query parameters (excluding the API token).
-        timeout: HTTP request timeout in seconds.
+        timeout: HTTP request timeout in seconds.  When ``None`` (the default),
+            ``_make_api_request`` applies the env-configured default via
+            ``_default_timeout()``.
 
     Returns:
         Parsed JSON response as a dict or list.
@@ -124,7 +138,7 @@ def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dic
 # ---------------------------------------------------------------------------
 
 
-def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict | list:
+def _make_api_request(endpoint: str, params: dict, timeout: float | None = None) -> dict | list:
     """Make a Finnhub API request with proper error handling.
 
     Calls ``https://finnhub.io/api/v1/{endpoint}`` and returns the parsed JSON
@@ -151,6 +165,8 @@ def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict | 
     """
     api_params = params.copy()
     api_params["token"] = get_api_key()
+    if timeout is None:
+        timeout = _default_timeout()
 
     url = f"{API_BASE_URL}/{endpoint}"
 

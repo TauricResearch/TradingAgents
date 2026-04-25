@@ -100,3 +100,41 @@ def test_scanner_summarizer_timeout_raises_runtime_error(monkeypatch):
         )
 
     assert "Summarizer invoke failed" in str(exc.value)
+
+
+def test_scanner_summarizer_uses_configured_timeout(monkeypatch):
+    captured_timeout = None
+
+    def _invoke_with_timeout(**kwargs):
+        nonlocal captured_timeout
+        captured_timeout = kwargs["timeout_seconds"]
+        return SimpleNamespace(content="- RIG | Energy | insider buying"), None
+
+    monkeypatch.setitem(
+        __import__(
+            "tradingagents.agents.scanners.scanner_summarizer",
+            fromlist=["DEFAULT_CONFIG"],
+        ).DEFAULT_CONFIG,
+        "scanner_summarizer_timeout",
+        240.0,
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.scanner_summarizer.invoke_with_timeout",
+        _invoke_with_timeout,
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.scanner_summarizer.save_node_report",
+        lambda *_args, **_kwargs: None,
+    )
+
+    node = create_scanner_summarizer(MagicMock(), "smart_money_report", "smart_money_summary")
+
+    node(
+        {
+            "scan_date": "2026-04-24",
+            "run_id": "RUN1",
+            "smart_money_report": "RIG insider buying at $45.20 on 2026-04-02",
+        }
+    )
+
+    assert captured_timeout == 240.0

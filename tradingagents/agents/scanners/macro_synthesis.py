@@ -382,11 +382,7 @@ def create_macro_synthesis(
         prompt = prompt.partial(current_date=scan_date)
 
         chain = prompt | llm
-        # Keep macro synthesis bounded so auto runs cannot hang for many minutes.
-        timeout_cap = min(
-            float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0),
-            240.0,
-        )
+        timeout_cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
         timeout_seconds = min(
             float(
                 DEFAULT_CONFIG.get("deep_think_llm_timeout")
@@ -413,7 +409,7 @@ def create_macro_synthesis(
                 f"Macro synthesis failed after {timeout_seconds:.0f}s "
                 f"({type(invoke_error).__name__}). "
                 "Scanner cannot proceed without candidate selection. "
-                "Re-run or increase deep_think_llm_timeout in config."
+                "Re-run or increase deep_think_llm_timeout and deep_think_llm_timeout_cap in config."
             ) from invoke_error
 
         report = str(getattr(result, "content", "") or "")

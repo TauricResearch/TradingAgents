@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import socket
 import urllib.error
@@ -119,7 +120,13 @@ def _agent_os_already_running(host: str, port: int) -> bool:
     """Return True when the target port is serving the AgentOS health endpoint."""
     url = f"http://127.0.0.1:{port}/"
     try:
-        with urllib.request.urlopen(url, timeout=1.0) as response:
+        timeout = float(os.getenv("AGENT_OS_HEALTHCHECK_TIMEOUT_SEC", "1.0"))
+    except ValueError:
+        timeout = 1.0
+    if not math.isfinite(timeout) or timeout <= 0:
+        timeout = 1.0
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
             body = response.read().decode("utf-8", errors="ignore")
     except (urllib.error.URLError, TimeoutError, OSError):
         return False

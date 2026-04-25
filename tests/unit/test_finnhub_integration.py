@@ -330,6 +330,23 @@ class TestMakeApiRequest:
 
         assert result == {"foo": "bar"}
 
+    def test_env_timeout_used_when_not_passed(self, monkeypatch):
+        from tradingagents.dataflows.finnhub_common import _make_api_request
+
+        monkeypatch.setenv("TRADINGAGENTS_FINNHUB_TIMEOUT_SEC", "37")
+        with patch(self._PATCH_TARGET, return_value=_json_response({"foo": "bar"})) as mocked_get:
+            _make_api_request("quote", {"symbol": "AAPL"})
+
+        assert mocked_get.call_args.kwargs["timeout"] == 37.0
+
+    @pytest.mark.parametrize("raw_timeout", ["0", "-1", "inf", "nan"])
+    def test_invalid_env_timeout_falls_back_to_default(self, monkeypatch, raw_timeout):
+        from tradingagents.dataflows.finnhub_common import _default_timeout
+
+        monkeypatch.setenv("TRADINGAGENTS_FINNHUB_TIMEOUT_SEC", raw_timeout)
+
+        assert _default_timeout() == 30.0
+
     def test_http_401_raises_api_key_invalid_error(self):
         from tradingagents.dataflows.finnhub_common import APIKeyInvalidError, _make_api_request
 

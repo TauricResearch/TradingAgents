@@ -23,6 +23,9 @@ def _load_mongo_module(mock_client_cls: MagicMock):
 
     database = types.ModuleType("pymongo.database")
     database.Database = object
+    errors = types.ModuleType("pymongo.errors")
+    errors.ConnectionFailure = Exception
+    errors.ServerSelectionTimeoutError = Exception
 
     with patch.dict(
         sys.modules,
@@ -30,6 +33,7 @@ def _load_mongo_module(mock_client_cls: MagicMock):
             "pymongo": pymongo,
             "pymongo.collection": collection,
             "pymongo.database": database,
+            "pymongo.errors": errors,
         },
     ):
         sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
@@ -86,6 +90,35 @@ def test_save_scan_inserts_document(mongo_store, mock_col):
     assert doc["data"] == {"watchlist": ["AAPL"]}
     assert doc["run_id"] == "test_run"
     assert doc["ticker"] is None
+
+
+def test_mongo_server_selection_timeout_uses_env(monkeypatch):
+    monkeypatch.setenv("TRADINGAGENTS_MONGO_SERVER_SELECTION_TIMEOUT_MS", "7000")
+    mock_client_cls = MagicMock()
+    mock_db = MagicMock()
+    mock_db.__getitem__ = MagicMock(return_value=MagicMock())
+    mock_client = MagicMock()
+    mock_client.__getitem__ = MagicMock(return_value=mock_db)
+    mock_client_cls.return_value = mock_client
+
+    mongo_report_store = _load_mongo_module(mock_client_cls)
+    mongo_report_store.MongoReportStore(
+        connection_string="mongodb://localhost:27017",
+        db_name="test_db",
+        run_id="test_run",
+    )
+
+    assert mock_client_cls.call_args.kwargs["serverSelectionTimeoutMS"] == 7000
+
+
+@pytest.mark.parametrize("raw_timeout", ["0", "-1", "bad"])
+def test_mongo_server_selection_timeout_rejects_invalid_values(monkeypatch, raw_timeout):
+    monkeypatch.setenv("TRADINGAGENTS_MONGO_SERVER_SELECTION_TIMEOUT_MS", raw_timeout)
+    mock_client_cls = MagicMock()
+
+    mongo_report_store = _load_mongo_module(mock_client_cls)
+
+    assert mongo_report_store.MongoReportStore._server_selection_timeout_ms() == 5_000
 
 
 def test_load_scan_finds_latest(mongo_store, mock_col):
