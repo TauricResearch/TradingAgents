@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 from tradingagents.llm_clients.google_client import GoogleClient
 
 
+@pytest.mark.unit
 class TestGoogleApiKeyStandardization(unittest.TestCase):
     """Verify GoogleClient accepts unified api_key parameter."""
 
