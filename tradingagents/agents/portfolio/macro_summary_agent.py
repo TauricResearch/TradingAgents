@@ -69,9 +69,12 @@ def create_macro_summary_agent(
         if not scan_summary or (
             isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}
         ):
+            error_detail = (
+                scan_summary.get("error", "N/A") if isinstance(scan_summary, dict) else "missing"
+            )
             raise RuntimeError(
-                "macro_summary_agent: scan_summary missing or contains only error — "
-                "cannot produce macro brief without valid scan data"
+                f"macro_summary_agent: scan_summary missing or contains only error — "
+                f"cannot produce macro brief without valid scan data (error: {error_detail})"
             )
 
         # ------------------------------------------------------------------
