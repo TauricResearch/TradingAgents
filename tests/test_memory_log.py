@@ -5,6 +5,7 @@ import pandas as pd
 from unittest.mock import MagicMock, patch
 
 from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.propagation import Propagator
@@ -80,6 +81,25 @@ def _make_pm_state(past_context=""):
         "investment_plan": "Research plan.",
         "trader_investment_plan": "Trader plan.",
     }
+
+
+def _structured_pm_llm(captured: dict, decision: PortfolioDecision | None = None):
+    """Build a MagicMock LLM whose with_structured_output binding captures the
+    prompt and returns a real PortfolioDecision (so render_pm_decision works).
+    """
+    if decision is None:
+        decision = PortfolioDecision(
+            rating=PortfolioRating.HOLD,
+            executive_summary="Hold the position; await catalyst.",
+            investment_thesis="Balanced view; neither side carried the debate.",
+        )
+    structured = MagicMock()
+    structured.invoke.side_effect = lambda prompt: (
+        captured.__setitem__("prompt", prompt) or decision
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = structured
+    return llm
 
 
 # ---------------------------------------------------------------------------
@@ -518,29 +538,55 @@ class TestPortfolioManagerInjection:
 
     def test_pm_prompt_includes_past_context(self):
         captured = {}
-        mock_llm = MagicMock()
-        mock_llm.invoke.side_effect = lambda prompt: (
-            captured.__setitem__("prompt", prompt) or MagicMock(content="Rating: Hold\nHold.")
-        )
-        pm_node = create_portfolio_manager(mock_llm)
+        llm = _structured_pm_llm(captured)
+        pm_node = create_portfolio_manager(llm)
         state = _make_pm_state(past_context="[2026-01-05 | NVDA | Buy | +5.0% | +2.0% | 5d]\nGreat call.")
         pm_node(state)
         assert "Lessons from prior decisions and outcomes" in captured["prompt"]
         assert "Great call." in captured["prompt"]
-        assert "and the lessons from prior decisions" in captured["prompt"]
 
     def test_pm_no_past_context_no_section(self):
         """PM prompt omits the lessons section entirely when past_context is empty."""
         captured = {}
-        mock_llm = MagicMock()
-        mock_llm.invoke.side_effect = lambda prompt: (
-            captured.__setitem__("prompt", prompt) or MagicMock(content="Rating: Hold\nHold.")
-        )
-        pm_node = create_portfolio_manager(mock_llm)
+        llm = _structured_pm_llm(captured)
+        pm_node = create_portfolio_manager(llm)
         state = _make_pm_state(past_context="")
         pm_node(state)
         assert "Lessons from prior decisions" not in captured["prompt"]
-        assert "and the lessons from prior decisions" not in captured["prompt"]
+
+    def test_pm_returns_rendered_markdown_with_rating(self):
+        """The structured PortfolioDecision is rendered to markdown that
+        downstream consumers (memory log, signal processor, CLI display)
+        can parse without any extra LLM call."""
+        captured = {}
+        decision = PortfolioDecision(
+            rating=PortfolioRating.OVERWEIGHT,
+            executive_summary="Build position gradually over the next two weeks.",
+            investment_thesis="AI capex cycle remains intact; institutional flows constructive.",
+            price_target=215.0,
+            time_horizon="3-6 months",
+        )
+        llm = _structured_pm_llm(captured, decision)
+        pm_node = create_portfolio_manager(llm)
+        result = pm_node(_make_pm_state())
+        md = result["final_trade_decision"]
+        assert "**Rating**: Overweight" in md
+        assert "**Executive Summary**: Build position gradually" in md
+        assert "**Investment Thesis**: AI capex cycle" in md
+        assert "**Price Target**: 215.0" in md
+        assert "**Time Horizon**: 3-6 months" in md
+
+    def test_pm_falls_back_to_freetext_when_structured_unavailable(self):
+        """If a provider does not support with_structured_output, the agent
+        falls back to a plain invoke and returns whatever prose the model
+        produced, so the pipeline never blocks."""
+        plain_response = "**Rating**: Sell\n\nExit ahead of guidance."
+        llm = MagicMock()
+        llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
+        llm.invoke.return_value = MagicMock(content=plain_response)
+        pm_node = create_portfolio_manager(llm)
+        result = pm_node(_make_pm_state())
+        assert result["final_trade_decision"] == plain_response
 
     # get_past_context ordering and limits
 
