@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage
@@ -97,24 +98,24 @@ class TestMacroSummaryAgentNoDataGuard:
     """Verify the abort-early guard fires and LLM is not invoked."""
 
     def test_empty_scan_summary_returns_sentinel(self):
-        """Empty scan_summary dict triggers NO DATA sentinel without LLM call."""
+        """Empty scan_summary dict raises RuntimeError without LLM call."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
         state = {"scan_summary": {}, "messages": [], "analysis_date": "2026-03-26"}
-        result = agent(state)
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent(state)
         mock_llm.invoke.assert_not_called()
 
     def test_none_scan_summary_returns_sentinel(self):
-        """None scan_summary triggers NO DATA sentinel."""
+        """None scan_summary raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
         state = {"scan_summary": None, "messages": [], "analysis_date": "2026-03-26"}
-        result = agent(state)
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent(state)
 
     def test_error_key_in_scan_returns_sentinel(self):
-        """scan_summary with 'error' key triggers NO DATA sentinel."""
+        """scan_summary with 'error' key raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
         state = {
@@ -122,15 +123,16 @@ class TestMacroSummaryAgentNoDataGuard:
             "messages": [],
             "analysis_date": "2026-03-26",
         }
-        result = agent(state)
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent(state)
+        mock_llm.invoke.assert_not_called()
 
     def test_missing_scan_key_returns_sentinel(self):
-        """State dict with no scan_summary key at all triggers NO DATA sentinel."""
+        """State dict with no scan_summary key at all raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({"messages": [], "analysis_date": "2026-03-26"})
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent({"messages": [], "analysis_date": "2026-03-26"})
 
 
 # ---------------------------------------------------------------------------
@@ -142,19 +144,16 @@ class TestMacroSummaryAgentReturnShape:
     """Verify that every execution path returns the expected state keys."""
 
     def test_no_data_path_returns_required_keys(self):
-        """NO-DATA guard path returns all required state keys."""
+        """NO-DATA guard path now raises RuntimeError."""
         agent = create_macro_summary_agent(MagicMock())
-        result = agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
-        assert "macro_brief" in result
-        assert "macro_memory_context" in result
-        assert "sender" in result
-        assert result["sender"] == "macro_summary_agent"
+        with pytest.raises(RuntimeError):
+            agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
 
     def test_no_data_path_messages_is_list(self):
-        """NO-DATA guard path returns messages as a list."""
+        """NO-DATA guard path raises RuntimeError (no return value to inspect)."""
         agent = create_macro_summary_agent(MagicMock())
-        result = agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
-        assert isinstance(result["messages"], list)
+        with pytest.raises(RuntimeError):
+            agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
 
     def test_llm_path_returns_required_keys(self):
         """LLM-invoked path returns all required state keys."""
@@ -227,10 +226,10 @@ class TestMacroSummaryAgentMemory:
     """Verify macro_memory interaction without hitting MongoDB."""
 
     def test_no_memory_context_is_empty_string_on_no_data_path(self):
-        """NO-DATA path returns empty string for macro_memory_context."""
+        """NO-DATA path raises RuntimeError."""
         agent = create_macro_summary_agent(MagicMock())
-        result = agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
-        assert result["macro_memory_context"] == ""
+        with pytest.raises(RuntimeError):
+            agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
 
     def test_memory_context_injected_into_result(self, tmp_path):
         """When macro_memory is provided, macro_memory_context is populated."""
