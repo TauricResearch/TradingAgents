@@ -7,7 +7,6 @@ from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
-    build_trader_plan_fallback,
     build_trader_plan_structured,
     output_contains_scratchpad,
 )
@@ -172,10 +171,14 @@ Apply lessons from past decisions:
             or not str(output_content).strip()
             or output_contains_scratchpad(output_content)
         ):
-            output_content = build_trader_plan_fallback(state)
-            is_fallback = True
-        else:
-            is_fallback = False
+            failure_class = (
+                "timeout"
+                if is_timeout
+                else ("empty" if not str(output_content).strip() else "scratchpad")
+            )
+            raise RuntimeError(
+                f"Trader node failed: {failure_class} — no valid output after exhausting retries"
+            )
 
         # Guardrail: reject plans anchored to stale prices.
         current_price = _extract_current_price_from_state(state)
@@ -194,7 +197,7 @@ Apply lessons from past decisions:
             ticker=ticker,
             as_of_date=state.get("trade_date", ""),
             trader_plan=output_content,
-            is_timeout_fallback=is_timeout or is_fallback,
+            is_timeout_fallback=False,
         )
 
         return {

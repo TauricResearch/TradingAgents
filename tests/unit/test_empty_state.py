@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from tradingagents.agents.portfolio.macro_summary_agent import (
     create_macro_summary_agent,
 )
@@ -18,47 +20,43 @@ class TestEmptyStateGuards:
     """Validate that agents handle missing/empty data gracefully without hallucinating."""
 
     def test_macro_agent_empty_dict(self):
-        """Empty scan_summary dict triggers NO DATA sentinel; LLM not invoked."""
+        """Empty scan_summary dict raises RuntimeError; LLM not invoked."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
-        # LLM must NOT be invoked
+        with pytest.raises(RuntimeError):
+            agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
         mock_llm.invoke.assert_not_called()
         mock_llm.with_structured_output.assert_not_called()
 
     def test_macro_agent_none_scan(self):
-        """None scan_summary triggers NO DATA sentinel."""
+        """None scan_summary raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({"scan_summary": None, "messages": [], "analysis_date": ""})
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent({"scan_summary": None, "messages": [], "analysis_date": ""})
 
     def test_macro_agent_error_key(self):
-        """scan_summary with 'error' key triggers NO DATA sentinel."""
+        """scan_summary with 'error' key raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent(
-            {
-                "scan_summary": {"error": "rate limit exceeded"},
-                "messages": [],
-                "analysis_date": "",
-            }
-        )
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent(
+                {
+                    "scan_summary": {"error": "rate limit exceeded"},
+                    "messages": [],
+                    "analysis_date": "",
+                }
+            )
 
     def test_macro_agent_missing_scan_key(self):
-        """State dict with no scan_summary key at all triggers NO DATA sentinel.
-
-        state.get('scan_summary') returns None → should trigger guard.
-        """
+        """State dict with no scan_summary key at all raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({"messages": [], "analysis_date": ""})
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent({"messages": [], "analysis_date": ""})
 
     def test_macro_agent_no_data_path_does_not_invoke_llm(self):
-        """All NO-DATA guard paths must leave the LLM untouched."""
+        """All NO-DATA guard paths must raise RuntimeError and leave the LLM untouched."""
         no_data_states = [
             {"scan_summary": {}, "messages": [], "analysis_date": ""},
             {"scan_summary": None, "messages": [], "analysis_date": ""},
@@ -68,36 +66,30 @@ class TestEmptyStateGuards:
         for state in no_data_states:
             mock_llm = MagicMock()
             agent = create_macro_summary_agent(mock_llm)
-            agent(state)
+            with pytest.raises(RuntimeError):
+                agent(state)
             mock_llm.invoke.assert_not_called()
             mock_llm.__ror__.assert_not_called()
 
-    def test_macro_agent_no_data_returns_correct_sender(self):
-        """Sender is always 'macro_summary_agent' even on the NO-DATA path."""
+    def test_macro_agent_no_data_raises_on_missing_scan_summary(self):
+        """Missing scan_summary raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
-        assert result["sender"] == "macro_summary_agent"
+        with pytest.raises(RuntimeError):
+            agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
 
-    def test_macro_agent_no_data_macro_memory_context_empty_string(self):
-        """macro_memory_context is an empty string on the NO-DATA path."""
+    def test_macro_agent_error_only_key_raises(self):
+        """scan_summary that ONLY contains 'error' (no other keys) raises RuntimeError."""
         mock_llm = MagicMock()
         agent = create_macro_summary_agent(mock_llm)
-        result = agent({"scan_summary": {}, "messages": [], "analysis_date": ""})
-        assert result["macro_memory_context"] == ""
-
-    def test_macro_agent_error_only_key_triggers_sentinel(self):
-        """scan_summary that ONLY contains 'error' (no other keys) triggers guard."""
-        mock_llm = MagicMock()
-        agent = create_macro_summary_agent(mock_llm)
-        result = agent(
-            {
-                "scan_summary": {"error": "vendor offline"},
-                "messages": [],
-                "analysis_date": "2026-03-26",
-            }
-        )
-        assert result["macro_brief"] == "NO DATA AVAILABLE - ABORT MACRO"
+        with pytest.raises(RuntimeError):
+            agent(
+                {
+                    "scan_summary": {"error": "vendor offline"},
+                    "messages": [],
+                    "analysis_date": "2026-03-26",
+                }
+            )
 
     def test_macro_agent_scan_with_data_and_error_key_proceeds(self):
         """scan_summary with real data AND an 'error' key is NOT discarded.

@@ -69,15 +69,13 @@ def create_macro_summary_agent(
         if not scan_summary or (
             isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}
         ):
-            logger.warning(
-                "macro_summary_agent: scan_summary missing or contains only error — returning NO DATA sentinel."
+            error_detail = (
+                scan_summary.get("error", "N/A") if isinstance(scan_summary, dict) else "missing"
             )
-            return {
-                "macro_brief": "NO DATA AVAILABLE - ABORT MACRO",
-                "macro_memory_context": "",
-                "messages": [],
-                "sender": "macro_summary_agent",
-            }
+            raise RuntimeError(
+                f"macro_summary_agent: scan_summary missing or contains only error — "
+                f"cannot produce macro brief without valid scan data (error: {error_detail})"
+            )
 
         # ------------------------------------------------------------------
         # Compress scan data to save tokens
@@ -165,16 +163,21 @@ def create_macro_summary_agent(
 
         chain = prompt | llm
         result = chain.invoke([])
+        macro_brief = str(getattr(result, "content", "") or "")
+        if not macro_brief.strip():
+            raise RuntimeError(
+                "macro_summary_agent: empty LLM response — cannot produce macro brief"
+            )
 
         # ------------------------------------------------------------------
         # Persist macro regime call to memory
         # ------------------------------------------------------------------
         if macro_memory is not None:
-            _persist_regime(result.content, scan_summary, macro_memory, state)
+            _persist_regime(macro_brief, scan_summary, macro_memory, state)
 
         return {
             "messages": [result],
-            "macro_brief": result.content,
+            "macro_brief": macro_brief,
             "macro_memory_context": past_context,
             "sender": "macro_summary_agent",
         }

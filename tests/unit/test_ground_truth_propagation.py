@@ -172,42 +172,33 @@ class TestResearchManagerGroundTruth:
         assert "Do NOT invent" in prompt
 
     def test_scratchpad_output_triggers_fallback(self):
-        """When LLM outputs scratchpad phrases, we use the deterministic fallback."""
+        """When LLM outputs scratchpad phrases, RuntimeError is raised."""
         from tradingagents.agents.managers.research_manager import create_research_manager
 
         # Trigger phrase: "we need to"
         llm = _mock_llm("We need to follow instruction.\nWe can create bull arguments.")
         node = create_research_manager(llm, _mock_memory())
 
-        result = node(
-            _base_state(
-                news_report_structured={
-                    "status": "completed",
-                    "claims": [
-                        {
-                            "claim": "AAPL secured a $4.10B financing package.",
-                            "source": "Reuters",
-                            "published_at": "2026-03-30",
-                        }
-                    ],
-                },
-                fundamentals_report_structured={
-                    "status": "timeout_fallback",
-                    "macro_regime": "unknown",
-                    "key_metrics": {"numeric_mentions": 0},
-                },
+        with pytest.raises(RuntimeError):
+            node(
+                _base_state(
+                    news_report_structured={
+                        "status": "completed",
+                        "claims": [
+                            {
+                                "claim": "AAPL secured a $4.10B financing package.",
+                                "source": "Reuters",
+                                "published_at": "2026-03-30",
+                            }
+                        ],
+                    },
+                    fundamentals_report_structured={
+                        "status": "timeout_fallback",
+                        "macro_regime": "unknown",
+                        "key_metrics": {"numeric_mentions": 0},
+                    },
+                )
             )
-        )
-
-        # Should use fallback because scratchpad was detected
-        final_out = result.get("investment_plan") or result.get("trader_investment_plan") or ""
-        assert "We need to follow instruction" not in final_out
-        assert (
-            "Market Evidence" in final_out
-            or "Macro Regime" in final_out
-            or "Price Levels" in final_out
-            or "Strategic Action" in final_out
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -242,22 +233,15 @@ class TestTraderGroundTruth:
         assert "Do NOT estimate or invent" in system_msg["content"]
 
     def test_scratchpad_output_triggers_fallback(self):
-        """When LLM outputs scratchpad phrases, we use the deterministic fallback."""
+        """When LLM outputs scratchpad phrases, RuntimeError is raised."""
         from tradingagents.agents.trader.trader import create_trader
 
         # Contains trigger phrases like "Let's craft" and "produce final answer"
         llm = _mock_llm("Let's craft the final answer.\nNow produce final answer. Buy AAPL.")
         node = create_trader(llm, _mock_memory())
 
-        result = node(_base_state())
-
-        # Should NOT contain the scratchpad text, but rather the fallback
-        assert "Let's craft" not in result["trader_investment_plan"]
-        assert (
-            "Market Evidence" in result["trader_investment_plan"]
-            or "Price Levels" in result["trader_investment_plan"]
-            or "Research Manager" in result["trader_investment_plan"]
-        )
+        with pytest.raises(RuntimeError):
+            node(_base_state())
 
     def test_empty_upstream_plan_raises_runtime_error(self):
         from tradingagents.agents.trader.trader import create_trader
@@ -475,14 +459,8 @@ class TestStructuredContractEmission:
 
         llm = _mock_llm("")
         node = create_research_manager(llm, _mock_memory())
-        result = node(_base_state())
-
-        final_out = result["investment_plan"]
-        assert (
-            "Market Evidence" in final_out
-            or "Macro Regime" in final_out
-            or "Strategic Action" in final_out
-        )
+        with pytest.raises(RuntimeError):
+            node(_base_state())
 
     def test_trader_emits_trader_plan_structured(self):
         from tradingagents.agents.trader.trader import create_trader
