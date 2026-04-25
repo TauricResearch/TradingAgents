@@ -11,6 +11,7 @@ No API key is required for these public market-data endpoints.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from typing import Annotated, Optional
@@ -29,6 +30,7 @@ _BASE_URL = "https://fapi.binance.com"
 # Binance rate-limit: HTTP 429 → back off before retrying
 _MAX_RETRIES = 3
 _BASE_DELAY = 2.0  # seconds
+_DEFAULT_LIMIT = int(os.getenv("BINANCE_KLINE_LIMIT", "200"))
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +69,7 @@ def _fetch_klines_range(params: KlineParams) -> list[Kline]:
     query: dict = {
         "symbol": params.symbol.upper(),
         "interval": params.interval.value,
-        "limit": min(params.limit, 200),
+        "limit": min(params.limit, _DEFAULT_LIMIT),
     }
 #     if params.start_time is not None:
 #         query["startTime"] = params.start_time
@@ -166,7 +168,7 @@ def get_binance_klines(
         interval=resolved_interval,
         start_time=_date_to_ms(start_date),
         end_time=_date_to_ms(end_date),
-        limit=200,
+        limit=_DEFAULT_LIMIT,
     )
     klines = _fetch_klines_range(params)
     if not klines:
@@ -240,7 +242,7 @@ def get_binance_indicators_window(
         interval=resolved_interval,
         start_time=_date_to_ms(fetch_start.strftime("%Y-%m-%d")),
         end_time=_date_to_ms(curr_date),
-        limit=200,
+        limit=_DEFAULT_LIMIT,
     )
     klines = _fetch_klines_range(params)
     if not klines:
@@ -395,7 +397,7 @@ def get_fibonacci_retracement(
         interval=resolved_interval,
         start_time=_date_to_ms(start_date),
         end_time=_date_to_ms(end_date),
-        limit=200,
+        limit=_DEFAULT_LIMIT,
     )
     klines = _fetch_klines_range(params)
     if not klines:

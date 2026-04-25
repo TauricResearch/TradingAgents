@@ -503,31 +503,45 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
+    # Step 1: Market type
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
-            "SPY",
+            "Step 1: Market Type",
+            "Select the market you want to analyze",
         )
     )
-    selected_ticker = get_ticker()
+    selected_market_type = select_market_type()
+    console.print(f"[green]Selected market:[/green] {selected_market_type.capitalize()}")
 
-    # Step 2: Analysis date
+    # Step 2: Ticker / identifier
+    _ticker_hints = {
+        "stock": "Enter a stock or ETF ticker, including exchange suffix when needed (e.g. SPY, AAPL, CNC.TO, 7203.T)",
+        "crypto": "Enter a Binance trading pair (e.g. BTCUSDT, ETHUSDT, BNBUSDT)",
+        "forex": "Enter a yfinance forex pair with the =X suffix (e.g. EURUSD=X, GBPUSD=X, USDJPY=X)",
+    }
+    console.print(
+        create_question_box(
+            "Step 2: Identifier",
+            _ticker_hints[selected_market_type],
+        )
+    )
+    selected_ticker = get_ticker(selected_market_type)
+
+    # Step 3: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
-            "Step 2: Analysis Date",
+            "Step 3: Analysis Date",
             "Enter the analysis date (YYYY-MM-DD)",
             default_date,
         )
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Select analysts
+    # Step 4: Select analysts
     console.print(
         create_question_box(
-            "Step 3: Analysts Team", "Select your LLM analyst agents for the analysis"
+            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
         )
     )
     selected_analysts = select_analysts()
@@ -535,38 +549,38 @@ def get_user_selections():
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
-    # Step 4: Research depth
+    # Step 5: Research depth
     console.print(
         create_question_box(
-            "Step 4: Research Depth", "Select your research depth level"
+            "Step 5: Research Depth", "Select your research depth level"
         )
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: Thinking agents
+    # Step 6: Thinking agents
     console.print(
         create_question_box(
-            "Step 5: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent()
     selected_deep_thinker = select_deep_thinking_agent()
 
-    # Step 6: Claude effort level
+    # Step 7: Claude effort level
     console.print(
         create_question_box(
-            "Step 6: Effort Level",
+            "Step 7: Effort Level",
             "Configure Claude effort level"
         )
     )
     anthropic_effort = ask_anthropic_effort()
 
-    # Step 7: Kline config — only for crypto tickers routed to Binance
+    # Step 8: Kline config — only for crypto market type
     kline_config: dict = {}
-    if is_crypto_ticker(selected_ticker):
+    if selected_market_type == "crypto":
         console.print(
             create_question_box(
-                "Step 7: Kline Configuration",
+                "Step 8: Kline Configuration",
                 "Configure Binance candlestick interval and date range",
             )
         )
@@ -574,6 +588,7 @@ def get_user_selections():
 
     return {
         "ticker": selected_ticker,
+        "market_type": selected_market_type,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
@@ -586,9 +601,6 @@ def get_user_selections():
     }
 
 
-def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
 
 
 def get_analysis_date():
@@ -914,12 +926,14 @@ def run_analysis():
     config["llm_provider"] = selections["llm_provider"].lower()
     config["anthropic_effort"] = selections.get("anthropic_effort")
 
-    # Auto-route crypto tickers (e.g. BTCUSDT) to Binance
-    if is_crypto_ticker(selections["ticker"]):
+    # Auto-route crypto market type: Binance for price/indicators, yfinance for news
+    # Fundamental data is intentionally omitted — crypto has no company fundamentals
+    if selections["market_type"] == "crypto":
         config["data_vendors"] = {
             **config.get("data_vendors", {}),
-            "core_stock_apis": "binance",
-            "technical_indicators": "binance",
+            "core_stock_apis": "binance,yfinance",
+            "technical_indicators": "binance,yfinance",
+            "news_data": "yfinance,alpha_vantage",
         }
         # Forward user-selected kline params if provided
         for key in ("kline_interval", "kline_start_date", "kline_end_date"):

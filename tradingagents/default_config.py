@@ -23,12 +23,14 @@ DEFAULT_CONFIG = {
     "kline_start_date": None,    # YYYY-MM-DD; None = 2 months before today at runtime
     "kline_end_date": None,      # YYYY-MM-DD; None = today at runtime
     # Data vendor configuration
-    # Category-level configuration (default for all tools in category)
+    # Category-level configuration (default for all tools in category).
+    # Comma-separated = ordered fallback chain (first = primary).
+    # cli/main.py overrides these for crypto (sets binance as primary).
     "data_vendors": {
-        "core_stock_apis": "binance",        # Options: binance, alpha_vantage
-        "technical_indicators": "binance",   # Options: binance, alpha_vantage
-        "fundamental_data": "alpha_vantage", # Options: alpha_vantage (binance not supported)
-        "news_data": "alpha_vantage",        # Options: alpha_vantage (binance not supported)
+        "core_stock_apis": "yfinance,alpha_vantage",
+        "technical_indicators": "yfinance,alpha_vantage",
+        "fundamental_data": "yfinance,alpha_vantage",
+        "news_data": "yfinance,alpha_vantage",
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

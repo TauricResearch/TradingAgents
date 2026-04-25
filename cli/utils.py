@@ -7,7 +7,11 @@ from cli.models import AnalystType
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+_MARKET_TICKER_EXAMPLES: dict[str, str] = {
+    "stock": "e.g. SPY, AAPL, CNC.TO, 7203.T, 0700.HK",
+    "crypto": "e.g. BTCUSDT, ETHUSDT, BNBUSDT",
+    "forex": "e.g. EURUSD=X, GBPUSD=X, USDJPY=X",
+}
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -17,10 +21,41 @@ ANALYST_ORDER = [
 ]
 
 
-def get_ticker() -> str:
+def select_market_type() -> str:
+    """Prompt the user to select a market type (stock, crypto, forex)."""
+    MARKET_OPTIONS = [
+        ("Stock — Equities & ETFs (e.g. SPY, AAPL, CNC.TO)", "stock"),
+        ("Crypto — Binance pairs (e.g. BTCUSDT, ETHUSDT)", "crypto"),
+        ("Forex — Currency pairs (e.g. EURUSD=X, GBPUSD=X)", "forex"),
+    ]
+
+    choice = questionary.select(
+        "Select Market Type:",
+        choices=[
+            questionary.Choice(display, value=value) for display, value in MARKET_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No market type selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+
+def get_ticker(market_type: str = "stock") -> str:
     """Prompt the user to enter a ticker symbol."""
+    examples = _MARKET_TICKER_EXAMPLES.get(market_type, _MARKET_TICKER_EXAMPLES["stock"])
     ticker = questionary.text(
-        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
+        f"Enter the exact identifier to analyze ({examples}):",
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
