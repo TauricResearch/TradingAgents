@@ -100,10 +100,11 @@ def create_scanner_summarizer(llm: Any, report_key: str, summary_key: str) -> Ca
 
         prompt = _build_scanner_summary_prompt(report_key, raw_report)
 
+        _summarizer_timeout = float(DEFAULT_CONFIG.get("scanner_summarizer_timeout") or 180.0)
         result, invoke_error = invoke_with_timeout(
             llm=llm,
             prompt_or_messages=prompt,
-            timeout_seconds=float(DEFAULT_CONFIG.get("scanner_summarizer_timeout") or 180.0),
+            timeout_seconds=_summarizer_timeout,
         )
         if invoke_error is not None:
             raise RuntimeError(

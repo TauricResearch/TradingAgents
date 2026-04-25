@@ -88,8 +88,12 @@ _call_timestamps: list[float] = []
 _RATE_LIMIT = 75  # calls per minute (Alpha Vantage premium)
 
 
-def _rate_limited_request(function_name: str, params: dict, timeout: int = 30) -> dict | str:
-    """Make an API request with rate limiting (75 calls/min for premium key)."""
+def _rate_limited_request(function_name: str, params: dict, timeout: float | None = None) -> dict | str:
+    """Make an API request with rate limiting (75 calls/min for premium key).
+
+    When *timeout* is ``None`` (the default), ``_make_api_request`` applies the
+    env-configured default via ``_default_timeout()``.
+    """
     sleep_time = 0.0
     with _rate_lock:
         now = _time.time()

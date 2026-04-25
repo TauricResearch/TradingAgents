@@ -88,7 +88,7 @@ _call_timestamps: list[float] = []
 _RATE_LIMIT = 60  # calls per minute
 
 
-def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dict | list:
+def _rate_limited_request(endpoint: str, params: dict, timeout: float | None = None) -> dict | list:
     """Make a rate-limited Finnhub API request.
 
     Enforces the 60-calls-per-minute limit for the free tier using a sliding
@@ -98,7 +98,9 @@ def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dic
     Args:
         endpoint: Finnhub endpoint path (e.g. "quote").
         params: Query parameters (excluding the API token).
-        timeout: HTTP request timeout in seconds.
+        timeout: HTTP request timeout in seconds.  When ``None`` (the default),
+            ``_make_api_request`` applies the env-configured default via
+            ``_default_timeout()``.
 
     Returns:
         Parsed JSON response as a dict or list.
