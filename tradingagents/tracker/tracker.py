@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 
 from tradingagents.backtest.models import PerformanceMetrics, TradeRecord
 from tradingagents.backtest.performance import PerformanceCalculator
+from tradingagents.backtest.state_utils import extract_reports, extract_debate, extract_risk
 
 
 class TradeTracker:
@@ -66,9 +67,9 @@ class TradeTracker:
         Returns:
             The newly created TradeRecord.
         """
-        analyst_reports = self._extract_reports(agent_state)
-        debate_summary = self._extract_debate(agent_state)
-        risk_decision = self._extract_risk(agent_state)
+        analyst_reports = extract_reports(agent_state)
+        debate_summary = extract_debate(agent_state)
+        risk_decision = extract_risk(agent_state)
 
         record = TradeRecord(
             ticker=ticker,
@@ -215,8 +216,8 @@ class TradeTracker:
         ticker_trades = [t for t in self._trades if t.ticker == ticker]
         filepath = os.path.join(ticker_dir, "trades.json")
 
-        with open(filepath, "w") as f:
-            json.dump([t.to_dict() for t in ticker_trades], f, indent=2)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump([t.to_dict() for t in ticker_trades], f, indent=2, ensure_ascii=False)
 
     def _load_existing(self) -> None:
         """Scan storage_dir/trades/ for existing JSON files and load them."""
@@ -233,47 +234,9 @@ class TradeTracker:
             if not os.path.isfile(filepath):
                 continue
 
-            with open(filepath) as f:
+            with open(filepath, encoding="utf-8") as f:
                 data = json.load(f)
 
             for entry in data:
                 self._trades.append(TradeRecord.from_dict(entry))
 
-    # ------------------------------------------------------------------
-    # Agent state extraction helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _extract_reports(state: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract analyst reports from the agent state dict."""
-        report_keys = (
-            "market_report",
-            "sentiment_report",
-            "news_report",
-            "fundamentals_report",
-        )
-        return {k: state.get(k, "") for k in report_keys if k in state}
-
-    @staticmethod
-    def _extract_debate(state: Dict[str, Any]) -> str:
-        """Extract investment debate summary from the agent state dict."""
-        debate = state.get("investment_debate_state", {})
-        if not debate:
-            return ""
-
-        parts = []
-        if debate.get("bull_history"):
-            parts.append(f"Bull: {debate['bull_history']}")
-        if debate.get("bear_history"):
-            parts.append(f"Bear: {debate['bear_history']}")
-        if debate.get("judge_decision"):
-            parts.append(f"Judge: {debate['judge_decision']}")
-        return "\n".join(parts)
-
-    @staticmethod
-    def _extract_risk(state: Dict[str, Any]) -> str:
-        """Extract risk debate decision from the agent state dict."""
-        risk = state.get("risk_debate_state", {})
-        if not risk:
-            return ""
-        return risk.get("judge_decision", "")

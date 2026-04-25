@@ -27,6 +27,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 from .models import BacktestResult, PerformanceMetrics, TradeRecord
 from .performance import PerformanceCalculator
+from .state_utils import extract_reports, extract_debate, extract_risk
 
 logger = logging.getLogger(__name__)
 
@@ -153,9 +154,9 @@ class BacktestEngine:
                         entry_price=price,
                         quantity=quantity,
                         source="backtest",
-                        analyst_reports=self._extract_reports(state),
-                        debate_summary=self._extract_debate(state),
-                        risk_decision=self._extract_risk(state),
+                        analyst_reports=extract_reports(state),
+                        debate_summary=extract_debate(state),
+                        risk_decision=extract_risk(state),
                     )
                     logger.info(
                         "BUY %d shares of %s @ %.2f on %s",
@@ -323,42 +324,6 @@ class BacktestEngine:
         except Exception:
             logger.exception("Failed to fetch price for %s on %s", ticker, date_str)
             return None
-
-    # ------------------------------------------------------------------
-    # State extraction helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _extract_reports(state: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract analyst report summaries from agent state."""
-        reports: Dict[str, Any] = {}
-        for key in ("market_report", "sentiment_report", "news_report", "fundamentals_report"):
-            if key in state:
-                reports[key] = state[key]
-        return reports
-
-    @staticmethod
-    def _extract_debate(state: Dict[str, Any]) -> str:
-        """Extract investment debate summary from agent state."""
-        debate = state.get("investment_debate_state", {})
-        if isinstance(debate, dict):
-            parts = []
-            if debate.get("bull_history"):
-                parts.append(f"Bull: {debate['bull_history']}")
-            if debate.get("bear_history"):
-                parts.append(f"Bear: {debate['bear_history']}")
-            if debate.get("judge_decision"):
-                parts.append(f"Judge: {debate['judge_decision']}")
-            return " | ".join(parts)
-        return str(debate) if debate else ""
-
-    @staticmethod
-    def _extract_risk(state: Dict[str, Any]) -> str:
-        """Extract risk debate decision from agent state."""
-        risk = state.get("risk_debate_state", {})
-        if isinstance(risk, dict):
-            return risk.get("judge_decision", "")
-        return str(risk) if risk else ""
 
     # ------------------------------------------------------------------
     # Result persistence

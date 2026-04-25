@@ -60,7 +60,8 @@ class TradeRecord:
 
     @classmethod
     def from_dict(cls, d: dict) -> "TradeRecord":
-        return cls(**d)
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
 
 
 @dataclass

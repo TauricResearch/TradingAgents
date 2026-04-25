@@ -53,11 +53,12 @@ class PerformanceCalculator:
         if not trades:
             return self._empty_metrics()
 
-        # Extract per-trade return percentages
-        returns = [t.pnl_pct for t in trades if t.pnl_pct is not None]
-        pnls = [t.pnl for t in trades if t.pnl is not None]
+        # Only count closed trades (those with computed PnL)
+        closed = [t for t in trades if t.pnl_pct is not None and t.exit_price is not None]
+        returns = [t.pnl_pct for t in closed]
+        pnls = [t.pnl for t in closed if t.pnl is not None]
 
-        total_trades = len(trades)
+        total_trades = len(closed)
         winning = [r for r in returns if r > 0]
         losing = [r for r in returns if r <= 0]
 
@@ -168,6 +169,10 @@ class PerformanceCalculator:
 
     def _sharpe_ratio(self, monthly_returns: List[float]) -> float:
         """Compute annualized Sharpe ratio from monthly return percentages.
+
+        This is an approximate trade-based Sharpe, not a standard daily-return
+        portfolio Sharpe.  Trades are grouped by exit month and averaged per
+        month, then annualized with sqrt(12).
 
         Formula: sqrt(12) * mean(monthly_returns) / std(monthly_returns)
         Returns 0.0 if there are fewer than 2 data points or zero std.
