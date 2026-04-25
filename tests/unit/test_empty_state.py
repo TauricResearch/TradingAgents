@@ -7,8 +7,9 @@ must short-circuit before invoking the LLM.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from tradingagents.agents.portfolio.macro_summary_agent import (
     create_macro_summary_agent,
