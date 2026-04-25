@@ -629,7 +629,9 @@ class TestLegacyRemoval:
             create_portfolio_manager(mock_llm, memory=MagicMock())
 
     def test_full_pipeline_no_regression(self, tmp_path):
-        """propagate() completes without AttributeError after legacy cleanup."""
+        """propagate() completes and stores the decision after the redesign."""
+        import functools
+
         fake_state = {
             "final_trade_decision": "Rating: Buy\nBuy NVDA.",
             "company_of_interest": "NVDA",
@@ -660,6 +662,11 @@ class TestLegacyRemoval:
         mock_graph.propagator.create_initial_state.return_value = fake_state
         mock_graph.propagator.get_graph_args.return_value = {}
         mock_graph.signal_processor.process_signal.return_value = "Buy"
+        # Bind the real _run_graph so propagate's call to self._run_graph executes
+        # the actual write path instead of the auto-MagicMock.
+        mock_graph._run_graph = functools.partial(
+            TradingAgentsGraph._run_graph, mock_graph
+        )
         TradingAgentsGraph.propagate(mock_graph, "NVDA", "2026-01-10")
         entries = mock_graph.memory_log.load_entries()
         assert len(entries) == 1
