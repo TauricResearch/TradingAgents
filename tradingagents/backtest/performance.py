@@ -78,7 +78,7 @@ class PerformanceCalculator:
         monthly_rets = self._monthly_returns(trades)
 
         # Sharpe ratio (annualized from monthly)
-        monthly_values = [m["return"] for m in monthly_rets]
+        monthly_values = [m["return_pct"] for m in monthly_rets]
         sharpe = self._sharpe_ratio(monthly_values)
 
         # Profit factor: gross profit / gross loss
@@ -251,7 +251,7 @@ class PerformanceCalculator:
         for month_key in sorted(monthly.keys()):
             rets = monthly[month_key]
             avg = sum(rets) / len(rets) if rets else 0.0
-            result.append({"month": month_key, "return": round(avg, 4)})
+            result.append({"month": month_key, "return_pct": round(avg, 4)})
 
         return result
 
