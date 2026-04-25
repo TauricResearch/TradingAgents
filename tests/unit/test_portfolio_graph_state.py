@@ -17,15 +17,17 @@ from tradingagents.portfolio.models import Portfolio
 
 class _FakeRepo:
     def get_portfolio_with_holdings(self, _portfolio_id, _prices):
-        return (
-            Portfolio(
-                portfolio_id="portfolio-1",
-                name="test",
-                cash=0.0,
-                initial_cash=0.0,
-            ),
-            [],
+        p = Portfolio(
+            portfolio_id="portfolio-1",
+            name="test",
+            cash=2500.0,
+            initial_cash=100000.0,
         )
+        # Pre-set total_value to simulate a largely-invested portfolio so that:
+        # (a) portfolio_integrity_guard passes (total_value is not None, cash > 0), and
+        # (b) cash_sweep does not trigger (cash/total_value = 2.5% < 5% threshold).
+        p.total_value = 100000.0
+        return p, []
 
     def take_snapshot(self, portfolio_id, _prices):
         return SimpleNamespace(
