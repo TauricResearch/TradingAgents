@@ -19,16 +19,17 @@ class PortfolioManagerState(MessagesState):
     reducer-backed string fields remain important for summary outputs and
     sender-style state writes.
 
-    ``prices`` and ``scan_summary`` are plain dicts — written only by the
-    caller (initial state) and never mutated by nodes, so no reducer needed.
+    ``prices``, ``scan_summary``, and ``ticker_analyses`` carry ``_last_value``
+    reducers so they survive fan-in merges even though they are only written
+    once by the caller.
     """
 
     # Inputs (set once by the caller, never written by nodes)
-    portfolio_id: str
-    analysis_date: str
-    prices: dict  # ticker → price
-    scan_summary: dict  # macro scan output from ScannerGraph
-    ticker_analyses: dict  # per-ticker analysis results keyed by ticker symbol
+    portfolio_id: Annotated[str, _last_value]
+    analysis_date: Annotated[str, _last_value]
+    prices: Annotated[dict, _last_value]  # ticker → price
+    scan_summary: Annotated[dict, _last_value]  # macro scan output from ScannerGraph
+    ticker_analyses: Annotated[dict, _last_value]  # per-ticker analysis results keyed by ticker symbol
 
     # Processing fields (string-serialised JSON — written by individual nodes)
     portfolio_data: Annotated[str, _last_value]

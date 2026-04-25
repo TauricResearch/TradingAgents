@@ -17,11 +17,11 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.news_data_tools import get_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,18 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     }
 
 
-def create_holding_reviewer(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
+def _lookup_analysis(ticker_analyses: dict, ticker: str) -> dict:
+    """Find a saved deep-dive analysis by bare ticker or canonical instrument key."""
+    if not isinstance(ticker_analyses, dict):
+        return {}
+    ticker = str(ticker or "").upper()
+    for key in (ticker, f"equity:{ticker}"):
+        if key and isinstance(ticker_analyses.get(key), dict):
+            return ticker_analyses[key]
+    return {}
+
+
+def create_holding_reviewer(llm: Any) -> Callable[[PortfolioManagerState], dict[str, Any]]:
     """Create a holding reviewer agent node.
 
     Args:
@@ -71,7 +82,7 @@ def create_holding_reviewer(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         A node function ``holding_reviewer_node(state)`` compatible with LangGraph.
     """
 
-    def holding_reviewer_node(state: AgentState) -> dict[str, Any]:
+    def holding_reviewer_node(state: PortfolioManagerState) -> dict[str, Any]:
         portfolio_data_str = state.get("portfolio_data") or "{}"
         analysis_date = state.get("analysis_date") or ""
 
@@ -103,7 +114,7 @@ def create_holding_reviewer(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         deep_dive_context: dict[str, dict[str, str]] = {}
         if isinstance(ticker_analyses, dict):
             for ticker in holding_tickers:
-                snapshot = _analysis_snapshot(ticker_analyses.get(ticker, {}))
+                snapshot = _analysis_snapshot(_lookup_analysis(ticker_analyses, ticker))
                 if snapshot:
                     deep_dive_context[ticker] = snapshot
         deep_dive_str = (

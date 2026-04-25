@@ -6,7 +6,9 @@ from langgraph.graph import MessagesState
 
 
 def _last_value(existing: str, new: str) -> str:
-    """Reducer that keeps the last written value (for concurrent writes)."""
+    """Reducer that keeps the last non-empty value across concurrent writes."""
+    if existing and not new:
+        return existing
     return new
 
 
@@ -25,7 +27,8 @@ class ScannerState(MessagesState):
     """
 
     # Input
-    scan_date: str
+    scan_date: Annotated[str, _last_value]
+    run_id: Annotated[str, _last_value]
 
     # Phase 1: Parallel scanner outputs — each written by exactly one node
     gatekeeper_universe_report: Annotated[str, _last_value]

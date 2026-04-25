@@ -8,10 +8,12 @@ from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.runnables import RunnableLambda
 
 from tradingagents.agents.scanners.industry_deep_dive import (
     _DISPLAY_TO_KEY,
     VALID_SECTOR_KEYS,
+    create_industry_deep_dive,
     _extract_top_sectors,
 )
 from tradingagents.agents.utils.tool_runner import (
@@ -131,6 +133,35 @@ class TestExtractTopSectors:
         """
         result = _extract_top_sectors(report, top_n=3)
         assert result == ["communication-services", "industrials", "basic-materials"]
+
+
+def test_industry_deep_dive_fails_when_scan_date_missing(monkeypatch):
+    """A missing scan_date at the fan-in boundary is a pipeline error."""
+
+    class FakeLLM:
+        def bind_tools(self, _tools):
+            return RunnableLambda(lambda _messages: AIMessage(content="stub report"))
+
+    captured = {}
+
+    def fake_run_tool_loop(chain, messages, tools, **kwargs):
+        captured["kwargs"] = kwargs
+        return AIMessage(content="industry report with sufficient content")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.industry_deep_dive.run_tool_loop",
+        fake_run_tool_loop,
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.industry_deep_dive.save_node_report",
+        lambda *_args, **_kwargs: None,
+    )
+    node = create_industry_deep_dive(FakeLLM())
+
+    with pytest.raises(RuntimeError) as exc:
+        node({"run_id": "RUN1", "messages": [], "sector_performance_report": ""})
+
+    assert "missing required scan_date" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------

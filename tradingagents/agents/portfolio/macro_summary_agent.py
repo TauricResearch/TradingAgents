@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 
 if TYPE_CHECKING:
     from tradingagents.memory.macro_memory import MacroMemory
@@ -48,7 +48,7 @@ def _build_candidate_context(scan_summary: dict, limit: int = 5) -> str:
 
 def create_macro_summary_agent(
     llm: Any, macro_memory: MacroMemory | None = None
-) -> Callable[[AgentState], dict[str, Any]]:
+) -> Callable[[PortfolioManagerState], dict[str, Any]]:
     """Create a macro summary agent node.
 
     Args:
@@ -60,16 +60,18 @@ def create_macro_summary_agent(
         A node function ``macro_summary_node(state)`` compatible with LangGraph.
     """
 
-    def macro_summary_node(state: AgentState) -> dict[str, Any]:
+    def macro_summary_node(state: PortfolioManagerState) -> dict[str, Any]:
         scan_summary = state.get("scan_summary") or {}
 
-        # Guard: abort early if scan data is absent or *only* contains an error
-        # (partial failures with real data + an "error" key are still usable)
+        # Hard sentinel: if scan data is absent or only contains an error, return the "NO DATA
+        # AVAILABLE" marker immediately without invoking the LLM.  pm_decision_agent checks for
+        # this string to apply its conservative-posture override (hold positions, avoid new buys).
         if not scan_summary or (isinstance(scan_summary, dict) and scan_summary.keys() == {"error"}):
+            logger.warning("macro_summary_agent: scan_summary missing or contains only error — returning NO DATA sentinel.")
             return {
-                "messages": [],
                 "macro_brief": "NO DATA AVAILABLE - ABORT MACRO",
                 "macro_memory_context": "",
+                "messages": [],
                 "sender": "macro_summary_agent",
             }
 

@@ -732,6 +732,8 @@ class LangGraphEngine:
             "sender": "",
             **initial_state,
         }
+        seeded_state["scan_date"] = date
+        seeded_state["run_id"] = root_run_id
 
         self._event_mapper.register_run(execution_key, "MARKET")
         final_state: dict[str, Any] = {}
@@ -1593,7 +1595,7 @@ class LangGraphEngine:
 
     def _load_scan_state(self, *, root_run_id: str, date: str, store: Any) -> dict[str, Any]:
         """Load persisted Phase 1 reports into the state shape expected by Phase 2."""
-        scan_state: dict[str, Any] = {"scan_date": date}
+        scan_state: dict[str, Any] = {"scan_date": date, "run_id": root_run_id}
         save_dir = get_market_dir(date, root_run_id)
         for key in SCAN_NODE_TO_REPORT_FIELD.values():
             report_file = save_dir / f"{key}.md"

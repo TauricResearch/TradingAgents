@@ -27,10 +27,14 @@ def test_smart_money_preserves_insufficient_evidence_before_provenance(caplog):
     with patch(
         "tradingagents.agents.scanners.smart_money_scanner.run_tool_loop",
         return_value=insufficient,
+    ), patch(
+        "tradingagents.agents.scanners.smart_money_scanner.save_node_report",
+        lambda *_args, **_kwargs: None,
     ), caplog.at_level(logging.WARNING):
         result = node(
             {
                 "scan_date": "2026-04-10",
+                "run_id": "RUN1",
                 "messages": [],
                 "sector_performance_report": "",
                 "smart_money_report": "",

@@ -333,6 +333,66 @@ class TestRunScanReportStorage(unittest.TestCase):
         self.assertGreaterEqual(len(log_events), 2,
                                 "Expected at least one log event before and after streaming")
 
+    def test_run_scan_from_node_param_date_overrides_reconstructed_state(self):
+        """Partial scan reruns must not let reconstructed event state erase scan_date."""
+        captured: dict[str, dict] = {}
+
+        async def mock_astream(seed_state, *args, **kwargs):
+            captured["seed_state"] = dict(seed_state)
+            yield _root_chain_end_event({"industry_deep_dive_report": "industry report"})
+
+        mock_graph = MagicMock()
+        mock_graph.astream_events = mock_astream
+        mock_scanner = MagicMock()
+        mock_scanner.graph_from.return_value = mock_graph
+
+        engine = LangGraphEngine()
+        stale_state = {
+            "scan_date": "",
+            "messages": [],
+            "sector_performance_report": "seeded sector",
+        }
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"):
+            fake_dir = MagicMock(spec=Path)
+            fake_dir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_dir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_dir
+            mock_rs_cls.return_value = MagicMock()
+
+            asyncio.run(_collect(engine.run_scan_from_node(
+                "run1",
+                {"date": "2026-04-24", "run_id": "run1"},
+                "industry_deep_dive",
+                stale_state,
+            )))
+
+        self.assertEqual(captured["seed_state"]["scan_date"], "2026-04-24")
+
+    def test_load_scan_state_includes_run_id_for_downstream_disk_fallbacks(self):
+        """Loaded scan state must carry run_id so downstream nodes can load artifacts."""
+        engine = LangGraphEngine()
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = None
+        fake_market_dir = MagicMock(spec=Path)
+
+        with patch(
+            "agent_os.backend.services.langgraph_engine.get_market_dir",
+            return_value=fake_market_dir,
+        ):
+            state = engine._load_scan_state(
+                root_run_id="RUN1",
+                date="2026-04-24",
+                store=mock_store,
+            )
+
+        self.assertEqual(state["run_id"], "RUN1")
+        self.assertEqual(state["scan_date"], "2026-04-24")
+
     def test_run_scan_skips_json_save_on_invalid_json(self):
         """When extract_json raises ValueError, save_scan is NOT called but .md files ARE saved."""
         mock_scanner = self._make_mock_scanner()

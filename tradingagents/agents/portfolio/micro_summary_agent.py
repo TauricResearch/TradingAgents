@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 
 if TYPE_CHECKING:
     from tradingagents.memory.reflexion import ReflexionMemory
@@ -90,9 +90,21 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     }
 
 
+def _lookup_analysis(ticker_analyses: dict, ticker: str, instrument_key: str = "") -> dict:
+    """Find a saved deep-dive analysis by instrument key or bare ticker."""
+    if not isinstance(ticker_analyses, dict):
+        return {}
+    ticker = str(ticker or "").upper()
+    keys = [instrument_key, ticker, f"equity:{ticker}"]
+    for key in keys:
+        if key and isinstance(ticker_analyses.get(key), dict):
+            return ticker_analyses[key]
+    return {}
+
+
 def create_micro_summary_agent(
     llm: Any, micro_memory: ReflexionMemory | None = None
-) -> Callable[[AgentState], dict[str, Any]]:
+) -> Callable[[PortfolioManagerState], dict[str, Any]]:
     """Create a micro summary agent node.
 
     Args:
@@ -104,7 +116,7 @@ def create_micro_summary_agent(
         A node function ``micro_summary_node(state)`` compatible with LangGraph.
     """
 
-    def micro_summary_node(state: AgentState) -> dict[str, Any]:
+    def micro_summary_node(state: PortfolioManagerState) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
 
         # ------------------------------------------------------------------
@@ -115,6 +127,11 @@ def create_micro_summary_agent(
 
         holding_reviews: dict = _parse_json_safely(holding_reviews_raw, default={})
         candidates: list = _parse_json_safely(candidates_raw, default=[])
+
+        if not holding_reviews:
+            logger.warning("micro_summary_agent: No holding reviews found in state. Proceeding with partial synthesis.")
+        if not candidates:
+            logger.warning("micro_summary_agent: No prioritized candidates found in state. Proceeding with partial synthesis.")
 
         # Optional: per-ticker trading graph analyses (fundamentals, technicals, etc.)
         ticker_analyses: dict = state.get("ticker_analyses") or {}
@@ -136,8 +153,15 @@ def create_micro_summary_agent(
         ticker_memory_str = json.dumps(ticker_memory_dict)
         deep_dive_context: dict[str, dict[str, str]] = {}
         if isinstance(ticker_analyses, dict):
+            instrument_keys = {
+                str(c.get("ticker") or "").upper(): str(c.get("instrument_key") or "")
+                for c in candidates
+                if isinstance(c, dict)
+            }
             for ticker in all_tickers:
-                snapshot = _analysis_snapshot(ticker_analyses.get(ticker, {}))
+                snapshot = _analysis_snapshot(
+                    _lookup_analysis(ticker_analyses, ticker, instrument_keys.get(ticker, ""))
+                )
                 if snapshot:
                     deep_dive_context[ticker] = snapshot
 
