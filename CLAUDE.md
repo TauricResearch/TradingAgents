@@ -72,6 +72,14 @@ TradingAgents/
 │   │       ├── constants.py      # API URLs, tr_ids for paper/real trading
 │   │       ├── client.py         # KISClient — HTTP + token mgmt + rate limiting
 │   │       └── broker.py         # KISBroker(BaseBroker) implementation
+│   ├── backtest/                 # Backtest engine + performance calculation
+│   │   ├── models.py            # TradeRecord, PerformanceMetrics, BacktestResult
+│   │   ├── engine.py            # BacktestEngine — runs propagate() per rebalance date
+│   │   └── performance.py       # PerformanceCalculator — Sharpe, MDD, equity curve
+│   ├── tracker/                  # Live/paper trade performance tracking
+│   │   └── tracker.py           # TradeTracker — records trades, computes PnL
+│   ├── dashboard/                # HTML performance dashboard generation
+│   │   └── builder.py           # DashboardBuilder — Plotly.js self-contained HTML
 │   └── llm_clients/
 │       ├── factory.py            # create_llm_client() — provider routing
 │       ├── base_client.py        # BaseLLMClient ABC
@@ -125,6 +133,29 @@ When `config["broker"]["enabled"]` is True:
 3. Graph adds "Executor" node after "Risk Judge"
 4. Portfolio context injected into Trader's prompt
 5. `BaseBroker` ABC allows future broker implementations (Kiwoom, eBest, etc.)
+
+### Backtest & Performance Dashboard
+
+Three new modules added as external orchestrators (no changes to existing code):
+
+**Backtest Engine** (`tradingagents/backtest/`):
+- `BacktestEngine.run(ticker, start_date, end_date, ...)` → runs propagate() at each rebalance date
+- Supports monthly/weekly/biweekly rebalancing
+- Signal caching (`save_signals=True`) for cost-free re-runs
+- `skip_llm=True` to replay cached signals without LLM calls
+
+**Trade Tracker** (`tradingagents/tracker/`):
+- `TradeTracker.record_trade()` — records BUY/SELL/HOLD with agent state metadata
+- `TradeTracker.close_position()` — closes open position, calculates PnL
+- `TradeTracker.get_performance()` — returns PerformanceMetrics for filtered trades
+- JSON file storage at `{results_dir}/trades/{ticker}/trades.json`
+
+**Dashboard** (`tradingagents/dashboard/`):
+- `DashboardBuilder.build()` → self-contained HTML with Plotly.js
+- KPI cards, equity curve, monthly returns heatmap, trade history with debate detail toggle
+- Backtest vs live comparison table
+
+**CLI**: `python backtest_cli.py --ticker NVDA --start 2024-04-01 --end 2026-04-01`
 
 ## Development Patterns
 
@@ -192,8 +223,20 @@ python -c "from tradingagents.graph.trading_graph import TradingAgentsGraph; pri
 # Verify execution module
 python -c "from tradingagents.execution import create_broker, ExecutionEngine; print('OK')"
 
+# Verify backtest module
+python -c "from tradingagents.backtest import BacktestEngine, PerformanceCalculator; print('OK')"
+
+# Verify tracker module
+python -c "from tradingagents.tracker import TradeTracker; print('OK')"
+
+# Verify dashboard module
+python -c "from tradingagents.dashboard import DashboardBuilder; print('OK')"
+
 # Run CLI
 python -m cli.main
+
+# Run backtest CLI
+python backtest_cli.py --ticker NVDA --start 2024-04-01 --end 2026-04-01
 ```
 
 ## Coding Conventions
