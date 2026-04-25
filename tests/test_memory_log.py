@@ -291,6 +291,59 @@ class TestTradingMemoryLogCore:
         assert log.load_entries() == []
         assert log.get_past_context("NVDA") == ""
 
+    # Rotation: opt-in cap on resolved entries
+
+    def test_rotation_disabled_by_default(self, tmp_path):
+        """Without max_entries, all resolved entries are kept."""
+        log = make_log(tmp_path)
+        for i in range(7):
+            _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Lesson {i}.")
+        assert len(log.load_entries()) == 7
+
+    def test_rotation_prunes_oldest_resolved(self, tmp_path):
+        """When max_entries is set and exceeded, oldest resolved entries are pruned."""
+        log = TradingMemoryLog({
+            "memory_log_path": str(tmp_path / "trading_memory.md"),
+            "memory_log_max_entries": 3,
+        })
+        # Resolve 5 entries; rotation should keep only the 3 most recent.
+        for i in range(5):
+            _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Lesson {i}.")
+        entries = log.load_entries()
+        assert len(entries) == 3
+        # Confirm the OLDEST were dropped, not the newest.
+        dates = [e["date"] for e in entries]
+        assert dates == ["2026-01-03", "2026-01-04", "2026-01-05"]
+
+    def test_rotation_never_prunes_pending(self, tmp_path):
+        """Pending entries (unresolved) are kept regardless of the cap."""
+        log = TradingMemoryLog({
+            "memory_log_path": str(tmp_path / "trading_memory.md"),
+            "memory_log_max_entries": 2,
+        })
+        # 3 resolved + 2 pending. With cap=2, only 2 resolved survive; both pending stay.
+        for i in range(3):
+            _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Resolved {i}.")
+        log.store_decision("NVDA", "2026-02-01", DECISION_BUY)
+        log.store_decision("NVDA", "2026-02-02", DECISION_OVERWEIGHT)
+        # Trigger rotation by resolving one more entry — pending entries must stay.
+        _resolve_entry(log, "NVDA", "2026-01-04", DECISION_BUY, "Resolved 3.")
+        entries = log.load_entries()
+        pending = [e for e in entries if e["pending"]]
+        resolved = [e for e in entries if not e["pending"]]
+        assert len(pending) == 2, "pending entries must never be pruned"
+        assert len(resolved) == 2, f"expected 2 resolved after rotation, got {len(resolved)}"
+
+    def test_rotation_under_cap_is_noop(self, tmp_path):
+        """No rotation when resolved count <= max_entries."""
+        log = TradingMemoryLog({
+            "memory_log_path": str(tmp_path / "trading_memory.md"),
+            "memory_log_max_entries": 10,
+        })
+        for i in range(3):
+            _resolve_entry(log, "NVDA", f"2026-01-{i+1:02d}", DECISION_BUY, f"Lesson {i}.")
+        assert len(log.load_entries()) == 3
+
     # Rating parsing: markdown bold and numbered list formats
 
     def test_rating_parsed_from_bold_markdown(self, tmp_path):

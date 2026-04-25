@@ -18,6 +18,22 @@ class NormalizedChatOpenAI(ChatOpenAI):
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
 
+    def with_structured_output(self, schema, *, method=None, **kwargs):
+        """Wrap with structured output, defaulting to function_calling for OpenAI.
+
+        langchain-openai's Responses-API-parse path (the default for json_schema
+        when use_responses_api=True) calls response.model_dump(...) on the OpenAI
+        SDK's union-typed parsed response, which makes Pydantic emit ~20
+        PydanticSerializationUnexpectedValue warnings per call. The function-calling
+        path returns a plain tool-call shape that does not trigger that
+        serialization, so it is the cleaner choice for our combination of
+        use_responses_api=True + with_structured_output. Both paths use OpenAI's
+        strict mode and produce the same typed Pydantic instance.
+        """
+        if method is None:
+            method = "function_calling"
+        return super().with_structured_output(schema, method=method, **kwargs)
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",

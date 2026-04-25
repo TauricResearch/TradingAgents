@@ -17,11 +17,14 @@ class TradingMemoryLog:
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
 
     def __init__(self, config: dict = None):
+        cfg = config or {}
         self._log_path = None
-        path = (config or {}).get("memory_log_path")
+        path = cfg.get("memory_log_path")
         if path:
             self._log_path = Path(path).expanduser()
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Optional cap on resolved entries. None disables rotation.
+        self._max_entries = cfg.get("memory_log_max_entries")
 
     # --- Write path (Phase A) ---
 
@@ -153,6 +156,7 @@ class TradingMemoryLog:
         if not updated:
             return
 
+        new_blocks = self._apply_rotation(new_blocks)
         new_text = self._SEPARATOR.join(new_blocks)
         tmp_path = self._log_path.with_suffix(".tmp")
         tmp_path.write_text(new_text, encoding="utf-8")
@@ -206,12 +210,50 @@ class TradingMemoryLog:
             if not matched:
                 new_blocks.append(block)
 
+        new_blocks = self._apply_rotation(new_blocks)
         new_text = self._SEPARATOR.join(new_blocks)
         tmp_path = self._log_path.with_suffix(".tmp")
         tmp_path.write_text(new_text, encoding="utf-8")
         tmp_path.replace(self._log_path)
 
     # --- Helpers ---
+
+    def _apply_rotation(self, blocks: List[str]) -> List[str]:
+        """Drop oldest resolved blocks when their count exceeds max_entries.
+
+        Pending blocks are always kept (they represent unprocessed work).
+        Returns ``blocks`` unchanged when rotation is disabled or under cap.
+        """
+        if not self._max_entries or self._max_entries <= 0:
+            return blocks
+
+        # Tag each block with (kept, is_resolved) by parsing tag-line markers.
+        decisions = []
+        for block in blocks:
+            stripped = block.strip()
+            if not stripped:
+                decisions.append((block, False))
+                continue
+            tag_line = stripped.splitlines()[0].strip()
+            is_resolved = (
+                tag_line.startswith("[")
+                and tag_line.endswith("]")
+                and not tag_line.endswith("| pending]")
+            )
+            decisions.append((block, is_resolved))
+
+        resolved_count = sum(1 for _, r in decisions if r)
+        if resolved_count <= self._max_entries:
+            return blocks
+
+        to_drop = resolved_count - self._max_entries
+        kept: List[str] = []
+        for block, is_resolved in decisions:
+            if is_resolved and to_drop > 0:
+                to_drop -= 1
+                continue
+            kept.append(block)
+        return kept
 
     def _parse_entry(self, raw: str) -> Optional[dict]:
         lines = raw.strip().splitlines()
