@@ -351,9 +351,12 @@ def test_postcheck_raises_on_cash_adequacy_violation():
     setup = PortfolioGraphSetup(agents={}, config=_BASE_CONFIG)
     node = setup._make_pm_decision_postcheck_node()
 
-    # Buy 4800 shares of MSFT @ $100 = $480,000 from $450,000 cash → projected_cash < 0 (< 5%)
+    # Portfolio: cash=450000, AAPL=50000, total=500000
+    # Buy 4800 shares of MSFT @ $100 = $480,000 from $450,000 cash → projected_cash=-30,000 < 5%
+    # projected_total_value = -30000 + 50000 + 480000 = 500000
+    # required_min_cash = 500000 * 0.05 = 25000; actual = -30000 → violation
     buy = {"ticker": "MSFT", "shares": 4800.0, "price_target": 100.0, "sector": "Technology"}
-    with pytest.raises(RuntimeError, match="cash adequacy violated"):
+    with pytest.raises(RuntimeError, match="cash adequacy violated") as exc_info:
         node(
             {
                 "pm_decision": _make_decision(buys=[buy]),
@@ -361,6 +364,7 @@ def test_postcheck_raises_on_cash_adequacy_violation():
                 "prices": {"AAPL": 200.0, "MSFT": 100.0},
             }
         )
+    assert "projected_cash=-30000.00" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------

@@ -140,13 +140,22 @@ class PortfolioGraphSetup:
                     _repo = repo
                 portfolio, holdings = _repo.get_portfolio_with_holdings(portfolio_id, prices)
 
-                # Ensure total_value is always set so downstream nodes can rely on it.
-                # get_portfolio_with_holdings only enriches when prices is non-empty; when
-                # prices is empty (or certain holdings have no price), compute the best
-                # estimate from cash + known equity.
+                # Ensure total_value is set so downstream nodes can rely on it.
+                # get_portfolio_with_holdings only enriches (and sets total_value) when
+                # prices is non-empty.  When holdings are legitimately absent (new / empty
+                # portfolio), we can safely fall back to cash-only.  When holdings exist
+                # but prices are unavailable, leave total_value as None so
+                # portfolio_integrity_guard raises a clear error rather than silently
+                # propagating an understated value.
                 if portfolio.total_value is None:
-                    equity = sum(prices.get(h.ticker, 0.0) * h.shares for h in holdings)
-                    portfolio.total_value = portfolio.cash + equity
+                    if not holdings:
+                        # Legitimately empty portfolio — total value equals cash.
+                        portfolio.total_value = portfolio.cash
+                    elif prices:
+                        # Some tickers may be absent from prices; compute best estimate.
+                        equity = sum(prices.get(h.ticker, 0.0) * h.shares for h in holdings)
+                        portfolio.total_value = portfolio.cash + equity
+                    # else: holdings present but no prices — leave None so guard catches it.
 
                 # Serialize portfolio with total_value included so downstream nodes
                 # (cash_sweep, pm_decision_postcheck, portfolio_integrity_guard) can read
