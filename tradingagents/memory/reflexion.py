@@ -179,9 +179,7 @@ class ReflexionMemory:
             )
             return doc is not None
         else:
-            return self._update_local_outcome(
-                ticker.upper(), decision_date, outcome, run_id=run_id
-            )
+            return self._update_local_outcome(ticker.upper(), decision_date, outcome, run_id=run_id)
 
     # ------------------------------------------------------------------
     # Query
