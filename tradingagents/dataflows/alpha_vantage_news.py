@@ -1,4 +1,5 @@
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
+from .config import get_config
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
     """Returns live and historical market news & sentiment data from premier news outlets worldwide.
@@ -14,28 +15,36 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
         Dictionary containing news sentiment data or JSON string.
     """
 
+    limit = get_config().get("news_article_limit", 20)
     params = {
         "tickers": ticker,
         "time_from": format_datetime_for_api(start_date),
         "time_to": format_datetime_for_api(end_date),
+        "limit": str(limit),
     }
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_global_news(curr_date, look_back_days: int = 7, limit: int = 50) -> dict[str, str] | str:
+def get_global_news(curr_date: str, look_back_days: int | None = None, limit: int | None = None) -> dict[str, str] | str:
     """Returns global market news & sentiment data without ticker-specific filtering.
 
     Covers broad market topics like financial markets, economy, and more.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format.
-        look_back_days: Number of days to look back (default 7).
-        limit: Maximum number of articles (default 50).
+        look_back_days: Number of days to look back (defaults to global_news_lookback_days config).
+        limit: Maximum number of articles (defaults to global_news_article_limit config).
 
     Returns:
         Dictionary containing global news sentiment data or JSON string.
     """
     from datetime import datetime, timedelta
+
+    config = get_config()
+    if look_back_days is None:
+        look_back_days = config.get("global_news_lookback_days", 7)
+    if limit is None:
+        limit = config.get("global_news_article_limit", 10)
 
     # Calculate start date
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
