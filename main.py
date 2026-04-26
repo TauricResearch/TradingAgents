@@ -1,3 +1,5 @@
+import os
+
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
@@ -8,8 +10,17 @@ load_dotenv()
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-5.4-mini"  # Use a different model
-config["quick_think_llm"] = "gpt-5.4-mini"  # Use a different model
+
+# LLM overrides from .env (fall back to DEFAULT_CONFIG when unset)
+for env_var, config_key in [
+    ("LLM_PROVIDER", "llm_provider"),
+    ("DEEP_THINK_LLM", "deep_think_llm"),
+    ("QUICK_THINK_LLM", "quick_think_llm"),
+    ("LLM_BACKEND_URL", "backend_url"),
+]:
+    if value := os.getenv(env_var):
+        config[config_key] = value
+
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance, no extra API keys needed)
