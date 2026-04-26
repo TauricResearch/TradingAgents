@@ -73,6 +73,7 @@ class MacroMemory:
         if mongo_uri:
             try:
                 from pymongo import ASCENDING, DESCENDING, MongoClient
+                from pymongo.errors import DuplicateKeyError
 
                 client = MongoClient(mongo_uri)
                 db = client[db_name]
@@ -84,6 +85,12 @@ class MacroMemory:
                 )
                 self._col.create_index("created_at")
                 logger.info("MacroMemory using MongoDB (db=%s)", db_name)
+            except DuplicateKeyError as exc:
+                raise RuntimeError(
+                    "MacroMemory MongoDB unique index creation failed because existing "
+                    "records contain duplicate (regime_date, run_id) keys; deduplicate "
+                    "macro_memory before enabling ADR-026 run-scoped outcome addressing."
+                ) from exc
             except Exception:
                 logger.warning(
                     "MacroMemory: MongoDB unavailable — using local file",

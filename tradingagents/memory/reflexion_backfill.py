@@ -274,6 +274,7 @@ def evaluate_macro_record(
             regime_date,
             evaluation_date,
         )
+        vix_delta = vix_delta_pct / 100.0
         cyclical_returns = [
             _return_from_history(
                 price_loader(symbol, regime_date, evaluation_date),
@@ -300,9 +301,9 @@ def evaluate_macro_record(
 
     cyclicals_return_pct = sum(cyclical_returns) / len(cyclical_returns)
     defensives_return_pct = sum(defensive_returns) / len(defensive_returns)
-    risk_on_held = vix_delta_pct <= 25.0 and cyclicals_return_pct > defensives_return_pct
+    risk_on_held = vix_delta <= 0.25 and cyclicals_return_pct > defensives_return_pct
     risk_off_held = not risk_on_held and (
-        vix_delta_pct > 0.0 or defensives_return_pct > cyclicals_return_pct
+        vix_delta > 0.0 or defensives_return_pct > cyclicals_return_pct
     )
     neutral_held = not risk_on_held and not risk_off_held
 
@@ -323,7 +324,7 @@ def evaluate_macro_record(
         {
             "evaluation_date": evaluation_date,
             "vix_at_evaluation": round(vix_end, 4),
-            "vix_delta_pct": round(vix_delta_pct, 4),
+            "vix_delta_pct": round(vix_delta, 4),
             "regime_confirmed": bool(confirmed),
             "notes": notes,
         }
@@ -377,7 +378,10 @@ def run_backfill(
             continue
         result.reflexion_evaluated += 1
         if not dry_run and reflexion_memory.record_outcome(
-            str(record["ticker"]), str(record["decision_date"]), evaluated.outcome
+            str(record["ticker"]),
+            str(record["decision_date"]),
+            evaluated.outcome,
+            run_id=record.get("run_id"),
         ):
             result.reflexion_updated += 1
 

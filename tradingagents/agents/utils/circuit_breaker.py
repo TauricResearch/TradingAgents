@@ -54,7 +54,7 @@ class CircuitBreaker:
         return len(failures)
 
     def record_failure(self, node_name: str, reason: str) -> None:
-        """Append a failure reason for *node_name* and persist state."""
+        """Append a failure reason for *node_name* and raise when threshold is crossed."""
         if not self.enabled:
             return
         state = self._load_state()
@@ -62,14 +62,17 @@ class CircuitBreaker:
         failures.append({"ts": self._clock(), "reason": str(reason)[:500]})
         state.setdefault("nodes", {})[node_name] = failures
         self._save_state(state)
+        if len(failures) >= self.threshold:
+            raise CircuitBreakerOpen(
+                f"{node_name} circuit breaker is open after {len(failures)} failures within "
+                f"{self.window_sec:.0f}s; alert operators and pause auto-runs before retrying."
+            )
 
     def record_success(self, node_name: str) -> None:
-        """Clear failures for *node_name* after a successful run."""
+        """Retain failure history; the rolling window alone closes the breaker."""
         if not self.enabled:
             return
-        state = self._load_state()
-        state.setdefault("nodes", {}).pop(node_name, None)
-        self._save_state(state)
+        self.failure_count(node_name)
 
     def _active_failures(self, state: dict[str, Any], node_name: str) -> list[dict[str, Any]]:
         cutoff = self._clock() - self.window_sec

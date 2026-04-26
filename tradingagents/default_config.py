@@ -308,6 +308,8 @@ def build_default_config(
         ),
         "macro_evaluation_horizon_days": _env_int("MACRO_EVALUATION_HORIZON_DAYS", 21, env=env),
         "reflexion_backfill_batch_size": _env_int("REFLEXION_BACKFILL_BATCH_SIZE", 100, env=env),
+        "reflexion_fallback_path": _env("REFLEXION_FALLBACK_PATH", env=env),
+        "macro_memory_fallback_path": _env("MACRO_MEMORY_FALLBACK_PATH", env=env),
         "ohlcv_sma_plausibility_threshold": _env_float(
             "OHLCV_SMA_PLAUSIBILITY_THRESHOLD", 3.0, env=env
         ),

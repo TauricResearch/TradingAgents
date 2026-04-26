@@ -30,10 +30,11 @@ def check_vendor_health(
     """Return structured degradation warnings without raising.
 
     The default check is intentionally cheap: validate configured vendors are
-    available for critical methods. A caller may supply *probe* for live or
-    mocked checks; probe failures are surfaced as warnings rather than graph
-    crashes.
+    available for critical methods and verify required vendor credentials are
+    present. A caller may supply *probe* for live or mocked checks; probe
+    failures are surfaced as warnings rather than graph crashes.
     """
+    probe = probe or _default_probe
     warnings: list[dict[str, str]] = []
     for method in critical_methods:
         try:
@@ -59,8 +60,6 @@ def check_vendor_health(
                     )
                 )
                 continue
-            if probe is None:
-                continue
             try:
                 probe_result = probe(vendor, method)
                 if isinstance(probe_result, tuple):
@@ -72,6 +71,24 @@ def check_vendor_health(
             if not ok:
                 warnings.append(_warning(method, category, vendor, str(reason)))
     return warnings
+
+
+def _default_probe(vendor: str, method: str) -> tuple[bool, str]:
+    if vendor == "alpha_vantage":
+        try:
+            from tradingagents.dataflows.alpha_vantage_common import get_api_key
+
+            get_api_key()
+        except Exception as exc:
+            return False, f"alpha_vantage credential check failed for {method}: {exc}"
+    elif vendor == "finnhub":
+        try:
+            from tradingagents.dataflows.finnhub_common import get_api_key
+
+            get_api_key()
+        except Exception as exc:
+            return False, f"finnhub credential check failed for {method}: {exc}"
+    return True, "ok"
 
 
 def _warning(method: str, category: str, vendor: str, reason: str) -> dict[str, str]:

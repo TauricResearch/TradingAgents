@@ -177,15 +177,18 @@ def create_news_fact_checker(
 
         claim_count = len(sanitized_payload.get("claims") or [])
 
-        # Branch: All submitted claims rejected.
-        # Abort only when every claim was removed; partial removal means the
-        # remaining verified claims are still decision-relevant and should flow
-        # through to downstream nodes.  Removed claims are logged in the
-        # structured payload for traceability.
-        if claim_count == 0 and removed_claims:
+        # Branch: Any submitted claim rejected.
+        # ADR 027 treats unsupported structured claims as evidence-grounding
+        # failures.  Even when some claims remain valid, continuing would hide
+        # that the analyst supplied a wrong-but-plausible input.
+        if removed_claims:
             return _abort_result(
                 reason="news_evidence_missing",
-                detail="All structured claims were removed during fact-checking",
+                detail=(
+                    "All structured claims were removed during fact-checking"
+                    if claim_count == 0
+                    else "One or more structured claims were removed during fact-checking"
+                ),
                 payload=sanitized_payload,
                 removed_claims=removed_claims,
             )

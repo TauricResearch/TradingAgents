@@ -36,6 +36,28 @@ def test_pending_selection_uses_horizon_and_skips_skip_decisions(tmp_path):
     assert [rec["ticker"] for rec in pending] == ["NVDA"]
 
 
+def test_reflexion_record_outcome_with_run_id_addresses_matching_record(tmp_path):
+    mem = ReflexionMemory(fallback_path=tmp_path / "reflexion.json")
+    mem.record_decision("AAPL", "2026-04-01", "BUY", "first", run_id="run-1")
+    mem.record_decision("AAPL", "2026-04-01", "SELL", "second", run_id="run-2")
+
+    assert mem.record_outcome("AAPL", "2026-04-01", {"correct": True}, run_id="run-1") is True
+
+    records = sorted(mem.get_history("AAPL", limit=5), key=lambda rec: rec["run_id"])
+    assert records[0]["outcome"] == {"correct": True}
+    assert records[1]["outcome"] is None
+
+
+def test_reflexion_record_outcome_legacy_query_excludes_run_id_records(tmp_path):
+    mem = ReflexionMemory(fallback_path=tmp_path / "reflexion.json")
+    mem.record_decision("AAPL", "2026-04-01", "BUY", "first", run_id="run-1")
+
+    assert mem.record_outcome("AAPL", "2026-04-01", {"legacy": True}) is False
+
+    records = mem.get_history("AAPL", limit=5)
+    assert records[0]["outcome"] is None
+
+
 def test_reflexion_evaluation_parses_prices_and_scores_buy():
     from tradingagents.memory.reflexion_backfill import evaluate_reflexion_record
 
@@ -154,7 +176,7 @@ def test_macro_evaluation_uses_vix_and_sector_proxy_returns():
     assert result.outcome is not None
     assert result.outcome["evaluation_date"] == "2026-04-22"
     assert result.outcome["vix_at_evaluation"] == 22.0
-    assert result.outcome["vix_delta_pct"] == pytest.approx(10.0)
+    assert result.outcome["vix_delta_pct"] == pytest.approx(0.10)
     assert result.outcome["regime_confirmed"] is True
     assert result.skip_reason is None
 
@@ -265,6 +287,38 @@ def test_macro_backfill_passes_run_id_when_recording_outcome(tmp_path):
     assert records[1]["outcome"] is None
 
 
+def test_reflexion_backfill_passes_run_id_when_recording_outcome(tmp_path):
+    from tradingagents.memory.reflexion_backfill import run_backfill
+
+    macro_path = tmp_path / "macro.json"
+    reflexion_path = tmp_path / "reflexion.json"
+    mem = ReflexionMemory(fallback_path=reflexion_path)
+    mem.record_decision("AAPL", "2026-04-01", "BUY", "first", run_id="run-1")
+    mem.record_decision("AAPL", "2026-04-01", "SELL", "second", run_id="run-2")
+
+    result = run_backfill(
+        config={
+            "mongo_uri": None,
+            "mongo_db": "tradingagents",
+            "reflexion_evaluation_horizon_days": 5,
+            "macro_evaluation_horizon_days": 21,
+            "reflexion_backfill_batch_size": 1,
+            "reflexion_fallback_path": reflexion_path,
+            "macro_memory_fallback_path": macro_path,
+        },
+        evaluation_date="2026-04-06",
+        dry_run=False,
+        price_loader=lambda ticker, start, end: _stock_csv(
+            [("2026-04-01", 100.0), ("2026-04-06", 102.0)]
+        ),
+    )
+
+    assert result.reflexion_updated == 1
+    records = sorted(json.loads(reflexion_path.read_text()), key=lambda rec: rec["run_id"])
+    assert records[0]["outcome"] is not None
+    assert records[1]["outcome"] is None
+
+
 def test_cli_reflexion_commands_are_registered_and_invoke_core(monkeypatch):
     import cli.main as main
 
@@ -301,6 +355,8 @@ def test_reflexion_backfill_config_defaults_and_env_overrides():
     assert defaults["reflexion_evaluation_horizon_days"] == 5
     assert defaults["macro_evaluation_horizon_days"] == 21
     assert defaults["reflexion_backfill_batch_size"] == 100
+    assert defaults["reflexion_fallback_path"] is None
+    assert defaults["macro_memory_fallback_path"] is None
 
     overridden = build_default_config(
         load_dotenv=False,
@@ -308,8 +364,12 @@ def test_reflexion_backfill_config_defaults_and_env_overrides():
             "TRADINGAGENTS_REFLEXION_EVALUATION_HORIZON_DAYS": "8",
             "TRADINGAGENTS_MACRO_EVALUATION_HORIZON_DAYS": "34",
             "TRADINGAGENTS_REFLEXION_BACKFILL_BATCH_SIZE": "12",
+            "TRADINGAGENTS_REFLEXION_FALLBACK_PATH": "/tmp/reflexion.json",
+            "TRADINGAGENTS_MACRO_MEMORY_FALLBACK_PATH": "/tmp/macro.json",
         },
     )
     assert overridden["reflexion_evaluation_horizon_days"] == 8
     assert overridden["macro_evaluation_horizon_days"] == 34
     assert overridden["reflexion_backfill_batch_size"] == 12
+    assert overridden["reflexion_fallback_path"] == "/tmp/reflexion.json"
+    assert overridden["macro_memory_fallback_path"] == "/tmp/macro.json"
