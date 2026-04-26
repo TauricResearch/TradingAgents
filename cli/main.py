@@ -53,6 +53,7 @@ from tradingagents.memory.reflexion_backfill import (
 from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.observability import RunLogger, set_run_logger
 from tradingagents.report_paths import (
+    REPORTS_ROOT,
     generate_run_id,
     get_daily_dir,
     get_market_dir,
@@ -75,7 +76,9 @@ def _default_evaluation_date() -> str:
 
 
 def _memory_fallback_path(filename: str) -> Path:
-    return Path(str(DEFAULT_CONFIG.get("results_dir", "reports"))) / filename
+    configured = DEFAULT_CONFIG.get("results_dir")
+    root = Path(str(configured)) if configured else REPORTS_ROOT
+    return root / filename
 
 
 def _print_reflexion_backfill_result(result: Any) -> None:

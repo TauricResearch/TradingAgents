@@ -159,6 +159,31 @@ def test_macro_evaluation_uses_vix_and_sector_proxy_returns():
     assert result.skip_reason is None
 
 
+def test_macro_risk_off_evaluation_is_exclusive_when_risk_on_conditions_hold():
+    from tradingagents.memory.reflexion_backfill import evaluate_macro_record
+
+    data = {
+        "^VIX": _stock_csv([("2026-04-01", 20.0), ("2026-04-22", 22.0)]),
+        "XLY": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 106.0)]),
+        "XLI": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 104.0)]),
+        "XLP": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 101.0)]),
+        "XLU": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 100.0)]),
+    }
+
+    result = evaluate_macro_record(
+        {
+            "regime_date": "2026-04-01",
+            "macro_call": "risk-off",
+            "run_id": "run-1",
+        },
+        evaluation_date="2026-04-22",
+        price_loader=lambda ticker, start, end: data[ticker],
+    )
+
+    assert result.outcome is not None
+    assert result.outcome["regime_confirmed"] is False
+
+
 def test_macro_evaluation_requires_exact_regime_and_evaluation_endpoints():
     from tradingagents.memory.reflexion_backfill import evaluate_macro_record
 
@@ -182,6 +207,24 @@ def test_macro_evaluation_requires_exact_regime_and_evaluation_endpoints():
 
     assert result.outcome is None
     assert "missing endpoint price rows" in result.skip_reason
+
+
+def test_price_parser_rejects_blank_date_header():
+    from tradingagents.memory.reflexion_backfill import evaluate_reflexion_record
+
+    bad_csv = " ,Open,High,Low,Close,Volume\n2026-04-01,1,1,1,100,100\n2026-04-06,1,1,1,102,100"
+    result = evaluate_reflexion_record(
+        {
+            "ticker": "AAPL",
+            "decision_date": "2026-04-01",
+            "decision": "BUY",
+        },
+        evaluation_date="2026-04-06",
+        price_loader=lambda ticker, start, end: bad_csv,
+    )
+
+    assert result.outcome is None
+    assert "missing date or close column" in result.skip_reason
 
 
 def test_macro_backfill_passes_run_id_when_recording_outcome(tmp_path):

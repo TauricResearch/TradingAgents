@@ -14,6 +14,7 @@ from typing import Any
 from tradingagents.dataflows.interface import route_to_vendor
 from tradingagents.memory.macro_memory import MacroMemory
 from tradingagents.memory.reflexion import ReflexionMemory
+from tradingagents.report_paths import REPORTS_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,7 @@ def _parse_close_series(raw: str) -> list[tuple[str, float]]:
     if not reader.fieldnames:
         raise ValueError("price response did not contain CSV headers")
 
-    date_field = _find_field(reader.fieldnames, ("date", "timestamp", "time", ""))
+    date_field = _find_field(reader.fieldnames, ("date", "timestamp", "time"))
     close_field = _find_field(
         reader.fieldnames,
         ("adj close", "adjusted_close", "adjusted close", "close"),
@@ -300,7 +301,9 @@ def evaluate_macro_record(
     cyclicals_return_pct = sum(cyclical_returns) / len(cyclical_returns)
     defensives_return_pct = sum(defensive_returns) / len(defensive_returns)
     risk_on_held = vix_delta_pct <= 25.0 and cyclicals_return_pct > defensives_return_pct
-    risk_off_held = vix_delta_pct > 0.0 or defensives_return_pct > cyclicals_return_pct
+    risk_off_held = not risk_on_held and (
+        vix_delta_pct > 0.0 or defensives_return_pct > cyclicals_return_pct
+    )
     neutral_held = not risk_on_held and not risk_off_held
 
     if macro_call == "risk-on":
@@ -406,4 +409,6 @@ def run_backfill(
 
 
 def _fallback_path(config: dict[str, Any], filename: str) -> Path:
-    return Path(str(config.get("results_dir", "reports"))) / filename
+    configured = config.get("results_dir")
+    root = Path(str(configured)) if configured else REPORTS_ROOT
+    return root / filename

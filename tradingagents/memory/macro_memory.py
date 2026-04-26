@@ -81,7 +81,6 @@ class MacroMemory:
                 self._col.create_index(
                     [("regime_date", ASCENDING), ("run_id", ASCENDING)],
                     unique=True,
-                    partialFilterExpression={"run_id": {"$type": "string"}},
                 )
                 self._col.create_index("created_at")
                 logger.info("MacroMemory using MongoDB (db=%s)", db_name)
@@ -136,9 +135,13 @@ class MacroMemory:
 
         if self._col is not None:
             created_at = doc.pop("created_at")
+            outcome = doc.pop("outcome")
             self._col.update_one(
                 {"regime_date": date, "run_id": run_id},
-                {"$set": doc, "$setOnInsert": {"created_at": created_at}},
+                {
+                    "$set": doc,
+                    "$setOnInsert": {"created_at": created_at, "outcome": outcome},
+                },
                 upsert=True,
             )
         else:
@@ -303,6 +306,7 @@ class MacroMemory:
                 "run_id"
             ):
                 doc["created_at"] = rec.get("created_at", doc["created_at"])
+                doc["outcome"] = rec.get("outcome")
                 records[idx] = doc
                 self._save_all_local(records)
                 return

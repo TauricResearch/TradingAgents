@@ -150,6 +150,20 @@ def test_record_macro_state_updates_duplicate_same_date_and_run_id(mem):
     assert records[0]["sector_thesis"] == "new"
 
 
+def test_record_macro_state_preserves_existing_outcome_on_duplicate_rerun(mem):
+    """Duplicate same-date/run writes must not erase a back-filled outcome."""
+    outcome = {"regime_confirmed": True}
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "old", [], run_id="run-1")
+    assert mem.record_outcome("2026-03-26", outcome, run_id="run-1") is True
+
+    mem.record_macro_state("2026-03-26", 25.0, "risk-off", "new", ["rates"], run_id="run-1")
+
+    records = mem.get_recent(limit=5)
+    assert len(records) == 1
+    assert records[0]["sector_thesis"] == "new"
+    assert records[0]["outcome"] == outcome
+
+
 def test_record_outcome_with_run_id_addresses_matching_pending_record(mem):
     """run_id addressing should update only the matching pending macro state."""
     mem.record_macro_state("2026-03-26", 20.0, "neutral", "first", [], run_id="run-1")
@@ -218,6 +232,8 @@ def test_record_macro_state_mongo_upserts_missing_run_id_key():
 
     assert updates[0][0] == {"regime_date": "2026-03-26", "run_id": None}
     assert updates[0][2] is True
+    assert "outcome" not in updates[0][1]["$set"]
+    assert updates[0][1]["$setOnInsert"]["outcome"] is None
 
 
 def test_record_outcome_mongo_legacy_query_excludes_run_id_records():
