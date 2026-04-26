@@ -74,60 +74,64 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "yfinance",
-    "alpha_vantage",
     "jintel",
+    "alpha_vantage",
 ]
 
-# Mapping of methods to their vendor-specific implementations
+# Mapping of methods to their vendor-specific implementations.
+# Dict order defines the implicit fallback order in route_to_vendor when the
+# configured primary vendor fails: jintel sits ahead of alpha_vantage so the
+# unified GraphQL backend is preferred over the per-call rate-limited REST
+# fallback.
 VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
-        "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "jintel": get_jintel_stock,
+        "alpha_vantage": get_alpha_vantage_stock,
     },
     # technical_indicators
     "get_indicators": {
-        "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
         "jintel": get_jintel_indicator,
+        "alpha_vantage": get_alpha_vantage_indicator,
     },
     # fundamental_data
     "get_fundamentals": {
-        "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
         "jintel": get_jintel_fundamentals,
+        "alpha_vantage": get_alpha_vantage_fundamentals,
     },
     "get_balance_sheet": {
-        "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
         "jintel": get_jintel_balance_sheet,
+        "alpha_vantage": get_alpha_vantage_balance_sheet,
     },
     "get_cashflow": {
-        "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
         "jintel": get_jintel_cashflow,
+        "alpha_vantage": get_alpha_vantage_cashflow,
     },
     "get_income_statement": {
-        "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
         "jintel": get_jintel_income_statement,
+        "alpha_vantage": get_alpha_vantage_income_statement,
     },
     # news_data
     "get_news": {
-        "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
         "jintel": get_jintel_news,
+        "alpha_vantage": get_alpha_vantage_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
-        "alpha_vantage": get_alpha_vantage_global_news,
         "jintel": get_jintel_global_news,
+        "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
-        "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
         "jintel": get_jintel_insider_transactions,
+        "alpha_vantage": get_alpha_vantage_insider_transactions,
     },
 }
 
