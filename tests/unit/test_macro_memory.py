@@ -138,6 +138,114 @@ def test_record_outcome_only_fills_null_outcome(mem):
     assert records[0]["outcome"]["correct"] is True
 
 
+def test_record_macro_state_updates_duplicate_same_date_and_run_id(mem):
+    """Local fallback should update an existing same-date/run record instead of appending."""
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "old", [], run_id="run-1")
+    mem.record_macro_state("2026-03-26", 25.0, "risk-off", "new", ["rates"], run_id="run-1")
+
+    records = mem.get_recent(limit=5)
+    assert len(records) == 1
+    assert records[0]["vix_level"] == 25.0
+    assert records[0]["macro_call"] == "risk-off"
+    assert records[0]["sector_thesis"] == "new"
+
+
+def test_record_outcome_with_run_id_addresses_matching_pending_record(mem):
+    """run_id addressing should update only the matching pending macro state."""
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "first", [], run_id="run-1")
+    mem.record_macro_state("2026-03-26", 21.0, "risk-off", "second", [], run_id="run-2")
+
+    assert mem.record_outcome("2026-03-26", {"confirmed": True}, run_id="run-1") is True
+
+    records = sorted(mem.get_recent(limit=5), key=lambda rec: rec["run_id"])
+    assert records[0]["outcome"] == {"confirmed": True}
+    assert records[1]["outcome"] is None
+
+
+def test_record_outcome_legacy_date_only_updates_newest_missing_run_id_record(mem):
+    """Legacy date-only addressing should only update a newest pending record without run_id."""
+    mem.record_macro_state("2026-03-26", 19.0, "neutral", "legacy old", [])
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "first", [], run_id="run-1")
+    mem.record_macro_state("2026-03-26", 21.0, "risk-off", "second", [], run_id="run-2")
+    mem.record_macro_state("2026-03-26", 22.0, "transition", "legacy new", [])
+
+    assert mem.record_outcome("2026-03-26", {"legacy": True}) is True
+
+    records = mem.get_recent(limit=5)
+    updated = [rec for rec in records if rec["outcome"] == {"legacy": True}]
+    assert len(updated) == 1
+    assert updated[0].get("run_id") is None
+    assert updated[0]["sector_thesis"] == "legacy new"
+    assert all(rec["outcome"] is None for rec in records if rec.get("run_id"))
+
+
+def test_record_outcome_legacy_date_only_does_not_update_run_id_records(mem):
+    """Date-only legacy addressing must not update records that carry run_id."""
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "first", [], run_id="run-1")
+    mem.record_macro_state("2026-03-26", 21.0, "risk-off", "second", [], run_id="run-2")
+
+    assert mem.record_outcome("2026-03-26", {"legacy": True}) is False
+
+    records = mem.get_recent(limit=5)
+    assert all(rec["outcome"] is None for rec in records)
+
+
+def test_record_macro_state_updates_duplicate_same_date_and_missing_run_id(mem):
+    """Local fallback should treat missing run_id as part of the duplicate key."""
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "old", [])
+    mem.record_macro_state("2026-03-26", 25.0, "risk-off", "new", ["rates"])
+
+    records = mem.get_recent(limit=5)
+    assert len(records) == 1
+    assert records[0]["vix_level"] == 25.0
+    assert records[0]["macro_call"] == "risk-off"
+    assert records[0]["sector_thesis"] == "new"
+
+
+def test_record_macro_state_mongo_upserts_missing_run_id_key():
+    """Mongo writes should upsert by (regime_date, run_id), including run_id=None."""
+    updates = []
+
+    class FakeCollection:
+        def update_one(self, query, update, upsert=False):
+            updates.append((query, update, upsert))
+
+    mem = MacroMemory.__new__(MacroMemory)
+    mem._col = FakeCollection()
+    mem._fallback_path = None
+
+    mem.record_macro_state("2026-03-26", 20.0, "neutral", "legacy", [])
+
+    assert updates[0][0] == {"regime_date": "2026-03-26", "run_id": None}
+    assert updates[0][2] is True
+
+
+def test_record_outcome_mongo_legacy_query_excludes_run_id_records():
+    """Mongo legacy date-only outcome updates should target only missing/empty run_id records."""
+    queries = []
+
+    class FakeCollection:
+        def find_one_and_update(self, query, update, sort):
+            queries.append(query)
+            return None
+
+    mem = MacroMemory.__new__(MacroMemory)
+    mem._col = FakeCollection()
+    mem._fallback_path = None
+
+    assert mem.record_outcome("2026-03-26", {"legacy": True}) is False
+
+    assert queries[0] == {
+        "regime_date": "2026-03-26",
+        "outcome": None,
+        "$or": [
+            {"run_id": {"$exists": False}},
+            {"run_id": None},
+            {"run_id": ""},
+        ],
+    }
+
+
 def test_build_macro_context_no_prior_history_message(mem):
     """build_macro_context() returns informative text when no records exist."""
     ctx = mem.build_macro_context()

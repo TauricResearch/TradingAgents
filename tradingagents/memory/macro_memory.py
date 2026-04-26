@@ -72,12 +72,17 @@ class MacroMemory:
 
         if mongo_uri:
             try:
-                from pymongo import DESCENDING, MongoClient
+                from pymongo import ASCENDING, DESCENDING, MongoClient
 
                 client = MongoClient(mongo_uri)
                 db = client[db_name]
                 self._col = db[_COLLECTION]
                 self._col.create_index([("regime_date", DESCENDING)])
+                self._col.create_index(
+                    [("regime_date", ASCENDING), ("run_id", ASCENDING)],
+                    unique=True,
+                    partialFilterExpression={"run_id": {"$type": "string"}},
+                )
                 self._col.create_index("created_at")
                 logger.info("MacroMemory using MongoDB (db=%s)", db_name)
             except Exception:
@@ -130,17 +135,24 @@ class MacroMemory:
         }
 
         if self._col is not None:
-            self._col.insert_one(doc)
+            created_at = doc.pop("created_at")
+            self._col.update_one(
+                {"regime_date": date, "run_id": run_id},
+                {"$set": doc, "$setOnInsert": {"created_at": created_at}},
+                upsert=True,
+            )
         else:
             # Local JSON fallback uses ISO string (JSON has no datetime type)
             doc["created_at"] = doc["created_at"].isoformat()
-            self._append_local(doc)
+            self._upsert_local(doc)
 
     # ------------------------------------------------------------------
     # Record outcome (feedback loop)
     # ------------------------------------------------------------------
 
-    def record_outcome(self, date: str, outcome: dict[str, Any]) -> bool:
+    def record_outcome(
+        self, date: str, outcome: dict[str, Any], *, run_id: str | None = None
+    ) -> bool:
         """Attach outcome to the most recent macro state for a given date.
 
         Args:
@@ -153,6 +165,7 @@ class MacroMemory:
                     "regime_confirmed": True,
                     "notes": "Risk-off call was correct; market sold off",
                 }
+            run_id:  Optional run identifier for precise same-date addressing.
 
         Returns:
             True if a matching state was found and updated.
@@ -160,14 +173,27 @@ class MacroMemory:
         if self._col is not None:
             from pymongo import DESCENDING
 
+            query = {"regime_date": date, "outcome": None}
+            if run_id is not None:
+                query["run_id"] = run_id
+            else:
+                query["$or"] = [
+                    {"run_id": {"$exists": False}},
+                    {"run_id": None},
+                    {"run_id": ""},
+                ]
+                logger.warning(
+                    "MacroMemory.record_outcome used legacy date-only addressing for %s",
+                    date,
+                )
             doc = self._col.find_one_and_update(
-                {"regime_date": date, "outcome": None},
+                query,
                 {"$set": {"outcome": outcome}},
                 sort=[("created_at", DESCENDING)],
             )
             return doc is not None
         else:
-            return self._update_local_outcome(date, outcome)
+            return self._update_local_outcome(date, outcome, run_id=run_id)
 
     # ------------------------------------------------------------------
     # Query
@@ -269,18 +295,47 @@ class MacroMemory:
         records.append(doc)
         self._save_all_local(records)
 
+    def _upsert_local(self, doc: dict[str, Any]) -> None:
+        """Update an existing same-date/run record or append a new one."""
+        records = self._load_all_local()
+        for idx, rec in enumerate(records):
+            if rec.get("regime_date") == doc.get("regime_date") and rec.get("run_id") == doc.get(
+                "run_id"
+            ):
+                doc["created_at"] = rec.get("created_at", doc["created_at"])
+                records[idx] = doc
+                self._save_all_local(records)
+                return
+        records.append(doc)
+        self._save_all_local(records)
+
     def _load_recent_local(self, limit: int) -> list[dict[str, Any]]:
         """Load and sort all records by regime_date descending from the local file."""
         records = self._load_all_local()
         records.sort(key=lambda r: r.get("regime_date", ""), reverse=True)
         return records[:limit]
 
-    def _update_local_outcome(self, date: str, outcome: dict[str, Any]) -> bool:
+    def _update_local_outcome(
+        self, date: str, outcome: dict[str, Any], *, run_id: str | None = None
+    ) -> bool:
         """Update the most recent matching macro state in the local file."""
         records = self._load_all_local()
+        if run_id is None:
+            logger.warning(
+                "MacroMemory.record_outcome used legacy date-only addressing for %s",
+                date,
+            )
         # Iterate newest first (reversed insertion order is a proxy)
         for rec in reversed(records):
-            if rec.get("regime_date") == date and rec.get("outcome") is None:
+            if (
+                rec.get("regime_date") == date
+                and rec.get("outcome") is None
+                and (
+                    rec.get("run_id") == run_id
+                    if run_id is not None
+                    else not rec.get("run_id")
+                )
+            ):
                 rec["outcome"] = outcome
                 self._save_all_local(records)
                 return True

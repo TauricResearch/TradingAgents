@@ -289,6 +289,15 @@ def build_default_config(
         "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10, env=env),
         "scan_horizon_days": _env_int("SCAN_HORIZON_DAYS", 30, env=env),
         "trading_lookback_days": _env_int("TRADING_LOOKBACK_DAYS", 90, env=env),
+        "reflexion_evaluation_horizon_days": _env_int(
+            "REFLEXION_EVALUATION_HORIZON_DAYS", 5, env=env
+        ),
+        "macro_evaluation_horizon_days": _env_int(
+            "MACRO_EVALUATION_HORIZON_DAYS", 21, env=env
+        ),
+        "reflexion_backfill_batch_size": _env_int(
+            "REFLEXION_BACKFILL_BATCH_SIZE", 100, env=env
+        ),
         "ohlcv_sma_plausibility_threshold": _env_float(
             "OHLCV_SMA_PLAUSIBILITY_THRESHOLD", 3.0, env=env
         ),
