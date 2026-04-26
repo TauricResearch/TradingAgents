@@ -271,6 +271,20 @@ def build_default_config(
         ),
         "tool_execution_timeout": _env_timeout_seconds("TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env),
         "scan_timeout_seconds": _env_timeout_seconds("SCAN_TIMEOUT_SEC", 1800.0, env=env),
+        "node_wall_clock_budget_sec": _env_timeout_seconds(
+            "NODE_WALL_CLOCK_BUDGET_SEC", 300.0, env=env
+        ),
+        "circuit_breaker_enabled": _is_truthy(
+            _env("CIRCUIT_BREAKER_ENABLED", env=env),
+            default=True,
+        ),
+        "circuit_breaker_threshold": _env_int("CIRCUIT_BREAKER_THRESHOLD", 3, env=env),
+        "circuit_breaker_window_sec": _env_int("CIRCUIT_BREAKER_WINDOW_SEC", 86_400, env=env),
+        "circuit_breaker_state_path": _env("CIRCUIT_BREAKER_STATE_PATH", env=env),
+        "vendor_health_probes_enabled": _is_truthy(
+            _env("VENDOR_HEALTH_PROBES_ENABLED", env=env),
+            default=True,
+        ),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),
         "anthropic_effort": _env("ANTHROPIC_EFFORT", env=env),

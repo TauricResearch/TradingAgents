@@ -187,6 +187,32 @@ class TestPMDecisionSchema:
         obj = PMDecisionSchema(**payload)
         assert obj.cash_reserve_pct == 0.15
 
+    def test_rejects_kimi_k2_newline_c_artifact(self):
+        """Structured output must reject lossy string artifacts before round-trip."""
+        payload = _valid_payload()
+        payload["buys"][0]["position_sizing_logic"] = "2%\nc position; below cap"
+
+        with pytest.raises(ValidationError, match="newline-c"):
+            PMDecisionSchema.model_validate(payload)
+
+    def test_accepts_clean_percentage_strings(self):
+        """Clean percentage-like strings remain valid."""
+        payload = _valid_payload()
+        payload["buys"][0]["position_sizing_logic"] = "2% position; below 15% cap"
+
+        obj = PMDecisionSchema.model_validate(payload)
+
+        assert obj.buys[0].position_sizing_logic == "2% position; below 15% cap"
+
+    def test_accepts_valid_multiline_string_with_newline_c(self):
+        """Valid multiline text may have a line starting with lowercase c."""
+        payload = _valid_payload()
+        payload["risk_summary"] = "Maintain reserve\ncash remains above floor"
+
+        obj = PMDecisionSchema.model_validate(payload)
+
+        assert obj.risk_summary == "Maintain reserve\ncash remains above floor"
+
 
 # ---------------------------------------------------------------------------
 # TestForensicReport

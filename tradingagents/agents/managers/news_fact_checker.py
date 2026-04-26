@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.agents.utils.critical_abort import has_abort
+from tradingagents.agents.utils.critical_abort import has_abort, raise_abort
 from tradingagents.agents.utils.output_validation import (
     build_news_report_structured,
     render_structured_news_payload,
@@ -49,6 +49,53 @@ def create_news_fact_checker(
         report = str(state.get("news_report") or "").strip()
         structured_payload = state.get("news_report_structured")
 
+        def _abort_result(
+            *,
+            reason: str,
+            detail: str,
+            payload: dict[str, Any] | None = None,
+            removed_claims: list[dict[str, Any]] | None = None,
+        ) -> dict[str, Any]:
+            structured = build_news_report_structured(
+                ticker=ticker,
+                as_of_date=trade_date,
+                payload=payload or {},
+                status="aborted",
+                abort_reason=detail,
+                removed_claims=removed_claims or [],
+            )
+            if removed_claims:
+                structured["removed_claims"] = [
+                    {
+                        **removed_claim,
+                        "source": (
+                            removed_claim.get("claim", {}).get("source", "")
+                            if isinstance(removed_claim.get("claim"), dict)
+                            else ""
+                        ),
+                        "evidence_id": (
+                            removed_claim.get("claim", {}).get("evidence_id", "")
+                            if isinstance(removed_claim.get("claim"), dict)
+                            else ""
+                        ),
+                    }
+                    for removed_claim in removed_claims
+                ]
+            return {
+                "news_report": (
+                    f"{ticker} News Analysis\n\n"
+                    "- No validated structured news claims are available for this run."
+                ),
+                "news_report_structured": structured,
+                "sender": "news_fact_checker",
+                **raise_abort(
+                    source="news_fact_checker",
+                    reason=reason,
+                    detail=detail,
+                    recoverable=True,
+                ),
+            }
+
         if has_abort(state):
             abort_signal = state.get("abort_signal") or {}
             abort_reason = ": ".join(
@@ -80,48 +127,30 @@ def create_news_fact_checker(
         # Branch: No persisted evidence records
         # (Evidence acquisition succeeded but no news found.)
         if not records and not _has_scanner_structured_claims(structured_payload):
-            return {
-                "news_report": f"{ticker} News Analysis\n\n- No validated news was available for this run.",
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload={},
-                    status="empty",
-                    abort_reason="",
+            return _abort_result(
+                reason="news_evidence_missing",
+                detail=(
+                    f"No NewsEvidenceStore records found for run_id={run_id!r}, "
+                    f"ticker={ticker!r}, trade_date={trade_date!r}"
                 ),
-                "sender": "news_fact_checker",
-            }
+            )
 
         # Branch: Blank report with missing payload
         if not report and (not isinstance(structured_payload, dict) or not structured_payload):
-            return {
-                "news_report": f"{ticker} News Analysis\n\n- No validated structured news claims are available for this run.",
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload={},
-                    status="missing_structured_payload",
-                    abort_reason="No structured payload was supplied by the analyst node",
-                ),
-                "sender": "news_fact_checker",
-            }
+            return _abort_result(
+                reason="news_schema_invalid",
+                detail="No structured payload was supplied by the analyst node",
+            )
 
         # Branch: Blank report with structured payload present
         # Continue to validation/sanitization flow - if claims validate, render from canonical claims
 
         # Branch: Missing payload (not a dict or empty dict)
         if not isinstance(structured_payload, dict) or not structured_payload:
-            return {
-                "news_report": f"{ticker} News Analysis\n\n- No validated structured news claims are available for this run.",
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload={},
-                    status="missing_structured_payload",
-                    abort_reason="No structured payload was supplied by the analyst node",
-                ),
-                "sender": "news_fact_checker",
-            }
+            return _abort_result(
+                reason="news_schema_invalid",
+                detail="No structured payload was supplied by the analyst node",
+            )
 
         # Validate structured payload schema
         structured_validation = validate_structured_news_payload(
@@ -134,17 +163,7 @@ def create_news_fact_checker(
         # Return deterministic non-evidence message; routing uses abort_signal only.
         if not structured_validation.is_valid or structured_validation.payload is None:
             abort_reason = f"{structured_validation.code}: {structured_validation.reason}"
-            return {
-                "news_report": f"{ticker} News Analysis\n\n- No validated structured news claims are available for this run.",
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload={},
-                    status="invalid_structured_payload",
-                    abort_reason=abort_reason,
-                ),
-                "sender": "news_fact_checker",
-            }
+            return _abort_result(reason="news_schema_invalid", detail=abort_reason)
 
         # Sanitize payload against persisted evidence
         sanitized_payload, removed_claims = sanitize_structured_news_payload(
@@ -158,37 +177,30 @@ def create_news_fact_checker(
 
         claim_count = len(sanitized_payload.get("claims") or [])
 
-        # Branch: Zero claims after sanitization with removed claims
-        # All submitted claims were rejected
-        if claim_count == 0 and removed_claims:
-            return {
-                "news_report": f"{ticker} News Analysis\n\n- No validated structured news claims are available for this run.",
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload=sanitized_payload,
-                    status="invalid_structured_payload",
-                    abort_reason="All structured claims were removed during fact-checking",
-                    removed_claims=removed_claims,
-                ),
-                "sender": "news_fact_checker",
-            }
+        # Branch: Any submitted claim rejected.
+        # ADR 027 requires every decision-effecting news claim to be grounded.
+        if removed_claims:
+            detail = (
+                "All structured claims were removed during fact-checking"
+                if claim_count == 0
+                else "One or more structured claims were removed during fact-checking"
+            )
+            return _abort_result(
+                reason="news_evidence_missing",
+                detail=detail,
+                payload=sanitized_payload,
+                removed_claims=removed_claims,
+            )
 
         # Branch: Zero claims after sanitization without removed claims
         # No validated claims were produced (empty but valid)
         if claim_count == 0:
-            return {
-                "news_report": f"{ticker} News Analysis\n\n- No validated news was available for this run.",
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload=sanitized_payload,
-                    status="empty",
-                    abort_reason="",
-                    removed_claims=removed_claims,
-                ),
-                "sender": "news_fact_checker",
-            }
+            return _abort_result(
+                reason="news_evidence_missing",
+                detail="No validated structured news claims remain after fact-checking",
+                payload=sanitized_payload,
+                removed_claims=removed_claims,
+            )
 
         # Render markdown from canonical sanitized claims
         rendered_report = render_structured_news_payload(sanitized_payload, ticker)

@@ -64,6 +64,19 @@ TOOL_SERVICE_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
+class NodeWallClockBudgetExceeded(RuntimeError):
+    """Raised when a LangGraph node exceeds the configured wall-clock budget."""
+
+    def __init__(self, *, node_name: str, elapsed_sec: float, budget_sec: float) -> None:
+        self.node_name = node_name
+        self.elapsed_sec = elapsed_sec
+        self.budget_sec = budget_sec
+        super().__init__(
+            f"Node {node_name} exceeded wall-clock budget: "
+            f"{elapsed_sec:.2f}s elapsed > {budget_sec:.2f}s budget"
+        )
+
+
 def is_root_chain_end(event: dict[str, Any]) -> bool:
     """Return True for the root-graph terminal event in a LangGraph v2 stream.
 
@@ -193,10 +206,12 @@ class EventMapper:
     creates a fresh mapper for each run/rerun and delegates event translation.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, node_wall_clock_budget_sec: float | None = None) -> None:
         self._node_start_times: dict[str, dict[str, float]] = {}
         self._node_prompts: dict[str, dict[str, str]] = {}
         self._run_identifiers: dict[str, str] = {}
+        self._latest_nodes: dict[str, str] = {}
+        self.node_wall_clock_budget_sec = node_wall_clock_budget_sec
 
     # -- lifecycle helpers ---------------------------------------------------
 
@@ -208,6 +223,10 @@ class EventMapper:
         self._node_start_times.pop(execution_key, None)
         self._node_prompts.pop(execution_key, None)
         self._run_identifiers.pop(execution_key, None)
+        self._latest_nodes.pop(execution_key, None)
+
+    def failure_node(self, execution_key: str) -> str | None:
+        return self._latest_nodes.get(execution_key)
 
     # -- core mapping --------------------------------------------------------
 
@@ -234,6 +253,7 @@ class EventMapper:
                 if len(event.get("parent_ids", [])) != 1:
                     return None
                 starts[node_timer_key] = time.monotonic()
+                self._latest_nodes[run_id] = node_name
                 logger.info("Node start node=%s run=%s", node_name, run_id)
                 return {
                     "id": event.get("run_id", f"node_start_{time.time_ns()}").strip(),
@@ -253,6 +273,22 @@ class EventMapper:
                 start_t = starts.pop(node_timer_key, None)
                 if start_t is not None:
                     latency_ms = round((time.monotonic() - start_t) * 1000)
+                    budget_sec = self.node_wall_clock_budget_sec
+                    if budget_sec is not None and latency_ms > float(budget_sec) * 1000:
+                        elapsed_sec = latency_ms / 1000
+                        logger.error(
+                            "Node wall-clock budget exceeded node=%s elapsed=%.2fs budget=%.2fs run=%s",
+                            node_name,
+                            elapsed_sec,
+                            float(budget_sec),
+                            run_id,
+                        )
+                        raise NodeWallClockBudgetExceeded(
+                            node_name=node_name,
+                            elapsed_sec=elapsed_sec,
+                            budget_sec=float(budget_sec),
+                        )
+                self._latest_nodes[run_id] = node_name
                 output = (event.get("data") or {}).get("output")
                 output_text = _truncate(_extract_content(output)) if output is not None else ""
                 logger.info("Node end node=%s latency=%dms run=%s", node_name, latency_ms, run_id)

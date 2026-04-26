@@ -66,6 +66,18 @@ def _make_decision(**kwargs) -> str:
     return json.dumps(base)
 
 
+def _make_prioritized_candidates(*tickers: str) -> str:
+    return json.dumps(
+        [
+            {
+                "ticker": ticker,
+                "candidate_final_trade_decision_summary": f"Completed deep-dive supports {ticker}",
+            }
+            for ticker in tickers
+        ]
+    )
+
+
 # ---------------------------------------------------------------------------
 # Existing tests
 # ---------------------------------------------------------------------------
@@ -337,8 +349,63 @@ def test_postcheck_passes_valid_buy_within_caps():
             "pm_decision": _make_decision(buys=[buy]),
             "portfolio_data": _make_portfolio_data(),
             "prices": {"AAPL": 200.0, "MSFT": 100.0},
+            "prioritized_candidates": _make_prioritized_candidates("MSFT"),
         }
     )
+    assert result["sender"] == "pm_decision_postcheck"
+
+
+def test_postcheck_raises_on_ungrounded_buy():
+    """Every non-cash-sweep buy must have a completed candidate deep-dive."""
+    setup = PortfolioGraphSetup(agents={}, config=_BASE_CONFIG)
+    node = setup._make_pm_decision_postcheck_node()
+
+    buy = {"ticker": "MSFT", "shares": 500.0, "price_target": 100.0, "sector": "Technology"}
+    with pytest.raises(RuntimeError, match="buy grounding violated.*MSFT"):
+        node(
+            {
+                "pm_decision": _make_decision(buys=[buy]),
+                "portfolio_data": _make_portfolio_data(),
+                "prices": {"AAPL": 200.0, "MSFT": 100.0},
+                "prioritized_candidates": _make_prioritized_candidates("NVDA"),
+            }
+        )
+
+
+def test_postcheck_raises_when_buy_candidate_summary_blank():
+    """A matching candidate ticker without a completed summary is not grounded."""
+    setup = PortfolioGraphSetup(agents={}, config=_BASE_CONFIG)
+    node = setup._make_pm_decision_postcheck_node()
+
+    buy = {"ticker": "MSFT", "shares": 500.0, "price_target": 100.0, "sector": "Technology"}
+    with pytest.raises(RuntimeError, match="buy grounding violated.*MSFT"):
+        node(
+            {
+                "pm_decision": _make_decision(buys=[buy]),
+                "portfolio_data": _make_portfolio_data(),
+                "prices": {"AAPL": 200.0, "MSFT": 100.0},
+                "prioritized_candidates": json.dumps(
+                    [{"ticker": "MSFT", "candidate_final_trade_decision_summary": "   "}]
+                ),
+            }
+        )
+
+
+def test_postcheck_allows_sgov_cash_equivalent_sweep_without_deep_dive():
+    """Cash-equivalent SGOV sweep buys do not require candidate deep-dive grounding."""
+    setup = PortfolioGraphSetup(agents={}, config={**_BASE_CONFIG, "max_position_pct": 1.0})
+    node = setup._make_pm_decision_postcheck_node()
+
+    buy = {"ticker": "SGOV", "shares": 100.0, "price_target": 100.0, "sector": "Cash Equivalent"}
+    result = node(
+        {
+            "pm_decision": _make_decision(buys=[buy]),
+            "portfolio_data": _make_portfolio_data(),
+            "prices": {"AAPL": 200.0, "SGOV": 100.0},
+            "prioritized_candidates": "[]",
+        }
+    )
+
     assert result["sender"] == "pm_decision_postcheck"
 
 
@@ -363,6 +430,7 @@ def test_postcheck_raises_on_cash_adequacy_violation():
                 "pm_decision": _make_decision(buys=[buy]),
                 "portfolio_data": _make_portfolio_data(),
                 "prices": {"AAPL": 200.0, "MSFT": 100.0},
+                "prioritized_candidates": _make_prioritized_candidates("MSFT"),
             }
         )
     assert "projected_cash=-30000.00" in str(exc_info.value)
@@ -386,6 +454,7 @@ def test_postcheck_raises_on_position_cap_violation():
                 "pm_decision": _make_decision(buys=[buy]),
                 "portfolio_data": _make_portfolio_data(),
                 "prices": {"AAPL": 200.0, "MSFT": 100.0},
+                "prioritized_candidates": _make_prioritized_candidates("MSFT"),
             }
         )
 

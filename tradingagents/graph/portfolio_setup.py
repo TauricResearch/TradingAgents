@@ -345,6 +345,7 @@ class PortfolioGraphSetup:
           4. Cash-reserve floor — decision.cash_reserve_pct / 100 >= min_cash_pct.
           5. Sells reference real holdings — sell.ticker must exist in current holdings.
           6. No orphan holds — hold.ticker must exist in current holdings.
+          7. Buy grounding — every non-cash-sweep buy has a completed candidate deep-dive.
 
         Raises RuntimeError with a specific reason on any violation.
         """
@@ -402,6 +403,43 @@ class PortfolioGraphSetup:
             buys = decision.get("buys") or []
             holds = decision.get("holds") or []
             cash_reserve_pct = decision.get("cash_reserve_pct")
+
+            # Check 7: Buy rationale grounding.
+            if buys:
+                prioritized_candidates_str = state.get("prioritized_candidates") or "[]"
+                try:
+                    prioritized_candidates = json.loads(prioritized_candidates_str)
+                except (json.JSONDecodeError, TypeError) as exc:
+                    raise RuntimeError(
+                        f"pm_decision_postcheck: prioritized_candidates is not valid JSON ({exc})"
+                    ) from exc
+                if not isinstance(prioritized_candidates, list):
+                    raise RuntimeError(
+                        "pm_decision_postcheck: prioritized_candidates must be a JSON list"
+                    )
+
+                grounded_tickers: set[str] = set()
+                for candidate in prioritized_candidates:
+                    if not isinstance(candidate, dict):
+                        continue
+                    ticker = str(candidate.get("ticker") or "").strip().upper()
+                    summary = str(
+                        candidate.get("candidate_final_trade_decision_summary") or ""
+                    ).strip()
+                    if ticker and summary:
+                        grounded_tickers.add(ticker)
+
+                for buy in buys:
+                    ticker = str(buy.get("ticker") or "").strip().upper()
+                    sector = str(buy.get("sector") or "").strip()
+                    is_cash_sweep = ticker == "SGOV" and sector.casefold() == "cash equivalent"
+                    if is_cash_sweep:
+                        continue
+                    if ticker not in grounded_tickers:
+                        raise RuntimeError(
+                            f"pm_decision_postcheck: buy grounding violated for {ticker!r} — "
+                            "missing completed candidate deep-dive in prioritized_candidates"
+                        )
 
             # Check 5: Sells reference real holdings.
             for sell in sells:
