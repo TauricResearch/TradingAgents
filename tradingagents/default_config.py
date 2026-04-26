@@ -37,19 +37,18 @@ DEFAULT_CONFIG = {
     "max_recur_limit": 100,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
-    # Jintel is opt-in (set JINTEL_API_KEY and switch any value below).
-    # Default stays on yfinance until the field-by-field equivalence in the
-    # Jintel migration plan is verified -- see Notion
-    # "TradingAgents -> Jintel Migration: Query Plan", risk register row
-    # "Default-flip is a behavior change for existing users".
+    # Jintel is the primary backend; requires JINTEL_API_KEY in the env.
+    # On rate-limit (JintelRateLimitError) the dispatcher falls through to
+    # yfinance, then alpha_vantage. Override per-category here, or per-tool
+    # in `tool_vendors` below.
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: jintel, alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: jintel, alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: jintel, alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: jintel, alpha_vantage, yfinance
+        "core_stock_apis": "jintel",         # Options: jintel, yfinance, alpha_vantage
+        "technical_indicators": "jintel",    # Options: jintel, yfinance, alpha_vantage
+        "fundamental_data": "jintel",        # Options: jintel, yfinance, alpha_vantage
+        "news_data": "jintel",               # Options: jintel, yfinance, alpha_vantage
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "jintel",  # Override category default
+        # Example: "get_stock_data": "yfinance",  # Override category default
     },
 }
