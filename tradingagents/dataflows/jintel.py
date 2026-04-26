@@ -80,21 +80,32 @@ def get_stock(symbol: str, start_date: str, end_date: str) -> str:
     """Drop-in for yfinance ``get_YFin_data_online`` / alpha_vantage ``get_stock``.
 
     Returns CSV with ``Date,Open,High,Low,Close,Volume`` rows.
+
+    ``client.price_history`` only accepts the preset ``range`` enum, so we use
+    ``enrich_entity`` with the ``market`` sub-graph + ``ArrayFilterInput`` to
+    get an arbitrary ``[start_date, end_date]`` window.
     """
     client = _get_client()
-    res = client.price_history(
-        tickers=[symbol],
-        filter=ArrayFilterInput(
-            since=start_date, until=end_date, sort=SortDirection.ASC
+    # ArrayFilterInput defaults limit to 20; pass an explicit cap large enough
+    # to cover any reasonable backtest window (~40 yrs of trading days).
+    res = client.enrich_entity(
+        symbol,
+        fields=["market"],
+        options=EnrichOptions(
+            filter=ArrayFilterInput(
+                since=start_date, until=end_date, limit=10000,
+                sort=SortDirection.ASC,
+            ),
         ),
     )
-    histories = _unwrap(res, f"price_history({symbol})")
-    if not histories or not histories[0].history:
+    entity = _unwrap(res, f"enrich_entity({symbol}, market)")
+    history = (entity.market.history if entity.market else None) or []
+    if not history:
         return f"No data returned for {symbol} in {start_date}..{end_date}"
     rows = [
         {"Date": p.date, "Open": p.open, "High": p.high, "Low": p.low,
          "Close": p.close, "Volume": p.volume}
-        for p in histories[0].history
+        for p in history
     ]
     return pd.DataFrame(rows).set_index("Date").to_csv()
 
@@ -102,7 +113,8 @@ def get_stock(symbol: str, start_date: str, end_date: str) -> str:
 # ---- technical_indicators ----------------------------------------------
 
 def get_indicator(symbol: str, indicator: str, curr_date: str,
-                  look_back_days: int = 30) -> str:
+                  look_back_days: int = 30) -> str:  # noqa: D401
+    """See module docstring."""
     """Drop-in for yfinance ``get_stock_stats_indicators_window``.
 
     Jintel ``TechnicalIndicators`` returns scalar latest values, not a windowed
@@ -112,11 +124,15 @@ def get_indicator(symbol: str, indicator: str, curr_date: str,
     """
     from stockstats import wrap
 
+    from io import StringIO
+
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_dt = end_dt - timedelta(days=max(look_back_days * 5, 365))
     csv = get_stock(symbol, start_dt.strftime("%Y-%m-%d"),
                     end_dt.strftime("%Y-%m-%d"))
-    df = pd.read_csv(pd.io.common.StringIO(csv))
+    if csv.startswith("No data"):
+        return csv
+    df = pd.read_csv(StringIO(csv))
     df.columns = [c.lower() for c in df.columns]
     df["date"] = pd.to_datetime(df["date"])
     series = wrap(df.set_index("date"))[indicator]
@@ -127,10 +143,18 @@ def get_indicator(symbol: str, indicator: str, curr_date: str,
 # ---- fundamental_data --------------------------------------------------
 
 def get_fundamentals(ticker: str, curr_date: str | None = None) -> str:
+    """``MarketData.quote`` and ``Entity.fundamentals`` are in
+    ``UNSUPPORTED_AS_OF_FIELDS`` -- Jintel returns null for them in PIT mode.
+    We deliberately omit ``as_of`` here so callers get a populated live
+    snapshot. Look-ahead bias for fundamentals is documented as a known
+    limitation; backtest reproducibility for fundamentals must rely on
+    ``get_balance_sheet`` / ``get_cashflow`` / ``get_income_statement``,
+    which do honor ``as_of``.
+    """
     client = _get_client()
     res = client.enrich_entity(
-        ticker, ["market", "analyst"],
-        as_of=curr_date,
+        ticker,
+        fields=["market", "analyst"],
     )
     entity = _unwrap(res, f"enrich_entity({ticker}, fundamentals)")
     lines = [f"# Fundamentals for {ticker} (as_of={curr_date or 'live'})"]
@@ -160,16 +184,23 @@ def _financials_to_csv(stmts: list[Any], cols: list[str]) -> str:
 
 
 def _fetch_financials(ticker: str, freq: str, curr_date: str | None) -> Any:
+    """Jintel's ``period_types`` enum coverage varies by ticker (not every
+    ticker has a ``3M`` series), so we drop the period filter and take
+    whatever's available. Look-ahead bias is enforced via
+    ``FinancialStatementFilterInput.until`` rather than ``as_of`` mode --
+    in practice ``as_of`` returns null financials despite ``Entity.financials``
+    not being in ``UNSUPPORTED_AS_OF_FIELDS``.
+    """
+    del freq
     client = _get_client()
-    period_types = ["3M"] if freq == "quarterly" else ["12M"]
     res = client.enrich_entity(
-        ticker, ["financials"],
+        ticker,
+        fields=["financials"],
         options=EnrichOptions(
             financial_statements_filter=FinancialStatementFilterInput(
-                period_types=period_types, limit=8,
+                until=curr_date, limit=8, sort=SortDirection.DESC,
             ),
         ),
-        as_of=curr_date,
     )
     return _unwrap(res, f"enrich_entity({ticker}, financials)")
 
@@ -179,8 +210,7 @@ def get_balance_sheet(ticker: str, freq: str = "quarterly",
     entity = _fetch_financials(ticker, freq, curr_date)
     if not entity.financials:
         return ""
-    # verify: exact attribute path on FinancialStatements model
-    stmts = getattr(entity.financials, "balance_sheet", None) or []
+    stmts = entity.financials.balance_sheet or []
     return _financials_to_csv(stmts, [
         "period_ending", "total_assets", "total_liabilities", "total_equity",
         "cash_and_equivalents", "long_term_debt",
@@ -192,8 +222,7 @@ def get_cashflow(ticker: str, freq: str = "quarterly",
     entity = _fetch_financials(ticker, freq, curr_date)
     if not entity.financials:
         return ""
-    # verify: exact attribute path on FinancialStatements model
-    stmts = getattr(entity.financials, "cash_flow", None) or []
+    stmts = entity.financials.cash_flow or []
     return _financials_to_csv(stmts, [
         "period_ending", "operating_cash_flow", "investing_cash_flow",
         "financing_cash_flow", "free_cash_flow",
@@ -205,8 +234,8 @@ def get_income_statement(ticker: str, freq: str = "quarterly",
     entity = _fetch_financials(ticker, freq, curr_date)
     if not entity.financials:
         return ""
-    # verify: exact attribute path on FinancialStatements model
-    stmts = getattr(entity.financials, "income_statement", None) or []
+    # FinancialStatements.income holds the income statement series.
+    stmts = entity.financials.income or []
     return _financials_to_csv(stmts, [
         "period_ending", "total_revenue", "gross_profit",
         "operating_income", "net_income", "diluted_eps",
@@ -218,7 +247,8 @@ def get_income_statement(ticker: str, freq: str = "quarterly",
 def get_news(ticker: str, start_date: str, end_date: str) -> str:
     client = _get_client()
     res = client.enrich_entity(
-        ticker, ["news"],
+        ticker,
+        fields=["news"],
         options=EnrichOptions(
             news_filter=NewsFilterInput(
                 since=start_date, until=end_date, limit=50,
@@ -246,7 +276,8 @@ def get_global_news(curr_date: str, look_back_days: int = 7,
              - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
     client = _get_client()
     res = client.batch_enrich(
-        ["SPY", "QQQ", "DIA"], ["news"],
+        ["SPY", "QQQ", "DIA"],
+        fields=["news"],
         options=EnrichOptions(
             news_filter=NewsFilterInput(
                 since=since, until=curr_date, limit=limit,
@@ -271,7 +302,8 @@ def get_global_news(curr_date: str, look_back_days: int = 7,
 def get_insider_transactions(ticker: str) -> str:
     client = _get_client()
     res = client.enrich_entity(
-        ticker, ["insiderTrades"],
+        ticker,
+        fields=["insiderTrades"],
         options=EnrichOptions(
             insider_trades_filter=InsiderTradeFilterInput(
                 limit=100, sort=SortDirection.DESC,
