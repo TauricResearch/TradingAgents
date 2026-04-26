@@ -12,14 +12,14 @@ load_dotenv()
 config = DEFAULT_CONFIG.copy()
 
 # LLM overrides from .env (fall back to DEFAULT_CONFIG when unset)
-if os.getenv("LLM_PROVIDER"):
-    config["llm_provider"] = os.getenv("LLM_PROVIDER")
-if os.getenv("DEEP_THINK_LLM"):
-    config["deep_think_llm"] = os.getenv("DEEP_THINK_LLM")
-if os.getenv("QUICK_THINK_LLM"):
-    config["quick_think_llm"] = os.getenv("QUICK_THINK_LLM")
-if os.getenv("LLM_BACKEND_URL"):
-    config["backend_url"] = os.getenv("LLM_BACKEND_URL")
+for env_var, config_key in [
+    ("LLM_PROVIDER", "llm_provider"),
+    ("DEEP_THINK_LLM", "deep_think_llm"),
+    ("QUICK_THINK_LLM", "quick_think_llm"),
+    ("LLM_BACKEND_URL", "backend_url"),
+]:
+    if value := os.getenv(env_var):
+        config[config_key] = value
 
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
