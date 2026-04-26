@@ -23,6 +23,18 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .jintel import (
+    get_stock as get_jintel_stock,
+    get_indicator as get_jintel_indicator,
+    get_fundamentals as get_jintel_fundamentals,
+    get_balance_sheet as get_jintel_balance_sheet,
+    get_cashflow as get_jintel_cashflow,
+    get_income_statement as get_jintel_income_statement,
+    get_news as get_jintel_news,
+    get_global_news as get_jintel_global_news,
+    get_insider_transactions as get_jintel_insider_transactions,
+    JintelRateLimitError,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -63,6 +75,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "jintel",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -71,41 +84,50 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "jintel": get_jintel_stock,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "jintel": get_jintel_indicator,
     },
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "jintel": get_jintel_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "jintel": get_jintel_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "jintel": get_jintel_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "jintel": get_jintel_income_statement,
     },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "jintel": get_jintel_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "jintel": get_jintel_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+        "jintel": get_jintel_insider_transactions,
     },
 }
 
@@ -158,5 +180,7 @@ def route_to_vendor(method: str, *args, **kwargs):
             return impl_func(*args, **kwargs)
         except AlphaVantageRateLimitError:
             continue  # Only rate limits trigger fallback
+        except JintelRateLimitError:
+            continue  # Same fallback semantics for Jintel rate limits
 
     raise RuntimeError(f"No available vendor for '{method}'")
