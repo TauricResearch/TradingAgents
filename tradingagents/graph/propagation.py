@@ -84,7 +84,6 @@ class Propagator:
             "final_trade_decision": "",
             "macro_regime_report": macro_regime_report,
             "research_packet_summary": "",
-            "critical_abort_reason": "",
         }
 
     def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:

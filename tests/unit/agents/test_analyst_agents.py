@@ -217,7 +217,9 @@ def test_fundamentals_analyst_empty_output_uses_structured_fallback(mock_state):
         result = node(mock_state)
 
     structured = result["fundamentals_report_structured"]
-    assert structured["status"] == "empty"
+    assert structured["status"] == "aborted"
+    assert structured["abort_reason"]
+    assert result["abort_signal"]["reason"] == "fundamentals_empty_ttm"
     assert structured["ticker"] == "AAPL"
     assert "Fundamentals Analysis" in result["fundamentals_report"]
 
@@ -261,7 +263,7 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
 
 
 def test_news_analyst_prefetch_total_failure_aborts(mock_state):
-    """News analyst: if both prefetch feeds fail, health gate should abort with critical status."""
+    """News analyst: if both prefetch feeds fail, health gate should raise abort_signal."""
 
     class EmptyNewsEvidenceStore:
         def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
@@ -284,9 +286,9 @@ def test_news_analyst_prefetch_total_failure_aborts(mock_state):
         )
         result = node(mock_state)
 
-    # Should emit critical abort in news_report
-    assert "[CRITICAL ABORT]" in result["news_report"]
     assert "prefetch failed" in result["news_report"]
+    assert result["abort_signal"]["source"] == "news_analyst"
+    assert result["abort_signal"]["reason"] == "news_prefetch_failed"
     # Analyst returns empty dict - fact-checker will normalize it to canonical contract
     assert result["news_report_structured"] == {}
 
@@ -514,8 +516,8 @@ def test_market_analyst_macro_regime_empty_when_prefetch_errors(mock_state):
     assert result["market_report_structured"]["macro_regime"] == "unknown"
 
 
-def test_market_analyst_structured_status_aborted_on_critical_abort(mock_state):
-    """Structured market contract should mark critical abort reports as aborted."""
+def test_market_analyst_structured_status_completed_for_legacy_marker_text(mock_state):
+    """Structured market contract does not interpret legacy marker text as abort state."""
     abort_report = AIMessage(
         content="[CRITICAL ABORT] Reason: Trading halted pending delisting - SEC notice"
     )
@@ -534,8 +536,8 @@ def test_market_analyst_structured_status_aborted_on_critical_abort(mock_state):
         node = create_market_analyst(MockLLM([abort_report]))
         result = node(mock_state)
     structured = result["market_report_structured"]
-    assert structured["status"] == "aborted"
-    assert structured["abort_reason"].startswith("Reason:")
+    assert structured["status"] == "completed"
+    assert structured["abort_reason"] == ""
     assert structured["macro_regime"] == "risk_off"
 
 
@@ -650,7 +652,7 @@ def test_news_analyst_retries_once_then_passes(mock_state, valid_news_report):
         result = node(mock_state)
 
     assert mock_llm.runnable.call_count == 2
-    assert "[CRITICAL ABORT]" not in result["news_report"]
+    assert "abort_signal" not in result
     assert "AAPL News Analysis" in result["news_report"]
     assert result["news_report_structured"]["ticker"] == "AAPL"
 
@@ -667,7 +669,9 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
         result = node(mock_state)
 
     assert mock_llm.runnable.call_count == 2
-    assert result["news_report"].startswith("[CRITICAL ABORT]")
+    assert result["abort_signal"]["source"] == "news_analyst"
+    assert result["abort_signal"]["reason"] == "news_schema_invalid"
+    assert "failed source validation twice" in result["news_report"]
 
 
 def test_news_analyst_timeout_returns_critical_abort(mock_state):
@@ -689,7 +693,8 @@ def test_news_analyst_timeout_returns_critical_abort(mock_state):
 
     structured = result["news_report_structured"]
     assert structured == {}
-    assert result["news_report"].startswith("[CRITICAL ABORT]")
+    assert result["abort_signal"]["source"] == "news_analyst"
+    assert result["abort_signal"]["reason"] == "news_prefetch_failed"
     assert "timed out" in result["news_report"]
 
 

@@ -152,12 +152,12 @@ Trader
 
 | Decision Point | Condition | Route |
 |---------------|-----------|-------|
-| After Instrument Preflight | `analysis_status == "aborted"` | → END |
-| After any Msg Clear node | `market_report` or `fundamentals_report` contains `[CRITICAL ABORT]` | → Critical Abort Terminal |
+| After Instrument Preflight | `abort_signal` is present | → Critical Abort Terminal |
+| After any Msg Clear node | `abort_signal` is present | → Critical Abort Terminal |
 | After Bull/Bear Researcher | `count >= 2 × max_debate_rounds` | → Research Manager |
 | After Bull/Bear Researcher | `current_response` starts with "Bull" | → Bear Researcher |
 | After Bull/Bear Researcher | `current_response` starts with "Bear" | → Bull Researcher |
-| After Bull/Bear/Risk nodes | Any analyst report contains `[CRITICAL ABORT]` | → Portfolio Manager (short-circuit) |
+| After Bull/Bear/Risk nodes | `abort_signal` is present | → Critical Abort Terminal |
 
 ### 2.3 Portfolio Graph
 
@@ -338,7 +338,7 @@ run_auto()
 | **LLM Tier** | N/A (Python closure) |
 | **Available Tools** | None |
 | **Incoming Data** | `company_of_interest` (str) |
-| **Outgoing Data** | `instrument_key` (str), `asset_class` (str), `instrument_type` (str), `is_etf` (bool), `is_inverse` (bool), `is_leveraged` (bool), `sender` = `"instrument_preflight"` — on abort: additionally sets `analysis_status` = `"aborted"`, `terminal_action` = `"UNSUPPORTED_INSTRUMENT_TYPE"`, `market_report` = `"[CRITICAL ABORT] ..."` |
+| **Outgoing Data** | `instrument_key` (str), `asset_class` (str), `instrument_type` (str), `is_etf` (bool), `is_inverse` (bool), `is_leveraged` (bool), `sender` = `"instrument_preflight"` — on abort: additionally sets `analysis_status` = `"aborted"`, `terminal_action` = `"UNSUPPORTED_INSTRUMENT_TYPE"`, `abort_signal` |
 
 #### 3.2.2 Market Analyst
 
@@ -502,11 +502,11 @@ run_auto()
 
 | Attribute | Value |
 |-----------|-------|
-| **Purpose** | Terminal node for catastrophic abort paths — records which report triggered the abort and sets terminal status |
+| **Purpose** | Terminal node for catastrophic abort paths — records the structured abort signal and sets terminal status |
 | **LLM Tier** | N/A (Python closure) |
 | **Available Tools** | None |
-| **Incoming Data** | `market_report`, `news_report`, `fundamentals_report` (all str) |
-| **Outgoing Data** | `analysis_status` = `"aborted"`, `terminal_action` = `"CRITICAL_ABORT"`, `critical_abort_reason` (str), `final_trade_decision` = `"SELL / AVOID — Critical risk event detected ..."` |
+| **Incoming Data** | `abort_signal` (`source`, `reason`, `detail`, `raised_at`, `recoverable`) |
+| **Outgoing Data** | `analysis_status` = `"aborted"`, `terminal_action` = `"SELL"` or `"AVOID"`, `abort_signal`, `final_trade_decision` = structured terminal abort verdict |
 
 ---
 
@@ -753,7 +753,7 @@ class AgentState(MessagesState):
     final_trade_decision_structured: dict        # Written by Portfolio Manager
     analysis_status: str                         # "pending" | "completed" | "aborted"
     terminal_action: str                         # e.g., "BUY", "SELL", "CRITICAL_ABORT"
-    critical_abort_reason: str                   # Raw report text triggering abort
+    abort_signal: dict | None                    # Structured terminal abort signal
 ```
 
 #### 4.2.2 `market_report_structured` — Market Analyst Output
@@ -1334,10 +1334,10 @@ State updates:
 
 ### 6.3 Critical Abort Protocol
 
-- Any analyst can trigger `[CRITICAL ABORT]` by prepending the marker to its report
-- `state_has_critical_abort()` checks `market_report`, `news_report`, `fundamentals_report`
+- Analysts and deterministic preflight can trigger abort by returning `abort_signal`
+- `has_abort()` checks only `state["abort_signal"]`
 - Abort routes immediately to `Critical Abort Terminal` (bypasses debate/risk)
-- Critical Abort Terminal sets `analysis_status` = `"aborted"`, `terminal_action` = `"CRITICAL_ABORT"`
+- Critical Abort Terminal sets `analysis_status` = `"aborted"` and terminal action `"SELL"` for holdings or `"AVOID"` for candidates
 - Abort conditions: delisting, bankruptcy, SEC enforcement, market cap collapse >90%, regulatory shutdown
 
 ### 6.4 Ground Truth Propagation

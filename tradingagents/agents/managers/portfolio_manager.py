@@ -3,10 +3,7 @@ from typing import Any
 
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
-from tradingagents.agents.utils.critical_abort import (
-    extract_abort_report,
-    state_has_critical_abort,
-)
+from tradingagents.agents.utils.critical_abort import has_abort
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import build_final_decision_structured
 from tradingagents.agents.utils.summary_context import (
@@ -32,10 +29,7 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
         macro_regime_report = state.get("macro_regime_report", "")
         research_packet = truncate_text(build_research_packet(state), max_chars=5000)
 
-        # Check for critical abort in market/news/fundamentals reports
-        is_critical_abort = state_has_critical_abort(
-            state, "market_report", "news_report", "fundamentals_report"
-        )
+        is_critical_abort = has_abort(state)
 
         # Build current situation with all reports
         macro_section = f"\n\nMacro Regime:\n{macro_regime_report}" if macro_regime_report else ""
@@ -53,9 +47,14 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
         )
 
         if is_critical_abort:
-            # Critical abort: Use the aborting analyst's report and recommend SELL/AVOID
-            _, abort_report = extract_abort_report(
-                state, "market_report", "news_report", "fundamentals_report"
+            abort_signal = state.get("abort_signal") or {}
+            abort_report = ": ".join(
+                part
+                for part in [
+                    str(abort_signal.get("reason") or "").strip(),
+                    str(abort_signal.get("detail") or "").strip(),
+                ]
+                if part
             )
             prompt = f"""As the Portfolio Manager, you have received a critical abort signal from an early analyst. This indicates catastrophic conditions (bankruptcy, SEC delisting, etc.) that require immediate action.
 

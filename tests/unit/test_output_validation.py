@@ -114,7 +114,7 @@ class TestMarketStructuredContract:
         assert "$190.25" in structured["key_levels"]
         assert structured["key_metrics"]["summary_table_rows"] >= 2
 
-    def test_build_market_report_structured_aborted(self):
+    def test_build_market_report_structured_ignores_legacy_abort_marker(self):
         structured = build_market_report_structured(
             ticker="AAPL",
             as_of_date="2026-04-03",
@@ -122,8 +122,8 @@ class TestMarketStructuredContract:
             macro_regime_report="## Transition\nMarket is TRANSITION.",
         )
 
-        assert structured["status"] == "aborted"
-        assert structured["abort_reason"] == "Reason: Trading halted pending delisting"
+        assert structured["status"] == "completed"
+        assert structured["abort_reason"] == ""
         assert structured["macro_regime"] == "transition"
 
 

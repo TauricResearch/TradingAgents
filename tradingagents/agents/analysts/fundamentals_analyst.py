@@ -9,6 +9,7 @@ from tradingagents.agents.utils.agent_utils import (
     format_prefetched_context,
     prefetch_tools_parallel,
 )
+from tradingagents.agents.utils.critical_abort import raise_abort
 from tradingagents.agents.utils.fundamental_data_tools import (
     get_balance_sheet,
     get_cashflow,
@@ -134,9 +135,10 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
             "driver, an FCF deviation from net income, or an unusual balance-sheet move — you "
             "may call `get_balance_sheet`, `get_cashflow`, or `get_income_statement` to examine "
             "the raw quarterly data directly.\n\n"
-            "## CRITICAL ABORT TRIGGER\n\n"
-            "If you detect any of the following CATASTROPHIC conditions, you MUST immediately "
-            "prepend `[CRITICAL ABORT]` to your report and provide specific reasoning:\n\n"
+            "## Catastrophic Risk Handling\n\n"
+            "If you detect any of the following catastrophic conditions, describe them clearly "
+            "as hard-stop risks. Do not emit special routing markers or control tokens in "
+            "the report text.\n\n"
             "### Bankruptcy and Financial Distress:\n"
             "- Bankruptcy filing or Chapter 11/7 proceedings\n"
             "- Negative gross margins (gross margin < 0%)\n"
@@ -154,10 +156,6 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
             "- Revenue recognition violations\n"
             "- Material restatement of financial statements\n"
             "- Insider trading violations or SEC violations\n\n"
-            "### Format Requirements:\n"
-            "When triggering a critical abort, your report MUST start with:\n"
-            "`[CRITICAL ABORT] Reason: <specific reason for abort>`\n\n"
-            "Example: `[CRITICAL ABORT] Reason: Bankruptcy filing detected - negative gross margin of -15% with no path to recovery`\n\n"
             "## Normal Operation\n\n"
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"
@@ -224,11 +222,26 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
         if not report.strip() or structured_payload["status"] in {"timeout_fallback", "empty"}:
             report = render_fundamentals_report_structured(structured_payload)
             if structured_payload["status"] == "empty":
-                report = (
-                    "[CRITICAL ABORT] Reason: Fundamentals Analyst returned no data — "
-                    "all tool calls failed or produced empty output. "
-                    "Cannot proceed without financial statements.\n\n" + report
+                detail = (
+                    "Fundamentals Analyst returned no data: all tool calls failed or "
+                    "produced empty output. Cannot proceed without financial statements."
                 )
+                structured_payload = {
+                    **structured_payload,
+                    "status": "aborted",
+                    "abort_reason": detail,
+                }
+                return {
+                    "messages": [result],
+                    "fundamentals_report": report,
+                    "fundamentals_report_structured": structured_payload,
+                    **raise_abort(
+                        source="fundamentals_analyst",
+                        reason="fundamentals_empty_ttm",
+                        detail=detail,
+                        recoverable=True,
+                    ),
+                }
 
         return {
             "messages": [result],

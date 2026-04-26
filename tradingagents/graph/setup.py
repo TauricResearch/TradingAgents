@@ -26,7 +26,7 @@ from tradingagents.agents import (
     create_trader,
 )
 from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.agents.utils.critical_abort import state_has_critical_abort
+from tradingagents.agents.utils.critical_abort import has_abort, raise_abort
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
@@ -44,14 +44,12 @@ class GraphSetup:
     }
 
     def _should_short_circuit_to_critical_abort_terminal(self, state: AgentState) -> bool:
-        return state_has_critical_abort(
-            state, "market_report", "news_report", "fundamentals_report"
-        )
+        return has_abort(state)
 
     @staticmethod
     def _route_after_preflight(state: AgentState, next_node: str) -> str:
-        if str(state.get("analysis_status") or "").strip().lower() == "aborted":
-            return "END"
+        if has_abort(state):
+            return CRITICAL_ABORT_NODE
         return next_node
 
     @classmethod
@@ -88,6 +86,11 @@ class GraphSetup:
                     "sender": "instrument_preflight",
                 }
 
+            detail = (
+                "Unsupported instrument type for stock deep-dive: "
+                f"{instrument.canonical_symbol} classified as "
+                f"{instrument.instrument_type} ({instrument.asset_class})."
+            )
             return {
                 "instrument_key": instrument.instrument_key,
                 "asset_class": instrument.asset_class,
@@ -97,10 +100,11 @@ class GraphSetup:
                 "is_leveraged": instrument.is_leveraged,
                 "analysis_status": "aborted",
                 "terminal_action": "UNSUPPORTED_INSTRUMENT_TYPE",
-                "market_report": (
-                    "[CRITICAL ABORT] Unsupported instrument type for stock deep-dive: "
-                    f"{instrument.canonical_symbol} classified as "
-                    f"{instrument.instrument_type} ({instrument.asset_class})."
+                **raise_abort(
+                    source="instrument_preflight",
+                    reason="instrument_key_invalid",
+                    detail=detail,
+                    recoverable=False,
                 ),
                 "sender": "instrument_preflight",
             }
@@ -228,7 +232,7 @@ class GraphSetup:
                 for analyst_type in selected_analysts
             },
             "Bull Researcher": "Bull Researcher",
-            "END": END,
+            CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
         }
         workflow.add_conditional_edges(
             "Instrument Preflight",

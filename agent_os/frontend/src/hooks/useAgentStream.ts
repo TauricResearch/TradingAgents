@@ -40,6 +40,15 @@ export interface AgentEvent {
   };
 }
 
+type StreamPayload = Partial<AgentEvent> & {
+  type?: string;
+  message?: string;
+  run_status?: string;
+};
+
+const isStreamPayload = (value: unknown): value is StreamPayload =>
+  typeof value === 'object' && value !== null;
+
 export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = true) => {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'streaming' | 'completed' | 'paused' | 'error'>('idle');
@@ -113,13 +122,15 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
       socket.onmessage = (event) => {
         if (sessionToken !== sessionTokenRef.current) return;
 
-        let data: any;
+        let parsed: unknown;
         try {
-          data = JSON.parse(event.data);
+          parsed = JSON.parse(event.data);
         } catch (parseError) {
           console.error('Failed to parse WebSocket payload', parseError);
           return;
         }
+        if (!isStreamPayload(parsed)) return;
+        const data = parsed;
 
         if (data.type === 'system' && data.message === '__heartbeat__') {
           return;

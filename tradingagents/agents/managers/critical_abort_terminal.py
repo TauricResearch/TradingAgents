@@ -5,7 +5,6 @@ from typing import Any
 
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
-from tradingagents.agents.utils.critical_abort import extract_abort_report
 from tradingagents.constants import CRITICAL_ABORT_NODE
 
 
@@ -14,16 +13,21 @@ def create_critical_abort_terminal() -> Callable[[AgentState], dict[str, Any]]:
         context = str(state.get("portfolio_context") or "candidate").strip().lower()
         is_holding = context == "holding"
         terminal_action = "SELL" if is_holding else "AVOID"
-        source_field, abort_report = extract_abort_report(
-            state, "market_report", "news_report", "fundamentals_report"
-        )
-        source_label = source_field.replace("_", " ") if source_field else "analyst report"
+        abort_signal = state.get("abort_signal")
+        if not abort_signal:
+            raise RuntimeError("Critical Abort Terminal invoked without abort_signal")
+
+        source_label = str(abort_signal.get("source") or "unknown_source")
+        reason = str(abort_signal.get("reason") or "unknown_abort")
+        detail = str(abort_signal.get("detail") or "No abort detail captured.")
+        recoverable = bool(abort_signal.get("recoverable", False))
+        raised_at = str(abort_signal.get("raised_at") or "")
         instrument_context = build_instrument_context(state["company_of_interest"])
 
         decision_text = (
             "Rating: Sell\n\n"
             f"Terminal Action: {terminal_action}\n\n"
-            f"Executive Summary: Critical abort triggered from the {source_label}. "
+            f"Executive Summary: Critical abort triggered from {source_label} ({reason}). "
             + (
                 "Exit the existing position immediately and do not wait for trader or risk debate output."
                 if is_holding
@@ -33,7 +37,9 @@ def create_critical_abort_terminal() -> Callable[[AgentState], dict[str, Any]]:
             "Investment Thesis: The normal debate, trader, and portfolio-manager path was intentionally skipped. "
             "This ticker hit a hard-stop condition that must be preserved as a first-class terminal outcome.\n\n"
             f"Instrument Context: {instrument_context}\n\n"
-            f"Aborting Report:\n{abort_report or 'No abort report captured.'}"
+            f"Abort Detail: {detail}\n\n"
+            f"Recoverable: {recoverable}\n\n"
+            f"Raised At: {raised_at or 'not recorded'}"
         )
 
         risk_debate_state = state.get("risk_debate_state", {})
@@ -57,7 +63,7 @@ def create_critical_abort_terminal() -> Callable[[AgentState], dict[str, Any]]:
             "final_trade_decision": decision_text,
             "analysis_status": "aborted",
             "terminal_action": terminal_action,
-            "critical_abort_reason": abort_report,
+            "abort_signal": abort_signal,
             "sender": CRITICAL_ABORT_NODE,
         }
 

@@ -167,10 +167,10 @@ As a result, analysts now flow directly to their `Msg Clear *` node after execut
 
 | Decision point | Rule |
 | --- | --- |
-| After each analyst | `GraphSetup._should_short_circuit_to_portfolio_manager()` jumps directly to `Portfolio Manager` if `market_report` or `fundamentals_report` contains `[CRITICAL ABORT]`. |
+| After each analyst | `GraphSetup._should_short_circuit_to_critical_abort_terminal()` jumps directly to `Critical Abort Terminal` if `abort_signal` is present. |
 | Debate loop | `ConditionalLogic.should_continue_debate()` alternates bull/bear until `count >= 2 * max_debate_rounds`, then routes to `Research Manager`. |
 | Risk loop | `ConditionalLogic.should_continue_risk_analysis()` rotates aggressive -> conservative -> neutral until `count >= 3 * max_risk_discuss_rounds`, then routes to `Portfolio Manager`. |
-| Critical abort during debate or risk | Both conditional functions also short-circuit to `Portfolio Manager`. |
+| Critical abort during debate or risk | Both conditional functions short-circuit to `Critical Abort Terminal` when `abort_signal` is present. |
 
 ### Pipeline Tool Surface
 

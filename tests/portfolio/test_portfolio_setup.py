@@ -5,7 +5,6 @@ import pytest
 
 from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -250,7 +249,9 @@ def test_integrity_guard_raises_on_empty_portfolio():
     node = setup._make_portfolio_integrity_guard_node()
 
     with pytest.raises(RuntimeError, match="empty portfolio"):
-        node({"portfolio_data": _make_portfolio_data(portfolio=portfolio, holdings=[]), "prices": {}})
+        node(
+            {"portfolio_data": _make_portfolio_data(portfolio=portfolio, holdings=[]), "prices": {}}
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -402,23 +403,41 @@ def test_postcheck_raises_on_sector_cap_violation():
     # Three Technology holdings at 12% each = 36% sector total > 35% sector cap.
     # Each individual position is 12% < 15% (position cap passes; sector cap fires).
     aapl_h = {
-        "holding_id": "h1", "portfolio_id": "p1", "ticker": "AAPL",
-        "shares": 60.0, "avg_cost": 200.0, "sector": "Technology",
-        "current_value": 12000.0, "current_price": 200.0,
+        "holding_id": "h1",
+        "portfolio_id": "p1",
+        "ticker": "AAPL",
+        "shares": 60.0,
+        "avg_cost": 200.0,
+        "sector": "Technology",
+        "current_value": 12000.0,
+        "current_price": 200.0,
     }
     msft_h = {
-        "holding_id": "h2", "portfolio_id": "p1", "ticker": "MSFT",
-        "shares": 60.0, "avg_cost": 200.0, "sector": "Technology",
-        "current_value": 12000.0, "current_price": 200.0,
+        "holding_id": "h2",
+        "portfolio_id": "p1",
+        "ticker": "MSFT",
+        "shares": 60.0,
+        "avg_cost": 200.0,
+        "sector": "Technology",
+        "current_value": 12000.0,
+        "current_price": 200.0,
     }
     nvda_h = {
-        "holding_id": "h3", "portfolio_id": "p1", "ticker": "NVDA",
-        "shares": 60.0, "avg_cost": 200.0, "sector": "Technology",
-        "current_value": 12000.0, "current_price": 200.0,
+        "holding_id": "h3",
+        "portfolio_id": "p1",
+        "ticker": "NVDA",
+        "shares": 60.0,
+        "avg_cost": 200.0,
+        "sector": "Technology",
+        "current_value": 12000.0,
+        "current_price": 200.0,
     }
     portfolio = {
-        "portfolio_id": "p1", "name": "Main",
-        "cash": 64000.0, "initial_cash": 100000.0, "total_value": 100000.0,
+        "portfolio_id": "p1",
+        "name": "Main",
+        "cash": 64000.0,
+        "initial_cash": 100000.0,
+        "total_value": 100000.0,
     }
 
     with pytest.raises(RuntimeError, match="sector cap violated"):
@@ -510,4 +529,3 @@ def test_postcheck_raises_on_orphan_hold():
                 "prices": {"AAPL": 200.0},
             }
         )
-

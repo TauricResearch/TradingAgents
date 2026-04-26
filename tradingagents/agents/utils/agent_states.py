@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict
@@ -40,6 +40,25 @@ class RiskDebateState(TypedDict):
     ]  # Last response
     judge_decision: Annotated[str, "Judge's decision"]
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
+
+
+AbortReason = Literal[
+    "instrument_key_invalid",
+    "news_prefetch_failed",
+    "news_evidence_missing",
+    "news_schema_invalid",
+    "fundamentals_empty_ttm",
+    "social_prefetch_failed",
+    "market_data_unavailable",
+]
+
+
+class AbortSignal(TypedDict):
+    source: Annotated[str, "Node name that raised the abort"]
+    reason: Annotated[AbortReason, "Machine-readable abort reason code"]
+    detail: Annotated[str, "Human-readable abort diagnosis"]
+    raised_at: Annotated[str, "UTC ISO-8601 timestamp when the abort was raised"]
+    recoverable: Annotated[bool, "Whether a partial rerun could fix the abort"]
 
 
 class AgentState(MessagesState):
@@ -120,7 +139,7 @@ class AgentState(MessagesState):
     ]
     analysis_status: Annotated[str, "Terminal pipeline status"]
     terminal_action: Annotated[str, "Explicit terminal action for abort and completion paths"]
-    critical_abort_reason: Annotated[str, "Raw report text that triggered the critical abort"]
+    abort_signal: Annotated[AbortSignal | None, "Structured terminal abort signal"]
 
     # macro regime
     macro_regime_report: Annotated[
