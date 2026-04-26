@@ -53,3 +53,11 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+    def test_deepseek_v4_models_are_available_and_valid(self):
+        known_models = get_known_models()["deepseek"]
+
+        self.assertIn("deepseek-v4-pro", known_models)
+        self.assertIn("deepseek-v4-flash", known_models)
+        self.assertTrue(validate_model("deepseek", "deepseek-v4-pro"))
+        self.assertTrue(validate_model("deepseek", "deepseek-v4-flash"))
