@@ -1236,7 +1236,7 @@ class LangGraphEngine:
         except CircuitBreakerOpen:
             logger.warning(
                 "run_portfolio: circuit breaker open when loading holdings for price fetch; "
-                "proceeding without holding tickers"
+                "aborting portfolio run"
             )
             raise
         except Exception as exc:
@@ -1394,11 +1394,7 @@ class LangGraphEngine:
                         )
                         store.save_pm_decision(date, portfolio_id, decision)
                     except CircuitBreakerOpen:
-                        logger.warning(
-                            "run_portfolio: circuit breaker open when saving pm_decision for run=%s; "
-                            "PM decision may be incomplete or missing",
-                            root_run_id,
-                        )
+                        # Let the outer CircuitBreakerOpen handler log once and re-raise.
                         raise
                     except Exception as exc:
                         logger.warning("Failed to save pm_decision run=%s: %s", root_run_id, exc)
@@ -1414,11 +1410,7 @@ class LangGraphEngine:
                         )
                         store.save_execution_result(date, portfolio_id, execution)
                     except CircuitBreakerOpen:
-                        logger.warning(
-                            "run_portfolio: circuit breaker open when saving execution_result for run=%s; "
-                            "execution result may be incomplete or missing",
-                            root_run_id,
-                        )
+                        # Let the outer CircuitBreakerOpen handler log once and re-raise.
                         raise
                     except Exception as exc:
                         logger.warning(
