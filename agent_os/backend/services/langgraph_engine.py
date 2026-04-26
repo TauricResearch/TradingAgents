@@ -1285,6 +1285,12 @@ class LangGraphEngine:
                 mapped = self._event_mapper.map_event(execution_key, event)
                 if mapped:
                     yield mapped
+        except CircuitBreakerOpen:
+            # Let the circuit-breaker signal propagate cleanly to the caller
+            # (_run_auto_phase_three) which is responsible for yielding the
+            # user-facing message and raising AwaitPhase3Decision.  Emitting an
+            # additional error log here would produce a duplicate message.
+            raise
         except Exception as exc:
             failing_node = self._failure_node_for(execution_key, exc)
             guidance = build_resume_guidance(

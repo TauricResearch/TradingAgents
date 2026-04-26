@@ -276,17 +276,17 @@ class EventMapper:
                     budget_sec = self.node_wall_clock_budget_sec
                     if budget_sec is not None and latency_ms > float(budget_sec) * 1000:
                         elapsed_sec = latency_ms / 1000
+                        # Log the violation but do NOT raise: the node already
+                        # completed successfully and its output is in the graph
+                        # state.  Raising here would discard valid work and
+                        # crash the streaming loop.  Operators should tighten
+                        # the budget or scale compute if this fires frequently.
                         logger.error(
                             "Node wall-clock budget exceeded node=%s elapsed=%.2fs budget=%.2fs run=%s",
                             node_name,
                             elapsed_sec,
                             float(budget_sec),
                             run_id,
-                        )
-                        raise NodeWallClockBudgetExceeded(
-                            node_name=node_name,
-                            elapsed_sec=elapsed_sec,
-                            budget_sec=float(budget_sec),
                         )
                 self._latest_nodes[run_id] = node_name
                 output = (event.get("data") or {}).get("output")

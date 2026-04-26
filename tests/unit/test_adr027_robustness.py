@@ -39,8 +39,16 @@ def test_circuit_breaker_success_clears_failures(tmp_path):
     breaker.assert_available("pm_decision_agent")
 
 
-def test_event_mapper_raises_when_node_wall_clock_budget_exceeded(monkeypatch):
-    from agent_os.backend.services.event_mapper import EventMapper, NodeWallClockBudgetExceeded
+def test_event_mapper_logs_error_when_node_wall_clock_budget_exceeded(monkeypatch, caplog):
+    """Budget violations are logged at ERROR level but do NOT raise.
+
+    The node already completed and its output is in the graph state;
+    raising here would discard valid work.  Operators should observe the
+    error log and tune the budget or compute accordingly.
+    """
+    import logging
+
+    from agent_os.backend.services.event_mapper import EventMapper
 
     mapper = EventMapper(node_wall_clock_budget_sec=3)
     mapper.register_run("run-1", "MARKET")
@@ -64,8 +72,17 @@ def test_event_mapper_raises_when_node_wall_clock_budget_exceeded(monkeypatch):
     }
 
     assert mapper.map_event("run-1", start_event)["node_id"] == "pm_decision_agent"
-    with pytest.raises(NodeWallClockBudgetExceeded, match="pm_decision_agent.*3.50s.*3.00s"):
-        mapper.map_event("run-1", end_event)
+
+    with caplog.at_level(logging.ERROR, logger="agent_os.engine"):
+        result = mapper.map_event("run-1", end_event)
+
+    # Node result is returned — completed work is NOT discarded
+    assert result is not None
+    assert result["node_id"] == "pm_decision_agent"
+    assert result["type"] == "result"
+
+    # Budget violation is recorded as an error log
+    assert any("wall-clock budget exceeded" in r.message for r in caplog.records)
 
 
 def test_vendor_health_reports_unknown_configured_vendor():
