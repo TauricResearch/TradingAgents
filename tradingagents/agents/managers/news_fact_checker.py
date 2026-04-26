@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from tradingagents.agents.utils.agent_states import AgentState
-from tradingagents.agents.utils.critical_abort import report_has_critical_abort
+from tradingagents.agents.utils.critical_abort import has_abort
 from tradingagents.agents.utils.output_validation import (
     build_news_report_structured,
     render_structured_news_payload,
@@ -49,19 +49,37 @@ def create_news_fact_checker(
         report = str(state.get("news_report") or "").strip()
         structured_payload = state.get("news_report_structured")
 
+        if has_abort(state):
+            abort_signal = state.get("abort_signal") or {}
+            abort_reason = ": ".join(
+                part
+                for part in [
+                    str(abort_signal.get("reason") or "").strip(),
+                    str(abort_signal.get("detail") or "").strip(),
+                ]
+                if part
+            )
+            return {
+                "news_report": report,
+                "news_report_structured": build_news_report_structured(
+                    ticker=ticker,
+                    as_of_date=trade_date,
+                    payload={},
+                    status="aborted",
+                    abort_reason=abort_reason or "Structured abort signal raised",
+                ),
+                "sender": "news_fact_checker",
+            }
+
         # Fetch persisted evidence records
         records = store.fetch_records(run_id=run_id, ticker=ticker, trade_date=trade_date)
         allowed_source_names = {record.source for record in records if record.source}
         allowed_evidence_ids = {record.evidence_id for record in records if record.evidence_id}
         records_by_id = {record.evidence_id: record for record in records if record.evidence_id}
 
-        # Branch: No persisted evidence records and no critical abort
-        # (Evidence acquisition succeeded but no news found, or all prefetch failed)
-        if (
-            not records
-            and not report_has_critical_abort(report)
-            and not _has_scanner_structured_claims(structured_payload)
-        ):
+        # Branch: No persisted evidence records
+        # (Evidence acquisition succeeded but no news found.)
+        if not records and not _has_scanner_structured_claims(structured_payload):
             return {
                 "news_report": f"{ticker} News Analysis\n\n- No validated news was available for this run.",
                 "news_report_structured": build_news_report_structured(
@@ -70,25 +88,6 @@ def create_news_fact_checker(
                     payload={},
                     status="empty",
                     abort_reason="",
-                ),
-                "sender": "news_fact_checker",
-            }
-
-        # Branch: Existing [CRITICAL ABORT] report (analyst timeout or prefetch failure)
-        if report_has_critical_abort(report):
-            abort_reason = (
-                report.split("[CRITICAL ABORT]", 1)[1].strip(" :\n\t")
-                if "[CRITICAL ABORT]" in report
-                else "Critical abort"
-            )
-            return {
-                "news_report": report,  # Preserve upstream critical abort markdown
-                "news_report_structured": build_news_report_structured(
-                    ticker=ticker,
-                    as_of_date=trade_date,
-                    payload={},
-                    status="aborted",
-                    abort_reason=abort_reason,
                 ),
                 "sender": "news_fact_checker",
             }
@@ -132,7 +131,7 @@ def create_news_fact_checker(
         )
 
         # Branch: Invalid payload (validation fails)
-        # DO NOT emit new [CRITICAL ABORT] - return deterministic non-evidence message
+        # Return deterministic non-evidence message; routing uses abort_signal only.
         if not structured_validation.is_valid or structured_validation.payload is None:
             abort_reason = f"{structured_validation.code}: {structured_validation.reason}"
             return {

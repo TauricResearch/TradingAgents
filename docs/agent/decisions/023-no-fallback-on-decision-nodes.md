@@ -69,8 +69,8 @@ downstream decision-effecting node that has its own validation, so a
 deterministic fallback is acceptable:
 
 - Analysts (Market/Social/News/Fundamentals) timeout fallback
-  reports — they tag `[CRITICAL ABORT]` when truly unrecoverable,
-  which routes to the terminal node anyway.
+  reports — they raise a structured `abort_signal` when truly
+  unrecoverable, which routes to the terminal node anyway.
 - Bull/Bear researchers timeout fallback content with `[LOW]`
   confidence — the Research Manager (now hard-fail) will refuse to
   synthesize from `[LOW]` if it chooses to.
@@ -131,10 +131,9 @@ decision; the engine remains the single owner of model fallback policy.
 
 ## Out of scope
 
-This ADR does **not** change the existing `[CRITICAL ABORT]` flow
-for analysts — see ADR 025 for that mechanism's structured-signal
-upgrade. Analysts remain allowed to emit context-level fallback
-because they are not decision-effecting in this taxonomy.
+ADR 025 replaces the old text-marker abort flow with the structured
+`abort_signal` field. Analysts remain allowed to emit context-level
+fallback because they are not decision-effecting in this taxonomy.
 
 ## Supersedes
 

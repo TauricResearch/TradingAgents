@@ -275,8 +275,7 @@ class PortfolioGraphSetup:
             cash = portfolio.get("cash")
             if not isinstance(cash, (int, float)) or cash < 0:
                 raise RuntimeError(
-                    f"portfolio_integrity_guard: cash must be a non-negative number, "
-                    f"got {cash!r}"
+                    f"portfolio_integrity_guard: cash must be a non-negative number, got {cash!r}"
                 )
 
             if not isinstance(holdings, list):
@@ -299,9 +298,7 @@ class PortfolioGraphSetup:
             # Check 4: Conservation — only when holdings have been enriched with
             # current_value (i.e. load_portfolio_node had prices available).
             enriched = [
-                h
-                for h in holdings
-                if isinstance(h, dict) and h.get("current_value") is not None
+                h for h in holdings if isinstance(h, dict) and h.get("current_value") is not None
             ]
             if enriched:
                 holdings_equity = sum(float(h["current_value"]) for h in enriched)
@@ -695,9 +692,7 @@ class PortfolioGraphSetup:
         # Register non-LLM nodes
         workflow.add_node("load_portfolio", self._make_load_portfolio_node())
         workflow.add_node("compute_risk", self._make_compute_risk_node())
-        workflow.add_node(
-            "portfolio_integrity_guard", self._make_portfolio_integrity_guard_node()
-        )
+        workflow.add_node("portfolio_integrity_guard", self._make_portfolio_integrity_guard_node())
         workflow.add_node("prioritize_candidates", self._make_prioritize_candidates_node())
         workflow.add_node("cash_sweep", self._make_cash_sweep_node())
         workflow.add_node("pm_decision_postcheck", self._make_pm_decision_postcheck_node())

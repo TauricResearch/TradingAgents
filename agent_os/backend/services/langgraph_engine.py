@@ -261,7 +261,7 @@ _RESUMABLE_PIPELINE_STATE_KEYS = frozenset(
         "risk_synthesis_structured",
         "analysis_status",
         "terminal_action",
-        "critical_abort_reason",
+        "abort_signal",
         "macro_regime_report",
     }
 )
@@ -285,7 +285,7 @@ _PIPELINE_NODE_RESULT_FIELDS = (
     "final_trade_decision",
     "analysis_status",
     "terminal_action",
-    "critical_abort_reason",
+    "abort_signal",
 )
 
 _PORTFOLIO_NODE_RESULT_FIELDS = (

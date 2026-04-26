@@ -192,11 +192,11 @@ string), `holding_reviews` (JSON), `prioritized_candidates` (JSON),
    `RiskDebateState`, and graph args `recursion_limit=100`,
    `stream_mode="values"`.
 2. **Instrument Preflight** validates `instrument_key`. On failure it
-   sets a `[CRITICAL ABORT]`-prefixed report and routes to the
+   sets a structured `abort_signal` and routes to the
    **Critical Abort Terminal**.
 3. **Sequential analysts** — Market → Social → News → Fundamentals.
-   After each analyst the conditional checks the just-written report
-   for the `[CRITICAL ABORT]` prefix; if present, the graph routes to
+   After each analyst the conditional checks `abort_signal`; if
+   present, the graph routes to
    **Critical Abort Terminal**.
 4. **Msg Clear** deterministically wipes the LangChain `messages`
    buffer to prevent leakage of analyst tool-call traces into the
@@ -277,13 +277,13 @@ synthetic SGOV buy when free cash exceeds the configured target.
 
 | Agent | Role | Reads from `AgentState` | Writes to `AgentState` | Routing decision |
 |---|---|---|---|---|
-| Instrument Preflight | Validate `instrument_key`, classify kind | `instrument_key`, `company_of_interest` | `instrument_kind`, possibly `[CRITICAL ABORT]` report | Conditional → Critical Abort Terminal or Market Analyst |
-| Market Analyst | Technical/regime analysis | `instrument_key`, `trade_date` | `market_report`, `market_report_structured` | Conditional on `[CRITICAL ABORT]` |
-| Social Analyst | Sentiment | `instrument_key`, `trade_date` | `sentiment_report` | Conditional on `[CRITICAL ABORT]` |
-| News Analyst | News digest with structured claims | `instrument_key`, `trade_date` | `news_report`, `news_report_structured` | Conditional on `[CRITICAL ABORT]` |
-| Fundamentals Analyst | TTM + historical financials | `instrument_key`, `trade_date` | `fundamentals_report`, `fundamentals_report_structured` | Conditional on `[CRITICAL ABORT]` |
+| Instrument Preflight | Validate `instrument_key`, classify kind | `instrument_key`, `company_of_interest` | `instrument_kind`, possibly `abort_signal` | Conditional → Critical Abort Terminal or Market Analyst |
+| Market Analyst | Technical/regime analysis | `instrument_key`, `trade_date` | `market_report`, `market_report_structured` | Conditional on `abort_signal` |
+| Social Analyst | Sentiment | `instrument_key`, `trade_date` | `sentiment_report` | Conditional on `abort_signal` |
+| News Analyst | News digest with structured claims | `instrument_key`, `trade_date` | `news_report`, `news_report_structured`, possibly `abort_signal` | Conditional on `abort_signal` |
+| Fundamentals Analyst | TTM + historical financials | `instrument_key`, `trade_date` | `fundamentals_report`, `fundamentals_report_structured`, possibly `abort_signal` | Conditional on `abort_signal` |
 | Msg Clear | Wipe `messages` buffer | `messages` | `messages` (cleared) | Static → News Fact Checker |
-| News Fact Checker | Validate `news_report_structured` against evidence store | `news_report_structured`, run-id evidence records | `news_report*`, possibly `[CRITICAL ABORT]` | Conditional on `[CRITICAL ABORT]` else → Bull |
+| News Fact Checker | Validate `news_report_structured` against evidence store | `news_report_structured`, run-id evidence records | `news_report*`, preserves `abort_signal` | Conditional on `abort_signal` else → Bull |
 | Bull Researcher | Build CLAIMS/SIGNAL block (anonymized inputs) | reports, `investment_debate_state` | `investment_debate_state.bull_history`, `current_response`, `count++` | None (next is Bear via conditional) |
 | Bear Researcher | Build COUNTERPOINT/REBUTTAL/SIGNAL | reports, `investment_debate_state` | `investment_debate_state.bear_history`, `current_response` | Conditional → Bull / Bear / Research Manager / Abort |
 | Research Manager | Synthesize debate, emit verdict | `investment_debate_state`, all reports | `investment_plan`, `investment_debate_state.judge_decision` | Static → Trader |
@@ -293,14 +293,14 @@ synthetic SGOV buy when free cash exceeds the configured target.
 | Aggressive/Conservative/Neutral R2 | Round-2 rebuttals reading all R1 | `risk_r1_*` | `risk_r2_*` | Static → Risk Synthesis |
 | Risk Synthesis | Fan-in, build legacy `risk_debate_state` + structured | `risk_r1_*`, `risk_r2_*` | `risk_synthesis_structured`, `risk_debate_state` | Static → Portfolio Manager |
 | Portfolio Manager | Final rating | structured risk + reports | `final_trade_decision`, `analysis_status="completed"` | Static → END |
-| Critical Abort Terminal | Compose abort verdict | reports with abort prefix | `final_trade_decision`, `terminal_action`, `analysis_status="aborted"` | Static → END |
+| Critical Abort Terminal | Compose abort verdict | `abort_signal` | `final_trade_decision`, `terminal_action`, `analysis_status="aborted"` | Static → END |
 
 ### 3.2 Conditional Router Logic
 
 #### `should_continue_debate` (`conditional_logic.py`)
 
 ```python
-if state["investment_debate_state"]["current_response"].startswith(CRITICAL_ABORT_PREFIX):
+if state.get("abort_signal"):
     return CRITICAL_ABORT_NODE
 if state["investment_debate_state"]["count"] >= 2 * max_debate_rounds:
     return "Research Manager"
@@ -418,8 +418,8 @@ chosen per-node:
 1. **Hard fail (raise `RuntimeError`)** — scanner `macro_synthesis`,
    `risk_synthesis`, scanner summarizers when upstream is missing,
    `trader` on empty upstream or excessive entry-price drift.
-2. **Critical abort marker** (`[CRITICAL ABORT]` prefix) — analysts and
-   news fact checker tag their report and rely on the conditional router
+2. **Structured abort signal** (`abort_signal`) — analysts and
+   news fact checker return structured metadata and rely on the conditional router
    to redirect to **Critical Abort Terminal**.
 3. **Deterministic fallback report** — Market Analyst (timeout
    fallback markdown), Bull/Bear (timeout fallback with `[LOW]`
@@ -432,11 +432,11 @@ chosen per-node:
 
 | Failure | Where | Result |
 |---|---|---|
-| Instrument key invalid | Instrument Preflight | `[CRITICAL ABORT]` report → Critical Abort Terminal → END |
+| Instrument key invalid | Instrument Preflight | `abort_signal` → Critical Abort Terminal → END |
 | Market analyst LLM timeout | Market Analyst | Fallback markdown — flow continues |
-| News analyst JSON validation fails twice | News Analyst | `[CRITICAL ABORT]` report → terminal |
-| News fact-check finds no records | News Fact Checker | `[CRITICAL ABORT]` (configurable) |
-| Fundamentals empty TTM after retries | Fundamentals Analyst | `[CRITICAL ABORT]` |
+| News analyst JSON validation fails twice | News Analyst | `abort_signal` → terminal |
+| News fact-check finds no records | News Fact Checker | Canonical empty news contract — flow continues |
+| Fundamentals empty TTM after retries | Fundamentals Analyst | `abort_signal` |
 | Bull/Bear timeout | Researchers | Fallback transcript with `[LOW]` confidence — debate continues |
 | Trader entry drift > threshold | Trader | `RuntimeError` propagates — graph crash (intentional, per CLAUDE.md "hard-crash" rule) |
 | Risk synthesis invoke error | Risk Synthesis | `RuntimeError` propagates |
@@ -446,17 +446,15 @@ chosen per-node:
 | `pm_decision` structured-output error | Portfolio | Falls back to plain LLM + `extract_json` |
 | Macro summary scan data only `{"error"}` | macro_summary_agent | Returns `NO DATA AVAILABLE - ABORT MACRO` sentinel; PM applies conservative-posture override |
 
-### 5.2 The `[CRITICAL ABORT]` contract
+### 5.2 The `abort_signal` contract
 
 Defined in `tradingagents/agents/utils/critical_abort.py`:
 
-* `CRITICAL_ABORT_PREFIX = "[CRITICAL ABORT]"`.
-* `report_has_critical_abort(report_text)` — substring/prefix check.
-* `state_has_critical_abort(state)` — checks all known report fields.
-* `extract_abort_report(state)` — returns the first abort-tagged
-  report for terminal composition.
+* `raise_abort(source, reason, detail, recoverable=True)` — returns a
+  partial state update containing structured abort metadata.
+* `has_abort(state)` — checks only `state["abort_signal"]`.
 * All trading-graph analysts AND the news fact checker are wired
-  through conditionals that call `state_has_critical_abort`. The
+  through conditionals that call `has_abort`. The
   router target `CRITICAL_ABORT_NODE` resolves to the **Critical Abort
   Terminal** node.
 
@@ -474,15 +472,15 @@ fabricated narrative.
 
 | Node | Type | Behavior |
 |---|---|---|
-| Instrument Preflight | Deterministic Python | Validates `instrument_key`, sets `instrument_kind`. May write `[CRITICAL ABORT]` |
+| Instrument Preflight | Deterministic Python | Validates `instrument_key`, sets `instrument_kind`. May write `abort_signal` |
 | Msg Clear | Deterministic Python | Empties `messages` to prevent tool-trace leakage into debate |
-| News Fact Checker | LLM-free validator | Sanitizes claims against `NewsEvidenceStore` records; can re-tag `[CRITICAL ABORT]` |
+| News Fact Checker | LLM-free validator | Sanitizes claims against `NewsEvidenceStore` records; preserves upstream `abort_signal` |
 | Risk Round Barrier | No-op | Synchronization-only; ensures all R1 writes complete before R2 fan-out |
 | Risk Synthesis | LLM | Fan-in; rebuilds legacy `risk_debate_state` for backward compatibility with PM Manager |
 | Critical Abort Terminal | Deterministic | Sets `terminal_action`, builds `final_trade_decision`, writes `analysis_status="aborted"`, `sender=CRITICAL_ABORT_NODE` |
 | Cash Sweep | Deterministic Python | In-place mutation of `pm_decision` JSON to add SGOV buy when cash > target |
 | Execute Trades | Deterministic Python | Writes the final decision to the portfolio repository |
-| Conditional routers | Pure functions | `should_continue_debate`, plus per-analyst `state_has_critical_abort` checks |
+| Conditional routers | Pure functions | `should_continue_debate`, `should_continue_risk_analysis`, and per-analyst `has_abort` checks |
 
 `ScannerConditionalLogic` (`_report_is_valid`) is defined but appears
 **unused** by the live scanner graph (see §9).
@@ -512,7 +510,7 @@ Portfolio Manager → END
 **P2 — Preflight abort**
 
 ```
-Instrument Preflight → [CRITICAL ABORT] → Critical Abort Terminal → END
+Instrument Preflight → abort_signal → Critical Abort Terminal → END
 ```
 
 * Trigger: invalid `instrument_key` or unrecognised kind.
@@ -520,7 +518,7 @@ Instrument Preflight → [CRITICAL ABORT] → Critical Abort Terminal → END
 **P3 — Analyst abort (one of four variants)**
 
 ```
-... → {Market | Social | News | Fundamentals} → [CRITICAL ABORT] →
+... → {Market | Social | News | Fundamentals} → abort_signal →
 Critical Abort Terminal → END
 ```
 
@@ -530,7 +528,7 @@ Critical Abort Terminal → END
 **P4 — News fact-check abort**
 
 ```
-... → News Fact Checker → [CRITICAL ABORT] → Critical Abort Terminal → END
+... → News Fact Checker → abort_signal → Critical Abort Terminal → END
 ```
 
 * Trigger: zero matching evidence records OR sanitization removes all
@@ -539,7 +537,7 @@ Critical Abort Terminal → END
 **P5 — Debate-driven abort**
 
 ```
-... → Bull/Bear → current_response startswith [CRITICAL ABORT] →
+... → Bull/Bear → abort_signal present →
 Critical Abort Terminal → END
 ```
 
@@ -764,10 +762,10 @@ this document.
    the planned entry, Trader raises `RuntimeError`. This is by design,
    to refuse stale plans, but is invisible to the conditional router.
 7. **News Fact Checker is non-optional.** Even when the news report
-   is empty, it runs and may emit a `[CRITICAL ABORT]`. There is no
+   is empty, it runs and may preserve an upstream `abort_signal`. There is no
    bypass flag.
-8. **Critical-abort detection is string-prefix based.** A future
-   refactor to a structured signal would remove the risk of false
+8. **Critical-abort detection is structured.** Routing depends on
+   `abort_signal`, not report text, removing the risk of false
    positives from analyst content that legitimately mentions the
    prefix.
 9. **`_last_value` reducer keeps the last non-empty write.** If two

@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 from tradingagents.agents.managers.news_fact_checker import create_news_fact_checker
+from tradingagents.agents.utils.critical_abort import raise_abort
 from tradingagents.memory.news_evidence import NewsEvidenceRecord
 
 
@@ -202,8 +203,8 @@ class TestNewsFactCheckerCanonicalContract:
         assert "claims" in structured
         assert "summary_table" in structured
 
-    def test_fact_checker_aborted_report_has_canonical_contract(self):
-        """Test fact-checker preserves critical abort and returns canonical contract."""
+    def test_fact_checker_abort_signal_has_canonical_contract(self):
+        """Test fact-checker preserves structured abort and returns canonical contract."""
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []
 
@@ -213,22 +214,25 @@ class TestNewsFactCheckerCanonicalContract:
             "run_id": "test_run",
             "company_of_interest": "TEST",
             "trade_date": "2026-04-10",
-            "news_report": "[CRITICAL ABORT] Reason: Analyst timeout",
+            "news_report": "TEST News Analysis\n\n- Analyst timeout.",
             "news_report_structured": {},
+            **raise_abort(
+                source="news_analyst",
+                reason="news_prefetch_failed",
+                detail="Analyst timeout",
+                recoverable=True,
+            ),
         }
 
         result = fact_checker(state)
 
-        # Should preserve the critical abort markdown
-        assert result["news_report"].startswith("[CRITICAL ABORT]")
+        assert result["news_report"] == "TEST News Analysis\n\n- Analyst timeout."
 
         structured = result["news_report_structured"]
         assert structured["status"] == "aborted"
         assert structured["contract_version"] == "news_report_v1"
-        assert (
-            "timeout" in structured["abort_reason"].lower()
-            or "abort" in structured["abort_reason"].lower()
-        )
+        assert "news_prefetch_failed" in structured["abort_reason"]
+        assert "timeout" in structured["abort_reason"].lower()
 
     def test_fact_checker_blank_report_with_valid_structured_payload_completes(self):
         """Test fact-checker validates structured payload even when markdown report is blank."""

@@ -74,7 +74,9 @@ def test_instrument_preflight_aborts_non_stock():
     result = node({"company_of_interest": "SPY"})
     assert result["analysis_status"] == "aborted"
     assert result["terminal_action"] == "UNSUPPORTED_INSTRUMENT_TYPE"
-    assert "[CRITICAL ABORT]" in result["market_report"]
+    assert result["abort_signal"]["source"] == "instrument_preflight"
+    assert result["abort_signal"]["reason"] == "instrument_key_invalid"
+    assert result["abort_signal"]["recoverable"] is False
 
 
 def test_instrument_preflight_allows_common_stock():
@@ -86,7 +88,10 @@ def test_instrument_preflight_allows_common_stock():
 
 def test_route_after_preflight_sends_aborted_runs_to_end():
     assert (
-        GraphSetup._route_after_preflight({"analysis_status": "aborted"}, "Market Analyst") == "END"
+        GraphSetup._route_after_preflight(
+            {"abort_signal": {"reason": "instrument_key_invalid"}}, "Market Analyst"
+        )
+        == "Critical Abort Terminal"
     )
     assert (
         GraphSetup._route_after_preflight({"analysis_status": "pending"}, "Market Analyst")

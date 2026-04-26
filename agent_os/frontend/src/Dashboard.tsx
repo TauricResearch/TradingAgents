@@ -72,13 +72,38 @@ interface RunParams {
   force: boolean;
 }
 
+interface Phase3Ticker {
+  ticker: string;
+  reason?: string;
+  portfolio_context?: string;
+}
+
+interface Phase3Decision {
+  incomplete_tickers?: Phase3Ticker[];
+}
+
+interface RunRecord {
+  id: string;
+  type?: RunType | string;
+  status?: string;
+  error?: unknown;
+  error_stage?: string;
+  created_at?: number;
+  params?: Partial<RunParams> & {
+    tickers?: string[];
+    max_tickers?: number | string;
+  };
+  pending_phase3_decision?: Phase3Decision | null;
+  events?: AgentEvent[];
+}
+
 const parseTickerInput = (value: string): string[] =>
   value
     .split(',')
     .map((ticker) => ticker.trim().toUpperCase())
     .filter(Boolean);
 
-const restoreTickerInput = (run: any, fallback: string): string => {
+const restoreTickerInput = (run: RunRecord | null, fallback: string): string => {
   const params = run?.params || {};
   if (run?.type === 'mock' && params.mock_type === 'auto') {
     const tickers = Array.isArray(params.tickers) ? params.tickers : [];
@@ -88,6 +113,14 @@ const restoreTickerInput = (run: any, fallback: string): string => {
     return '';
   }
   return params.ticker || fallback;
+};
+
+const errorDetail = (err: unknown): string => {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { detail?: unknown } | undefined;
+    if (data?.detail) return String(data.detail);
+  }
+  return String(err);
 };
 
 const RUN_TYPE_LABELS: Record<RunType, string> = {
@@ -418,7 +451,7 @@ type Page = 'dashboard' | 'portfolio';
 export const Dashboard: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
-  const [activeRunRecord, setActiveRunRecord] = useState<any | null>(null);
+  const [activeRunRecord, setActiveRunRecord] = useState<RunRecord | null>(null);
   const [activeRunReloadKey, setActiveRunReloadKey] = useState(0);
   const [stopRequestedRunId, setStopRequestedRunId] = useState<string | null>(null);
   const [actionRunId, setActionRunId] = useState<string | null>(null);
@@ -540,7 +573,7 @@ export const Dashboard: React.FC = () => {
       setActiveRunType(null);
       setStopRequestedRunId(null);
       if (status === 'completed' || status === 'error') {
-        setActiveRunRecord((prev: any) => (prev ? { ...prev, status: status === 'completed' ? 'completed' : 'failed' } : prev));
+        setActiveRunRecord((prev) => (prev ? { ...prev, status: status === 'completed' ? 'completed' : 'failed' } : prev));
       }
     }
   }, [status]);
@@ -576,8 +609,8 @@ export const Dashboard: React.FC = () => {
   const pendingPhase3Decision = activeRunRecord?.pending_phase3_decision || null;
   const incompletePhase3Tickers = pendingPhase3Decision?.incomplete_tickers || [];
   const selectedRetryTickers = incompletePhase3Tickers
-    .filter((item: any) => phase3DecisionSelection[item.ticker])
-    .map((item: any) => item.ticker);
+    .filter((item) => phase3DecisionSelection[item.ticker])
+    .map((item) => item.ticker);
   const activeRunFailureReason = useMemo(() => {
     if (activeRunRecord?.status === 'failed' && activeRunRecord?.error) return String(activeRunRecord.error);
     if (status === 'error' && streamError) {
@@ -598,25 +631,26 @@ export const Dashboard: React.FC = () => {
     if (activeRunRecord?.status !== 'awaiting_decision' || !pendingPhase3Decision) return;
     setPhase3DecisionSelection(
       Object.fromEntries(
-        (pendingPhase3Decision.incomplete_tickers || []).map((item: any) => [item.ticker, false]),
+        (pendingPhase3Decision.incomplete_tickers || []).map((item) => [item.ticker, false]),
       ),
     );
     onPhase3DecisionOpen();
   }, [activeRunRecord?.status, pendingPhase3Decision, onPhase3DecisionOpen]);
 
-  const syncParamsFromRun = useCallback((run: any) => {
+  const syncParamsFromRun = useCallback((run: RunRecord | null) => {
     if (!run?.params) return;
+    const runParams = run.params;
     setParams((p) => ({
       ...p,
-      date: run.params.date || p.date,
+      date: runParams.date || p.date,
       ticker: restoreTickerInput(run, p.ticker),
-      portfolio_id: run.params.portfolio_id || p.portfolio_id,
-      max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
-      continue_on_ticker_failure: Boolean(run.params.continue_on_ticker_failure),
-      include_portfolio_holdings: run.params.include_portfolio_holdings !== false,
-      mock_type: run.params.mock_type || p.mock_type,
-      speed: run.params.speed?.toString() || p.speed,
-      force: Boolean(run.params.force),
+      portfolio_id: runParams.portfolio_id || p.portfolio_id,
+      max_auto_tickers: runParams.max_tickers?.toString() || runParams.max_auto_tickers?.toString() || '',
+      continue_on_ticker_failure: Boolean(runParams.continue_on_ticker_failure),
+      include_portfolio_holdings: runParams.include_portfolio_holdings !== false,
+      mock_type: runParams.mock_type || p.mock_type,
+      speed: runParams.speed?.toString() || p.speed,
+      force: Boolean(runParams.force),
     }));
   }, []);
 
@@ -725,14 +759,16 @@ export const Dashboard: React.FC = () => {
   };
 
   // ─── History panel state ───────────────────────────────────────────
-  const [historyRuns, setHistoryRuns] = useState<any[]>([]);
+  const [historyRuns, setHistoryRuns] = useState<RunRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const loadHistory = async () => {
     setHistoryLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/run/`);
-      const sorted = (res.data as any[]).sort((a: any, b: any) => (b.created_at || 0) - (a.created_at || 0));
+      const sorted = (res.data as RunRecord[]).sort(
+        (a, b) => (b.created_at || 0) - (a.created_at || 0),
+      );
       setHistoryRuns(sorted);
     } catch (err) {
       console.error('Failed to load run history', err);
@@ -741,13 +777,13 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const loadRun = async (run: any) => {
+  const loadRun = async (run: RunRecord) => {
     clearEvents();
     setEventScope('latest');
     syncParamsFromRun(run);
     try {
       const res = await axios.get(`${API_BASE}/run/${run.id}`);
-      const snapshot = res.data as any;
+      const snapshot = res.data as RunRecord;
       replaceEvents((snapshot.events || []) as AgentEvent[]);
       setActiveRunRecord({ ...run, ...snapshot });
       setStopRequestedRunId(null);
@@ -778,7 +814,7 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const resumeRun = async (run: any) => {
+  const resumeRun = async (run: RunRecord | null) => {
     const targetRun = run || activeRunRecord;
     if (!targetRun?.id) return;
 
@@ -804,10 +840,10 @@ export const Dashboard: React.FC = () => {
         position: 'top',
       });
       loadHistory();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Resume failed',
-        description: err?.response?.data?.detail || String(err),
+        description: errorDetail(err),
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -819,7 +855,7 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const stopRun = async (run: any) => {
+  const stopRun = async (run: RunRecord | null) => {
     const targetRun = run || activeRunRecord;
     if (!targetRun?.id) return;
 
@@ -828,7 +864,7 @@ export const Dashboard: React.FC = () => {
     try {
       await axios.post(`${API_BASE}/run/${targetRun.id}/stop`);
       setStopRequestedRunId(targetRun.id);
-      setActiveRunRecord((prev: any) => (prev?.id === targetRun.id ? { ...prev, status: 'stopping' } : prev));
+      setActiveRunRecord((prev) => (prev?.id === targetRun.id ? { ...prev, status: 'stopping' } : prev));
       toast({
         title: 'Stop requested',
         description: 'This run will stop and can be resumed later from history.',
@@ -838,10 +874,10 @@ export const Dashboard: React.FC = () => {
         position: 'top',
       });
       loadHistory();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Stop failed',
-        description: err?.response?.data?.detail || String(err),
+        description: errorDetail(err),
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -864,7 +900,7 @@ export const Dashboard: React.FC = () => {
       setStreamEnabled(true);
       setTerminalStatus('idle');
       setActiveRunId(activeRunRecord.id);
-      setActiveRunRecord((prev: any) => (prev ? { ...prev, status: 'running' } : prev));
+      setActiveRunRecord((prev) => (prev ? { ...prev, status: 'running' } : prev));
       setEventScope('latest');
       setActiveRunReloadKey((k) => k + 1);
       loadHistory();
@@ -875,10 +911,10 @@ export const Dashboard: React.FC = () => {
         isClosable: true,
         position: 'top',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Phase 3 decision failed',
-        description: err?.response?.data?.detail || String(err),
+        description: errorDetail(err),
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -911,10 +947,10 @@ export const Dashboard: React.FC = () => {
         isClosable: true,
         position: 'top',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Re-run failed',
-        description: err?.response?.data?.detail || String(err),
+        description: errorDetail(err),
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -1512,7 +1548,7 @@ export const Dashboard: React.FC = () => {
               <Text fontSize="sm" color="whiteAlpha.800">
                 Select the incomplete tickers you want to retry. If you leave all boxes unchecked and continue, the run will proceed to Phase 3 with the current completed analyses only.
               </Text>
-              {(incompletePhase3Tickers as any[]).map((item: any) => (
+              {incompletePhase3Tickers.map((item) => (
                 <Box
                   key={item.ticker}
                   p={3}

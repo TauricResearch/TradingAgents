@@ -270,11 +270,7 @@ def build_market_report_structured(
 ) -> dict[str, Any]:
     """Build a compact canonical contract for market node output."""
     report = str(market_report or "").strip()
-    abort_prefix = "[CRITICAL ABORT]"
-    if report.startswith(abort_prefix):
-        status = "aborted"
-        abort_reason = report[len(abort_prefix) :].strip(" :\n\t")
-    elif is_timeout_fallback:
+    if is_timeout_fallback:
         status = "timeout_fallback"
         abort_reason = ""
     elif not report:
@@ -348,12 +344,8 @@ def build_fundamentals_report_structured(
 ) -> dict[str, Any]:
     """Build a compact canonical contract for fundamentals node output."""
     report = str(fundamentals_report or "").strip()
-    abort_prefix = "[CRITICAL ABORT]"
     timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
-    if report.startswith(abort_prefix):
-        status = "aborted"
-        abort_reason = report[len(abort_prefix) :].strip(" :\n\t")
-    elif timeout_detected:
+    if timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
     elif not report:
@@ -595,12 +587,8 @@ def build_sentiment_report_structured(
 ) -> dict[str, Any]:
     """Build a compact canonical contract for social-media/sentiment node output."""
     report = str(sentiment_report or "").strip()
-    abort_prefix = "[CRITICAL ABORT]"
     timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
-    if report.startswith(abort_prefix):
-        status = "aborted"
-        abort_reason = report[len(abort_prefix) :].strip(" :\n\t")
-    elif timeout_detected:
+    if timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
     elif not report:

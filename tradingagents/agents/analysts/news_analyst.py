@@ -11,6 +11,7 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     prefetch_tools_parallel,
 )
+from tradingagents.agents.utils.critical_abort import raise_abort
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.output_validation import (
@@ -153,11 +154,23 @@ def create_news_analyst(
 
         # If both prefetch sections failed and no evidence records were persisted, abort
         if company_failed and global_failed and not evidence_records:
-            report = f"[CRITICAL ABORT] Reason: News prefetch failed for {ticker} - both company-specific and global news feeds returned errors"
+            report = (
+                f"{ticker} News Analysis\n\n"
+                "- News prefetch failed: both company-specific and global news feeds returned errors."
+            )
             return {
                 "messages": [AIMessage(content=report)],
                 "news_report": report,
                 "news_report_structured": {},
+                **raise_abort(
+                    source="news_analyst",
+                    reason="news_prefetch_failed",
+                    detail=(
+                        f"News prefetch failed for {ticker}: both company-specific and "
+                        "global news feeds returned errors."
+                    ),
+                    recoverable=True,
+                ),
             }
 
         # If prefetch succeeded but neither article evidence nor scanner context is
@@ -302,11 +315,19 @@ def create_news_analyst(
         )
         if invoke_error is not None:
             if isinstance(invoke_error, TimeoutError):
-                report = f"[CRITICAL ABORT] Reason: News analyst timed out after {timeout_seconds}s for {ticker}"
+                report = (
+                    f"{ticker} News Analysis\n\n- News analyst timed out after {timeout_seconds}s."
+                )
                 return {
                     "messages": [AIMessage(content=report)],
                     "news_report": report,
                     "news_report_structured": {},
+                    **raise_abort(
+                        source="news_analyst",
+                        reason="news_prefetch_failed",
+                        detail=f"News analyst timed out after {timeout_seconds}s for {ticker}.",
+                        recoverable=True,
+                    ),
                 }
             raise invoke_error
         raw_output = first_result.content or ""
@@ -364,11 +385,23 @@ def create_news_analyst(
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
-                    report = f"[CRITICAL ABORT] Reason: News analyst timed out after {timeout_seconds}s for {ticker} (retry attempt)"
+                    report = (
+                        f"{ticker} News Analysis\n\n"
+                        f"- News analyst timed out after {timeout_seconds}s on retry."
+                    )
                     return {
                         "messages": [AIMessage(content=report)],
                         "news_report": report,
                         "news_report_structured": {},
+                        **raise_abort(
+                            source="news_analyst",
+                            reason="news_prefetch_failed",
+                            detail=(
+                                f"News analyst timed out after {timeout_seconds}s for "
+                                f"{ticker} on retry attempt."
+                            ),
+                            recoverable=True,
+                        ),
                     }
                 raise invoke_error
             raw_output = result.content or ""
@@ -398,10 +431,26 @@ def create_news_analyst(
                     structured_validation.reason,
                 )
                 report = (
-                    "[CRITICAL ABORT] Reason: News analysis failed source-validation twice "
-                    f"for {ticker} ({structured_validation.code}) - {structured_validation.reason}"
+                    f"{ticker} News Analysis\n\n"
+                    "- News analysis failed source validation twice: "
+                    f"{structured_validation.code} - {structured_validation.reason}"
                 )
                 structured_payload = None
+                return {
+                    "messages": [AIMessage(content=report)],
+                    "news_report": report,
+                    "news_report_structured": {},
+                    **raise_abort(
+                        source="news_analyst",
+                        reason="news_schema_invalid",
+                        detail=(
+                            "News analysis failed source validation twice for "
+                            f"{ticker} ({structured_validation.code}): "
+                            f"{structured_validation.reason}"
+                        ),
+                        recoverable=True,
+                    ),
+                }
             else:
                 structured_payload = structured_validation.payload
         else:

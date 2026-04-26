@@ -9,7 +9,7 @@ This strategy covers the recent reliability changes around:
 - Source-name validation and scanner/SEC attribution separation
 - SQLite-backed evidence IDs injected into news prompts
 - Post-generation `News Fact Checker` provenance enforcement
-- Fail-closed news behavior (retry once, then `[CRITICAL ABORT]`) and graph routing
+- Fail-closed news behavior (retry once, then structured `abort_signal`) and graph routing
 
 ## Execution Policy
 - Live integration tests are strictly opt-in.
