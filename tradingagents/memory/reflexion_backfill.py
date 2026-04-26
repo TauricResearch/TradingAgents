@@ -204,9 +204,7 @@ def _return_from_history(raw: str, start_date: str, end_date: str) -> tuple[floa
     series = _parse_close_series(raw)
     prices_by_date = {price_date: close for price_date, close in series}
     if start_date not in prices_by_date or end_date not in prices_by_date:
-        raise ValueError(
-            f"missing endpoint price rows for {start_date} and/or {end_date}"
-        )
+        raise ValueError(f"missing endpoint price rows for {start_date} and/or {end_date}")
     start_price = prices_by_date[start_date]
     end_price = prices_by_date[end_date]
     pct = (end_price - start_price) / start_price * 100.0
@@ -225,7 +223,9 @@ def evaluate_reflexion_record(
     if decision == "SKIP":
         return EvaluationResult(None, f"{ticker} {decision_date}: SKIP decisions are not evaluated")
     if not ticker or not decision_date:
-        return EvaluationResult(None, f"missing ticker or decision_date in reflexion record: {record!r}")
+        return EvaluationResult(
+            None, f"missing ticker or decision_date in reflexion record: {record!r}"
+        )
 
     try:
         raw = price_loader(ticker, decision_date, evaluation_date)

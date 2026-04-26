@@ -286,7 +286,9 @@ def test_cli_reflexion_commands_are_registered_and_invoke_core(monkeypatch):
         return Result()
 
     monkeypatch.setattr(main, "run_reflexion_backfill", fake_run_backfill)
-    result = CliRunner().invoke(main.app, ["reflexion", "backfill", "--date", "2026-04-07", "--dry-run"])
+    result = CliRunner().invoke(
+        main.app, ["reflexion", "backfill", "--date", "2026-04-07", "--dry-run"]
+    )
 
     assert result.exit_code == 0
     assert calls == [("2026-04-07", True)]

@@ -334,11 +334,7 @@ class MacroMemory:
             if (
                 rec.get("regime_date") == date
                 and rec.get("outcome") is None
-                and (
-                    rec.get("run_id") == run_id
-                    if run_id is not None
-                    else not rec.get("run_id")
-                )
+                and (rec.get("run_id") == run_id if run_id is not None else not rec.get("run_id"))
             ):
                 rec["outcome"] = outcome
                 self._save_all_local(records)

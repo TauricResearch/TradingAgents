@@ -849,9 +849,7 @@ class LangGraphEngine:
                     failing_node=failing_node,
                     identifier=date,
                 )
-                logger.exception(
-                    "SCAN rerun run=%s failed at node=%s", root_run_id, failing_node
-                )
+                logger.exception("SCAN rerun run=%s failed at node=%s", root_run_id, failing_node)
                 yield system_log(f"Error: {exc}. {guidance}")
                 raise
 
