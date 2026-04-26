@@ -1233,6 +1233,12 @@ class LangGraphEngine:
             _repo = PortfolioRepository()
             _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
             holding_tickers = [h.ticker for h in holdings]
+        except CircuitBreakerOpen:
+            logger.warning(
+                "run_portfolio: circuit breaker open when loading holdings for price fetch; "
+                "proceeding without holding tickers"
+            )
+            raise
         except Exception as exc:
             logger.warning("run_portfolio: could not load holdings for price fetch: %s", exc)
         analysis_tickers = [
@@ -1312,6 +1318,13 @@ class LangGraphEngine:
             )
             try:
                 final_state = await portfolio_graph.graph.ainvoke(initial_state)
+            except CircuitBreakerOpen:
+                logger.warning(
+                    "PORTFOLIO fallback ainvoke failed run=%s: circuit breaker open; "
+                    "portfolio decision may be incomplete or missing",
+                    root_run_id,
+                )
+                raise
             except Exception as exc:
                 logger.warning("PORTFOLIO fallback ainvoke failed run=%s: %s", root_run_id, exc)
 
@@ -1380,6 +1393,13 @@ class LangGraphEngine:
                             else pm_decision_str
                         )
                         store.save_pm_decision(date, portfolio_id, decision)
+                    except CircuitBreakerOpen:
+                        logger.warning(
+                            "run_portfolio: circuit breaker open when saving pm_decision for run=%s; "
+                            "PM decision may be incomplete or missing",
+                            root_run_id,
+                        )
+                        raise
                     except Exception as exc:
                         logger.warning("Failed to save pm_decision run=%s: %s", root_run_id, exc)
 
@@ -1393,6 +1413,13 @@ class LangGraphEngine:
                             else execution_result_str
                         )
                         store.save_execution_result(date, portfolio_id, execution)
+                    except CircuitBreakerOpen:
+                        logger.warning(
+                            "run_portfolio: circuit breaker open when saving execution_result for run=%s; "
+                            "execution result may be incomplete or missing",
+                            root_run_id,
+                        )
+                        raise
                     except Exception as exc:
                         logger.warning(
                             "Failed to save execution_result run=%s: %s", root_run_id, exc
@@ -1401,6 +1428,13 @@ class LangGraphEngine:
                 yield system_log(
                     f"Portfolio stage reports (decision & execution) saved for {portfolio_id} on {date}"
                 )
+            except CircuitBreakerOpen:
+                logger.warning(
+                    "run_portfolio: circuit breaker open when saving portfolio reports for run=%s; "
+                    "reports may be incomplete or missing",
+                    root_run_id,
+                )
+                raise
             except Exception as exc:
                 logger.exception("Failed to save portfolio reports run=%s", root_run_id)
                 yield system_log(f"Warning: could not save portfolio reports: {exc}")
