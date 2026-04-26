@@ -34,6 +34,7 @@ from .jintel import (
     get_global_news as get_jintel_global_news,
     get_insider_transactions as get_jintel_insider_transactions,
     JintelRateLimitError,
+    JintelNoDataError,
 )
 
 # Configuration and routing logic
@@ -186,5 +187,7 @@ def route_to_vendor(method: str, *args, **kwargs):
             continue  # Only rate limits trigger fallback
         except JintelRateLimitError:
             continue  # Same fallback semantics for Jintel rate limits
+        except JintelNoDataError:
+            continue  # Hard "Jintel out of coverage" -> try next vendor
 
     raise RuntimeError(f"No available vendor for '{method}'")

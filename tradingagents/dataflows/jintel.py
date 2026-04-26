@@ -48,6 +48,19 @@ class JintelRateLimitError(Exception):
     """
 
 
+class JintelNoDataError(Exception):
+    """Raised when Jintel returns a successful response with empty coverage
+    for the requested slice (e.g. OHLCV outside the index window, or a ticker
+    with no financial statements). The dispatcher catches this and falls
+    through to the next vendor in the chain (yfinance / alpha_vantage), which
+    may have deeper history.
+
+    Only raised for hard "Jintel doesn't have it" signals -- not for legitimate
+    empty slices like "no news this week" or "no insider trades this month",
+    where falling back wouldn't add value.
+    """
+
+
 _client: JintelClient | None = None
 
 
@@ -66,10 +79,25 @@ def _is_rate_limit(error_msg: str) -> bool:
     return "rate limit" in msg or "quota" in msg or "429" in msg
 
 
+def _is_no_data(error_msg: str) -> bool:
+    """Server-side messages that indicate Jintel doesn't have the entity or
+    the requested slice -- the dispatcher should fall through to the next
+    vendor instead of surfacing the error to the analyst."""
+    msg = error_msg.lower()
+    return (
+        "not found" in msg
+        or "no data" in msg
+        or "no coverage" in msg
+        or "unknown ticker" in msg
+    )
+
+
 def _unwrap(result: Ok | Err, context: str) -> Any:
     if isinstance(result, Err):
         if _is_rate_limit(result.error):
             raise JintelRateLimitError(f"{context}: {result.error}")
+        if _is_no_data(result.error):
+            raise JintelNoDataError(f"{context}: {result.error}")
         raise JintelError(f"{context}: {result.error}")
     return result.data
 
@@ -101,7 +129,12 @@ def get_stock(symbol: str, start_date: str, end_date: str) -> str:
     entity = _unwrap(res, f"enrich_entity({symbol}, market)")
     history = (entity.market.history if entity.market else None) or []
     if not history:
-        return f"No data returned for {symbol} in {start_date}..{end_date}"
+        # Jintel's history index is roughly the trailing ~250 trading days; an
+        # empty window means out-of-coverage, not "the market closed". Surface
+        # as JintelNoDataError so route_to_vendor falls through to yfinance.
+        raise JintelNoDataError(
+            f"No OHLCV for {symbol} in {start_date}..{end_date}"
+        )
     rows = [
         {"Date": p.date, "Open": p.open, "High": p.high, "Low": p.low,
          "Close": p.close, "Volume": p.volume}
@@ -128,10 +161,10 @@ def get_indicator(symbol: str, indicator: str, curr_date: str,
 
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_dt = end_dt - timedelta(days=max(look_back_days * 5, 365))
+    # If get_stock raises JintelNoDataError the dispatcher falls through to
+    # yfinance for get_indicators -- correct behavior, no need to catch here.
     csv = get_stock(symbol, start_dt.strftime("%Y-%m-%d"),
                     end_dt.strftime("%Y-%m-%d"))
-    if csv.startswith("No data"):
-        return csv
     df = pd.read_csv(StringIO(csv))
     df.columns = [c.lower() for c in df.columns]
     df["date"] = pd.to_datetime(df["date"])
@@ -205,13 +238,21 @@ def _fetch_financials(ticker: str, freq: str, curr_date: str | None) -> Any:
     return _unwrap(res, f"enrich_entity({ticker}, financials)")
 
 
+def _require_financials(ticker: str, entity: Any) -> Any:
+    """Raise JintelNoDataError when Jintel has no financial statements at all
+    for the ticker, so the dispatcher falls through to yfinance. A populated
+    entity.financials with one or more empty sub-lists is a sparser-coverage
+    issue (returned as-is, possibly empty CSV) rather than a hard miss."""
+    if entity.financials is None:
+        raise JintelNoDataError(f"No financial statements for {ticker}")
+    return entity.financials
+
+
 def get_balance_sheet(ticker: str, freq: str = "quarterly",
                       curr_date: str | None = None) -> str:
     entity = _fetch_financials(ticker, freq, curr_date)
-    if not entity.financials:
-        return ""
-    stmts = entity.financials.balance_sheet or []
-    return _financials_to_csv(stmts, [
+    fins = _require_financials(ticker, entity)
+    return _financials_to_csv(fins.balance_sheet or [], [
         "period_ending", "total_assets", "total_liabilities", "total_equity",
         "cash_and_equivalents", "long_term_debt",
     ])
@@ -220,10 +261,8 @@ def get_balance_sheet(ticker: str, freq: str = "quarterly",
 def get_cashflow(ticker: str, freq: str = "quarterly",
                  curr_date: str | None = None) -> str:
     entity = _fetch_financials(ticker, freq, curr_date)
-    if not entity.financials:
-        return ""
-    stmts = entity.financials.cash_flow or []
-    return _financials_to_csv(stmts, [
+    fins = _require_financials(ticker, entity)
+    return _financials_to_csv(fins.cash_flow or [], [
         "period_ending", "operating_cash_flow", "investing_cash_flow",
         "financing_cash_flow", "free_cash_flow",
     ])
@@ -232,11 +271,9 @@ def get_cashflow(ticker: str, freq: str = "quarterly",
 def get_income_statement(ticker: str, freq: str = "quarterly",
                          curr_date: str | None = None) -> str:
     entity = _fetch_financials(ticker, freq, curr_date)
-    if not entity.financials:
-        return ""
+    fins = _require_financials(ticker, entity)
     # FinancialStatements.income holds the income statement series.
-    stmts = entity.financials.income or []
-    return _financials_to_csv(stmts, [
+    return _financials_to_csv(fins.income or [], [
         "period_ending", "total_revenue", "gross_profit",
         "operating_income", "net_income", "diluted_eps",
     ])
