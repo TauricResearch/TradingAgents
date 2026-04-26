@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction, get_news
+from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.sentiment_tools import get_reddit_sentiment, get_market_fear_greed
 from tradingagents.dataflows.config import get_config
 
 
@@ -9,12 +10,26 @@ def create_social_media_analyst(llm):
         instrument_context = build_instrument_context(state["company_of_interest"])
 
         tools = [
-            get_news,
+            get_reddit_sentiment,
+            get_market_fear_greed,
         ]
 
         system_message = (
-            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Use the get_news(query, start_date, end_date) tool to search for company-specific news and social media discussions. Try to look at all sources possible from social media to sentiment to news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "You are a Sentiment Analyst. Your job is to gauge retail investor sentiment "
+            "and macro market mood for a specific stock.\n\n"
+            "Use get_reddit_sentiment(ticker, days) to fetch recent Reddit posts from "
+            "r/wallstreetbets, r/stocks, and r/options. Analyse titles, scores, comment "
+            "counts, upvote ratios, and the actual comments to assess retail mood.\n\n"
+            "Use get_market_fear_greed(days) to fetch the CNN Fear & Greed Index — a "
+            "market-wide macro signal. Use it to contextualise retail sentiment: bullish "
+            "Reddit posts carry more weight in a Greed market; bearish posts in an Extreme "
+            "Fear market may signal capitulation.\n\n"
+            "If Reddit returns no posts (obscure or small-cap ticker), state that clearly — "
+            "absence of retail coverage is itself a signal.\n\n"
+            "Write a comprehensive sentiment report covering: overall retail mood (bullish / "
+            "bearish / mixed), engagement level, notable narratives, current Fear & Greed "
+            "reading, and implications for short-term trader sentiment. "
+            "Append a Markdown table at the end summarising key data points."
             + get_language_instruction()
         )
 

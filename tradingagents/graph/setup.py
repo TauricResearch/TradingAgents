@@ -86,14 +86,21 @@ class GraphSetup:
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
 
+        # Maps analyst selector keys to their display names in the graph.
+        # Add entries here when a key and its label should differ.
+        _labels = {"social": "Sentiment"}
+
+        def _label(analyst_type: str) -> str:
+            return _labels.get(analyst_type, analyst_type.capitalize())
+
         # Create workflow
         workflow = StateGraph(AgentState)
 
         # Add analyst nodes to the graph
         for analyst_type, node in analyst_nodes.items():
-            workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
+            workflow.add_node(f"{_label(analyst_type)} Analyst", node)
             workflow.add_node(
-                f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
+                f"Msg Clear {_label(analyst_type)}", delete_nodes[analyst_type]
             )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
@@ -110,13 +117,13 @@ class GraphSetup:
         # Define edges
         # Start with the first analyst
         first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        workflow.add_edge(START, f"{_label(first_analyst)} Analyst")
 
         # Connect analysts in sequence
         for i, analyst_type in enumerate(selected_analysts):
-            current_analyst = f"{analyst_type.capitalize()} Analyst"
+            current_analyst = f"{_label(analyst_type)} Analyst"
             current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
+            current_clear = f"Msg Clear {_label(analyst_type)}"
 
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
@@ -128,7 +135,7 @@ class GraphSetup:
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
+                next_analyst = f"{_label(selected_analysts[i+1])} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
             else:
                 workflow.add_edge(current_clear, "Bull Researcher")
