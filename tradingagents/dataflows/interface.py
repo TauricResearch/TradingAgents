@@ -21,6 +21,7 @@ from .yfinance_client import (
     get_cashflow as get_yfinance_cashflow,
     get_income_statement as get_yfinance_income_statement,
     get_news as get_yfinance_news,
+    get_global_news as get_yfinance_global_news,
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 
@@ -95,7 +96,8 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_news,
     },
     "get_global_news": {
-        "alpha_vantage": get_alpha_vantage_global_news,
+        "yfinance": get_yfinance_global_news,         # primary — free, no API key
+        "alpha_vantage": get_alpha_vantage_global_news,  # fallback — rate limited
     },
     "get_insider_transactions": {
         "yfinance": get_yfinance_insider_transactions,

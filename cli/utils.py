@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Dict
 from rich.console import Console
 
 from cli.models import AnalystType
+from tradingagents.llm_clients.model_catalog import get_model_options, MODEL_OPTIONS
 
 console = Console()
 
@@ -184,19 +185,78 @@ def select_research_depth() -> int:
     return choice
 
 
-def select_shallow_thinking_agent() -> str:
-    """Select shallow thinking llm engine using an interactive selection."""
-    SHALLOW_AGENT_OPTIONS = [
-        ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
-        ("Claude Haiku 4.5 - Fast, near-instant responses", "claude-haiku-4-5"),
-        ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
-    ]
+_PROVIDER_OPTIONS = [
+    ("Anthropic — Claude models (Opus, Sonnet, Haiku)", "anthropic"),
+    ("OpenAI — GPT models (GPT-5.4, GPT-4.1, etc.)", "openai"),
+]
+
+_PROVIDER_DEFAULT_URLS: dict[str, str] = {
+    "anthropic": "https://api.anthropic.com/",
+    "openai": "https://api.openai.com/v1",
+}
+
+
+def select_llm_provider() -> str:
+    """Prompt the user to select an LLM provider."""
+    choice = questionary.select(
+        "Select Your [LLM Provider]:",
+        choices=[
+            questionary.Choice(display, value=value)
+            for display, value in _PROVIDER_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+
+def load_openai_config() -> dict[str, str]:
+    """Load OpenAI-compatible API config from environment variables.
+
+    Reads OPENAI_API_KEY and OPENAI_BASE_URL from .env (loaded via dotenv).
+
+    Returns dict with keys: openai_api_key, backend_url.
+    """
+    import os
+
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+
+    if not api_key:
+        console.print("\n[red]OPENAI_API_KEY not set in .env. Exiting...[/red]")
+        exit(1)
+
+    console.print(f"[green]Loaded OpenAI config from .env[/green] → {base_url}")
+
+    return {
+        "openai_api_key": api_key,
+        "backend_url": base_url,
+    }
+
+
+def select_shallow_thinking_agent(provider: str = "anthropic") -> str:
+    """Select shallow thinking llm engine using an interactive selection.
+
+    Model options are loaded dynamically from the shared model catalog.
+    """
+    options = get_model_options(provider, "quick")
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -217,20 +277,18 @@ def select_shallow_thinking_agent() -> str:
     return choice
 
 
-def select_deep_thinking_agent() -> str:
-    """Select deep thinking llm engine using an interactive selection."""
-    DEEP_AGENT_OPTIONS = [
-        ("Claude Opus 4.6 - Most intelligent, agents and coding", "claude-opus-4-6"),
-        ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
-        ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
-        ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
-    ]
+def select_deep_thinking_agent(provider: str = "anthropic") -> str:
+    """Select deep thinking llm engine using an interactive selection.
+
+    Model options are loaded dynamically from the shared model catalog.
+    """
+    options = get_model_options(provider, "deep")
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(

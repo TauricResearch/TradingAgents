@@ -131,11 +131,20 @@ class TradingAgentsGraph:
         self._checkpointer_ctx = None
 
     def _get_provider_kwargs(self) -> Dict[str, Any]:
-        """Get Anthropic-specific kwargs for LLM client creation."""
-        kwargs = {}
-        effort = self.config.get("anthropic_effort")
-        if effort:
-            kwargs["effort"] = effort
+        """Get provider-specific kwargs for LLM client creation."""
+        kwargs: Dict[str, Any] = {}
+        provider = self.config.get("llm_provider", "anthropic").lower()
+
+        if provider == "anthropic":
+            effort = self.config.get("anthropic_effort")
+            if effort:
+                kwargs["effort"] = effort
+
+        elif provider == "openai":
+            api_key = self.config.get("openai_api_key")
+            if api_key:
+                kwargs["api_key"] = api_key
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:

@@ -11,7 +11,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-from langgraph.checkpoint.sqlite import SqliteSaver
+try:
+    from langgraph.checkpoint.sqlite import SqliteSaver
+except ModuleNotFoundError as e:
+    raise ModuleNotFoundError(
+        "langgraph-checkpoint-sqlite is not installed. "
+        "Run: pip install langgraph-checkpoint-sqlite\n"
+        f"Original error: {e}"
+    ) from e
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:

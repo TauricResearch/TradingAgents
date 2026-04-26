@@ -14,6 +14,8 @@ DEFAULT_CONFIG = {
     "backend_url": "https://api.anthropic.com/",
     # Anthropic thinking configuration
     "anthropic_effort": None,           # "high", "medium", "low"
+    # OpenAI configuration (used when llm_provider = "openai")
+    "openai_api_key": None,             # set via CLI or env OPENAI_API_KEY
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

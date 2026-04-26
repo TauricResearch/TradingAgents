@@ -108,10 +108,23 @@ git clone https://github.com/TauricResearch/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+Create and activate a virtual environment — pick whichever manager you prefer:
+
+**conda**
 ```bash
 conda create -n tradingagents python=3.13
 conda activate tradingagents
+```
+
+**venv** (built-in Python)
+```bash
+python3 -m venv .venv
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
 ```
 
 Install the package and its dependencies:
@@ -119,51 +132,55 @@ Install the package and its dependencies:
 pip install .
 ```
 
-### Docker
 
-Alternatively, run with Docker:
-```bash
-cp .env.example .env  # add your API keys
-docker compose run --rm tradingagents
-```
-
-For local models with Ollama:
-```bash
-docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
 ### Required APIs
 
-TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
+Set the following API keys:
 
 ```bash
-export OPENAI_API_KEY=...          # OpenAI (GPT)
-export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
-export XAI_API_KEY=...             # xAI (Grok)
-export DEEPSEEK_API_KEY=...        # DeepSeek
-export DASHSCOPE_API_KEY=...       # Qwen (Alibaba DashScope)
-export ZHIPU_API_KEY=...           # GLM (Zhipu)
-export OPENROUTER_API_KEY=...      # OpenRouter
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage (market data)
 ```
-
-For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
-
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
 
-### CLI Usage
+### Running the Project
 
-Launch the interactive CLI:
+Follow these steps every time you want to run TradingAgents:
+
+**Step 1 — Activate your environment**
+
 ```bash
-tradingagents          # installed command
-python -m cli.main     # alternative: run directly from source
+# conda
+conda activate tradingagents
+
+# venv (macOS / Linux)
+source .venv/bin/activate
+OR source /Users/rubynam/Desktop/workspace/TradingAgents/.venv/bin/activate
+# venv (Windows PowerShell)
+.venv\Scripts\Activate.ps1
 ```
+
+**Step 2 — Set your API keys** (skip if already in `.env`)
+
+```bash
+export ANTHROPIC_API_KEY=your_key_here
+export ALPHA_VANTAGE_API_KEY=your_key_here
+```
+
+**Step 3 — Launch the interactive CLI**
+
+```bash
+tradingagents          # if installed via pip install .
+# or
+python -m cli.main     # run directly from source
+```
+
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
 <p align="center">
@@ -184,7 +201,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework uses Anthropic's Claude as the backbone LLM provider.
 
 ### Python Usage
 
@@ -208,9 +225,9 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, openrouter, ollama, azure
-config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
+config["llm_provider"] = "anthropic"
+config["deep_think_llm"] = "claude-opus-4-6"      # Model for complex reasoning
+config["quick_think_llm"] = "claude-haiku-4-5-20251001"  # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)

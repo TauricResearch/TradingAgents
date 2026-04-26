@@ -557,30 +557,48 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 6: Thinking agents
+    # Step 6: LLM provider
     console.print(
         create_question_box(
-            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 6: LLM Provider", "Select which LLM provider to use"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent()
-    selected_deep_thinker = select_deep_thinking_agent()
+    selected_provider = select_llm_provider()
+    console.print(f"[green]Selected provider:[/green] {selected_provider}")
 
-    # Step 7: Claude effort level
+    # Provider-specific config (API key, base_url)
+    provider_config: dict = {}
+    if selected_provider == "openai":
+        provider_config = load_openai_config()
+    else:
+        provider_config["backend_url"] = "https://api.anthropic.com/"
+
+    # Step 7: Thinking agents (model list depends on provider)
     console.print(
         create_question_box(
-            "Step 7: Effort Level",
-            "Configure Claude effort level"
+            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
-    anthropic_effort = ask_anthropic_effort()
+    selected_shallow_thinker = select_shallow_thinking_agent(selected_provider)
+    selected_deep_thinker = select_deep_thinking_agent(selected_provider)
 
-    # Step 8: Kline config — only for crypto market type
+    # Step 8: Anthropic effort level (only for Anthropic)
+    anthropic_effort = None
+    if selected_provider == "anthropic":
+        console.print(
+            create_question_box(
+                "Step 8: Effort Level",
+                "Configure Claude effort level"
+            )
+        )
+        anthropic_effort = ask_anthropic_effort()
+
+    # Step 9: Kline config — only for crypto market type
     kline_config: dict = {}
     if selected_market_type == "crypto":
         console.print(
             create_question_box(
-                "Step 8: Kline Configuration",
+                "Step 9: Kline Configuration",
                 "Configure Binance candlestick interval and date range",
             )
         )
@@ -592,11 +610,11 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": "anthropic",
-        "backend_url": "https://api.anthropic.com/",
+        "llm_provider": selected_provider,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
         "anthropic_effort": anthropic_effort,
+        **provider_config,
         **kline_config,
     }
 
@@ -922,9 +940,10 @@ def run_analysis():
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
-    config["backend_url"] = selections["backend_url"]
+    config["backend_url"] = selections.get("backend_url", config.get("backend_url"))
     config["llm_provider"] = selections["llm_provider"].lower()
     config["anthropic_effort"] = selections.get("anthropic_effort")
+    config["openai_api_key"] = selections.get("openai_api_key")
 
     # Auto-route crypto market type: Binance for price/indicators, yfinance for news
     # Fundamental data is intentionally omitted — crypto has no company fundamentals

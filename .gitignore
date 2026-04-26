@@ -220,3 +220,5 @@ __marimo__/
 results
 reports
 .idea
+.DS_Store
+.darkenv

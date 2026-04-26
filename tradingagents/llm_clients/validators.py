@@ -1,14 +1,17 @@
-"""Model name validators for Anthropic Claude."""
+"""Model name validators for supported LLM providers."""
 
 VALID_MODELS = {
     "anthropic": [
         # Claude 4.6 series (latest)
         "claude-opus-4-6",
+        "claude-sonnet-4-6"
+
+    ],
+    # These are the actual model names supported by the chiasegpu.vn proxy.
+    # Add any other models your API key has access to here.
+    "openai": [
         "claude-sonnet-4-6",
-        # Claude 4.5 series
-        "claude-opus-4-5",
-        "claude-sonnet-4-5",
-        "claude-haiku-4-5",
+        "claude-sonnet-4-6"
     ],
 }
 

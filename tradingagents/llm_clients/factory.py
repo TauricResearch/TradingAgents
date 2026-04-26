@@ -1,7 +1,7 @@
 from .base_client import BaseLLMClient
-from .anthropic_client import AnthropicClient
 
 
+_SUPPORTED_PROVIDERS = ("anthropic", "openai")
 
 
 def create_llm_client(
@@ -17,21 +17,29 @@ def create_llm_client(
     or fail when their API keys are absent.
 
     Args:
-        provider: LLM provider — only "anthropic" is supported
-
+        provider: LLM provider — "anthropic" or "openai"
         model: Model name/identifier
-        base_url: Unused; kept for call-site compatibility
+        base_url: Optional custom API base URL
         **kwargs: Additional provider-specific arguments
 
-
     Returns:
-        Configured AnthropicClient instance
+        Configured BaseLLMClient instance
 
     Raises:
-        ValueError: If provider is not "anthropic"
+        ValueError: If provider is not supported
     """
-    if provider.lower() == "anthropic":
+    key = provider.lower()
+
+    if key == "anthropic":
+        from .anthropic_client import AnthropicClient
         return AnthropicClient(model, base_url, **kwargs)
 
-    raise ValueError(f"Unsupported LLM provider: {provider!r}. Only 'anthropic' is supported.")
+    if key == "openai":
+        from .openai_client import OpenAIClient
+        return OpenAIClient(model, base_url, **kwargs)
+
+    raise ValueError(
+        f"Unsupported LLM provider: {provider!r}. "
+        f"Supported: {', '.join(_SUPPORTED_PROVIDERS)}"
+    )
 
