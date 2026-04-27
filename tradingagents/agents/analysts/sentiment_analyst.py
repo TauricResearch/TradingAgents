@@ -3,7 +3,7 @@
 Previously named ``social_media_analyst``. Renamed because the only available
 data tool is ``get_news`` (Yahoo Finance headlines), not a social media feed.
 The prompt has been updated to reflect what the agent actually does: it
-analyses the *tone* and *sentiment* of recent news articles rather than
+analyzes the *tone* and *sentiment* of recent news articles rather than
 claiming to process Reddit, X/Twitter, or StockTwits data that it does not
 have access to.
 
@@ -16,7 +16,6 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_news,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_sentiment_analyst(llm):
@@ -37,7 +36,7 @@ def create_sentiment_analyst(llm):
 
         system_message = (
             "You are a financial news sentiment analyst. "
-            "Your task is to analyse recent news articles and headlines for a specific company "
+            "Your task is to analyze recent news articles and headlines for a specific company "
             "and produce a comprehensive sentiment report covering: "
             "(1) the overall tone of coverage — bullish, bearish, or neutral — and how it has "
             "shifted over the past week; "
@@ -49,8 +48,8 @@ def create_sentiment_analyst(llm):
             "(the News Analyst covers factual content separately). "
             "Note: this analysis is based on news headlines and article summaries only — "
             "live social media feeds (Reddit, X/Twitter, StockTwits) are not currently available. "
-            "Be transparent about this scope limitation in your report."
-            + " Make sure to append a Markdown table at the end of the report to organise key "
+            "Be transparent about this scope limitation in your report. "
+            "Make sure to append a Markdown table at the end of the report to organize key "
             "sentiment signals, their direction, and supporting evidence."
             + get_language_instruction()
         )
@@ -65,7 +64,7 @@ def create_sentiment_analyst(llm):
                     " will help where you left off. Execute what you can to make progress."
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    " You have access to the following tools: {tool_names}.\n{system_message}\n"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
@@ -99,7 +98,7 @@ def create_social_media_analyst(llm):
     """Deprecated alias for :func:`create_sentiment_analyst`.
 
     The agent was renamed from ``social_media_analyst`` to ``sentiment_analyst``
-    because it does not actually consume social media data — it analyses the
+    because it does not actually consume social media data — it analyzes the
     tone of Yahoo Finance news headlines.  This alias is kept so that existing
     code that imports ``create_social_media_analyst`` continues to work without
     modification.
