@@ -1,15 +1,15 @@
 ---
 name: test
-description: Generate missing pytest tests for a module, function, or domain
+description: Generate missing pytest tests for a module or function
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
-Generate or complete tests for $ARGUMENTS (file, function, or domain name).
+Generate or complete tests for $ARGUMENTS (file, function, or module name).
 
 **Steps:**
 1. Read the target source file(s) to understand the public interface.
 2. Check `tests/` for any existing test file to avoid duplication.
-3. Write tests following the project layout: `tests/<domain>/test_<module>.py`.
+3. Write tests in the flat test directory: `tests/test_<module>.py`.
 
 **Each test must cover:**
 - Happy path

@@ -16,7 +16,14 @@ Create a git commit for the current staged (or all) changes.
    - `docs` — documentation only
    - `perf` — performance improvement
    - `ci` — CI/CD pipeline changes
-3. Infer the scope from the DDD layer or domain affected (e.g. `agent`, `memory`, `infra`).
+3. Infer the scope from the package affected:
+   - `cli` — CLI entry point, user interaction, Notion publishing
+   - `agents` — agent nodes, @tool functions, state definitions
+   - `dataflows` — data fetching, vendor routing, API clients
+   - `graph` — LangGraph orchestration, node wiring
+   - `llm` — LLM provider clients, model catalog
+   - `tests` — test files
+   - `docs` — design documents
 4. Write a subject line: `<type>(<scope>): <imperative summary>` — max 72 characters.
 5. Add a body if the change is non-obvious: explain *what* and *why*, not *how*.
 6. Stage any unstaged files relevant to the change if the user confirms.

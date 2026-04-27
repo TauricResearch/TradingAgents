@@ -1,25 +1,24 @@
 ---
 name: refactor
-description: Refactor selected code for clarity and structure without changing behavior
+description: Improve code structure without changing behavior
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
-Refactor the code in $ARGUMENTS (or the current selection) without changing its external behavior.
+Refactor the code at $ARGUMENTS (file or function) to improve structure without changing behavior.
 
 **Steps:**
-1. Read the file and the relevant tests.
-2. Run the existing tests to establish a baseline: `pytest --tb=short`.
-3. Apply improvements — apply only what is clearly beneficial:
-   - Extract long functions into smaller, focused ones.
-   - Replace magic numbers with named constants.
-   - Simplify nested conditionals with early returns.
-   - Remove dead code.
-   - Fix naming to match conventions in `.claude/rules/rules.md`.
-4. Do **not** move logic across DDD layers or change public interfaces.
-5. Re-run tests: `pytest --tb=short`. All must pass.
-6. Show a brief diff summary of what changed and why.
+1. Read the target code and its tests (if any).
+2. Identify improvement opportunities:
+   - Extract long functions into smaller helpers (prefix private ones with `_`)
+   - Reduce nesting with early returns
+   - Replace raw dicts with dataclasses/pydantic models
+   - Remove dead code
+   - Improve naming (snake_case, predicates for bools)
+   - Add missing type hints
+3. Apply changes.
+4. Run existing tests to verify no behavior change: `pytest --tb=short`.
 
-**Do not:**
-- Add new features or error handling not previously present.
-- Change behavior to "fix" something that isn't broken.
-- Refactor beyond what was asked.
+**Constraints:**
+- Keep code in the same package — don't move files between `cli/`, `agents/`, `dataflows/`, `graph/`, `llm_clients/` unless fixing a responsibility violation.
+- If fixing a boundary violation (e.g. data fetching in `agents/`), move it to `dataflows/` and update `interface.py` registration.
+- Preserve all public interfaces — don't rename exported functions without updating all callers.

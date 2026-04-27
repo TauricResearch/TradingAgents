@@ -1,27 +1,20 @@
 ---
 name: lint
-description: Run ruff and mypy, then report issues with suggested fixes
-disable-model-invocation: true
-allowed-tools: Bash, Read
+description: Run ruff + mypy and report issues
+allowed-tools: Bash, Read, Grep
 ---
 
-Run the full linting and type-check suite for $ARGUMENTS (or the whole project if omitted).
+Run linters on $ARGUMENTS (file or directory path, default: entire project).
 
 **Steps:**
-1. Run ruff: `ruff check ${ARGUMENTS:-.} --output-format=concise`
-2. Run mypy: `mypy src/ --ignore-missing-imports`
-3. Group all findings by file with line numbers.
-4. For each issue, provide a one-line explanation and a suggested fix.
-5. Ask before applying any auto-fixes.
-
-**Auto-fixable (only apply if user confirms):**
-- `ruff check --fix` for safe auto-fixes.
+1. Run `ruff check $ARGUMENTS` for style and import issues.
+2. Run `mypy $ARGUMENTS --ignore-missing-imports` for type errors.
+3. Group findings by file.
 
 **Report format:**
-```
-src/silvie_agent/domain/agent/services.py
-  L14  [E501] Line too long (89 > 88) — shorten or wrap
-  L22  [ANN201] Missing return type annotation — add `-> None`
-```
+For each file with issues:
+- File path and line number
+- Issue description
+- Suggested fix (if straightforward)
 
-Do not modify files unless explicitly asked.
+**Auto-fix:** If all issues are safe to auto-fix (import sorting, trailing whitespace, etc.), offer to run `ruff check --fix`.

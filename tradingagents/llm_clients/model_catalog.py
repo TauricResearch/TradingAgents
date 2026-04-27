@@ -11,10 +11,12 @@ ProviderModeOptions = Dict[str, Dict[str, List[ModelOption]]]
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
-            ("Claude Opus 4.6 (via chiasegpu)", "claude-opus-4-6")
+            ("GPT-5.3 Codex High - OpenAI reasoning + code", "gpt-5.3-codex-high"),
+            ("Claude Opus 4.6 (via chiasegpu)", "claude-opus-4-6"),
         ],
         "deep": [
-            ("Claude Opus 4.6 (via chiasegpu)", "claude-opus-4-6")
+            ("GPT-5.3 Codex High - OpenAI reasoning + code", "gpt-5.3-codex-high"),
+            ("Claude Opus 4.6 (via chiasegpu)", "claude-opus-4-6"),
         ],
     },
     "anthropic": {

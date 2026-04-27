@@ -1,0 +1,95 @@
+{
+  "chart_info": {
+    "title": "Kế Hoạch Giao Dịch BTC/USDT (26/04/2026)",
+    "current_price": 78068.70,
+    "y_axis_range": [72000, 91000],
+    "x_label": "Thời gian",
+    "y_label": "Giá (USDT)"
+  },
+  "price_history": {
+    "dates": ["17/04", "18/04", "19/04", "20/04", "21/04", "22/04", "23/04", "24/04", "25/04", "26/04"],
+    "prices": [77736, 75500, 73758, 76000, 77500, 79234, 78300, 77600, 77285, 78068.7]
+  },
+  "reference_lines": [
+    {
+      "price": 89262,
+      "label": "TP Max",
+      "color": "green",
+      "linestyle": "solid",
+      "linewidth": 1.5,
+      "align": "right"
+    },
+    {
+      "price": 83636,
+      "label": "TP Chinh",
+      "color": "green",
+      "linestyle": "solid",
+      "linewidth": 1.5,
+      "align": "right"
+    },
+    {
+      "price": 79400,
+      "label": "TP Ngan",
+      "color": "green",
+      "linestyle": "dashed",
+      "linewidth": 1.0,
+      "align": "right"
+    },
+    {
+      "price": 78400,
+      "label": "Breakout (Add)",
+      "color": "blue",
+      "linestyle": "dashed",
+      "linewidth": 1.5,
+      "align": "left"
+    },
+    {
+      "price": 78068,
+      "label": "ENTRY (40%)",
+      "color": "orange",
+      "linestyle": "solid",
+      "linewidth": 2.0,
+      "align": "left"
+    },
+    {
+      "price": 77200,
+      "label": "Giam Long",
+      "color": "darkorange",
+      "linestyle": "dashed",
+      "linewidth": 1.0,
+      "align": "left"
+    },
+    {
+      "price": 77000,
+      "label": "Short Entry",
+      "color": "red",
+      "linestyle": "solid",
+      "linewidth": 1.5,
+      "align": "left"
+    },
+    {
+      "price": 76500,
+      "label": "HARD SL",
+      "color": "darkred",
+      "linestyle": "dashdot",
+      "linewidth": 2.0,
+      "align": "right"
+    },
+    {
+      "price": 75585,
+      "label": "Short TP1",
+      "color": "red",
+      "linestyle": "dotted",
+      "linewidth": 1.0,
+      "align": "right"
+    },
+    {
+      "price": 74000,
+      "label": "Short TP2",
+      "color": "red",
+      "linestyle": "dotted",
+      "linewidth": 1.0,
+      "align": "right"
+    }
+  ]
+}

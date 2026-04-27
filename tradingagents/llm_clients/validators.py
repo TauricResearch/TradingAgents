@@ -10,8 +10,9 @@ VALID_MODELS = {
     # These are the actual model names supported by the chiasegpu.vn proxy.
     # Add any other models your API key has access to here.
     "openai": [
+        "gpt-5.3-codex-high",
+        "claude-opus-4-6",
         "claude-sonnet-4-6",
-        "claude-sonnet-4-6"
     ],
 }
 
