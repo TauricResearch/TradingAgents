@@ -5,16 +5,21 @@ Drop-in module mirroring the yfinance / alpha_vantage surface registered in
 existing LangChain ``@tool`` wrappers in ``tradingagents/agents/utils/`` are
 unchanged.
 
-Phase 1 scaffolding. Several response field paths are marked with ``# verify``
-comments and need confirmation against the live schema before this vendor is
-promoted past opt-in. See the Notion plan
-"TradingAgents -> Jintel Migration: Query Plan" for the open-question list.
-Default config (``default_config.py``) keeps ``yfinance`` as primary; users opt
-in by setting ``data_vendors`` to ``"jintel"`` per category.
+Jintel is the **primary** vendor in ``default_config.py`` across all four
+categories. The dispatcher in ``interface.py`` automatically falls through
+to ``yfinance`` then ``alpha_vantage`` on:
+
+  * ``JintelRateLimitError``   - 429 / quota exhausted
+  * ``JintelNoDataError``      - hard "Jintel doesn't have it" responses,
+                                 including a missing ``JINTEL_API_KEY`` env
+                                 var (so bare clones still work via yfinance)
+
+Override per-category in ``default_config.DEFAULT_CONFIG["data_vendors"]`` or
+per-tool in ``tool_vendors``.
 
 Requires:
     pip install jintel
-    export JINTEL_API_KEY=...
+    export JINTEL_API_KEY=...        # optional; missing key falls through
 """
 
 from __future__ import annotations
@@ -69,7 +74,12 @@ def _get_client() -> JintelClient:
     if _client is None:
         api_key = os.environ.get("JINTEL_API_KEY")
         if not api_key:
-            raise ValueError("JINTEL_API_KEY environment variable is not set.")
+            # Raise a fallback-eligible exception so route_to_vendor degrades
+            # to yfinance for users who haven't configured Jintel yet, instead
+            # of hard-crashing every analyst tool call.
+            raise JintelNoDataError(
+                "JINTEL_API_KEY not set; falling through to next vendor"
+            )
         _client = JintelClient(api_key=api_key)
     return _client
 
@@ -146,8 +156,7 @@ def get_stock(symbol: str, start_date: str, end_date: str) -> str:
 # ---- technical_indicators ----------------------------------------------
 
 def get_indicator(symbol: str, indicator: str, curr_date: str,
-                  look_back_days: int = 30) -> str:  # noqa: D401
-    """See module docstring."""
+                  look_back_days: int = 30) -> str:
     """Drop-in for yfinance ``get_stock_stats_indicators_window``.
 
     Jintel ``TechnicalIndicators`` returns scalar latest values, not a windowed
@@ -155,9 +164,9 @@ def get_indicator(symbol: str, indicator: str, curr_date: str,
     locally with ``stockstats`` -- same downstream as the yfinance path at
     ``y_finance.py:198``.
     """
-    from stockstats import wrap
-
     from io import StringIO
+
+    from stockstats import wrap
 
     end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_dt = end_dt - timedelta(days=max(look_back_days * 5, 365))
@@ -331,7 +340,8 @@ def get_global_news(curr_date: str, look_back_days: int = 7,
                 continue
             seen.add(n.link)
             rows.append({"date": n.date, "source": n.source,
-                         "title": n.title, "link": n.link})
+                         "title": n.title, "sentiment": n.sentiment_score,
+                         "link": n.link})
     rows.sort(key=lambda r: r["date"] or "", reverse=True)
     return pd.DataFrame(rows[: limit * 3]).to_csv(index=False)
 

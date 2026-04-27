@@ -37,10 +37,13 @@ DEFAULT_CONFIG = {
     "max_recur_limit": 100,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
-    # Jintel is the primary backend; requires JINTEL_API_KEY in the env.
-    # On rate-limit (JintelRateLimitError) the dispatcher falls through to
-    # yfinance, then alpha_vantage. Override per-category here, or per-tool
-    # in `tool_vendors` below.
+    # Jintel is the primary backend. The dispatcher in route_to_vendor()
+    # auto-falls-through to yfinance, then alpha_vantage, on:
+    #   - JintelRateLimitError  (429 / quota exhausted)
+    #   - JintelNoDataError     (hard "Jintel doesn't have it", including
+    #                            a missing JINTEL_API_KEY env var so bare
+    #                            clones still work without any setup)
+    # Override per-category here, or per-tool in `tool_vendors` below.
     "data_vendors": {
         "core_stock_apis": "jintel",         # Options: jintel, yfinance, alpha_vantage
         "technical_indicators": "jintel",    # Options: jintel, yfinance, alpha_vantage

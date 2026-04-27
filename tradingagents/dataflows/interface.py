@@ -1,4 +1,7 @@
+import logging
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -183,11 +186,23 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
-        except JintelRateLimitError:
-            continue  # Same fallback semantics for Jintel rate limits
-        except JintelNoDataError:
-            continue  # Hard "Jintel out of coverage" -> try next vendor
+        except AlphaVantageRateLimitError as e:
+            logger.warning(
+                "vendor fallback: %s rate-limited on %s -> trying next vendor (%s)",
+                vendor, method, e,
+            )
+            continue
+        except JintelRateLimitError as e:
+            logger.warning(
+                "vendor fallback: %s rate-limited on %s -> trying next vendor (%s)",
+                vendor, method, e,
+            )
+            continue
+        except JintelNoDataError as e:
+            logger.warning(
+                "vendor fallback: %s no-data on %s -> trying next vendor (%s)",
+                vendor, method, e,
+            )
+            continue
 
     raise RuntimeError(f"No available vendor for '{method}'")
