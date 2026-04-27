@@ -24,9 +24,13 @@ Requires:
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 from jintel import (
@@ -227,15 +231,16 @@ def _financials_to_csv(stmts: list[Any], cols: list[str]) -> str:
     return pd.DataFrame(rows).to_csv(index=False)
 
 
-def _fetch_financials(ticker: str, freq: str, curr_date: str | None) -> Any:
-    """Jintel's ``period_types`` enum coverage varies by ticker (not every
-    ticker has a ``3M`` series), so we drop the period filter and take
-    whatever's available. Look-ahead bias is enforced via
-    ``FinancialStatementFilterInput.until`` rather than ``as_of`` mode --
-    in practice ``as_of`` returns null financials despite ``Entity.financials``
-    not being in ``UNSUPPORTED_AS_OF_FIELDS``.
+@lru_cache(maxsize=128)
+def _fetch_financials_cached(ticker: str, curr_date: str | None) -> Any:
+    """Per-process memo of one ``enrich_entity(ticker, ["financials"])`` call.
+
+    Keyed on ``(ticker, curr_date)`` so that when an analyst fans out
+    ``get_balance_sheet`` + ``get_cashflow`` + ``get_income_statement`` for
+    the same ticker on the same date in one turn (typical of
+    ``fundamentals_analyst.py``), Jintel sees a single round-trip instead of
+    three identical ones.
     """
-    del freq
     client = _get_client()
     res = client.enrich_entity(
         ticker,
@@ -247,6 +252,28 @@ def _fetch_financials(ticker: str, freq: str, curr_date: str | None) -> Any:
         ),
     )
     return _unwrap(res, f"enrich_entity({ticker}, financials)")
+
+
+def _fetch_financials(ticker: str, freq: str, curr_date: str | None) -> Any:
+    """Jintel's ``period_types`` enum coverage varies by ticker (not every
+    ticker has a ``3M`` series), so we drop the period filter and take
+    whatever's available. Look-ahead bias is enforced via
+    ``FinancialStatementFilterInput.until`` rather than ``as_of`` mode --
+    in practice ``as_of`` returns null financials despite ``Entity.financials``
+    not being in ``UNSUPPORTED_AS_OF_FIELDS``.
+
+    The actual fetch is delegated to ``_fetch_financials_cached`` so the
+    three financial-statement getters share one round-trip per
+    ``(ticker, curr_date)``.
+    """
+    if freq and freq.lower() != "annual":
+        logger.info(
+            "jintel: %s freq=%r requested but Jintel coverage is annual-only "
+            "for many tickers; returning all available periods (let the "
+            "consumer slice).",
+            ticker, freq,
+        )
+    return _fetch_financials_cached(ticker, curr_date)
 
 
 def _require_financials(ticker: str, entity: Any) -> Any:
