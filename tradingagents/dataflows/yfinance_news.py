@@ -3,8 +3,10 @@
 import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from typing import List
 
 from .stockstats_utils import yf_retry
+from .config import get_config
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -64,9 +66,12 @@ def get_news_yfinance(
     Returns:
         Formatted string containing news articles
     """
+    config = get_config()
+    article_limit: int = config.get("news_article_limit", 20)
+
     try:
         stock = yf.Ticker(ticker)
-        news = yf_retry(lambda: stock.get_news(count=20))
+        news = yf_retry(lambda: stock.get_news(count=article_limit))
 
         if not news:
             return f"No news found for {ticker}"
@@ -106,30 +111,44 @@ def get_news_yfinance(
 
 def get_global_news_yfinance(
     curr_date: str,
-    look_back_days: int = 7,
-    limit: int = 10,
+    look_back_days: int = None,
+    limit: int = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back
-        limit: Maximum number of articles to return
+        look_back_days: Number of days to look back. Falls back to
+            ``global_news_lookback_days`` from config when not provided.
+        limit: Maximum number of articles to return. Falls back to
+            ``global_news_article_limit`` from config when not provided.
 
     Returns:
         Formatted string containing global news articles
     """
-    # Search queries for macro/global news
-    search_queries = [
-        "stock market economy",
-        "Federal Reserve interest rates",
-        "inflation economic outlook",
-        "global markets trading",
-    ]
+    config = get_config()
+
+    # Resolve parameters: explicit args take precedence over config, which
+    # takes precedence over the original hardcoded defaults.
+    if look_back_days is None:
+        look_back_days = config.get("global_news_lookback_days", 7)
+    if limit is None:
+        limit = config.get("global_news_article_limit", 10)
+
+    search_queries: List[str] = config.get(
+        "global_news_queries",
+        [
+            "Federal Reserve interest rates inflation",
+            "S&P 500 earnings GDP economic outlook",
+            "geopolitical risk trade war sanctions",
+            "ECB Bank of England BOJ central bank policy",
+            "oil commodities supply chain energy",
+        ],
+    )
 
     all_news = []
-    seen_titles = set()
+    seen_titles: set = set()
 
     try:
         for query in search_queries:
