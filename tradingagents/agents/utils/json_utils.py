@@ -10,7 +10,8 @@ from typing import Any
 THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 # Additional patterns for closed-tag variants only.
 # Unclosed tags are handled separately in sanitize_llm_output via str.find() truncation,
-# which correctly preserves any content that appears before the opening tag.
+# which preserves any content that appears *before* the opening tag (content at or
+# after the tag position is discarded).
 THINK_VARIANTS = [
     re.compile(r"<thinking>.*?</thinking>", re.DOTALL | re.IGNORECASE),
     re.compile(r"<thought>.*?</thought>", re.DOTALL | re.IGNORECASE),

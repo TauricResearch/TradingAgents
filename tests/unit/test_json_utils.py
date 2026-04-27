@@ -38,15 +38,31 @@ def test_sanitize_case_insensitive():
 
 
 def test_sanitize_unclosed_think_at_start():
-    """Content before the unclosed tag should be discarded; tag starts at position 0."""
+    """All content should be discarded when the unclosed tag starts at position 0."""
     text = "<think>Reasoning that was cut off mid-generation"
     assert sanitize_llm_output(text) == ""
 
 
 def test_sanitize_unclosed_think_in_middle():
-    """Content appearing before the unclosed tag must be preserved."""
+    """Content appearing before the unclosed tag must be preserved.
+
+    sanitize_llm_output calls .strip() on the result, so any trailing whitespace
+    or newline between the preserved content and the tag is removed.
+    """
     text = '{"result": 1}\n<think>Unclosed reasoning leak'
     assert sanitize_llm_output(text) == '{"result": 1}'
+
+
+def test_sanitize_trailing_whitespace_stripped():
+    """sanitize_llm_output always strips leading/trailing whitespace from the result.
+
+    When content before an unclosed tag ends with a newline or spaces those
+    characters are stripped, not preserved.
+    """
+    text = "clean output  \n<think>leaked reasoning"
+    result = sanitize_llm_output(text)
+    assert result == "clean output"
+    assert not result.endswith(("\n", " "))
 
 
 def test_sanitize_orphan_close_tag():
