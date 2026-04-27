@@ -10,16 +10,20 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Callable
 from typing import Any, Literal
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
+from tradingagents.agents.utils.circuit_breaker import circuit_breaker_from_config
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 
 logger = logging.getLogger(__name__)
+
+_NEWLINE_C_PERCENT_ARTIFACT = re.compile(r"%\s*\nc\b")
 
 
 def _parse_candidates_safely(raw: str) -> list[dict[str, Any]]:
@@ -69,7 +73,26 @@ def _build_candidate_deep_dive_context(prioritized_candidates_raw: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-class ForensicReport(BaseModel):
+def _contains_newline_c_artifact(value: Any) -> bool:
+    if isinstance(value, str):
+        return _NEWLINE_C_PERCENT_ARTIFACT.search(value) is not None
+    if isinstance(value, dict):
+        return any(_contains_newline_c_artifact(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_newline_c_artifact(item) for item in value)
+    return False
+
+
+class _PMBaseModel(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_newline_c_artifact(cls, data: Any) -> Any:
+        if _contains_newline_c_artifact(data):
+            raise ValueError("structured PM output contains newline-c artifact")
+        return data
+
+
+class ForensicReport(_PMBaseModel):
     """Audit trail for the PM's decision confidence and risk posture."""
 
     regime_alignment: str
@@ -78,7 +101,7 @@ class ForensicReport(BaseModel):
     position_sizing_rationale: str
 
 
-class BuyOrder(BaseModel):
+class BuyOrder(_PMBaseModel):
     """A fully justified buy order with risk parameters."""
 
     ticker: str
@@ -94,7 +117,7 @@ class BuyOrder(BaseModel):
     position_sizing_logic: str
 
 
-class SellOrder(BaseModel):
+class SellOrder(_PMBaseModel):
     """A sell order with macro-driven flag."""
 
     ticker: str
@@ -103,14 +126,14 @@ class SellOrder(BaseModel):
     macro_driven: bool
 
 
-class HoldOrder(BaseModel):
+class HoldOrder(_PMBaseModel):
     """A hold decision with rationale."""
 
     ticker: str
     rationale: str
 
 
-class PMDecisionSchema(BaseModel):
+class PMDecisionSchema(_PMBaseModel):
     """Full PM decision output — structured and auditable."""
 
     macro_regime: Literal["risk-on", "risk-off", "neutral", "transition"]
@@ -147,6 +170,7 @@ def create_pm_decision_agent(
         A node function ``pm_decision_node(state)`` compatible with LangGraph.
     """
     cfg = config or {}
+    breaker = circuit_breaker_from_config(cfg)
     constraints_str = (
         f"- Max position size: {cfg.get('max_position_pct', 0.15):.0%}\n"
         f"- Max sector exposure: {cfg.get('max_sector_pct', 0.35):.0%}\n"
@@ -227,6 +251,7 @@ def create_pm_decision_agent(
         prompt = prompt.partial(current_date=analysis_date)
 
         # Primary path: structured output via Pydantic schema
+        breaker.assert_available("pm_decision_agent")
         structured_llm = llm.with_structured_output(PMDecisionSchema)
         chain = prompt | structured_llm
 
@@ -234,9 +259,11 @@ def create_pm_decision_agent(
             result = chain.invoke([])
             decision_str = result.model_dump_json()
         except Exception as exc:
+            breaker.record_failure("pm_decision_agent", f"{type(exc).__name__}: {exc}")
             raise RuntimeError(
                 f"pm_decision_agent: structured output failed ({type(exc).__name__}: {exc})"
             ) from exc
+        breaker.record_success("pm_decision_agent")
 
         # with_structured_output returns the Pydantic model directly, not an AIMessage.
         # Wrap in a synthetic AIMessage so downstream message-history nodes stay consistent.

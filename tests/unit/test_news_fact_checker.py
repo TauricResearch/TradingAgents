@@ -61,11 +61,25 @@ class TestNewsFactCheckerCanonicalContract:
         assert structured["key_metrics"]["claim_count"] >= 0
         assert isinstance(structured["key_metrics"], dict)
 
-    def test_fact_checker_returns_invalid_contract_when_all_claims_removed(self):
-        """Test fact-checker returns invalid_structured_payload when all claims are removed."""
-        # Mock evidence store with no matching records
+    def test_fact_checker_aborts_when_all_claims_removed(self):
+        """Test fact-checker raises structured abort when all claims are removed."""
+        # Mock evidence store with records that do not support the submitted claim
         mock_store = MagicMock()
-        mock_store.fetch_records.return_value = []  # No records
+        mock_record = NewsEvidenceRecord(
+            run_id="test_run",
+            evidence_id="art_123",
+            ticker="MRVL",
+            trade_date="2026-04-10",
+            section_label="Company News",
+            ordinal=1,
+            source="Reuters",
+            published_at="2026-04-10",
+            title="Test Article",
+            url="https://example.com/article",
+            summary="Test summary",
+            raw_json="{}",
+        )
+        mock_store.fetch_records.return_value = [mock_record]
 
         fact_checker = create_news_fact_checker(MagicMock(), evidence_store=mock_store)
 
@@ -90,10 +104,12 @@ class TestNewsFactCheckerCanonicalContract:
 
         result = fact_checker(state)
 
+        assert result["abort_signal"]["source"] == "news_fact_checker"
+        assert result["abort_signal"]["reason"] == "news_evidence_missing"
+        assert "All structured claims were removed" in result["abort_signal"]["detail"]
         assert "news_report_structured" in result
         structured = result["news_report_structured"]
-        # All claims removed should result in invalid or empty status
-        assert structured["status"] in ["invalid_structured_payload", "empty"]
+        assert structured["status"] == "aborted"
         assert structured["contract_version"] == "news_report_v1"
 
     def test_fact_checker_missing_payload_has_canonical_contract(self):
@@ -128,9 +144,12 @@ class TestNewsFactCheckerCanonicalContract:
 
         result = fact_checker(state)
 
+        assert result["abort_signal"]["source"] == "news_fact_checker"
+        assert result["abort_signal"]["reason"] == "news_schema_invalid"
+        assert "No structured payload" in result["abort_signal"]["detail"]
         assert "news_report_structured" in result
         structured = result["news_report_structured"]
-        assert structured["status"] == "missing_structured_payload"
+        assert structured["status"] == "aborted"
         assert structured["contract_version"] == "news_report_v1"
 
     def test_fact_checker_invalid_payload_has_canonical_contract(self):
@@ -168,12 +187,13 @@ class TestNewsFactCheckerCanonicalContract:
 
         result = fact_checker(state)
 
-        # Should return canonical contract, NOT [CRITICAL ABORT]
+        assert result["abort_signal"]["source"] == "news_fact_checker"
+        assert result["abort_signal"]["reason"] == "news_schema_invalid"
+        assert "ticker_mismatch" in result["abort_signal"]["detail"]
         assert "news_report_structured" in result
         structured = result["news_report_structured"]
-        assert structured["status"] == "invalid_structured_payload"
+        assert structured["status"] == "aborted"
         assert structured["contract_version"] == "news_report_v1"
-        # News report should be deterministic non-evidence message, not critical abort
         assert not result["news_report"].startswith("[CRITICAL ABORT]")
 
     def test_fact_checker_end_to_end_contract_shape(self):
@@ -193,6 +213,8 @@ class TestNewsFactCheckerCanonicalContract:
 
         result = fact_checker(state)
 
+        assert result["abort_signal"]["source"] == "news_fact_checker"
+        assert result["abort_signal"]["reason"] == "news_evidence_missing"
         structured = result["news_report_structured"]
         # All required fields must be present
         assert "status" in structured
@@ -283,8 +305,8 @@ class TestNewsFactCheckerCanonicalContract:
         # Should have rendered a non-empty report
         assert result["news_report"] != ""
 
-    def test_fact_checker_no_evidence_records_returns_empty_contract(self):
-        """Test fact-checker returns empty contract when no evidence records exist."""
+    def test_fact_checker_no_evidence_records_aborts(self):
+        """Test fact-checker raises structured abort when no evidence records exist."""
         mock_store = MagicMock()
         mock_store.fetch_records.return_value = []
 
@@ -300,8 +322,10 @@ class TestNewsFactCheckerCanonicalContract:
 
         result = fact_checker(state)
 
+        assert result["abort_signal"]["source"] == "news_fact_checker"
+        assert result["abort_signal"]["reason"] == "news_evidence_missing"
         structured = result["news_report_structured"]
-        assert structured["status"] == "empty"
+        assert structured["status"] == "aborted"
         assert structured["contract_version"] == "news_report_v1"
         assert structured["key_metrics"]["claim_count"] == 0
 
@@ -391,7 +415,7 @@ def _records():
     ]
 
 
-def test_news_fact_checker_removes_unsupported_structured_claims():
+def test_news_fact_checker_aborts_when_any_structured_claim_is_unsupported():
     node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
@@ -428,12 +452,19 @@ def test_news_fact_checker_removes_unsupported_structured_claims():
     result = node(state)
 
     assert result["sender"] == "news_fact_checker"
-    assert "Scout Money" not in result["news_report"]
-    assert "[Source: Reuters | Published: 2026-04-02]" in result["news_report"]
+    assert result["abort_signal"]["source"] == "news_fact_checker"
+    assert result["abort_signal"]["reason"] == "news_evidence_missing"
+    assert "structured claims were removed" in result["abort_signal"]["detail"]
+    structured = result["news_report_structured"]
+    assert structured["status"] == "aborted"
+    assert structured["key_metrics"]["claim_count"] == 2
+    assert structured["key_metrics"]["removed_claims"] == 1
+    assert structured["removed_claims"][0]["source"] == "Scout Money"
+    assert structured["removed_claims"][0]["evidence_id"] == "art_fake_001"
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
 
 
-def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_remain():
+def test_news_fact_checker_aborts_when_only_fake_structured_claims_remain():
     node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
@@ -464,11 +495,14 @@ def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_
     result = node(state)
 
     assert result["sender"] == "news_fact_checker"
+    assert result["abort_signal"]["source"] == "news_fact_checker"
+    assert result["abort_signal"]["reason"] == "news_evidence_missing"
+    assert "All structured claims were removed" in result["abort_signal"]["detail"]
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
-    assert "No validated structured news claims are available" in result["news_report"]
+    assert result["news_report_structured"]["status"] == "aborted"
 
 
-def test_news_fact_checker_returns_structured_placeholder_when_payload_missing():
+def test_news_fact_checker_aborts_when_payload_missing():
     node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
@@ -481,14 +515,16 @@ def test_news_fact_checker_returns_structured_placeholder_when_payload_missing()
     result = node(state)
 
     structured = result["news_report_structured"]
+    assert result["abort_signal"]["source"] == "news_fact_checker"
+    assert result["abort_signal"]["reason"] == "news_schema_invalid"
     assert structured["ticker"] == "CSTM"
     assert structured["claims"] == []
     assert structured["summary_table"] == []
-    assert structured["status"] == "missing_structured_payload"
+    assert structured["status"] == "aborted"
     assert "No validated structured news claims are available" in result["news_report"]
 
 
-def test_news_fact_checker_returns_structured_placeholder_when_payload_invalid():
+def test_news_fact_checker_aborts_when_payload_invalid():
     node = create_news_fact_checker(MagicMock(), evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
@@ -513,10 +549,11 @@ def test_news_fact_checker_returns_structured_placeholder_when_payload_invalid()
     result = node(state)
 
     structured = result["news_report_structured"]
+    assert result["abort_signal"]["source"] == "news_fact_checker"
+    assert result["abort_signal"]["reason"] == "news_schema_invalid"
     assert structured["ticker"] == "CSTM"
     assert structured["claims"] == []
     assert structured["summary_table"] == []
-    assert structured["status"] == "invalid_structured_payload"
-    # Should NOT emit critical abort - returns deterministic non-evidence message
+    assert structured["status"] == "aborted"
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
     assert "No validated structured news claims are available" in result["news_report"]

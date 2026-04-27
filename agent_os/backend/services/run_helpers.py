@@ -68,6 +68,28 @@ def is_fallback_eligible_error(exc: Exception) -> bool:
     return is_policy_error(exc) or is_rate_limit_error(exc)
 
 
+def build_resume_guidance(
+    *,
+    run_kind: str,
+    failing_node: str | None,
+    identifier: str | None = None,
+) -> str:
+    """Build an operator-facing resume hint for graph failures."""
+    node = failing_node or "unknown"
+    target = f" for {identifier}" if identifier else ""
+    kind = run_kind.strip().lower()
+    if kind == "scan":
+        action = f"rerun the scanner from setup_graph_from('{node}') / scan rerun from node"
+    elif kind == "portfolio":
+        action = (
+            "rerun the portfolio graph from the failed stage; if a PM decision was saved, "
+            "resume trade execution from the saved decision"
+        )
+    else:
+        action = "set resume_from_latest_snapshot=true for the next pipeline run"
+    return f"Graph failed at node {node}{target}; {action}."
+
+
 def infer_fallback_tier(config: dict[str, Any], exc: Exception) -> str | None:
     """Infer which LLM tier failed based on model-id hints in the exception text.
 

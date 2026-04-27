@@ -227,6 +227,7 @@ def _persist_regime(
             macro_call=macro_call,
             sector_thesis=sector_thesis,
             key_themes=key_themes,
+            run_id=state.get("run_id"),
         )
     except Exception:
         logger.warning("macro_summary_agent: failed to persist regime to memory", exc_info=True)

@@ -271,6 +271,20 @@ def build_default_config(
         ),
         "tool_execution_timeout": _env_timeout_seconds("TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env),
         "scan_timeout_seconds": _env_timeout_seconds("SCAN_TIMEOUT_SEC", 1800.0, env=env),
+        "node_wall_clock_budget_sec": _env_timeout_seconds(
+            "NODE_WALL_CLOCK_BUDGET_SEC", 300.0, env=env
+        ),
+        "circuit_breaker_enabled": _is_truthy(
+            _env("CIRCUIT_BREAKER_ENABLED", env=env),
+            default=True,
+        ),
+        "circuit_breaker_threshold": _env_int("CIRCUIT_BREAKER_THRESHOLD", 3, env=env),
+        "circuit_breaker_window_sec": _env_int("CIRCUIT_BREAKER_WINDOW_SEC", 86_400, env=env),
+        "circuit_breaker_state_path": _env("CIRCUIT_BREAKER_STATE_PATH", env=env),
+        "vendor_health_probes_enabled": _is_truthy(
+            _env("VENDOR_HEALTH_PROBES_ENABLED", env=env),
+            default=True,
+        ),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),
         "anthropic_effort": _env("ANTHROPIC_EFFORT", env=env),
@@ -289,6 +303,13 @@ def build_default_config(
         "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10, env=env),
         "scan_horizon_days": _env_int("SCAN_HORIZON_DAYS", 30, env=env),
         "trading_lookback_days": _env_int("TRADING_LOOKBACK_DAYS", 90, env=env),
+        "reflexion_evaluation_horizon_days": _env_int(
+            "REFLEXION_EVALUATION_HORIZON_DAYS", 5, env=env
+        ),
+        "macro_evaluation_horizon_days": _env_int("MACRO_EVALUATION_HORIZON_DAYS", 21, env=env),
+        "reflexion_backfill_batch_size": _env_int("REFLEXION_BACKFILL_BATCH_SIZE", 100, env=env),
+        "reflexion_fallback_path": _env("REFLEXION_FALLBACK_PATH", env=env),
+        "macro_memory_fallback_path": _env("MACRO_MEMORY_FALLBACK_PATH", env=env),
         "ohlcv_sma_plausibility_threshold": _env_float(
             "OHLCV_SMA_PLAUSIBILITY_THRESHOLD", 3.0, env=env
         ),

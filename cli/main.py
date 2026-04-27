@@ -41,9 +41,19 @@ from tradingagents.daily_digest import append_to_digest
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.memory.macro_memory import MacroMemory
+from tradingagents.memory.reflexion import ReflexionMemory
+from tradingagents.memory.reflexion_backfill import (
+    run_backfill as run_reflexion_backfill,
+)
+from tradingagents.memory.reflexion_backfill import (
+    select_pending_macro_records,
+    select_pending_reflexion_records,
+)
 from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.observability import RunLogger, set_run_logger
 from tradingagents.report_paths import (
+    REPORTS_ROOT,
     generate_run_id,
     get_daily_dir,
     get_market_dir,
@@ -57,6 +67,122 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+reflexion_app = typer.Typer(help="Reflexion outcome back-fill tools.")
+app.add_typer(reflexion_app, name="reflexion")
+
+
+def _default_evaluation_date() -> str:
+    return datetime.date.today().isoformat()
+
+
+def _memory_fallback_path(filename: str) -> Path:
+    configured = DEFAULT_CONFIG.get("results_dir")
+    root = Path(str(configured)) if configured else REPORTS_ROOT
+    return root / filename
+
+
+def _print_reflexion_backfill_result(result: Any) -> None:
+    table = Table(title="Reflexion Back-Fill", box=box.SIMPLE_HEAD)
+    table.add_column("Memory")
+    table.add_column("Pending", justify="right")
+    table.add_column("Evaluated", justify="right")
+    table.add_column("Updated", justify="right")
+    table.add_column("Skipped", justify="right")
+    table.add_row(
+        "Ticker",
+        str(result.reflexion_pending),
+        str(result.reflexion_evaluated),
+        str(result.reflexion_updated),
+        str(result.reflexion_skipped),
+    )
+    table.add_row(
+        "Macro",
+        str(result.macro_pending),
+        str(result.macro_evaluated),
+        str(result.macro_updated),
+        str(result.macro_skipped),
+    )
+    console.print(table)
+    if result.skip_reasons:
+        console.print("[yellow]Skipped records:[/yellow]")
+        for reason in result.skip_reasons[:20]:
+            console.print(f"  - {reason}")
+        if len(result.skip_reasons) > 20:
+            console.print(f"  ... {len(result.skip_reasons) - 20} more")
+
+
+@reflexion_app.command("backfill")
+def reflexion_backfill_command(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Evaluate without writing outcomes."),
+    evaluation_date: str | None = typer.Option(
+        None,
+        "--date",
+        "-d",
+        help="Evaluation date in YYYY-MM-DD format (default: today).",
+    ),
+):
+    """Back-fill pending Reflexion and macro outcomes."""
+    date = evaluation_date or _default_evaluation_date()
+    try:
+        result = run_reflexion_backfill(
+            config=DEFAULT_CONFIG,
+            evaluation_date=date,
+            dry_run=dry_run,
+        )
+    except Exception as exc:
+        console.print(f"[red]Reflexion back-fill failed: {exc}[/red]")
+        raise typer.Exit(1) from exc
+    _print_reflexion_backfill_result(result)
+
+
+@reflexion_app.command("status")
+def reflexion_status_command(
+    evaluation_date: str | None = typer.Option(
+        None,
+        "--date",
+        "-d",
+        help="Evaluation date in YYYY-MM-DD format (default: today).",
+    ),
+):
+    """Show pending outcome records eligible for back-fill."""
+    date = evaluation_date or _default_evaluation_date()
+    try:
+        reflexion_memory = ReflexionMemory(
+            mongo_uri=DEFAULT_CONFIG.get("mongo_uri"),
+            db_name=DEFAULT_CONFIG.get("mongo_db", "tradingagents"),
+            fallback_path=DEFAULT_CONFIG.get(
+                "reflexion_fallback_path", _memory_fallback_path("reflexion.json")
+            ),
+        )
+        macro_memory = MacroMemory(
+            mongo_uri=DEFAULT_CONFIG.get("mongo_uri"),
+            db_name=DEFAULT_CONFIG.get("mongo_db", "tradingagents"),
+            fallback_path=DEFAULT_CONFIG.get(
+                "macro_memory_fallback_path", _memory_fallback_path("macro_memory.json")
+            ),
+        )
+        reflexion_pending = select_pending_reflexion_records(
+            reflexion_memory,
+            evaluation_date=date,
+            horizon_days=int(DEFAULT_CONFIG.get("reflexion_evaluation_horizon_days", 5)),
+            batch_size=int(DEFAULT_CONFIG.get("reflexion_backfill_batch_size", 100)),
+        )
+        macro_pending = select_pending_macro_records(
+            macro_memory,
+            evaluation_date=date,
+            horizon_days=int(DEFAULT_CONFIG.get("macro_evaluation_horizon_days", 21)),
+            batch_size=int(DEFAULT_CONFIG.get("reflexion_backfill_batch_size", 100)),
+        )
+    except Exception as exc:
+        console.print(f"[red]Reflexion status failed: {exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    table = Table(title=f"Eligible Pending Outcomes as of {date}", box=box.SIMPLE_HEAD)
+    table.add_column("Memory")
+    table.add_column("Eligible Pending", justify="right")
+    table.add_row("Ticker", str(len(reflexion_pending)))
+    table.add_row("Macro", str(len(macro_pending)))
+    console.print(table)
 
 
 # Create a deque to store recent messages with a maximum length

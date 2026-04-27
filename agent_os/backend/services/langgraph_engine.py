@@ -29,6 +29,7 @@ from agent_os.backend.services.run_helpers import (
     analysis_is_terminal,
     analysis_status,
     build_fallback_config,
+    build_resume_guidance,
     fallback_model_summary,
     fetch_prices,
     infer_fallback_tier,
@@ -41,9 +42,11 @@ from agent_os.backend.services.run_helpers import (
     tickers_from_decision,
 )
 from agent_os.backend.services.scanner_context import build_scanner_context_packet
+from tradingagents.agents.utils.circuit_breaker import CircuitBreakerOpen
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.output_validation import build_market_report_structured
 from tradingagents.daily_digest import append_to_digest
+from tradingagents.dataflows.vendor_health import check_vendor_health
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.graph.scanner_facts.builder import (
@@ -439,7 +442,9 @@ class LangGraphEngine:
     def __init__(self) -> None:
         self.config: dict[str, Any] = DEFAULT_CONFIG.copy()
         self.active_runs: dict[str, dict[str, Any]] = {}
-        self._event_mapper = EventMapper()
+        self._event_mapper = EventMapper(
+            node_wall_clock_budget_sec=self.config.get("node_wall_clock_budget_sec")
+        )
         self._run_loggers: dict[str, RunLogger] = {}
 
     def _persist_pipeline_recovery_artifacts(
@@ -533,6 +538,45 @@ class LangGraphEngine:
         finally:
             set_run_logger(None)
 
+    def _configure_runtime_guards(self) -> None:
+        self._event_mapper.node_wall_clock_budget_sec = self.config.get(
+            "node_wall_clock_budget_sec"
+        )
+
+    def _vendor_health_warning_events(
+        self,
+        *,
+        critical_methods: tuple[str, ...],
+    ) -> list[dict[str, Any]]:
+        if not self.config.get("vendor_health_probes_enabled", True):
+            return []
+        events: list[dict[str, Any]] = []
+        for warning in check_vendor_health(self.config, critical_methods=critical_methods):
+            logger.warning("Vendor health degraded: %s", warning)
+            events.append(
+                {
+                    "id": f"vendor_health_{time.time_ns()}",
+                    "node_id": "__system__",
+                    "type": "warning",
+                    "agent": "SYSTEM",
+                    "message": (
+                        "Vendor health warning: "
+                        f"{warning['method']} via {warning['vendor']} degraded "
+                        f"({warning['reason']})"
+                    ),
+                    "warning": warning,
+                    "metrics": {},
+                }
+            )
+        return events
+
+    def _failure_node_for(self, execution_key: str, exc: Exception | None = None) -> str | None:
+        return (
+            getattr(exc, "node_name", None)
+            if exc is not None and getattr(exc, "node_name", None)
+            else self._event_mapper.failure_node(execution_key)
+        )
+
     # ------------------------------------------------------------------
     # Run helpers
     # ------------------------------------------------------------------
@@ -554,6 +598,18 @@ class LangGraphEngine:
 
         logger.info("Starting SCAN run=%s date=%s", root_run_id, date)
         yield system_log(f"Starting macro scan for {date}")
+        self._configure_runtime_guards()
+        for warning_event in self._vendor_health_warning_events(
+            critical_methods=(
+                "get_market_movers",
+                "get_market_indices",
+                "get_sector_performance",
+                "get_industry_performance",
+                "get_topic_news",
+                "get_earnings_calendar",
+            )
+        ):
+            yield warning_event
 
         initial_state = self._load_scan_state(root_run_id=root_run_id, date=date, store=store)
         # Ensure graph-required fields are present
@@ -611,6 +667,18 @@ class LangGraphEngine:
                 logger.error("SCAN run=%s: %s", root_run_id, msg)
                 yield system_log(f"Error: {msg}")
                 raise RuntimeError(msg) from None
+            except Exception as exc:
+                failing_node = self._failure_node_for(execution_key, exc)
+                guidance = build_resume_guidance(
+                    run_kind="scan",
+                    failing_node=failing_node,
+                    identifier=date,
+                )
+                logger.exception(
+                    "SCAN run=%s failed at node=%s", root_run_id, failing_node or "unknown"
+                )
+                yield system_log(f"Error: {exc}. {guidance}")
+                raise
 
             if not captured_root_state:
                 message = (
@@ -715,6 +783,18 @@ class LangGraphEngine:
 
         logger.info("Starting SCAN rerun run=%s node=%s date=%s", root_run_id, start_node, date)
         yield system_log(f"Continuing macro scan from {start_node} for {date}")
+        self._configure_runtime_guards()
+        for warning_event in self._vendor_health_warning_events(
+            critical_methods=(
+                "get_market_movers",
+                "get_market_indices",
+                "get_sector_performance",
+                "get_industry_performance",
+                "get_topic_news",
+                "get_earnings_calendar",
+            )
+        ):
+            yield warning_event
 
         seeded_state = {
             "scan_date": date,
@@ -762,6 +842,16 @@ class LangGraphEngine:
                 logger.error("SCAN rerun run=%s: %s", root_run_id, msg)
                 yield system_log(f"Error: {msg}")
                 raise RuntimeError(msg) from None
+            except Exception as exc:
+                failing_node = self._failure_node_for(execution_key, exc) or start_node
+                guidance = build_resume_guidance(
+                    run_kind="scan",
+                    failing_node=failing_node,
+                    identifier=date,
+                )
+                logger.exception("SCAN rerun run=%s failed at node=%s", root_run_id, failing_node)
+                yield system_log(f"Error: {exc}. {guidance}")
+                raise
 
             if not captured_root_state:
                 message = f"Scan continuation from {start_node} for {date} completed without a root final state."
@@ -813,6 +903,17 @@ class LangGraphEngine:
             return
 
         yield system_log(f"Starting analysis pipeline for {ticker} on {date}")
+        self._configure_runtime_guards()
+        for warning_event in self._vendor_health_warning_events(
+            critical_methods=(
+                "get_stock_data",
+                "get_indicators",
+                "get_fundamentals",
+                "get_news",
+                "get_insider_transactions",
+            )
+        ):
+            yield warning_event
 
         injected_market = {
             "market_report": "",
@@ -931,6 +1032,19 @@ class LangGraphEngine:
                 if mapped:
                     yield mapped
         except Exception as exc:
+            failing_node = self._failure_node_for(execution_key, exc)
+            guidance = build_resume_guidance(
+                run_kind="pipeline",
+                failing_node=failing_node,
+                identifier=ticker,
+            )
+            logger.exception(
+                "PIPELINE run=%s ticker=%s failed at node=%s",
+                root_run_id,
+                ticker,
+                failing_node or "unknown",
+            )
+            yield system_log(f"Error: {exc}. {guidance}")
             if is_policy_error(exc):
                 failing_tier = infer_fallback_tier(self.config, exc)
                 model, provider = resolve_tier_model_provider(self.config, failing_tier)
@@ -940,8 +1054,8 @@ class LangGraphEngine:
                     f"or set TRADINGAGENTS_QUICK/MID/DEEP_THINK_FALLBACK_LLM."
                 ) from exc
             raise
-
-        self._event_mapper.unregister_run(execution_key)
+        finally:
+            self._event_mapper.unregister_run(execution_key)
 
         # Fallback: if the root on_chain_end event was never captured (can happen
         # with deeply nested sub-graphs), re-invoke to get the complete final state.
@@ -1048,6 +1162,11 @@ class LangGraphEngine:
             date,
         )
         yield system_log(f"Starting portfolio manager for {portfolio_id} on {date}")
+        self._configure_runtime_guards()
+        for warning_event in self._vendor_health_warning_events(
+            critical_methods=("get_stock_data", "get_news")
+        ):
+            yield warning_event
 
         portfolio_graph = PortfolioGraph(config=self.config)
 
@@ -1114,6 +1233,12 @@ class LangGraphEngine:
             _repo = PortfolioRepository()
             _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
             holding_tickers = [h.ticker for h in holdings]
+        except CircuitBreakerOpen:
+            logger.warning(
+                "run_portfolio: circuit breaker open when loading holdings for price fetch; "
+                "aborting portfolio run"
+            )
+            raise
         except Exception as exc:
             logger.warning("run_portfolio: could not load holdings for price fetch: %s", exc)
         analysis_tickers = [
@@ -1146,25 +1271,44 @@ class LangGraphEngine:
         self._event_mapper.register_run(execution_key, portfolio_id)
         final_state: dict[str, Any] = {}
 
-        async for event in portfolio_graph.graph.astream_events(
-            initial_state, version="v2", config={"callbacks": [rl.callback]}
-        ):
-            if run_should_stop(root_run_id):
-                logger.info(
-                    "PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id
-                )
-                yield system_log("Aborting portfolio management due to graceful stop request.")
-                raise asyncio.CancelledError()
+        try:
+            async for event in portfolio_graph.graph.astream_events(
+                initial_state, version="v2", config={"callbacks": [rl.callback]}
+            ):
+                if run_should_stop(root_run_id):
+                    logger.info(
+                        "PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id
+                    )
+                    yield system_log("Aborting portfolio management due to graceful stop request.")
+                    raise asyncio.CancelledError()
 
-            if is_root_chain_end(event):
-                output = (event.get("data") or {}).get("output")
-                if isinstance(output, dict):
-                    final_state = output
-            mapped = self._event_mapper.map_event(execution_key, event)
-            if mapped:
-                yield mapped
-
-        self._event_mapper.unregister_run(execution_key)
+                if is_root_chain_end(event):
+                    output = (event.get("data") or {}).get("output")
+                    if isinstance(output, dict):
+                        final_state = output
+                mapped = self._event_mapper.map_event(execution_key, event)
+                if mapped:
+                    yield mapped
+        except CircuitBreakerOpen:
+            # Let the circuit-breaker signal propagate cleanly to the caller
+            # (_run_auto_phase_three) which is responsible for yielding the
+            # user-facing message and raising AwaitPhase3Decision.  Emitting an
+            # additional error log here would produce a duplicate message.
+            raise
+        except Exception as exc:
+            failing_node = self._failure_node_for(execution_key, exc)
+            guidance = build_resume_guidance(
+                run_kind="portfolio",
+                failing_node=failing_node,
+                identifier=portfolio_id,
+            )
+            logger.exception(
+                "PORTFOLIO run=%s failed at node=%s", root_run_id, failing_node or "unknown"
+            )
+            yield system_log(f"Error: {exc}. {guidance}")
+            raise
+        finally:
+            self._event_mapper.unregister_run(execution_key)
 
         # Fallback: if the root on_chain_end event was never captured, re-invoke.
         if not final_state:
@@ -1174,6 +1318,13 @@ class LangGraphEngine:
             )
             try:
                 final_state = await portfolio_graph.graph.ainvoke(initial_state)
+            except CircuitBreakerOpen:
+                logger.warning(
+                    "PORTFOLIO fallback ainvoke failed run=%s: circuit breaker open; "
+                    "portfolio decision may be incomplete or missing",
+                    root_run_id,
+                )
+                raise
             except Exception as exc:
                 logger.warning("PORTFOLIO fallback ainvoke failed run=%s: %s", root_run_id, exc)
 
@@ -1242,6 +1393,9 @@ class LangGraphEngine:
                             else pm_decision_str
                         )
                         store.save_pm_decision(date, portfolio_id, decision)
+                    except CircuitBreakerOpen:
+                        # Let the outer CircuitBreakerOpen handler log once and re-raise.
+                        raise
                     except Exception as exc:
                         logger.warning("Failed to save pm_decision run=%s: %s", root_run_id, exc)
 
@@ -1255,6 +1409,9 @@ class LangGraphEngine:
                             else execution_result_str
                         )
                         store.save_execution_result(date, portfolio_id, execution)
+                    except CircuitBreakerOpen:
+                        # Let the outer CircuitBreakerOpen handler log once and re-raise.
+                        raise
                     except Exception as exc:
                         logger.warning(
                             "Failed to save execution_result run=%s: %s", root_run_id, exc
@@ -1263,6 +1420,13 @@ class LangGraphEngine:
                 yield system_log(
                     f"Portfolio stage reports (decision & execution) saved for {portfolio_id} on {date}"
                 )
+            except CircuitBreakerOpen:
+                logger.warning(
+                    "run_portfolio: circuit breaker open when saving portfolio reports for run=%s; "
+                    "reports may be incomplete or missing",
+                    root_run_id,
+                )
+                raise
             except Exception as exc:
                 logger.exception("Failed to save portfolio reports run=%s", root_run_id)
                 yield system_log(f"Warning: could not save portfolio reports: {exc}")
@@ -2240,15 +2404,33 @@ class LangGraphEngine:
                 ):
                     yield evt
             else:
-                async for evt in self.run_portfolio(
-                    f"{root_run_id}:portfolio",
-                    {
-                        "date": date,
-                        **portfolio_params,
-                        "_execution_key": f"{root_run_id}:portfolio",
-                    },
-                ):
-                    yield evt
+                try:
+                    async for evt in self.run_portfolio(
+                        f"{root_run_id}:portfolio",
+                        {
+                            "date": date,
+                            **portfolio_params,
+                            "_execution_key": f"{root_run_id}:portfolio",
+                        },
+                    ):
+                        yield evt
+                except CircuitBreakerOpen as exc:
+                    yield system_log(f"Phase 3/3: paused before portfolio stage: {exc}")
+                    raise AwaitPhase3Decision(
+                        {
+                            "date": date,
+                            "portfolio_id": portfolio_id,
+                            "incomplete_tickers": [
+                                {
+                                    "ticker": "PORTFOLIO",
+                                    "reason": str(exc),
+                                    "portfolio_context": "portfolio",
+                                }
+                            ],
+                            "completed_tickers": [],
+                            "aborted_tickers": ["PORTFOLIO"],
+                        }
+                    ) from exc
 
     async def run_auto_phase3_decision(
         self,

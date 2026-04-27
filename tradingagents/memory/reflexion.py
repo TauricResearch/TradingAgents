@@ -129,6 +129,8 @@ class ReflexionMemory:
         ticker: str,
         decision_date: str,
         outcome: dict[str, Any],
+        *,
+        run_id: str | None = None,
     ) -> bool:
         """Attach an outcome to the most recent decision for a ticker+date.
 
@@ -136,6 +138,7 @@ class ReflexionMemory:
             ticker:        Ticker symbol.
             decision_date: The date the original decision was made.
             outcome:       Dict with evaluation data, e.g.::
+            run_id:        Optional run identifier for precise same-date addressing.
 
                 {
                     "evaluation_date": "2026-04-20",
@@ -151,18 +154,32 @@ class ReflexionMemory:
         if self._col is not None:
             from pymongo import DESCENDING
 
+            query: dict[str, Any] = {
+                "ticker": ticker.upper(),
+                "decision_date": decision_date,
+                "outcome": None,
+            }
+            if run_id is not None:
+                query["run_id"] = run_id
+            else:
+                query["$or"] = [
+                    {"run_id": {"$exists": False}},
+                    {"run_id": None},
+                    {"run_id": ""},
+                ]
+                logger.warning(
+                    "ReflexionMemory.record_outcome used legacy date-only addressing for %s %s",
+                    ticker.upper(),
+                    decision_date,
+                )
             doc = self._col.find_one_and_update(
-                {
-                    "ticker": ticker.upper(),
-                    "decision_date": decision_date,
-                    "outcome": None,
-                },
+                query,
                 {"$set": {"outcome": outcome}},
                 sort=[("created_at", DESCENDING)],
             )
             return doc is not None
         else:
-            return self._update_local_outcome(ticker.upper(), decision_date, outcome)
+            return self._update_local_outcome(ticker.upper(), decision_date, outcome, run_id=run_id)
 
     # ------------------------------------------------------------------
     # Query
@@ -267,9 +284,20 @@ class ReflexionMemory:
         return filtered[:limit]
 
     def _update_local_outcome(
-        self, ticker: str, decision_date: str, outcome: dict[str, Any]
+        self,
+        ticker: str,
+        decision_date: str,
+        outcome: dict[str, Any],
+        *,
+        run_id: str | None = None,
     ) -> bool:
         """Update the most recent matching decision in the local file."""
+        if run_id is None:
+            logger.warning(
+                "ReflexionMemory.record_outcome used legacy date-only addressing for %s %s",
+                ticker,
+                decision_date,
+            )
         records = self._load_all_local()
         # Find matching records (newest first)
         for rec in reversed(records):
@@ -277,6 +305,7 @@ class ReflexionMemory:
                 rec.get("ticker") == ticker
                 and rec.get("decision_date") == decision_date
                 and rec.get("outcome") is None
+                and (rec.get("run_id") == run_id if run_id is not None else not rec.get("run_id"))
             ):
                 rec["outcome"] = outcome
                 self._save_all_local(records)

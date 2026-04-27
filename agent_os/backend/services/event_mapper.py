@@ -64,6 +64,19 @@ TOOL_SERVICE_MAP: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
+class NodeWallClockBudgetExceeded(RuntimeError):
+    """Raised when a LangGraph node exceeds the configured wall-clock budget."""
+
+    def __init__(self, *, node_name: str, elapsed_sec: float, budget_sec: float) -> None:
+        self.node_name = node_name
+        self.elapsed_sec = elapsed_sec
+        self.budget_sec = budget_sec
+        super().__init__(
+            f"Node {node_name} exceeded wall-clock budget: "
+            f"{elapsed_sec:.2f}s elapsed > {budget_sec:.2f}s budget"
+        )
+
+
 def is_root_chain_end(event: dict[str, Any]) -> bool:
     """Return True for the root-graph terminal event in a LangGraph v2 stream.
 
@@ -193,10 +206,12 @@ class EventMapper:
     creates a fresh mapper for each run/rerun and delegates event translation.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, node_wall_clock_budget_sec: float | None = None) -> None:
         self._node_start_times: dict[str, dict[str, float]] = {}
         self._node_prompts: dict[str, dict[str, str]] = {}
         self._run_identifiers: dict[str, str] = {}
+        self._latest_nodes: dict[str, str] = {}
+        self.node_wall_clock_budget_sec = node_wall_clock_budget_sec
 
     # -- lifecycle helpers ---------------------------------------------------
 
@@ -208,10 +223,14 @@ class EventMapper:
         self._node_start_times.pop(execution_key, None)
         self._node_prompts.pop(execution_key, None)
         self._run_identifiers.pop(execution_key, None)
+        self._latest_nodes.pop(execution_key, None)
+
+    def failure_node(self, execution_key: str) -> str | None:
+        return self._latest_nodes.get(execution_key)
 
     # -- core mapping --------------------------------------------------------
 
-    def map_event(self, run_id: str, event: dict[str, Any]) -> dict[str, Any] | None:
+    def map_event(self, execution_key: str, event: dict[str, Any]) -> dict[str, Any] | None:
         """Map a LangGraph v2 event to an AgentOS frontend event dict.
 
         Each branch is wrapped in ``try / except`` so that a single
@@ -221,9 +240,9 @@ class EventMapper:
         name = event.get("name", "unknown")
         node_name = extract_node_name(event)
 
-        starts = self._node_start_times.get(run_id, {})
-        prompts = self._node_prompts.setdefault(run_id, {})
-        identifier = self._run_identifiers.get(run_id, "")
+        starts = self._node_start_times.get(execution_key, {})
+        prompts = self._node_prompts.setdefault(execution_key, {})
+        identifier = self._run_identifiers.get(execution_key, "")
         node_timer_key = f"__node__:{node_name}"
 
         if kind == "on_chain_start":
@@ -234,7 +253,8 @@ class EventMapper:
                 if len(event.get("parent_ids", [])) != 1:
                     return None
                 starts[node_timer_key] = time.monotonic()
-                logger.info("Node start node=%s run=%s", node_name, run_id)
+                self._latest_nodes[execution_key] = node_name
+                logger.info("Node start node=%s run=%s", node_name, execution_key)
                 return {
                     "id": event.get("run_id", f"node_start_{time.time_ns()}").strip(),
                     "node_id": node_name,
@@ -253,9 +273,25 @@ class EventMapper:
                 start_t = starts.pop(node_timer_key, None)
                 if start_t is not None:
                     latency_ms = round((time.monotonic() - start_t) * 1000)
+                    budget_sec = self.node_wall_clock_budget_sec
+                    if budget_sec is not None and latency_ms > float(budget_sec) * 1000:
+                        elapsed_sec = latency_ms / 1000
+                        logger.error(
+                            "Node wall-clock budget exceeded node=%s elapsed=%.2fs budget=%.2fs run=%s",
+                            node_name,
+                            elapsed_sec,
+                            float(budget_sec),
+                            execution_key,
+                        )
+                        raise NodeWallClockBudgetExceeded(
+                            node_name=node_name,
+                            elapsed_sec=elapsed_sec,
+                            budget_sec=float(budget_sec),
+                        )
+                self._latest_nodes[execution_key] = node_name
                 output = (event.get("data") or {}).get("output")
                 output_text = _truncate(_extract_content(output)) if output is not None else ""
-                logger.info("Node end node=%s latency=%dms run=%s", node_name, latency_ms, run_id)
+                logger.info("Node end node=%s latency=%dms run=%s", node_name, latency_ms, execution_key)
                 return {
                     "id": f"{event.get('run_id', 'node_end')}_{time.time_ns()}",
                     "node_id": node_name,
@@ -268,13 +304,13 @@ class EventMapper:
                 }
             return None
         elif kind == "on_chat_model_start":
-            return self._map_llm_start(event, run_id, node_name, starts, prompts, identifier)
+            return self._map_llm_start(event, execution_key, node_name, starts, prompts, identifier)
         elif kind == "on_tool_start":
-            return self._map_tool_start(event, run_id, name, node_name, identifier)
+            return self._map_tool_start(event, execution_key, name, node_name, identifier)
         elif kind == "on_tool_end":
-            return self._map_tool_end(event, run_id, name, node_name, identifier)
+            return self._map_tool_end(event, execution_key, name, node_name, identifier)
         elif kind == "on_chat_model_end":
-            return self._map_llm_end(event, run_id, node_name, starts, prompts, identifier)
+            return self._map_llm_end(event, execution_key, node_name, starts, prompts, identifier)
 
         return None
 
@@ -283,7 +319,7 @@ class EventMapper:
     @staticmethod
     def _map_llm_start(
         event: dict[str, Any],
-        run_id: str,
+        execution_key: str,
         node_name: str,
         starts: dict[str, float],
         prompts: dict[str, str],
@@ -319,7 +355,7 @@ class EventMapper:
             prompts[node_name] = full_prompt
             model = _extract_model(event)
 
-            logger.info("LLM start node=%s model=%s run=%s", node_name, model, run_id)
+            logger.info("LLM start node=%s model=%s run=%s", node_name, model, execution_key)
 
             return {
                 "id": event.get("run_id", f"thought_{time.time_ns()}").strip(),
@@ -334,7 +370,7 @@ class EventMapper:
                 "metrics": {"model": model},
             }
         except Exception:
-            logger.exception("Error mapping on_chat_model_start run=%s", run_id)
+            logger.exception("Error mapping on_chat_model_start run=%s", execution_key)
             return {
                 "id": f"thought_err_{time.time_ns()}",
                 "node_id": node_name,
@@ -349,7 +385,7 @@ class EventMapper:
     @staticmethod
     def _map_tool_start(
         event: dict[str, Any],
-        run_id: str,
+        execution_key: str,
         name: str,
         node_name: str,
         identifier: str,
@@ -365,7 +401,7 @@ class EventMapper:
             service = TOOL_SERVICE_MAP.get(name, "")
 
             logger.info(
-                "Tool start tool=%s service=%s node=%s run=%s", name, service, node_name, run_id
+                "Tool start tool=%s service=%s node=%s run=%s", name, service, node_name, execution_key
             )
 
             return {
@@ -382,13 +418,13 @@ class EventMapper:
                 "metrics": {},
             }
         except Exception:
-            logger.exception("Error mapping on_tool_start run=%s", run_id)
+            logger.exception("Error mapping on_tool_start run=%s", execution_key)
             return None
 
     @staticmethod
     def _map_tool_end(
         event: dict[str, Any],
-        run_id: str,
+        execution_key: str,
         name: str,
         node_name: str,
         identifier: str,
@@ -425,7 +461,7 @@ class EventMapper:
                 name,
                 status,
                 node_name,
-                run_id,
+                execution_key,
             )
 
             return {
@@ -444,13 +480,13 @@ class EventMapper:
                 "metrics": {},
             }
         except Exception:
-            logger.exception("Error mapping on_tool_end run=%s", run_id)
+            logger.exception("Error mapping on_tool_end run=%s", execution_key)
             return None
 
     @staticmethod
     def _map_llm_end(
         event: dict[str, Any],
-        run_id: str,
+        execution_key: str,
         node_name: str,
         starts: dict[str, float],
         prompts: dict[str, str],
@@ -512,7 +548,7 @@ class EventMapper:
                 tokens_in or "?",
                 tokens_out or "?",
                 latency_ms,
-                run_id,
+                execution_key,
             )
 
             return {
@@ -532,7 +568,7 @@ class EventMapper:
                 },
             }
         except Exception:
-            logger.exception("Error mapping on_chat_model_end run=%s", run_id)
+            logger.exception("Error mapping on_chat_model_end run=%s", execution_key)
             matched_prompt = prompts.pop(node_name, "")
             return {
                 "id": f"result_err_{time.time_ns()}",
