@@ -4,7 +4,7 @@ from typing import Any
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.critical_abort import has_abort
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import build_final_decision_structured
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
@@ -21,10 +21,6 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
         risk_debate_state = state["risk_debate_state"]
         history = truncate_text(risk_debate_state.get("history", ""), max_chars=3200)
         risk_summary = truncate_text(get_risk_debate_summary(state), max_chars=1800)
-        state.get("market_report", "")
-        state.get("news_report", "")
-        state.get("fundamentals_report", "")
-        state.get("sentiment_report", "")
         trader_plan = state.get("trader_investment_plan", "")
         macro_regime_report = state.get("macro_regime_report", "")
         research_packet = truncate_text(build_research_packet(state), max_chars=5000)
@@ -36,15 +32,15 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
         curr_situation = f"{research_packet}{macro_section}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
-        past_memory_str = ""
-        for _i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        past_memory_str = "\n\n".join(rec["recommendation"] for rec in past_memories)
 
         macro_context = (
             f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nEnsure your risk assessment reflects the macro environment — in risk-off regimes, apply higher standards for position entry and tighter risk controls.\n"
             if macro_regime_report
             else ""
         )
+
+        timeout_seconds = resolve_timeout("deep")
 
         if is_critical_abort:
             abort_signal = state.get("abort_signal") or {}
@@ -81,15 +77,6 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
 
 **IMPORTANT**: Based on the critical abort signal, you should recommend SELL or AVOID. Do not proceed with any other analysis. The aborting analyst has identified fundamental issues that make this investment unacceptable."""
 
-            _cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
-            timeout_seconds = min(
-                float(
-                    DEFAULT_CONFIG.get("deep_think_llm_timeout")
-                    or DEFAULT_CONFIG.get("llm_timeout")
-                    or _cap
-                ),
-                _cap,
-            )
             response, invoke_error = invoke_with_timeout(
                 llm,
                 prompt,
@@ -139,15 +126,6 @@ def create_portfolio_manager(llm: Any, memory: Any) -> Callable[[AgentState], di
 
 Be decisive and ground every conclusion in specific evidence from the analysts."""
 
-            _cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
-            timeout_seconds = min(
-                float(
-                    DEFAULT_CONFIG.get("deep_think_llm_timeout")
-                    or DEFAULT_CONFIG.get("llm_timeout")
-                    or _cap
-                ),
-                _cap,
-            )
             response, invoke_error = invoke_with_timeout(
                 llm,
                 prompt,
