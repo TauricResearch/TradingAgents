@@ -9,10 +9,11 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    build_scanner_context_block,
     prefetch_tools_parallel,
 )
 from tradingagents.agents.utils.critical_abort import raise_abort
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.output_validation import (
     log_validation_result,
@@ -265,12 +266,10 @@ def create_news_analyst(
         )
 
         # Build scanner context block with role-specific guidance
-        scanner_context_block = ""
-        if scanner_context:
-            role_guidance = "Use the scanner graph context as ticker-focused prior context; do not re-filter it by ticker string because it has already been retrieved for this ticker."
-            scanner_context_block = (
-                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
-            )
+        scanner_context_block = build_scanner_context_block(
+            scanner_context,
+            "Use the scanner graph context as ticker-focused prior context; do not re-filter it by ticker string because it has already been retrieved for this ticker.",
+        )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -299,15 +298,7 @@ def create_news_analyst(
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
-        _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
-        timeout_seconds = min(
-            float(
-                DEFAULT_CONFIG.get("mid_think_llm_timeout")
-                or DEFAULT_CONFIG.get("llm_timeout")
-                or _cap
-            ),
-            _cap,
-        )
+        timeout_seconds = resolve_timeout("mid")
         first_result, invoke_error = invoke_with_timeout(
             llm=chain,
             prompt_or_messages=state["messages"],

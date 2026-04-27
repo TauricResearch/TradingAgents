@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from langchain_core.messages import HumanMessage, RemoveMessage
@@ -24,8 +24,6 @@ def prefetch_tools_parallel(tool_calls: list[dict]) -> dict[str, str]:
     Returns:
         dict mapping ``label`` → result string (or error placeholder)
     """
-    results: dict[str, str] = {}
-    completed: dict[str, str] = {}
 
     def _fetch_one(tc: dict) -> tuple[str, str]:
         label: str = tc["label"]
@@ -36,16 +34,9 @@ def prefetch_tools_parallel(tool_calls: list[dict]) -> dict[str, str]:
             return label, f"[Error fetching {label}: {exc}]"
 
     with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(_fetch_one, tc): tc["label"] for tc in tool_calls}
-        for future in as_completed(futures):
-            label, result = future.result()
-            completed[label] = result
+        pairs = list(executor.map(_fetch_one, tool_calls))
 
-    for tc in tool_calls:
-        label = tc["label"]
-        results[label] = completed[label]
-
-    return results
+    return {label: result for label, result in pairs}
 
 
 def format_prefetched_context(results: dict[str, str]) -> str:
@@ -60,6 +51,17 @@ def format_prefetched_context(results: dict[str, str]) -> str:
     """
     sections = [f"## {label}\n\n{content}" for label, content in results.items()]
     return "\n\n---\n\n".join(sections)
+
+
+def build_scanner_context_block(scanner_context: str, role_guidance: str) -> str:
+    """Return a formatted scanner context block for analyst prompts.
+
+    Returns an empty string when *scanner_context* is absent so callers can
+    embed the result directly into the prompt without an extra conditional.
+    """
+    if not scanner_context:
+        return ""
+    return f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
 
 
 def build_instrument_context(ticker: str) -> str:

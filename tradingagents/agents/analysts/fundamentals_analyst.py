@@ -6,6 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    build_scanner_context_block,
     format_prefetched_context,
     prefetch_tools_parallel,
 )
@@ -171,12 +172,10 @@ def create_fundamentals_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
         )
 
         # Build scanner context block with role-specific guidance
-        scanner_context_block = ""
-        if scanner_context:
-            role_guidance = "Use the scanner graph context to keep sector, catalyst, risk, and macro exposures consistent with the scanner run."
-            scanner_context_block = (
-                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
-            )
+        scanner_context_block = build_scanner_context_block(
+            scanner_context,
+            "Use the scanner graph context to keep sector, catalyst, risk, and macro exposures consistent with the scanner run.",
+        )
 
         prompt = ChatPromptTemplate.from_messages(
             [

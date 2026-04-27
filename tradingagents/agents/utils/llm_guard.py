@@ -7,7 +7,29 @@ import threading
 import time
 from typing import Any
 
+from tradingagents.default_config import DEFAULT_CONFIG
+
 logger = logging.getLogger(__name__)
+
+_TIER_DEFAULTS: dict[str, float] = {"quick": 300.0, "mid": 240.0, "deep": 360.0}
+
+
+def resolve_timeout(tier: str) -> float:
+    """Return the effective LLM timeout (seconds) for a given reasoning tier.
+
+    Reads ``<tier>_think_llm_timeout_cap`` and ``<tier>_think_llm_timeout`` from
+    ``DEFAULT_CONFIG``, falling back to ``llm_timeout`` and built-in defaults.
+    The returned value is always capped at the tier cap.
+    """
+    cap = float(
+        DEFAULT_CONFIG.get(f"{tier}_think_llm_timeout_cap") or _TIER_DEFAULTS.get(tier, 300.0)
+    )
+    timeout = float(
+        DEFAULT_CONFIG.get(f"{tier}_think_llm_timeout")
+        or DEFAULT_CONFIG.get("llm_timeout")
+        or cap
+    )
+    return min(timeout, cap)
 
 
 def bind_max_tokens_if_supported(llm: Any, max_tokens: int | None = None) -> Any:

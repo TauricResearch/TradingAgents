@@ -4,7 +4,7 @@ from typing import Any
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
     output_contains_scratchpad,
@@ -23,10 +23,6 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
         instrument_context = build_instrument_context(ticker)
         history = state["investment_debate_state"].get("history", "")
         debate_summary = get_investment_debate_summary(state)
-        state["market_report"]
-        state["sentiment_report"]
-        state["news_report"]
-        state["fundamentals_report"]
         macro_regime_report = state.get("macro_regime_report", "")
         research_packet = build_research_packet(state)
 
@@ -35,10 +31,7 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
         macro_section = f"\n\nMacro Regime:\n{macro_regime_report}" if macro_regime_report else ""
         curr_situation = f"{research_packet}{macro_section}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
-
-        past_memory_str = ""
-        for _i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        past_memory_str = "\n\n".join(rec["recommendation"] for rec in past_memories)
 
         macro_context = (
             f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nWeight your decision in line with this macro environment — a risk-off regime raises the bar for BUY decisions, while risk-on supports them.\n"
@@ -89,15 +82,7 @@ Rolling debate summary:
 Here is the debate:
 Debate History:
 {anon_history}"""
-        _cap = float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0)
-        timeout_seconds = min(
-            float(
-                DEFAULT_CONFIG.get("deep_think_llm_timeout")
-                or DEFAULT_CONFIG.get("llm_timeout")
-                or _cap
-            ),
-            _cap,
-        )
+        timeout_seconds = resolve_timeout("deep")
         response, invoke_error = invoke_with_timeout(
             llm,
             prompt,
