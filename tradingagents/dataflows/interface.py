@@ -36,6 +36,9 @@ from .jintel import (
     get_news as get_jintel_news,
     get_global_news as get_jintel_global_news,
     get_insider_transactions as get_jintel_insider_transactions,
+    get_filings as get_jintel_filings,
+    get_macro_series as get_jintel_macro_series,
+    get_top_holders as get_jintel_top_holders,
     JintelRateLimitError,
     JintelNoDataError,
 )
@@ -72,6 +75,14 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+        ]
+    },
+    "extended_data": {
+        "description": "SEC filings, US macro, 13F holdings (Jintel-only)",
+        "tools": [
+            "get_filings",
+            "get_macro_series",
+            "get_top_holders",
         ]
     }
 }
@@ -136,6 +147,18 @@ VENDOR_METHODS = {
         "yfinance": get_yfinance_insider_transactions,
         "jintel": get_jintel_insider_transactions,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
+    },
+    # extended_data -- jintel-only (no yfinance / alpha_vantage equivalent).
+    # When jintel raises JintelNoDataError the dispatcher exhausts the chain
+    # and surfaces RuntimeError to the caller, which is the desired behavior.
+    "get_filings": {
+        "jintel": get_jintel_filings,
+    },
+    "get_macro_series": {
+        "jintel": get_jintel_macro_series,
+    },
+    "get_top_holders": {
+        "jintel": get_jintel_top_holders,
     },
 }
 

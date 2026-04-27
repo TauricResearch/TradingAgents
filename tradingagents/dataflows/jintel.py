@@ -38,10 +38,12 @@ from jintel import (
 )
 from jintel.filters import (
     ArrayFilterInput,
+    FilingsFilterInput,
     FinancialStatementFilterInput,
     InsiderTradeFilterInput,
     NewsFilterInput,
     SortDirection,
+    TopHoldersFilterInput,
 )
 
 
@@ -366,5 +368,85 @@ def get_insider_transactions(ticker: str) -> str:
          "direction": t.acquired_disposed, "shares": t.shares,
          "price": t.price_per_share, "value": t.transaction_value}
         for t in entity.insider_trades
+    ]
+    return pd.DataFrame(rows).to_csv(index=False)
+
+
+# ---- Phase 4: NEW capabilities (jintel-only; no yfinance fallback) -----
+
+def get_filings(ticker: str, curr_date: str | None = None) -> str:
+    """Recent SEC periodic filings (10-K / 10-Q / 8-K) for ``ticker``.
+
+    Each row carries form / filing_date / report_date / filing_url. ``curr_date``
+    enforces no-lookahead at the filter layer.
+    """
+    client = _get_client()
+    res = client.enrich_entity(
+        ticker,
+        fields=["periodicFilings"],
+        options=EnrichOptions(
+            filings_filter=FilingsFilterInput(
+                until=curr_date,
+                types=["FILING_10K", "FILING_10Q", "FILING_8K"],
+                limit=8, sort=SortDirection.DESC,
+            ),
+        ),
+    )
+    entity = _unwrap(res, f"enrich_entity({ticker}, periodicFilings)")
+    if not entity.periodic_filings:
+        raise JintelNoDataError(f"No periodic filings for {ticker}")
+    rows = [
+        {"form": f.form, "filing_date": f.filing_date,
+         "report_date": f.report_date, "filing_url": f.filing_url}
+        for f in entity.periodic_filings
+    ]
+    return pd.DataFrame(rows).to_csv(index=False)
+
+
+def get_macro_series(series_id: str, curr_date: str | None = None,
+                     look_back_days: int = 365) -> str:
+    """FRED-style US macro time series (e.g. ``UNRATE``, ``CPIAUCSL``,
+    ``GDPC1``, ``FEDFUNDS``). Returns CSV with ``date,value`` rows.
+    """
+    since = None
+    if curr_date:
+        since = (datetime.strptime(curr_date, "%Y-%m-%d")
+                 - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
+    client = _get_client()
+    res = client.macro_series(
+        series_id,
+        filter=ArrayFilterInput(
+            since=since, until=curr_date, limit=10000, sort=SortDirection.ASC,
+        ),
+    )
+    series = _unwrap(res, f"macro_series({series_id})")
+    if not series or not series.observations:
+        raise JintelNoDataError(f"No macro series {series_id}")
+    rows = [{"date": pt.date, "value": pt.value} for pt in series.observations]
+    return pd.DataFrame(rows).to_csv(index=False)
+
+
+def get_top_holders(ticker: str) -> str:
+    """13F institutional top holders for ``ticker``. CSV: filer / value / shares
+    / report_date / filing_date.
+    """
+    client = _get_client()
+    res = client.enrich_entity(
+        ticker,
+        fields=["topHolders"],
+        options=EnrichOptions(
+            top_holders_filter=TopHoldersFilterInput(
+                limit=20, sort=SortDirection.DESC,
+            ),
+        ),
+    )
+    entity = _unwrap(res, f"enrich_entity({ticker}, topHolders)")
+    if not entity.top_holders:
+        raise JintelNoDataError(f"No top holders for {ticker}")
+    rows = [
+        {"filer": h.filer_name, "cik": h.cik, "value": h.value,
+         "shares": h.shares, "report_date": h.report_date,
+         "filing_date": h.filing_date}
+        for h in entity.top_holders
     ]
     return pd.DataFrame(rows).to_csv(index=False)

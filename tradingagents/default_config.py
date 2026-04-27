@@ -49,6 +49,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "jintel",    # Options: jintel, yfinance, alpha_vantage
         "fundamental_data": "jintel",        # Options: jintel, yfinance, alpha_vantage
         "news_data": "jintel",               # Options: jintel, yfinance, alpha_vantage
+        "extended_data": "jintel",           # Jintel-only (filings, macro, 13F)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
