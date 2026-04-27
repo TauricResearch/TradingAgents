@@ -16,8 +16,8 @@ from tradingagents.llm_clients import create_llm_client
 from tradingagents.memory.macro_memory import MacroMemory
 from tradingagents.memory.reflexion import ReflexionMemory
 
-from .portfolio_setup import PortfolioGraphSetup
 from ._graph_utils import get_provider_kwargs, visualize_graph
+from .portfolio_setup import PortfolioGraphSetup
 
 
 class PortfolioGraph:

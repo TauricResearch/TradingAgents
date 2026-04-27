@@ -20,7 +20,6 @@ from tradingagents.agents.utils.output_validation import (
     render_structured_news_payload,
     validate_structured_news_payload,
 )
-from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
 logger = logging.getLogger(__name__)

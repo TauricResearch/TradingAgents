@@ -15,9 +15,7 @@ def get_provider_kwargs(config: dict[str, Any], tier: str) -> dict[str, Any]:
     """
     kwargs: dict[str, Any] = {}
     prefix = f"{tier}_"
-    provider = (
-        config.get(f"{prefix}llm_provider") or config.get("llm_provider", "")
-    ).lower()
+    provider = (config.get(f"{prefix}llm_provider") or config.get("llm_provider", "")).lower()
     timeout = config.get(f"{prefix}llm_timeout")
     if timeout is None:
         timeout = config.get("llm_timeout")

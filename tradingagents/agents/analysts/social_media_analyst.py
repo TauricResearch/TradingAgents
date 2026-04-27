@@ -15,7 +15,6 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 from tradingagents.agents.utils.news_data_tools import get_social_sentiment
 from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
-from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:

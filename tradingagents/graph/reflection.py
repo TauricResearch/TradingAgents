@@ -104,7 +104,11 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
     ) -> None:
         """Reflect on bull researcher's analysis and update memory."""
         self._reflect(
-            "BULL", ("investment_debate_state", "bull_history"), current_state, returns_losses, bull_memory
+            "BULL",
+            ("investment_debate_state", "bull_history"),
+            current_state,
+            returns_losses,
+            bull_memory,
         )
 
     def reflect_bear_researcher(
@@ -112,7 +116,11 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
     ) -> None:
         """Reflect on bear researcher's analysis and update memory."""
         self._reflect(
-            "BEAR", ("investment_debate_state", "bear_history"), current_state, returns_losses, bear_memory
+            "BEAR",
+            ("investment_debate_state", "bear_history"),
+            current_state,
+            returns_losses,
+            bear_memory,
         )
 
     def reflect_trader(self, current_state: Any, returns_losses: float, trader_memory: Any) -> None:
