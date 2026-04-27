@@ -477,3 +477,47 @@ def get_top_holders(ticker: str) -> str:
         for h in entity.top_holders
     ]
     return pd.DataFrame(rows).to_csv(index=False)
+
+
+# ---- Phase 3: intraday OHLCV (jintel-only) -----------------------------
+
+def get_stock_data_intraday(symbol: str, start_date: str, end_date: str) -> str:
+    """Hourly OHLCV bars for a US equity / ETF / index from Jintel.
+
+    Coverage: roughly the last 12 months at hourly resolution. Sub-hour
+    intervals (1m / 5m / 15m / 30m) returned 0 bars during E2E probing and
+    are not currently exposed.
+
+    The Jintel ``price_history(range, interval)`` call returns the full ~1y
+    intraday history regardless of ``range``, so we clip the response on the
+    client side using ``start_date`` / ``end_date``. Out-of-window requests
+    raise ``JintelNoDataError`` so the dispatcher (or the analyst tool) sees
+    a clean error instead of an empty CSV.
+
+    Returns CSV with ``Date,Open,High,Low,Close,Volume`` rows in
+    chronological (ascending) order.
+    """
+    client = _get_client()
+    res = client.price_history(
+        tickers=[symbol],
+        range="1y",
+        interval="1h",
+    )
+    histories = _unwrap(res, f"price_history({symbol}, 1h)")
+    if not histories or not histories[0].history:
+        raise JintelNoDataError(f"No intraday OHLCV for {symbol}")
+    bars = sorted(
+        (b for b in histories[0].history
+         if start_date <= b.date[:10] <= end_date),
+        key=lambda b: b.date,
+    )
+    if not bars:
+        raise JintelNoDataError(
+            f"No intraday OHLCV for {symbol} in {start_date}..{end_date}"
+        )
+    rows = [
+        {"Date": b.date, "Open": b.open, "High": b.high, "Low": b.low,
+         "Close": b.close, "Volume": b.volume}
+        for b in bars
+    ]
+    return pd.DataFrame(rows).set_index("Date").to_csv()

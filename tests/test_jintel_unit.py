@@ -350,3 +350,57 @@ class TestPhase4TopHolders:
         mock_client.enrich_entity.return_value = Ok(data=entity)
         with pytest.raises(JintelNoDataError):
             jmod.get_top_holders("FOO")
+
+
+# ------------------------------------------------------------------
+# Phase 3 intraday
+# ------------------------------------------------------------------
+
+def _bar(date, o, h, lo, c, v):
+    return MagicMock(date=date, open=o, high=h, low=lo, close=c, volume=v)
+
+
+class TestPhase3Intraday:
+    def test_clips_to_window_and_sorts_asc(self, mock_client):
+        # Jintel returns DESC; we should re-sort ASC and clip by the window.
+        history = [
+            _bar("2025-10-15 15:00:00", 105, 106, 104, 105, 1000),  # in window
+            _bar("2025-10-10 10:00:00", 100, 101, 99, 100, 800),    # in window
+            _bar("2025-09-15 14:00:00", 95, 96, 94, 95, 700),       # before
+            _bar("2025-11-15 14:00:00", 110, 111, 109, 110, 600),   # after
+        ]
+        h_obj = MagicMock()
+        h_obj.history = history
+        mock_client.price_history.return_value = Ok(data=[h_obj])
+        out = jmod.get_stock_data_intraday("AAPL", "2025-10-01", "2025-10-31")
+        lines = out.strip().split("\n")
+        assert lines[0] == "Date,Open,High,Low,Close,Volume"
+        # Two bars in window, ascending
+        assert "2025-10-10 10:00:00" in lines[1]
+        assert "2025-10-15 15:00:00" in lines[2]
+        # Excluded bars not present
+        assert "2025-09-15" not in out
+        assert "2025-11-15" not in out
+
+    def test_no_history_raises(self, mock_client):
+        h_obj = MagicMock()
+        h_obj.history = []
+        mock_client.price_history.return_value = Ok(data=[h_obj])
+        with pytest.raises(JintelNoDataError):
+            jmod.get_stock_data_intraday("FOO", "2025-10-01", "2025-10-31")
+
+    def test_no_overlap_raises(self, mock_client):
+        h_obj = MagicMock()
+        h_obj.history = [_bar("2025-09-15 14:00:00", 1, 1, 1, 1, 1)]
+        mock_client.price_history.return_value = Ok(data=[h_obj])
+        with pytest.raises(JintelNoDataError):
+            jmod.get_stock_data_intraday("AAPL", "2025-10-01", "2025-10-31")
+
+    def test_calls_price_history_with_1h_interval(self, mock_client):
+        h_obj = MagicMock()
+        h_obj.history = [_bar("2025-10-10 10:00:00", 1, 1, 1, 1, 1)]
+        mock_client.price_history.return_value = Ok(data=[h_obj])
+        jmod.get_stock_data_intraday("AAPL", "2025-10-01", "2025-10-31")
+        kwargs = mock_client.price_history.call_args.kwargs
+        assert kwargs["interval"] == "1h"
+        assert kwargs["tickers"] == ["AAPL"]

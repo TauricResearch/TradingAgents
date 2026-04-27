@@ -39,6 +39,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_filings,
     get_macro_series,
     get_top_holders,
+    get_stock_data_intraday,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -163,6 +164,8 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Phase 3 (Jintel-only): hourly intraday bars
+                    get_stock_data_intraday,
                 ]
             ),
             "social": ToolNode(

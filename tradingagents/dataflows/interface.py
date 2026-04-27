@@ -39,6 +39,7 @@ from .jintel import (
     get_filings as get_jintel_filings,
     get_macro_series as get_jintel_macro_series,
     get_top_holders as get_jintel_top_holders,
+    get_stock_data_intraday as get_jintel_stock_data_intraday,
     JintelRateLimitError,
     JintelNoDataError,
 )
@@ -78,11 +79,12 @@ TOOLS_CATEGORIES = {
         ]
     },
     "extended_data": {
-        "description": "SEC filings, US macro, 13F holdings (Jintel-only)",
+        "description": "SEC filings, US macro, 13F holdings, intraday OHLCV (Jintel-only)",
         "tools": [
             "get_filings",
             "get_macro_series",
             "get_top_holders",
+            "get_stock_data_intraday",
         ]
     }
 }
@@ -159,6 +161,9 @@ VENDOR_METHODS = {
     },
     "get_top_holders": {
         "jintel": get_jintel_top_holders,
+    },
+    "get_stock_data_intraday": {
+        "jintel": get_jintel_stock_data_intraday,
     },
 }
 

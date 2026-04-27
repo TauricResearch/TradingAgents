@@ -51,3 +51,22 @@ def get_top_holders(
     shares held, report date, filing date.
     """
     return route_to_vendor("get_top_holders", ticker)
+
+
+@tool
+def get_stock_data_intraday(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """Retrieve **hourly** OHLCV bars for a US equity / ETF / index.
+
+    Jintel's intraday index covers roughly the last 12 months at hourly
+    resolution. Sub-hour intervals are not currently available; for daily
+    bars use ``get_stock_data`` instead. Out-of-window requests raise so
+    the analyst sees a clean error rather than an empty CSV.
+
+    Returns CSV with ``Date,Open,High,Low,Close,Volume`` rows in
+    chronological order.
+    """
+    return route_to_vendor("get_stock_data_intraday", symbol, start_date, end_date)

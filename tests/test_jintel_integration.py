@@ -112,6 +112,20 @@ def test_get_top_holders_nvda():
 
 # ------------- fallback behavior verified live -------------
 
+def test_get_stock_data_intraday():
+    """Hourly bars over the last week. Jintel's intraday window is ~1y."""
+    from datetime import datetime, timedelta
+    end = datetime.now().date()
+    start = end - timedelta(days=7)
+    out = route_to_vendor(
+        "get_stock_data_intraday", "AAPL",
+        start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"),
+    )
+    assert out.startswith("Date,Open,High,Low,Close,Volume"), out[:80]
+    # Should have multiple hourly bars across 5 trading days
+    assert len(out.splitlines()) > 5
+
+
 def test_out_of_window_falls_to_yfinance():
     """OHLCV outside Jintel's index window must fall through to yfinance."""
     out = route_to_vendor("get_stock_data", "AAPL", "2010-01-04", "2010-01-29")
