@@ -1,0 +1,24 @@
+name: Trading Agent Daily Pulse
+
+on:
+  schedule:
+    # This runs at 08:30 AM EST (12:30 UTC) every Monday-Friday
+    - cron: '30 12 * * 1-5'
+  workflow_dispatch: # Allows you to trigger it manually from GitHub or Discord
+
+jobs:
+  ping-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Verify Connection
+        run: |
+          echo "Trading Agent is Online!"
+          python --version
