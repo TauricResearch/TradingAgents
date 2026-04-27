@@ -18,6 +18,9 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.local_file_tools import (
+    get_local_file_info
+)
 
 
 def get_language_instruction() -> str:

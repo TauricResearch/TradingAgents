@@ -30,7 +30,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_local_file_info,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -176,6 +177,8 @@ class TradingAgentsGraph:
                     get_news,
                     get_global_news,
                     get_insider_transactions,
+                    # Local file information (e.g. earnings call transcripts)
+                    get_local_file_info,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -185,6 +188,8 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    # Local file information (e.g. company filings, research notes)
+                    get_local_file_info,
                 ]
             ),
         }

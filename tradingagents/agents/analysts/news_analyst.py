@@ -4,6 +4,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news,
     get_language_instruction,
     get_news,
+    get_local_file_info,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -16,10 +17,12 @@ def create_news_analyst(llm):
         tools = [
             get_news,
             get_global_news,
+            get_local_file_info,
         ]
 
         system_message = (
             "你是一位新闻研究员，负责分析过去一周的最新新闻和趋势。请撰写一份关于当前世界状态的综合报告，这些内容与交易和宏观经济相关。使用可用工具：get_news(query, start_date, end_date)用于公司特定或定向新闻搜索，get_global_news(curr_date, look_back_days, limit)用于更广泛的宏观经济新闻。提供具体的、可操作的洞察和支持证据，以帮助交易者做出明智的决策。"
+            + " 此外，请调用 `get_local_file_info` 工具查询本地文件夹中是否有与该公司相关的文件（如交流纪要、路演纪要等）。如果找到相关文件，请将其中涉及公司战略、管理层表态、市场动态的信息整合进你的新闻报告，作为一手信息源加以引用。"
             + """ 请务必在报告末尾附加一个Markdown表格，以组织和便于阅读的方式呈现报告中的关键点。"""
         )
 

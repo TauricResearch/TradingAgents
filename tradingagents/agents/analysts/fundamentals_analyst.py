@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_insider_transactions,
     get_language_instruction,
+    get_local_file_info,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -21,12 +22,14 @@ def create_fundamentals_analyst(llm):
             get_balance_sheet,
             get_cashflow,
             get_income_statement,
+            get_local_file_info,
         ]
 
         system_message = (
             "你是一位研究员，负责分析过去一周关于公司的基本面信息。请撰写一份综合报告，涵盖公司的基本面信息，如财务文档、公司简介、基本公司财务状况和公司财务历史，以全面了解公司的基本面信息，为交易者提供参考。请确保包含尽可能多的细节。提供具体的、可操作的洞察和支持证据，以帮助交易者做出明智的决策。"
             + " 请务必在报告末尾附加一个Markdown表格，以组织和便于阅读的方式呈现报告中的关键点。"
             + " 使用可用工具：`get_fundamentals`用于公司综合分析，`get_balance_sheet`用于资产负债表，`get_cashflow`用于现金流量表，`get_income_statement`用于利润表。"
+            + " 此外，请务必调用 `get_local_file_info` 工具查询本地文件夹中是否有与该公司相关的文件（如交流纪要、内部研报等）。如果找到相关文件，请将其中的关键信息（管理层指引、业务进展、财务数据等）整合进你的基本面报告中，并明确标注来源为本地文件。"
         )
 
         prompt = ChatPromptTemplate.from_messages(
