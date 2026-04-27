@@ -80,7 +80,6 @@ class TestConditionalLogicWiring:
         # Use an empty environ and disable dotenv loading to test hardcoded defaults
         cfg = build_default_config(load_dotenv=False, environ={})
         assert cfg["max_debate_rounds"] == 2
-        assert cfg["max_risk_discuss_rounds"] == 2
         assert cfg["llm_timeout"] == 300.0
 
     def test_conditional_logic_accepts_config_values(self):

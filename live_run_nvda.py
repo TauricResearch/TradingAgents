@@ -29,7 +29,6 @@ async def run_live():
 
     # Reduce rounds for faster test
     config["max_debate_rounds"] = 1
-    config["max_risk_discuss_rounds"] = 1
 
     ticker = "NVDA"
     trade_date = "2024-05-10"  # Use a past date for better data availability

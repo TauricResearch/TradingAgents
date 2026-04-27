@@ -282,7 +282,6 @@ def build_default_config(
         "quick_think_openai_reasoning_effort": _env("QUICK_THINK_OPENAI_REASONING_EFFORT", env=env),
         # Debate and discussion settings
         "max_debate_rounds": _env_int("MAX_DEBATE_ROUNDS", 2, env=env),
-        "max_risk_discuss_rounds": _env_int("MAX_RISK_DISCUSS_ROUNDS", 2, env=env),
         "max_recur_limit": _env_int("MAX_RECUR_LIMIT", 100, env=env),
         # Concurrency settings
         "max_concurrent_pipelines": _env_int("MAX_CONCURRENT_PIPELINES", 5, env=env),
