@@ -139,19 +139,7 @@ class ScannerGraphSetup:
         if start_node not in self.agents:
             raise ValueError(f"Unknown scanner node: {start_node}")
 
-        adjacency: dict[str, set[str]] = {}
-        for node, predecessors in SCANNER_PREDECESSORS.items():
-            for predecessor in predecessors:
-                adjacency.setdefault(predecessor, set()).add(node)
-
-        reachable = {start_node}
-        stack = [start_node]
-        while stack:
-            node = stack.pop()
-            for child in adjacency.get(node, set()):
-                if child not in reachable:
-                    reachable.add(child)
-                    stack.append(child)
+        reachable = get_scanner_descendants(start_node)
 
         workflow = StateGraph(ScannerState)
         for name, node_fn in self.agents.items():

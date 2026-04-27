@@ -136,6 +136,59 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
         self.news_evidence_store = news_evidence_store or NewsEvidenceStore()
 
+    def _create_risk_nodes(self) -> dict:
+        """Create and return all 10 risk debate nodes."""
+        return {
+            "aggressive_r1": create_aggressive_debator(self.quick_thinking_llm, round_num=1),
+            "conservative_r1": create_conservative_debator(self.quick_thinking_llm, round_num=1),
+            "neutral_r1": create_neutral_debator(self.quick_thinking_llm, round_num=1),
+            "risk_round_barrier": create_risk_round_barrier(),
+            "aggressive_r2": create_aggressive_debator(self.quick_thinking_llm, round_num=2),
+            "conservative_r2": create_conservative_debator(self.quick_thinking_llm, round_num=2),
+            "neutral_r2": create_neutral_debator(self.quick_thinking_llm, round_num=2),
+            "risk_synthesis": create_risk_synthesis(self.mid_thinking_llm),
+            "critical_abort_terminal_node": create_critical_abort_terminal(),
+            "portfolio_manager_node": create_portfolio_manager(
+                self.deep_thinking_llm, self.portfolio_manager_memory
+            ),
+        }
+
+    def _wire_risk_debate(
+        self, workflow: StateGraph, nodes: dict, entry_node: Any = "Trader"
+    ) -> None:
+        """Add all 10 risk nodes to workflow and wire all edges."""
+        workflow.add_node("Aggressive R1", nodes["aggressive_r1"])
+        workflow.add_node("Conservative R1", nodes["conservative_r1"])
+        workflow.add_node("Neutral R1", nodes["neutral_r1"])
+        workflow.add_node("Risk Round Barrier", nodes["risk_round_barrier"])
+        workflow.add_node("Aggressive R2", nodes["aggressive_r2"])
+        workflow.add_node("Conservative R2", nodes["conservative_r2"])
+        workflow.add_node("Neutral R2", nodes["neutral_r2"])
+        workflow.add_node("Risk Synthesis", nodes["risk_synthesis"])
+        workflow.add_node(CRITICAL_ABORT_NODE, nodes["critical_abort_terminal_node"])
+        workflow.add_node("Portfolio Manager", nodes["portfolio_manager_node"])
+
+        # Fan-out from entry → Round 1
+        workflow.add_edge(entry_node, "Aggressive R1")
+        workflow.add_edge(entry_node, "Conservative R1")
+        workflow.add_edge(entry_node, "Neutral R1")
+        # Round 1 → barrier
+        workflow.add_edge("Aggressive R1", "Risk Round Barrier")
+        workflow.add_edge("Conservative R1", "Risk Round Barrier")
+        workflow.add_edge("Neutral R1", "Risk Round Barrier")
+        # Barrier → Round 2
+        workflow.add_edge("Risk Round Barrier", "Aggressive R2")
+        workflow.add_edge("Risk Round Barrier", "Conservative R2")
+        workflow.add_edge("Risk Round Barrier", "Neutral R2")
+        # Round 2 → synthesis
+        workflow.add_edge("Aggressive R2", "Risk Synthesis")
+        workflow.add_edge("Conservative R2", "Risk Synthesis")
+        workflow.add_edge("Neutral R2", "Risk Synthesis")
+        # Synthesis → PM → END
+        workflow.add_edge("Risk Synthesis", "Portfolio Manager")
+        workflow.add_edge(CRITICAL_ABORT_NODE, END)
+        workflow.add_edge("Portfolio Manager", END)
+
     def setup_graph(self, selected_analysts=None):
         """Set up and compile the agent workflow graph.
 
@@ -182,20 +235,8 @@ class GraphSetup:
         )
         trader_node = create_trader(self.mid_thinking_llm, self.trader_memory)
 
-        # Create risk analysis nodes — 2 parallel rounds + synthesis
-        aggressive_r1 = create_aggressive_debator(self.quick_thinking_llm, round_num=1)
-        conservative_r1 = create_conservative_debator(self.quick_thinking_llm, round_num=1)
-        neutral_r1 = create_neutral_debator(self.quick_thinking_llm, round_num=1)
-        risk_round_barrier = create_risk_round_barrier()
-        aggressive_r2 = create_aggressive_debator(self.quick_thinking_llm, round_num=2)
-        conservative_r2 = create_conservative_debator(self.quick_thinking_llm, round_num=2)
-        neutral_r2 = create_neutral_debator(self.quick_thinking_llm, round_num=2)
-        risk_synthesis = create_risk_synthesis(self.mid_thinking_llm)
-        critical_abort_terminal_node = create_critical_abort_terminal()
+        risk_nodes = self._create_risk_nodes()
         news_fact_checker_node = create_news_fact_checker(self.news_evidence_store)
-        portfolio_manager_node = create_portfolio_manager(
-            self.deep_thinking_llm, self.portfolio_manager_memory
-        )
 
         # Create workflow
         workflow = StateGraph(AgentState)
@@ -211,17 +252,7 @@ class GraphSetup:
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive R1", aggressive_r1)
-        workflow.add_node("Conservative R1", conservative_r1)
-        workflow.add_node("Neutral R1", neutral_r1)
-        workflow.add_node("Risk Round Barrier", risk_round_barrier)
-        workflow.add_node("Aggressive R2", aggressive_r2)
-        workflow.add_node("Conservative R2", conservative_r2)
-        workflow.add_node("Neutral R2", neutral_r2)
-        workflow.add_node("Risk Synthesis", risk_synthesis)
-        workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("News Fact Checker", news_fact_checker_node)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
         # Start with deterministic instrument preflight
@@ -306,27 +337,7 @@ class GraphSetup:
         )
         workflow.add_edge("Research Manager", "Trader")
 
-        # Round 1 — parallel fan-out from Trader
-        workflow.add_edge("Trader", "Aggressive R1")
-        workflow.add_edge("Trader", "Conservative R1")
-        workflow.add_edge("Trader", "Neutral R1")
-        # Round 1 — fan-in to barrier
-        workflow.add_edge("Aggressive R1", "Risk Round Barrier")
-        workflow.add_edge("Conservative R1", "Risk Round Barrier")
-        workflow.add_edge("Neutral R1", "Risk Round Barrier")
-        # Round 2 — parallel fan-out from barrier
-        workflow.add_edge("Risk Round Barrier", "Aggressive R2")
-        workflow.add_edge("Risk Round Barrier", "Conservative R2")
-        workflow.add_edge("Risk Round Barrier", "Neutral R2")
-        # Round 2 — fan-in to synthesis
-        workflow.add_edge("Aggressive R2", "Risk Synthesis")
-        workflow.add_edge("Conservative R2", "Risk Synthesis")
-        workflow.add_edge("Neutral R2", "Risk Synthesis")
-        # Synthesis → PM
-        workflow.add_edge("Risk Synthesis", "Portfolio Manager")
-
-        workflow.add_edge(CRITICAL_ABORT_NODE, END)
-        workflow.add_edge("Portfolio Manager", END)
+        self._wire_risk_debate(workflow, risk_nodes)
 
         # Compile and return
         return workflow.compile()
@@ -346,19 +357,7 @@ class GraphSetup:
         )
         trader_node = create_trader(self.mid_thinking_llm, self.trader_memory)
 
-        # Risk debate — 2 parallel rounds + synthesis
-        aggressive_r1 = create_aggressive_debator(self.quick_thinking_llm, round_num=1)
-        conservative_r1 = create_conservative_debator(self.quick_thinking_llm, round_num=1)
-        neutral_r1 = create_neutral_debator(self.quick_thinking_llm, round_num=1)
-        risk_round_barrier = create_risk_round_barrier()
-        aggressive_r2 = create_aggressive_debator(self.quick_thinking_llm, round_num=2)
-        conservative_r2 = create_conservative_debator(self.quick_thinking_llm, round_num=2)
-        neutral_r2 = create_neutral_debator(self.quick_thinking_llm, round_num=2)
-        risk_synthesis = create_risk_synthesis(self.mid_thinking_llm)
-        critical_abort_terminal_node = create_critical_abort_terminal()
-        portfolio_manager_node = create_portfolio_manager(
-            self.deep_thinking_llm, self.portfolio_manager_memory
-        )
+        risk_nodes = self._create_risk_nodes()
 
         workflow = StateGraph(AgentState)
 
@@ -366,16 +365,6 @@ class GraphSetup:
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive R1", aggressive_r1)
-        workflow.add_node("Conservative R1", conservative_r1)
-        workflow.add_node("Neutral R1", neutral_r1)
-        workflow.add_node("Risk Round Barrier", risk_round_barrier)
-        workflow.add_node("Aggressive R2", aggressive_r2)
-        workflow.add_node("Conservative R2", conservative_r2)
-        workflow.add_node("Neutral R2", neutral_r2)
-        workflow.add_node("Risk Synthesis", risk_synthesis)
-        workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         workflow.add_edge(START, "Bull Researcher")
         # Note: The debate subgraph intentionally omits "Portfolio Manager"
@@ -403,27 +392,7 @@ class GraphSetup:
         )
         workflow.add_edge("Research Manager", "Trader")
 
-        # Round 1 — parallel fan-out from Trader
-        workflow.add_edge("Trader", "Aggressive R1")
-        workflow.add_edge("Trader", "Conservative R1")
-        workflow.add_edge("Trader", "Neutral R1")
-        # Round 1 — fan-in to barrier
-        workflow.add_edge("Aggressive R1", "Risk Round Barrier")
-        workflow.add_edge("Conservative R1", "Risk Round Barrier")
-        workflow.add_edge("Neutral R1", "Risk Round Barrier")
-        # Round 2 — parallel fan-out from barrier
-        workflow.add_edge("Risk Round Barrier", "Aggressive R2")
-        workflow.add_edge("Risk Round Barrier", "Conservative R2")
-        workflow.add_edge("Risk Round Barrier", "Neutral R2")
-        # Round 2 — fan-in to synthesis
-        workflow.add_edge("Aggressive R2", "Risk Synthesis")
-        workflow.add_edge("Conservative R2", "Risk Synthesis")
-        workflow.add_edge("Neutral R2", "Risk Synthesis")
-        # Synthesis → PM
-        workflow.add_edge("Risk Synthesis", "Portfolio Manager")
-
-        workflow.add_edge(CRITICAL_ABORT_NODE, END)
-        workflow.add_edge("Portfolio Manager", END)
+        self._wire_risk_debate(workflow, risk_nodes)
 
         return workflow.compile()
 
@@ -435,53 +404,10 @@ class GraphSetup:
         context in state, so the LLM research-packet summary node is skipped.
         """
 
-        # Risk debate — 2 parallel rounds + synthesis
-        aggressive_r1 = create_aggressive_debator(self.quick_thinking_llm, round_num=1)
-        conservative_r1 = create_conservative_debator(self.quick_thinking_llm, round_num=1)
-        neutral_r1 = create_neutral_debator(self.quick_thinking_llm, round_num=1)
-        risk_round_barrier = create_risk_round_barrier()
-        aggressive_r2 = create_aggressive_debator(self.quick_thinking_llm, round_num=2)
-        conservative_r2 = create_conservative_debator(self.quick_thinking_llm, round_num=2)
-        neutral_r2 = create_neutral_debator(self.quick_thinking_llm, round_num=2)
-        risk_synthesis = create_risk_synthesis(self.mid_thinking_llm)
-        critical_abort_terminal_node = create_critical_abort_terminal()
-        portfolio_manager_node = create_portfolio_manager(
-            self.deep_thinking_llm, self.portfolio_manager_memory
-        )
+        risk_nodes = self._create_risk_nodes()
 
         workflow = StateGraph(AgentState)
 
-        workflow.add_node("Aggressive R1", aggressive_r1)
-        workflow.add_node("Conservative R1", conservative_r1)
-        workflow.add_node("Neutral R1", neutral_r1)
-        workflow.add_node("Risk Round Barrier", risk_round_barrier)
-        workflow.add_node("Aggressive R2", aggressive_r2)
-        workflow.add_node("Conservative R2", conservative_r2)
-        workflow.add_node("Neutral R2", neutral_r2)
-        workflow.add_node("Risk Synthesis", risk_synthesis)
-        workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
-
-        # Round 1 — parallel fan-out from preloaded rerun state
-        workflow.add_edge(START, "Aggressive R1")
-        workflow.add_edge(START, "Conservative R1")
-        workflow.add_edge(START, "Neutral R1")
-        # Round 1 — fan-in to barrier
-        workflow.add_edge("Aggressive R1", "Risk Round Barrier")
-        workflow.add_edge("Conservative R1", "Risk Round Barrier")
-        workflow.add_edge("Neutral R1", "Risk Round Barrier")
-        # Round 2 — parallel fan-out from barrier
-        workflow.add_edge("Risk Round Barrier", "Aggressive R2")
-        workflow.add_edge("Risk Round Barrier", "Conservative R2")
-        workflow.add_edge("Risk Round Barrier", "Neutral R2")
-        # Round 2 — fan-in to synthesis
-        workflow.add_edge("Aggressive R2", "Risk Synthesis")
-        workflow.add_edge("Conservative R2", "Risk Synthesis")
-        workflow.add_edge("Neutral R2", "Risk Synthesis")
-        # Synthesis → PM
-        workflow.add_edge("Risk Synthesis", "Portfolio Manager")
-
-        workflow.add_edge(CRITICAL_ABORT_NODE, END)
-        workflow.add_edge("Portfolio Manager", END)
+        self._wire_risk_debate(workflow, risk_nodes, entry_node=START)
 
         return workflow.compile()

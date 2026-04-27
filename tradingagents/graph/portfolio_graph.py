@@ -17,6 +17,7 @@ from tradingagents.memory.macro_memory import MacroMemory
 from tradingagents.memory.reflexion import ReflexionMemory
 
 from .portfolio_setup import PortfolioGraphSetup
+from ._graph_utils import get_provider_kwargs, visualize_graph
 
 
 class PortfolioGraph:
@@ -136,32 +137,7 @@ class PortfolioGraph:
 
     def _get_provider_kwargs(self, tier: str) -> dict[str, Any]:
         """Resolve provider-specific kwargs (e.g. thinking_level, reasoning_effort)."""
-        kwargs: dict[str, Any] = {}
-        prefix = f"{tier}_"
-        provider = (
-            self.config.get(f"{prefix}llm_provider") or self.config.get("llm_provider", "")
-        ).lower()
-        timeout = self.config.get(f"{prefix}llm_timeout")
-        if timeout is None:
-            timeout = self.config.get("llm_timeout")
-        if timeout is not None:
-            kwargs["timeout"] = float(timeout)
-
-        if provider == "google":
-            thinking_level = self.config.get(f"{prefix}google_thinking_level") or self.config.get(
-                "google_thinking_level"
-            )
-            if thinking_level:
-                kwargs["thinking_level"] = thinking_level
-
-        elif provider in ("openai", "xai", "openrouter", "ollama"):
-            reasoning_effort = self.config.get(
-                f"{prefix}openai_reasoning_effort"
-            ) or self.config.get("openai_reasoning_effort")
-            if reasoning_effort:
-                kwargs["reasoning_effort"] = reasoning_effort
-
-        return kwargs
+        return get_provider_kwargs(self.config, tier)
 
     def run(
         self,
@@ -222,28 +198,4 @@ class PortfolioGraph:
             output_path: If provided, saves the visualization to this file.
             format: "mermaid", "ascii", or "png".
         """
-        graph = self.graph.get_graph()
-        if format == "ascii":
-            try:
-                res = graph.print_ascii()
-            except Exception as e:
-                res = f"Could not print ASCII: {e}"
-                print(res)
-            if output_path:
-                with open(output_path, "w") as f:
-                    f.write(
-                        res if isinstance(res, str) else "ASCII representation printed to console."
-                    )
-            return res
-        elif format == "png":
-            png_data = graph.draw_mermaid_png()
-            if output_path:
-                with open(output_path, "wb") as f:
-                    f.write(png_data)
-            return png_data
-        else:
-            mermaid_code = graph.draw_mermaid()
-            if output_path:
-                with open(output_path, "w") as f:
-                    f.write(mermaid_code)
-            return mermaid_code
+        return visualize_graph(self.graph, output_path, format)

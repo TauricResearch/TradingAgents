@@ -23,13 +23,16 @@ def _report_is_valid(report: str) -> bool:
 class ScannerConditionalLogic:
     """Conditional logic for scanner graph flow control."""
 
+    def _check_report(self, state: ScannerState, field: str) -> bool:
+        return _report_is_valid(state.get(field, ""))
+
     def should_continue_geopolitical(self, state: ScannerState) -> bool:
         """
         Determine if geopolitical scanning should continue.
 
         Returns True only when the geopolitical report contains usable data.
         """
-        return _report_is_valid(state.get("geopolitical_report", ""))
+        return self._check_report(state, "geopolitical_report")
 
     def should_continue_movers(self, state: ScannerState) -> bool:
         """
@@ -37,7 +40,7 @@ class ScannerConditionalLogic:
 
         Returns True only when the market movers report contains usable data.
         """
-        return _report_is_valid(state.get("market_movers_report", ""))
+        return self._check_report(state, "market_movers_report")
 
     def should_continue_sector(self, state: ScannerState) -> bool:
         """
@@ -45,7 +48,7 @@ class ScannerConditionalLogic:
 
         Returns True only when the sector performance report contains usable data.
         """
-        return _report_is_valid(state.get("sector_performance_report", ""))
+        return self._check_report(state, "sector_performance_report")
 
     def should_continue_industry(self, state: ScannerState) -> bool:
         """
@@ -53,4 +56,4 @@ class ScannerConditionalLogic:
 
         Returns True only when the industry deep dive report contains usable data.
         """
-        return _report_is_valid(state.get("industry_deep_dive_report", ""))
+        return self._check_report(state, "industry_deep_dive_report")
