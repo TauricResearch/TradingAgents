@@ -39,10 +39,10 @@ def test_circuit_breaker_counts_nonconsecutive_failures_within_window(tmp_path):
         breaker.record_failure("pm_decision_agent", "third")
 
 
-def test_event_mapper_raises_when_node_wall_clock_budget_exceeded(monkeypatch, caplog):
+def test_event_mapper_warns_when_node_wall_clock_budget_exceeded(monkeypatch, caplog):
     import logging
 
-    from agent_os.backend.services.event_mapper import EventMapper, NodeWallClockBudgetExceeded
+    from agent_os.backend.services.event_mapper import EventMapper
 
     mapper = EventMapper(node_wall_clock_budget_sec=3)
     mapper.register_run("run-1", "MARKET")
@@ -67,11 +67,12 @@ def test_event_mapper_raises_when_node_wall_clock_budget_exceeded(monkeypatch, c
 
     assert mapper.map_event("run-1", start_event)["node_id"] == "pm_decision_agent"
 
-    with caplog.at_level(logging.ERROR, logger="agent_os.engine"):
-        with pytest.raises(NodeWallClockBudgetExceeded, match="pm_decision_agent.*3.50s.*3.00s"):
-            mapper.map_event("run-1", end_event)
+    with caplog.at_level(logging.WARNING, logger="agent_os.engine"):
+        # Should not raise exception
+        mapper.map_event("run-1", end_event)
 
     assert any("wall-clock budget exceeded" in r.message for r in caplog.records)
+    assert any("Allowing because node finished successfully" in r.message for r in caplog.records)
 
 
 def test_vendor_health_reports_unknown_configured_vendor():
@@ -151,7 +152,7 @@ def test_default_config_has_adr027_runtime_guard_defaults():
     assert cfg["circuit_breaker_enabled"] is True
     assert cfg["circuit_breaker_threshold"] == 3
     assert cfg["circuit_breaker_window_sec"] == 86_400
-    assert cfg["node_wall_clock_budget_sec"] == 300.0
+    assert cfg["node_wall_clock_budget_sec"] == 600.0
     assert cfg["vendor_health_probes_enabled"] is True
 
 

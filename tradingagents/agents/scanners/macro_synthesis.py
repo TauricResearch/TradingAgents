@@ -345,19 +345,20 @@ def create_macro_synthesis(
         system_message = (
             "You are a Senior Macro Strategist and Systems Architect synthesizing research into a clinical investment thesis. "
             "Your objective is to produce a data-dense macro summary and identify top-tier ticker candidates. "
+            "STRICT CONSTRAINTS: Output ONLY valid JSON. NO preamble, NO conversational filler, and NO internal monologue or <think> tags. "
+            "Do NOT include any 'thinking' process; provide only the final JSON result. "
             f"IMPORTANT: {_usable} of {_total} upstream sources provided usable evidence. "
             "Summaries marked [NO_EVIDENCE] are UNAVAILABLE — do NOT extract candidate tickers from them. "
-            "STRICT CONSTRAINTS: Output ONLY valid JSON. NO preamble or conversational filler. "
             "Apply the 'Golden Overlap': prioritize Smart Money tickers that align with the top-down macro regime. "
             "Synthesize all evidence into a structured output following this schema: "
             "{\n"
             f'  "timeframe": "{horizon_label}",\n'
-            '  "executive_summary": "...",\n'
-            '  "macro_context": { "economic_cycle": "...", "central_bank_stance": "...", "geopolitical_risks": [...] },\n'
-            '  "key_themes": [{ "theme": "...", "description": "...", "conviction": "high|medium|low", "timeframe": "..." }],\n'
-            '  "stocks_to_investigate": [{ "ticker": "...", "name": "...", "sector": "...", "rationale": "...", '
-            '"thesis_angle": "...", "conviction": "high|medium|low", "key_catalysts": [...], "risks": [...] }],\n'
-            '  "risk_factors": ["..."]\n'
+            '  "executive_summary": "... (approx. 100 - 150 words) ...",\n'
+            '  "macro_context": { "economic_cycle": "... (approx. 40 - 50 words) ...", "central_bank_stance": "... (approx. 40 - 50 words) ...", "geopolitical_risks": ["... (approx. 20 - 30 words per item) ..."] },\n'
+            '  "key_themes": [{ "theme": "...", "description": "... (approx. 40 - 60 words) ...", "conviction": "high|medium|low", "timeframe": "..." }],\n'
+            '  "stocks_to_investigate": [{ "ticker": "...", "name": "...", "sector": "...", "rationale": "... (approx. 60 - 80 words) ...", '
+            '"thesis_angle": "...", "conviction": "high|medium|low", "key_catalysts": ["..."], "risks": ["..."] }],\n'
+            '  "risk_factors": ["... (approx. 30 - 40 words per item) ..."]\n'
             "}\n"
             f"{all_reports_context}"
         )

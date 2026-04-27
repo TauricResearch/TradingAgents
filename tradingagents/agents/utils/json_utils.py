@@ -7,8 +7,47 @@ import re
 from typing import Any
 
 # Pre-compiled regex patterns for better performance
-THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+# Additional patterns for variations or unclosed tags that might leak through
+THINK_VARIANTS = [
+    re.compile(r"<thinking>.*?</thinking>", re.DOTALL | re.IGNORECASE),
+    re.compile(r"<thought>.*?</thought>", re.DOTALL | re.IGNORECASE),
+    # Handle unclosed tags at the start of output
+    re.compile(r"^<think>.*$", re.DOTALL | re.IGNORECASE),
+    re.compile(r"^<thinking>.*$", re.DOTALL | re.IGNORECASE),
+]
 FENCE_PATTERN = re.compile(r"```(?:json)?\s*\n?(.*?)\n?\s*```", re.DOTALL)
+
+
+def sanitize_llm_output(text: str) -> str:
+    """Robustly strip <think>, <thinking>, or <thought> blocks from LLM output.
+
+    Used to prevent internal monologue from leaking into downstream prompts
+    where it consumes unnecessary context and tokens.
+    """
+    if not text:
+        return ""
+
+    cleaned = text
+    # 1. Strip the standard <think> tags (common in DeepSeek R1)
+    cleaned = THINK_PATTERN.sub("", cleaned)
+
+    # 2. Strip common variants
+    for pattern in THINK_VARIANTS:
+        cleaned = pattern.sub("", cleaned)
+
+    # 3. Best-effort: if a tag is opened but never closed, strip everything after it
+    # (Happens if LLM is cut off mid-thought)
+    for tag in ("<think>", "<thinking>", "<thought>"):
+        idx = cleaned.lower().find(tag)
+        if idx != -1:
+            cleaned = cleaned[:idx]
+
+    # 4. Clean up any remaining close-tags that might exist without an open tag
+    for tag in ("</think>", "</thinking>", "</thought>"):
+        cleaned = re.sub(re.escape(tag), "", cleaned, flags=re.IGNORECASE)
+
+    return cleaned.strip()
 
 
 def extract_json(text: str) -> dict[str, Any]:
@@ -45,10 +84,10 @@ def extract_json(text: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         pass
 
-    # 2. Strip <think>...</think> blocks (DeepSeek R1)
-    cleaned = THINK_PATTERN.sub("", text).strip()
+    # 2. Strip <think>... blocks using the new utility
+    cleaned = sanitize_llm_output(text)
 
-    # Try again after stripping think blocks
+    # Try again after stripping
     try:
         return _ensure_dict(json.loads(cleaned))
     except json.JSONDecodeError:

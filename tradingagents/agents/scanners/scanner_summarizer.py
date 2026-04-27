@@ -19,6 +19,7 @@ from tradingagents.agents.managers.summary_rules import (
     generate_summary_prompt,
 )
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+from tradingagents.agents.utils.json_utils import sanitize_llm_output
 from tradingagents.agents.utils.report_quality import parse_quality_header
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
@@ -118,8 +119,10 @@ def create_scanner_summarizer(
                 f"{type(invoke_error).__name__}: {invoke_error}"
             ) from invoke_error
 
-        summary = result.content or ""
-        if not str(summary).strip():
+        # Strip <think> blocks and whitespace
+        summary = sanitize_llm_output(result.content or "")
+
+        if not summary:
             raise RuntimeError(
                 f"Summarizer produced empty output for {report_key}; refusing fallback persistence."
             )

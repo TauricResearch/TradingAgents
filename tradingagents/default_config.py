@@ -272,7 +272,7 @@ def build_default_config(
         "tool_execution_timeout": _env_timeout_seconds("TOOL_EXECUTION_TIMEOUT_SEC", 60.0, env=env),
         "scan_timeout_seconds": _env_timeout_seconds("SCAN_TIMEOUT_SEC", 1800.0, env=env),
         "node_wall_clock_budget_sec": _env_timeout_seconds(
-            "NODE_WALL_CLOCK_BUDGET_SEC", 300.0, env=env
+            "NODE_WALL_CLOCK_BUDGET_SEC", 600.0, env=env
         ),
         "circuit_breaker_enabled": _is_truthy(
             _env("CIRCUIT_BREAKER_ENABLED", env=env),

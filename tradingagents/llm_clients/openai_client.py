@@ -85,7 +85,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
             kwargs.pop("temperature", None)
             kwargs.pop("top_p", None)
         manual_retry_attempts = max(int(kwargs.get("max_retries", 2) or 0), 0)
-        manual_retry_base_delay_s = float(kwargs.pop("retry_base_delay_s", 1.0))
+        manual_retry_base_delay_s = float(kwargs.pop("retry_base_delay_s", 6.0))
         super().__init__(**kwargs)
         self._manual_retry_attempts = manual_retry_attempts
         self._manual_retry_base_delay_s = manual_retry_base_delay_s

@@ -117,6 +117,11 @@ def create_macro_summary_agent(
         # ------------------------------------------------------------------
         system_message = (
             "You are a Senior Macro Strategist and Systems Architect compressing research into a clinical regime brief.\n\n"
+            "STRICT CONSTRAINTS:\n"
+            "- Output ONLY a structured clinical brief.\n"
+            "- NO conversational filler, roleplay, preamble, or internal monologue/<think> blocks.\n"
+            "- Do NOT include any 'thinking' process; provide only the final result.\n"
+            "- Retain all exact numeric values (VIX, %, yield, weightings).\n\n"
             "## Past Macro Regime History\n"
             f"{past_context}\n\n"
             "## Current Scan Data\n"
@@ -130,19 +135,15 @@ def create_macro_summary_agent(
             f"{ticker_conviction_str}\n\n"
             "### Risk Factors\n"
             f"{risk_factors_str}\n\n"
-            "STRICT CONSTRAINTS:\n"
-            "- Output ONLY a structured clinical brief.\n"
-            "- NO conversational filler, roleplay, or preamble.\n"
-            "- Retain all exact numeric values (VIX, %, yield, weightings).\n\n"
             "Produce the structured macro brief in this exact format:\n\n"
             "MACRO REGIME: [risk-on|risk-off|neutral|transition]\n\n"
             "KEY NUMBERS: [list ALL exact numeric values from input]\n\n"
             "TOP 3 THEMES:\n"
-            "1. [theme]: [clinical quantitative description]\n"
-            "2. [theme]: [clinical quantitative description]\n"
-            "3. [theme]: [clinical quantitative description]\n\n"
-            "MACRO-ALIGNED TICKERS: [list high-conviction tickers with quantitative fit rationale]\n\n"
-            "REGIME MEMORY NOTE: [clinical lesson from past history applicable to current deltas]\n"
+            "1. [theme]: [clinical quantitative description, approx. 30 - 40 words]\n"
+            "2. [theme]: [clinical quantitative description, approx. 30 - 40 words]\n"
+            "3. [theme]: [clinical quantitative description, approx. 30 - 40 words]\n\n"
+            "MACRO-ALIGNED TICKERS: [list high-conviction tickers with quantitative fit rationale, approx. 20 - 30 words per ticker]\n\n"
+            "REGIME MEMORY NOTE: [clinical lesson from past history applicable to current deltas, approx. 40 - 50 words]\n"
         )
 
         prompt = ChatPromptTemplate.from_messages(

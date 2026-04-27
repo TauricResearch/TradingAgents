@@ -276,18 +276,16 @@ class EventMapper:
                     budget_sec = self.node_wall_clock_budget_sec
                     if budget_sec is not None and latency_ms > float(budget_sec) * 1000:
                         elapsed_sec = latency_ms / 1000
-                        logger.error(
-                            "Node wall-clock budget exceeded node=%s elapsed=%.2fs budget=%.2fs run=%s",
+                        logger.warning(
+                            "Node wall-clock budget exceeded node=%s elapsed=%.2fs budget=%.2fs run=%s. "
+                            "Allowing because node finished successfully.",
                             node_name,
                             elapsed_sec,
                             float(budget_sec),
                             execution_key,
                         )
-                        raise NodeWallClockBudgetExceeded(
-                            node_name=node_name,
-                            elapsed_sec=elapsed_sec,
-                            budget_sec=float(budget_sec),
-                        )
+                        # We no longer raise NodeWallClockBudgetExceeded here because the node
+                        # has already finished and produced output. Discarding it is wasteful.
                 self._latest_nodes[execution_key] = node_name
                 output = (event.get("data") or {}).get("output")
                 output_text = _truncate(_extract_content(output)) if output is not None else ""
