@@ -65,7 +65,13 @@ TOOL_SERVICE_MAP: dict[str, str] = {
 
 
 class NodeWallClockBudgetExceeded(RuntimeError):
-    """Raised when a LangGraph node exceeds the configured wall-clock budget."""
+    """Defined for API compatibility; no longer raised by EventMapper.
+
+    Previously raised when a node exceeded its wall-clock budget. The behavior
+    was changed to log a warning instead, because discarding already-completed
+    node output is wasteful. Kept here so that any external code that imports or
+    catches this exception does not break.
+    """
 
     def __init__(self, *, node_name: str, elapsed_sec: float, budget_sec: float) -> None:
         self.node_name = node_name

@@ -7,7 +7,7 @@ from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.json_utils import extract_json, sanitize_llm_output
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
@@ -422,9 +422,12 @@ def create_macro_synthesis(
             parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
             report = json.dumps(parsed)
         except (ValueError, json.JSONDecodeError):
+            # JSON extraction failed; strip think blocks from the raw string so that
+            # internal monologue is not persisted or forwarded as downstream context.
+            report = sanitize_llm_output(report)
             logger.warning(
                 "macro_synthesis: could not extract JSON from LLM output; "
-                "storing raw content (first 200 chars): %s",
+                "storing sanitized raw content (first 200 chars): %s",
                 report[:200],
             )
 

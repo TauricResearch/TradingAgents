@@ -2,7 +2,71 @@
 
 import pytest
 
-from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.json_utils import extract_json, sanitize_llm_output
+
+
+# ─── sanitize_llm_output tests ───────────────────────────────────────────────
+
+
+def test_sanitize_empty_string():
+    assert sanitize_llm_output("") == ""
+
+
+def test_sanitize_no_tags():
+    text = "Just plain output with no tags."
+    assert sanitize_llm_output(text) == text
+
+
+def test_sanitize_closed_think_tag():
+    text = "<think>internal reasoning</think>Final answer."
+    assert sanitize_llm_output(text) == "Final answer."
+
+
+def test_sanitize_thinking_variant():
+    text = "<thinking>Some deliberation.</thinking>Result here."
+    assert sanitize_llm_output(text) == "Result here."
+
+
+def test_sanitize_thought_variant():
+    text = "<thought>private thought</thought>Output."
+    assert sanitize_llm_output(text) == "Output."
+
+
+def test_sanitize_case_insensitive():
+    text = "<THINK>Upper case think block.</THINK>Answer."
+    assert sanitize_llm_output(text) == "Answer."
+
+
+def test_sanitize_unclosed_think_at_start():
+    """Content before the unclosed tag should be discarded; tag starts at position 0."""
+    text = "<think>Reasoning that was cut off mid-generation"
+    assert sanitize_llm_output(text) == ""
+
+
+def test_sanitize_unclosed_think_in_middle():
+    """Content appearing before the unclosed tag must be preserved."""
+    text = '{"result": 1}\n<think>Unclosed reasoning leak'
+    assert sanitize_llm_output(text) == '{"result": 1}'
+
+
+def test_sanitize_orphan_close_tag():
+    """A stray close-tag without a matching open-tag should be removed."""
+    text = "Answer text.</think>"
+    assert sanitize_llm_output(text) == "Answer text."
+
+
+def test_sanitize_multiline_think_block():
+    text = "<think>\nLine one.\nLine two.\n</think>\nFinal output."
+    assert sanitize_llm_output(text) == "Final output."
+
+
+def test_sanitize_multiple_closed_blocks():
+    """Multiple reasoning blocks should all be stripped."""
+    text = "<think>first</think> middle <thinking>second</thinking> end"
+    result = sanitize_llm_output(text)
+    assert "first" not in result
+    assert "second" not in result
+    assert "end" in result
 
 # ─── Happy-path tests ─────────────────────────────────────────────────────────
 

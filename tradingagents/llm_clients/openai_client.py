@@ -78,7 +78,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     _manual_retry_attempts: int = PrivateAttr(default=2)
-    _manual_retry_base_delay_s: float = PrivateAttr(default=1.0)
+    _manual_retry_base_delay_s: float = PrivateAttr(default=6.0)
 
     def __init__(self, **kwargs: Any):
         if "gpt-5" in kwargs.get("model", "").lower():

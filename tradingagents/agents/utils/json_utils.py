@@ -8,13 +8,12 @@ from typing import Any
 
 # Pre-compiled regex patterns for better performance
 THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
-# Additional patterns for variations or unclosed tags that might leak through
+# Additional patterns for closed-tag variants only.
+# Unclosed tags are handled separately in sanitize_llm_output via str.find() truncation,
+# which correctly preserves any content that appears before the opening tag.
 THINK_VARIANTS = [
     re.compile(r"<thinking>.*?</thinking>", re.DOTALL | re.IGNORECASE),
     re.compile(r"<thought>.*?</thought>", re.DOTALL | re.IGNORECASE),
-    # Handle unclosed tags at the start of output
-    re.compile(r"^<think>.*$", re.DOTALL | re.IGNORECASE),
-    re.compile(r"^<thinking>.*$", re.DOTALL | re.IGNORECASE),
 ]
 FENCE_PATTERN = re.compile(r"```(?:json)?\s*\n?(.*?)\n?\s*```", re.DOTALL)
 
