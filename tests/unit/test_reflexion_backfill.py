@@ -176,9 +176,43 @@ def test_macro_evaluation_uses_vix_and_sector_proxy_returns():
     assert result.outcome is not None
     assert result.outcome["evaluation_date"] == "2026-04-22"
     assert result.outcome["vix_at_evaluation"] == 22.0
-    assert result.outcome["vix_delta_pct"] == pytest.approx(0.10)
+    # vix_delta_pct must be the actual percentage (10.0), not the ratio (0.10).
+    # VIX went from 20 → 22, a 10 % rise, so the field should store 10.0.
+    assert result.outcome["vix_delta_pct"] == pytest.approx(10.0)
     assert result.outcome["regime_confirmed"] is True
     assert result.skip_reason is None
+
+
+def test_vix_delta_pct_stores_percentage_not_ratio():
+    """vix_delta_pct in the outcome dict must be a real percentage (e.g. 10.0),
+    not a unit-less ratio (e.g. 0.10).  The field name ends in '_pct' which is
+    the project-wide convention for percentage values."""
+    from tradingagents.memory.reflexion_backfill import evaluate_macro_record
+
+    # VIX rises exactly 20 % (from 25 → 30).  The expected stored value is 20.0.
+    data = {
+        "^VIX": _stock_csv([("2026-04-01", 25.0), ("2026-04-22", 30.0)]),
+        "XLY": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 103.0)]),
+        "XLI": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 103.0)]),
+        "XLP": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 101.0)]),
+        "XLU": _stock_csv([("2026-04-01", 100.0), ("2026-04-22", 101.0)]),
+    }
+
+    result = evaluate_macro_record(
+        {"regime_date": "2026-04-01", "macro_call": "risk-off", "run_id": "run-1"},
+        evaluation_date="2026-04-22",
+        price_loader=lambda ticker, start, end: data[ticker],
+    )
+
+    assert result.outcome is not None
+    # The field name says "_pct"; it MUST hold the percentage (20.0), not the
+    # ratio (0.20).  A ratio stored under a _pct key would mislead downstream
+    # consumers that display or threshold on this value.
+    assert result.outcome["vix_delta_pct"] == pytest.approx(20.0), (
+        f"Expected 20.0 (percentage) but got {result.outcome['vix_delta_pct']} "
+        "(likely the ratio 0.20 — the vix_delta / 100 conversion should not "
+        "reduce a percentage to a ratio before storing it)"
+    )
 
 
 def test_macro_risk_off_evaluation_is_exclusive_when_risk_on_conditions_hold():

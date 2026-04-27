@@ -153,3 +153,45 @@ def test_default_config_has_adr027_runtime_guard_defaults():
     assert cfg["circuit_breaker_window_sec"] == 86_400
     assert cfg["node_wall_clock_budget_sec"] == 300.0
     assert cfg["vendor_health_probes_enabled"] is True
+
+
+def test_circuit_breaker_from_config_is_enabled_by_default(tmp_path):
+    """circuit_breaker_from_config must default to enabled=True when the key is
+    absent from the supplied config, consistent with build_default_config which
+    sets circuit_breaker_enabled=True.  A False default silently disables the
+    breaker for any caller that builds a custom config dict."""
+    from tradingagents.agents.utils.circuit_breaker import circuit_breaker_from_config
+
+    breaker = circuit_breaker_from_config(
+        {"circuit_breaker_state_path": str(tmp_path / "breaker.json")}
+    )
+
+    assert breaker.enabled is True, (
+        "circuit_breaker_from_config returned enabled=False when the key was absent. "
+        "The fallback default must be True to match build_default_config behaviour."
+    )
+
+
+def test_event_mapper_failure_node_tracks_execution_key_not_internal_run_id():
+    """EventMapper.map_event is always called with execution_key as the first
+    argument. failure_node(execution_key) must return the last-seen node name
+    for that key — it must NOT return None due to a key mismatch."""
+    from agent_os.backend.services.event_mapper import EventMapper
+
+    mapper = EventMapper()
+    execution_key = "my-execution-key"
+    mapper.register_run(execution_key, "AAPL")
+
+    start_event = {
+        "event": "on_chain_start",
+        "run_id": "internal-langgraph-run-id",
+        "parent_ids": ["graph"],
+        "metadata": {"langgraph_node": "market_analyst"},
+    }
+    mapper.map_event(execution_key, start_event)
+
+    # failure_node must be addressable by the same key used in map_event
+    assert mapper.failure_node(execution_key) == "market_analyst", (
+        "failure_node returned None — the key used when writing to _latest_nodes "
+        "in map_event differs from the key used to read it in failure_node."
+    )

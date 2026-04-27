@@ -130,6 +130,6 @@ def circuit_breaker_from_config(
         state_path=circuit_breaker_state_path(config),
         threshold=int(config.get("circuit_breaker_threshold") or 3),
         window_sec=float(config.get("circuit_breaker_window_sec") or 86_400),
-        enabled=bool(config.get("circuit_breaker_enabled", False)),
+        enabled=bool(config.get("circuit_breaker_enabled", True)),
         clock=clock,
     )

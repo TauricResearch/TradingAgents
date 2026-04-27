@@ -324,7 +324,7 @@ def evaluate_macro_record(
         {
             "evaluation_date": evaluation_date,
             "vix_at_evaluation": round(vix_end, 4),
-            "vix_delta_pct": round(vix_delta, 4),
+            "vix_delta_pct": round(vix_delta_pct, 4),
             "regime_confirmed": bool(confirmed),
             "notes": notes,
         }
