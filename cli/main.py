@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 import datetime
 import typer
@@ -1209,16 +1210,68 @@ def run_analysis():
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
+    # --- NEW: Transform pipeline ---
+    # Step 1: LLM call (gpt-5.3-codex-high, hard-coded) → JSON conform transform_flow.json
+    # Step 2: Matplotlib + Pillow (local, no LLM) → PNG chart
+    chart_json = None
+    chart_png_path = None
+
+    try:
+        from tradingagents.graph.transform import transform_to_json
+        from tradingagents.graph.chart_renderer import draw_chart
+
+        console.print("\n[dim]Transforming analysis to structured chart...[/dim]")
+
+        chart_json = transform_to_json(
+            final_state,
+            selections["ticker"],
+            selections["analysis_date"],
+            base_url=selections.get("backend_url"),
+            api_key=selections.get("openai_api_key"),
+        )
+
+        # Determine chart output path
+        chart_output_dir = save_path if save_choice in ("Y", "YES", "") else results_dir
+        chart_png_path = draw_chart(
+            chart_json,
+            output_path=chart_output_dir / "chart.png",
+        )
+
+        console.print("[green]✓ Data transformed and chart rendered[/green]")
+        console.print(f"  [dim]Chart saved to:[/dim] {chart_png_path}")
+
+    except EnvironmentError as e:
+        # Missing OPENAI_API_KEY
+        console.print(f"[yellow]⚠ Chart generation skipped: {e}[/yellow]")
+        logger.warning("Transform pipeline skipped: %s", e)
+    except Exception as e:
+        console.print(f"[yellow]⚠ Chart generation failed: {e}[/yellow]")
+        logger.warning("Transform pipeline failed, continuing without chart: %s", e)
+
     # Prompt to publish to Notion
     notion_choice = typer.prompt("\nPublish to Notion?", default="N").strip().upper()
     if notion_choice in ("Y", "YES"):
         try:
             from cli.notion_publisher import publish_to_notion
-            page_url = publish_to_notion(
+            page_url, page_id = publish_to_notion(
                 final_state,
                 selections["ticker"],
                 selections["analysis_date"],
             )
+
+            # Upload chart PNG + metadata to the same Notion page
+            if chart_png_path is not None and chart_json is not None:
+                try:
+                    from cli.notion_chart_publisher import publish_chart_to_notion
+                    publish_chart_to_notion(
+                        chart_png_path,
+                        chart_json.model_dump(),
+                        page_id,
+                        os.environ.get("NOTION_API_KEY"),
+                    )
+                except Exception as e:
+                    logger.warning("Failed to publish chart to Notion: %s", e)
+
             console.print(f"[green]✓ Published to Notion:[/green] {page_url}")
         except (EnvironmentError, RuntimeError) as e:
             console.print(f"[red]Notion publish failed:[/red] {e}")

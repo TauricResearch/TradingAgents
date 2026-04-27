@@ -1,13 +1,13 @@
 {
   "chart_info": {
-    "title": "Kế Hoạch Giao Dịch BTC/USDT (26/04/2026)",
+    "title": "BTC/USDT Trading Plan (2026-04-26)",
     "current_price": 78068.70,
     "y_axis_range": [72000, 91000],
-    "x_label": "Thời gian",
-    "y_label": "Giá (USDT)"
+    "x_label": "Date",
+    "y_label": "Price (USDT)"
   },
   "price_history": {
-    "dates": ["17/04", "18/04", "19/04", "20/04", "21/04", "22/04", "23/04", "24/04", "25/04", "26/04"],
+    "dates": ["Apr 17", "Apr 18", "Apr 19", "Apr 20", "Apr 21", "Apr 22", "Apr 23", "Apr 24", "Apr 25", "Apr 26"],
     "prices": [77736, 75500, 73758, 76000, 77500, 79234, 78300, 77600, 77285, 78068.7]
   },
   "reference_lines": [
@@ -21,7 +21,7 @@
     },
     {
       "price": 83636,
-      "label": "TP Chinh",
+      "label": "TP Main",
       "color": "green",
       "linestyle": "solid",
       "linewidth": 1.5,
@@ -29,7 +29,7 @@
     },
     {
       "price": 79400,
-      "label": "TP Ngan",
+      "label": "TP Short-term",
       "color": "green",
       "linestyle": "dashed",
       "linewidth": 1.0,
@@ -53,7 +53,7 @@
     },
     {
       "price": 77200,
-      "label": "Giam Long",
+      "label": "Reduce Long",
       "color": "darkorange",
       "linestyle": "dashed",
       "linewidth": 1.0,

@@ -173,8 +173,8 @@ def publish_to_notion(
     final_state: dict,
     ticker: str,
     analysis_date: str,
-) -> str:
-    """Create a Notion page with all analysis reports and return its URL.
+) -> tuple[str, str]:
+    """Create a Notion page with all analysis reports and return (page_url, page_id).
 
     Reads NOTION_API_KEY and NOTION_PARENT_PAGE_ID from the environment.
 
@@ -231,4 +231,4 @@ def publish_to_notion(
         _append_blocks(page_id, blocks, api_key)
 
     logger.info("Published to Notion: %s", page_url)
-    return page_url
+    return page_url, page_id
