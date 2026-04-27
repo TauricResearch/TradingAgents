@@ -34,7 +34,7 @@ def prefetch_tools_parallel(tool_calls: list[dict]) -> dict[str, str]:
             return label, f"[Error fetching {label}: {exc}]"
 
     with ThreadPoolExecutor() as executor:
-        pairs = list(executor.map(_fetch_one, tool_calls))
+        pairs = executor.map(_fetch_one, tool_calls)
 
     return {label: result for label, result in pairs}
 

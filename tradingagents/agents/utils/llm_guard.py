@@ -21,14 +21,17 @@ def resolve_timeout(tier: str) -> float:
     ``DEFAULT_CONFIG``, falling back to ``llm_timeout`` and built-in defaults.
     The returned value is always capped at the tier cap.
     """
-    cap = float(
-        DEFAULT_CONFIG.get(f"{tier}_think_llm_timeout_cap") or _TIER_DEFAULTS.get(tier, 300.0)
-    )
-    timeout = float(
-        DEFAULT_CONFIG.get(f"{tier}_think_llm_timeout")
-        or DEFAULT_CONFIG.get("llm_timeout")
-        or cap
-    )
+    raw_cap = DEFAULT_CONFIG.get(f"{tier}_think_llm_timeout_cap")
+    cap = float(raw_cap if raw_cap is not None else _TIER_DEFAULTS.get(tier, 300.0))
+
+    raw_timeout = DEFAULT_CONFIG.get(f"{tier}_think_llm_timeout")
+    raw_global = DEFAULT_CONFIG.get("llm_timeout")
+    if raw_timeout is not None:
+        timeout = float(raw_timeout)
+    elif raw_global is not None:
+        timeout = float(raw_global)
+    else:
+        timeout = cap
     return min(timeout, cap)
 
 
