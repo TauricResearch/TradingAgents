@@ -72,6 +72,13 @@ class JintelNoDataError(Exception):
     """
 
 
+# Bellwether basket used by ``get_global_news`` when Jintel is the news
+# backend. Jintel doesn't expose a top-level ``globalNews`` field, so we
+# fan out across a few broad-market ETFs and dedupe by article URL. Tweak
+# here rather than inline to keep the basket consistent across the codebase.
+GLOBAL_NEWS_BELLWETHER_TICKERS: list[str] = ["SPY", "QQQ", "DIA"]
+
+
 _client: JintelClient | None = None
 
 
@@ -115,6 +122,11 @@ def _unwrap(result: Ok | Err, context: str) -> Any:
         if _is_no_data(result.error):
             raise JintelNoDataError(f"{context}: {result.error}")
         raise JintelError(f"{context}: {result.error}")
+    if result.data is None:
+        # Jintel can return Ok(data=None) for unknown tickers without an
+        # explicit error message; surface as a fallback-eligible signal so
+        # callers don't trip on an AttributeError downstream.
+        raise JintelNoDataError(f"{context}: Jintel returned null data")
     return result.data
 
 
@@ -351,7 +363,7 @@ def get_global_news(curr_date: str, look_back_days: int = 7,
              - timedelta(days=look_back_days)).strftime("%Y-%m-%d")
     client = _get_client()
     res = client.batch_enrich(
-        ["SPY", "QQQ", "DIA"],
+        GLOBAL_NEWS_BELLWETHER_TICKERS,
         fields=["news"],
         options=EnrichOptions(
             news_filter=NewsFilterInput(

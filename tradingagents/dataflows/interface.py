@@ -214,22 +214,12 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError as e:
+        except (AlphaVantageRateLimitError, JintelRateLimitError,
+                JintelNoDataError) as e:
+            reason = "no-data" if isinstance(e, JintelNoDataError) else "rate-limited"
             logger.warning(
-                "vendor fallback: %s rate-limited on %s -> trying next vendor (%s)",
-                vendor, method, e,
-            )
-            continue
-        except JintelRateLimitError as e:
-            logger.warning(
-                "vendor fallback: %s rate-limited on %s -> trying next vendor (%s)",
-                vendor, method, e,
-            )
-            continue
-        except JintelNoDataError as e:
-            logger.warning(
-                "vendor fallback: %s no-data on %s -> trying next vendor (%s)",
-                vendor, method, e,
+                "vendor fallback: %s %s on %s -> trying next vendor (%s)",
+                vendor, reason, method, e,
             )
             continue
 

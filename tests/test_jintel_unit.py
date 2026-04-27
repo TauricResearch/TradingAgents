@@ -44,6 +44,13 @@ class TestUnwrap:
     def test_ok_returns_data(self):
         assert _unwrap(Ok(data="value"), "ctx") == "value"
 
+    def test_ok_with_null_data_raises_no_data(self):
+        """Jintel can return Ok(data=None) for unknown tickers without an
+        explicit error message; ensure this surfaces as a fallback-eligible
+        signal rather than tripping AttributeError downstream."""
+        with pytest.raises(JintelNoDataError, match="null data"):
+            _unwrap(Ok(data=None), "ctx")
+
     def test_err_rate_limit_raises(self):
         with pytest.raises(JintelRateLimitError):
             _unwrap(Err(error="429 rate limit exceeded"), "ctx")
