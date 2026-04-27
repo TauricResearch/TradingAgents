@@ -23,6 +23,21 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .polaris import (
+    get_stock_data as get_polaris_stock,
+    get_indicators as get_polaris_indicators,
+    get_fundamentals as get_polaris_fundamentals,
+    get_balance_sheet as get_polaris_balance_sheet,
+    get_cashflow as get_polaris_cashflow,
+    get_income_statement as get_polaris_income_statement,
+    get_sec_filings as get_polaris_sec_filings,
+    get_news as get_polaris_news,
+    get_global_news as get_polaris_global_news,
+    get_sentiment_score as get_polaris_sentiment_score,
+    get_sector_analysis as get_polaris_sector_analysis,
+    get_news_impact as get_polaris_news_impact,
+    get_technicals as get_polaris_technicals,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -38,7 +53,8 @@ TOOLS_CATEGORIES = {
     "technical_indicators": {
         "description": "Technical analysis indicators",
         "tools": [
-            "get_indicators"
+            "get_indicators",
+            "get_technicals"
         ]
     },
     "fundamental_data": {
@@ -56,6 +72,15 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+            "get_sec_filings",
+        ]
+    },
+    "sentiment_analysis": {
+        "description": "Sentiment scoring, trading signals, and news impact (Polaris-exclusive)",
+        "tools": [
+            "get_sentiment_score",
+            "get_sector_analysis",
+            "get_news_impact",
         ]
     }
 }
@@ -63,6 +88,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "polaris",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -71,41 +97,65 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "polaris": get_polaris_stock,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "polaris": get_polaris_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "polaris": get_polaris_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "polaris": get_polaris_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "polaris": get_polaris_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "polaris": get_polaris_income_statement,
     },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "polaris": get_polaris_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "polaris": get_polaris_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    "get_sec_filings": {
+        "polaris": get_polaris_sec_filings,
+    },
+    # sentiment_analysis (Polaris-exclusive)
+    "get_sentiment_score": {
+        "polaris": get_polaris_sentiment_score,
+    },
+    "get_sector_analysis": {
+        "polaris": get_polaris_sector_analysis,
+    },
+    "get_news_impact": {
+        "polaris": get_polaris_news_impact,
+    },
+    "get_technicals": {
+        "polaris": get_polaris_technicals,
     },
 }
 
