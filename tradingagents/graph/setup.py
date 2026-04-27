@@ -321,7 +321,6 @@ class GraphSetup:
                 "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
             },
         )
         workflow.add_conditional_edges(
@@ -332,7 +331,6 @@ class GraphSetup:
                 "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
             },
         )
         workflow.add_edge("Research Manager", "Trader")

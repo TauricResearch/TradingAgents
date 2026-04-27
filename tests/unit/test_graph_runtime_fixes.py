@@ -9,7 +9,7 @@ These tests verify:
 
 from unittest.mock import MagicMock, patch
 
-from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
+from tradingagents.agents.utils.agent_states import InvestDebateState
 from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.graph.setup import GraphSetup
@@ -143,66 +143,6 @@ class TestConditionalLogicDefensive:
         # Should not crash; should default to one of the speakers
         result = cl.should_continue_debate(state)
         assert result in ["Bull Researcher", "Bear Researcher", "Research Manager"]
-
-    def test_should_continue_risk_analysis_handles_missing_risk_debate_state(self):
-        """should_continue_risk_analysis should not crash when risk_debate_state is missing."""
-        cl = ConditionalLogic(max_risk_discuss_rounds=2)
-
-        state = {}
-
-        result = cl.should_continue_risk_analysis(state)
-        # Should default to finishing the risk phase
-        assert result == "Portfolio Manager"
-
-    def test_should_continue_risk_analysis_handles_missing_count(self):
-        """should_continue_risk_analysis should handle missing count field."""
-        cl = ConditionalLogic(max_risk_discuss_rounds=2)
-
-        state = {
-            "risk_debate_state": RiskDebateState(
-                aggressive_history="",
-                conservative_history="",
-                neutral_history="",
-                history="",
-                latest_speaker="Aggressive",
-                current_aggressive_response="",
-                current_conservative_response="",
-                current_neutral_response="",
-                judge_decision="",
-                count=None,  # Missing
-            )
-        }
-
-        result = cl.should_continue_risk_analysis(state)
-        assert result == "Portfolio Manager"
-
-    def test_should_continue_risk_analysis_handles_missing_latest_speaker(self):
-        """should_continue_risk_analysis should handle missing latest_speaker field."""
-        cl = ConditionalLogic(max_risk_discuss_rounds=2)
-
-        state = {
-            "risk_debate_state": RiskDebateState(
-                aggressive_history="",
-                conservative_history="",
-                neutral_history="",
-                history="",
-                latest_speaker=None,  # Missing
-                current_aggressive_response="",
-                current_conservative_response="",
-                current_neutral_response="",
-                judge_decision="",
-                count=0,
-            )
-        }
-
-        result = cl.should_continue_risk_analysis(state)
-        # Should default to one of the analysts or Portfolio Manager
-        assert result in [
-            "Aggressive Analyst",
-            "Conservative Analyst",
-            "Neutral Analyst",
-            "Portfolio Manager",
-        ]
 
 
 # ---------------------------------------------------------------------------

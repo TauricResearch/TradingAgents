@@ -86,9 +86,8 @@ class TestConditionalLogicWiring:
     def test_conditional_logic_accepts_config_values(self):
         from tradingagents.graph.conditional_logic import ConditionalLogic
 
-        cl = ConditionalLogic(max_debate_rounds=3, max_risk_discuss_rounds=3)
+        cl = ConditionalLogic(max_debate_rounds=3)
         assert cl.max_debate_rounds == 3
-        assert cl.max_risk_discuss_rounds == 3
 
     def test_debate_threshold_calculation(self):
         """Threshold = 2 * max_debate_rounds."""
@@ -109,29 +108,6 @@ class TestConditionalLogicWiring:
         }
         result = cl.should_continue_debate(state)
         assert result == "Research Manager"
-
-    def test_risk_threshold_calculation(self):
-        """Threshold = 3 * max_risk_discuss_rounds."""
-        from tradingagents.agents.utils.agent_states import RiskDebateState
-        from tradingagents.graph.conditional_logic import ConditionalLogic
-
-        cl = ConditionalLogic(max_risk_discuss_rounds=2)
-        state = {
-            "risk_debate_state": RiskDebateState(
-                aggressive_history="",
-                conservative_history="",
-                neutral_history="",
-                history="",
-                latest_speaker="Aggressive",
-                current_aggressive_response="",
-                current_conservative_response="",
-                current_neutral_response="",
-                judge_decision="",
-                count=6,
-            )
-        }
-        result = cl.should_continue_risk_analysis(state)
-        assert result == "Portfolio Manager"
 
 
 class TestNewModulesImportable:

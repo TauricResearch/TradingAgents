@@ -97,7 +97,6 @@ class TradingAgentsGraph:
         # Initialize components — wire debate/risk rounds from config
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config.get("max_debate_rounds", 2),
-            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 2),
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,

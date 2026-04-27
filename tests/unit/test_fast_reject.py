@@ -74,15 +74,6 @@ class TestConditionalLogicFlowControl:
 
         assert cl.should_continue_debate(state) == CRITICAL_ABORT_NODE
 
-    def test_should_continue_risk_analysis_with_structured_abort(self):
-        cl = ConditionalLogic()
-        state = {
-            "abort_signal": _abort_signal(source="news_analyst", reason="news_schema_invalid"),
-            "risk_debate_state": {"latest_speaker": "Aggressive", "count": 0},
-        }
-
-        assert cl.should_continue_risk_analysis(state) == CRITICAL_ABORT_NODE
-
     def test_normal_debate_flow_without_abort(self):
         cl = ConditionalLogic()
         state = {
@@ -92,16 +83,6 @@ class TestConditionalLogicFlowControl:
         }
 
         assert cl.should_continue_debate(state) == "Bull Researcher"
-
-    def test_normal_risk_flow_without_abort(self):
-        cl = ConditionalLogic()
-        state = {
-            "market_report": normal_market_report,
-            "fundamentals_report": normal_fundamentals_report,
-            "risk_debate_state": {"latest_speaker": "Aggressive", "count": 0},
-        }
-
-        assert cl.should_continue_risk_analysis(state) == "Conservative Analyst"
 
 
 class TestCriticalAbortTerminal:
@@ -242,17 +223,14 @@ class TestFastRejectFullFlow:
 
         cl = ConditionalLogic()
         assert cl.should_continue_debate(state) == CRITICAL_ABORT_NODE
-        assert cl.should_continue_risk_analysis(state) == CRITICAL_ABORT_NODE
 
     def test_normal_flow_does_not_short_circuit(self):
         state = {
             "market_report": normal_market_report,
             "fundamentals_report": normal_fundamentals_report,
             "investment_debate_state": {"current_response": "", "count": 0},
-            "risk_debate_state": {"latest_speaker": "Aggressive", "count": 0},
         }
 
         cl = ConditionalLogic()
 
         assert cl.should_continue_debate(state) == "Bull Researcher"
-        assert cl.should_continue_risk_analysis(state) == "Conservative Analyst"
