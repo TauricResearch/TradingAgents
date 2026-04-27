@@ -35,6 +35,26 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # ── News / data fetching parameters ───────────────────────────────────
+    # Maximum number of articles fetched per ticker (ticker-specific news).
+    # Increase for longer lookback strategies; decrease to reduce token usage.
+    "news_article_limit": 20,
+    # Number of days to look back when fetching ticker-specific news.
+    "news_lookback_days": 7,
+    # Maximum number of articles fetched for global/macro news.
+    "global_news_article_limit": 10,
+    # Number of days to look back for global/macro news.
+    "global_news_lookback_days": 7,
+    # Search queries used by get_global_news to pull macro headlines.
+    # Extend or replace this list to broaden geographic/sector coverage.
+    "global_news_queries": [
+        "Federal Reserve interest rates inflation",
+        "S&P 500 earnings GDP economic outlook",
+        "geopolitical risk trade war sanctions",
+        "ECB Bank of England BOJ central bank policy",
+        "oil commodities supply chain energy",
+    ],
+    # ──────────────────────────────────────────────────────────────────────
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
