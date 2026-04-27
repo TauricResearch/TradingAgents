@@ -10,12 +10,17 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    build_scanner_context_block,
     format_prefetched_context,
     prefetch_tools_parallel,
 )
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
-from tradingagents.agents.utils.llm_guard import bind_max_tokens_if_supported, invoke_with_timeout
+from tradingagents.agents.utils.llm_guard import (
+    bind_max_tokens_if_supported,
+    invoke_with_timeout,
+    resolve_timeout,
+)
 from tradingagents.agents.utils.output_validation import (
     build_market_report_structured,
     infer_macro_regime_from_prefetched_report,
@@ -267,12 +272,10 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         )
 
         # Build scanner context block with role-specific guidance
-        scanner_context_block = ""
-        if scanner_context:
-            role_guidance = "Use the scanner graph context as verified cross-market context: sector, index, volatility, commodity, and FX edges are ground truth for this run."
-            scanner_context_block = (
-                f"## Scanner Graph Context\n\n{role_guidance}\n\n{scanner_context}"
-            )
+        scanner_context_block = build_scanner_context_block(
+            scanner_context,
+            "Use the scanner graph context as verified cross-market context: sector, index, volatility, commodity, and FX edges are ground truth for this run.",
+        )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -302,15 +305,7 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
             llm, DEFAULT_CONFIG.get("quick_think_llm_max_tokens")
         )
         chain = prompt | llm_for_market
-        _cap = float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
-        invoke_timeout = min(
-            float(
-                DEFAULT_CONFIG.get("quick_think_llm_timeout")
-                or DEFAULT_CONFIG.get("llm_timeout")
-                or _cap
-            ),
-            _cap,
-        )
+        invoke_timeout = resolve_timeout("quick")
         result, invoke_error = invoke_with_timeout(
             chain,
             state["messages"],

@@ -48,10 +48,6 @@ class TestConditionalLogicDefaults:
         cl = ConditionalLogic()
         assert cl.max_debate_rounds == 1
 
-    def test_default_max_risk_discuss_rounds(self):
-        cl = ConditionalLogic()
-        assert cl.max_risk_discuss_rounds == 1
-
 
 # ---------------------------------------------------------------------------
 # Investment debate routing — 2 rounds
@@ -121,42 +117,6 @@ class TestInvestDebateRounds3:
 
 
 # ---------------------------------------------------------------------------
-# Risk debate routing — 2 rounds
-# ---------------------------------------------------------------------------
-
-
-class TestRiskDebateRounds2:
-    def setup_method(self):
-        self.cl = ConditionalLogic(max_risk_discuss_rounds=2)
-
-    def test_aggressive_goes_to_conservative(self):
-        state = _make_risk_state(count=0, latest_speaker="Aggressive")
-        result = self.cl.should_continue_risk_analysis(state)
-        assert result == "Conservative Analyst"
-
-    def test_conservative_goes_to_neutral(self):
-        state = _make_risk_state(count=1, latest_speaker="Conservative")
-        result = self.cl.should_continue_risk_analysis(state)
-        assert result == "Neutral Analyst"
-
-    def test_neutral_goes_to_aggressive(self):
-        state = _make_risk_state(count=2, latest_speaker="Neutral")
-        result = self.cl.should_continue_risk_analysis(state)
-        assert result == "Aggressive Analyst"
-
-    def test_threshold_at_6(self):
-        # count=6 == 3*2=6 → route to Portfolio Manager
-        state = _make_risk_state(count=6, latest_speaker="Aggressive")
-        result = self.cl.should_continue_risk_analysis(state)
-        assert result == "Portfolio Manager"
-
-    def test_continues_at_count_5(self):
-        state = _make_risk_state(count=5, latest_speaker="Aggressive")
-        result = self.cl.should_continue_risk_analysis(state)
-        assert result == "Conservative Analyst"
-
-
-# ---------------------------------------------------------------------------
 # Config wiring — verify TradingAgentsGraph passes config to ConditionalLogic
 # ---------------------------------------------------------------------------
 
@@ -166,13 +126,11 @@ class TestConfigWiring:
         """ConditionalLogic should use config values, not hardcoded defaults."""
         from tradingagents.graph.conditional_logic import ConditionalLogic
 
-        cl = ConditionalLogic(max_debate_rounds=2, max_risk_discuss_rounds=2)
+        cl = ConditionalLogic(max_debate_rounds=2)
         assert cl.max_debate_rounds == 2
-        assert cl.max_risk_discuss_rounds == 2
 
     def test_default_config_has_updated_values(self):
         """Default config should now ship with max_debate_rounds=2."""
         from tradingagents.default_config import DEFAULT_CONFIG
 
         assert DEFAULT_CONFIG["max_debate_rounds"] == 2
-        assert DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2

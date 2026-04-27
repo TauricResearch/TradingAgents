@@ -71,54 +71,84 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         result = self.quick_thinking_llm.invoke(messages).content
         return result
 
+    def _reflect(
+        self,
+        component_type: str,
+        state_key: str | tuple[str, str],
+        current_state: Any,
+        returns_losses: float,
+        memory: Any,
+    ) -> None:
+        """Run the reflect-and-remember cycle for one component.
+
+        Args:
+            component_type: Label identifying the component (e.g. "BULL", "TRADER").
+            state_key: Key to extract the component's history from *current_state*.
+                Pass a plain string for a top-level key (e.g. ``"trader_investment_plan"``).
+                Pass a ``(outer_key, inner_key)`` tuple for nested access
+                (e.g. ``("investment_debate_state", "bull_history")``).
+            current_state: The final graph state dict containing all reports and histories.
+            returns_losses: Numeric return/loss value used to evaluate the decision.
+            memory: Memory store whose ``add_situations`` method records the reflection.
+        """
+        situation = self._extract_current_situation(current_state)
+        if isinstance(state_key, tuple):
+            history = current_state[state_key[0]][state_key[1]]
+        else:
+            history = current_state[state_key]
+        result = self._reflect_on_component(component_type, history, situation, returns_losses)
+        memory.add_situations([(situation, result)])
+
     def reflect_bull_researcher(
         self, current_state: Any, returns_losses: float, bull_memory: Any
     ) -> None:
         """Reflect on bull researcher's analysis and update memory."""
-        situation = self._extract_current_situation(current_state)
-        bull_debate_history = current_state["investment_debate_state"]["bull_history"]
-
-        result = self._reflect_on_component("BULL", bull_debate_history, situation, returns_losses)
-        bull_memory.add_situations([(situation, result)])
+        self._reflect(
+            "BULL",
+            ("investment_debate_state", "bull_history"),
+            current_state,
+            returns_losses,
+            bull_memory,
+        )
 
     def reflect_bear_researcher(
         self, current_state: Any, returns_losses: float, bear_memory: Any
     ) -> None:
         """Reflect on bear researcher's analysis and update memory."""
-        situation = self._extract_current_situation(current_state)
-        bear_debate_history = current_state["investment_debate_state"]["bear_history"]
-
-        result = self._reflect_on_component("BEAR", bear_debate_history, situation, returns_losses)
-        bear_memory.add_situations([(situation, result)])
+        self._reflect(
+            "BEAR",
+            ("investment_debate_state", "bear_history"),
+            current_state,
+            returns_losses,
+            bear_memory,
+        )
 
     def reflect_trader(self, current_state: Any, returns_losses: float, trader_memory: Any) -> None:
         """Reflect on trader's decision and update memory."""
-        situation = self._extract_current_situation(current_state)
-        trader_decision = current_state["trader_investment_plan"]
-
-        result = self._reflect_on_component("TRADER", trader_decision, situation, returns_losses)
-        trader_memory.add_situations([(situation, result)])
+        self._reflect(
+            "TRADER", "trader_investment_plan", current_state, returns_losses, trader_memory
+        )
 
     def reflect_invest_judge(
         self, current_state: Any, returns_losses: float, invest_judge_memory: Any
     ) -> None:
         """Reflect on investment judge's decision and update memory."""
-        situation = self._extract_current_situation(current_state)
-        judge_decision = current_state["investment_debate_state"]["judge_decision"]
-
-        result = self._reflect_on_component(
-            "INVEST JUDGE", judge_decision, situation, returns_losses
+        self._reflect(
+            "INVEST JUDGE",
+            ("investment_debate_state", "judge_decision"),
+            current_state,
+            returns_losses,
+            invest_judge_memory,
         )
-        invest_judge_memory.add_situations([(situation, result)])
 
     def reflect_portfolio_manager(
         self, current_state: Any, returns_losses: float, portfolio_manager_memory: Any
     ) -> None:
         """Reflect on portfolio manager's decision and update memory."""
-        situation = self._extract_current_situation(current_state)
-        judge_decision = current_state["risk_debate_state"]["judge_decision"]
-
-        result = self._reflect_on_component(
-            "PORTFOLIO MANAGER", judge_decision, situation, returns_losses
+        self._reflect(
+            "PORTFOLIO MANAGER",
+            ("risk_debate_state", "judge_decision"),
+            current_state,
+            returns_losses,
+            portfolio_manager_memory,
         )
-        portfolio_manager_memory.add_situations([(situation, result)])

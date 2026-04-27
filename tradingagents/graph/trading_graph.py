@@ -13,6 +13,7 @@ from tradingagents.llm_clients import create_llm_client
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 from tradingagents.report_paths import generate_run_id
 
+from ._graph_utils import get_provider_kwargs, visualize_graph
 from .conditional_logic import ConditionalLogic
 from .propagation import Propagator
 from .reflection import Reflector
@@ -55,6 +56,10 @@ class TradingAgentsGraph:
 
         # Initialize LLMs with provider-specific thinking configuration.
         # Per-role provider/backend_url keys take precedence over the shared ones.
+        deep_provider, deep_model, deep_backend_url = self._resolve_llm_tier("deep_think")
+        mid_provider, mid_model, mid_backend_url = self._resolve_llm_tier("mid_think")
+        quick_provider, quick_model, quick_backend_url = self._resolve_llm_tier("quick_think")
+
         deep_kwargs = self._get_provider_kwargs("deep_think")
         mid_kwargs = self._get_provider_kwargs("mid_think")
         quick_kwargs = self._get_provider_kwargs("quick_think")
@@ -65,45 +70,14 @@ class TradingAgentsGraph:
             mid_kwargs["callbacks"] = self.callbacks
             quick_kwargs["callbacks"] = self.callbacks
 
-        deep_provider = self.config.get("deep_think_llm_provider") or self.config["llm_provider"]
-        deep_backend_url = self.config.get("deep_think_backend_url") or self.config.get(
-            "backend_url"
-        )
-        quick_provider = self.config.get("quick_think_llm_provider") or self.config["llm_provider"]
-        quick_backend_url = self.config.get("quick_think_backend_url") or self.config.get(
-            "backend_url"
-        )
-
-        # mid_think falls back to quick_think when not configured
-        mid_model = self.config.get("mid_think_llm") or self.config["quick_think_llm"]
-        mid_provider = (
-            self.config.get("mid_think_llm_provider")
-            or self.config.get("quick_think_llm_provider")
-            or self.config["llm_provider"]
-        )
-        mid_backend_url = (
-            self.config.get("mid_think_backend_url")
-            or self.config.get("quick_think_backend_url")
-            or self.config.get("backend_url")
-        )
-
         deep_client = create_llm_client(
-            provider=deep_provider,
-            model=self.config["deep_think_llm"],
-            base_url=deep_backend_url,
-            **deep_kwargs,
+            provider=deep_provider, model=deep_model, base_url=deep_backend_url, **deep_kwargs
         )
         mid_client = create_llm_client(
-            provider=mid_provider,
-            model=mid_model,
-            base_url=mid_backend_url,
-            **mid_kwargs,
+            provider=mid_provider, model=mid_model, base_url=mid_backend_url, **mid_kwargs
         )
         quick_client = create_llm_client(
-            provider=quick_provider,
-            model=self.config["quick_think_llm"],
-            base_url=quick_backend_url,
-            **quick_kwargs,
+            provider=quick_provider, model=quick_model, base_url=quick_backend_url, **quick_kwargs
         )
 
         self.deep_thinking_llm = deep_client.get_llm()
@@ -123,7 +97,6 @@ class TradingAgentsGraph:
         # Initialize components — wire debate/risk rounds from config
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config.get("max_debate_rounds", 2),
-            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 2),
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
@@ -158,54 +131,42 @@ class TradingAgentsGraph:
     def debate_graph(self) -> Any:
         """Subgraph starting from Bull Researcher (skips analysts)."""
         if self._debate_graph is None:
-            self._debate_graph = self.setup.build_debate_subgraph()
+            self._debate_graph = self.graph_setup.build_debate_subgraph()
         return self._debate_graph
 
     @property
     def risk_graph(self) -> Any:
         """Subgraph starting from Aggressive Analyst (skips analysts + debate + trader)."""
         if self._risk_graph is None:
-            self._risk_graph = self.setup.build_risk_subgraph()
+            self._risk_graph = self.graph_setup.build_risk_subgraph()
         return self._risk_graph
 
-    def _get_provider_kwargs(self, role: str = "") -> dict[str, Any]:
-        """Get provider-specific kwargs for LLM client creation.
+    def _resolve_llm_tier(self, tier: str) -> tuple[str, str, str | None]:
+        """Resolve (provider, model, backend_url) for the given LLM tier.
 
-        Args:
-            role: Either "deep_think" or "quick_think".  When provided the
-                  per-role config keys take precedence over the shared keys.
+        mid_think falls back to quick_think when not configured.
         """
-        kwargs = {}
-        prefix = f"{role}_" if role else ""
-        provider = (
-            self.config.get(f"{prefix}llm_provider") or self.config.get("llm_provider", "")
-        ).lower()
-        timeout = self.config.get(f"{prefix}llm_timeout")
-        if timeout is None:
-            timeout = self.config.get("llm_timeout")
-        if timeout is not None:
-            kwargs["timeout"] = float(timeout)
-
-        if provider == "google":
-            thinking_level = self.config.get(f"{prefix}google_thinking_level") or self.config.get(
-                "google_thinking_level"
+        if tier == "mid_think":
+            model = self.config.get("mid_think_llm") or self.config["quick_think_llm"]
+            provider = (
+                self.config.get("mid_think_llm_provider")
+                or self.config.get("quick_think_llm_provider")
+                or self.config["llm_provider"]
             )
-            if thinking_level:
-                kwargs["thinking_level"] = thinking_level
+            backend_url = (
+                self.config.get("mid_think_backend_url")
+                or self.config.get("quick_think_backend_url")
+                or self.config.get("backend_url")
+            )
+        else:
+            model = self.config[f"{tier}_llm"]
+            provider = self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]
+            backend_url = self.config.get(f"{tier}_backend_url") or self.config.get("backend_url")
+        return provider, model, backend_url
 
-        elif provider in ("openai", "xai", "openrouter", "ollama"):
-            reasoning_effort = self.config.get(
-                f"{prefix}openai_reasoning_effort"
-            ) or self.config.get("openai_reasoning_effort")
-            if reasoning_effort:
-                kwargs["reasoning_effort"] = reasoning_effort
-
-        elif provider == "anthropic":
-            effort = self.config.get("anthropic_effort")
-            if effort:
-                kwargs["effort"] = effort
-
-        return kwargs
+    def _get_provider_kwargs(self, role: str = "") -> dict[str, Any]:
+        """Get provider-specific kwargs for LLM client creation."""
+        return get_provider_kwargs(self.config, role)
 
     def propagate(self, company_name: str, trade_date: str) -> tuple[dict[str, Any], Any]:
         """Run the trading agents graph for a company on a specific date."""
@@ -316,28 +277,4 @@ class TradingAgentsGraph:
             output_path: If provided, saves the visualization to this file.
             format: "mermaid", "ascii", or "png".
         """
-        graph = self.graph.get_graph()
-        if format == "ascii":
-            try:
-                res = graph.print_ascii()
-            except Exception as e:
-                res = f"Could not print ASCII: {e}"
-                print(res)
-            if output_path:
-                with open(output_path, "w") as f:
-                    f.write(
-                        res if isinstance(res, str) else "ASCII representation printed to console."
-                    )
-            return res
-        elif format == "png":
-            png_data = graph.draw_mermaid_png()
-            if output_path:
-                with open(output_path, "wb") as f:
-                    f.write(png_data)
-            return png_data
-        else:
-            mermaid_code = graph.draw_mermaid()
-            if output_path:
-                with open(output_path, "w") as f:
-                    f.write(mermaid_code)
-            return mermaid_code
+        return visualize_graph(self.graph, output_path, format)

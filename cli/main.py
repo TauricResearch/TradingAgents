@@ -1125,7 +1125,6 @@ def run_analysis():
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
     config["max_debate_rounds"] = selections["research_depth"]
-    config["max_risk_discuss_rounds"] = selections["research_depth"]
     # Per-role LLM configuration
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["quick_think_llm_provider"] = selections["quick_provider"]

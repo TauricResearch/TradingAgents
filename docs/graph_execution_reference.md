@@ -169,8 +169,8 @@ As a result, analysts now flow directly to their `Msg Clear *` node after execut
 | --- | --- |
 | After each analyst | `GraphSetup._should_short_circuit_to_critical_abort_terminal()` jumps directly to `Critical Abort Terminal` if `abort_signal` is present. |
 | Debate loop | `ConditionalLogic.should_continue_debate()` alternates bull/bear until `count >= 2 * max_debate_rounds`, then routes to `Research Manager`. |
-| Risk loop | `ConditionalLogic.should_continue_risk_analysis()` rotates aggressive -> conservative -> neutral until `count >= 3 * max_risk_discuss_rounds`, then routes to `Portfolio Manager`. |
-| Critical abort during debate or risk | Both conditional functions short-circuit to `Critical Abort Terminal` when `abort_signal` is present. |
+| Risk debate | Fixed two-round fan-out: `Trader` (or `START` for the risk subgraph) fans out to `Aggressive R1` / `Conservative R1` / `Neutral R1`, joins at `Risk Round Barrier`, fans out to `Aggressive R2` / `Conservative R2` / `Neutral R2`, joins at `Risk Synthesis`, then routes to `Portfolio Manager`. Wired by `GraphSetup._wire_risk_debate()` in `tradingagents/graph/setup.py`. |
+| Critical abort during debate | `should_continue_debate()` short-circuits to `Critical Abort Terminal` when `abort_signal` is present; risk debate is fan-out (no conditional routing) and relies on per-node abort handling. |
 
 ### Pipeline Tool Surface
 

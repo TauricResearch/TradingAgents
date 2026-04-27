@@ -74,8 +74,6 @@ from .y_finance import (
 from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
-
-# Import from vendor-specific modules
 from .y_finance import (
     get_stock_stats_indicators_window,
     get_YFin_data_online,

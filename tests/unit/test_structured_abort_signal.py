@@ -41,7 +41,6 @@ def test_conditional_logic_routes_only_on_abort_signal():
     }
 
     assert cl.should_continue_debate(state) == CRITICAL_ABORT_NODE
-    assert cl.should_continue_risk_analysis(state) == CRITICAL_ABORT_NODE
 
 
 def test_critical_abort_terminal_uses_structured_payload():

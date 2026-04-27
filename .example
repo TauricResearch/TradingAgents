@@ -73,7 +73,6 @@ FINNHUB_API_KEY=
 
 # ── Debate & discussion settings ─────────────────────────────────────
 # TRADINGAGENTS_MAX_DEBATE_ROUNDS=2          # bull/bear investment debate rounds (1–5)
-# TRADINGAGENTS_MAX_RISK_DISCUSS_ROUNDS=2    # risk analyst discussion rounds (1–5)
 # TRADINGAGENTS_MAX_RECUR_LIMIT=100          # LangGraph recursion limit
 
 # ── Concurrency settings ──────────────────────────────────────────────

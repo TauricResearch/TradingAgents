@@ -110,7 +110,6 @@
 | MAX_TOOL_ROUNDS | `5` | `agents/utils/tool_runner.py` |
 | MIN_REPORT_LENGTH | `2000` | `agents/utils/tool_runner.py` |
 | max_debate_rounds | `1` (default) | `default_config.py` |
-| max_risk_discuss_rounds | `1` (default) | `default_config.py` |
 | max_recur_limit | `100` (default) | `default_config.py` |
 | AV _RATE_LIMIT | `75` calls/min | `dataflows/alpha_vantage_common.py` |
 | Finnhub _RATE_LIMIT | `60` calls/min | `dataflows/finnhub_common.py` |
