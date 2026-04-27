@@ -146,7 +146,39 @@ export DASHSCOPE_API_KEY=...       # Qwen (Alibaba DashScope)
 export ZHIPU_API_KEY=...           # GLM (Zhipu)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export JINTEL_API_KEY=...          # Jintel (primary data vendor; optional)
 ```
+
+#### Data vendor (Jintel / yfinance / Alpha Vantage)
+
+`tradingagents` ships with three data backends. The default is **Jintel** (one
+GraphQL endpoint covering OHLCV, fundamentals, news, filings, macro, insider
+trades, 13F holdings — see https://pypi.org/project/jintel/).
+
+- Set `JINTEL_API_KEY` to enable it. **If unset, every call falls through to
+  yfinance with a `WARNING` log entry — no setup needed for a bare clone.**
+- On `JintelRateLimitError` or `JintelNoDataError` (out-of-coverage windows,
+  unknown tickers, etc.), the dispatcher in
+  `tradingagents/dataflows/interface.py:route_to_vendor` falls through to
+  yfinance, then alpha_vantage.
+- Override per category in `default_config.DEFAULT_CONFIG["data_vendors"]` or
+  per tool in `tool_vendors`:
+
+```python
+config["data_vendors"] = {
+    "core_stock_apis": "yfinance",        # keep yfinance for OHLCV
+    "technical_indicators": "yfinance",
+    "fundamental_data": "jintel",
+    "news_data": "jintel",
+}
+config["tool_vendors"] = {
+    "get_stock_data": "alpha_vantage",    # one-tool override
+}
+```
+
+Jintel-only tools (`get_filings`, `get_macro_series`, `get_top_holders`) have
+no yfinance equivalent; they surface `RuntimeError` to the analyst when Jintel
+returns no data, without trying to fall through.
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
