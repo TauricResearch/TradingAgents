@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 from pymongo import MongoClient, DESCENDING
 
@@ -9,7 +10,7 @@ MONGO_DB = os.getenv("TRADINGAGENTS_MONGO_DB", "tradingagents")
 
 if not MONGO_URI:
     print("Error: MONGO_URI not found in environment variables.")
-    exit(1)
+    sys.exit(1)
 
 client = MongoClient(MONGO_URI)
 db = client[MONGO_DB]

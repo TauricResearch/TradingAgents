@@ -132,7 +132,8 @@ class MacroMemory:
         if not run_id:
             logger.warning(
                 "MacroMemory.record_macro_state called without run_id for date %s — "
-                "record-keeping is non-deterministic without a canonical run identifier.",
+                "multiple calls with run_id=None for the same date may create duplicate "
+                "records instead of upserting. Always pass a canonical run_id.",
                 date,
             )
 

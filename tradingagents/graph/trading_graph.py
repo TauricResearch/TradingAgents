@@ -222,6 +222,8 @@ class TradingAgentsGraph:
         investment_debate = final_state.get("investment_debate_state", {})
         risk_debate = final_state.get("risk_debate_state", {})
 
+        # Use .get() with empty-string defaults throughout: some fields may be absent
+        # when logging a partially-completed state during graph resumption or debugging.
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state.get("company_of_interest", ""),
             "trade_date": final_state.get("trade_date", ""),
