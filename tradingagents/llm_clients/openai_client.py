@@ -38,6 +38,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
     "api_key", "callbacks", "http_client", "http_async_client",
+    "extra_body",
 )
 
 # Provider base URLs and API key env vars
@@ -92,6 +93,17 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+
+        # DeepSeek V4 defaults to thinking mode. In thinking mode, DeepSeek
+        # requires reasoning_content to be sent back after tool calls; the
+        # OpenAI-compatible LangChain message path does not preserve that field.
+        # Disable thinking unless the caller explicitly supplied extra_body.
+        if (
+            self.provider == "deepseek"
+            and self.model.startswith("deepseek-v4")
+            and "extra_body" not in llm_kwargs
+        ):
+            llm_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
 
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.

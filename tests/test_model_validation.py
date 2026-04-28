@@ -4,6 +4,7 @@ import warnings
 import pytest
 
 from tradingagents.llm_clients.base_client import BaseLLMClient
+from tradingagents.llm_clients.openai_client import OpenAIClient
 from tradingagents.llm_clients.model_catalog import get_known_models
 from tradingagents.llm_clients.validators import validate_model
 
@@ -53,3 +54,19 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+    def test_deepseek_v4_disables_thinking_for_tool_call_compatibility(self):
+        client = OpenAIClient("deepseek-v4-pro", provider="deepseek")
+        llm = client.get_llm()
+
+        self.assertEqual(llm.extra_body, {"thinking": {"type": "disabled"}})
+
+    def test_deepseek_v4_preserves_explicit_extra_body(self):
+        client = OpenAIClient(
+            "deepseek-v4-pro",
+            provider="deepseek",
+            extra_body={"thinking": {"type": "enabled"}},
+        )
+        llm = client.get_llm()
+
+        self.assertEqual(llm.extra_body, {"thinking": {"type": "enabled"}})
