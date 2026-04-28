@@ -1,6 +1,7 @@
 import os
 from typing import Any, Optional
 
+from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
@@ -13,10 +14,44 @@ class NormalizedChatOpenAI(ChatOpenAI):
     The Responses API returns content as a list of typed blocks
     (reasoning, text, etc.). This normalizes to string for consistent
     downstream handling.
+
+    Also preserves reasoning_content for DeepSeek V4 thinking mode: the
+    field must be stored when receiving responses and echoed back in
+    subsequent API calls, otherwise DeepSeek returns a 400 error.
     """
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    def _create_chat_result(self, response, generation_info=None):
+        """Preserve reasoning_content from DeepSeek thinking-mode responses."""
+        result = super()._create_chat_result(response, generation_info)
+        response_dict = (
+            response if isinstance(response, dict) else response.model_dump()
+        )
+        choices = response_dict.get("choices") or []
+        for gen, choice in zip(result.generations, choices):
+            reasoning = choice.get("message", {}).get("reasoning_content")
+            if reasoning and isinstance(gen.message, AIMessage):
+                gen.message.additional_kwargs["reasoning_content"] = reasoning
+        return result
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        """Include reasoning_content in outgoing messages for DeepSeek thinking mode."""
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        if "messages" not in payload:
+            return payload
+        messages = self._convert_input(input_).to_messages()
+        for msg_dict, msg in zip(payload["messages"], messages):
+            if (
+                isinstance(msg, AIMessage)
+                and "reasoning_content" in msg.additional_kwargs
+                and "reasoning_content" not in msg_dict
+            ):
+                msg_dict["reasoning_content"] = msg.additional_kwargs[
+                    "reasoning_content"
+                ]
+        return payload
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
