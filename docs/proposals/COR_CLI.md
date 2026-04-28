@@ -294,12 +294,12 @@ class ChainRunner:
 - `HALT` chỉ dành cho step phát hiện điều kiện không thể tiếp tục (ví dụ
   user huỷ ở `collect-user-input`).
 
-### 3.7 Config order ở `tmp/`
+### 3.7 Config order ở `default path project`
 
-Theo yêu cầu: *"config mỗi list step run nên để ở tmp"*.
+Theo yêu cầu: *"config mỗi list step run nên để ở root"*.
 
 #### Path
-- **Mặc định:** `<repo>/tmp/cli_chain.json` (gitignored).
+- **Mặc định:** `<repo>/cli_chain.json` (default).
 - Override: env var `TRADINGAGENTS_CHAIN_CONFIG=/path/to/json`.
 - Nếu file **không tồn tại** → dùng `DEFAULT_ORDER` (xem 3.8) → CLI vẫn
   chạy ra hành vi cũ (backward compatible).
@@ -402,56 +402,8 @@ def analyze() -> None:
 
 ---
 
-## 4. Ví dụ: thêm 1 step mới mà không break flow
 
-Giả sử cần thêm step **`post-slack`** sau khi publish Notion thành công:
-
-1. Tạo file `cli/chain/steps/post_slack.py`:
-
-```python
-import os
-from cli.chain.base import Step, StepResult
-from cli.chain.context import RunContext
-from cli.chain.registry import register_step
-
-@register_step
-class PostSlackStep(Step):
-    name = "post-slack"
-
-    def should_run(self, ctx: RunContext) -> bool:
-        return ctx.notion_page_url is not None and "SLACK_WEBHOOK_URL" in os.environ
-
-    def run(self, ctx: RunContext) -> StepResult:
-        import httpx
-        httpx.post(
-            os.environ["SLACK_WEBHOOK_URL"],
-            json={"text": f"New analysis: {ctx.notion_page_url}"},
-            timeout=10,
-        )
-        return StepResult.CONTINUE
-```
-
-2. Sửa `tmp/cli_chain.json`:
-
-```json
-{
-  "version": 1,
-  "order": [
-    "collect-user-input", "build-config", "init-graph",
-    "prepare-results-dir", "patch-message-buffer", "run-graph-stream",
-    "save-report", "transform-chart", "publish-notion",
-    "post-slack",
-    "display-report"
-  ]
-}
-```
-
-Không có file `tmp/cli_chain.json`? → step `post-slack` đơn giản không chạy.
-Không sửa code nào khác. Không break test cũ.
-
----
-
-## 5. Edge cases & guarantees
+## 4. Edge cases & guarantees
 
 | Tình huống                                            | Hành vi                                                              |
 |--------------------------------------------------------|-----------------------------------------------------------------------|
@@ -463,7 +415,7 @@ Không sửa code nào khác. Không break test cũ.
 
 ---
 
-## 6. Migration plan
+## 5. Migration plan
 
 1. **PR 1 — scaffolding (no behavior change):**
    - Thêm `cli/chain/{base,context,registry,runner,config}.py`.
@@ -485,7 +437,7 @@ Không sửa code nào khác. Không break test cũ.
 
 ---
 
-## 7. Testing strategy
+## 6. Testing strategy
 
 Tuân `.claude/rules/rules.md` — *"Every public function should have at least
 one test."* + flat `tests/` directory.
@@ -501,7 +453,7 @@ one test."* + flat `tests/` directory.
 
 ---
 
-## 8. Non-goals
+## 7. Non-goals
 
 - **Không** thay LangGraph bằng chain này — chain chỉ orchestrate ở **CLI
   layer**. Bên trong `run-graph-stream`, vẫn dùng nguyên `TradingAgentsGraph`
@@ -512,7 +464,7 @@ one test."* + flat `tests/` directory.
 
 ---
 
-## 9. Open questions
+## 8. Open questions
 
 1. Có nên cho step **subscribe sự kiện** từ `run-graph-stream` (chunk-by-chunk)
    không? Hiện đang thiết kế "step chạy sau khi step trước done". Nếu cần
