@@ -132,10 +132,11 @@ class MacroMemory:
         if not run_id:
             logger.warning(
                 "MacroMemory.record_macro_state called without run_id for date %s — "
-                "multiple calls with run_id=None for the same date may create duplicate "
-                "records instead of upserting. Always pass a canonical run_id.",
+                "using deterministic 'manual' fallback for idempotency.",
                 date,
             )
+
+        effective_run_id = run_id if run_id else "manual"
 
         doc: dict[str, Any] = {
             "regime_date": date,
@@ -143,7 +144,7 @@ class MacroMemory:
             "macro_call": normalized_call,
             "sector_thesis": sector_thesis,
             "key_themes": list(key_themes),
-            "run_id": run_id,
+            "run_id": effective_run_id,
             "outcome": None,
             "created_at": datetime.now(UTC),
         }
@@ -152,7 +153,7 @@ class MacroMemory:
             created_at = doc.pop("created_at")
             outcome = doc.pop("outcome")
             self._col.update_one(
-                {"regime_date": date, "run_id": run_id},
+                {"regime_date": date, "run_id": effective_run_id},
                 {
                     "$set": doc,
                     "$setOnInsert": {"created_at": created_at, "outcome": outcome},
@@ -195,10 +196,13 @@ class MacroMemory:
             if run_id is not None:
                 query["run_id"] = run_id
             else:
+                # When run_id is None, we look for records that have no run_id
+                # (legacy) OR records that used our 'manual' fallback.
                 query["$or"] = [
                     {"run_id": {"$exists": False}},
                     {"run_id": None},
                     {"run_id": ""},
+                    {"run_id": "manual"},
                 ]
                 logger.warning(
                     "MacroMemory.record_outcome used legacy date-only addressing for %s",
@@ -354,9 +358,9 @@ class MacroMemory:
                         self._save_all_local(records)
                         return True
                 else:
-                    # Legacy fallback: match if run_id is missing/empty
+                    # Legacy fallback: match if run_id is missing/empty OR if it was a 'manual' fallback
                     rec_run_id = rec.get("run_id")
-                    if not rec_run_id:
+                    if not rec_run_id or rec_run_id == "manual":
                         rec["outcome"] = outcome
                         self._save_all_local(records)
                         return True

@@ -188,9 +188,9 @@ def test_record_outcome_legacy_date_only_updates_newest_missing_run_id_record(me
     records = mem.get_recent(limit=5)
     updated = [rec for rec in records if rec["outcome"] == {"legacy": True}]
     assert len(updated) == 1
-    assert updated[0].get("run_id") is None
+    assert updated[0].get("run_id") == "manual"
     assert updated[0]["sector_thesis"] == "legacy new"
-    assert all(rec["outcome"] is None for rec in records if rec.get("run_id"))
+    assert all(rec["outcome"] is None for rec in records if rec.get("run_id") not in (None, "manual"))
 
 
 def test_record_outcome_legacy_date_only_does_not_update_run_id_records(mem):
@@ -230,7 +230,7 @@ def test_record_macro_state_mongo_upserts_missing_run_id_key():
 
     mem.record_macro_state("2026-03-26", 20.0, "neutral", "legacy", [])
 
-    assert updates[0][0] == {"regime_date": "2026-03-26", "run_id": None}
+    assert updates[0][0] == {"regime_date": "2026-03-26", "run_id": "manual"}
     assert updates[0][2] is True
     assert "outcome" not in updates[0][1]["$set"]
     assert updates[0][1]["$setOnInsert"]["outcome"] is None
@@ -258,6 +258,7 @@ def test_record_outcome_mongo_legacy_query_excludes_run_id_records():
             {"run_id": {"$exists": False}},
             {"run_id": None},
             {"run_id": ""},
+            {"run_id": "manual"},
         ],
     }
 
