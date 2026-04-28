@@ -100,8 +100,11 @@ def test_env_timeout_seconds_uses_default_when_key_missing():
 def test_default_config_timeout_keys_are_finite_positive(config_key, default_value):
     from tradingagents.default_config import build_default_config
 
-    cfg = build_default_config(load_dotenv=False)
+    # Explicitly pass empty environ to ensure we are testing hardcoded
+    # defaults even if process environment has overrides.
+    cfg = build_default_config(load_dotenv=False, environ={})
     val = cfg.get(config_key)
+
     assert val is not None, f"{config_key} must be present in DEFAULT_CONFIG"
     assert isinstance(val, float)
     assert math.isfinite(val), f"{config_key}={val} must be finite"
@@ -113,7 +116,7 @@ def test_optional_per_tier_timeout_is_none_when_not_configured():
     """Optional per-tier timeout overrides must be None when not set in env."""
     from tradingagents.default_config import build_default_config
 
-    cfg = build_default_config(load_dotenv=False)
+    cfg = build_default_config(load_dotenv=False, environ={})
     # When the env var is absent, the value must be None (not a fallback float),
     # so the caller's 'is None' fallback chain can take effect.
     for key in ["deep_think_llm_timeout", "mid_think_llm_timeout", "quick_think_llm_timeout"]:

@@ -122,16 +122,13 @@ def get_env_value(
 
 def _env(key: str, default: Any = None, *, env: Mapping[str, str] | None = None) -> Any:
     """Read TRADINGAGENTS_<KEY> from the provided environment mapping."""
-    source = (
-        _build_env_snapshot(
+    if env is None:
+        env = _build_env_snapshot(
             load_dotenv=_should_load_dotenv_by_default(),
             dotenv_path=None,
             environ=None,
         )
-        if env is None
-        else env
-    )
-    val = source.get(f"{_DOTENV_PREFIX}{key.upper()}")
+    val = env.get(f"{_DOTENV_PREFIX}{key.upper()}")
     if not val:  # None or empty string
         return default
     return val

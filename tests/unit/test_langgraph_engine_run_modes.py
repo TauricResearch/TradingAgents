@@ -1284,6 +1284,16 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
 class TestRunAutoTickerSource(unittest.TestCase):
     """Tests for run_auto ticker sourcing and phase coordination."""
 
+    def setUp(self):
+        # Default mock for PortfolioRepository to return empty holdings
+        # This is needed because run_auto automatically pulls current holdings
+        # from the database, which causes local pollution if not mocked.
+        self.mock_repo_patcher = patch("tradingagents.portfolio.repository.PortfolioRepository")
+        self.mock_repo_cls = self.mock_repo_patcher.start()
+        self.addCleanup(self.mock_repo_patcher.stop)
+        self.mock_repo = self.mock_repo_cls.return_value
+        self.mock_repo.get_portfolio_with_holdings.return_value = (MagicMock(), [])
+
     def _make_noop_scanner(self):
         """Scanner that yields nothing significant."""
 

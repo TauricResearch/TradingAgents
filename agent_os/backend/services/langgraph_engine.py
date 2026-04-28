@@ -1254,6 +1254,7 @@ class LangGraphEngine:
 
         initial_state = {
             "portfolio_id": portfolio_id,
+            "run_id": root_run_id,
             "analysis_date": date,  # PortfolioManagerState uses analysis_date
             "prices": prices,
             "scan_summary": scan_summary,

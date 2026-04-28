@@ -263,6 +263,9 @@ class TestTradingGraphLogging:
                 mock_dir.mkdir = MagicMock()
                 mock_get_dir.return_value = mock_dir
 
+                # Set the ticker so get_eval_dir doesn't fail
+                graph.ticker = "AAPL"
+
                 # This should not crash
                 graph._log_state("2024-01-01", incomplete_state)
 
@@ -326,6 +329,9 @@ class TestTradingGraphLogging:
                 mock_dir = MagicMock()
                 mock_dir.mkdir = MagicMock()
                 mock_get_dir.return_value = mock_dir
+
+                # Set the ticker so get_eval_dir doesn't fail
+                graph.ticker = "AAPL"
 
                 # This should not crash
                 graph._log_state("2024-01-01", incomplete_state)

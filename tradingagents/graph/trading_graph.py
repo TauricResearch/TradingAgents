@@ -11,7 +11,7 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.memory.news_evidence import NewsEvidenceStore
-from tradingagents.report_paths import generate_run_id
+from tradingagents.report_paths import generate_run_id, get_eval_dir
 
 from ._graph_utils import get_provider_kwargs, visualize_graph
 from .conditional_logic import ConditionalLogic
@@ -28,7 +28,7 @@ class TradingAgentsGraph:
         self,
         selected_analysts=None,
         debug=False,
-        config: dict[str, Any] = None,
+        config: dict[str, Any] | None = None,
         callbacks: list | None = None,
     ):
         """Initialize the trading agents graph and components.
@@ -189,6 +189,8 @@ class TradingAgentsGraph:
                     chunk["messages"][-1].pretty_print()
                     trace.append(chunk)
 
+            if not trace:
+                raise RuntimeError("Graph produced no output during debug streaming.")
             final_state = trace[-1]
         else:
             # Standard mode without tracing
@@ -210,13 +212,13 @@ class TradingAgentsGraph:
         risk_debate = final_state.get("risk_debate_state", {})
 
         self.log_states_dict[str(trade_date)] = {
-            "company_of_interest": final_state["company_of_interest"],
-            "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
+            "company_of_interest": final_state.get("company_of_interest", ""),
+            "trade_date": final_state.get("trade_date", ""),
+            "market_report": final_state.get("market_report", ""),
             "macro_regime_report": final_state.get("macro_regime_report", ""),
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "sentiment_report": final_state.get("sentiment_report", ""),
+            "news_report": final_state.get("news_report", ""),
+            "fundamentals_report": final_state.get("fundamentals_report", ""),
             "research_packet_summary": final_state.get("research_packet_summary", ""),
             "investment_debate_state": {
                 "bull_history": investment_debate.get("bull_history", ""),
@@ -226,7 +228,7 @@ class TradingAgentsGraph:
                 "current_response": investment_debate.get("current_response", ""),
                 "judge_decision": investment_debate.get("judge_decision", ""),
             },
-            "trader_investment_decision": final_state["trader_investment_plan"],
+            "trader_investment_decision": final_state.get("trader_investment_plan", ""),
             "risk_debate_state": {
                 "aggressive_history": risk_debate.get("aggressive_history", ""),
                 "conservative_history": risk_debate.get("conservative_history", ""),
@@ -235,13 +237,11 @@ class TradingAgentsGraph:
                 "summary": risk_debate.get("summary", ""),
                 "judge_decision": risk_debate.get("judge_decision", ""),
             },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
+            "investment_plan": final_state.get("investment_plan", ""),
+            "final_trade_decision": final_state.get("final_trade_decision", ""),
         }
 
         # Save to file
-        from tradingagents.report_paths import get_eval_dir
-
         directory = get_eval_dir(str(trade_date), self.ticker)
         directory.mkdir(parents=True, exist_ok=True)
 
