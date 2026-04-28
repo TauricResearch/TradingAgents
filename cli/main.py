@@ -523,8 +523,8 @@ def get_user_selections():
     # Step 3: Output language
     console.print(
         create_question_box(
-            "Step 3: Output Language",
-            "Select the language for analyst reports and final decision"
+            "Step 3: 출력 언어",
+            "분석 리포트와 최종 결론에 사용할 언어를 선택하세요"
         )
     )
     output_language = ask_output_language()
