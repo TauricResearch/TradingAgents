@@ -32,7 +32,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
         choices = response_dict.get("choices") or []
         for gen, choice in zip(result.generations, choices):
             reasoning = choice.get("message", {}).get("reasoning_content")
-            if reasoning and isinstance(gen.message, AIMessage):
+            if reasoning is not None and isinstance(gen.message, AIMessage):
                 gen.message.additional_kwargs["reasoning_content"] = reasoning
         return result
 
