@@ -329,21 +329,22 @@ def ask_gemini_thinking_config() -> str | None:
 def ask_output_language() -> str:
     """Ask for report output language."""
     choice = questionary.select(
-        "Select Output Language:",
+        "출력 언어를 선택하세요:",
         choices=[
-            questionary.Choice("English (default)", "English"),
-            questionary.Choice("Chinese (中文)", "Chinese"),
-            questionary.Choice("Japanese (日本語)", "Japanese"),
-            questionary.Choice("Korean (한국어)", "Korean"),
-            questionary.Choice("Hindi (हिन्दी)", "Hindi"),
-            questionary.Choice("Spanish (Español)", "Spanish"),
-            questionary.Choice("Portuguese (Português)", "Portuguese"),
-            questionary.Choice("French (Français)", "French"),
-            questionary.Choice("German (Deutsch)", "German"),
-            questionary.Choice("Arabic (العربية)", "Arabic"),
-            questionary.Choice("Russian (Русский)", "Russian"),
-            questionary.Choice("Custom language", "custom"),
+            questionary.Choice("한국어 (기본값)", "Korean"),
+            questionary.Choice("English", "English"),
+            questionary.Choice("中文", "Chinese"),
+            questionary.Choice("日本語", "Japanese"),
+            questionary.Choice("हिन्दी", "Hindi"),
+            questionary.Choice("Español", "Spanish"),
+            questionary.Choice("Português", "Portuguese"),
+            questionary.Choice("Français", "French"),
+            questionary.Choice("Deutsch", "German"),
+            questionary.Choice("العربية", "Arabic"),
+            questionary.Choice("Русский", "Russian"),
+            questionary.Choice("직접 입력", "custom"),
         ],
+        default="Korean",
         style=questionary.Style([
             ("selected", "fg:yellow noinherit"),
             ("highlighted", "fg:yellow noinherit"),
@@ -353,8 +354,8 @@ def ask_output_language() -> str:
 
     if choice == "custom":
         return questionary.text(
-            "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
-            validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
+            "언어 이름을 입력하세요 (예: Turkish, Vietnamese, Thai, Indonesian):",
+            validate=lambda x: len(x.strip()) > 0 or "언어 이름을 입력해 주세요.",
         ).ask().strip()
 
     return choice
