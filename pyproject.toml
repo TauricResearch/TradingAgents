@@ -30,6 +30,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "reportlab>=4.0.0",
+    "schedule>=1.2.0",
 ]
 
 [project.scripts]
