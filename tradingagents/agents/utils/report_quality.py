@@ -10,17 +10,23 @@ from __future__ import annotations
 import re
 
 # Phrases that indicate the report describes planned actions rather than
-# observed data.  Matched case-insensitively against the report text.
+# observed data.
 _PLACEHOLDER_PHRASES = (
-    "pending",
-    "awaiting",
-    "stand by",
-    "i will call",
-    "will be retrieved",
-    "will be fetched",
-    "no data provided",
-    "scanner tool pending",
-    "lacks sufficient",
+    r"\bpending\b",
+    r"\bawaiting\b",
+    r"\bstand by\b",
+    r"\bi will call\b",
+    r"\bwill be retrieved\b",
+    r"\bwill be fetched\b",
+    r"\bno data provided\b",
+    r"\bscanner tool pending\b",
+    r"\blacks sufficient\b",
+)
+
+# Pre-compiled regex for all placeholder phrases with word boundaries
+_PLACEHOLDER_RE = re.compile(
+    "|".join(_PLACEHOLDER_PHRASES),
+    re.IGNORECASE,
 )
 
 # Patterns indicating the model emitted a tool call as text rather than
@@ -90,11 +96,8 @@ def assess_report_quality(
         issues.append("too_short")
 
     # Placeholder language
-    text_lower = stripped.lower()
-    for phrase in _PLACEHOLDER_PHRASES:
-        if phrase in text_lower:
-            issues.append("placeholder_language")
-            break
+    if _PLACEHOLDER_RE.search(stripped):
+        issues.append("placeholder_language")
 
     # Bare tool-call JSON in report text
     if _TOOL_CALL_TEXT_RE.search(stripped):

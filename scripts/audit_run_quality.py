@@ -26,6 +26,7 @@ from pathlib import Path
 from tradingagents.agents.utils.report_quality import (
     assess_report_quality,
     parse_quality_header,
+    _PLACEHOLDER_RE,
 )
 
 _VIX_RE = re.compile(r"VIX[:\s]+(?:at\s+)?(\d+\.?\d*)", re.IGNORECASE)
@@ -132,7 +133,7 @@ def audit_run(reports_dir: Path) -> dict:
             continue
         if text.strip().startswith("[NO_EVIDENCE]"):
             summary_qualities[key] = "no_evidence"
-        elif "pending" in text.lower() or "awaiting" in text.lower():
+        elif _PLACEHOLDER_RE.search(text):
             summary_qualities[key] = "placeholder_propagated"
             issues.append(
                 {
