@@ -293,19 +293,26 @@ class TestUploadImageToNotion:
         result = upload_image_to_notion(nonexistent, api_key="test-key")
         assert result is None
 
-    def test_returns_url_on_success(self, sample_chart_png: Path):
-        """Returns URL on successful upload."""
+    def test_returns_upload_id_on_success(self, sample_chart_png: Path):
+        """Returns upload ID on successful upload."""
         from cli.notion_chart_publisher import upload_image_to_notion
 
         with patch("requests.post") as mock_post:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"url": "https://notion.so/file/abc123"}
-            mock_post.return_value = mock_response
+            # Mock create upload response
+            create_response = MagicMock()
+            create_response.status_code = 200
+            create_response.json.return_value = {"id": "upload-abc123"}
+            
+            # Mock send file response
+            send_response = MagicMock()
+            send_response.status_code = 200
+            
+            mock_post.side_effect = [create_response, send_response]
 
             result = upload_image_to_notion(sample_chart_png, api_key="test-key")
 
-            assert result == "https://notion.so/file/abc123"
+            assert result == "upload-abc123"
+            assert mock_post.call_count == 2
 
     def test_returns_none_on_api_error(self, sample_chart_png: Path):
         """Returns None on API error."""

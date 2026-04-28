@@ -44,6 +44,7 @@ app = typer.Typer(
     add_completion=True,  # Enable shell completion
 )
 
+logger = logging.getLogger(__name__)
 
 # Create a deque to store recent messages with a maximum length
 class MessageBuffer:

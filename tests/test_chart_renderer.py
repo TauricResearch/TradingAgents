@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from tradingagents.graph.transform import ChartJSON, ChartInfo, PriceHistory, ReferenceLine
 from tradingagents.graph.chart_renderer import (
@@ -109,23 +110,12 @@ class TestDrawChart:
 
     def test_raises_value_error_on_dates_prices_mismatch(self, output_path: Path):
         """Raises ValueError when dates and prices have different lengths."""
-        invalid_chart = ChartJSON(
-            chart_info=ChartInfo(
-                title="Test",
-                current_price=100.0,
-                y_axis_range=[90, 110],
-            ),
-            price_history=PriceHistory(
+        # Now validation happens at Pydantic level, not in draw_chart
+        with pytest.raises(ValidationError, match="must have equal length"):
+            PriceHistory(
                 dates=["01/01", "02/01", "03/01"],
                 prices=[100, 200],  # Mismatch: 3 dates, 2 prices
-            ),
-            reference_lines=[
-                ReferenceLine(price=100, label="Test"),
-            ],
-        )
-
-        with pytest.raises(ValueError, match="mismatch"):
-            draw_chart(invalid_chart, output_path)
+            )
 
     def test_raises_value_error_on_insufficient_data_points(self, output_path: Path):
         """Raises ValueError when less than 2 data points."""

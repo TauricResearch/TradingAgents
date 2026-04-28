@@ -15,7 +15,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-_NOTION_API_VERSION = "2022-06-28"
+_NOTION_API_VERSION = "2026-03-11"
 _NOTION_BASE = "https://api.notion.com/v1"
 _MAX_BLOCK_TEXT = 1900  # Notion rich_text limit is 2000; stay under it
 
@@ -192,15 +192,26 @@ def publish_chart_to_notion(
 
             blocks.append(_table(table_headers, table_rows))
 
-        # 4. Local path callout — Notion blocks require a public URL for images;
-        #    show the absolute local path so the user can attach the file manually.
+        # 4. Upload chart image via Notion file upload API and attach as image block
         blocks.append(_heading3("Chart Image"))
-        blocks.append(
-            _callout(
-                f"📁 Chart saved locally:\n{chart_png_path.resolve()}",
-                "📁",
+        upload_id = upload_image_to_notion(chart_png_path, api_key=effective_api_key)
+        if upload_id is not None:
+            blocks.append({
+                "object": "block",
+                "type": "image",
+                "image": {
+                    "type": "file_upload",
+                    "file_upload": {"id": upload_id},
+                },
+            })
+        else:
+            # Fallback: show local path if upload failed
+            blocks.append(
+                _callout(
+                    f"Chart saved locally (upload failed):\n{chart_png_path.resolve()}",
+                    "📁",
+                )
             )
-        )
 
         # 5. Append blocks to page
         url = f"{_NOTION_BASE}/blocks/{page_id}/children"
@@ -231,18 +242,20 @@ def upload_image_to_notion(
     image_path: Path,
     api_key: str | None = None,
 ) -> str | None:
-    """Upload an image to Notion and return the file URL.
+    """Upload an image to Notion and return the file upload ID.
 
-    Note: Notion's file upload API is limited. For production use,
-    consider uploading to external storage (S3, Cloudinary, etc.)
-    and using the external URL.
+    Uses Notion's file upload API with correct endpoints:
+    1. POST /v1/file_uploads (create upload object)
+    2. POST /v1/file_uploads/{id}/send (send file content)
+    
+    Note: The uploaded file must be attached within 1 hour or Notion archives it.
 
     Args:
         image_path: Path to the image file.
         api_key: Notion API key (default: NOTION_API_KEY env).
 
     Returns:
-        URL to the uploaded image, or None on failure.
+        File upload ID, or None on failure.
     """
     effective_api_key = api_key or os.environ.get("NOTION_API_KEY")
     if not effective_api_key:
@@ -254,37 +267,82 @@ def upload_image_to_notion(
         logger.warning("Image not found at %s", image_path)
         return None
 
+    # Determine content type
+    content_type = _guess_content_type(image_path)
+
+    # Headers for JSON endpoints
+    json_headers = {
+        "Authorization": f"Bearer {effective_api_key}",
+        "Notion-Version": _NOTION_API_VERSION,
+        "Content-Type": "application/json",
+    }
+
+    # Headers for multipart upload (NO Content-Type - requests sets it with boundary)
+    upload_headers = {
+        "Authorization": f"Bearer {effective_api_key}",
+        "Notion-Version": _NOTION_API_VERSION,
+    }
+
     try:
-        # Notion file upload API
-        # See: https://developers.notion.com/reference/file-upload
-        url = f"{_NOTION_BASE}/file/uploads"
-
-        with open(image_path, "rb") as f:
-            files = {"file": (image_path.name, f, "image/png")}
-            data = {"content_type": "image/png"}
-
-            response = requests.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {effective_api_key}",
-                    "Notion-Version": _NOTION_API_VERSION,
-                },
-                files=files,
-                data=data,
-                timeout=60,
-            )
-
-        if response.status_code != 200:
+        # Step 1: Create file upload object
+        create_resp = requests.post(
+            f"{_NOTION_BASE}/file_uploads",
+            headers=json_headers,
+            json={
+                "mode": "single_part",
+                "filename": image_path.name,
+                "content_type": content_type,
+            },
+            timeout=30,
+        )
+        
+        if create_resp.status_code != 200:
             logger.warning(
-                "Failed to upload image to Notion: %s - %s",
-                response.status_code,
-                response.text,
+                "Failed to create file upload: %s - %s",
+                create_resp.status_code,
+                create_resp.text,
             )
             return None
+        
+        upload_id = create_resp.json()["id"]
+        logger.info("Created file upload: %s", upload_id)
 
-        result = response.json()
-        return result.get("url")
+        # Step 2: Send file content (multipart/form-data)
+        with open(image_path, "rb") as f:
+            send_resp = requests.post(
+                f"{_NOTION_BASE}/file_uploads/{upload_id}/send",
+                headers=upload_headers,  # NO Content-Type here
+                files={"file": (image_path.name, f, content_type)},
+                timeout=120,
+            )
+        
+        if send_resp.status_code != 200:
+            logger.warning(
+                "Failed to send file: %s - %s",
+                send_resp.status_code,
+                send_resp.text,
+            )
+            return None
+        
+        logger.info("File sent successfully for upload: %s", upload_id)
+        return upload_id
 
+    except requests.RequestException as e:
+        logger.warning("Network error uploading image to Notion: %s", e)
+        return None
     except Exception as e:
         logger.warning("Failed to upload image to Notion: %s", e)
         return None
+
+
+def _guess_content_type(file_path: Path) -> str:
+    """Map file extension to MIME type."""
+    _MIME_MAP = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }
+    return _MIME_MAP.get(file_path.suffix.lower(), "application/octet-stream")

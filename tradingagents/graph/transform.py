@@ -13,7 +13,7 @@ import os
 import time
 from pathlib import Path
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,16 @@ class PriceHistory(BaseModel):
 
     dates: list[str] = Field(min_length=1)
     prices: list[float] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _dates_prices_same_length(self) -> "PriceHistory":
+        """Validate that dates and prices have the same length."""
+        if len(self.dates) != len(self.prices):
+            raise ValueError(
+                f"dates ({len(self.dates)}) and prices ({len(self.prices)}) "
+                f"must have equal length"
+            )
+        return self
 
 
 class ReferenceLine(BaseModel):
@@ -237,14 +247,29 @@ def transform_to_json(
     )
     llm = client.get_llm()
 
-    # Build prompt
-    system_prompt = """You are a financial trading plan extraction engine. Given raw trading
-analysis reports from multiple AI agents, extract a trading plan into the
-exact JSON schema below. You must produce valid JSON that can be parsed by
-Python's json.loads().
+    # Build prompt with embedded JSON schema
+    json_schema = ChartJSON.model_json_schema()
+    
+    system_prompt = f"""You are a financial data extraction engine.
+Extract trading plan data into the EXACT JSON schema below.
 
-Output ONLY valid JSON, no markdown fences, no explanation before or after."""
-# TODO: Add more detailed instructions and examples to the system prompt to improve LLM output quality.
+JSON SCHEMA (follow field names, types, and nesting EXACTLY):
+{json.dumps(json_schema, indent=2)}
+
+RULES:
+1. Output ONLY valid JSON. No markdown, no explanation.
+2. Every field is REQUIRED unless marked optional.
+3. reference_lines: extract ALL price levels from the trading decision.
+   Color mapping:
+   - Take Profit (TP) → "green"
+   - Entry → "orange"
+   - Breakout/Add → "blue"
+   - Stop Loss (SL) → "darkred"
+   - Short entry/TP → "red"
+   - Caution/Reduce → "darkorange"
+4. price_history.dates and price_history.prices must be same length.
+5. y_axis_range: [lowest_reference_line - 5%, highest_reference_line + 5%]
+"""
     user_prompt = _build_transform_prompt(final_state, ticker, trade_date)
 
     # Retry loop with exponential backoff
@@ -258,7 +283,25 @@ Output ONLY valid JSON, no markdown fences, no explanation before or after."""
                 HumanMessage(content=user_prompt),
             ]
 
-            response = llm.invoke(messages)
+            # Try structured output for OpenAI (gpt-5.3-codex-high)
+            # This enforces JSON schema compliance
+            try:
+                response = llm.invoke(
+                    messages,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "ChartJSON",
+                            "strict": True,
+                            "schema": json_schema,
+                        },
+                    },
+                )
+            except (NotImplementedError, TypeError, ValueError) as e:
+                # Fallback: provider doesn't support response_format
+                logger.debug("response_format not supported, using prompt-only mode: %s", e)
+                response = llm.invoke(messages)
+            
             response_content = response.content
 
             # Parse and validate

@@ -8,7 +8,7 @@
   },
   "price_history": {
     "dates": ["Apr 17", "Apr 18", "Apr 19", "Apr 20", "Apr 21", "Apr 22", "Apr 23", "Apr 24", "Apr 25", "Apr 26"],
-    "prices": [77736, 75500, 73758, 76000, 77500, 79234, 78300, 77600, 77285, 78068.7]
+    "prices": []
   },
   "reference_lines": [
     {
