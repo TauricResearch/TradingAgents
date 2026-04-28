@@ -132,6 +132,14 @@ For local models with Ollama:
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
+#### Google Colab / Jupyter Installation ####
+```python
+! git clone https://github.com/TauricResearch/TradingAgents.git
+import os
+os.chdir("TradingAgents")
+! pip install -r requirements.txt
+ ```
+
 ### Required APIs
 
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
