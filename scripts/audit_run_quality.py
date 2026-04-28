@@ -24,9 +24,9 @@ import sys
 from pathlib import Path
 
 from tradingagents.agents.utils.report_quality import (
+    _PLACEHOLDER_RE,
     assess_report_quality,
     parse_quality_header,
-    _PLACEHOLDER_RE,
 )
 
 _VIX_RE = re.compile(r"VIX[:\s]+(?:at\s+)?(\d+\.?\d*)", re.IGNORECASE)
