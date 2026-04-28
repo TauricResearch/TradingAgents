@@ -10,6 +10,7 @@ from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.rate_limiter import get_rate_limiter
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 from tradingagents.report_paths import generate_run_id, get_eval_dir
 
@@ -69,6 +70,16 @@ class TradingAgentsGraph:
             deep_kwargs["callbacks"] = self.callbacks
             mid_kwargs["callbacks"] = self.callbacks
             quick_kwargs["callbacks"] = self.callbacks
+
+        # Add per-tier rate limiters when configured via env vars
+        for tier, tier_kwargs in (
+            ("deep_think", deep_kwargs),
+            ("mid_think", mid_kwargs),
+            ("quick_think", quick_kwargs),
+        ):
+            limiter = get_rate_limiter(tier)
+            if limiter is not None:
+                tier_kwargs["rate_limiter"] = limiter
 
         deep_client = create_llm_client(
             provider=deep_provider, model=deep_model, base_url=deep_backend_url, **deep_kwargs

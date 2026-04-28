@@ -16,6 +16,7 @@ _PASSTHROUGH_KWARGS = (
     "http_client",
     "http_async_client",
     "effort",
+    "rate_limiter",
 )
 
 

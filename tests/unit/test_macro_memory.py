@@ -188,14 +188,9 @@ def test_record_outcome_legacy_date_only_updates_newest_missing_run_id_record(me
     records = mem.get_recent(limit=5)
     updated = [rec for rec in records if rec["outcome"] == {"legacy": True}]
     assert len(updated) == 1
-    # run_id is now auto-filled with 'manual_' prefix when None is provided
-    rid = updated[0].get("run_id")
-    assert str(rid).startswith("manual_")
+    assert updated[0].get("run_id") is None
     assert updated[0]["sector_thesis"] == "legacy new"
-    # Ensure specific run_id records were NOT touched
-    for rec in records:
-        if rec.get("run_id") in ("run-1", "run-2"):
-            assert rec["outcome"] is None
+    assert all(rec["outcome"] is None for rec in records if rec.get("run_id"))
 
 
 def test_record_outcome_legacy_date_only_does_not_update_run_id_records(mem):
@@ -235,10 +230,7 @@ def test_record_macro_state_mongo_upserts_missing_run_id_key():
 
     mem.record_macro_state("2026-03-26", 20.0, "neutral", "legacy", [])
 
-    # run_id is now auto-filled with 'manual_' prefix when None is provided
-    rid = updates[0][0].get("run_id")
-    assert str(rid).startswith("manual_")
-    assert updates[0][0]["regime_date"] == "2026-03-26"
+    assert updates[0][0] == {"regime_date": "2026-03-26", "run_id": None}
     assert updates[0][2] is True
     assert "outcome" not in updates[0][1]["$set"]
     assert updates[0][1]["$setOnInsert"]["outcome"] is None
@@ -259,11 +251,15 @@ def test_record_outcome_mongo_legacy_query_excludes_run_id_records():
 
     assert mem.record_outcome("2026-03-26", {"legacy": True}) is False
 
-    assert queries[0]["regime_date"] == "2026-03-26"
-    assert queries[0]["outcome"] is None
-    # Verify the $or clause includes the manual_ prefix search
-    or_clause = queries[0]["$or"]
-    assert {"run_id": {"$regex": "^manual_"}} in or_clause
+    assert queries[0] == {
+        "regime_date": "2026-03-26",
+        "outcome": None,
+        "$or": [
+            {"run_id": {"$exists": False}},
+            {"run_id": None},
+            {"run_id": ""},
+        ],
+    }
 
 
 def test_build_macro_context_no_prior_history_message(mem):

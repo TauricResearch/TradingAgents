@@ -13,6 +13,7 @@ from tradingagents.agents.portfolio import (
 )
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.rate_limiter import get_rate_limiter
 from tradingagents.memory.macro_memory import MacroMemory
 from tradingagents.memory.reflexion import ReflexionMemory
 
@@ -126,6 +127,10 @@ class PortfolioGraph:
 
         if self.callbacks:
             kwargs["callbacks"] = self.callbacks
+
+        limiter = get_rate_limiter(tier)
+        if limiter is not None:
+            kwargs["rate_limiter"] = limiter
 
         client = create_llm_client(
             provider=provider,

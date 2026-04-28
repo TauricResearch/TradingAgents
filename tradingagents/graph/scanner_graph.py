@@ -20,6 +20,7 @@ from tradingagents.agents.scanners import (
 from tradingagents.dataflows.config import set_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.rate_limiter import get_rate_limiter
 
 from .scanner_setup import ScannerGraphSetup
 
@@ -166,6 +167,10 @@ class ScannerGraph:
 
         if self.callbacks:
             kwargs["callbacks"] = self.callbacks
+
+        limiter = get_rate_limiter(tier)
+        if limiter is not None:
+            kwargs["rate_limiter"] = limiter
 
         client = create_llm_client(
             provider=provider,

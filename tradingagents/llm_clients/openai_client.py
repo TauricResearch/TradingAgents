@@ -110,6 +110,7 @@ _PASSTHROUGH_KWARGS = (
     "callbacks",
     "http_client",
     "http_async_client",
+    "rate_limiter",
 )
 
 # Provider base URLs and API key env vars

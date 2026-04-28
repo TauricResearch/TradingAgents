@@ -129,12 +129,12 @@ class MacroMemory:
                 _VALID_MACRO_CALLS,
             )
 
-        # Prevent unique index collisions on (regime_date, run_id) by ensuring
-        # run_id is never None. If missing, use a timestamp-based fallback.
-        # This is critical for MongoDB unique constraints.
-        effective_run_id = run_id
-        if not effective_run_id:
-            effective_run_id = f"manual_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        if not run_id:
+            logger.warning(
+                "MacroMemory.record_macro_state called without run_id for date %s — "
+                "record-keeping is non-deterministic without a canonical run identifier.",
+                date,
+            )
 
         doc: dict[str, Any] = {
             "regime_date": date,
@@ -142,7 +142,7 @@ class MacroMemory:
             "macro_call": normalized_call,
             "sector_thesis": sector_thesis,
             "key_themes": list(key_themes),
-            "run_id": effective_run_id,
+            "run_id": run_id,
             "outcome": None,
             "created_at": datetime.now(UTC),
         }
@@ -151,7 +151,7 @@ class MacroMemory:
             created_at = doc.pop("created_at")
             outcome = doc.pop("outcome")
             self._col.update_one(
-                {"regime_date": date, "run_id": effective_run_id},
+                {"regime_date": date, "run_id": run_id},
                 {
                     "$set": doc,
                     "$setOnInsert": {"created_at": created_at, "outcome": outcome},
@@ -194,13 +194,10 @@ class MacroMemory:
             if run_id is not None:
                 query["run_id"] = run_id
             else:
-                # When run_id is None, we look for records that have no run_id
-                # (legacy) OR records that used our 'manual_' fallback.
                 query["$or"] = [
                     {"run_id": {"$exists": False}},
                     {"run_id": None},
                     {"run_id": ""},
-                    {"run_id": {"$regex": "^manual_"}},
                 ]
                 logger.warning(
                     "MacroMemory.record_outcome used legacy date-only addressing for %s",
@@ -356,9 +353,9 @@ class MacroMemory:
                         self._save_all_local(records)
                         return True
                 else:
-                    # Legacy fallback: match if run_id is missing/empty OR if it was a 'manual_' fallback
+                    # Legacy fallback: match if run_id is missing/empty
                     rec_run_id = rec.get("run_id")
-                    if not rec_run_id or str(rec_run_id).startswith("manual_"):
+                    if not rec_run_id:
                         rec["outcome"] = outcome
                         self._save_all_local(records)
                         return True

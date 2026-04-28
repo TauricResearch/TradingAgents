@@ -40,6 +40,7 @@ class GoogleClient(BaseLLMClient):
             "callbacks",
             "http_client",
             "http_async_client",
+            "rate_limiter",
         ):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
