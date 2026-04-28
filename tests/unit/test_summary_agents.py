@@ -509,6 +509,51 @@ class TestPMDecisionAgentInputs:
         assert "macro" in llm.captured_prompt
         assert "micro" in llm.captured_prompt
 
+    def test_pm_retry_records_each_failure_with_breaker(self, monkeypatch):
+        from tradingagents.agents.portfolio import pm_decision_agent as pm_module
+
+        class _RecordingBreaker:
+            def __init__(self):
+                self.failures: list[str] = []
+                self.successes: list[str] = []
+
+            def assert_available(self, node_name: str) -> None:
+                return None
+
+            def record_failure(self, node_name: str, reason: str) -> None:
+                self.failures.append(reason)
+
+            def record_success(self, node_name: str) -> None:
+                self.successes.append(node_name)
+
+        class _FailingStructuredLLM:
+            def with_structured_output(self, schema):
+                def _invoke(_prompt_value):
+                    raise ValueError("synthetic structured-output failure")
+
+                return RunnableLambda(_invoke)
+
+        breaker = _RecordingBreaker()
+        monkeypatch.setattr(pm_module, "circuit_breaker_from_config", lambda cfg: breaker)
+        monkeypatch.setattr(pm_module.time, "sleep", lambda _: None)
+
+        agent = create_pm_decision_agent(_FailingStructuredLLM())
+        state = {
+            "macro_brief": "macro",
+            "micro_brief": "micro",
+            "prioritized_candidates": "[]",
+            "portfolio_data": "{}",
+            "messages": [],
+            "analysis_date": "2026-03-31",
+        }
+
+        with pytest.raises(RuntimeError, match="structured output failed after 3 attempts"):
+            agent(state)
+
+        assert len(breaker.failures) == 3
+        assert all("synthetic structured-output failure" in reason for reason in breaker.failures)
+        assert breaker.successes == []
+
 
 class TestSummaryAgentsRobustness:
     def test_macro_summary_agent_ignores_prior_message_history(self):

@@ -266,6 +266,7 @@ def create_pm_decision_agent(
                 break
             except Exception as exc:
                 last_exc = exc
+                breaker.record_failure("pm_decision_agent", f"{type(exc).__name__}: {exc}")
                 logger.warning(
                     "pm_decision_agent: structured output attempt %d/%d failed: %s",
                     attempt,
@@ -278,7 +279,6 @@ def create_pm_decision_agent(
                     time.sleep(1.0)
                     continue
 
-                breaker.record_failure("pm_decision_agent", f"{type(exc).__name__}: {exc}")
                 raise RuntimeError(
                     f"pm_decision_agent: structured output failed after {attempts} attempts "
                     f"({type(last_exc).__name__}: {last_exc})"
