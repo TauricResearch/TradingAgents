@@ -1,53 +1,7 @@
 {
   "directed": false,
   "multigraph": false,
-  "graph": {
-    "hyperedges": [
-      {
-        "id": "frontend_tech_stack",
-        "label": "AgentOS Frontend Tech Stack",
-        "nodes": [
-          "readme_react",
-          "readme_vite",
-          "readme_chakra_ui",
-          "readme_axios",
-          "readme_websockets",
-          "readme_react_context_hooks"
-        ],
-        "relation": "form",
-        "confidence": "EXTRACTED",
-        "confidence_score": 1.0,
-        "source_file": "README.md"
-      },
-      {
-        "id": "frontend_core_components",
-        "label": "AgentOS Frontend Core Components",
-        "nodes": [
-          "readme_command_center",
-          "readme_portfolio_component",
-          "readme_useagentstream",
-          "readme_authcontext"
-        ],
-        "relation": "implement",
-        "confidence": "EXTRACTED",
-        "confidence_score": 1.0,
-        "source_file": "README.md"
-      },
-      {
-        "id": "agentos_communication_layer",
-        "label": "AgentOS Communication Layer",
-        "nodes": [
-          "readme_axios",
-          "readme_websockets",
-          "readme_useagentstream"
-        ],
-        "relation": "participate_in",
-        "confidence": "INFERRED",
-        "confidence_score": 0.85,
-        "source_file": "README.md"
-      }
-    ]
-  },
+  "graph": {},
   "nodes": [
     {
       "label": "tailwind.config.js",
@@ -55,7 +9,7 @@
       "source_file": "tailwind.config.js",
       "source_location": "L1",
       "id": "tailwind_config_js",
-      "community": 11
+      "community": 10
     },
     {
       "label": "vite.config.ts",
@@ -63,7 +17,7 @@
       "source_file": "vite.config.ts",
       "source_location": "L1",
       "id": "vite_config_ts",
-      "community": 12
+      "community": 11
     },
     {
       "label": "postcss.config.js",
@@ -71,7 +25,7 @@
       "source_file": "postcss.config.js",
       "source_location": "L1",
       "id": "postcss_config_js",
-      "community": 13
+      "community": 12
     },
     {
       "label": "App.tsx",
@@ -79,7 +33,7 @@
       "source_file": "src/App.tsx",
       "source_location": "L1",
       "id": "src_app_tsx",
-      "community": 6
+      "community": 5
     },
     {
       "label": "App()",
@@ -87,7 +41,7 @@
       "source_file": "src/App.tsx",
       "source_location": "L5",
       "id": "app_app",
-      "community": 6
+      "community": 5
     },
     {
       "label": "main.tsx",
@@ -95,7 +49,7 @@
       "source_file": "src/main.tsx",
       "source_location": "L1",
       "id": "src_main_tsx",
-      "community": 14
+      "community": 13
     },
     {
       "label": "Dashboard.tsx",
@@ -103,126 +57,118 @@
       "source_file": "src/Dashboard.tsx",
       "source_location": "L1",
       "id": "src_dashboard_tsx",
-      "community": 2
+      "community": 1
     },
     {
       "label": "parseTickerInput()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L75",
+      "source_location": "L99",
       "id": "dashboard_parsetickerinput",
-      "community": 7
+      "community": 6
     },
     {
       "label": "restoreTickerInput()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L81",
+      "source_location": "L105",
       "id": "dashboard_restoretickerinput",
+      "community": 1
+    },
+    {
+      "label": "errorDetail()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L117",
+      "id": "dashboard_errordetail",
       "community": 2
     },
     {
       "label": "eventColor()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L111",
+      "source_location": "L143",
       "id": "dashboard_eventcolor",
-      "community": 2
+      "community": 1
     },
     {
       "label": "eventLabel()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L126",
+      "source_location": "L158",
       "id": "dashboard_eventlabel",
-      "community": 2
+      "community": 1
     },
     {
       "label": "eventSummary()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L140",
+      "source_location": "L172",
       "id": "dashboard_eventsummary",
-      "community": 2
+      "community": 1
     },
     {
       "label": "fetchConfig()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L517",
+      "source_location": "L571",
       "id": "dashboard_fetchconfig",
-      "community": 2
+      "community": 1
     },
     {
       "label": "loadPausedRun()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L547",
+      "source_location": "L602",
       "id": "dashboard_loadpausedrun",
-      "community": 3
+      "community": 1
     },
     {
       "label": "startRun()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L605",
+      "source_location": "L676",
       "id": "dashboard_startrun",
-      "community": 7
+      "community": 6
     },
     {
       "label": "resetPortfolioStage()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L688",
+      "source_location": "L792",
       "id": "dashboard_resetportfoliostage",
-      "community": 2
-    },
-    {
-      "label": "loadHistory()",
-      "file_type": "code",
-      "source_file": "src/Dashboard.tsx",
-      "source_location": "L713",
-      "id": "dashboard_loadhistory",
-      "community": 3
+      "community": 1
     },
     {
       "label": "loadRun()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L726",
+      "source_location": "L813",
       "id": "dashboard_loadrun",
-      "community": 2
+      "community": 1
     },
     {
       "label": "resumeRun()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L763",
+      "source_location": "L850",
       "id": "dashboard_resumerun",
-      "community": 3
+      "community": 2
     },
     {
       "label": "stopRun()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L804",
+      "source_location": "L891",
       "id": "dashboard_stoprun",
-      "community": 3
+      "community": 2
     },
     {
       "label": "submitPhase3Decision()",
       "file_type": "code",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L838",
+      "source_location": "L925",
       "id": "dashboard_submitphase3decision",
-      "community": 3
-    },
-    {
-      "label": "triggerNodeRerun()",
-      "file_type": "code",
-      "source_file": "src/Dashboard.tsx",
-      "source_location": "L875",
-      "id": "dashboard_triggernodererun",
       "community": 2
     },
     {
@@ -231,7 +177,7 @@
       "source_file": "src/vite-env.d.ts",
       "source_location": "L1",
       "id": "src_vite_env_d_ts",
-      "community": 15
+      "community": 14
     },
     {
       "label": "theme.ts",
@@ -239,7 +185,7 @@
       "source_file": "src/theme.ts",
       "source_location": "L1",
       "id": "src_theme_ts",
-      "community": 16
+      "community": 15
     },
     {
       "label": "api.ts",
@@ -247,7 +193,7 @@
       "source_file": "src/config/api.ts",
       "source_location": "L1",
       "id": "src_config_api_ts",
-      "community": 4
+      "community": 3
     },
     {
       "label": "trimTrailingSlash()",
@@ -255,7 +201,7 @@
       "source_file": "src/config/api.ts",
       "source_location": "L4",
       "id": "api_trimtrailingslash",
-      "community": 4
+      "community": 3
     },
     {
       "label": "getBackendOrigin()",
@@ -263,7 +209,7 @@
       "source_file": "src/config/api.ts",
       "source_location": "L8",
       "id": "api_getbackendorigin",
-      "community": 4
+      "community": 3
     },
     {
       "label": "buildWebSocketUrl()",
@@ -271,7 +217,7 @@
       "source_file": "src/config/api.ts",
       "source_location": "L23",
       "id": "api_buildwebsocketurl",
-      "community": 4
+      "community": 3
     },
     {
       "label": "MetricHeader.tsx",
@@ -279,7 +225,7 @@
       "source_file": "src/components/MetricHeader.tsx",
       "source_location": "L1",
       "id": "src_components_metricheader_tsx",
-      "community": 8
+      "community": 7
     },
     {
       "label": "MetricHeader()",
@@ -287,7 +233,7 @@
       "source_file": "src/components/MetricHeader.tsx",
       "source_location": "L20",
       "id": "metricheader_metricheader",
-      "community": 8
+      "community": 7
     },
     {
       "label": "PortfolioViewer.tsx",
@@ -295,15 +241,15 @@
       "source_file": "src/components/PortfolioViewer.tsx",
       "source_location": "L1",
       "id": "src_components_portfolioviewer_tsx",
-      "community": 9
+      "community": 8
     },
     {
       "label": "fetchList()",
       "file_type": "code",
       "source_file": "src/components/PortfolioViewer.tsx",
-      "source_location": "L80",
+      "source_location": "L81",
       "id": "portfolioviewer_fetchlist",
-      "community": 9
+      "community": 8
     },
     {
       "label": "AgentGraph.tsx",
@@ -317,7 +263,7 @@
       "label": "normalizeNodeId()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L156",
+      "source_location": "L159",
       "id": "agentgraph_normalizenodeid",
       "community": 0
     },
@@ -325,7 +271,7 @@
       "label": "toLabel()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L170",
+      "source_location": "L173",
       "id": "agentgraph_tolabel",
       "community": 0
     },
@@ -333,7 +279,7 @@
       "label": "scopeId()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L177",
+      "source_location": "L180",
       "id": "agentgraph_scopeid",
       "community": 0
     },
@@ -341,7 +287,7 @@
       "label": "classifyNode()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L181",
+      "source_location": "L184",
       "id": "agentgraph_classifynode",
       "community": 0
     },
@@ -349,15 +295,15 @@
       "label": "canRerunNode()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L189",
+      "source_location": "L192",
       "id": "agentgraph_canrerunnode",
-      "community": 0
+      "community": 9
     },
     {
       "label": "getEventRerunSeq()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L194",
+      "source_location": "L197",
       "id": "agentgraph_geteventrerunseq",
       "community": 0
     },
@@ -365,7 +311,7 @@
       "label": "getNodeOrder()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L214",
+      "source_location": "L217",
       "id": "agentgraph_getnodeorder",
       "community": 0
     },
@@ -373,7 +319,7 @@
       "label": "statusColor()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L227",
+      "source_location": "L230",
       "id": "agentgraph_statuscolor",
       "community": 0
     },
@@ -381,7 +327,7 @@
       "label": "identifierColor()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L236",
+      "source_location": "L239",
       "id": "agentgraph_identifiercolor",
       "community": 0
     },
@@ -389,32 +335,40 @@
       "label": "getIcon()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L245",
+      "source_location": "L248",
       "id": "agentgraph_geticon",
+      "community": 0
+    },
+    {
+      "label": "toggle()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L823",
+      "id": "agentgraph_toggle",
       "community": 0
     },
     {
       "label": "pushEdge()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L482",
+      "source_location": "L1206",
       "id": "agentgraph_pushedge",
       "community": 0
+    },
+    {
+      "label": "nodeData()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1452",
+      "id": "agentgraph_nodedata",
+      "community": 9
     },
     {
       "label": "tickerX()",
       "file_type": "code",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L728",
+      "source_location": "L1485",
       "id": "agentgraph_tickerx",
-      "community": 0
-    },
-    {
-      "label": "AgentGraph()",
-      "file_type": "code",
-      "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L828",
-      "id": "agentgraph_agentgraph",
       "community": 0
     },
     {
@@ -423,183 +377,31 @@
       "source_file": "src/hooks/useAgentStream.ts",
       "source_location": "L1",
       "id": "src_hooks_useagentstream_ts",
-      "community": 10
+      "community": 4
+    },
+    {
+      "label": "isStreamPayload()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L49",
+      "id": "useagentstream_isstreampayload",
+      "community": 4
+    },
+    {
+      "label": "isAgentEvent()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L53",
+      "id": "useagentstream_isagentevent",
+      "community": 4
     },
     {
       "label": "useAgentStream()",
       "file_type": "code",
       "source_file": "src/hooks/useAgentStream.ts",
-      "source_location": "L43",
+      "source_location": "L61",
       "id": "useagentstream_useagentstream",
-      "community": 10
-    },
-    {
-      "label": "AgentOS Frontend",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_agentos_frontend",
-      "community": 1
-    },
-    {
-      "label": "React",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_react",
-      "community": 1
-    },
-    {
-      "label": "Vite",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_vite",
-      "community": 1
-    },
-    {
-      "label": "Chakra UI",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_chakra_ui",
-      "community": 1
-    },
-    {
-      "label": "Axios",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_axios",
-      "community": 1
-    },
-    {
-      "label": "WebSockets",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_websockets",
-      "community": 1
-    },
-    {
-      "label": "React Context / Hooks",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_react_context_hooks",
-      "community": 1
-    },
-    {
-      "label": "CommandCenter Component",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "src/components/CommandCenter/",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_command_center",
-      "community": 1
-    },
-    {
-      "label": "Portfolio Component",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "src/components/Portfolio/",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_portfolio_component",
-      "community": 1
-    },
-    {
-      "label": "useAgentStream Hook",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "src/hooks/useAgentStream.ts",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_useagentstream",
-      "community": 1
-    },
-    {
-      "label": "AuthContext",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": "src/context/AuthContext.tsx",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_authcontext",
-      "community": 5
-    },
-    {
-      "label": "TradingAgents Observability Dashboard",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_tradingagents",
-      "community": 1
-    },
-    {
-      "label": "Multi-Tenant Support",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_multi_tenant",
-      "community": 5
-    },
-    {
-      "label": "Mock Auth",
-      "file_type": "document",
-      "source_file": "README.md",
-      "source_location": null,
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "readme_mock_auth",
-      "community": 5
+      "community": 4
     }
   ],
   "links": [
@@ -619,7 +421,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L75",
+      "source_location": "L99",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_parsetickerinput",
@@ -631,7 +433,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L81",
+      "source_location": "L105",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_restoretickerinput",
@@ -643,7 +445,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L111",
+      "source_location": "L117",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_errordetail",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_errordetail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L143",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_eventcolor",
@@ -655,7 +469,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L126",
+      "source_location": "L158",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_eventlabel",
@@ -667,7 +481,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L140",
+      "source_location": "L172",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_eventsummary",
@@ -679,7 +493,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L517",
+      "source_location": "L571",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_fetchconfig",
@@ -691,7 +505,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L547",
+      "source_location": "L602",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_loadpausedrun",
@@ -703,7 +517,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L605",
+      "source_location": "L676",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_startrun",
@@ -715,7 +529,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L688",
+      "source_location": "L792",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_resetportfoliostage",
@@ -727,19 +541,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L713",
-      "weight": 1.0,
-      "_src": "src_dashboard_tsx",
-      "_tgt": "dashboard_loadhistory",
-      "source": "src_dashboard_tsx",
-      "target": "dashboard_loadhistory",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "src/Dashboard.tsx",
-      "source_location": "L726",
+      "source_location": "L813",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_loadrun",
@@ -751,7 +553,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L763",
+      "source_location": "L850",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_resumerun",
@@ -763,7 +565,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L804",
+      "source_location": "L891",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_stoprun",
@@ -775,7 +577,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L838",
+      "source_location": "L925",
       "weight": 1.0,
       "_src": "src_dashboard_tsx",
       "_tgt": "dashboard_submitphase3decision",
@@ -784,22 +586,10 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "src/Dashboard.tsx",
-      "source_location": "L875",
-      "weight": 1.0,
-      "_src": "src_dashboard_tsx",
-      "_tgt": "dashboard_triggernodererun",
-      "source": "src_dashboard_tsx",
-      "target": "dashboard_triggernodererun",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L631",
+      "source_location": "L702",
       "weight": 1.0,
       "_src": "dashboard_startrun",
       "_tgt": "dashboard_parsetickerinput",
@@ -811,23 +601,11 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L552",
-      "weight": 1.0,
-      "_src": "dashboard_loadpausedrun",
-      "_tgt": "dashboard_loadhistory",
-      "source": "dashboard_loadpausedrun",
-      "target": "dashboard_loadhistory",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "src/Dashboard.tsx",
-      "source_location": "L788",
+      "source_location": "L879",
       "weight": 1.0,
       "_src": "dashboard_resumerun",
-      "_tgt": "dashboard_loadhistory",
-      "source": "dashboard_loadhistory",
+      "_tgt": "dashboard_errordetail",
+      "source": "dashboard_errordetail",
       "target": "dashboard_resumerun",
       "confidence_score": 1.0
     },
@@ -835,11 +613,11 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L822",
+      "source_location": "L913",
       "weight": 1.0,
       "_src": "dashboard_stoprun",
-      "_tgt": "dashboard_loadhistory",
-      "source": "dashboard_loadhistory",
+      "_tgt": "dashboard_errordetail",
+      "source": "dashboard_errordetail",
       "target": "dashboard_stoprun",
       "confidence_score": 1.0
     },
@@ -847,11 +625,11 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/Dashboard.tsx",
-      "source_location": "L852",
+      "source_location": "L950",
       "weight": 1.0,
       "_src": "dashboard_submitphase3decision",
-      "_tgt": "dashboard_loadhistory",
-      "source": "dashboard_loadhistory",
+      "_tgt": "dashboard_errordetail",
+      "source": "dashboard_errordetail",
       "target": "dashboard_submitphase3decision",
       "confidence_score": 1.0
     },
@@ -919,7 +697,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/PortfolioViewer.tsx",
-      "source_location": "L80",
+      "source_location": "L81",
       "weight": 1.0,
       "_src": "src_components_portfolioviewer_tsx",
       "_tgt": "portfolioviewer_fetchlist",
@@ -931,7 +709,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L156",
+      "source_location": "L159",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_normalizenodeid",
@@ -943,7 +721,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L170",
+      "source_location": "L173",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_tolabel",
@@ -955,7 +733,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L177",
+      "source_location": "L180",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_scopeid",
@@ -967,7 +745,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L181",
+      "source_location": "L184",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_classifynode",
@@ -979,7 +757,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L189",
+      "source_location": "L192",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_canrerunnode",
@@ -991,7 +769,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L194",
+      "source_location": "L197",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_geteventrerunseq",
@@ -1003,7 +781,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L214",
+      "source_location": "L217",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_getnodeorder",
@@ -1015,7 +793,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L227",
+      "source_location": "L230",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_statuscolor",
@@ -1027,7 +805,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L236",
+      "source_location": "L239",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_identifiercolor",
@@ -1039,7 +817,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L245",
+      "source_location": "L248",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_geticon",
@@ -1051,7 +829,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L482",
+      "source_location": "L823",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_toggle",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_toggle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1206",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_pushedge",
@@ -1063,7 +853,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L728",
+      "source_location": "L1452",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_nodedata",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_nodedata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1485",
       "weight": 1.0,
       "_src": "src_components_agentgraph_tsx",
       "_tgt": "agentgraph_tickerx",
@@ -1072,301 +874,53 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "contains",
+      "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src/components/AgentGraph.tsx",
-      "source_location": "L828",
+      "source_location": "L1462",
       "weight": 1.0,
-      "_src": "src_components_agentgraph_tsx",
-      "_tgt": "agentgraph_agentgraph",
-      "source": "src_components_agentgraph_tsx",
-      "target": "agentgraph_agentgraph",
+      "_src": "agentgraph_nodedata",
+      "_tgt": "agentgraph_canrerunnode",
+      "source": "agentgraph_canrerunnode",
+      "target": "agentgraph_nodedata",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/hooks/useAgentStream.ts",
-      "source_location": "L43",
+      "source_location": "L49",
+      "weight": 1.0,
+      "_src": "src_hooks_useagentstream_ts",
+      "_tgt": "useagentstream_isstreampayload",
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_isstreampayload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_src": "src_hooks_useagentstream_ts",
+      "_tgt": "useagentstream_isagentevent",
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_isagentevent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L61",
       "weight": 1.0,
       "_src": "src_hooks_useagentstream_ts",
       "_tgt": "useagentstream_useagentstream",
       "source": "src_hooks_useagentstream_ts",
       "target": "useagentstream_useagentstream",
       "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 3",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_tradingagents",
-      "source": "readme_agentos_frontend",
-      "target": "readme_tradingagents"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 6",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_react",
-      "source": "readme_agentos_frontend",
-      "target": "readme_react"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 6",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_vite",
-      "source": "readme_agentos_frontend",
-      "target": "readme_vite"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 7",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_chakra_ui",
-      "source": "readme_agentos_frontend",
-      "target": "readme_chakra_ui"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 8",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_react_context_hooks",
-      "source": "readme_agentos_frontend",
-      "target": "readme_react_context_hooks"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 9",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_axios",
-      "source": "readme_agentos_frontend",
-      "target": "readme_axios"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 9",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_websockets",
-      "source": "readme_agentos_frontend",
-      "target": "readme_websockets"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 27",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_command_center",
-      "source": "readme_agentos_frontend",
-      "target": "readme_command_center"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 28",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_portfolio_component",
-      "source": "readme_agentos_frontend",
-      "target": "readme_portfolio_component"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 29",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_useagentstream",
-      "source": "readme_agentos_frontend",
-      "target": "readme_useagentstream"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 30",
-      "weight": 1.0,
-      "_src": "readme_agentos_frontend",
-      "_tgt": "readme_authcontext",
-      "source": "readme_agentos_frontend",
-      "target": "readme_authcontext"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 6",
-      "weight": 1.0,
-      "_src": "readme_react",
-      "_tgt": "readme_vite",
-      "source": "readme_react",
-      "target": "readme_vite"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 9",
-      "weight": 0.9,
-      "_src": "readme_axios",
-      "_tgt": "readme_websockets",
-      "source": "readme_axios",
-      "target": "readme_websockets"
-    },
-    {
-      "relation": "implements",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 29",
-      "weight": 1.0,
-      "_src": "readme_useagentstream",
-      "_tgt": "readme_websockets",
-      "source": "readme_websockets",
-      "target": "readme_useagentstream"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "README.md",
-      "source_location": "line 27",
-      "weight": 0.8,
-      "_src": "readme_command_center",
-      "_tgt": "readme_tradingagents",
-      "source": "readme_command_center",
-      "target": "readme_tradingagents"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "INFERRED",
-      "confidence_score": 0.75,
-      "source_file": "README.md",
-      "source_location": null,
-      "weight": 0.75,
-      "_src": "readme_useagentstream",
-      "_tgt": "readme_command_center",
-      "source": "readme_command_center",
-      "target": "readme_useagentstream"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "README.md",
-      "source_location": "line 28",
-      "weight": 0.8,
-      "_src": "readme_portfolio_component",
-      "_tgt": "readme_tradingagents",
-      "source": "readme_portfolio_component",
-      "target": "readme_tradingagents"
-    },
-    {
-      "relation": "implements",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 30",
-      "weight": 1.0,
-      "_src": "readme_authcontext",
-      "_tgt": "readme_mock_auth",
-      "source": "readme_authcontext",
-      "target": "readme_mock_auth"
-    },
-    {
-      "relation": "implements",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md",
-      "source_location": "line 30",
-      "weight": 1.0,
-      "_src": "readme_authcontext",
-      "_tgt": "readme_multi_tenant",
-      "source": "readme_authcontext",
-      "target": "readme_multi_tenant"
     }
   ],
-  "hyperedges": [
-    {
-      "id": "frontend_tech_stack",
-      "label": "AgentOS Frontend Tech Stack",
-      "nodes": [
-        "readme_react",
-        "readme_vite",
-        "readme_chakra_ui",
-        "readme_axios",
-        "readme_websockets",
-        "readme_react_context_hooks"
-      ],
-      "relation": "form",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md"
-    },
-    {
-      "id": "frontend_core_components",
-      "label": "AgentOS Frontend Core Components",
-      "nodes": [
-        "readme_command_center",
-        "readme_portfolio_component",
-        "readme_useagentstream",
-        "readme_authcontext"
-      ],
-      "relation": "implement",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "README.md"
-    },
-    {
-      "id": "agentos_communication_layer",
-      "label": "AgentOS Communication Layer",
-      "nodes": [
-        "readme_axios",
-        "readme_websockets",
-        "readme_useagentstream"
-      ],
-      "relation": "participate_in",
-      "confidence": "INFERRED",
-      "confidence_score": 0.85,
-      "source_file": "README.md"
-    }
-  ]
+  "hyperedges": []
 }

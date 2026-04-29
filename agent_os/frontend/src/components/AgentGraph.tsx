@@ -9,7 +9,6 @@ import ReactFlow, {
   Node,
   NodeChange,
   NodeProps,
-  Panel,
   Position,
   ReactFlowInstance,
 } from 'reactflow';
@@ -245,7 +244,7 @@ function identifierColor(id: string): string {
   return ID_PALETTE[h % ID_PALETTE.length];
 }
 
-const AgentNode = ({ data }: NodeProps) => {
+const AgentNode = React.memo(({ data }: NodeProps) => {
   const getIcon = (agent = '') => {
     const a = agent.toUpperCase();
     if (a.includes('ANALYST') || a.includes('SCANNER')) return Cpu;
@@ -358,9 +357,9 @@ const AgentNode = ({ data }: NodeProps) => {
       <Handle type="source" position={data.layoutDir === 'LR' ? Position.Right : Position.Bottom} style={{ borderColor: sc }} />
     </Box>
   );
-};
+});
 
-const TickerHeaderNode = ({ data }: NodeProps) => {
+const TickerHeaderNode = React.memo(({ data }: NodeProps) => {
   const color = identifierColor(data.ticker);
   const sc = statusColor(data.status ?? 'running');
   const done = data.completedCount ?? 0;
@@ -422,7 +421,7 @@ const TickerHeaderNode = ({ data }: NodeProps) => {
       <Handle type="source" position={data.layoutDir === 'LR' ? Position.Right : Position.Bottom} style={{ borderColor: color }} />
     </Box>
   );
-};
+});
 
 const nodeTypes = { agentNode: AgentNode, tickerHeader: TickerHeaderNode };
 
