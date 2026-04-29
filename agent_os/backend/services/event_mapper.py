@@ -18,6 +18,7 @@ _MAX_CONTENT_LEN = 300
 _MAX_FULL_LEN = 50_000
 # Keywords in tool output that indicate the error was handled gracefully
 _GRACEFUL_SKIP_KEYWORDS = ("gracefully", "fallback", "skipped")
+_DEFAULT_TIER = "mid"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool-name → primary service mapping (best-effort, used for display only)
@@ -125,9 +126,18 @@ def system_log(message: str) -> dict[str, Any]:
         "node_id": "__system__",
         "type": "log",
         "agent": "SYSTEM",
+        "tier": _DEFAULT_TIER,
         "message": message,
         "metrics": {},
+        "timestamp": time.strftime("%H:%M:%S"),
     }
+
+
+def _with_frontend_defaults(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize mapped events to the minimum frontend contract shape."""
+    payload.setdefault("tier", _DEFAULT_TIER)
+    payload.setdefault("timestamp", time.strftime("%H:%M:%S"))
+    return payload
 
 
 def _extract_content(obj: object) -> str:
@@ -261,16 +271,18 @@ class EventMapper:
                 starts[node_timer_key] = time.monotonic()
                 self._latest_nodes[execution_key] = node_name
                 logger.info("Node start node=%s run=%s", node_name, execution_key)
-                return {
-                    "id": event.get("run_id", f"node_start_{time.time_ns()}").strip(),
-                    "node_id": node_name,
-                    "parent_node_id": "graph",
-                    "type": "thought",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": f"Starting node: {node_name}",
-                    "metrics": {"model": "langgraph_node"},
-                }
+                return _with_frontend_defaults(
+                    {
+                        "id": event.get("run_id", f"node_start_{time.time_ns()}").strip(),
+                        "node_id": node_name,
+                        "parent_node_id": "graph",
+                        "type": "thought",
+                        "agent": node_name.upper(),
+                        "identifier": identifier,
+                        "message": f"Starting node: {node_name}",
+                        "metrics": {"model": "langgraph_node"},
+                    }
+                )
             return None
         elif kind == "on_chain_end":
             metadata = event.get("metadata") or {}
@@ -295,17 +307,21 @@ class EventMapper:
                 self._latest_nodes[execution_key] = node_name
                 output = (event.get("data") or {}).get("output")
                 output_text = _truncate(_extract_content(output)) if output is not None else ""
-                logger.info("Node end node=%s latency=%dms run=%s", node_name, latency_ms, execution_key)
-                return {
-                    "id": f"{event.get('run_id', 'node_end')}_{time.time_ns()}",
-                    "node_id": node_name,
-                    "type": "result",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": f"Completed node: {node_name}",
-                    "response": output_text,
-                    "metrics": {"model": "langgraph_node", "latency_ms": latency_ms},
-                }
+                logger.info(
+                    "Node end node=%s latency=%dms run=%s", node_name, latency_ms, execution_key
+                )
+                return _with_frontend_defaults(
+                    {
+                        "id": f"{event.get('run_id', 'node_end')}_{time.time_ns()}",
+                        "node_id": node_name,
+                        "type": "result",
+                        "agent": node_name.upper(),
+                        "identifier": identifier,
+                        "message": f"Completed node: {node_name}",
+                        "response": output_text,
+                        "metrics": {"model": "langgraph_node", "latency_ms": latency_ms},
+                    }
+                )
             return None
         elif kind == "on_chat_model_start":
             return self._map_llm_start(event, execution_key, node_name, starts, prompts, identifier)
@@ -361,30 +377,34 @@ class EventMapper:
 
             logger.info("LLM start node=%s model=%s run=%s", node_name, model, execution_key)
 
-            return {
-                "id": event.get("run_id", f"thought_{time.time_ns()}").strip(),
-                "node_id": node_name,
-                "parent_node_id": "start",
-                "type": "thought",
-                "agent": node_name.upper(),
-                "identifier": identifier,
-                "message": f"Prompting {model}…"
-                + (f" | {prompt_snippet}" if prompt_snippet else ""),
-                "prompt": full_prompt,
-                "metrics": {"model": model},
-            }
+            return _with_frontend_defaults(
+                {
+                    "id": event.get("run_id", f"thought_{time.time_ns()}").strip(),
+                    "node_id": node_name,
+                    "parent_node_id": "start",
+                    "type": "thought",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": f"Prompting {model}…"
+                    + (f" | {prompt_snippet}" if prompt_snippet else ""),
+                    "prompt": full_prompt,
+                    "metrics": {"model": model},
+                }
+            )
         except Exception:
             logger.exception("Error mapping on_chat_model_start run=%s", execution_key)
-            return {
-                "id": f"thought_err_{time.time_ns()}",
-                "node_id": node_name,
-                "type": "thought",
-                "agent": node_name.upper(),
-                "identifier": identifier,
-                "message": "Prompting LLM… (event parse error)",
-                "prompt": "",
-                "metrics": {},
-            }
+            return _with_frontend_defaults(
+                {
+                    "id": f"thought_err_{time.time_ns()}",
+                    "node_id": node_name,
+                    "type": "thought",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": "Prompting LLM… (event parse error)",
+                    "prompt": "",
+                    "metrics": {},
+                }
+            )
 
     @staticmethod
     def _map_tool_start(
@@ -405,22 +425,28 @@ class EventMapper:
             service = TOOL_SERVICE_MAP.get(name, "")
 
             logger.info(
-                "Tool start tool=%s service=%s node=%s run=%s", name, service, node_name, execution_key
+                "Tool start tool=%s service=%s node=%s run=%s",
+                name,
+                service,
+                node_name,
+                execution_key,
             )
 
-            return {
-                "id": event.get("run_id", f"tool_{time.time_ns()}").strip(),
-                "node_id": f"tool_{name}",
-                "parent_node_id": node_name,
-                "type": "tool",
-                "agent": node_name.upper(),
-                "identifier": identifier,
-                "message": f"▶ Tool: {name}" + (f" | {tool_input}" if tool_input else ""),
-                "prompt": full_input,
-                "service": service,
-                "status": "running",
-                "metrics": {},
-            }
+            return _with_frontend_defaults(
+                {
+                    "id": event.get("run_id", f"tool_{time.time_ns()}").strip(),
+                    "node_id": f"tool_{name}",
+                    "parent_node_id": node_name,
+                    "type": "tool",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": f"▶ Tool: {name}" + (f" | {tool_input}" if tool_input else ""),
+                    "prompt": full_input,
+                    "service": service,
+                    "status": "running",
+                    "metrics": {},
+                }
+            )
         except Exception:
             logger.exception("Error mapping on_tool_start run=%s", execution_key)
             return None
@@ -468,21 +494,23 @@ class EventMapper:
                 execution_key,
             )
 
-            return {
-                "id": f"{event.get('run_id', 'tool_end')}_{time.time_ns()}",
-                "node_id": f"tool_{name}",
-                "parent_node_id": node_name,
-                "type": "tool_result",
-                "agent": node_name.upper(),
-                "identifier": identifier,
-                "message": f"{icon} Tool result: {name}"
-                + (f" | {tool_output}" if tool_output else ""),
-                "response": full_output,
-                "service": service,
-                "status": status,
-                "error": error_message if is_error else None,
-                "metrics": {},
-            }
+            return _with_frontend_defaults(
+                {
+                    "id": f"{event.get('run_id', 'tool_end')}_{time.time_ns()}",
+                    "node_id": f"tool_{name}",
+                    "parent_node_id": node_name,
+                    "type": "tool_result",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": f"{icon} Tool result: {name}"
+                    + (f" | {tool_output}" if tool_output else ""),
+                    "response": full_output,
+                    "service": service,
+                    "status": status,
+                    "error": error_message if is_error else None,
+                    "metrics": {},
+                }
+            )
         except Exception:
             logger.exception("Error mapping on_tool_end run=%s", execution_key)
             return None
@@ -555,33 +583,42 @@ class EventMapper:
                 execution_key,
             )
 
-            return {
-                "id": f"{event.get('run_id', 'result')}_{time.time_ns()}",
-                "node_id": node_name,
-                "type": "result",
-                "agent": node_name.upper(),
-                "identifier": identifier,
-                "message": response_snippet or "Completed.",
-                "prompt": matched_prompt,
-                "response": full_response,
-                "metrics": {
-                    "model": model,
-                    "tokens_in": tokens_in if isinstance(tokens_in, (int, float)) else 0,
-                    "tokens_out": tokens_out if isinstance(tokens_out, (int, float)) else 0,
-                    "latency_ms": latency_ms,
-                },
-            }
+            return _with_frontend_defaults(
+                {
+                    "id": f"{event.get('run_id', 'result')}_{time.time_ns()}",
+                    "node_id": node_name,
+                    "type": "result",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": response_snippet or "Completed.",
+                    "prompt": matched_prompt,
+                    "response": full_response,
+                    "metrics": {
+                        "model": model,
+                        "tokens_in": tokens_in if isinstance(tokens_in, (int, float)) else 0,
+                        "tokens_out": tokens_out if isinstance(tokens_out, (int, float)) else 0,
+                        "latency_ms": latency_ms,
+                    },
+                }
+            )
         except Exception:
             logger.exception("Error mapping on_chat_model_end run=%s", execution_key)
             matched_prompt = prompts.pop(node_name, "")
-            return {
-                "id": f"result_err_{time.time_ns()}",
-                "node_id": node_name,
-                "type": "result",
-                "agent": node_name.upper(),
-                "identifier": identifier,
-                "message": "Completed (event parse error).",
-                "prompt": matched_prompt,
-                "response": "",
-                "metrics": {"model": "unknown", "tokens_in": 0, "tokens_out": 0, "latency_ms": 0},
-            }
+            return _with_frontend_defaults(
+                {
+                    "id": f"result_err_{time.time_ns()}",
+                    "node_id": node_name,
+                    "type": "result",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": "Completed (event parse error).",
+                    "prompt": matched_prompt,
+                    "response": "",
+                    "metrics": {
+                        "model": "unknown",
+                        "tokens_in": 0,
+                        "tokens_out": 0,
+                        "latency_ms": 0,
+                    },
+                }
+            )
