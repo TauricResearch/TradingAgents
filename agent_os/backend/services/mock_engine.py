@@ -15,6 +15,8 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
+_DEFAULT_TIER = "mid"
+
 
 class MockEngine:
     """Generates scripted AgentOS events without calling real LLMs."""
@@ -254,55 +256,72 @@ class MockEngine:
     def _ns() -> str:
         return str(time.time_ns())
 
+    @staticmethod
+    def _timestamp() -> str:
+        return time.strftime("%H:%M:%S")
+
+    def _with_defaults(self, payload: dict[str, Any]) -> dict[str, Any]:
+        payload.setdefault("tier", _DEFAULT_TIER)
+        payload.setdefault("timestamp", self._timestamp())
+        return payload
+
     def _log(self, message: str) -> dict[str, Any]:
-        return {
-            "id": f"log_{self._ns()}",
-            "node_id": "__system__",
-            "type": "log",
-            "agent": "SYSTEM",
-            "identifier": "",
-            "message": message,
-            "metrics": {},
-        }
+        return self._with_defaults(
+            {
+                "id": f"log_{self._ns()}",
+                "node_id": "__system__",
+                "type": "log",
+                "agent": "SYSTEM",
+                "identifier": "",
+                "message": message,
+                "metrics": {},
+            }
+        )
 
     def _thought(self, node: str, identifier: str, model: str, message: str) -> dict[str, Any]:
-        return {
-            "id": f"thought_{self._ns()}",
-            "node_id": node,
-            "parent_node_id": "start",
-            "type": "thought",
-            "agent": node.upper(),
-            "identifier": identifier,
-            "message": message,
-            "prompt": f"[MOCK PROMPT] Analyse {identifier} using available data.",
-            "metrics": {"model": model},
-        }
+        return self._with_defaults(
+            {
+                "id": f"thought_{self._ns()}",
+                "node_id": node,
+                "parent_node_id": "start",
+                "type": "thought",
+                "agent": node.upper(),
+                "identifier": identifier,
+                "message": message,
+                "prompt": f"[MOCK PROMPT] Analyse {identifier} using available data.",
+                "metrics": {"model": model},
+            }
+        )
 
     def _tool_call(self, node: str, identifier: str, tool: str, inp: str) -> dict[str, Any]:
-        return {
-            "id": f"tool_{self._ns()}",
-            "node_id": f"tool_{tool}",
-            "parent_node_id": node,
-            "type": "tool",
-            "agent": node.upper(),
-            "identifier": identifier,
-            "message": f"▶ Tool: {tool} | {inp}",
-            "prompt": inp,
-            "metrics": {},
-        }
+        return self._with_defaults(
+            {
+                "id": f"tool_{self._ns()}",
+                "node_id": f"tool_{tool}",
+                "parent_node_id": node,
+                "type": "tool",
+                "agent": node.upper(),
+                "identifier": identifier,
+                "message": f"▶ Tool: {tool} | {inp}",
+                "prompt": inp,
+                "metrics": {},
+            }
+        )
 
     def _tool_result(self, node: str, identifier: str, tool: str, output: str) -> dict[str, Any]:
-        return {
-            "id": f"tool_res_{self._ns()}",
-            "node_id": f"tool_{tool}",
-            "parent_node_id": node,
-            "type": "tool_result",
-            "agent": node.upper(),
-            "identifier": identifier,
-            "message": f"✓ Tool result: {tool} | {output}",
-            "response": output,
-            "metrics": {},
-        }
+        return self._with_defaults(
+            {
+                "id": f"tool_res_{self._ns()}",
+                "node_id": f"tool_{tool}",
+                "parent_node_id": node,
+                "type": "tool_result",
+                "agent": node.upper(),
+                "identifier": identifier,
+                "message": f"✓ Tool result: {tool} | {output}",
+                "response": output,
+                "metrics": {},
+            }
+        )
 
     def _result(
         self,
@@ -314,21 +333,23 @@ class MockEngine:
         latency_ms: int,
         message: str,
     ) -> dict[str, Any]:
-        return {
-            "id": f"result_{self._ns()}",
-            "node_id": node,
-            "type": "result",
-            "agent": node.upper(),
-            "identifier": identifier,
-            "message": message,
-            "response": f"[MOCK RESPONSE] {message}",
-            "metrics": {
-                "model": model,
-                "tokens_in": tok_in,
-                "tokens_out": tok_out,
-                "latency_ms": latency_ms,
-            },
-        }
+        return self._with_defaults(
+            {
+                "id": f"result_{self._ns()}",
+                "node_id": node,
+                "type": "result",
+                "agent": node.upper(),
+                "identifier": identifier,
+                "message": message,
+                "response": f"[MOCK RESPONSE] {message}",
+                "metrics": {
+                    "model": model,
+                    "tokens_in": tok_in,
+                    "tokens_out": tok_out,
+                    "latency_ms": latency_ms,
+                },
+            }
+        )
 
     @staticmethod
     async def _sleep(seconds: float, speed: float) -> None:
