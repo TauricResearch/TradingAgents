@@ -434,6 +434,721 @@ interface AgentGraphProps {
   onNodeRerun?: (identifier: string, nodeId: string) => void;
 }
 
+// ── NodeVisit: one temporal occurrence of a node in the pipeline ──────────────
+
+interface NodeVisit {
+  id: string;
+  nodeKey: string;
+  normalizedId: string;
+  identifier: string;
+  rawNodeId: string;
+  label: string;
+  kind: Exclude<NodeKind, 'skip'>;
+  visitIndex: number;
+  status: 'running' | 'completed' | 'error';
+  startOrder: number;
+  metrics?: AgentEvent['metrics'];
+  stale: boolean;
+  rerunSeq: number;
+}
+
+// buildVisits: builds a temporal ordered list of node visits.
+// The same node can appear multiple times (e.g. bull/bear debate loops).
+function buildVisits(
+  events: AgentEvent[],
+  allEvents: AgentEvent[],
+  runStatus?: AgentGraphProps['runStatus'],
+): NodeVisit[] {
+  const visits: NodeVisit[] = [];
+  const closedCount = new Map<string, number>();
+  const currentVisit = new Map<string, NodeVisit>();
+  const latestSeqByIdentifier = new Map<string, number>();
+  const latestSeqStartOrderByIdentifier = new Map<string, number>();
+
+  // First pass over allEvents: find latest rerun seq per identifier (for stale detection)
+  allEvents.forEach((evt) => {
+    const rawNodeId = evt.node_id;
+    if (!rawNodeId || rawNodeId === '__system__') return;
+    const identifier = evt.identifier ?? '';
+    const normalizedId = normalizeNodeId(rawNodeId);
+    const kind = classifyNode(normalizedId, identifier);
+    if (kind === 'skip') return;
+    const rerunSeq = getEventRerunSeq(evt);
+    const current = latestSeqByIdentifier.get(identifier) ?? 0;
+    if (rerunSeq > current) latestSeqByIdentifier.set(identifier, rerunSeq);
+  });
+
+  allEvents.forEach((evt) => {
+    const rawNodeId = evt.node_id;
+    if (!rawNodeId || rawNodeId === '__system__') return;
+    const identifier = evt.identifier ?? '';
+    const normalizedId = normalizeNodeId(rawNodeId);
+    const kind = classifyNode(normalizedId, identifier);
+    if (kind === 'skip') return;
+    const rerunSeq = getEventRerunSeq(evt);
+    if (rerunSeq !== (latestSeqByIdentifier.get(identifier) ?? 0)) return;
+    const order = getNodeOrder(kind, normalizedId);
+    const cur = latestSeqStartOrderByIdentifier.get(identifier);
+    if (cur === undefined || order < cur) latestSeqStartOrderByIdentifier.set(identifier, order);
+  });
+
+  // Main pass: build temporal visits from events
+  events.forEach((evt, index) => {
+    const rawNodeId = evt.node_id;
+    if (!rawNodeId || rawNodeId === '__system__') return;
+    const identifier = evt.identifier ?? '';
+    const normalizedId = normalizeNodeId(rawNodeId);
+    const kind = classifyNode(normalizedId, identifier);
+    if (kind === 'skip') return;
+
+    const nodeKey = scopeId(normalizedId, identifier);
+    const rerunSeq = getEventRerunSeq(evt);
+    const isTerminal =
+      evt.type === 'result' ||
+      evt.status === 'success' ||
+      evt.status === 'graceful_skip' ||
+      evt.status === 'error';
+    const nextStatus: NodeVisit['status'] =
+      evt.status === 'error' ? 'error' : isTerminal ? 'completed' : 'running';
+
+    let visit = currentVisit.get(nodeKey);
+
+    if (!visit) {
+      const visitIndex = closedCount.get(nodeKey) ?? 0;
+      visit = {
+        id: `${nodeKey}:v${visitIndex}`,
+        nodeKey,
+        normalizedId,
+        identifier,
+        rawNodeId,
+        label: toLabel(rawNodeId),
+        kind,
+        visitIndex,
+        status: nextStatus,
+        startOrder: index,
+        metrics: evt.metrics,
+        stale: false,
+        rerunSeq,
+      };
+      visits.push(visit);
+      currentVisit.set(nodeKey, visit);
+    } else {
+      if (rerunSeq >= visit.rerunSeq) {
+        visit.rerunSeq = rerunSeq;
+        if (evt.metrics && Object.keys(evt.metrics).length > 0) visit.metrics = evt.metrics;
+      }
+      visit.status =
+        visit.status === 'error' || nextStatus === 'error'
+          ? 'error'
+          : visit.status === 'completed' || nextStatus === 'completed'
+            ? 'completed'
+            : 'running';
+    }
+
+    if (isTerminal) {
+      closedCount.set(nodeKey, (closedCount.get(nodeKey) ?? 0) + 1);
+      currentVisit.delete(nodeKey);
+    }
+  });
+
+  // Compute stale flag
+  for (const visit of visits) {
+    const latestSeq = latestSeqByIdentifier.get(visit.identifier) ?? 0;
+    const latestStartOrder = latestSeqStartOrderByIdentifier.get(visit.identifier);
+    const order = getNodeOrder(visit.kind, visit.normalizedId);
+    visit.stale =
+      latestStartOrder !== undefined &&
+      visit.rerunSeq < latestSeq &&
+      order >= latestStartOrder;
+  }
+
+  if (runStatus === 'error') {
+    visits.forEach((v) => { if (v.status === 'running') v.status = 'error'; });
+  }
+
+  return visits;
+}
+
+// ── VisitRow: one row in the steps view ──────────────────────────────────────
+
+interface VisitRowProps {
+  visit: NodeVisit;
+  isLast: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onRerun?: () => void;
+  onSelect?: () => void;
+}
+
+const VisitRow: React.FC<VisitRowProps> = ({ visit, isLast, isOpen, onToggle, onRerun, onSelect }) => {
+  const sc = statusColor(visit.status);
+  const totalTok = (visit.metrics?.tokens_in ?? 0) + (visit.metrics?.tokens_out ?? 0);
+  const hasModel = Boolean(
+    visit.metrics?.model &&
+    visit.metrics.model !== 'unknown' &&
+    visit.metrics.model !== 'langgraph_node',
+  );
+  const canRerunVisit = onRerun && (visit.status === 'completed' || visit.status === 'error');
+  const hasDetails = hasModel || totalTok > 0 || Boolean(canRerunVisit);
+
+  return (
+    <Box position="relative" pl="28px">
+      {/* Timeline connector */}
+      {!isLast && (
+        <Box
+          position="absolute"
+          left="9px"
+          top="24px"
+          w="2px"
+          bottom="0"
+          bg="whiteAlpha.100"
+        />
+      )}
+
+      {/* Status dot */}
+      <Box
+        position="absolute"
+        left="4px"
+        top="13px"
+        w="11px"
+        h="11px"
+        borderRadius="full"
+        border="2px solid"
+        borderColor={sc}
+        bg={visit.status === 'running' ? sc : '#020617'}
+        boxShadow={visit.status === 'running' ? `0 0 8px ${sc}` : 'none'}
+        zIndex={1}
+        sx={
+          visit.status === 'running'
+            ? {
+                animation: 'visitdotpulse 1.4s ease-in-out infinite',
+                '@keyframes visitdotpulse': {
+                  '0%,100%': { opacity: 1 },
+                  '50%': { opacity: 0.5 },
+                },
+              }
+            : {}
+        }
+      />
+
+      {/* Main row */}
+      <Flex
+        align="center"
+        gap={2}
+        py={1.5}
+        pr={2}
+        cursor={hasDetails ? 'pointer' : 'default'}
+        borderRadius="md"
+        _hover={hasDetails ? { bg: 'whiteAlpha.50' } : {}}
+        onClick={() => {
+          if (hasDetails) onToggle();
+          onSelect?.();
+        }}
+        minH="36px"
+      >
+        <Text
+          fontSize="sm"
+          color={visit.stale ? 'whiteAlpha.350' : 'whiteAlpha.900'}
+          fontWeight={visit.status === 'running' ? 'semibold' : 'normal'}
+          textDecoration={visit.stale ? 'line-through' : 'none'}
+          flex={1}
+          noOfLines={1}
+        >
+          {visit.label}
+        </Text>
+
+        {/* Visit counter badge — shown when same node is visited more than once */}
+        {visit.visitIndex > 0 && (
+          <Badge colorScheme="gray" fontSize="2xs" flexShrink={0}>
+            #{visit.visitIndex + 1}
+          </Badge>
+        )}
+        {visit.stale && (
+          <Badge colorScheme="orange" fontSize="2xs" flexShrink={0}>STALE</Badge>
+        )}
+        {visit.rerunSeq > 0 && (
+          <Badge colorScheme="cyan" fontSize="2xs" flexShrink={0}>R{visit.rerunSeq}</Badge>
+        )}
+
+        <Flex align="center" gap={1.5} flexShrink={0}>
+          {visit.metrics?.latency_ms != null && visit.metrics.latency_ms > 0 && (
+            <Text fontSize="2xs" color="whiteAlpha.400">
+              {visit.metrics.latency_ms >= 1000
+                ? `${(visit.metrics.latency_ms / 1000).toFixed(1)}s`
+                : `${visit.metrics.latency_ms}ms`}
+            </Text>
+          )}
+          {visit.status === 'completed' && (
+            <Text color="green.300" fontSize="xs" lineHeight={1}>✓</Text>
+          )}
+          {visit.status === 'error' && (
+            <Text color="red.400" fontSize="xs" lineHeight={1}>✗</Text>
+          )}
+          {visit.status === 'running' && (
+            <Box
+              w="6px"
+              h="6px"
+              borderRadius="full"
+              bg={sc}
+              sx={{
+                animation: 'visitrundot 1s ease-in-out infinite',
+                '@keyframes visitrundot': {
+                  '0%,100%': { transform: 'scale(1)', opacity: 1 },
+                  '50%': { transform: 'scale(1.6)', opacity: 0.5 },
+                },
+              }}
+            />
+          )}
+        </Flex>
+      </Flex>
+
+      {/* Expanded details */}
+      {isOpen && hasDetails && (
+        <Box pl={1} pb={2}>
+          {hasModel && (
+            <Text fontSize="2xs" fontFamily="mono" color="blue.300" noOfLines={1} mb={0.5}>
+              {visit.metrics!.model}
+            </Text>
+          )}
+          {totalTok > 0 && (
+            <Text fontSize="2xs" color="whiteAlpha.400">
+              {(visit.metrics?.tokens_in ?? 0).toLocaleString()} in&nbsp;·&nbsp;
+              {(visit.metrics?.tokens_out ?? 0).toLocaleString()} out
+            </Text>
+          )}
+          {canRerunVisit && (
+            <Flex
+              as="button"
+              align="center"
+              gap={1}
+              mt={1.5}
+              fontSize="2xs"
+              color="cyan.400"
+              cursor="pointer"
+              _hover={{ color: 'cyan.300' }}
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); onRerun!(); }}
+            >
+              <RefreshCw size={10} />
+              <Text>Re-run</Text>
+            </Flex>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+// ── ParallelChip: compact status chip for a parallel node ────────────────────
+
+const ParallelChip: React.FC<{
+  visit: NodeVisit;
+  isOpen: boolean;
+  onToggle: () => void;
+  onSelect?: () => void;
+}> = ({ visit, isOpen, onToggle, onSelect }) => {
+  const sc = statusColor(visit.status);
+  return (
+    <Flex
+      align="center"
+      gap={1.5}
+      px={2}
+      py={1}
+      borderRadius="md"
+      border="1px solid"
+      borderColor={isOpen ? sc : `${sc}40`}
+      bg={isOpen ? 'whiteAlpha.100' : 'transparent'}
+      cursor="pointer"
+      _hover={{ borderColor: sc, bg: 'whiteAlpha.50' }}
+      transition="all 0.12s"
+      onClick={() => { onToggle(); onSelect?.(); }}
+      flexShrink={0}
+    >
+      <Box
+        w="7px"
+        h="7px"
+        borderRadius="full"
+        bg={visit.status === 'running' ? sc : 'transparent'}
+        border="1.5px solid"
+        borderColor={sc}
+        boxShadow={visit.status === 'running' ? `0 0 6px ${sc}` : 'none'}
+        flexShrink={0}
+        sx={visit.status === 'running' ? {
+          animation: 'chippulse 1.4s ease-in-out infinite',
+          '@keyframes chippulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.4 } },
+        } : {}}
+      />
+      <Text fontSize="xs" color={visit.stale ? 'whiteAlpha.350' : 'whiteAlpha.850'} noOfLines={1} maxW="140px"
+        textDecoration={visit.stale ? 'line-through' : 'none'}>
+        {visit.label}
+      </Text>
+      {visit.metrics?.latency_ms != null && visit.metrics.latency_ms > 0 && (
+        <Text fontSize="2xs" color="whiteAlpha.400" flexShrink={0}>
+          {visit.metrics.latency_ms >= 1000
+            ? `${(visit.metrics.latency_ms / 1000).toFixed(1)}s`
+            : `${visit.metrics.latency_ms}ms`}
+        </Text>
+      )}
+      {visit.status === 'completed' && <Text color="green.300" fontSize="xs" lineHeight={1} flexShrink={0}>✓</Text>}
+      {visit.status === 'error' && <Text color="red.400" fontSize="xs" lineHeight={1} flexShrink={0}>✗</Text>}
+    </Flex>
+  );
+};
+
+// ── PipelineStepView ──────────────────────────────────────────────────────────
+
+const PipelineStepView: React.FC<AgentGraphProps> = ({
+  events,
+  allEvents,
+  runStatus,
+  onNodeClick,
+  onNodeRerun,
+}) => {
+  const [openVisits, setOpenVisits] = useState<Set<string>>(new Set());
+
+  const visits = useMemo(
+    () => buildVisits(events, allEvents ?? events, runStatus),
+    [events, allEvents, runStatus],
+  );
+
+  // Auto-expand error visits
+  useEffect(() => {
+    const errorIds = visits.filter((v) => v.status === 'error').map((v) => v.id);
+    if (errorIds.length === 0) return;
+    setOpenVisits((prev) => {
+      const next = new Set(prev);
+      errorIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [visits]);
+
+  const toggle = (id: string) =>
+    setOpenVisits((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const scanVisits = visits.filter((v) => v.kind === 'scan');
+
+  const tickerIds = useMemo(() => {
+    const seen = new Set<string>();
+    const order: string[] = [];
+    visits
+      .filter((v) => v.kind === 'ticker')
+      .forEach((v) => {
+        if (!seen.has(v.identifier)) {
+          seen.add(v.identifier);
+          order.push(v.identifier);
+        }
+      });
+    return order;
+  }, [visits]);
+
+  const portfolioVisits = visits.filter((v) => v.kind === 'portfolio');
+
+  // Group scan visits by SCAN_LEVEL so parallel nodes appear as chips
+  const scanLevelGroups = useMemo(() => {
+    const map = new Map<number, NodeVisit[]>();
+    scanVisits.forEach((v) => {
+      const level = SCAN_LEVELS[v.normalizedId] ?? 0;
+      map.set(level, [...(map.get(level) ?? []), v]);
+    });
+    return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, vs]) => vs);
+  }, [scanVisits]);
+
+  // Group portfolio visits by PORTFOLIO_LEVEL (e.g. macro_summary + micro_summary)
+  const portfolioLevelGroups = useMemo(() => {
+    const map = new Map<number, NodeVisit[]>();
+    portfolioVisits.forEach((v) => {
+      const level = PORTFOLIO_LEVELS[v.normalizedId] ?? 0;
+      map.set(level, [...(map.get(level) ?? []), v]);
+    });
+    return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, vs]) => vs);
+  }, [portfolioVisits]);
+
+  // Renders a section that groups nodes by level (scan / portfolio).
+  // Single node at a level → VisitRow; multiple → horizontal ParallelChips.
+  const renderGroupedSection = (
+    groups: NodeVisit[][],
+    label: string,
+    color: string,
+    allVisits: NodeVisit[],
+  ) => {
+    if (groups.length === 0) return null;
+    const uniqueNodes = new Set(allVisits.map((v) => v.nodeKey));
+    const completedUnique = new Set(
+      allVisits.filter((v) => v.status === 'completed' && !v.stale).map((v) => v.nodeKey),
+    );
+
+    return (
+      <Box>
+        <Flex align="center" gap={2} mb={2}>
+          <Box w="3px" h="14px" bg={color} borderRadius="full" flexShrink={0} />
+          <Text fontSize="2xs" textTransform="uppercase" letterSpacing="wider" color={color} fontWeight="bold">
+            {label}
+          </Text>
+          {uniqueNodes.size > 0 && (
+            <Text fontSize="2xs" color="whiteAlpha.400" ml="auto">
+              {completedUnique.size}/{uniqueNodes.size}
+            </Text>
+          )}
+        </Flex>
+        <Box ml="5px">
+          {groups.map((groupVisits, gi) => {
+            const isLastGroup = gi === groups.length - 1;
+
+            if (groupVisits.length === 1) {
+              const v = groupVisits[0];
+              const rerunFn =
+                onNodeRerun && canRerunNode(v.normalizedId, v.identifier)
+                  ? () => onNodeRerun(v.identifier, v.rawNodeId)
+                  : undefined;
+              return (
+                <VisitRow
+                  key={v.id}
+                  visit={v}
+                  isLast={isLastGroup}
+                  isOpen={openVisits.has(v.id)}
+                  onToggle={() => toggle(v.id)}
+                  onRerun={rerunFn}
+                  onSelect={() => onNodeClick?.(v.rawNodeId, v.identifier)}
+                />
+              );
+            }
+
+            // Parallel level: horizontal chip row
+            return (
+              <Box key={gi} position="relative" pl="28px" pb={isLastGroup ? 0 : 2}>
+                {/* Connector line to next level */}
+                {!isLastGroup && (
+                  <Box position="absolute" left="9px" top="30px" w="2px" bottom="0" bg="whiteAlpha.100" />
+                )}
+                {/* Left-side parallel bracket */}
+                <Box
+                  position="absolute"
+                  left="4px"
+                  top="4px"
+                  w="2px"
+                  h="22px"
+                  bg={color}
+                  borderRadius="full"
+                  opacity={0.5}
+                />
+                <Flex gap={1.5} flexWrap="wrap" py={0.5}>
+                  {groupVisits.map((v) => (
+                    <ParallelChip
+                      key={v.id}
+                      visit={v}
+                      isOpen={openVisits.has(v.id)}
+                      onToggle={() => toggle(v.id)}
+                      onSelect={() => onNodeClick?.(v.rawNodeId, v.identifier)}
+                    />
+                  ))}
+                </Flex>
+                {/* Expanded details for any open chip in this group */}
+                {groupVisits.filter((v) => openVisits.has(v.id)).map((v) => {
+                  const totalTok = (v.metrics?.tokens_in ?? 0) + (v.metrics?.tokens_out ?? 0);
+                  const hasModel = Boolean(v.metrics?.model && v.metrics.model !== 'unknown' && v.metrics.model !== 'langgraph_node');
+                  const rerunFn =
+                    onNodeRerun && canRerunNode(v.normalizedId, v.identifier)
+                      ? () => onNodeRerun(v.identifier, v.rawNodeId)
+                      : undefined;
+                  return (
+                    <Box
+                      key={v.id + '_exp'}
+                      ml={1}
+                      mb={1}
+                      mt={1}
+                      p={2}
+                      borderRadius="md"
+                      bg="whiteAlpha.50"
+                      border="1px solid"
+                      borderColor="whiteAlpha.100"
+                    >
+                      <Text fontSize="2xs" fontWeight="bold" color="whiteAlpha.600" mb={0.5}>{v.label}</Text>
+                      {hasModel && (
+                        <Text fontSize="2xs" fontFamily="mono" color="blue.300">{v.metrics!.model}</Text>
+                      )}
+                      {totalTok > 0 && (
+                        <Text fontSize="2xs" color="whiteAlpha.400">
+                          {(v.metrics?.tokens_in ?? 0).toLocaleString()} in · {(v.metrics?.tokens_out ?? 0).toLocaleString()} out
+                        </Text>
+                      )}
+                      {rerunFn && (v.status === 'completed' || v.status === 'error') && (
+                        <Flex
+                          as="button"
+                          align="center"
+                          gap={1}
+                          mt={1}
+                          fontSize="2xs"
+                          color="cyan.400"
+                          cursor="pointer"
+                          _hover={{ color: 'cyan.300' }}
+                          onClick={(e: React.MouseEvent) => { e.stopPropagation(); rerunFn(); }}
+                        >
+                          <RefreshCw size={10} />
+                          <Text>Re-run</Text>
+                        </Flex>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  };
+
+  // Single ticker section (vertical list — preserves debate revisit order)
+  const renderSingleTickerSection = (id: string) => {
+    const color = identifierColor(id);
+    const tickerVisits = visits.filter((v) => v.kind === 'ticker' && v.identifier === id);
+    if (tickerVisits.length === 0) return null;
+    const uniqueNodes = new Set(tickerVisits.map((v) => v.nodeKey));
+    const completedUnique = new Set(
+      tickerVisits.filter((v) => v.status === 'completed' && !v.stale).map((v) => v.nodeKey),
+    );
+    return (
+      <Box key={id}>
+        <Flex align="center" gap={2} mb={2}>
+          <Box w="3px" h="14px" bg={color} borderRadius="full" flexShrink={0} />
+          <Text fontSize="2xs" textTransform="uppercase" letterSpacing="wider" color={color} fontWeight="bold">
+            Pipeline · {id}
+          </Text>
+          <Text fontSize="2xs" color="whiteAlpha.400" ml="auto">
+            {completedUnique.size}/{uniqueNodes.size}
+          </Text>
+        </Flex>
+        <Box ml="5px">
+          {tickerVisits.map((visit, i) => {
+            const rerunFn =
+              onNodeRerun && canRerunNode(visit.normalizedId, visit.identifier)
+                ? () => onNodeRerun(visit.identifier, visit.rawNodeId)
+                : undefined;
+            return (
+              <VisitRow
+                key={visit.id}
+                visit={visit}
+                isLast={i === tickerVisits.length - 1}
+                isOpen={openVisits.has(visit.id)}
+                onToggle={() => toggle(visit.id)}
+                onRerun={rerunFn}
+                onSelect={() => onNodeClick?.(visit.rawNodeId, visit.identifier)}
+              />
+            );
+          })}
+        </Box>
+      </Box>
+    );
+  };
+
+  // Multiple ticker sections: side-by-side columns so parallel runs are obvious
+  const renderParallelTickerColumns = () => (
+    <Box>
+      <Flex align="center" gap={2} mb={3}>
+        <Box w="3px" h="14px" bg="whiteAlpha.300" borderRadius="full" flexShrink={0} />
+        <Text fontSize="2xs" textTransform="uppercase" letterSpacing="wider" color="whiteAlpha.500" fontWeight="bold">
+          Pipeline · {tickerIds.length} in parallel
+        </Text>
+      </Flex>
+      <Flex
+        gap={4}
+        align="flex-start"
+        overflowX="auto"
+        pb={2}
+        sx={{
+          '&::-webkit-scrollbar': { height: '3px' },
+          '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.15)' },
+        }}
+      >
+        {tickerIds.map((id) => {
+          const color = identifierColor(id);
+          const tickerVisits = visits.filter((v) => v.kind === 'ticker' && v.identifier === id);
+          const uniqueNodes = new Set(tickerVisits.map((v) => v.nodeKey));
+          const completedUnique = new Set(
+            tickerVisits.filter((v) => v.status === 'completed' && !v.stale).map((v) => v.nodeKey),
+          );
+          return (
+            <Box key={id} flex="1" minW="170px" maxW="230px">
+              {/* Column header */}
+              <Flex align="center" gap={2} mb={2} pb={1.5} borderBottom="2px solid" borderColor={color}>
+                <Text fontSize="sm" fontWeight="black" color={color} letterSpacing="wide">{id}</Text>
+                <Text fontSize="2xs" color="whiteAlpha.400" ml="auto">
+                  {completedUnique.size}/{uniqueNodes.size}
+                </Text>
+              </Flex>
+              {/* Visits in temporal order — debate revisits show as repeated rows */}
+              {tickerVisits.map((visit, i) => {
+                const rerunFn =
+                  onNodeRerun && canRerunNode(visit.normalizedId, visit.identifier)
+                    ? () => onNodeRerun(visit.identifier, visit.rawNodeId)
+                    : undefined;
+                return (
+                  <VisitRow
+                    key={visit.id}
+                    visit={visit}
+                    isLast={i === tickerVisits.length - 1}
+                    isOpen={openVisits.has(visit.id)}
+                    onToggle={() => toggle(visit.id)}
+                    onRerun={rerunFn}
+                    onSelect={() => onNodeClick?.(visit.rawNodeId, visit.identifier)}
+                  />
+                );
+              })}
+            </Box>
+          );
+        })}
+      </Flex>
+    </Box>
+  );
+
+  const isEmpty =
+    scanVisits.length === 0 && tickerIds.length === 0 && portfolioVisits.length === 0;
+
+  return (
+    <Box
+      h="100%"
+      w="100%"
+      bg="#020617"
+      overflowY="auto"
+      px={5}
+      py={4}
+      sx={{
+        '&::-webkit-scrollbar': { width: '4px' },
+        '&::-webkit-scrollbar-track': { background: 'transparent' },
+        '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.15)' },
+      }}
+    >
+      <Flex direction="column" gap={6}>
+        {/* Scan: parallel nodes at same level shown as horizontal chips */}
+        {renderGroupedSection(scanLevelGroups, 'Scan', '#4fd1c5', scanVisits)}
+
+        {/* Ticker pipelines: columns when parallel, vertical list when single */}
+        {tickerIds.length === 1
+          ? renderSingleTickerSection(tickerIds[0])
+          : tickerIds.length > 1
+            ? renderParallelTickerColumns()
+            : null}
+
+        {/* Portfolio: parallel nodes (e.g. macro + micro summary) shown as chips */}
+        {renderGroupedSection(portfolioLevelGroups, 'Portfolio', '#9f7aea', portfolioVisits)}
+
+        {isEmpty && (
+          <Flex h="280px" align="center" justify="center" direction="column" gap={3} opacity={0.25}>
+            <Settings size={40} />
+            <Text fontSize="sm">Awaiting agent events…</Text>
+          </Flex>
+        )}
+      </Flex>
+    </Box>
+  );
+};
+
+// ── ReactFlow graph helpers ───────────────────────────────────────────────────
+
 type PositionOverrides = Record<string, { x: number; y: number }>;
 
 function centeredX(index: number, count: number, maxColumns: number): number {
@@ -707,7 +1422,6 @@ function buildGraph(
 
   const maxColumns = Math.max(tickerIdentifiers.length, maxScanColumns, maxPortfolioColumns, 1);
 
-  // Pre-compute ticker records and maxTickerRows so LR section geometry can use it
   const tickerRecords = [...records.values()]
     .filter((record) => record.kind === 'ticker')
     .sort((a, b) => {
@@ -722,12 +1436,10 @@ function buildGraph(
 
   const nodes: Node[] = [];
 
-  // ── LR geometry ──────────────────────────────────────────────────────────
   const maxScanLevel = scanRecords.length > 0
     ? Math.max(...scanRecords.map((r) => SCAN_LEVELS[r.normalizedId] ?? 0))
     : -1;
 
-  // LR: sections are placed left→right; scan first, then ticker, then portfolio
   const scanSectionSpanLR = maxScanLevel >= 0 ? (maxScanLevel + 1) * COL_WIDTH : 0;
   const tickerSectionStartLR = TOP_PADDING + (scanSectionSpanLR > 0 ? scanSectionSpanLR + TICKER_GAP : 0);
   const tickerNodeStartLR = tickerSectionStartLR + NODE_WIDTH + TICKER_HDR_TO_NODE_GAP;
@@ -753,7 +1465,6 @@ function buildGraph(
       : undefined,
   });
 
-  // ── Scan nodes ────────────────────────────────────────────────────────────
   const scanByLevel = new Map<number, GraphRecord[]>();
   scanRecords.forEach((record) => {
     const level = SCAN_LEVELS[record.normalizedId] ?? 0;
@@ -769,7 +1480,6 @@ function buildGraph(
     });
   }
 
-  // ── Ticker section ────────────────────────────────────────────────────────
   const scanRowCount = scanByLevel.size;
   const tickerStartY = TOP_PADDING + (scanRowCount > 0 ? scanRowCount * ROW_HEIGHT + TICKER_GAP : 0);
   const tickerColumnOffset = ((maxColumns - Math.max(tickerIdentifiers.length, 1)) * COL_WIDTH) / 2;
@@ -804,7 +1514,6 @@ function buildGraph(
     }
   });
 
-  // ── Portfolio nodes ───────────────────────────────────────────────────────
   const portfolioStartY = tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + (maxTickerRows > 0 ? maxTickerRows * ROW_HEIGHT + TICKER_GAP : 0);
 
   const portfolioByLevel = new Map<number, GraphRecord[]>();
@@ -824,20 +1533,7 @@ function buildGraph(
           id: record.id,
           type: 'agentNode',
           position,
-          data: {
-            agent: record.rawNodeId,
-            label: record.label,
-            identifier: record.identifier,
-            node_id: record.rawNodeId,
-            status: record.status,
-            metrics: record.metrics,
-            stale: record.stale,
-            rerunSeq: record.rerunSeq,
-            layoutDir,
-            onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
-              ? () => onNodeRerun(record.identifier, record.rawNodeId)
-              : undefined,
-          },
+          data: nodeData(record),
         });
       });
   }
@@ -845,7 +1541,10 @@ function buildGraph(
   return { nodes, edges };
 }
 
+// ── AgentGraph: top-level component with Steps/Graph toggle ──────────────────
+
 export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runStatus, onNodeClick, onNodeRerun }) => {
+  const [viewMode, setViewMode] = useState<'steps' | 'graph'>('steps');
   const [layoutDir, setLayoutDir] = useState<'TB' | 'LR'>('TB');
   const [positionOverrides, setPositionOverrides] = useState<PositionOverrides>({});
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -855,10 +1554,8 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runSt
     [events, allEvents, runStatus, onNodeRerun, layoutDir],
   );
 
-  // Clear position overrides and re-fit when layout direction changes
   useEffect(() => {
     setPositionOverrides({});
-    // Delay to let ReactFlow commit the new node positions after the state update
     const t = setTimeout(() => rfInstanceRef.current?.fitView({ padding: 0.15 }), 150);
     return () => clearTimeout(t);
   }, [layoutDir]);
@@ -883,21 +1580,13 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runSt
     setPositionOverrides((prev) => {
       const next = { ...prev };
       const updatedNodes = applyNodeChanges(changes, nodes);
-
       changes.forEach((change) => {
-        if (change.type === 'remove') {
-          delete next[change.id];
-          return;
-        }
-
+        if (change.type === 'remove') { delete next[change.id]; return; }
         if (change.type === 'position') {
           const updated = updatedNodes.find((node) => node.id === change.id);
-          if (updated) {
-            next[change.id] = updated.position;
-          }
+          if (updated) next[change.id] = updated.position;
         }
       });
-
       return next;
     });
   }, [nodes]);
@@ -907,42 +1596,104 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runSt
   }, [onNodeClick]);
 
   return (
-    <Box h="100%" w="100%" bg="#020617">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={handleNodesChange}
-        onNodeClick={handleNodeClick}
-        onInit={(instance: ReactFlowInstance) => { rfInstanceRef.current = instance; }}
-        nodeTypes={nodeTypes}
-        nodesDraggable
-        fitView
-        fitViewOptions={{ padding: 0.15 }}
+    <Flex h="100%" w="100%" bg="#020617" direction="column">
+      {/* ── Header bar: view toggle + graph layout button ── */}
+      <Flex
+        flexShrink={0}
+        align="center"
+        justify="space-between"
+        px={3}
+        h="40px"
+        borderBottom="1px solid"
+        borderColor="rgba(255,255,255,0.08)"
+        bg="#0a1628"
       >
-        <Background color="#1e293b" gap={20} />
-        <Controls />
-        <Panel position="top-right">
-          <Box
-            as="button"
-            onClick={() => setLayoutDir((d: 'TB' | 'LR') => (d === 'TB' ? 'LR' : 'TB'))}
-            bg="#0f172a"
+        {/* Left: section label */}
+        <Text fontSize="2xs" textTransform="uppercase" letterSpacing="widest" color="whiteAlpha.300" fontWeight="bold">
+          {viewMode === 'steps' ? 'Agent Steps' : 'Agent Graph'}
+        </Text>
+
+        <Flex align="center" gap={2}>
+          {/* Layout direction button — only visible in graph mode */}
+          {viewMode === 'graph' && (
+            <Box
+              as="button"
+              onClick={() => setLayoutDir((d: 'TB' | 'LR') => (d === 'TB' ? 'LR' : 'TB'))}
+              bg="rgba(255,255,255,0.06)"
+              border="1px solid"
+              borderColor="rgba(255,255,255,0.12)"
+              color="whiteAlpha.600"
+              fontSize="2xs"
+              fontWeight="semibold"
+              px={2}
+              py={0.5}
+              borderRadius="sm"
+              cursor="pointer"
+              _hover={{ borderColor: '#4fd1c5', color: '#4fd1c5' }}
+              transition="all 0.15s"
+            >
+              {layoutDir === 'TB' ? '⇔ H' : '⇕ V'}
+            </Box>
+          )}
+
+          {/* Steps / Graph toggle pill */}
+          <Flex
+            bg="rgba(255,255,255,0.05)"
             border="1px solid"
-            borderColor="whiteAlpha.200"
-            color="whiteAlpha.700"
-            fontSize="xs"
-            fontWeight="semibold"
-            px={3}
-            py={1.5}
+            borderColor="rgba(255,255,255,0.12)"
             borderRadius="md"
-            cursor="pointer"
-            _hover={{ borderColor: '#4fd1c5', color: '#4fd1c5' }}
-            transition="all 0.15s"
-            title={layoutDir === 'TB' ? 'Switch to horizontal layout' : 'Switch to vertical layout'}
+            overflow="hidden"
           >
-            {layoutDir === 'TB' ? '⇔ Horizontal' : '⇕ Vertical'}
-          </Box>
-        </Panel>
-      </ReactFlow>
-    </Box>
+            {(['steps', 'graph'] as const).map((mode) => (
+              <Box
+                key={mode}
+                as="button"
+                px={3}
+                py={1.5}
+                fontSize="xs"
+                fontWeight="semibold"
+                bg={viewMode === mode ? 'rgba(79,209,197,0.15)' : 'transparent'}
+                color={viewMode === mode ? '#4fd1c5' : 'rgba(255,255,255,0.4)'}
+                cursor="pointer"
+                borderRight={mode === 'steps' ? '1px solid rgba(255,255,255,0.08)' : undefined}
+                _hover={{ color: viewMode === mode ? '#4fd1c5' : 'white' }}
+                transition="all 0.15s"
+                onClick={() => setViewMode(mode)}
+              >
+                {mode === 'steps' ? '≡ Steps' : '⊡ Graph'}
+              </Box>
+            ))}
+          </Flex>
+        </Flex>
+      </Flex>
+
+      {/* ── Content area fills remaining height ── */}
+      <Box flex={1} minH={0} position="relative" overflow="hidden">
+        {viewMode === 'steps' ? (
+          <PipelineStepView
+            events={events}
+            allEvents={allEvents}
+            runStatus={runStatus}
+            onNodeClick={onNodeClick}
+            onNodeRerun={onNodeRerun}
+          />
+        ) : (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={handleNodesChange}
+            onNodeClick={handleNodeClick}
+            onInit={(instance: ReactFlowInstance) => { rfInstanceRef.current = instance; }}
+            nodeTypes={nodeTypes}
+            nodesDraggable
+            fitView
+            fitViewOptions={{ padding: 0.15 }}
+          >
+            <Background color="#1e293b" gap={20} />
+            <Controls />
+          </ReactFlow>
+        )}
+      </Box>
+    </Flex>
   );
 };
