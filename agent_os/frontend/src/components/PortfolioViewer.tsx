@@ -21,6 +21,7 @@ import {
   Tab,
   TabPanel,
   Icon,
+  IconButton,
 } from '@chakra-ui/react';
 import { Wallet, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 import axios from 'axios';
@@ -82,16 +83,19 @@ export const PortfolioViewer: React.FC<PortfolioViewerProps> = ({ defaultPortfol
         const res = await axios.get(`${API_BASE}/portfolios/`);
         const list = res.data as PortfolioInfo[];
         setPortfolios(list);
-        if (list.length > 0 && !list.find((p) => p.id === selectedId)) {
-          setSelectedId(list[0].id);
-        }
+        setSelectedId((current) => {
+          if (list.length > 0 && !list.find((p) => p.id === current)) {
+            return list[0].id;
+          }
+          return current;
+        });
       } catch {
         // Might fail if no DB — use fallback
         setPortfolios([{ id: defaultPortfolioId, name: defaultPortfolioId }]);
       }
     };
     fetchList();
-  }, [defaultPortfolioId, selectedId]);
+  }, [defaultPortfolioId]);
 
   // Fetch portfolio state when selection changes
   const fetchState = useCallback(async () => {
@@ -137,9 +141,15 @@ export const PortfolioViewer: React.FC<PortfolioViewerProps> = ({ defaultPortfol
           ))}
         </Select>
 
-        <Box cursor="pointer" onClick={fetchState} opacity={0.6} _hover={{ opacity: 1 }}>
-          <RefreshCw size={16} />
-        </Box>
+        <IconButton
+          aria-label="Refresh portfolio"
+          icon={<RefreshCw size={16} />}
+          size="sm"
+          variant="ghost"
+          color="whiteAlpha.600"
+          _hover={{ color: 'white' }}
+          onClick={fetchState}
+        />
       </Flex>
 
       {/* Body */}
@@ -181,10 +191,10 @@ export const PortfolioViewer: React.FC<PortfolioViewerProps> = ({ defaultPortfol
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {state.holdings.map((h, i) => {
+                      {state.holdings.map((h) => {
                         const pnl = h.unrealized_pnl ?? 0;
                         return (
-                          <Tr key={i} _hover={{ bg: 'whiteAlpha.50' }}>
+                          <Tr key={h.ticker} _hover={{ bg: 'whiteAlpha.50' }}>
                             <Td fontWeight="bold"><Code colorScheme="cyan" fontSize="sm">{h.ticker}</Code></Td>
                             <Td isNumeric>{h.quantity}</Td>
                             <Td isNumeric>${(h.avg_cost ?? 0).toFixed(2)}</Td>
@@ -211,9 +221,9 @@ export const PortfolioViewer: React.FC<PortfolioViewerProps> = ({ defaultPortfol
                 <Text color="whiteAlpha.500" fontSize="sm" textAlign="center" mt={8}>No trades recorded yet.</Text>
               ) : (
                 <VStack align="stretch" spacing={2}>
-                  {state.recent_trades.map((t, i) => (
+                  {state.recent_trades.map((t) => (
                     <Flex
-                      key={i}
+                      key={t.id ?? `${t.ticker}_${t.action}_${t.executed_at ?? t.price}`}
                       bg="whiteAlpha.50"
                       p={3}
                       borderRadius="md"

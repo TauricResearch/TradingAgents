@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Flex, Text, Badge, Icon, Spinner } from '@chakra-ui/react';
 import { Activity, ShieldAlert, TrendingUp } from 'lucide-react';
 import axios from 'axios';
@@ -20,17 +20,24 @@ interface MetricHeaderProps {
 export const MetricHeader: React.FC<MetricHeaderProps> = ({ portfolioId }) => {
   const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!portfolioId) return;
 
     const fetchSummary = async () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/portfolios/${portfolioId}/summary`);
+        const res = await axios.get(`${API_BASE}/portfolios/${portfolioId}/summary`, {
+          signal: abortControllerRef.current.signal,
+        });
         setData(res.data);
       } catch (err) {
-        console.error("Failed to fetch summary:", err);
+        if (!axios.isCancel(err)) {
+          console.error("Failed to fetch summary:", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -38,7 +45,10 @@ export const MetricHeader: React.FC<MetricHeaderProps> = ({ portfolioId }) => {
 
     fetchSummary();
     const interval = setInterval(fetchSummary, 60000); // Refresh every minute
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      abortControllerRef.current?.abort();
+    };
   }, [portfolioId]);
 
   if (!data && loading) {

@@ -56,6 +56,7 @@ def _append_system_event(run_id: str, message: str) -> None:
             "node_id": "__system__",
             "type": "log",
             "agent": "SYSTEM",
+            "tier": "mid",
             "message": message,
             "metrics": {},
             "timestamp": time.strftime("%H:%M:%S"),

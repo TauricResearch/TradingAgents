@@ -49,9 +49,8 @@ import { MetricHeader } from './components/MetricHeader';
 import { AgentGraph } from './components/AgentGraph';
 import { PortfolioViewer } from './components/PortfolioViewer';
 import { useAgentStream, AgentEvent } from './hooks/useAgentStream';
+import { API_BASE } from './config/api';
 import axios from 'axios';
-
-const API_BASE = 'http://127.0.0.1:8088/api';
 
 // ─── Run type definitions with required parameters ────────────────────
 type RunType = 'scan' | 'pipeline' | 'portfolio' | 'auto' | 'mock';
@@ -548,6 +547,25 @@ export const Dashboard: React.FC = () => {
   // Auto-scroll the terminal to the bottom as new events arrive
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
+  // ─── History panel state ───────────────────────────────────────────
+  const [historyRuns, setHistoryRuns] = useState<RunRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/run/`);
+      const sorted = (res.data as RunRecord[]).sort(
+        (a, b) => (b.created_at || 0) - (a.created_at || 0),
+      );
+      setHistoryRuns(sorted);
+    } catch (err) {
+      console.error('Failed to load run history', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   // Fetch initial config
   useEffect(() => {
     const fetchConfig = async () => {
@@ -564,8 +582,9 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!showTerminal) return;
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [events.length]);
+  }, [events.length, showTerminal]);
 
   // Clear activeRunType when run completes
   useEffect(() => {
@@ -591,7 +610,7 @@ export const Dashboard: React.FC = () => {
       }
     };
     loadPausedRun();
-  }, [status, activeRunId]);
+  }, [status, activeRunId, loadHistory]);
 
   const isRunning = isTriggering || status === 'streaming' || status === 'connecting';
   const isActiveRunStopping = Boolean(activeRunId && stopRequestedRunId === activeRunId && isRunning);
@@ -719,6 +738,40 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  /** Trigger a phase-level re-run for a specific node on the active run. */
+  const triggerNodeRerun = useCallback(async (runId: string, identifier: string, nodeId: string) => {
+    try {
+      setStreamEnabled(true);
+      const res = await axios.post(`${API_BASE}/run/rerun-node`, {
+        run_id: runId,
+        node_id: nodeId,
+        identifier,
+        date: params.date,
+        portfolio_id: params.portfolio_id,
+      });
+      // Preserve in-session history so the user can compare base vs rerun output.
+      setEventScope('all');
+      setActiveRunId(res.data.run_id);
+      setActiveRunReloadKey((k) => k + 1);
+      toast({
+        title: `Re-running ${res.data.phase} phase for ${identifier}`,
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+    } catch (err: unknown) {
+      toast({
+        title: 'Re-run failed',
+        description: errorDetail(err),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
+    }
+  }, [params.date, params.portfolio_id, toast]);
+
   /** Re-run triggered from a graph node's Re-run button. */
   const handleNodeRerun = useCallback((identifier: string, nodeId: string) => {
     // If we have an active loaded run, re-run the selected node within that run.
@@ -734,8 +787,7 @@ export const Dashboard: React.FC = () => {
       isClosable: true,
       position: 'top',
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRunId, toast]);
+  }, [activeRunId, toast, triggerNodeRerun]);
 
   const resetPortfolioStage = async () => {
     if (!params.date || !params.portfolio_id) {
@@ -755,25 +807,6 @@ export const Dashboard: React.FC = () => {
       });
     } catch {
       toast({ title: 'Failed to reset portfolio stage', status: 'error', duration: 3000, isClosable: true, position: 'top' });
-    }
-  };
-
-  // ─── History panel state ───────────────────────────────────────────
-  const [historyRuns, setHistoryRuns] = useState<RunRecord[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  const loadHistory = async () => {
-    setHistoryLoading(true);
-    try {
-      const res = await axios.get(`${API_BASE}/run/`);
-      const sorted = (res.data as RunRecord[]).sort(
-        (a, b) => (b.created_at || 0) - (a.created_at || 0),
-      );
-      setHistoryRuns(sorted);
-    } catch (err) {
-      console.error('Failed to load run history', err);
-    } finally {
-      setHistoryLoading(false);
     }
   };
 
@@ -922,40 +955,6 @@ export const Dashboard: React.FC = () => {
       });
     } finally {
       setPhase3DecisionSubmitting(false);
-    }
-  };
-
-  /** Trigger a phase-level re-run for a specific node on the active run. */
-  const triggerNodeRerun = async (runId: string, identifier: string, nodeId: string) => {
-    try {
-      setStreamEnabled(true);
-      const res = await axios.post(`${API_BASE}/run/rerun-node`, {
-        run_id: runId,
-        node_id: nodeId,
-        identifier,
-        date: params.date,
-        portfolio_id: params.portfolio_id,
-      });
-      // Preserve in-session history so the user can compare base vs rerun output.
-      setEventScope('all');
-      setActiveRunId(res.data.run_id);
-      setActiveRunReloadKey((k) => k + 1);
-      toast({
-        title: `Re-running ${res.data.phase} phase for ${identifier}`,
-        status: 'info',
-        duration: 3000,
-        isClosable: true,
-        position: 'top',
-      });
-    } catch (err: unknown) {
-      toast({
-        title: 'Re-run failed',
-        description: errorDetail(err),
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
-      });
     }
   };
 
