@@ -55,6 +55,16 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
     return bool(str(analysis.get("final_trade_decision") or "").strip())
 
 
+def _structured_action_allows_candidate(analysis: dict[str, Any]) -> bool:
+    """Only completed structured BUY decisions may become new buy candidates."""
+    structured = analysis.get("final_trade_decision_structured") or {}
+    if not isinstance(structured, dict):
+        return False
+    status = str(structured.get("status") or "").strip().lower()
+    action = str(structured.get("action") or "").strip().upper()
+    return status == "completed" and action == "BUY"
+
+
 def _completed_scan_candidates(
     scan_summary: dict, ticker_analyses: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -81,11 +91,16 @@ def _completed_scan_candidates(
         )
         if not _analysis_has_deep_dive(analysis):
             continue
+        if not _structured_action_allows_candidate(analysis):
+            continue
         candidate["ticker"] = ticker
         candidate["instrument_key"] = instrument_key
         candidate["candidate_final_trade_decision_summary"] = str(
             analysis.get("final_trade_decision") or ""
         ).strip()
+        candidate["candidate_final_trade_decision_structured"] = dict(
+            analysis.get("final_trade_decision_structured") or {}
+        )
         completed.append(candidate)
     return completed
 
