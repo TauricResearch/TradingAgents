@@ -99,6 +99,18 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "nvidia": {
+        "quick": [
+            ("Llama 3.1 Nemotron Nano 8B", "nvidia/llama-3.1-nemotron-nano-8b-v1"),
+            ("Llama 3.3 Nemotron Super 49B", "nvidia/llama-3.3-nemotron-super-49b-v1"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Llama 3.3 Nemotron Super 49B", "nvidia/llama-3.3-nemotron-super-49b-v1"),
+            ("Llama 3.1 Nemotron Ultra 253B", "nvidia/llama-3.1-nemotron-ultra-253b-v1"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [

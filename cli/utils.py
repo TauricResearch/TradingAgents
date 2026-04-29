@@ -174,6 +174,80 @@ def select_openrouter_model() -> str:
     return choice
 
 
+def _fetch_nvidia_models() -> List[Tuple[str, str]]:
+    """Fetch available models from NVIDIA's OpenAI-compatible API.
+    
+    Filters to include only general-purpose LLMs suitable for trading analysis.
+    Excludes: vision models, embeddings, coding-specific, and other non-LLM types.
+    """
+    import os
+    import requests
+
+    api_key = os.getenv("NVIDIA_API_KEY")
+    if not api_key:
+        console.print("\n[yellow]NVIDIA_API_KEY not set. Falling back to custom model ID input.[/yellow]")
+        return []
+
+    # Keywords to exclude non-relevant models
+    excluded_keywords = {
+        "vision", "vlm", "embed", "embedding",
+        "code", "coding", "starcoder", "stable-code",
+        "nougat", "ocr", "audio", "multimodal"
+    }
+
+    headers = {"Authorization": f"Bearer {api_key}"}
+    try:
+        resp = requests.get("https://integrate.api.nvidia.com/v1/models", headers=headers, timeout=10)
+        resp.raise_for_status()
+        models = resp.json().get("data", [])
+        
+        # Filter to general-purpose LLMs only
+        model_ids = set()
+        for m in models:
+            model_id = m.get("id", "")
+            if not model_id:
+                continue
+            # Skip if model ID contains any excluded keywords
+            if any(keyword in model_id.lower() for keyword in excluded_keywords):
+                continue
+            model_ids.add(model_id)
+        
+        # Sort for stable, readable menu order
+        model_ids = sorted(model_ids)
+        return [(mid, mid) for mid in model_ids]
+    except Exception as e:
+        console.print(f"\n[yellow]Could not fetch NVIDIA models: {e}[/yellow]")
+        return []
+
+
+def select_nvidia_model() -> str:
+    """Select a NVIDIA model, or enter any model ID manually."""
+    models = _fetch_nvidia_models()
+
+    # Show a manageable list while preserving manual entry for any model.
+    choices = [questionary.Choice(name, value=mid) for name, mid in models[:20]]
+    choices.append(questionary.Choice("Custom model ID", value="custom"))
+
+    choice = questionary.select(
+        "Select NVIDIA Model:",
+        choices=choices,
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:magenta noinherit"),
+            ("highlighted", "fg:magenta noinherit"),
+            ("pointer", "fg:magenta noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None or choice == "custom":
+        return questionary.text(
+            "Enter NVIDIA model ID (e.g. google/gemma-3-27b-it):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
+        ).ask().strip()
+
+    return choice
+
+
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
     return questionary.text(
@@ -186,6 +260,9 @@ def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
         return select_openrouter_model()
+
+    if provider.lower() == "nvidia":
+        return select_nvidia_model()
 
     if provider.lower() == "azure":
         return questionary.text(
@@ -239,6 +316,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
+        ("NVIDIA", "nvidia", "https://integrate.api.nvidia.com/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
