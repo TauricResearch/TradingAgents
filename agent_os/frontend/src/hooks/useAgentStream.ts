@@ -159,7 +159,15 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
           return;
         }
 
-        setEvents((prev) => [...prev, data as AgentEvent]);
+        // Only push events that have the required fields for AgentEvent
+        if (
+          typeof data.id === 'string' &&
+          typeof data.agent === 'string' &&
+          typeof data.type === 'string' &&
+          typeof data.message === 'string'
+        ) {
+          setEvents((prev) => [...prev, data as AgentEvent]);
+        }
       };
 
       socket.onclose = () => {

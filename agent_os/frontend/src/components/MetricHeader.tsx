@@ -24,21 +24,33 @@ export const MetricHeader: React.FC<MetricHeaderProps> = ({ portfolioId }) => {
   useEffect(() => {
     if (!portfolioId) return;
 
+    let abortController = new AbortController();
+
     const fetchSummary = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/portfolios/${portfolioId}/summary`);
+        const res = await axios.get(`${API_BASE}/portfolios/${portfolioId}/summary`, {
+          signal: abortController.signal,
+        });
         setData(res.data);
       } catch (err) {
-        console.error("Failed to fetch summary:", err);
+        if (!axios.isCancel(err)) {
+          console.error("Failed to fetch summary:", err);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchSummary();
-    const interval = setInterval(fetchSummary, 60000); // Refresh every minute
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      abortController = new AbortController();
+      fetchSummary();
+    }, 60000); // Refresh every minute
+    return () => {
+      clearInterval(interval);
+      abortController.abort();
+    };
   }, [portfolioId]);
 
   if (!data && loading) {
