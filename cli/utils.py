@@ -9,6 +9,7 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 console = Console()
 
 TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+NVIDIA_API_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -197,7 +198,7 @@ def _fetch_nvidia_models() -> List[Tuple[str, str]]:
 
     headers = {"Authorization": f"Bearer {api_key}"}
     try:
-        resp = requests.get("https://integrate.api.nvidia.com/v1/models", headers=headers, timeout=10)
+        resp = requests.get(f"{NVIDIA_API_BASE_URL}/models", headers=headers, timeout=10)
         resp.raise_for_status()
         models = resp.json().get("data", [])
         
@@ -239,14 +240,17 @@ def select_nvidia_model() -> str:
         ]),
     ).ask()
 
-    if choice is None or choice == "custom":
-        return questionary.text(
+    if choice is None:
+        return None
+
+    if choice == "custom":
+        res = questionary.text(
             "Enter NVIDIA model ID (e.g. google/gemma-3-27b-it):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-        ).ask().strip()
+        ).ask()
+        return res.strip() if res else None
 
     return choice
-
 
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
@@ -316,7 +320,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
-        ("NVIDIA", "nvidia", "https://integrate.api.nvidia.com/v1"),
+        ("NVIDIA", "nvidia", NVIDIA_API_BASE_URL),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
