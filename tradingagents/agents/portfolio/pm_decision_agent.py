@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from collections.abc import Callable
 from typing import Any, Literal
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from tradingagents.agents.utils.circuit_breaker import circuit_breaker_from_config
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
@@ -85,6 +86,8 @@ def _contains_newline_c_artifact(value: Any) -> bool:
 
 
 class _PMBaseModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     @model_validator(mode="before")
     @classmethod
     def _reject_newline_c_artifact(cls, data: Any) -> Any:
@@ -180,6 +183,7 @@ def create_pm_decision_agent(
     )
 
     def pm_decision_node(state: PortfolioManagerState) -> dict[str, Any]:
+        print("DEBUG: PM DECISION NODE STARTING")
         analysis_date = state.get("analysis_date") or ""
 
         # Read brief fields written by upstream summary agents
@@ -230,9 +234,21 @@ def create_pm_decision_agent(
             "You MUST ensure all buys adhere to the portfolio constraints. "
             "If a high-conviction candidate exceeds max position size or sector limit, "
             "adjust shares downward to fit. For every BUY: set stop_loss (5-15% below entry) "
-            "and take_profit (10-30% above entry). "
-            "Every buy must have macro_alignment (how it fits the regime), "
-            "memory_note (any relevant historical lesson), and position_sizing_logic.\n\n"
+            "and take_profit (10-30% above entry).\n\n"
+            "### STRICT OUTPUT REQUIREMENTS:\n"
+            "For every BUY, you MUST provide all required fields in the schema:\n"
+            "- ticker\n"
+            "- shares\n"
+            "- price_target (numeric float)\n"
+            "- stop_loss (numeric float)\n"
+            "- take_profit (numeric float)\n"
+            "- sector\n"
+            "- rationale (DETAILED string)\n"
+            "- thesis (DETAILED string)\n"
+            "- macro_alignment (how it fits the current regime)\n"
+            "- memory_note (any relevant historical lesson)\n"
+            "- position_sizing_logic (why you chose this amount of shares)\n\n"
+            "Failure to include any of these fields will cause a system error.\n\n"
             f"{context}"
         )
 
@@ -258,9 +274,12 @@ def create_pm_decision_agent(
 
         attempts = 3
         last_exc = None
+        extra_messages = []
         for attempt in range(1, attempts + 1):
             try:
-                result = chain.invoke([])
+                # On retries, we inject a reminder message
+                input_data = {"messages": extra_messages}
+                result = chain.invoke(input_data)
                 decision_str = result.model_dump_json()
                 breaker.record_success("pm_decision_agent")
                 break
@@ -274,8 +293,17 @@ def create_pm_decision_agent(
                     exc,
                 )
                 if attempt < attempts:
-                    # Append a hint to the prompt for the next attempt if possible
-                    # (In this simple closure, we just retry; the model might recover)
+                    # Append a hint for the next attempt
+                    extra_messages.append(
+                        HumanMessage(
+                            content=(
+                                f"Your previous response failed validation: {exc}\n\n"
+                                "Please ensure EVERY BuyOrder contains all required fields: "
+                                "price_target, rationale, thesis, macro_alignment, memory_note, "
+                                "and position_sizing_logic. Do not omit any of them."
+                            )
+                        )
+                    )
                     time.sleep(1.0)
                     continue
 
