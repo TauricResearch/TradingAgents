@@ -49,6 +49,15 @@ type StreamPayload = Partial<AgentEvent> & {
 const isStreamPayload = (value: unknown): value is StreamPayload =>
   typeof value === 'object' && value !== null;
 
+/** Type predicate that validates all required fields of an AgentEvent. */
+const isAgentEvent = (data: StreamPayload): data is AgentEvent =>
+  typeof data.id === 'string' &&
+  typeof data.agent === 'string' &&
+  typeof data.type === 'string' &&
+  typeof data.message === 'string' &&
+  typeof data.timestamp === 'string' &&
+  (data.tier === 'quick' || data.tier === 'mid' || data.tier === 'deep');
+
 export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = true) => {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'streaming' | 'completed' | 'paused' | 'error'>('idle');
@@ -159,14 +168,9 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
           return;
         }
 
-        // Only push events that have the required fields for AgentEvent
-        if (
-          typeof data.id === 'string' &&
-          typeof data.agent === 'string' &&
-          typeof data.type === 'string' &&
-          typeof data.message === 'string'
-        ) {
-          setEvents((prev) => [...prev, data as AgentEvent]);
+        // Only push events that have all required fields for AgentEvent
+        if (isAgentEvent(data)) {
+          setEvents((prev) => [...prev, data]);
         }
       };
 

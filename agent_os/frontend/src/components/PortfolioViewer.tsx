@@ -221,9 +221,9 @@ export const PortfolioViewer: React.FC<PortfolioViewerProps> = ({ defaultPortfol
                 <Text color="whiteAlpha.500" fontSize="sm" textAlign="center" mt={8}>No trades recorded yet.</Text>
               ) : (
                 <VStack align="stretch" spacing={2}>
-                  {state.recent_trades.map((t, i) => (
+                  {state.recent_trades.map((t) => (
                     <Flex
-                      key={t.id ?? `${t.ticker}_${t.executed_at ?? i}`}
+                      key={t.id ?? `${t.ticker}_${t.action}_${t.executed_at ?? t.price}`}
                       bg="whiteAlpha.50"
                       p={3}
                       borderRadius="md"
