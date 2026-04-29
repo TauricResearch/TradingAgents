@@ -33,6 +33,11 @@ def safe_ticker_component(value: str, *, max_len: int = 32) -> str:
         raise ValueError(
             f"ticker contains characters not allowed in a filesystem path: {value!r}"
         )
+    # The regex above allows '.', so values like '.', '..', '...' would pass
+    # — and as a path component they traverse the parent directory. Reject
+    # any value that's only dots.
+    if set(value) == {"."}:
+        raise ValueError(f"ticker cannot consist solely of dots: {value!r}")
     return value
 
 def save_output(data: pd.DataFrame, tag: str, save_path: SavePathType = None) -> None:

@@ -33,6 +33,13 @@ class TestSafeTickerComponent(unittest.TestCase):
         with self.assertRaises(ValueError):
             safe_ticker_component("A" * 33)
 
+    def test_rejects_dot_only_values(self):
+        # '.' and '..' pass the regex but traverse when used as a path
+        # component (e.g. ``Path(results_dir) / ticker / "logs"``).
+        for bad in (".", "..", "...", "...."):
+            with self.assertRaises(ValueError):
+                safe_ticker_component(bad)
+
     def test_traversal_string_does_not_escape_join(self):
         """Sanity: sanitized values stay within base when joined."""
         base = os.path.realpath("/tmp/cache")
