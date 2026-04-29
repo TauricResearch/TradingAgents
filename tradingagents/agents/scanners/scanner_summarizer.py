@@ -18,8 +18,8 @@ from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,
 )
-from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.json_utils import sanitize_llm_output
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.report_quality import parse_quality_header
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,

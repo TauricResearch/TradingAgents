@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -255,15 +256,33 @@ def create_pm_decision_agent(
         structured_llm = llm.with_structured_output(PMDecisionSchema)
         chain = prompt | structured_llm
 
-        try:
-            result = chain.invoke([])
-            decision_str = result.model_dump_json()
-        except Exception as exc:
-            breaker.record_failure("pm_decision_agent", f"{type(exc).__name__}: {exc}")
-            raise RuntimeError(
-                f"pm_decision_agent: structured output failed ({type(exc).__name__}: {exc})"
-            ) from exc
-        breaker.record_success("pm_decision_agent")
+        attempts = 3
+        last_exc = None
+        for attempt in range(1, attempts + 1):
+            try:
+                result = chain.invoke([])
+                decision_str = result.model_dump_json()
+                breaker.record_success("pm_decision_agent")
+                break
+            except Exception as exc:
+                last_exc = exc
+                breaker.record_failure("pm_decision_agent", f"{type(exc).__name__}: {exc}")
+                logger.warning(
+                    "pm_decision_agent: structured output attempt %d/%d failed: %s",
+                    attempt,
+                    attempts,
+                    exc,
+                )
+                if attempt < attempts:
+                    # Append a hint to the prompt for the next attempt if possible
+                    # (In this simple closure, we just retry; the model might recover)
+                    time.sleep(1.0)
+                    continue
+
+                raise RuntimeError(
+                    f"pm_decision_agent: structured output failed after {attempts} attempts "
+                    f"({type(last_exc).__name__}: {last_exc})"
+                ) from last_exc
 
         # with_structured_output returns the Pydantic model directly, not an AIMessage.
         # Wrap in a synthetic AIMessage so downstream message-history nodes stay consistent.
