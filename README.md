@@ -407,7 +407,7 @@ The dashboard opens at `http://localhost:8501` and contains five pages:
 | **Portfolio** | Live positions table (entry price, current price, unrealised P&L), allocation pie chart, 4 KPI cards |
 | **Performance** | Equity curve, drawdown chart, daily P&L bar chart, Sharpe ratio, max drawdown, win rate, profit factor |
 | **Trade History** | Every executed trade (filterable by ticker/side), full agent reasoning per trade, closed-position P&L table |
-| **Agent Signals** | Run a live analysis for any ticker/date from the UI — see the full multi-agent debate without executing a trade |
+| **Agent Reasoning** | Full per-agent tab view (12 tabs, one per agent) — run a live analysis or load past logs. Shows every analyst report, bull/bear debate, trader plan, risk debate, and portfolio manager decision in full |
 | **Risk Monitor** | Circuit breaker status, portfolio exposure gauge with cap markers, per-position concentration bar chart |
 
 The sidebar also includes a **Quick Trade** panel for placing manual orders directly from the UI.

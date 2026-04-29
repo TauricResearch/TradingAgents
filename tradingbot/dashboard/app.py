@@ -102,7 +102,7 @@ def render_sidebar(config):
     st.sidebar.markdown("---")
     page = st.sidebar.radio(
         "Navigate",
-        ["Portfolio", "Performance", "Trade History", "Agent Signals", "Risk Monitor"],
+        ["Portfolio", "Performance", "Trade History", "Agent Reasoning", "Risk Monitor"],
         index=0,
     )
 
@@ -170,10 +170,10 @@ def main():
         from tradingbot.dashboard.components import trades_view
         trades_view.render(pm)
 
-    elif page == "Agent Signals":
+    elif page == "Agent Reasoning":
         from tradingbot.dashboard.components import signals_view
         graph = _get_trading_graph()
-        signals_view.render(graph)
+        signals_view.render(graph, config)
 
     elif page == "Risk Monitor":
         from tradingbot.dashboard.components import risk_view
