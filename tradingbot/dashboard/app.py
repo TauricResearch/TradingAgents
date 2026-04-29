@@ -168,7 +168,7 @@ def main():
 
     elif page == "Trade History":
         from tradingbot.dashboard.components import trades_view
-        trades_view.render(pm)
+        trades_view.render(pm, config)
 
     elif page == "Agent Reasoning":
         from tradingbot.dashboard.components import signals_view

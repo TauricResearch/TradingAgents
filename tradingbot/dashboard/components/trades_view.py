@@ -1,16 +1,36 @@
-"""Trade history component — every executed trade with agent reasoning."""
+"""Trade history component — every executed trade with full agent reasoning."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 import streamlit as st
 
+from tradingbot.dashboard.components.signals_view import (
+    _extract_signal,
+    _normalize_state,
+    _render_agent_tabs,
+    _render_signal_header,
+)
 
-def render(portfolio_manager):
+
+def render(portfolio_manager, config: dict):
     st.subheader("Trade History")
+
+    results_dir = Path(
+        config.get("results_dir",
+                   Path.home() / ".tradingagents" / "logs")
+    )
 
     trades = portfolio_manager.get_trade_history(limit=500)
 
     if not trades:
-        st.info("No trades recorded yet.")
+        st.info(
+            "No trades recorded yet. Run `python run_bot.py --once` to execute your first trade."
+        )
         return
 
     # ── Filter controls ────────────────────────────────────────────────
@@ -28,6 +48,7 @@ def render(portfolio_manager):
     # ── Summary table ──────────────────────────────────────────────────
     rows = []
     for t in filtered:
+        log_path = _log_path(results_dir, t.ticker, t.trade_date)
         rows.append({
             "Date": t.trade_date,
             "Ticker": t.ticker,
@@ -36,27 +57,62 @@ def render(portfolio_manager):
             "Price": f"${t.price:.2f}",
             "Value": f"${t.total_value:,.2f}",
             "Signal": t.signal,
-            "Time": t.timestamp.strftime("%H:%M:%S"),
-            "_reasoning": t.agent_reasoning,
+            "Logs": "✅" if log_path.exists() else "—",
+            "_trade": t,
         })
+
     df = pd.DataFrame(rows)
 
-    def colour_side(val):
+    def colour_side(val: str):
         return "color: green; font-weight: bold" if val == "BUY" else "color: red; font-weight: bold"
 
-    display_df = df.drop(columns=["_reasoning"])
+    display_df = df.drop(columns=["_trade"])
     styled = display_df.style.applymap(colour_side, subset=["Side"])
     st.dataframe(styled, use_container_width=True)
+    st.caption(
+        "**Logs ✅** means the full 12-agent reasoning log exists for that trade "
+        "and is viewable below. Logs are saved automatically every time `run_bot.py` runs."
+    )
 
-    # ── Agent reasoning expander ───────────────────────────────────────
-    st.subheader("Agent Reasoning")
-    st.caption("Select a trade row above, then expand the entry below to see the full agent analysis.")
-    for i, row in enumerate(rows[:50]):  # limit for performance
-        label = f"{row['Date']} | {row['Side']} {row['Ticker']} | Signal: {row['Signal']}"
+    # ── Per-trade agent reasoning ──────────────────────────────────────
+    st.markdown("---")
+    st.subheader("Agent Reasoning per Trade")
+    st.caption(
+        "Expand any trade to see the full reasoning of all 12 agents — "
+        "analysts, researchers, risk debaters, and the portfolio manager — "
+        "exactly as they ran when the bot made that decision."
+    )
+
+    for row in rows[:50]:  # cap for render performance
+        trade = row["_trade"]
+        log_path = _log_path(results_dir, trade.ticker, trade.trade_date)
+        has_log = log_path.exists()
+
+        side_icon = "🟢" if trade.is_buy else "🔴"
+        log_icon = "📋" if has_log else "📄"
+        label = (
+            f"{log_icon} {trade.trade_date}  |  "
+            f"{side_icon} {trade.side.upper()} {trade.ticker}  |  "
+            f"Signal: {trade.signal}  |  "
+            f"${trade.total_value:,.2f}"
+        )
+
         with st.expander(label, expanded=False):
-            st.markdown(row["_reasoning"])
+            if has_log:
+                _render_full_log(trade.ticker, trade.trade_date, log_path)
+            else:
+                # Fallback: show only the stored final decision
+                st.info(
+                    "Full agent log not found. Showing the stored portfolio manager "
+                    "decision only. Logs are written to "
+                    f"`{results_dir / trade.ticker / 'TradingAgentsStrategy_logs'}`"
+                    " when the bot runs."
+                )
+                st.markdown("**Portfolio Manager Decision**")
+                st.markdown(trade.agent_reasoning or "_No reasoning stored._")
 
     # ── Closed positions P&L table ─────────────────────────────────────
+    st.markdown("---")
     st.subheader("Closed Positions")
     closed = portfolio_manager._db.get_closed_positions(limit=200)
     if not closed:
@@ -86,10 +142,38 @@ def render(portfolio_manager):
     def colour_pnl(val: str):
         v = val.replace("$", "").replace(",", "").replace("%", "").replace("+", "")
         try:
-            colour = "color: green" if float(v) >= 0 else "color: red"
+            return "color: green" if float(v) >= 0 else "color: red"
         except ValueError:
-            colour = ""
-        return colour
+            return ""
 
-    styled_closed = cdf.style.applymap(colour_pnl, subset=["Realised P&L", "P&L %"])
-    st.dataframe(styled_closed, use_container_width=True)
+    st.dataframe(
+        cdf.style.applymap(colour_pnl, subset=["Realised P&L", "P&L %"]),
+        use_container_width=True,
+    )
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _log_path(results_dir: Path, ticker: str, trade_date: str) -> Path:
+    """Construct the deterministic path to a trade's full agent JSON log."""
+    return (
+        results_dir
+        / ticker.upper()
+        / "TradingAgentsStrategy_logs"
+        / f"full_states_log_{trade_date}.json"
+    )
+
+
+def _render_full_log(ticker: str, trade_date: str, log_path: Path) -> None:
+    """Load a JSON log and render the 3-card header + 12-agent tabs."""
+    try:
+        with open(log_path, encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception as exc:
+        st.error(f"Could not read log file: {exc}")
+        return
+
+    state = _normalize_state(raw)
+    signal = _extract_signal(state.get("final_trade_decision", ""))
+    _render_signal_header(ticker, trade_date, signal, state)
+    _render_agent_tabs(state)

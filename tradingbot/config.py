@@ -73,8 +73,17 @@ TRADINGBOT_CONFIG = {
     # ------------------------------------------------------------------ #
     # Paths                                                                #
     # ------------------------------------------------------------------ #
+    # SQLite database used by PortfolioManager.
     "db_path": os.getenv(
         "TRADINGBOT_DB_PATH",
         os.path.join(os.path.expanduser("~"), ".tradingagents", "tradingbot.db"),
+    ),
+
+    # Directory where TradingAgentsGraph saves full per-run JSON logs.
+    # Must match TRADINGAGENTS_RESULTS_DIR (or the DEFAULT_CONFIG default).
+    # The dashboard reads from here to show full agent reasoning per trade.
+    "results_dir": os.getenv(
+        "TRADINGAGENTS_RESULTS_DIR",
+        os.path.join(os.path.expanduser("~"), ".tradingagents", "logs"),
     ),
 }

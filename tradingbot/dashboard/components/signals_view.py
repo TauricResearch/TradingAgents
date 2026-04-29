@@ -93,7 +93,8 @@ def _render_historical(config: dict):
     if not available:
         st.info(
             f"No historical analysis logs found in `{results_dir}`. "
-            "Run the bot at least once to generate logs."
+            "Every time `run_bot.py` runs an analysis, a full agent log is saved there automatically. "
+            "Those same logs are also linked directly in the **Trade History** page per trade."
         )
         return
 
