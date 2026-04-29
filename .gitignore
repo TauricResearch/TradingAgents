@@ -217,3 +217,9 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Git patches
+*.patch
+
+# generated reports
+reports/
