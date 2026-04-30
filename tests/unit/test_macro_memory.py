@@ -83,6 +83,112 @@ class TestMacroMemoryLocalFallback:
         assert records[0]["regime_date"] == "2026-03-26"
         assert records[1]["regime_date"] == "2026-03-01"
 
+    def test_get_recent_excludes_future_records(self, tmp_path):
+        """get_recent(as_of_date=...) must not return records after that date."""
+        m = MacroMemory(fallback_path=tmp_path / "macro.json")
+        m.record_macro_state(
+            date="2026-01-10",
+            vix_level=20.0,
+            macro_call="neutral",
+            sector_thesis="Early year",
+            key_themes=["rates"],
+        )
+        m.record_macro_state(
+            date="2026-03-15",
+            vix_level=25.0,
+            macro_call="risk-off",
+            sector_thesis="Q1 sell-off",
+            key_themes=["inflation"],
+        )
+        m.record_macro_state(
+            date="2026-04-20",
+            vix_level=18.0,
+            macro_call="risk-on",
+            sector_thesis="Recovery",
+            key_themes=["earnings"],
+        )
+        records = m.get_recent(limit=10, as_of_date="2026-03-20")
+        dates = [r["regime_date"] for r in records]
+        assert "2026-04-20" not in dates
+        assert "2026-03-15" in dates
+        assert "2026-01-10" in dates
+
+    def test_build_macro_context_excludes_future(self, tmp_path):
+        """build_macro_context(as_of_date=...) must not include future records in output."""
+        m = MacroMemory(fallback_path=tmp_path / "macro.json")
+        m.record_macro_state(
+            date="2026-03-15",
+            vix_level=25.0,
+            macro_call="risk-off",
+            sector_thesis="Q1 sell-off",
+            key_themes=["inflation"],
+        )
+        m.record_macro_state(
+            date="2026-04-20",
+            vix_level=18.0,
+            macro_call="risk-on",
+            sector_thesis="Future recovery",
+            key_themes=["earnings"],
+        )
+        ctx = m.build_macro_context(limit=10, as_of_date="2026-03-20")
+        assert "Future recovery" not in ctx
+        assert "Q1 sell-off" in ctx
+
+    def test_get_recent_no_as_of_date_returns_all(self, tmp_path):
+        """get_recent() without as_of_date returns all records (backward-compat)."""
+        m = MacroMemory(fallback_path=tmp_path / "macro.json")
+        m.record_macro_state(
+            date="2026-01-10",
+            vix_level=20.0,
+            macro_call="neutral",
+            sector_thesis="Early",
+            key_themes=[],
+        )
+        m.record_macro_state(
+            date="2026-04-20",
+            vix_level=18.0,
+            macro_call="risk-on",
+            sector_thesis="Late",
+            key_themes=[],
+        )
+        records = m.get_recent(limit=10)
+        assert len(records) == 2
+
+    def test_corrupt_local_file_logs_warning(self, tmp_path, caplog):
+        """Corrupt local JSON must log a warning, not silently return []."""
+        import logging
+
+        bad_path = tmp_path / "corrupt.json"
+        bad_path.write_text("{not valid json}", encoding="utf-8")
+        m = MacroMemory(fallback_path=bad_path)
+        with caplog.at_level(logging.WARNING, logger="tradingagents.memory.macro_memory"):
+            records = m.get_recent(limit=5)
+        assert records == []
+        assert any(
+            "corrupt" in r.message.lower() or "malformed" in r.message.lower()
+            for r in caplog.records
+        )
+
+    @pytest.mark.parametrize("payload", ["{}", "[1]"])
+    def test_structurally_malformed_local_file_logs_warning(
+        self, tmp_path, caplog, payload
+    ):
+        """Valid JSON with the wrong shape must warn and return []."""
+        import logging
+
+        bad_path = tmp_path / "malformed.json"
+        bad_path.write_text(payload, encoding="utf-8")
+        m = MacroMemory(fallback_path=bad_path)
+        with caplog.at_level(logging.WARNING, logger="tradingagents.memory.macro_memory"):
+            records = m.get_recent(limit=5)
+        assert records == []
+        assert any(
+            "corrupt" in r.message.lower()
+            or "malformed" in r.message.lower()
+            or "unreadable" in r.message.lower()
+            for r in caplog.records
+        )
+
 
 # ---------------------------------------------------------------------------
 # Additional coverage
@@ -261,6 +367,42 @@ def test_record_outcome_mongo_legacy_query_excludes_run_id_records():
             {"run_id": "manual"},
         ],
     }
+
+
+def test_get_recent_mongo_uses_as_of_date_query():
+    """Mongo get_recent(as_of_date=...) should constrain regime_date."""
+    calls = []
+
+    class FakeCursor:
+        def __init__(self, docs):
+            self.docs = docs
+
+        def sort(self, key, direction):
+            calls.append(("sort", key, direction))
+            return self
+
+        def limit(self, limit):
+            calls.append(("limit", limit))
+            return self.docs
+
+    class FakeCollection:
+        def find(self, query, projection):
+            calls.append(("find", query, projection))
+            return FakeCursor([{"regime_date": "2026-03-15"}])
+
+    mem = MacroMemory.__new__(MacroMemory)
+    mem._col = FakeCollection()
+    mem._fallback_path = None
+
+    records = mem.get_recent(limit=7, as_of_date="2026-03-20")
+
+    assert records == [{"regime_date": "2026-03-15"}]
+    assert calls[0] == (
+        "find",
+        {"regime_date": {"$lte": "2026-03-20"}},
+        {"_id": 0},
+    )
+    assert calls[2] == ("limit", 7)
 
 
 def test_build_macro_context_no_prior_history_message(mem):
