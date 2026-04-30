@@ -24,14 +24,21 @@ def get_language_instruction() -> str:
     """Return a prompt instruction for the configured output language.
 
     Returns empty string when English (default), so no extra tokens are used.
-    Only applied to user-facing agents (analysts, portfolio manager).
-    Internal debate agents stay in English for reasoning quality.
+    Applied anywhere the project wants the model's written artifact to match
+    the configured report language.
     """
     from tradingagents.dataflows.config import get_config
+
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
-    return f" Write your entire response in {lang}."
+    return (
+        f" Write your entire response in {lang}."
+        " Do not use words or characters from other writing systems"
+        " such as Cyrillic, Devanagari, Japanese, or Chinese."
+        " Use only Korean plus standard ASCII tickers, finance terms, digits,"
+        " and punctuation when needed."
+    )
 
 
 def build_instrument_context(ticker: str) -> str:
