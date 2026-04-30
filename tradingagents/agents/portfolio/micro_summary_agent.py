@@ -154,7 +154,9 @@ def create_micro_summary_agent(
         ticker_memory_dict: dict[str, str] = {}
         if micro_memory is not None:
             for ticker in all_tickers:
-                ticker_memory_dict[ticker] = micro_memory.build_context(ticker, limit=2)
+                ticker_memory_dict[ticker] = micro_memory.build_context(
+                    ticker, limit=2, as_of_date=analysis_date or None
+                )
 
         ticker_memory_str = json.dumps(ticker_memory_dict)
         deep_dive_context: dict[str, dict[str, str]] = {}

@@ -108,7 +108,9 @@ def create_macro_summary_agent(
         # Past macro regime history
         # ------------------------------------------------------------------
         if macro_memory is not None:
-            past_context = macro_memory.build_macro_context(limit=3)
+            past_context = macro_memory.build_macro_context(
+                limit=3, as_of_date=state.get("analysis_date") or None
+            )
         else:
             past_context = "No prior macro regime history available."
 

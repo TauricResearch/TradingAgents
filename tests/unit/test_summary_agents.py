@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -453,6 +453,64 @@ class TestMicroSummaryAgentMemory:
         result = agent(state)
         # micro_memory_context is JSON-serialised dict — AAPL should appear
         assert "AAPL" in result["micro_memory_context"]
+
+
+class TestSummaryAgentMemoryFiltering:
+    """Verify summary agents pass analysis_date into memory context lookups."""
+
+    def test_macro_summary_forwards_analysis_date_to_memory_as_of_date(self):
+        mock_memory = MagicMock()
+        mock_memory.build_macro_context.return_value = "past context"
+
+        llm = _make_runnable_llm("MACRO REGIME: neutral\nKEY NUMBERS: VIX=18")
+        agent = create_macro_summary_agent(llm, macro_memory=mock_memory)
+        state = {
+            "analysis_date": "2026-03-20",
+            "scan_summary": {"executive_summary": "Markets are mixed"},
+            "messages": [],
+        }
+
+        agent(state)
+
+        mock_memory.build_macro_context.assert_called_once_with(
+            limit=3, as_of_date="2026-03-20"
+        )
+
+    def test_micro_summary_forwards_analysis_date_to_each_memory_lookup(self):
+        mock_memory = MagicMock()
+        mock_memory.build_context.return_value = "ticker context"
+
+        llm = _make_runnable_llm(
+            "HOLDINGS TABLE:\n| AAPL | HOLD | NO DATA | none | ticker context |"
+        )
+        agent = create_micro_summary_agent(llm, micro_memory=mock_memory)
+        state = {
+            "analysis_date": "2026-03-20",
+            "holding_reviews": json.dumps(
+                {"AAPL": {"recommendation": "HOLD", "confidence": "high"}}
+            ),
+            "prioritized_candidates": json.dumps(
+                [
+                    {
+                        "ticker": "MSFT",
+                        "conviction": "high",
+                        "thesis_angle": "AI infrastructure",
+                    }
+                ]
+            ),
+            "ticker_analyses": {},
+            "messages": [],
+        }
+
+        agent(state)
+
+        mock_memory.build_context.assert_has_calls(
+            [
+                call("AAPL", limit=2, as_of_date="2026-03-20"),
+                call("MSFT", limit=2, as_of_date="2026-03-20"),
+            ]
+        )
+        assert mock_memory.build_context.call_count == 2
 
 
 class _StructuredLLMCapture:
