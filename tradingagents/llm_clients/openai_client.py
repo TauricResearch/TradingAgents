@@ -37,7 +37,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
-    "api_key", "callbacks", "http_client", "http_async_client",
+    "api_key", "extra_body", "callbacks", "http_client", "http_async_client",
 )
 
 # Provider base URLs and API key env vars
@@ -49,6 +49,8 @@ _PROVIDER_CONFIG = {
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
 }
+
+_DEEPSEEK_THINKING_MODES = {"enabled", "disabled"}
 
 
 class OpenAIClient(BaseLLMClient):
@@ -74,6 +76,7 @@ class OpenAIClient(BaseLLMClient):
         """Return configured ChatOpenAI instance."""
         self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
+        deepseek_thinking = None
 
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_CONFIG:
@@ -85,6 +88,19 @@ class OpenAIClient(BaseLLMClient):
                     llm_kwargs["api_key"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
+
+            if self.provider == "deepseek":
+                deepseek_thinking = str(
+                    self.kwargs.get(
+                        "deepseek_thinking",
+                        os.environ.get("DEEPSEEK_THINKING", "disabled"),
+                    )
+                ).lower()
+                if deepseek_thinking not in _DEEPSEEK_THINKING_MODES:
+                    raise ValueError(
+                        "deepseek_thinking must be either 'enabled' or 'disabled'"
+                    )
+
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
@@ -92,6 +108,15 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+
+        if deepseek_thinking:
+            # DeepSeek V4 defaults to thinking mode. During tool calls the API
+            # requires reasoning_content to be round-tripped, which LangChain's
+            # OpenAI-compatible path does not preserve here. Disable it by
+            # default, while still allowing explicit opt-in.
+            extra_body = dict(llm_kwargs.get("extra_body") or {})
+            extra_body["thinking"] = {"type": deepseek_thinking}
+            llm_kwargs["extra_body"] = extra_body
 
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.
