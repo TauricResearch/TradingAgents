@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import datetime as dt
 import os
 import threading
@@ -67,6 +66,10 @@ API_KEY_ENV_BY_PROVIDER = {
     "azure": "AZURE_OPENAI_API_KEY",
 }
 
+REPORT_SCAN_TTL_SECONDS = 5.0
+_REPORT_SCAN_CACHE: Dict[tuple[str, int], tuple[float, List[Path]]] = {}
+_REPORT_SCAN_LOCK = threading.RLock()
+
 
 def _timestamp() -> str:
     return dt.datetime.now().strftime("%H:%M:%S")
@@ -87,12 +90,7 @@ def _is_empty(value: Any) -> bool:
         return True
     if isinstance(value, str):
         stripped = value.strip()
-        if not stripped:
-            return True
-        try:
-            return not bool(ast.literal_eval(stripped))
-        except (ValueError, SyntaxError):
-            return False
+        return stripped in {"", "{}", "[]", "()", "None", "none", "null"}
     return not bool(value)
 
 
@@ -553,5 +551,20 @@ def list_saved_reports(results_dir: str | Path, limit: int = 50) -> List[Path]:
     root = Path(results_dir)
     if not root.exists():
         return []
-    reports = sorted(root.rglob("complete_report.md"), key=lambda path: path.stat().st_mtime, reverse=True)
-    return reports[:limit]
+
+    cache_key = (str(root.resolve()), limit)
+    now = time.monotonic()
+    with _REPORT_SCAN_LOCK:
+        cached = _REPORT_SCAN_CACHE.get(cache_key)
+        if cached and now - cached[0] < REPORT_SCAN_TTL_SECONDS:
+            return list(cached[1])
+
+    reports = sorted(
+        root.rglob("complete_report.md"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )[:limit]
+
+    with _REPORT_SCAN_LOCK:
+        _REPORT_SCAN_CACHE[cache_key] = (now, reports)
+    return list(reports)

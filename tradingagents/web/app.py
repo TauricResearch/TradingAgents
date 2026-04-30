@@ -609,6 +609,12 @@ def _render_final(snapshot, language: str) -> None:
         st.info(t(language, "final_empty"))
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def _read_report_text(path_str: str, mtime_ns: int) -> str:
+    del mtime_ns
+    return Path(path_str).read_text(encoding="utf-8")
+
+
 def _render_decision_summary(snapshot, language: str) -> None:
     final_text = snapshot.report_sections.get("final_trade_decision")
     if not snapshot.decision and not final_text:
@@ -638,7 +644,7 @@ def _render_history(language: str) -> None:
     selected = st.selectbox(t(language, "saved_reports"), labels)
     report_path = reports[labels.index(selected)]
     st.caption(str(report_path))
-    st.markdown(report_path.read_text(encoding="utf-8"))
+    st.markdown(_read_report_text(str(report_path), report_path.stat().st_mtime_ns))
 
 
 @st.fragment(run_every="1s")
