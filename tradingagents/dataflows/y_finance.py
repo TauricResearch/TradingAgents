@@ -5,6 +5,7 @@ import pandas as pd
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .yf_pit_derivations import derive_pit_fundamentals
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -245,11 +246,91 @@ def get_stockstats_indicator(
     return str(indicator_value)
 
 
+# Fields in `Ticker.info` that yfinance always returns at *live* values
+# (current price-derived, current market cap, TTM ratios computed off the
+# trailing window ending today). When the caller requests a historical
+# `curr_date`, these are look-ahead data and must be omitted.
+_YF_LIVE_SNAPSHOT_FIELDS = (
+    ("Market Cap", "marketCap"),
+    ("PE Ratio (TTM)", "trailingPE"),
+    ("Forward PE", "forwardPE"),
+    ("PEG Ratio", "pegRatio"),
+    ("Price to Book", "priceToBook"),
+    ("EPS (TTM)", "trailingEps"),
+    ("Forward EPS", "forwardEps"),
+    ("Dividend Yield", "dividendYield"),
+    ("52 Week High", "fiftyTwoWeekHigh"),
+    ("52 Week Low", "fiftyTwoWeekLow"),
+    ("50 Day Average", "fiftyDayAverage"),
+    ("200 Day Average", "twoHundredDayAverage"),
+    ("Revenue (TTM)", "totalRevenue"),
+    ("Gross Profit", "grossProfits"),
+    ("EBITDA", "ebitda"),
+    ("Net Income", "netIncomeToCommon"),
+    ("Profit Margin", "profitMargins"),
+    ("Operating Margin", "operatingMargins"),
+    ("Return on Equity", "returnOnEquity"),
+    ("Return on Assets", "returnOnAssets"),
+    ("Debt to Equity", "debtToEquity"),
+    ("Current Ratio", "currentRatio"),
+    ("Book Value", "bookValue"),
+    ("Free Cash Flow", "freeCashflow"),
+)
+
+# Structural facts that don't materially change across historical dates.
+_YF_STABLE_FIELDS = (
+    ("Name", "longName"),
+    ("Sector", "sector"),
+    ("Industry", "industry"),
+    ("Beta", "beta"),
+)
+
+
+def _is_historical_curr_date(curr_date):
+    """Return True iff curr_date is a parseable date strictly before today."""
+    if not curr_date:
+        return False
+    try:
+        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return False
+    return curr_dt < datetime.now().date()
+
+
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[
+        str,
+        "current date in YYYY-MM-DD format. When in the past, live snapshot "
+        "fields (Market Cap, P/E, TTM ratios, 52-week ranges) are reconstructed "
+        "point-in-time from historical statements and price bars to prevent "
+        "look-ahead bias.",
+    ] = None,
 ):
-    """Get company fundamentals overview from yfinance."""
+    """Get company fundamentals overview from yfinance.
+
+    yfinance's ``Ticker.info`` always returns *live* values (current price,
+    current market cap, TTM ratios computed off the trailing window ending
+    today) regardless of the requested ``curr_date``. When ``curr_date`` is
+    in the past this function returns:
+
+    * stable structural fields (name, sector, industry, beta) from
+      ``Ticker.info`` — these don't materially vary across historical dates;
+    * snapshot fields (Market Cap, P/E, TTM revenue/income/FCF, margins,
+      ROE/ROA, 52-week ranges, moving averages, dividend yield) reconstructed
+      PIT-correctly from ``Ticker.history``, the quarterly statements, and
+      ``get_shares_full`` — see :mod:`yf_pit_derivations`.
+
+    Forward-looking fields (Forward EPS, Forward P/E, PEG Ratio) are not
+    reconstructed: they are analyst projections, not historical fact, and
+    have no PIT-correct yfinance source.
+
+    A header note flags PIT mode so downstream agents can reason about the
+    reconstruction explicitly. For point-in-time financial *statements*, use
+    :func:`get_income_statement`, :func:`get_balance_sheet`, and
+    :func:`get_cashflow`, which already filter by fiscal period via
+    ``filter_financials_by_date``.
+    """
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         info = yf_retry(lambda: ticker_obj.info)
@@ -257,44 +338,48 @@ def get_fundamentals(
         if not info:
             return f"No fundamentals data found for symbol '{ticker}'"
 
-        fields = [
-            ("Name", info.get("longName")),
-            ("Sector", info.get("sector")),
-            ("Industry", info.get("industry")),
-            ("Market Cap", info.get("marketCap")),
-            ("PE Ratio (TTM)", info.get("trailingPE")),
-            ("Forward PE", info.get("forwardPE")),
-            ("PEG Ratio", info.get("pegRatio")),
-            ("Price to Book", info.get("priceToBook")),
-            ("EPS (TTM)", info.get("trailingEps")),
-            ("Forward EPS", info.get("forwardEps")),
-            ("Dividend Yield", info.get("dividendYield")),
-            ("Beta", info.get("beta")),
-            ("52 Week High", info.get("fiftyTwoWeekHigh")),
-            ("52 Week Low", info.get("fiftyTwoWeekLow")),
-            ("50 Day Average", info.get("fiftyDayAverage")),
-            ("200 Day Average", info.get("twoHundredDayAverage")),
-            ("Revenue (TTM)", info.get("totalRevenue")),
-            ("Gross Profit", info.get("grossProfits")),
-            ("EBITDA", info.get("ebitda")),
-            ("Net Income", info.get("netIncomeToCommon")),
-            ("Profit Margin", info.get("profitMargins")),
-            ("Operating Margin", info.get("operatingMargins")),
-            ("Return on Equity", info.get("returnOnEquity")),
-            ("Return on Assets", info.get("returnOnAssets")),
-            ("Debt to Equity", info.get("debtToEquity")),
-            ("Current Ratio", info.get("currentRatio")),
-            ("Book Value", info.get("bookValue")),
-            ("Free Cash Flow", info.get("freeCashflow")),
-        ]
+        is_historical = _is_historical_curr_date(curr_date)
 
         lines = []
-        for label, value in fields:
+
+        for label, key in _YF_STABLE_FIELDS:
+            value = info.get(key)
             if value is not None:
                 lines.append(f"{label}: {value}")
 
+        derived: dict = {}
+        if is_historical:
+            try:
+                derived = derive_pit_fundamentals(ticker_obj, curr_date) or {}
+            except Exception:
+                derived = {}
+
+            for label, _key in _YF_LIVE_SNAPSHOT_FIELDS:
+                if label in derived:
+                    lines.append(f"{label}: {derived[label]}")
+        else:
+            for label, key in _YF_LIVE_SNAPSHOT_FIELDS:
+                value = info.get(key)
+                if value is not None:
+                    lines.append(f"{label}: {value}")
+
         header = f"# Company Fundamentals for {ticker.upper()}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        if is_historical:
+            num_derived = sum(1 for label, _ in _YF_LIVE_SNAPSHOT_FIELDS if label in derived)
+            header += (
+                f"# Point-in-time mode (curr_date={curr_date}): snapshot fields "
+                f"reconstructed\n"
+                f"#   from historical price bars, quarterly statements, and "
+                f"share-count series\n"
+                f"#   ({num_derived} of {len(_YF_LIVE_SNAPSHOT_FIELDS)} fields "
+                f"derived; missing entries\n"
+                f"#   indicate sparse data for this date).\n"
+                f"# Forward-looking analyst projections (Forward EPS, Forward "
+                f"P/E, PEG Ratio)\n"
+                f"#   are intentionally omitted — no PIT-correct source.\n"
+            )
+        header += "\n"
 
         return header + "\n".join(lines)
 
