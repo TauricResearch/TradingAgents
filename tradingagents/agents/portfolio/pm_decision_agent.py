@@ -10,15 +10,15 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import time
 from collections.abc import Callable
+from datetime import date
 from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from tradingagents.agents.utils.circuit_breaker import circuit_breaker_from_config
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
@@ -106,10 +106,15 @@ class ForensicReport(_PMBaseModel):
 
 
 class BuyOrder(_PMBaseModel):
-    """A fully justified buy order with risk parameters."""
+    """A fully justified buy order with executable entry and risk parameters."""
 
     ticker: str
     shares: float
+    entry_price: float = Field(gt=0)
+    limit_price: float = Field(gt=0)
+    max_chase_price: float = Field(gt=0)
+    order_type: Literal["limit"]
+    valid_as_of: str
     price_target: float
     stop_loss: float
     take_profit: float
@@ -119,6 +124,29 @@ class BuyOrder(_PMBaseModel):
     macro_alignment: str
     memory_note: str
     position_sizing_logic: str
+
+    @field_validator("valid_as_of")
+    @classmethod
+    def _validate_valid_as_of(cls, value: str) -> str:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            raise ValueError("valid_as_of must use strict YYYY-MM-DD format")
+        try:
+            date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(
+                "valid_as_of must be a real calendar date in YYYY-MM-DD format"
+            ) from exc
+        return value
+
+    @model_validator(mode="after")
+    def _validate_buy_price_relationships(self) -> BuyOrder:
+        if self.entry_price > self.limit_price:
+            raise ValueError("entry_price must be less than or equal to limit_price")
+        if self.entry_price > self.max_chase_price:
+            raise ValueError("entry_price must be less than or equal to max_chase_price")
+        if self.max_chase_price > self.limit_price:
+            raise ValueError("max_chase_price must be less than or equal to limit_price")
+        return self
 
 
 class SellOrder(_PMBaseModel):
@@ -235,10 +263,22 @@ def create_pm_decision_agent(
             "If a high-conviction candidate exceeds max position size or sector limit, "
             "adjust shares downward to fit. For every BUY: set stop_loss (5-15% below entry) "
             "and take_profit (10-30% above entry).\n\n"
+            "Every BUY must be executable as a limit order. "
+            "Set entry_price to the price assumed by the candidate thesis, limit_price to the highest allowed execution price, "
+            "and max_chase_price to the highest price where the risk/reward still matches the thesis. "
+            "All three prices must be positive and satisfy entry_price <= max_chase_price <= limit_price. "
+            "If the candidate summary says not to chase above a level, max_chase_price and limit_price must not exceed that level. "
+            "Never use price_target as an entry price. "
+            "Set valid_as_of to the portfolio analysis date in strict YYYY-MM-DD format.\n\n"
             "### STRICT OUTPUT REQUIREMENTS:\n"
             "For every BUY, you MUST provide all required fields in the schema:\n"
             "- ticker\n"
             "- shares\n"
+            "- entry_price (numeric float > 0; price used for sizing and risk/reward)\n"
+            "- limit_price (numeric float > 0; execution must not buy above this level)\n"
+            "- max_chase_price (numeric float > 0; must be >= entry_price and <= limit_price)\n"
+            "- order_type (must be the literal string 'limit')\n"
+            "- valid_as_of (strict YYYY-MM-DD date string for the analysis date)\n"
             "- price_target (numeric float)\n"
             "- stop_loss (numeric float)\n"
             "- take_profit (numeric float)\n"
@@ -299,8 +339,12 @@ def create_pm_decision_agent(
                             content=(
                                 f"Your previous response failed validation: {exc}\n\n"
                                 "Please ensure EVERY BuyOrder contains all required fields: "
+                                "entry_price, limit_price, max_chase_price, order_type, valid_as_of, "
                                 "price_target, rationale, thesis, macro_alignment, memory_note, "
-                                "and position_sizing_logic. Do not omit any of them."
+                                "and position_sizing_logic. Every BUY must be executable as a limit order, "
+                                "valid_as_of must use strict YYYY-MM-DD format, and buy prices must satisfy "
+                                "entry_price <= max_chase_price <= limit_price with all values > 0. "
+                                "Do not omit any of them."
                             )
                         )
                     )

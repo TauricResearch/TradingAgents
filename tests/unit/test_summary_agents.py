@@ -65,6 +65,11 @@ def _valid_pm_payload() -> dict:
             {
                 "ticker": "AAPL",
                 "shares": 2.0,
+                "entry_price": 222.0,
+                "limit_price": 224.0,
+                "max_chase_price": 223.0,
+                "order_type": "limit",
+                "valid_as_of": "2026-03-30",
                 "price_target": 240.0,
                 "stop_loss": 205.0,
                 "take_profit": 260.0,
@@ -553,6 +558,93 @@ class TestPMDecisionAgentInputs:
         assert len(breaker.failures) == 3
         assert all("synthetic structured-output failure" in reason for reason in breaker.failures)
         assert breaker.successes == []
+
+    def test_pm_retry_prompt_includes_executable_buy_guidance(self, monkeypatch):
+        from tradingagents.agents.portfolio import pm_decision_agent as pm_module
+
+        class _RecordingBreaker:
+            def assert_available(self, node_name: str) -> None:
+                return None
+
+            def record_failure(self, node_name: str, reason: str) -> None:
+                return None
+
+            def record_success(self, node_name: str) -> None:
+                return None
+
+        class _RetryCaptureLLM:
+            def __init__(self):
+                self.calls = 0
+                self.retry_message = ""
+
+            def with_structured_output(self, schema):
+                def _invoke(prompt_value):
+                    self.calls += 1
+                    if self.calls == 1:
+                        return schema(
+                            macro_regime="risk-off",
+                            regime_alignment_note="needs executable guidance",
+                            sells=[],
+                            buys=[
+                                {
+                                    "ticker": "AAPL",
+                                    "shares": 2.0,
+                                    "price_target": 240.0,
+                                    "stop_loss": 205.0,
+                                    "take_profit": 260.0,
+                                    "sector": "Technology",
+                                    "rationale": "missing executable fields",
+                                    "thesis": "test",
+                                    "macro_alignment": "test",
+                                    "memory_note": "test",
+                                    "position_sizing_logic": "test",
+                                }
+                            ],
+                            holds=[],
+                            cash_reserve_pct=0.1,
+                            portfolio_thesis="test",
+                            risk_summary="test",
+                            forensic_report={
+                                "regime_alignment": "test",
+                                "key_risks": ["test"],
+                                "decision_confidence": "medium",
+                                "position_sizing_rationale": "test",
+                            },
+                        )
+
+                    self.retry_message = "\n".join(
+                        message.content
+                        for message in prompt_value.to_messages()
+                        if getattr(message, "type", "") == "human"
+                    )
+                    return schema(**_valid_pm_payload())
+
+                return RunnableLambda(_invoke)
+
+        monkeypatch.setattr(pm_module, "circuit_breaker_from_config", lambda cfg: _RecordingBreaker())
+        monkeypatch.setattr(pm_module.time, "sleep", lambda _: None)
+
+        llm = _RetryCaptureLLM()
+        agent = create_pm_decision_agent(llm)
+        state = {
+            "macro_brief": "macro",
+            "micro_brief": "micro",
+            "prioritized_candidates": "[]",
+            "portfolio_data": "{}",
+            "messages": [],
+            "analysis_date": "2026-03-31",
+        }
+
+        result = agent(state)
+
+        assert isinstance(result["pm_decision"], str)
+        assert llm.calls == 2
+        assert "entry_price" in llm.retry_message
+        assert "limit_price" in llm.retry_message
+        assert "max_chase_price" in llm.retry_message
+        assert "valid_as_of" in llm.retry_message
+        assert "Every BUY must be executable as a limit order" in llm.retry_message
+        assert "entry_price <= max_chase_price <= limit_price" in llm.retry_message
 
 
 class TestSummaryAgentsRobustness:
