@@ -30,6 +30,7 @@ from langgraph.graph import END, START, StateGraph
 
 from tradingagents.instruments import resolve_instrument
 from tradingagents.portfolio.candidate_prioritizer import prioritize_candidates
+from tradingagents.portfolio.order_guards import buy_order_guard, resolve_buy_execution_price
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 from tradingagents.portfolio.risk_evaluator import compute_portfolio_risk
 from tradingagents.portfolio.trade_executor import TradeExecutor
@@ -495,13 +496,12 @@ class PortfolioGraphSetup:
             for buy in buys:
                 ticker = (buy.get("ticker") or "").strip()
                 buy_shares = float(buy.get("shares", 0.0))
-                buy_price = float(
-                    buy.get("limit_price")
-                    or buy.get("entry_price")
-                    or prices.get(ticker)
-                    or buy.get("price_target")
-                    or 0.0
-                )
+                buy_price = resolve_buy_execution_price(buy, prices)
+                guard_violation = buy_order_guard(buy, buy_price)
+                if guard_violation:
+                    raise RuntimeError(
+                        f"pm_decision_postcheck: order guard failed — {guard_violation}"
+                    )
                 buy_cost = buy_shares * buy_price
                 projected_cash -= buy_cost
                 buy_sector = buy.get("sector") or "Unknown"
