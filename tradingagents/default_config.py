@@ -38,13 +38,16 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "polygon",       # Options: polygon, alpha_vantage, yfinance
+        "technical_indicators": "polygon",  # Options: polygon, alpha_vantage, yfinance
+        "fundamental_data": "polygon",      # Options: polygon, alpha_vantage, yfinance
+        "news_data": "polygon",             # Options: polygon, alpha_vantage, yfinance
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Polygon Stocks Starter plan does not include SEC insider transactions.
+        # Route this single tool to yfinance (free, always available) with
+        # alpha_vantage as backup when ALPHA_VANTAGE_API_KEY is configured.
+        "get_insider_transactions": "yfinance,alpha_vantage",
     },
 }
