@@ -212,6 +212,13 @@ config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deeps
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
+# Optional auth overrides for short-lived OAuth/bearer tokens:
+# config["openai_api_key"] = "<static token>"
+# config["openai_api_key_provider"] = lambda: get_fresh_openai_token()
+# config["openai_api_key_command"] = "python scripts/print_openai_token.py"
+# Or reuse an existing Hermes Codex login session:
+# config["openai_use_hermes_codex_auth"] = True
+# config["backend_url"] = None  # optional; auto-resolves to Hermes Codex base_url when unset
 
 ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")

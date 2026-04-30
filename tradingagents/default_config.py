@@ -24,6 +24,10 @@ DEFAULT_CONFIG = {
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "openai_api_key": None,             # static OpenAI-compatible API key / bearer token
+    "openai_api_key_provider": None,    # zero-arg callable returning a fresh token
+    "openai_api_key_command": None,     # shell command that prints a fresh token
+    "openai_use_hermes_codex_auth": False,  # reuse Hermes-managed Codex OAuth token + base_url
     "anthropic_effort": None,           # "high", "medium", "low"
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.

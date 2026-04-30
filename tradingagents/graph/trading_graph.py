@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.llm_clients.openai_auth import build_openai_runtime_config
 
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -76,7 +77,7 @@ class TradingAgentsGraph:
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
         # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
+        llm_kwargs, resolved_base_url = self._get_provider_runtime_config()
 
         # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
@@ -85,13 +86,13 @@ class TradingAgentsGraph:
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
+            base_url=resolved_base_url,
             **llm_kwargs,
         )
         quick_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
+            base_url=resolved_base_url,
             **llm_kwargs,
         )
 
@@ -129,10 +130,11 @@ class TradingAgentsGraph:
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
-        """Get provider-specific kwargs for LLM client creation."""
+    def _get_provider_runtime_config(self) -> Tuple[Dict[str, Any], Optional[str]]:
+        """Get provider-specific kwargs and resolved base_url for LLM creation."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
+        base_url = self.config.get("backend_url")
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
@@ -143,13 +145,19 @@ class TradingAgentsGraph:
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
+            runtime = build_openai_runtime_config(
+                self.config,
+                current_base_url=base_url,
+            )
+            kwargs.update(runtime["auth_kwargs"])
+            base_url = runtime["base_url"]
 
         elif provider == "anthropic":
             effort = self.config.get("anthropic_effort")
             if effort:
                 kwargs["effort"] = effort
 
-        return kwargs
+        return kwargs, base_url
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
