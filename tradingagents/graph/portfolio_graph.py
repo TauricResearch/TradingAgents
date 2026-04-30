@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from copy import deepcopy
 from typing import Any
 
@@ -150,6 +151,7 @@ class PortfolioGraph:
         date: str,
         prices: dict[str, float],
         scan_summary: dict[str, Any],
+        run_id: str | None = None,
     ) -> dict[str, Any]:
         """Run the full portfolio manager workflow.
 
@@ -160,13 +162,17 @@ class PortfolioGraph:
             scan_summary: Macro scan output from ScannerGraph (contains
                           ``stocks_to_investigate`` and optionally
                           ``price_histories``).
+            run_id: Optional run provenance ID. Generated when omitted.
 
         Returns:
             Final LangGraph state dict containing all workflow outputs.
         """
+        effective_run_id = run_id if run_id else str(uuid.uuid4())
+
         initial_state: dict[str, Any] = {
             "portfolio_id": portfolio_id,
             "analysis_date": date,
+            "run_id": effective_run_id,
             "prices": prices,
             "scan_summary": scan_summary,
             "messages": [],
