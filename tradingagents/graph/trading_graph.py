@@ -46,6 +46,34 @@ from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
 
+def _get_provider_kwargs_from_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Get provider-specific kwargs for LLM client creation."""
+    kwargs = {}
+    provider = config.get("llm_provider", "").lower()
+
+    if provider == "google":
+        thinking_level = config.get("google_thinking_level")
+        if thinking_level:
+            kwargs["thinking_level"] = thinking_level
+
+    elif provider == "openai":
+        reasoning_effort = config.get("openai_reasoning_effort")
+        if reasoning_effort:
+            kwargs["reasoning_effort"] = reasoning_effort
+
+    elif provider == "anthropic":
+        effort = config.get("anthropic_effort")
+        if effort:
+            kwargs["effort"] = effort
+
+    elif provider == "deepseek":
+        thinking = config.get("deepseek_thinking")
+        if thinking:
+            kwargs["deepseek_thinking"] = thinking
+
+    return kwargs
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -131,30 +159,7 @@ class TradingAgentsGraph:
 
     def _get_provider_kwargs(self) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
-        kwargs = {}
-        provider = self.config.get("llm_provider", "").lower()
-
-        if provider == "google":
-            thinking_level = self.config.get("google_thinking_level")
-            if thinking_level:
-                kwargs["thinking_level"] = thinking_level
-
-        elif provider == "openai":
-            reasoning_effort = self.config.get("openai_reasoning_effort")
-            if reasoning_effort:
-                kwargs["reasoning_effort"] = reasoning_effort
-
-        elif provider == "anthropic":
-            effort = self.config.get("anthropic_effort")
-            if effort:
-                kwargs["effort"] = effort
-
-        elif provider == "deepseek":
-            thinking = self.config.get("deepseek_thinking")
-            if thinking:
-                kwargs["deepseek_thinking"] = thinking
-
-        return kwargs
+        return _get_provider_kwargs_from_config(self.config)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""

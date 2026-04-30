@@ -1,6 +1,6 @@
 import pytest
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.graph.trading_graph import _get_provider_kwargs_from_config
 from tradingagents.llm_clients.openai_client import OpenAIClient
 
 
@@ -25,6 +25,20 @@ class TestDeepSeekThinkingConfig:
 
         assert llm.extra_body == {"thinking": {"type": "enabled"}}
 
+    def test_deepseek_thinking_preserves_extra_body(self, monkeypatch):
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
+
+        llm = OpenAIClient(
+            "deepseek-v4-pro",
+            provider="deepseek",
+            extra_body={"metadata": {"source": "test"}},
+        ).get_llm()
+
+        assert llm.extra_body == {
+            "metadata": {"source": "test"},
+            "thinking": {"type": "disabled"},
+        }
+
     def test_deepseek_thinking_rejects_invalid_value(self, monkeypatch):
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
 
@@ -36,10 +50,11 @@ class TestDeepSeekThinkingConfig:
             ).get_llm()
 
     def test_graph_passes_deepseek_thinking_config(self):
-        graph = object.__new__(TradingAgentsGraph)
-        graph.config = {
+        config = {
             "llm_provider": "deepseek",
             "deepseek_thinking": "enabled",
         }
 
-        assert graph._get_provider_kwargs() == {"deepseek_thinking": "enabled"}
+        assert _get_provider_kwargs_from_config(config) == {
+            "deepseek_thinking": "enabled"
+        }
