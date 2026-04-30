@@ -217,3 +217,8 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Local analysis artifacts / agent workspace
+artifacts/
+.hermes/
+docs/plans/
