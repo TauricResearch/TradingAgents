@@ -554,12 +554,20 @@ def build_trader_plan_fallback(
 
 
 def _infer_recommendation(text: str) -> str:
-    """Return the dominant BUY/SELL/HOLD signal from free-form text."""
-    upper = str(text or "").upper()
-    if "SELL" in upper:
-        return "SELL"
-    if "BUY" in upper:
-        return "BUY"
+    """Return BUY/SELL/HOLD from explicit decision fields, not incidental prose."""
+    raw = str(text or "")
+    patterns = [
+        r"FINAL\s+TRANSACTION\s+PROPOSAL\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
+        r"FINAL\s+RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
+        r"RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
+        r"RATING\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
+        r"ACTION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, raw, re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
+
     return "HOLD"
 
 

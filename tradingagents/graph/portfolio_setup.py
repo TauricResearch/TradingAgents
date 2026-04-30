@@ -55,6 +55,16 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
     return bool(str(analysis.get("final_trade_decision") or "").strip())
 
 
+def _structured_action_allows_candidate(analysis: dict[str, Any]) -> bool:
+    """Only completed structured BUY decisions may become new buy candidates."""
+    structured = analysis.get("final_trade_decision_structured") or {}
+    if not isinstance(structured, dict):
+        return False
+    status = str(structured.get("status") or "").strip().lower()
+    action = str(structured.get("action") or "").strip().upper()
+    return status == "completed" and action == "BUY"
+
+
 def _completed_scan_candidates(
     scan_summary: dict, ticker_analyses: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -81,11 +91,16 @@ def _completed_scan_candidates(
         )
         if not _analysis_has_deep_dive(analysis):
             continue
+        if not _structured_action_allows_candidate(analysis):
+            continue
         candidate["ticker"] = ticker
         candidate["instrument_key"] = instrument_key
         candidate["candidate_final_trade_decision_summary"] = str(
             analysis.get("final_trade_decision") or ""
         ).strip()
+        candidate["candidate_final_trade_decision_structured"] = dict(
+            analysis.get("final_trade_decision_structured") or {}
+        )
         completed.append(candidate)
     return completed
 
@@ -480,7 +495,13 @@ class PortfolioGraphSetup:
             for buy in buys:
                 ticker = (buy.get("ticker") or "").strip()
                 buy_shares = float(buy.get("shares", 0.0))
-                buy_price = float(prices.get(ticker) or buy.get("price_target") or 0.0)
+                buy_price = float(
+                    buy.get("limit_price")
+                    or buy.get("entry_price")
+                    or prices.get(ticker)
+                    or buy.get("price_target")
+                    or 0.0
+                )
                 buy_cost = buy_shares * buy_price
                 projected_cash -= buy_cost
                 buy_sector = buy.get("sector") or "Unknown"
@@ -649,12 +670,24 @@ class PortfolioGraphSetup:
                         shares_to_buy = int(excess_cash / sweep_etf_price)
 
                         if shares_to_buy > 0:
-                            # Add SGOV buy to decisions
+                            analysis_date = state.get("analysis_date") or ""
                             sweep_buy = {
                                 "ticker": sweep_etf,
                                 "shares": float(shares_to_buy),
+                                "entry_price": sweep_etf_price,
+                                "limit_price": sweep_etf_price,
+                                "max_chase_price": sweep_etf_price,
+                                "order_type": "limit",
+                                "valid_as_of": analysis_date,
+                                "price_target": sweep_etf_price,
+                                "stop_loss": 0.0,
+                                "take_profit": sweep_etf_price,
                                 "sector": "Cash Equivalent",
                                 "rationale": f"Automatic cash sweep of excess cash (${excess_cash:.2f}) to maintain {target_cash_pct * 100:.1f}% target.",
+                                "thesis": "Park excess cash in short-term treasury ETF",
+                                "macro_alignment": "Defensive cash management",
+                                "memory_note": "",
+                                "position_sizing_logic": f"Sweep {shares_to_buy} shares at market price",
                             }
                             decisions["buys"].append(sweep_buy)
                             pm_decision_str = json.dumps(decisions)

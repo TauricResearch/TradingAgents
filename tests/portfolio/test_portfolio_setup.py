@@ -116,8 +116,15 @@ def test_prioritize_candidates_only_uses_completed_ticker_analyses():
             ]
         },
         "ticker_analyses": {
-            "equity:AAPL": {"final_trade_decision": "Rating: Buy"},
-            "equity:NVDA": {"analysis_status": "incomplete", "investment_plan": "partial"},
+            "equity:AAPL": {
+                "final_trade_decision": "Rating: Buy",
+                "final_trade_decision_structured": {"status": "completed", "action": "BUY"},
+            },
+            "equity:NVDA": {
+                "analysis_status": "incomplete",
+                "investment_plan": "partial",
+                "final_trade_decision_structured": {"status": "completed", "action": "BUY"},
+            },
         },
         "prices": {},
     }
@@ -153,10 +160,15 @@ def test_prioritize_candidates_ignores_running_analyses_even_with_stray_decision
             ]
         },
         "ticker_analyses": {
-            "equity:AAPL": {"analysis_status": "completed", "final_trade_decision": "Rating: Buy"},
+            "equity:AAPL": {
+                "analysis_status": "completed",
+                "final_trade_decision": "Rating: Buy",
+                "final_trade_decision_structured": {"status": "completed", "action": "BUY"},
+            },
             "equity:NVDA": {
                 "analysis_status": "running",
                 "final_trade_decision": "Stray partial output should not count.",
+                "final_trade_decision_structured": {"status": "completed", "action": "BUY"},
             },
         },
         "prices": {},
@@ -167,6 +179,80 @@ def test_prioritize_candidates_ignores_running_analyses_even_with_stray_decision
 
     prioritized = json.loads(result["prioritized_candidates"])
     assert [candidate["ticker"] for candidate in prioritized] == ["AAPL"]
+
+
+def test_prioritize_candidates_rejects_structured_sell_even_when_prose_says_buy():
+    setup = PortfolioGraphSetup(agents={}, config={})
+    node = setup._make_prioritize_candidates_node()
+
+    state = {
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {
+                    "portfolio_id": "p1",
+                    "name": "Main",
+                    "cash": 100000.0,
+                    "initial_cash": 100000.0,
+                },
+                "holdings": [],
+            }
+        ),
+        "scan_summary": {"stocks_to_investigate": [{"ticker": "RIG"}]},
+        "ticker_analyses": {
+            "equity:RIG": {
+                "analysis_status": "completed",
+                "final_trade_decision": "Rating: Buy after the selloff.",
+                "final_trade_decision_structured": {
+                    "status": "completed",
+                    "action": "SELL",
+                },
+            }
+        },
+        "prices": {},
+    }
+
+    with patch("tradingagents.portfolio.memory_loader.build_selection_memory", return_value=None):
+        result = node(state)
+
+    assert json.loads(result["prioritized_candidates"]) == []
+
+
+def test_prioritize_candidates_keeps_completed_structured_buy():
+    setup = PortfolioGraphSetup(agents={}, config={})
+    node = setup._make_prioritize_candidates_node()
+
+    state = {
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {
+                    "portfolio_id": "p1",
+                    "name": "Main",
+                    "cash": 100000.0,
+                    "initial_cash": 100000.0,
+                },
+                "holdings": [],
+            }
+        ),
+        "scan_summary": {"stocks_to_investigate": [{"ticker": "RMAX"}]},
+        "ticker_analyses": {
+            "equity:RMAX": {
+                "analysis_status": "completed",
+                "final_trade_decision": "Rating: Buy with strict entry discipline.",
+                "final_trade_decision_structured": {
+                    "status": "completed",
+                    "action": "BUY",
+                },
+            }
+        },
+        "prices": {},
+    }
+
+    with patch("tradingagents.portfolio.memory_loader.build_selection_memory", return_value=None):
+        result = node(state)
+
+    prioritized = json.loads(result["prioritized_candidates"])
+    assert [candidate["ticker"] for candidate in prioritized] == ["RMAX"]
+    assert prioritized[0]["candidate_final_trade_decision_structured"]["action"] == "BUY"
 
 
 # ---------------------------------------------------------------------------

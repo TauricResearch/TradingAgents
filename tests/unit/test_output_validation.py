@@ -753,7 +753,7 @@ class TestRiskSynthesisStructuredContract:
                 "- Key Agreements: All three analysts agree on stop-loss discipline.\n"
                 "- Disagreements: Aggressive analyst disagrees with conservative on upside.\n"
                 "- Material Risks: volatility risk, downside of -8.5% if support breaks.\n"
-                "- Balanced Assessment: BUY with tight risk controls."
+                "RECOMMENDATION: BUY with tight risk controls."
             ),
         )
         assert structured["ticker"] == "AAPL"
@@ -816,6 +816,51 @@ class TestFinalDecisionStructuredContract:
             final_decision=long_text,
         )
         assert len(structured["decision_excerpt"]) <= 200
+
+    def test_build_final_decision_structured_does_not_treat_selloff_as_sell(self):
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
+        report = (
+            "RIG experienced an energy selloff, but the final rating is Buy. "
+            "Rating: Buy. Stop-loss at $3.80. Target price at $6.00."
+        )
+
+        structured = build_final_decision_structured(
+            ticker="RIG",
+            as_of_date="2026-04-28",
+            final_decision=report,
+        )
+
+        assert structured["action"] == "BUY"
+
+    def test_build_final_decision_structured_prefers_final_transaction_proposal(self):
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
+        report = (
+            "The bear case says sell if dayrates weaken. "
+            "FINAL TRANSACTION PROPOSAL: **HOLD** until earnings confirm guidance."
+        )
+
+        structured = build_final_decision_structured(
+            ticker="RIG",
+            as_of_date="2026-04-28",
+            final_decision=report,
+        )
+
+        assert structured["action"] == "HOLD"
+
+    def test_build_final_decision_structured_uses_word_boundaries(self):
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
+        report = "The company completed a buyback. Rating: Hold."
+
+        structured = build_final_decision_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-28",
+            final_decision=report,
+        )
+
+        assert structured["action"] == "HOLD"
 
 
 class TestNewsStructuredContract:
