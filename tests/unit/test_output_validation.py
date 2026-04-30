@@ -753,7 +753,7 @@ class TestRiskSynthesisStructuredContract:
                 "- Key Agreements: All three analysts agree on stop-loss discipline.\n"
                 "- Disagreements: Aggressive analyst disagrees with conservative on upside.\n"
                 "- Material Risks: volatility risk, downside of -8.5% if support breaks.\n"
-                "- Balanced Assessment: BUY with tight risk controls."
+                "RECOMMENDATION: BUY with tight risk controls."
             ),
         )
         assert structured["ticker"] == "AAPL"

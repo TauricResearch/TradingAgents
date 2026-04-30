@@ -568,17 +568,6 @@ def _infer_recommendation(text: str) -> str:
         if match:
             return match.group(1).upper()
 
-    word_counts = {
-        "BUY": len(re.findall(r"\bBUY\b", raw, re.IGNORECASE)),
-        "SELL": len(re.findall(r"\bSELL\b", raw, re.IGNORECASE)),
-        "HOLD": len(re.findall(r"\bHOLD\b", raw, re.IGNORECASE)),
-    }
-    if word_counts["BUY"] > word_counts["SELL"] and word_counts["BUY"] >= word_counts["HOLD"]:
-        return "BUY"
-    if word_counts["SELL"] > word_counts["BUY"] and word_counts["SELL"] >= word_counts["HOLD"]:
-        return "SELL"
-    if word_counts["HOLD"] > 0:
-        return "HOLD"
     return "HOLD"
 
 

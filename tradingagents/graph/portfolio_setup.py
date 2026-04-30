@@ -495,7 +495,13 @@ class PortfolioGraphSetup:
             for buy in buys:
                 ticker = (buy.get("ticker") or "").strip()
                 buy_shares = float(buy.get("shares", 0.0))
-                buy_price = float(prices.get(ticker) or buy.get("price_target") or 0.0)
+                buy_price = float(
+                    buy.get("limit_price")
+                    or buy.get("entry_price")
+                    or prices.get(ticker)
+                    or buy.get("price_target")
+                    or 0.0
+                )
                 buy_cost = buy_shares * buy_price
                 projected_cash -= buy_cost
                 buy_sector = buy.get("sector") or "Unknown"
@@ -664,12 +670,24 @@ class PortfolioGraphSetup:
                         shares_to_buy = int(excess_cash / sweep_etf_price)
 
                         if shares_to_buy > 0:
-                            # Add SGOV buy to decisions
+                            analysis_date = state.get("analysis_date") or ""
                             sweep_buy = {
                                 "ticker": sweep_etf,
                                 "shares": float(shares_to_buy),
+                                "entry_price": sweep_etf_price,
+                                "limit_price": sweep_etf_price,
+                                "max_chase_price": sweep_etf_price,
+                                "order_type": "limit",
+                                "valid_as_of": analysis_date,
+                                "price_target": sweep_etf_price,
+                                "stop_loss": 0.0,
+                                "take_profit": sweep_etf_price,
                                 "sector": "Cash Equivalent",
                                 "rationale": f"Automatic cash sweep of excess cash (${excess_cash:.2f}) to maintain {target_cash_pct * 100:.1f}% target.",
+                                "thesis": "Park excess cash in short-term treasury ETF",
+                                "macro_alignment": "Defensive cash management",
+                                "memory_note": "",
+                                "position_sizing_logic": f"Sweep {shares_to_buy} shares at market price",
                             }
                             decisions["buys"].append(sweep_buy)
                             pm_decision_str = json.dumps(decisions)

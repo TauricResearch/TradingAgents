@@ -211,7 +211,6 @@ def create_pm_decision_agent(
     )
 
     def pm_decision_node(state: PortfolioManagerState) -> dict[str, Any]:
-        print("DEBUG: PM DECISION NODE STARTING")
         analysis_date = state.get("analysis_date") or ""
 
         # Read brief fields written by upstream summary agents
