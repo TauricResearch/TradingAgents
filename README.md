@@ -166,6 +166,15 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+### Web Console
+
+Launch the local Streamlit web console:
+```bash
+streamlit run tradingagents/web/app.py
+```
+
+The web console keeps the CLI workflow intact while adding a visual setup form, a single-worker background queue, live agent status, tool-call logs, incremental reports, final decisions, and saved report history.
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
