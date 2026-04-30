@@ -16,6 +16,7 @@ from tradingagents.portfolio.exceptions import (
     InsufficientCashError,
     PortfolioError,
 )
+from tradingagents.portfolio.order_guards import buy_order_guard
 from tradingagents.portfolio.risk_evaluator import check_constraints
 
 logger = logging.getLogger(__name__)
@@ -180,6 +181,19 @@ class TradeExecutor:
                     }
                 )
                 logger.warning("execute_decisions: no price for %s — skipping BUY", ticker)
+                continue
+
+            # Order guard: enforce limit/max-chase/stop/take-profit against live price.
+            guard_violation = buy_order_guard(buy, float(price))
+            if guard_violation:
+                failed_trades.append(
+                    {
+                        "action": "BUY",
+                        "ticker": ticker,
+                        "reason": guard_violation,
+                    }
+                )
+                logger.warning("BUY %s rejected by order guard — %s", ticker, guard_violation)
                 continue
 
             # Pre-flight constraint check
