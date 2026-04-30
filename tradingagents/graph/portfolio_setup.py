@@ -4,11 +4,12 @@ Fan-out/fan-in workflow:
   START → load_portfolio → compute_risk → portfolio_integrity_guard → review_holdings
         → prioritize_candidates → macro_summary (parallel)
                                 → micro_summary  (parallel)
-        → make_pm_decision → cash_sweep → pm_decision_postcheck → execute_trades → END
+        → make_pm_decision → cash_sweep → pm_decision_postcheck → execute_trades
+        → record_pm_decisions → END
 
 Non-LLM nodes (load_portfolio, compute_risk, prioritize_candidates, execute_trades,
-portfolio_integrity_guard, pm_decision_postcheck) receive ``repo`` and ``config``
-via closure.
+portfolio_integrity_guard, pm_decision_postcheck, record_pm_decisions) receive
+``repo``, ``config``, or memory dependencies via closure.
 LLM nodes (review_holdings, macro_summary, micro_summary, pm_decision) are created
 externally and passed in.
 
@@ -740,6 +741,67 @@ class PortfolioGraphSetup:
 
         return execute_trades_node
 
+    def _make_record_pm_decisions_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
+        micro_memory = self._micro_memory
+
+        def record_pm_decisions_node(state: PortfolioManagerState) -> dict[str, Any]:
+            """Write final PM decisions to micro_reflexion memory.
+
+            Runs after execute_trades. Fails silently — memory persistence
+            must never break the portfolio pipeline.
+            """
+            if micro_memory is None:
+                return {"sender": "record_pm_decisions"}
+
+            analysis_date = state.get("analysis_date") or ""
+            run_id = state.get("run_id")
+            pm_decision_str = state.get("pm_decision") or "{}"
+
+            try:
+                decisions = json.loads(pm_decision_str)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("record_pm_decisions_node: could not parse pm_decision JSON")
+                return {"sender": "record_pm_decisions"}
+
+            if not isinstance(decisions, dict):
+                logger.warning("record_pm_decisions_node: pm_decision JSON was not an object")
+                return {"sender": "record_pm_decisions"}
+
+            def record_orders(orders: Any, decision: str, confidence: str) -> None:
+                if not isinstance(orders, list):
+                    return
+                for order in orders:
+                    if not isinstance(order, dict):
+                        continue
+                    ticker = str(order.get("ticker") or "").strip().upper()
+                    if not ticker:
+                        continue
+                    try:
+                        micro_memory.record_decision(
+                            ticker,
+                            analysis_date,
+                            decision,
+                            rationale=order.get("rationale") or "",
+                            confidence=confidence,
+                            source="portfolio",
+                            run_id=run_id,
+                        )
+                    except Exception:
+                        logger.warning(
+                            "record_pm_decisions_node: could not record %s decision for %s",
+                            decision,
+                            ticker,
+                            exc_info=True,
+                        )
+
+            record_orders(decisions.get("buys") or [], "BUY", "high")
+            record_orders(decisions.get("sells") or [], "SELL", "medium")
+            record_orders(decisions.get("holds") or [], "HOLD", "medium")
+
+            return {"sender": "record_pm_decisions"}
+
+        return record_pm_decisions_node
+
     # ------------------------------------------------------------------
     # Graph assembly
     # ------------------------------------------------------------------
@@ -753,7 +815,7 @@ class PortfolioGraphSetup:
                   → macro_summary (parallel)
                   → micro_summary  (parallel)
                   → make_pm_decision → cash_sweep → pm_decision_postcheck
-                  → execute_trades → END
+                  → execute_trades → record_pm_decisions → END
 
         Returns:
             A compiled LangGraph graph ready to invoke.
@@ -768,6 +830,7 @@ class PortfolioGraphSetup:
         workflow.add_node("cash_sweep", self._make_cash_sweep_node())
         workflow.add_node("pm_decision_postcheck", self._make_pm_decision_postcheck_node())
         workflow.add_node("execute_trades", self._make_execute_trades_node())
+        workflow.add_node("record_pm_decisions", self._make_record_pm_decisions_node())
 
         # Register LLM nodes
         workflow.add_node("review_holdings", self.agents["review_holdings"])
@@ -795,6 +858,7 @@ class PortfolioGraphSetup:
         workflow.add_edge("make_pm_decision", "cash_sweep")
         workflow.add_edge("cash_sweep", "pm_decision_postcheck")
         workflow.add_edge("pm_decision_postcheck", "execute_trades")
-        workflow.add_edge("execute_trades", END)
+        workflow.add_edge("execute_trades", "record_pm_decisions")
+        workflow.add_edge("record_pm_decisions", END)
 
         return workflow.compile()
