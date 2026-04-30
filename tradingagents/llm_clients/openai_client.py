@@ -50,6 +50,8 @@ _PROVIDER_CONFIG = {
     "ollama": ("http://localhost:11434/v1", None),
 }
 
+_DEEPSEEK_THINKING_MODES = {"enabled", "disabled"}
+
 
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
@@ -85,6 +87,24 @@ class OpenAIClient(BaseLLMClient):
                     llm_kwargs["api_key"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
+
+            if self.provider == "deepseek":
+                thinking = str(
+                    self.kwargs.get(
+                        "deepseek_thinking",
+                        os.environ.get("DEEPSEEK_THINKING", "disabled"),
+                    )
+                ).lower()
+                if thinking not in _DEEPSEEK_THINKING_MODES:
+                    raise ValueError(
+                        "deepseek_thinking must be either 'enabled' or 'disabled'"
+                    )
+
+                # DeepSeek V4 defaults to thinking mode. During tool calls the API
+                # requires reasoning_content to be round-tripped, which LangChain's
+                # OpenAI-compatible path does not preserve here. Disable it by
+                # default, while still allowing explicit opt-in.
+                llm_kwargs["extra_body"] = {"thinking": {"type": thinking}}
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 

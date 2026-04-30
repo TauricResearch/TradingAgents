@@ -25,6 +25,11 @@ DEFAULT_CONFIG = {
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    # DeepSeek V4 thinking mode requires reasoning_content to be round-tripped
+    # during tool-call conversations. Keep it disabled by default for current
+    # LangChain OpenAI-compatible tool-call flow; set DEEPSEEK_THINKING=enabled
+    # to opt in.
+    "deepseek_thinking": os.getenv("DEEPSEEK_THINKING", "disabled"),
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

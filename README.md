@@ -142,11 +142,14 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export DEEPSEEK_API_KEY=...        # DeepSeek
+export DEEPSEEK_THINKING=disabled  # DeepSeek V4 thinking mode (disabled by default for tool-call compatibility)
 export DASHSCOPE_API_KEY=...       # Qwen (Alibaba DashScope)
 export ZHIPU_API_KEY=...           # GLM (Zhipu)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
+
+DeepSeek V4 thinking mode requires `reasoning_content` to be passed back during tool-call conversations. TradingAgents disables it by default on the OpenAI-compatible DeepSeek path; set `DEEPSEEK_THINKING=enabled` to opt in.
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
