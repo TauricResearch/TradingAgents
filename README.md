@@ -255,6 +255,56 @@ ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
+## Hybrid Batch Dashboard MVP
+
+This repo now includes a lightweight local dashboard workflow for comparing multiple TradingAgents runs side-by-side.
+
+### What it does
+
+- Runs a **batch of tickers** through the existing `TradingAgentsGraph.propagate()` engine
+- Persists a normalized machine-readable record for each run to:
+  - `artifacts/dashboard/runs/<run_id>.json`
+  - `artifacts/dashboard/dashboard.db`
+- Keeps the raw TradingAgents full-state logs under:
+  - `artifacts/dashboard/raw_results/<TICKER>/TradingAgentsStrategy_logs/`
+- Serves a local **FastAPI dashboard** with:
+  - an overview table for multi-ticker comparison
+  - a detail page with analyst reports, trader proposal, and final portfolio decision
+
+### Run a real batch
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/run_hybrid_dashboard_batch.py \
+  --tickers NVDA AAPL MSFT \
+  --trade-date 2024-05-10 \
+  --artifact-dir artifacts/dashboard \
+  --openai-use-hermes-codex-auth
+```
+
+This uses repo-local cache/results directories so the MVP stays self-contained inside this checkout.
+
+### Start the dashboard
+
+```bash
+PYTHONPATH=. .venv/bin/python -m uvicorn tradingagents.dashboard.app:app \
+  --host 127.0.0.1 \
+  --port 8765
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765/
+```
+
+### Notes and limitations
+
+- The MVP is intentionally **server-rendered HTML** — no separate JS frontend build.
+- Structured storage is derived from the graph `final_state` / saved full-state JSON, not scraped terminal logs.
+- Batch execution is currently **sequential** for simplicity and to avoid multiplying LLM/tool load.
+- Sample runs can take a few minutes because they are real TradingAgents analyses.
+- Historical runs are easiest to reproduce reliably; the sample dataset in `artifacts/dashboard/` uses `2024-05-10`.
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).

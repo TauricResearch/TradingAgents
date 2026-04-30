@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ record.ticker }} · TradingAgents 하이브리드 대시보드</title>
+    <style>
+      html { background: #0b1020; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(180deg, #0b1020 0%, #0f172a 100%);
+        color: #e8ecf8;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      .page {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 32px 24px 80px;
+      }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', path='/dashboard.css') }}" />
+  </head>
+  <body>
+    <main class="page detail-page">
+      <nav class="breadcrumbs"><a href="/">← 개요로 돌아가기</a></nav>
+      <header class="hero detail-hero">
+        <div>
+          <p class="eyebrow">실행 상세</p>
+          <h1>{{ record.ticker }} · {{ record.trade_date }}</h1>
+          <p class="lede">{{ record.decision_summary }}</p>
+        </div>
+        <dl class="meta-card">
+          <div><dt>최종 등급</dt><dd>{{ record.rating }}</dd></div>
+          <div><dt>트레이더 액션</dt><dd>{{ record.trader_action }}</dd></div>
+          <div><dt>리서치 의견</dt><dd>{{ record.research_recommendation }}</dd></div>
+          <div><dt>생성 시각</dt><dd>{{ record.generated_at }}</dd></div>
+        </dl>
+      </header>
+
+      <section class="grid two-col">
+        <article class="panel">
+          <div class="panel-header"><h2>애널리스트 요약</h2></div>
+          <ul class="snippet-list">
+            <li><strong>시장</strong><p>{{ record.snippets.market }}</p></li>
+            <li><strong>심리</strong><p>{{ record.snippets.sentiment }}</p></li>
+            <li><strong>뉴스</strong><p>{{ record.snippets.news }}</p></li>
+            <li><strong>펀더멘털</strong><p>{{ record.snippets.fundamentals }}</p></li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><h2>구조화 메타데이터</h2></div>
+          <dl class="meta-list">
+            <div><dt>실행 ID</dt><dd>{{ record.run_id }}</dd></div>
+            <div><dt>JSON 경로</dt><dd>{{ record.structured_path }}</dd></div>
+            <div><dt>원본 로그 경로</dt><dd>{{ record.raw_log_path }}</dd></div>
+            <div><dt>투자 기간</dt><dd>{{ record.time_horizon or '—' }}</dd></div>
+            <div><dt>목표가</dt><dd>{{ record.price_target or '—' }}</dd></div>
+            <div><dt>소요 시간(초)</dt><dd>{{ record.metadata.elapsed_seconds or '—' }}</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="grid two-col">
+        <article class="panel markdown-panel">
+          <div class="panel-header"><h2>투자 계획</h2></div>
+          <pre>{{ record.reports.investment_plan }}</pre>
+        </article>
+        <article class="panel markdown-panel">
+          <div class="panel-header"><h2>트레이더 제안</h2></div>
+          <pre>{{ record.reports.trader_investment_decision }}</pre>
+        </article>
+      </section>
+
+      <section class="panel markdown-panel">
+        <div class="panel-header"><h2>최종 포트폴리오 결정</h2></div>
+        <pre>{{ record.reports.final_trade_decision }}</pre>
+      </section>
+
+      <section class="grid two-col">
+        <article class="panel markdown-panel">
+          <div class="panel-header"><h2>시장 리포트</h2></div>
+          <pre>{{ record.reports.market_report }}</pre>
+        </article>
+        <article class="panel markdown-panel">
+          <div class="panel-header"><h2>심리 리포트</h2></div>
+          <pre>{{ record.reports.sentiment_report }}</pre>
+        </article>
+        <article class="panel markdown-panel">
+          <div class="panel-header"><h2>뉴스 리포트</h2></div>
+          <pre>{{ record.reports.news_report }}</pre>
+        </article>
+        <article class="panel markdown-panel">
+          <div class="panel-header"><h2>펀더멘털 리포트</h2></div>
+          <pre>{{ record.reports.fundamentals_report }}</pre>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

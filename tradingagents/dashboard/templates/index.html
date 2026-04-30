@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TradingAgents 하이브리드 대시보드</title>
+    <style>
+      html { background: #0b1020; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(180deg, #0b1020 0%, #0f172a 100%);
+        color: #e8ecf8;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      .page {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 32px 24px 80px;
+      }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', path='/dashboard.css') }}" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">TradingAgents MVP</p>
+          <h1>하이브리드 배치 분석 대시보드</h1>
+          <p class="lede">
+            여러 종목의 저장된 분석 결과를 한눈에 비교하고, 상세 페이지에서 전체 판단 근거를 확인하세요.
+          </p>
+        </div>
+        <dl class="meta-card">
+          <div>
+            <dt>데이터셋</dt>
+            <dd>{{ data_dir }}</dd>
+          </div>
+          <div>
+            <dt>실행 수</dt>
+            <dd>{{ runs|length }}</dd>
+          </div>
+          <div>
+            <dt>최근 갱신</dt>
+            <dd>{{ latest_generated_at or '아직 실행 기록이 없습니다' }}</dd>
+          </div>
+        </dl>
+      </header>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>개요</h2>
+          <p>각 행은 저장된 TradingAgents 분석 결과 1건을 의미합니다.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>티커</th>
+                <th>분석 기준일</th>
+                <th>최종 등급</th>
+                <th>트레이더 액션</th>
+                <th>리서치 의견</th>
+                <th>판단 요약</th>
+                <th>생성 시각</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for run in runs %}
+              <tr>
+                <td><strong>{{ run.ticker }}</strong></td>
+                <td>{{ run.trade_date }}</td>
+                <td><span class="pill pill-{{ run.rating|lower }}">{{ run.rating }}</span></td>
+                <td>{{ run.trader_action }}</td>
+                <td>{{ run.research_recommendation }}</td>
+                <td class="summary">{{ run.decision_summary }}</td>
+                <td>{{ run.generated_at }}</td>
+                <td><a class="link-button" href="/runs/{{ run.run_id }}">상세 보기</a></td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="8" class="empty">저장된 실행 결과가 아직 없습니다. 먼저 배치 실행을 수행하세요.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
