@@ -1,5 +1,7 @@
 import pytest
+from langgraph.graph import END, START, StateGraph
 
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.graph._consistency_guard import (
     NumericClaim,
     extract_numeric_claims,
@@ -152,3 +154,34 @@ def test_guard_node_routes_to_reprompt_on_first_offense():
     assert result.get("rm_consistency_status") == "reprompt"
     assert "consistency_violations" in result
     assert result["_rm_consistency_attempt"] == 1
+
+
+def test_guard_graph_state_persists_reprompt_context_to_next_node():
+    """Guard re-prompt payload survives conditional routing into the next node."""
+    from tradingagents.graph.setup import GraphSetup
+
+    def probe_node(state: AgentState) -> dict:
+        assert state["rm_consistency_status"] == "reprompt"
+        assert state["consistency_violations"]
+        assert state["_rm_consistency_attempt"] == 1
+        return {"sender": "probe"}
+
+    workflow = StateGraph(AgentState)
+    workflow.add_node("Guard", GraphSetup._make_rm_consistency_guard_node())
+    workflow.add_node("Probe", probe_node)
+    workflow.add_edge(START, "Guard")
+    workflow.add_conditional_edges(
+        "Guard",
+        lambda state: "Probe" if state.get("rm_consistency_status") == "reprompt" else END,
+        {"Probe": "Probe", END: END},
+    )
+    workflow.add_edge("Probe", END)
+    graph = workflow.compile()
+
+    graph.invoke(
+        {
+            "investment_plan": "- EBITDA margin expanded +3.8% YoY",
+            "fundamentals_report": "Operating margin compressed 270bps.",
+            "_rm_consistency_attempt": 0,
+        }
+    )
