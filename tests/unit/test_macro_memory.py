@@ -189,6 +189,40 @@ class TestMacroMemoryLocalFallback:
             for r in caplog.records
         )
 
+    def test_missing_regime_date_local_record_logs_warning_and_returns_empty(
+        self, tmp_path, caplog
+    ):
+        """Local records without regime_date are malformed and must not leak through."""
+        import logging
+
+        bad_path = tmp_path / "missing_regime_date.json"
+        bad_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "macro_call": "risk-on",
+                        "sector_thesis": "Malformed record",
+                        "key_themes": ["earnings"],
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+        m = MacroMemory(fallback_path=bad_path)
+
+        with caplog.at_level(logging.WARNING, logger="tradingagents.memory.macro_memory"):
+            records = m.get_recent(limit=5, as_of_date="2026-03-20")
+            ctx = m.build_macro_context(limit=5, as_of_date="2026-03-20")
+
+        assert records == []
+        assert "Malformed record" not in ctx
+        assert any(
+            "corrupt" in r.message.lower()
+            or "malformed" in r.message.lower()
+            or "unreadable" in r.message.lower()
+            for r in caplog.records
+        )
+
 
 # ---------------------------------------------------------------------------
 # Additional coverage

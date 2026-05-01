@@ -284,6 +284,37 @@ def test_structurally_malformed_local_reflexion_logs_warning(tmp_path, caplog, p
     )
 
 
+def test_missing_decision_date_local_reflexion_logs_warning(tmp_path, caplog):
+    """Matching ticker records without decision_date are malformed and ignored."""
+    import logging
+
+    bad_path = tmp_path / "missing_decision_date_reflexion.json"
+    bad_path.write_text(
+        json.dumps(
+            [
+                {
+                    "ticker": "AAPL",
+                    "decision": "BUY",
+                    "rationale": "Malformed record",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    m = ReflexionMemory(fallback_path=bad_path)
+
+    with caplog.at_level(logging.WARNING, logger="tradingagents.memory.reflexion"):
+        history = m.get_history("AAPL", limit=5, as_of_date="2026-03-20")
+
+    assert history == []
+    assert any(
+        "corrupt" in r.message.lower()
+        or "malformed" in r.message.lower()
+        or "unreadable" in r.message.lower()
+        for r in caplog.records
+    )
+
+
 def test_get_history_mongo_query_filters_as_of_date():
     """Mongo get_history(as_of_date=...) must include a decision_date upper bound."""
 

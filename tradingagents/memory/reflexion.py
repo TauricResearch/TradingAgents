@@ -291,6 +291,18 @@ class ReflexionMemory:
                 self._fallback_path,
             )
             return []
+        if not all(
+            isinstance(record.get("decision_date"), str)
+            and bool(record["decision_date"].strip())
+            and isinstance(record.get("ticker"), str)
+            and bool(record["ticker"].strip())
+            for record in payload
+        ):
+            logger.warning(
+                "ReflexionMemory local fallback file is malformed or corrupt: %s",
+                self._fallback_path,
+            )
+            return []
         return payload
 
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:

@@ -334,6 +334,16 @@ class MacroMemory:
                 self._fallback_path,
             )
             return []
+        if not all(
+            isinstance(record.get("regime_date"), str)
+            and bool(record["regime_date"].strip())
+            for record in payload
+        ):
+            logger.warning(
+                "MacroMemory local fallback file is malformed or corrupt: %s",
+                self._fallback_path,
+            )
+            return []
         return payload
 
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:

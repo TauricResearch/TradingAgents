@@ -476,6 +476,30 @@ class TestSummaryAgentMemoryFiltering:
             limit=3, as_of_date="2026-03-20"
         )
 
+    @pytest.mark.parametrize(
+        "state",
+        [
+            {"scan_summary": {"executive_summary": "Markets are mixed"}, "messages": []},
+            {
+                "analysis_date": "   ",
+                "scan_summary": {"executive_summary": "Markets are mixed"},
+                "messages": [],
+            },
+        ],
+    )
+    def test_macro_summary_memory_requires_analysis_date(self, state):
+        mock_memory = MagicMock()
+
+        llm = _make_runnable_llm("MACRO REGIME: neutral\nKEY NUMBERS: VIX=18")
+        agent = create_macro_summary_agent(llm, macro_memory=mock_memory)
+
+        with pytest.raises(
+            RuntimeError, match="macro_summary_agent.*analysis_date.*as_of_date"
+        ):
+            agent(state)
+
+        mock_memory.build_macro_context.assert_not_called()
+
     def test_micro_summary_forwards_analysis_date_to_each_memory_lookup(self):
         mock_memory = MagicMock()
         mock_memory.build_context.return_value = "ticker context"
@@ -511,6 +535,43 @@ class TestSummaryAgentMemoryFiltering:
             ]
         )
         assert mock_memory.build_context.call_count == 2
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            {
+                "holding_reviews": json.dumps(
+                    {"AAPL": {"recommendation": "HOLD", "confidence": "high"}}
+                ),
+                "prioritized_candidates": "[]",
+                "ticker_analyses": {},
+                "messages": [],
+            },
+            {
+                "analysis_date": "   ",
+                "holding_reviews": json.dumps(
+                    {"AAPL": {"recommendation": "HOLD", "confidence": "high"}}
+                ),
+                "prioritized_candidates": "[]",
+                "ticker_analyses": {},
+                "messages": [],
+            },
+        ],
+    )
+    def test_micro_summary_memory_requires_analysis_date(self, state):
+        mock_memory = MagicMock()
+
+        llm = _make_runnable_llm(
+            "HOLDINGS TABLE:\n| AAPL | HOLD | NO DATA | none | ticker context |"
+        )
+        agent = create_micro_summary_agent(llm, micro_memory=mock_memory)
+
+        with pytest.raises(
+            RuntimeError, match="micro_summary_agent.*analysis_date.*as_of_date"
+        ):
+            agent(state)
+
+        mock_memory.build_context.assert_not_called()
 
 
 class _StructuredLLMCapture:
