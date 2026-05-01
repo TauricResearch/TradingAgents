@@ -284,14 +284,20 @@ def test_structurally_malformed_local_reflexion_logs_warning(tmp_path, caplog, p
     )
 
 
-def test_missing_decision_date_local_reflexion_logs_warning(tmp_path, caplog):
-    """Matching ticker records without decision_date are malformed and ignored."""
+def test_missing_decision_date_local_reflexion_filters_bad_record_only(tmp_path, caplog):
+    """Malformed local records are ignored without discarding valid decisions."""
     import logging
 
     bad_path = tmp_path / "missing_decision_date_reflexion.json"
     bad_path.write_text(
         json.dumps(
             [
+                {
+                    "ticker": "AAPL",
+                    "decision_date": "2026-03-15",
+                    "decision": "HOLD",
+                    "rationale": "Valid prior rationale",
+                },
                 {
                     "ticker": "AAPL",
                     "decision": "BUY",
@@ -306,13 +312,42 @@ def test_missing_decision_date_local_reflexion_logs_warning(tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="tradingagents.memory.reflexion"):
         history = m.get_history("AAPL", limit=5, as_of_date="2026-03-20")
 
-    assert history == []
+    assert [record["rationale"] for record in history] == ["Valid prior rationale"]
     assert any(
         "corrupt" in r.message.lower()
         or "malformed" in r.message.lower()
         or "unreadable" in r.message.lower()
         for r in caplog.records
     )
+
+
+def test_local_reflexion_as_of_filter_uses_iso_date_prefix_for_timestamps(tmp_path):
+    """Timestamp-shaped local decision dates are compared by YYYY-MM-DD prefix."""
+    path = tmp_path / "reflexion.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "ticker": "AAPL",
+                    "decision_date": "2026-03-15T12:00:00",
+                    "decision": "HOLD",
+                    "rationale": "Intraday decision",
+                },
+                {
+                    "ticker": "AAPL",
+                    "decision_date": "2026-03-16T00:00:00",
+                    "decision": "SELL",
+                    "rationale": "Future intraday decision",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    m = ReflexionMemory(fallback_path=path)
+
+    history = m.get_history("AAPL", limit=5, as_of_date="2026-03-15")
+
+    assert [record["rationale"] for record in history] == ["Intraday decision"]
 
 
 def test_get_history_mongo_query_filters_as_of_date():

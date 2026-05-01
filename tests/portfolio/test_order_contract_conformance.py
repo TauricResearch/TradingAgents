@@ -37,10 +37,9 @@ import pytest
 
 from tradingagents.agents.portfolio.pm_decision_agent import BuyOrder
 from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
-from tradingagents.portfolio.models import Holding, Portfolio, PortfolioSnapshot
+from tradingagents.portfolio.models import Portfolio, PortfolioSnapshot
 from tradingagents.portfolio.order_guards import buy_order_guard
 from tradingagents.portfolio.trade_executor import TradeExecutor
-
 
 # ---------------------------------------------------------------------------
 # Shared order matrix
@@ -414,12 +413,6 @@ def test_executor_layer(scenario: dict[str, Any]) -> None:
         )
     else:
         # Ticker must appear in failed_trades with an order-guard reason
-        guard_failures = [
-            t for t in failed
-            if str(t.get("ticker") or "") == ticker
-            and "order guard" not in str(t.get("reason") or "")
-            # The guard violation message comes from buy_order_guard, not the key literal
-        ]
         order_guard_failures = [
             t for t in failed
             if str(t.get("ticker") or "") == ticker

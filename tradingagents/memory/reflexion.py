@@ -43,6 +43,11 @@ logger = logging.getLogger(__name__)
 _COLLECTION = "reflexion"
 
 
+def _date_key(value: Any) -> str:
+    """Return the YYYY-MM-DD prefix used for local as-of comparisons."""
+    return value[:10] if isinstance(value, str) else ""
+
+
 class ReflexionMemory:
     """MongoDB-backed reflexion memory.
 
@@ -198,6 +203,8 @@ class ReflexionMemory:
             ticker:     Ticker symbol.
             limit:      Maximum number of results.
             as_of_date: Optional ISO date. Excludes decisions after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
         """
         if self._col is not None:
             from pymongo import DESCENDING
@@ -233,6 +240,8 @@ class ReflexionMemory:
             ticker:     Ticker symbol.
             limit:      How many past decisions to include.
             as_of_date: Optional ISO date. Excludes decisions after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
 
         Returns:
             Multi-line string summarising recent decisions and outcomes.
@@ -283,27 +292,35 @@ class ReflexionMemory:
                 exc_info=True,
             )
             return []
-        if not isinstance(payload, list) or not all(
-            isinstance(record, dict) for record in payload
-        ):
+        if not isinstance(payload, list):
             logger.warning(
                 "ReflexionMemory local fallback file is malformed or corrupt: %s",
                 self._fallback_path,
             )
             return []
-        if not all(
-            isinstance(record.get("decision_date"), str)
-            and bool(record["decision_date"].strip())
-            and isinstance(record.get("ticker"), str)
-            and bool(record["ticker"].strip())
-            for record in payload
-        ):
+
+        valid_records: list[dict[str, Any]] = []
+        dropped = 0
+        for record in payload:
+            if not isinstance(record, dict):
+                dropped += 1
+                continue
+            if not _date_key(record.get("decision_date")).strip():
+                dropped += 1
+                continue
+            if not isinstance(record.get("ticker"), str) or not record["ticker"].strip():
+                dropped += 1
+                continue
+            valid_records.append(record)
+
+        if dropped:
             logger.warning(
-                "ReflexionMemory local fallback file is malformed or corrupt: %s",
+                "ReflexionMemory local fallback file contains %d malformed or corrupt "
+                "record(s), ignoring them: %s",
+                dropped,
                 self._fallback_path,
             )
-            return []
-        return payload
+        return valid_records
 
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:
         """Overwrite the local JSON file with all records."""
@@ -325,9 +342,9 @@ class ReflexionMemory:
             r
             for r in records
             if r.get("ticker") == ticker
-            and (as_of_date is None or r.get("decision_date", "") <= as_of_date)
+            and (as_of_date is None or _date_key(r.get("decision_date")) <= _date_key(as_of_date))
         ]  # Hard metadata filter — local fallback
-        filtered.sort(key=lambda r: r.get("decision_date", ""), reverse=True)
+        filtered.sort(key=lambda r: _date_key(r.get("decision_date")), reverse=True)
         return filtered[:limit]
 
     def _update_local_outcome(

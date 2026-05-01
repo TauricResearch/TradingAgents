@@ -189,16 +189,23 @@ class TestMacroMemoryLocalFallback:
             for r in caplog.records
         )
 
-    def test_missing_regime_date_local_record_logs_warning_and_returns_empty(
+    def test_missing_regime_date_local_record_is_filtered_without_losing_valid_records(
         self, tmp_path, caplog
     ):
-        """Local records without regime_date are malformed and must not leak through."""
+        """Malformed local records are ignored without discarding valid history."""
         import logging
 
         bad_path = tmp_path / "missing_regime_date.json"
         bad_path.write_text(
             json.dumps(
                 [
+                    {
+                        "regime_date": "2026-03-15",
+                        "vix_level": 25.0,
+                        "macro_call": "risk-off",
+                        "sector_thesis": "Valid prior record",
+                        "key_themes": ["inflation"],
+                    },
                     {
                         "macro_call": "risk-on",
                         "sector_thesis": "Malformed record",
@@ -214,14 +221,45 @@ class TestMacroMemoryLocalFallback:
             records = m.get_recent(limit=5, as_of_date="2026-03-20")
             ctx = m.build_macro_context(limit=5, as_of_date="2026-03-20")
 
-        assert records == []
+        assert [record["sector_thesis"] for record in records] == ["Valid prior record"]
         assert "Malformed record" not in ctx
+        assert "Valid prior record" in ctx
         assert any(
             "corrupt" in r.message.lower()
             or "malformed" in r.message.lower()
             or "unreadable" in r.message.lower()
             for r in caplog.records
         )
+
+    def test_local_as_of_filter_uses_iso_date_prefix_for_timestamp_records(self, tmp_path):
+        """Timestamp-shaped local dates are compared by their YYYY-MM-DD prefix."""
+        path = tmp_path / "macro.json"
+        path.write_text(
+            json.dumps(
+                [
+                    {
+                        "regime_date": "2026-03-15T12:00:00",
+                        "vix_level": 25.0,
+                        "macro_call": "risk-off",
+                        "sector_thesis": "Intraday record",
+                        "key_themes": [],
+                    },
+                    {
+                        "regime_date": "2026-03-16T00:00:00",
+                        "vix_level": 18.0,
+                        "macro_call": "risk-on",
+                        "sector_thesis": "Future intraday record",
+                        "key_themes": [],
+                    },
+                ]
+            ),
+            encoding="utf-8",
+        )
+        m = MacroMemory(fallback_path=path)
+
+        records = m.get_recent(limit=5, as_of_date="2026-03-15")
+
+        assert [record["sector_thesis"] for record in records] == ["Intraday record"]
 
 
 # ---------------------------------------------------------------------------

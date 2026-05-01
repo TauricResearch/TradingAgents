@@ -53,6 +53,11 @@ _COLLECTION = "macro_memory"
 _VALID_MACRO_CALLS = {"risk-on", "risk-off", "neutral", "transition"}
 
 
+def _date_key(value: Any) -> str:
+    """Return the YYYY-MM-DD prefix used for local as-of comparisons."""
+    return value[:10] if isinstance(value, str) else ""
+
+
 class MacroMemory:
     """MongoDB-backed macro regime memory.
 
@@ -229,6 +234,8 @@ class MacroMemory:
         Args:
             limit: Maximum number of results.
             as_of_date: Optional ISO date. Excludes records after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
         """
         if self._col is not None:
             from pymongo import DESCENDING
@@ -266,6 +273,8 @@ class MacroMemory:
         Args:
             limit: How many past states to include.
             as_of_date: Optional ISO date. Excludes records after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
 
         Returns:
             Multi-line string summarising recent macro regime states.
@@ -326,25 +335,32 @@ class MacroMemory:
                 exc_info=True,
             )
             return []
-        if not isinstance(payload, list) or not all(
-            isinstance(record, dict) for record in payload
-        ):
+        if not isinstance(payload, list):
             logger.warning(
                 "MacroMemory local fallback file is malformed or corrupt: %s",
                 self._fallback_path,
             )
             return []
-        if not all(
-            isinstance(record.get("regime_date"), str)
-            and bool(record["regime_date"].strip())
-            for record in payload
-        ):
+
+        valid_records: list[dict[str, Any]] = []
+        dropped = 0
+        for record in payload:
+            if not isinstance(record, dict):
+                dropped += 1
+                continue
+            if not _date_key(record.get("regime_date")).strip():
+                dropped += 1
+                continue
+            valid_records.append(record)
+
+        if dropped:
             logger.warning(
-                "MacroMemory local fallback file is malformed or corrupt: %s",
+                "MacroMemory local fallback file contains %d malformed or corrupt "
+                "record(s), ignoring them: %s",
+                dropped,
                 self._fallback_path,
             )
-            return []
-        return payload
+        return valid_records
 
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:
         """Overwrite the local JSON file with all records."""
@@ -378,10 +394,9 @@ class MacroMemory:
         """Load and sort all records by regime_date descending from the local file."""
         records = self._load_all_local()
         if as_of_date is not None:
-            records = [
-                rec for rec in records if rec.get("regime_date", "") <= as_of_date
-            ]
-        records.sort(key=lambda r: r.get("regime_date", ""), reverse=True)
+            as_of_key = _date_key(as_of_date)
+            records = [rec for rec in records if _date_key(rec.get("regime_date")) <= as_of_key]
+        records.sort(key=lambda r: _date_key(r.get("regime_date")), reverse=True)
         return records[:limit]
 
     def _update_local_outcome(

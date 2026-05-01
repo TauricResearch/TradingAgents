@@ -29,7 +29,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 _CASH_SWEEP_TICKER = "SGOV"
 _CASH_SWEEP_SECTOR = "cash equivalent"
 
