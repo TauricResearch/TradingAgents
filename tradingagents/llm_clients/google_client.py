@@ -43,7 +43,7 @@ class GoogleClient(BaseLLMClient):
             or os.environ.get("GEMINI_API_KEY")
         )
         if api_key:
-            llm_kwargs["api_key"] = api_key
+            llm_kwargs["google_api_key"] = api_key
 
         # Map thinking_level to appropriate API param based on model
         # Gemini 3 Pro: low, high
