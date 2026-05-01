@@ -1,6 +1,16 @@
 """Shared graph utilities used by TradingAgentsGraph, ScannerGraph, and PortfolioGraph."""
 
+import re
 from typing import Any
+
+_REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
+_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*Macro Regime\s*:[^\n]*")
+_REGIME_PAIR_RE = re.compile(
+    r"\b(RISK-ON|RISK-OFF|TRANSITION)\b"
+    r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,120}?"
+    r"(?:\(\s*([+-]?\d+)\s*/\s*6\s*\)|\bscore\s+(?:of\s+)?([+-]?\d+)\s*/\s*6\b)",
+    re.IGNORECASE,
+)
 
 
 def get_provider_kwargs(config: dict[str, Any], tier: str) -> dict[str, Any]:
@@ -80,3 +90,42 @@ def visualize_graph(
             with open(output_path, "w") as f:
                 f.write(mermaid_code)
         return mermaid_code
+
+
+def assert_regime_consistent(analyst_output: str, canonical: dict[str, Any]) -> None:
+    """Compare regime label/score in analyst output against the canonical brief.
+
+    Raises ValueError if the analyst output disagrees with the canonical regime.
+    Returns None on match.
+    """
+    text = analyst_output or ""
+    if not isinstance(canonical, dict):
+        raise ValueError(f"malformed canonical regime: {canonical!r}")
+    canonical_label = str(canonical.get("label", "")).upper()
+    if not _REGIME_LABEL_RE.fullmatch(canonical_label):
+        raise ValueError(f"malformed canonical regime label: {canonical.get('label')!r}")
+    canonical_score = canonical.get("score")
+    if (
+        not isinstance(canonical_score, int)
+        or isinstance(canonical_score, bool)
+        or not -6 <= canonical_score <= 6
+    ):
+        raise ValueError(f"malformed canonical regime score: {canonical_score!r}")
+
+    line_match = _REGIME_LINE_RE.search(text)
+    statement = line_match.group(0) if line_match else ""
+    pair_match = _REGIME_PAIR_RE.search(statement)
+    if not pair_match:
+        raise ValueError(
+            f"could not parse regime from analyst output (first 200 chars): {text[:200]!r}"
+        )
+    analyst_label = pair_match.group(1).upper()
+    analyst_score = int(pair_match.group(2) or pair_match.group(3))
+    if analyst_label != canonical_label:
+        raise ValueError(
+            f"regime drift: canonical label {canonical_label!r} != analyst label {analyst_label!r}"
+        )
+    if analyst_score != canonical_score:
+        raise ValueError(
+            f"regime drift: score canonical={canonical_score} != analyst={analyst_score}"
+        )

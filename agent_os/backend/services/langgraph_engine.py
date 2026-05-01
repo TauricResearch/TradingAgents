@@ -8,6 +8,7 @@ persistence to dedicated helper modules.
 import asyncio
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -49,6 +50,7 @@ from tradingagents.daily_digest import append_to_digest
 from tradingagents.dataflows.vendor_health import check_vendor_health
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.portfolio_graph import PortfolioGraph
+from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.scanner_facts.builder import (
     ensure_scanner_graph_facts,
     load_scanner_graph_facts,
@@ -73,6 +75,9 @@ from tradingagents.report_paths import (
 )
 
 logger = logging.getLogger("agent_os.engine")
+
+_REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
+_REGIME_SCORE_RE = re.compile(r"(?:\(\s*|score\s+(?:of\s+)?)?([+-]?\d+)\s*/\s*6", re.IGNORECASE)
 
 
 # ------------------------------------------------------------------
@@ -149,6 +154,48 @@ def _load_injected_market_report(file_path: str) -> dict[str, Any]:
         "macro_regime_report": "",
         "market_report_structured": {},
     }
+
+
+def _parse_canonical_regime(macro_brief: str) -> dict[str, Any]:
+    text = str(macro_brief or "").strip()
+    if not text:
+        return {}
+    label_match = _REGIME_LABEL_RE.search(text)
+    score_match = _REGIME_SCORE_RE.search(text)
+    if not label_match or not score_match:
+        raise ValueError("canonical macro regime could not be parsed from macro brief")
+    return {
+        "label": label_match.group(1).upper(),
+        "score": int(score_match.group(1)),
+        "brief": text,
+    }
+
+
+def _build_trading_graph_initial_state(
+    *,
+    ticker: str,
+    analysis_date: str,
+    run_id: str,
+    macro_brief: str = "",
+    portfolio_context: str = "candidate",
+    scanner_context_packet: str = "",
+    scanner_graph_context_text: str = "",
+    market_report: str = "",
+    market_report_structured: dict[str, Any] | None = None,
+    macro_regime_report: str = "",
+) -> dict[str, Any]:
+    return Propagator().create_initial_state(
+        ticker,
+        analysis_date,
+        run_id=run_id,
+        portfolio_context=portfolio_context,
+        scanner_context_packet=scanner_context_packet,
+        scanner_graph_context_text=scanner_graph_context_text,
+        canonical_regime=_parse_canonical_regime(macro_brief),
+        market_report=market_report,
+        market_report_structured=market_report_structured,
+        macro_regime_report=macro_regime_report,
+    )
 
 
 class AwaitPhase3Decision(RuntimeError):
@@ -974,6 +1021,14 @@ class LangGraphEngine:
             ticker,
             date,
             run_id=root_run_id,
+            canonical_regime=_parse_canonical_regime(
+                str(
+                    params.get("macro_brief")
+                    or params.get("macro_scan_summary")
+                    or injected_market["macro_regime_report"]
+                    or ""
+                )
+            ),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
             scanner_graph_context_text=scanner_graph_context_text,
@@ -2077,6 +2132,12 @@ class LangGraphEngine:
                         "ticker": ticker,
                         "date": date,
                         "run_id": root_run_id,
+                        "macro_brief": str(
+                            scan_state.get("macro_brief")
+                            or scan_state.get("macro_scan_summary")
+                            or scan_state.get("macro_regime_report")
+                            or ""
+                        ),
                         "portfolio_context": "holding"
                         if instrument.instrument_key in holding_instrument_keys
                         else "candidate",

@@ -30,6 +30,8 @@ from tradingagents.agents.utils.critical_abort import has_abort, raise_abort
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
+from ._consistency_guard import extract_numeric_claims, verify_against_fundamentals
+from ._graph_utils import assert_regime_consistent
 from .conditional_logic import CRITICAL_ABORT_NODE, ConditionalLogic
 
 
@@ -110,6 +112,59 @@ class GraphSetup:
             }
 
         return instrument_preflight_node
+
+    @staticmethod
+    def _make_market_regime_check_node() -> Callable[[AgentState], dict[str, Any]]:
+        def market_regime_check_node(state: AgentState) -> dict[str, Any]:
+            if "canonical_regime" not in state:
+                return {"sender": "market_regime_check"}
+            canonical = state["canonical_regime"]
+            assert_regime_consistent(state.get("market_report") or "", canonical)
+            return {"sender": "market_regime_check"}
+
+        return market_regime_check_node
+
+    @staticmethod
+    def _make_rm_consistency_guard_node() -> Callable[[AgentState], dict[str, Any]]:
+        def rm_consistency_guard_node(state: AgentState) -> dict[str, Any]:
+            rm_text = state.get("investment_plan") or ""
+            fundamentals = state.get("fundamentals_report") or ""
+            claims = extract_numeric_claims(rm_text)
+            result = verify_against_fundamentals(claims, fundamentals)
+            violations = result["violations"]
+            flags = result["flags"]
+            attempt = int(state.get("_rm_consistency_attempt") or 0)
+            if not violations:
+                return {
+                    "rm_consistency_status": "ok",
+                    "rm_consistency_flags": [
+                        {"metric": f.metric, "value": f.value, "unit": f.unit} for f in flags
+                    ],
+                    "consistency_violations": [],
+                    "sender": "rm_consistency_guard",
+                }
+            if attempt >= 1:
+                details = "; ".join(v.reason for v in violations)
+                raise ValueError(
+                    "rm_consistency_guard: unresolved numeric violations after "
+                    f"corrective re-prompt — {details}"
+                )
+            return {
+                "rm_consistency_status": "reprompt",
+                "consistency_violations": [
+                    {
+                        "metric": v.claim.metric,
+                        "claim_value": v.claim.value,
+                        "claim_unit": v.claim.unit,
+                        "reason": v.reason,
+                    }
+                    for v in violations
+                ],
+                "_rm_consistency_attempt": attempt + 1,
+                "sender": "rm_consistency_guard",
+            }
+
+        return rm_consistency_guard_node
 
     def __init__(
         self,
@@ -251,8 +306,11 @@ class GraphSetup:
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
+        workflow.add_node("RM Consistency Guard", self._make_rm_consistency_guard_node())
         workflow.add_node("Trader", trader_node)
         workflow.add_node("News Fact Checker", news_fact_checker_node)
+        if "market" in selected_analysts:
+            workflow.add_node("Market Regime Check", self._make_market_regime_check_node())
 
         # Define edges
         # Start with deterministic instrument preflight
@@ -267,6 +325,8 @@ class GraphSetup:
         }
         workflow.add_conditional_edges(
             "Instrument Preflight",
+            # Bind a copy at definition time so later selected_analysts changes
+            # cannot affect this compiled graph's routing closure.
             lambda state, analysts=list(selected_analysts): self._route_after_preflight(
                 state, self._resolve_next_analyst_node(state, analysts, 0)
             ),
@@ -285,6 +345,9 @@ class GraphSetup:
             if analyst_type == "news":
                 workflow.add_edge(current_clear, "News Fact Checker")
                 route_origin = "News Fact Checker"
+            elif analyst_type == "market":
+                workflow.add_edge(current_clear, "Market Regime Check")
+                route_origin = "Market Regime Check"
 
             next_targets = {
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
@@ -333,7 +396,14 @@ class GraphSetup:
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
             },
         )
-        workflow.add_edge("Research Manager", "Trader")
+        workflow.add_edge("Research Manager", "RM Consistency Guard")
+        workflow.add_conditional_edges(
+            "RM Consistency Guard",
+            lambda s: (
+                "Research Manager" if s.get("rm_consistency_status") == "reprompt" else "Trader"
+            ),
+            {"Research Manager": "Research Manager", "Trader": "Trader"},
+        )
 
         self._wire_risk_debate(workflow, risk_nodes)
 
@@ -362,6 +432,7 @@ class GraphSetup:
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
+        workflow.add_node("RM Consistency Guard", self._make_rm_consistency_guard_node())
         workflow.add_node("Trader", trader_node)
 
         workflow.add_edge(START, "Bull Researcher")
@@ -388,7 +459,14 @@ class GraphSetup:
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
             },
         )
-        workflow.add_edge("Research Manager", "Trader")
+        workflow.add_edge("Research Manager", "RM Consistency Guard")
+        workflow.add_conditional_edges(
+            "RM Consistency Guard",
+            lambda s: (
+                "Research Manager" if s.get("rm_consistency_status") == "reprompt" else "Trader"
+            ),
+            {"Research Manager": "Research Manager", "Trader": "Trader"},
+        )
 
         self._wire_risk_debate(workflow, risk_nodes)
 

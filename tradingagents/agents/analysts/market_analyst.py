@@ -129,6 +129,33 @@ def _build_timeout_fallback_report(
     )
 
 
+def _canonical_regime_text(state: dict[str, Any]) -> str:
+    canonical = state.get("canonical_regime") or {}
+    if not isinstance(canonical, dict):
+        return ""
+    label = str(canonical.get("label") or "").strip()
+    score = canonical.get("score")
+    if not label or not isinstance(score, int) or isinstance(score, bool):
+        return ""
+    score_text = f"{score:+d}/6"
+    brief = str(canonical.get("brief") or "").strip()
+    lines = [f"Label: {label}", f"Score: {score_text}"]
+    if brief:
+        lines.append(brief)
+    return "\n".join(lines)
+
+
+def _build_market_prompt(state: dict[str, Any]) -> str:
+    canonical_text = _canonical_regime_text(state)
+    if not canonical_text:
+        return ""
+    return (
+        "## CANONICAL MACRO REGIME (do not redefine)\n"
+        f"{canonical_text}\n\n"
+        "Contextualize the ticker against this regime; do not classify a different one."
+    )
+
+
 def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
     def market_analyst_node(state: AgentState, /) -> dict[str, Any]:
         current_date = state["trade_date"]
@@ -172,6 +199,10 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         regime_data = prefetched.get("Macro Regime Classification", "")
         if regime_data and not regime_data.startswith("[Error"):
             macro_regime_report = regime_data
+        canonical_regime_report = _canonical_regime_text(state)
+        if canonical_regime_report:
+            macro_regime_report = canonical_regime_report
+            prefetched["Macro Regime Classification"] = canonical_regime_report
 
         # VIX reconciliation: scanner_graph_context_text is closer to the scan
         # timestamp.  If the pre-fetched macro regime report contains a VIX
@@ -184,16 +215,20 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
                 scanner_vix = float(scanner_vix_match.group(1))
                 regime_vix = float(regime_vix_match.group(1))
                 if scanner_vix > 0 and abs(regime_vix - scanner_vix) / scanner_vix > 0.20:
+                    original_vix_text = regime_vix_match.group(0)
+                    replacement_vix_text = f"VIX: {scanner_vix:.2f}"
                     _logger.warning(
                         "VIX divergence for %s: scanner=%.2f, macro_regime=%.2f (>20%%). "
-                        "Patching macro regime to use scanner value.",
+                        "Patching macro regime text %r -> %r.",
                         ticker,
                         scanner_vix,
                         regime_vix,
+                        original_vix_text,
+                        replacement_vix_text,
                     )
                     macro_regime_report = macro_regime_report.replace(
-                        regime_vix_match.group(0),
-                        f"VIX: {scanner_vix:.2f}",
+                        original_vix_text,
+                        replacement_vix_text,
                     )
 
         indicator_prefetched = prefetch_tools_parallel(
@@ -270,6 +305,9 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
             "pre-loaded stock data, macro regime, and indicator readings. Make sure to append "
             "a Markdown table at the end of the report to organise key points for easy review."
         )
+        canonical_prompt = _build_market_prompt(state)
+        if canonical_prompt:
+            system_message = f"{canonical_prompt}\n\n{system_message}"
 
         # Build scanner context block with role-specific guidance
         scanner_context_block = build_scanner_context_block(
