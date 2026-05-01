@@ -118,7 +118,10 @@ def test_guard_node_passes_clean_rm_output():
         "_rm_consistency_attempt": 0,
     }
     result = node(state)
-    assert "violations" not in result.get("rm_consistency_status", "ok")
+    assert result["rm_consistency_status"] == "ok"
+    assert result["sender"] == "rm_consistency_guard"
+    assert "consistency_violations" not in result
+    assert "_rm_consistency_attempt" not in result
 
 
 def test_guard_node_raises_after_second_offense():
