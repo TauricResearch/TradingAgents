@@ -308,6 +308,21 @@ class TestMicroSummaryAgentReturnShape:
         result = agent(state)
         assert result["micro_brief"] == content
 
+    def test_empty_llm_output_raises_runtime_error(self):
+        """Empty LLM output raises instead of returning an empty micro brief."""
+        llm_mock, _ = _make_chain_mock("")
+        agent = create_micro_summary_agent(llm_mock)
+        state = {
+            "holding_reviews": "{}",
+            "prioritized_candidates": "[]",
+            "ticker_analyses": {},
+            "messages": [],
+            "analysis_date": "2026-03-26",
+        }
+
+        with pytest.raises(RuntimeError, match="micro_summary_agent.*empty"):
+            agent(state)
+
     def test_sender_always_set(self):
         """sender key is always 'micro_summary_agent'."""
         llm_mock, _ = _make_chain_mock("brief output")

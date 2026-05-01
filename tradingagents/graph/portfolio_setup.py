@@ -756,16 +756,40 @@ class PortfolioGraphSetup:
             analysis_date = state.get("analysis_date") or ""
             run_id = state.get("run_id")
             pm_decision_str = state.get("pm_decision") or "{}"
+            execution_result_str = state.get("execution_result") or "{}"
+
+            try:
+                execution_result = json.loads(execution_result_str)
+            except (json.JSONDecodeError, TypeError):
+                execution_result = {}
+            if isinstance(execution_result, dict) and execution_result.get("error"):
+                logger.error(
+                    "record_pm_decisions_node: skipping memory write because "
+                    "execute_trades failed: %s",
+                    execution_result.get("error"),
+                )
+                return {"sender": "record_pm_decisions"}
+            if not str(analysis_date).strip():
+                logger.error(
+                    "record_pm_decisions_node: skipping memory write because "
+                    "analysis_date is missing"
+                )
+                return {"sender": "record_pm_decisions"}
 
             try:
                 decisions = json.loads(pm_decision_str)
             except (json.JSONDecodeError, TypeError):
-                logger.warning("record_pm_decisions_node: could not parse pm_decision JSON")
+                logger.error(
+                    "record_pm_decisions_node: could not parse pm_decision JSON",
+                    exc_info=True,
+                )
                 return {"sender": "record_pm_decisions"}
 
             if not isinstance(decisions, dict):
-                logger.warning("record_pm_decisions_node: pm_decision JSON was not an object")
+                logger.error("record_pm_decisions_node: pm_decision JSON was not an object")
                 return {"sender": "record_pm_decisions"}
+
+            failed: list[str] = []
 
             def record_orders(orders: Any, decision: str, confidence: str) -> None:
                 if not isinstance(orders, list):
@@ -787,7 +811,8 @@ class PortfolioGraphSetup:
                             run_id=run_id,
                         )
                     except Exception:
-                        logger.warning(
+                        failed.append(f"{decision}:{ticker}")
+                        logger.error(
                             "record_pm_decisions_node: could not record %s decision for %s",
                             decision,
                             ticker,
@@ -797,6 +822,13 @@ class PortfolioGraphSetup:
             record_orders(decisions.get("buys") or [], "BUY", "high")
             record_orders(decisions.get("sells") or [], "SELL", "medium")
             record_orders(decisions.get("holds") or [], "HOLD", "medium")
+
+            if failed:
+                logger.error(
+                    "record_pm_decisions_node: failed to record %d PM decision(s): %s",
+                    len(failed),
+                    ", ".join(failed),
+                )
 
             return {"sender": "record_pm_decisions"}
 

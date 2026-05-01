@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import Mock, patch
 
 import pytest
@@ -807,6 +808,70 @@ class TestRecordPmDecisionsNode:
 
         assert result == {"sender": "record_pm_decisions"}
         micro_memory.record_decision.assert_called_once()
+
+    def test_execution_error_skips_memory_write(self, caplog):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+        state = _make_record_pm_decisions_state(
+            {"buys": [{"ticker": "XOM", "rationale": "Energy play"}]}
+        )
+        state["execution_result"] = json.dumps(
+            {"error": "trade executor failed", "executed_trades": []}
+        )
+
+        with caplog.at_level(logging.ERROR):
+            result = node(state)
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+        assert "execute_trades failed" in caplog.text
+
+    def test_missing_analysis_date_skips_memory_write(self, caplog):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+        state = _make_record_pm_decisions_state(
+            {"buys": [{"ticker": "XOM", "rationale": "Energy play"}]}
+        )
+        state["analysis_date"] = ""
+
+        with caplog.at_level(logging.ERROR):
+            result = node(state)
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+        assert "analysis_date is missing" in caplog.text
+
+    def test_empty_decision_lists_do_not_record_memory(self):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(_make_record_pm_decisions_state({"buys": [], "sells": [], "holds": []}))
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+
+    def test_record_decision_partial_failures_log_summary(self, caplog):
+        micro_memory = Mock()
+        micro_memory.record_decision.side_effect = [RuntimeError("first failed"), None]
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        with caplog.at_level(logging.ERROR):
+            result = node(
+                _make_record_pm_decisions_state(
+                    {
+                        "buys": [{"ticker": "XOM", "rationale": "Energy play"}],
+                        "holds": [{"ticker": "MSFT", "rationale": "Keep holding"}],
+                    }
+                )
+            )
+
+        assert result == {"sender": "record_pm_decisions"}
+        assert micro_memory.record_decision.call_count == 2
+        assert "failed to record 1 PM decision" in caplog.text
 
     def test_malformed_pm_decision_json_does_not_crash(self):
         micro_memory = Mock()

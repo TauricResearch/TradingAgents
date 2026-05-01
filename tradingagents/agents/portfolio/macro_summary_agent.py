@@ -237,4 +237,4 @@ def _persist_regime(
             run_id=state.get("run_id"),
         )
     except Exception:
-        logger.warning("macro_summary_agent: failed to persist regime to memory", exc_info=True)
+        logger.error("macro_summary_agent: failed to persist regime to memory", exc_info=True)

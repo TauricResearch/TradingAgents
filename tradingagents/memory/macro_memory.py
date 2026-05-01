@@ -350,7 +350,7 @@ class MacroMemory:
             valid_records.append(record)
 
         if dropped:
-            logger.warning(
+            logger.error(
                 "MacroMemory local fallback file contains %d malformed or corrupt "
                 "record(s), ignoring them: %s",
                 dropped,
