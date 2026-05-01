@@ -116,3 +116,25 @@ def test_replay_qcom_failed_run_drift():
         match=r"canonical label 'RISK-ON' != analyst label 'TRANSITION'",
     ):
         assert_regime_consistent(drifted, canonical)
+
+
+def test_validator_node_skips_when_canonical_absent():
+    """When canonical_regime missing from state, validator must skip silently."""
+    from tradingagents.graph.setup import GraphSetup
+
+    node = GraphSetup._make_market_regime_check_node()
+    state = {"market_report": "Macro Regime: TRANSITION (+2/6)"}
+    result = node(state)
+    assert result == {"sender": "market_regime_check"}
+
+
+def test_validator_node_raises_when_canonical_present_and_drift():
+    from tradingagents.graph.setup import GraphSetup
+
+    node = GraphSetup._make_market_regime_check_node()
+    state = {
+        "market_report": "Macro Regime: TRANSITION (+2/6)",
+        "canonical_regime": {"label": "RISK-ON", "score": 5},
+    }
+    with pytest.raises(ValueError, match=r"regime drift"):
+        node(state)

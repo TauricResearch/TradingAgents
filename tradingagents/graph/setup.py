@@ -30,6 +30,7 @@ from tradingagents.agents.utils.critical_abort import has_abort, raise_abort
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
+from ._graph_utils import assert_regime_consistent
 from .conditional_logic import CRITICAL_ABORT_NODE, ConditionalLogic
 
 
@@ -110,6 +111,17 @@ class GraphSetup:
             }
 
         return instrument_preflight_node
+
+    @staticmethod
+    def _make_market_regime_check_node() -> Callable[[AgentState], dict[str, Any]]:
+        def market_regime_check_node(state: AgentState) -> dict[str, Any]:
+            canonical = state.get("canonical_regime")
+            if not canonical:
+                return {"sender": "market_regime_check"}
+            assert_regime_consistent(state.get("market_report") or "", canonical)
+            return {"sender": "market_regime_check"}
+
+        return market_regime_check_node
 
     def __init__(
         self,
@@ -253,6 +265,8 @@ class GraphSetup:
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("News Fact Checker", news_fact_checker_node)
+        if "market" in selected_analysts:
+            workflow.add_node("Market Regime Check", self._make_market_regime_check_node())
 
         # Define edges
         # Start with deterministic instrument preflight
@@ -285,6 +299,9 @@ class GraphSetup:
             if analyst_type == "news":
                 workflow.add_edge(current_clear, "News Fact Checker")
                 route_origin = "News Fact Checker"
+            elif analyst_type == "market":
+                workflow.add_edge(current_clear, "Market Regime Check")
+                route_origin = "Market Regime Check"
 
             next_targets = {
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
