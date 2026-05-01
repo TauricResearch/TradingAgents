@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -24,7 +25,25 @@ class TestGoogleApiKeyStandardization(unittest.TestCase):
                 client = GoogleClient("gemini-2.5-flash", **kwargs)
                 client.get_llm()
                 call_kwargs = mock_chat.call_args[1]
-                self.assertEqual(call_kwargs.get("google_api_key"), expected_key)
+                self.assertEqual(call_kwargs.get("api_key"), expected_key)
+
+    @patch("tradingagents.llm_clients.google_client.NormalizedChatGoogleGenerativeAI")
+    def test_google_api_key_falls_back_to_environment(self, mock_chat):
+        with patch.dict(os.environ, {"GOOGLE_API_KEY": "env-google-key"}, clear=True):
+            client = GoogleClient("gemini-2.5-flash")
+            client.get_llm()
+
+        call_kwargs = mock_chat.call_args[1]
+        self.assertEqual(call_kwargs.get("api_key"), "env-google-key")
+
+    @patch("tradingagents.llm_clients.google_client.NormalizedChatGoogleGenerativeAI")
+    def test_gemini_api_key_is_supported_as_environment_fallback(self, mock_chat):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "env-gemini-key"}, clear=True):
+            client = GoogleClient("gemini-2.5-flash")
+            client.get_llm()
+
+        call_kwargs = mock_chat.call_args[1]
+        self.assertEqual(call_kwargs.get("api_key"), "env-gemini-key")
 
 
 if __name__ == "__main__":
