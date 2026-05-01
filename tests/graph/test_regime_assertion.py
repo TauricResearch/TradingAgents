@@ -9,6 +9,18 @@ def test_consistent_regime_passes_silently():
     assert assert_regime_consistent(analyst, canonical) is None
 
 
+@pytest.mark.parametrize(
+    "analyst",
+    [
+        "Macro Regime: **RISK-ON** (score +5/6, confidence: high).",
+        "Macro Regime: RISK-ON score +5/6",
+    ],
+)
+def test_score_keyword_without_of_passes_silently(analyst):
+    canonical = {"label": "RISK-ON", "score": 5}
+    assert assert_regime_consistent(analyst, canonical) is None
+
+
 def test_label_mismatch_raises():
     analyst = "Macro Regime: TRANSITION (+2/6) mixed signals..."
     canonical = {"label": "RISK-ON", "score": 5}
@@ -76,6 +88,13 @@ def test_missing_canonical_label_raises():
     analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
     canonical = {"score": 0}
     with pytest.raises(ValueError, match=r"malformed canonical regime.*label"):
+        assert_regime_consistent(analyst, canonical)
+
+
+def test_non_dict_canonical_raises_value_error():
+    analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
+    canonical = ["TRANSITION", 0]
+    with pytest.raises(ValueError, match=r"malformed canonical regime"):
         assert_regime_consistent(analyst, canonical)
 
 

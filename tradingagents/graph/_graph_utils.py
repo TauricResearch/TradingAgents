@@ -8,7 +8,7 @@ _REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*Macro Regime\s*:[^\n]*")
 _REGIME_PAIR_RE = re.compile(
     r"\b(RISK-ON|RISK-OFF|TRANSITION)\b"
     r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,120}?"
-    r"(?:\(\s*([+-]?\d+)\s*/\s*6\s*\)|\bscore\s+of\s+([+-]?\d+)\s*/\s*6\b)",
+    r"(?:\(\s*([+-]?\d+)\s*/\s*6\s*\)|\bscore\s+(?:of\s+)?([+-]?\d+)\s*/\s*6\b)",
     re.IGNORECASE,
 )
 
@@ -99,6 +99,8 @@ def assert_regime_consistent(analyst_output: str, canonical: dict[str, Any]) -> 
     Returns None on match.
     """
     text = analyst_output or ""
+    if not isinstance(canonical, dict):
+        raise ValueError(f"malformed canonical regime: {canonical!r}")
     canonical_label = str(canonical.get("label", "")).upper()
     if not _REGIME_LABEL_RE.fullmatch(canonical_label):
         raise ValueError(f"malformed canonical regime label: {canonical.get('label')!r}")
