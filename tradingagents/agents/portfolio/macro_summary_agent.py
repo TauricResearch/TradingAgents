@@ -108,7 +108,13 @@ def create_macro_summary_agent(
         # Past macro regime history
         # ------------------------------------------------------------------
         if macro_memory is not None:
-            past_context = macro_memory.build_macro_context(limit=3)
+            analysis_date = str(state.get("analysis_date") or "").strip()
+            if not analysis_date:
+                raise RuntimeError(
+                    "macro_summary_agent: missing analysis_date/as_of_date context "
+                    "for memory lookup"
+                )
+            past_context = macro_memory.build_macro_context(limit=3, as_of_date=analysis_date)
         else:
             past_context = "No prior macro regime history available."
 
@@ -231,4 +237,4 @@ def _persist_regime(
             run_id=state.get("run_id"),
         )
     except Exception:
-        logger.warning("macro_summary_agent: failed to persist regime to memory", exc_info=True)
+        logger.error("macro_summary_agent: failed to persist regime to memory", exc_info=True)

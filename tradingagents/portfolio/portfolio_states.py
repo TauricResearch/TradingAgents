@@ -27,6 +27,7 @@ class PortfolioManagerState(MessagesState):
     # Inputs (set once by the caller, never written by nodes)
     portfolio_id: Annotated[str, _last_value]
     analysis_date: Annotated[str, _last_value]
+    run_id: Annotated[str, _last_value]
     prices: Annotated[dict, _last_value]  # ticker → price
     scan_summary: Annotated[dict, _last_value]  # macro scan output from ScannerGraph
     ticker_analyses: Annotated[

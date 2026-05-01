@@ -93,6 +93,29 @@ def test_get_history_filters_by_ticker(local_memory):
     assert aapl_history[0]["ticker"] == "AAPL"
 
 
+def test_get_history_excludes_future_decisions(tmp_path):
+    """get_history(as_of_date=...) must not return decisions after that date."""
+    m = ReflexionMemory(fallback_path=tmp_path / "reflexion.json")
+    m.record_decision("AAPL", "2026-01-10", "BUY", "Jan call", run_id="r1")
+    m.record_decision("AAPL", "2026-03-15", "HOLD", "Q1 hold", run_id="r2")
+    m.record_decision("AAPL", "2026-04-20", "SELL", "Future sell", run_id="r3")
+
+    history = m.get_history("AAPL", limit=10, as_of_date="2026-03-20")
+    dates = [r["decision_date"] for r in history]
+    assert "2026-04-20" not in dates
+    assert "2026-03-15" in dates
+    assert "2026-01-10" in dates
+
+
+def test_get_history_no_as_of_date_returns_all(tmp_path):
+    """get_history() without as_of_date returns all decisions (backward-compat)."""
+    m = ReflexionMemory(fallback_path=tmp_path / "reflexion.json")
+    m.record_decision("AAPL", "2026-01-10", "BUY", "Early", run_id="r1")
+    m.record_decision("AAPL", "2026-04-20", "SELL", "Late", run_id="r2")
+    history = m.get_history("AAPL", limit=10)
+    assert len(history) == 2
+
+
 def test_ticker_stored_as_uppercase(local_memory):
     """Tickers should be normalized to uppercase."""
     local_memory.record_decision("aapl", "2026-03-20", "buy", "reason")
@@ -185,6 +208,17 @@ def test_build_context_pending_outcome(local_memory):
     assert "pending" in context
 
 
+def test_build_context_excludes_future(tmp_path):
+    """build_context(as_of_date=...) must not mention future decisions."""
+    m = ReflexionMemory(fallback_path=tmp_path / "reflexion.json")
+    m.record_decision("AAPL", "2026-03-15", "HOLD", "Q1 hold rationale", run_id="r1")
+    m.record_decision("AAPL", "2026-04-20", "SELL", "Future sell rationale", run_id="r2")
+
+    ctx = m.build_context("AAPL", limit=10, as_of_date="2026-03-20")
+    assert "Future sell rationale" not in ctx
+    assert "Q1 hold rationale" in ctx
+
+
 # ---------------------------------------------------------------------------
 # Persistence
 # ---------------------------------------------------------------------------
@@ -213,3 +247,142 @@ def test_local_file_created_on_first_write(tmp_path):
     assert fb_path.exists()
     data = json.loads(fb_path.read_text())
     assert len(data) == 1
+
+
+def test_corrupt_local_reflexion_logs_warning(tmp_path, caplog):
+    """Corrupt local JSON must log a warning, not silently return []."""
+    import logging
+
+    bad_path = tmp_path / "corrupt_reflexion.json"
+    bad_path.write_text("[{broken", encoding="utf-8")
+    m = ReflexionMemory(fallback_path=bad_path)
+    with caplog.at_level(logging.WARNING, logger="tradingagents.memory.reflexion"):
+        history = m.get_history("AAPL")
+    assert history == []
+    assert any(
+        "corrupt" in r.message.lower() or "malformed" in r.message.lower() for r in caplog.records
+    )
+
+
+@pytest.mark.parametrize("payload", ["{}", "[1]"])
+def test_structurally_malformed_local_reflexion_logs_warning(tmp_path, caplog, payload):
+    """Valid JSON with the wrong shape must warn and return []."""
+    import logging
+
+    bad_path = tmp_path / "malformed_reflexion.json"
+    bad_path.write_text(payload, encoding="utf-8")
+    m = ReflexionMemory(fallback_path=bad_path)
+    with caplog.at_level(logging.WARNING, logger="tradingagents.memory.reflexion"):
+        history = m.get_history("AAPL")
+    assert history == []
+    assert any(
+        "corrupt" in r.message.lower()
+        or "malformed" in r.message.lower()
+        or "unreadable" in r.message.lower()
+        for r in caplog.records
+    )
+
+
+def test_missing_decision_date_local_reflexion_filters_bad_record_only(tmp_path, caplog):
+    """Malformed local records are ignored without discarding valid decisions."""
+    import logging
+
+    bad_path = tmp_path / "missing_decision_date_reflexion.json"
+    bad_path.write_text(
+        json.dumps(
+            [
+                {
+                    "ticker": "AAPL",
+                    "decision_date": "2026-03-15",
+                    "decision": "HOLD",
+                    "rationale": "Valid prior rationale",
+                },
+                {
+                    "ticker": "AAPL",
+                    "decision": "BUY",
+                    "rationale": "Malformed record",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    m = ReflexionMemory(fallback_path=bad_path)
+
+    with caplog.at_level(logging.WARNING, logger="tradingagents.memory.reflexion"):
+        history = m.get_history("AAPL", limit=5, as_of_date="2026-03-20")
+
+    assert [record["rationale"] for record in history] == ["Valid prior rationale"]
+    assert any(
+        "corrupt" in r.message.lower()
+        or "malformed" in r.message.lower()
+        or "unreadable" in r.message.lower()
+        for r in caplog.records
+    )
+
+
+def test_local_reflexion_as_of_filter_uses_iso_date_prefix_for_timestamps(tmp_path):
+    """Timestamp-shaped local decision dates are compared by YYYY-MM-DD prefix."""
+    path = tmp_path / "reflexion.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "ticker": "AAPL",
+                    "decision_date": "2026-03-15T12:00:00",
+                    "decision": "HOLD",
+                    "rationale": "Intraday decision",
+                },
+                {
+                    "ticker": "AAPL",
+                    "decision_date": "2026-03-16T00:00:00",
+                    "decision": "SELL",
+                    "rationale": "Future intraday decision",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    m = ReflexionMemory(fallback_path=path)
+
+    history = m.get_history("AAPL", limit=5, as_of_date="2026-03-15")
+
+    assert [record["rationale"] for record in history] == ["Intraday decision"]
+
+
+def test_get_history_mongo_query_filters_as_of_date():
+    """Mongo get_history(as_of_date=...) must include a decision_date upper bound."""
+
+    class FakeCursor:
+        def __init__(self):
+            self.sort_args = None
+            self.limit_arg = None
+
+        def sort(self, *args):
+            self.sort_args = args
+            return self
+
+        def limit(self, limit):
+            self.limit_arg = limit
+            return self
+
+        def __iter__(self):
+            return iter([])
+
+    class FakeCollection:
+        def __init__(self):
+            self.find_args = None
+            self.cursor = FakeCursor()
+
+        def find(self, *args):
+            self.find_args = args
+            return self.cursor
+
+    m = ReflexionMemory(fallback_path="unused.json")
+    fake_col = FakeCollection()
+    m._col = fake_col
+
+    assert m.get_history("aapl", limit=7, as_of_date="2026-03-20") == []
+    query, projection = fake_col.find_args
+    assert query == {"ticker": "AAPL", "decision_date": {"$lte": "2026-03-20"}}
+    assert projection == {"_id": 0}
+    assert fake_col.cursor.limit_arg == 7

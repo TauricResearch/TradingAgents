@@ -117,7 +117,7 @@ def create_micro_summary_agent(
     """
 
     def micro_summary_node(state: PortfolioManagerState) -> dict[str, Any]:
-        analysis_date = state.get("analysis_date") or ""
+        analysis_date = str(state.get("analysis_date") or "").strip()
 
         # ------------------------------------------------------------------
         # Parse inputs — handle missing / malformed gracefully
@@ -153,8 +153,15 @@ def create_micro_summary_agent(
 
         ticker_memory_dict: dict[str, str] = {}
         if micro_memory is not None:
+            if not analysis_date:
+                raise RuntimeError(
+                    "micro_summary_agent: missing analysis_date/as_of_date context "
+                    "for memory lookup"
+                )
             for ticker in all_tickers:
-                ticker_memory_dict[ticker] = micro_memory.build_context(ticker, limit=2)
+                ticker_memory_dict[ticker] = micro_memory.build_context(
+                    ticker, limit=2, as_of_date=analysis_date
+                )
 
         ticker_memory_str = json.dumps(ticker_memory_dict)
         deep_dive_context: dict[str, dict[str, str]] = {}
@@ -273,10 +280,15 @@ def create_micro_summary_agent(
 
         chain = prompt | llm
         result = chain.invoke([])
+        micro_brief = str(getattr(result, "content", "") or "")
+        if not micro_brief.strip():
+            raise RuntimeError(
+                "micro_summary_agent: empty LLM response — cannot produce micro brief"
+            )
 
         return {
             "messages": [result],
-            "micro_brief": result.content,
+            "micro_brief": micro_brief,
             "micro_memory_context": ticker_memory_str,
             "sender": "micro_summary_agent",
         }

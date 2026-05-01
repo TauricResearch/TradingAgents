@@ -560,6 +560,7 @@ def _infer_recommendation(text: str) -> str:
         r"FINAL\s+TRANSACTION\s+PROPOSAL\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
         r"FINAL\s+RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
         r"RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
+        r"BALANCED\s+ASSESSMENT\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
         r"RATING\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
         r"ACTION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
     ]

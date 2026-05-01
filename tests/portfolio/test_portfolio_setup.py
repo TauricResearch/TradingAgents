@@ -1,5 +1,6 @@
 import json
-from unittest.mock import patch
+import logging
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -76,6 +77,34 @@ def _make_prioritized_candidates(*tickers: str) -> str:
             for ticker in tickers
         ]
     )
+
+
+def _make_record_pm_decisions_state(pm_decision: dict | str) -> dict:
+    if isinstance(pm_decision, str):
+        pm_decision_str = pm_decision
+    else:
+        pm_decision_str = json.dumps(pm_decision)
+
+    return {
+        "portfolio_id": "port-1",
+        "analysis_date": "2026-03-20",
+        "run_id": "run-test-123",
+        "pm_decision": pm_decision_str,
+        "prices": {},
+        "messages": [],
+        "portfolio_data": "{}",
+        "risk_metrics": "{}",
+        "holding_reviews": "{}",
+        "prioritized_candidates": "[]",
+        "macro_brief": "",
+        "micro_brief": "",
+        "macro_memory_context": "",
+        "micro_memory_context": "",
+        "cash_sweep": "",
+        "execution_result": "{}",
+        "sender": "",
+        "ticker_analyses": {},
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -684,3 +713,187 @@ def test_postcheck_raises_on_orphan_hold():
                 "prices": {"AAPL": 200.0},
             }
         )
+
+
+class TestRecordPmDecisionsNode:
+    def test_buy_order_records_high_confidence_portfolio_decision(self):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(
+            _make_record_pm_decisions_state(
+                {"buys": [{"ticker": " xom ", "rationale": "Energy play"}]}
+            )
+        )
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_called_once_with(
+            "XOM",
+            "2026-03-20",
+            "BUY",
+            rationale="Energy play",
+            confidence="high",
+            source="portfolio",
+            run_id="run-test-123",
+        )
+
+    def test_sell_order_records_medium_confidence_portfolio_decision(self):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(
+            _make_record_pm_decisions_state(
+                {"sells": [{"ticker": "AAPL", "rationale": "Overvalued"}]}
+            )
+        )
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_called_once_with(
+            "AAPL",
+            "2026-03-20",
+            "SELL",
+            rationale="Overvalued",
+            confidence="medium",
+            source="portfolio",
+            run_id="run-test-123",
+        )
+
+    def test_hold_records_medium_confidence_portfolio_decision(self):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(
+            _make_record_pm_decisions_state(
+                {"holds": [{"ticker": "MSFT", "rationale": "Thesis intact"}]}
+            )
+        )
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_called_once_with(
+            "MSFT",
+            "2026-03-20",
+            "HOLD",
+            rationale="Thesis intact",
+            confidence="medium",
+            source="portfolio",
+            run_id="run-test-123",
+        )
+
+    def test_micro_memory_none_does_not_crash(self):
+        setup = PortfolioGraphSetup(agents={}, micro_memory=None)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(
+            _make_record_pm_decisions_state(
+                {"buys": [{"ticker": "XOM", "rationale": "Energy play"}]}
+            )
+        )
+
+        assert result == {"sender": "record_pm_decisions"}
+
+    def test_record_decision_exception_does_not_crash(self):
+        micro_memory = Mock()
+        micro_memory.record_decision.side_effect = RuntimeError("memory unavailable")
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(
+            _make_record_pm_decisions_state(
+                {"buys": [{"ticker": "XOM", "rationale": "Energy play"}]}
+            )
+        )
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_called_once()
+
+    def test_execution_error_skips_memory_write(self, caplog):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+        state = _make_record_pm_decisions_state(
+            {"buys": [{"ticker": "XOM", "rationale": "Energy play"}]}
+        )
+        state["execution_result"] = json.dumps(
+            {"error": "trade executor failed", "executed_trades": []}
+        )
+
+        with caplog.at_level(logging.ERROR):
+            result = node(state)
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+        assert "execute_trades failed" in caplog.text
+
+    def test_missing_analysis_date_skips_memory_write(self, caplog):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+        state = _make_record_pm_decisions_state(
+            {"buys": [{"ticker": "XOM", "rationale": "Energy play"}]}
+        )
+        state["analysis_date"] = ""
+
+        with caplog.at_level(logging.ERROR):
+            result = node(state)
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+        assert "analysis_date is missing" in caplog.text
+
+    def test_empty_decision_lists_do_not_record_memory(self):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(_make_record_pm_decisions_state({"buys": [], "sells": [], "holds": []}))
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+
+    def test_record_decision_partial_failures_log_summary(self, caplog):
+        micro_memory = Mock()
+        micro_memory.record_decision.side_effect = [RuntimeError("first failed"), None]
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        with caplog.at_level(logging.ERROR):
+            result = node(
+                _make_record_pm_decisions_state(
+                    {
+                        "buys": [{"ticker": "XOM", "rationale": "Energy play"}],
+                        "holds": [{"ticker": "MSFT", "rationale": "Keep holding"}],
+                    }
+                )
+            )
+
+        assert result == {"sender": "record_pm_decisions"}
+        assert micro_memory.record_decision.call_count == 2
+        assert "failed to record 1 PM decision" in caplog.text
+
+    def test_malformed_pm_decision_json_does_not_crash(self):
+        micro_memory = Mock()
+        setup = PortfolioGraphSetup(agents={}, micro_memory=micro_memory)
+        node = setup._make_record_pm_decisions_node()
+
+        result = node(_make_record_pm_decisions_state("{not-json"))
+
+        assert result == {"sender": "record_pm_decisions"}
+        micro_memory.record_decision.assert_not_called()
+
+    def test_graph_topology_records_pm_decisions_after_execute_trades(self):
+        agents = {
+            "review_holdings": lambda state: {"sender": "review_holdings"},
+            "macro_summary": lambda state: {"sender": "macro_summary"},
+            "micro_summary": lambda state: {"sender": "micro_summary"},
+            "pm_decision": lambda state: {"sender": "pm_decision"},
+        }
+        graph = PortfolioGraphSetup(agents=agents, micro_memory=Mock()).setup_graph().get_graph()
+
+        edges = {(edge.source, edge.target) for edge in graph.edges}
+
+        assert ("execute_trades", "record_pm_decisions") in edges
+        assert ("record_pm_decisions", "__end__") in edges
+        assert ("execute_trades", "__end__") not in edges

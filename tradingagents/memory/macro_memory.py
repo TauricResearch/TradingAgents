@@ -53,6 +53,11 @@ _COLLECTION = "macro_memory"
 _VALID_MACRO_CALLS = {"risk-on", "risk-off", "neutral", "transition"}
 
 
+def _date_key(value: Any) -> str:
+    """Return the YYYY-MM-DD prefix used for local as-of comparisons."""
+    return value[:10] if isinstance(value, str) else ""
+
+
 class MacroMemory:
     """MongoDB-backed macro regime memory.
 
@@ -221,18 +226,24 @@ class MacroMemory:
     # Query
     # ------------------------------------------------------------------
 
-    def get_recent(self, limit: int = 3) -> list[dict[str, Any]]:
+    def get_recent(self, limit: int = 3, *, as_of_date: str | None = None) -> list[dict[str, Any]]:
         """Return most recent macro states, newest first.
 
         Args:
             limit: Maximum number of results.
+            as_of_date: Optional ISO date. Excludes records after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
         """
         if self._col is not None:
             from pymongo import DESCENDING
 
+            query: dict[str, Any] = {}
+            if as_of_date is not None:
+                query["regime_date"] = {"$lte": as_of_date}
             cursor = (
                 self._col.find(
-                    {},
+                    query,
                     {"_id": 0},
                 )
                 .sort("regime_date", DESCENDING)
@@ -240,9 +251,9 @@ class MacroMemory:
             )
             return list(cursor)
         else:
-            return self._load_recent_local(limit)
+            return self._load_recent_local(limit, as_of_date=as_of_date)
 
-    def build_macro_context(self, limit: int = 3) -> str:
+    def build_macro_context(self, limit: int = 3, *, as_of_date: str | None = None) -> str:
         """Build a human-readable context string from recent macro states.
 
         Suitable for injection into agent prompts. Returns a multi-line string
@@ -257,11 +268,14 @@ class MacroMemory:
 
         Args:
             limit: How many past states to include.
+            as_of_date: Optional ISO date. Excludes records after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
 
         Returns:
             Multi-line string summarising recent macro regime states.
         """
-        recent = self.get_recent(limit=limit)
+        recent = self.get_recent(limit=limit, as_of_date=as_of_date)
         if not recent:
             return "No prior macro regime states recorded."
 
@@ -302,9 +316,47 @@ class MacroMemory:
         if not self._fallback_path.exists():
             return []
         try:
-            return json.loads(self._fallback_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            payload = json.loads(self._fallback_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning(
+                "MacroMemory local fallback file is malformed or corrupt: %s",
+                self._fallback_path,
+                exc_info=True,
+            )
             return []
+        except OSError:
+            logger.warning(
+                "MacroMemory local fallback file is unreadable: %s",
+                self._fallback_path,
+                exc_info=True,
+            )
+            return []
+        if not isinstance(payload, list):
+            logger.warning(
+                "MacroMemory local fallback file is malformed or corrupt: %s",
+                self._fallback_path,
+            )
+            return []
+
+        valid_records: list[dict[str, Any]] = []
+        dropped = 0
+        for record in payload:
+            if not isinstance(record, dict):
+                dropped += 1
+                continue
+            if not _date_key(record.get("regime_date")).strip():
+                dropped += 1
+                continue
+            valid_records.append(record)
+
+        if dropped:
+            logger.error(
+                "MacroMemory local fallback file contains %d malformed or corrupt "
+                "record(s), ignoring them: %s",
+                dropped,
+                self._fallback_path,
+            )
+        return valid_records
 
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:
         """Overwrite the local JSON file with all records."""
@@ -332,10 +384,15 @@ class MacroMemory:
         records.append(doc)
         self._save_all_local(records)
 
-    def _load_recent_local(self, limit: int) -> list[dict[str, Any]]:
+    def _load_recent_local(
+        self, limit: int, *, as_of_date: str | None = None
+    ) -> list[dict[str, Any]]:
         """Load and sort all records by regime_date descending from the local file."""
         records = self._load_all_local()
-        records.sort(key=lambda r: r.get("regime_date", ""), reverse=True)
+        if as_of_date is not None:
+            as_of_key = _date_key(as_of_date)
+            records = [rec for rec in records if _date_key(rec.get("regime_date")) <= as_of_key]
+        records.sort(key=lambda r: _date_key(r.get("regime_date")), reverse=True)
         return records[:limit]
 
     def _update_local_outcome(

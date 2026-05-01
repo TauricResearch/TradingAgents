@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from types import SimpleNamespace
 
 from langchain_core.messages import AIMessage
@@ -111,6 +112,10 @@ def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents():
     ticker_analysis = {
         "analysis_status": "completed",
         "final_trade_decision": "Rating: Overweight\nExecutive Summary: durable moat",
+        "final_trade_decision_structured": {
+            "status": "completed",
+            "action": "BUY",
+        },
         "trader_investment_plan": "BUY AAPL",
         "investment_plan": "BUY",
     }
@@ -152,3 +157,127 @@ def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents():
     assert "durable moat" in capture["pm"]
     assert "No direct candidate final trade decision summaries available" not in capture["pm"]
     assert json.loads(result["pm_decision"])["macro_regime"] == "risk-on"
+
+
+class TestPortfolioGraphRunIdProvenance:
+    """run_id must be seeded into state so memory persistence carries run provenance."""
+
+    def test_run_seeds_provided_run_id(self):
+        """PortfolioGraph.run(run_id=...) must include run_id in initial state."""
+        from unittest.mock import MagicMock
+
+        from tradingagents.graph.portfolio_graph import PortfolioGraph
+
+        captured = {}
+
+        def fake_invoke(state):
+            captured.update(state)
+            return state
+
+        pg = object.__new__(PortfolioGraph)
+        pg.debug = False
+        mock_graph = MagicMock()
+        mock_graph.invoke.side_effect = fake_invoke
+        pg.graph = mock_graph
+
+        pg.run(
+            portfolio_id="port-1",
+            date="2026-03-20",
+            prices={"AAPL": 180.0},
+            scan_summary={"executive_summary": "test"},
+            run_id="run-abc-123",
+        )
+
+        assert captured.get("run_id") == "run-abc-123"
+
+    def test_run_generates_run_id_when_not_provided(self):
+        """PortfolioGraph.run() without run_id must auto-generate a UUID4 run_id."""
+        from unittest.mock import MagicMock
+
+        from tradingagents.graph.portfolio_graph import PortfolioGraph
+
+        captured = {}
+
+        def fake_invoke(state):
+            captured.update(state)
+            return state
+
+        pg = object.__new__(PortfolioGraph)
+        pg.debug = False
+        mock_graph = MagicMock()
+        mock_graph.invoke.side_effect = fake_invoke
+        pg.graph = mock_graph
+
+        pg.run(
+            portfolio_id="port-1",
+            date="2026-03-20",
+            prices={},
+            scan_summary={},
+        )
+
+        run_id = captured.get("run_id")
+        assert run_id and isinstance(run_id, str) and len(run_id) > 0
+        parsed = uuid.UUID(run_id, version=4)
+        assert str(parsed) == run_id
+
+    def test_run_id_reaches_langgraph_node_state(self):
+        """PortfolioManagerState must preserve run_id for real LangGraph nodes."""
+        captured = {}
+
+        def capture_review_holdings(state):
+            captured.update(state)
+            return {"holding_reviews": "{}", "sender": "review_holdings"}
+
+        agents = {
+            "review_holdings": capture_review_holdings,
+            "macro_summary": lambda _state: {"macro_brief": "macro", "sender": "macro_summary"},
+            "micro_summary": lambda _state: {"micro_brief": "micro", "sender": "micro_summary"},
+            "pm_decision": lambda _state: {
+                "pm_decision": json.dumps(
+                    {
+                        "sells": [],
+                        "buys": [],
+                        "holds": [],
+                        "cash_reserve_pct": 100.0,
+                    }
+                ),
+                "sender": "pm_decision",
+            },
+        }
+
+        graph = PortfolioGraphSetup(
+            agents,
+            repo=_FakeRepo(),
+            config={
+                "max_position_pct": 0.15,
+                "max_sector_pct": 0.40,
+                "min_cash_pct": 0.10,
+                "max_positions": 10,
+            },
+        ).setup_graph()
+
+        graph.invoke(
+            {
+                "portfolio_id": "portfolio-1",
+                "analysis_date": "2026-03-20",
+                "run_id": "run-node-123",
+                "prices": {},
+                "scan_summary": {},
+                "ticker_analyses": {},
+                "messages": [],
+                "portfolio_data": "",
+                "risk_metrics": "",
+                "holding_reviews": "",
+                "prioritized_candidates": "",
+                "macro_brief": "",
+                "micro_brief": "",
+                "macro_memory_context": "",
+                "micro_memory_context": "",
+                "pm_decision": "",
+                "cash_sweep": "",
+                "execution_result": "",
+                "sender": "",
+            }
+        )
+
+        assert captured.get("run_id") == "run-node-123"

@@ -43,6 +43,11 @@ logger = logging.getLogger(__name__)
 _COLLECTION = "reflexion"
 
 
+def _date_key(value: Any) -> str:
+    """Return the YYYY-MM-DD prefix used for local as-of comparisons."""
+    return value[:10] if isinstance(value, str) else ""
+
+
 class ReflexionMemory:
     """MongoDB-backed reflexion memory.
 
@@ -189,21 +194,29 @@ class ReflexionMemory:
         self,
         ticker: str,
         limit: int = 10,
+        *,
+        as_of_date: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return the most recent decisions for *ticker*, newest first.
 
         Args:
-            ticker: Ticker symbol.
-            limit:  Maximum number of results.
+            ticker:     Ticker symbol.
+            limit:      Maximum number of results.
+            as_of_date: Optional ISO date. Excludes decisions after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
         """
         if self._col is not None:
             from pymongo import DESCENDING
 
+            query: dict[str, Any] = {
+                "ticker": ticker.upper()
+            }  # Hard metadata filter — prevents cross-ticker contamination
+            if as_of_date is not None:
+                query["decision_date"] = {"$lte": as_of_date}
             cursor = (
                 self._col.find(
-                    {
-                        "ticker": ticker.upper()
-                    },  # Hard metadata filter — prevents cross-ticker contamination
+                    query,
                     {"_id": 0},
                 )
                 .sort("decision_date", DESCENDING)
@@ -211,9 +224,9 @@ class ReflexionMemory:
             )
             return list(cursor)
         else:
-            return self._load_local(ticker.upper(), limit)
+            return self._load_local(ticker.upper(), limit, as_of_date=as_of_date)
 
-    def build_context(self, ticker: str, limit: int = 3) -> str:
+    def build_context(self, ticker: str, limit: int = 3, *, as_of_date: str | None = None) -> str:
         """Build a human-readable context string from past decisions.
 
         Suitable for injection into agent system prompts::
@@ -222,13 +235,16 @@ class ReflexionMemory:
             system_prompt = f"...\\n\\nPast decisions:\\n{context}"
 
         Args:
-            ticker: Ticker symbol.
-            limit:  How many past decisions to include.
+            ticker:     Ticker symbol.
+            limit:      How many past decisions to include.
+            as_of_date: Optional ISO date. Excludes decisions after this date.
+                        Local fallback compares the YYYY-MM-DD prefix so
+                        timestamp-shaped ISO strings remain date-scoped.
 
         Returns:
             Multi-line string summarising recent decisions and outcomes.
         """
-        history = self.get_history(ticker, limit=limit)
+        history = self.get_history(ticker, limit=limit, as_of_date=as_of_date)
         if not history:
             return f"No prior decisions recorded for {ticker.upper()}."
 
@@ -259,9 +275,50 @@ class ReflexionMemory:
         if not self._fallback_path.exists():
             return []
         try:
-            return json.loads(self._fallback_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            payload = json.loads(self._fallback_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning(
+                "ReflexionMemory local fallback file is malformed or corrupt: %s",
+                self._fallback_path,
+                exc_info=True,
+            )
             return []
+        except OSError:
+            logger.warning(
+                "ReflexionMemory local fallback file is unreadable: %s",
+                self._fallback_path,
+                exc_info=True,
+            )
+            return []
+        if not isinstance(payload, list):
+            logger.warning(
+                "ReflexionMemory local fallback file is malformed or corrupt: %s",
+                self._fallback_path,
+            )
+            return []
+
+        valid_records: list[dict[str, Any]] = []
+        dropped = 0
+        for record in payload:
+            if not isinstance(record, dict):
+                dropped += 1
+                continue
+            if not _date_key(record.get("decision_date")).strip():
+                dropped += 1
+                continue
+            if not isinstance(record.get("ticker"), str) or not record["ticker"].strip():
+                dropped += 1
+                continue
+            valid_records.append(record)
+
+        if dropped:
+            logger.error(
+                "ReflexionMemory local fallback file contains %d malformed or corrupt "
+                "record(s), ignoring them: %s",
+                dropped,
+                self._fallback_path,
+            )
+        return valid_records
 
     def _save_all_local(self, records: list[dict[str, Any]]) -> None:
         """Overwrite the local JSON file with all records."""
@@ -274,13 +331,18 @@ class ReflexionMemory:
         records.append(doc)
         self._save_all_local(records)
 
-    def _load_local(self, ticker: str, limit: int) -> list[dict[str, Any]]:
+    def _load_local(
+        self, ticker: str, limit: int, *, as_of_date: str | None = None
+    ) -> list[dict[str, Any]]:
         """Load and filter records for a ticker from the local file."""
         records = self._load_all_local()
         filtered = [
-            r for r in records if r.get("ticker") == ticker
+            r
+            for r in records
+            if r.get("ticker") == ticker
+            and (as_of_date is None or _date_key(r.get("decision_date")) <= _date_key(as_of_date))
         ]  # Hard metadata filter — local fallback
-        filtered.sort(key=lambda r: r.get("decision_date", ""), reverse=True)
+        filtered.sort(key=lambda r: _date_key(r.get("decision_date")), reverse=True)
         return filtered[:limit]
 
     def _update_local_outcome(

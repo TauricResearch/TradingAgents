@@ -37,10 +37,9 @@ import pytest
 
 from tradingagents.agents.portfolio.pm_decision_agent import BuyOrder
 from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
-from tradingagents.portfolio.models import Holding, Portfolio, PortfolioSnapshot
+from tradingagents.portfolio.models import Portfolio, PortfolioSnapshot
 from tradingagents.portfolio.order_guards import buy_order_guard
 from tradingagents.portfolio.trade_executor import TradeExecutor
-
 
 # ---------------------------------------------------------------------------
 # Shared order matrix
@@ -297,9 +296,7 @@ def _make_postcheck_state(
 
     return {
         "pm_decision": json.dumps(decision),
-        "portfolio_data": json.dumps(
-            {"portfolio": _BASE_PORTFOLIO_DICT, "holdings": []}
-        ),
+        "portfolio_data": json.dumps({"portfolio": _BASE_PORTFOLIO_DICT, "holdings": []}),
         "prices": {ticker: live_price},
         "prioritized_candidates": json.dumps(candidates),
     }
@@ -414,16 +411,7 @@ def test_executor_layer(scenario: dict[str, Any]) -> None:
         )
     else:
         # Ticker must appear in failed_trades with an order-guard reason
-        guard_failures = [
-            t for t in failed
-            if str(t.get("ticker") or "") == ticker
-            and "order guard" not in str(t.get("reason") or "")
-            # The guard violation message comes from buy_order_guard, not the key literal
-        ]
-        order_guard_failures = [
-            t for t in failed
-            if str(t.get("ticker") or "") == ticker
-        ]
+        order_guard_failures = [t for t in failed if str(t.get("ticker") or "") == ticker]
         assert order_guard_failures, (
             f"executor_layer: scenario {scenario['id']!r} — "
             f"buy_order_guard said FAIL but executor did not add {ticker!r} to failed_trades. "

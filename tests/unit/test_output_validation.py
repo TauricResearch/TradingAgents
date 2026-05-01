@@ -1,5 +1,7 @@
 """Unit tests for output validation utilities."""
 
+import pytest
+
 from tradingagents.agents.utils.output_validation import (
     build_market_report_structured,
     extract_allowed_sources_from_context,
@@ -761,6 +763,25 @@ class TestRiskSynthesisStructuredContract:
         assert structured["consensus_direction"] == "BUY"
         assert structured["key_metrics"]["agreement_mentions"] >= 1
         assert structured["key_metrics"]["risk_mentions"] >= 1
+
+    @pytest.mark.parametrize(
+        ("label", "direction"),
+        [
+            ("BALANCED ASSESSMENT", "BUY"),
+            ("Balanced Assessment", "SELL"),
+            ("balanced assessment", "HOLD"),
+        ],
+    )
+    def test_balanced_assessment_infers_explicit_direction(self, label, direction):
+        from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
+
+        structured = build_risk_synthesis_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            risk_synthesis=f"{label}: {direction} with explicit risk controls.",
+        )
+
+        assert structured["consensus_direction"] == direction
 
     def test_build_empty(self):
         from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured

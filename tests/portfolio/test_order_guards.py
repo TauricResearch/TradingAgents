@@ -4,7 +4,6 @@ import pytest
 
 from tradingagents.portfolio.order_guards import buy_order_guard, resolve_buy_execution_price
 
-
 # ---------------------------------------------------------------------------
 # resolve_buy_execution_price
 # ---------------------------------------------------------------------------
