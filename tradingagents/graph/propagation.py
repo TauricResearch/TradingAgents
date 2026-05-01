@@ -38,6 +38,7 @@ class Propagator:
             "portfolio_context": portfolio_context,
             "scanner_context_packet": scanner_context_packet,
             "scanner_graph_context_text": scanner_graph_context_text,
+            "canonical_regime": {},
             "instrument_key": instrument.instrument_key,
             "asset_class": instrument.asset_class,
             "instrument_type": instrument.instrument_type,

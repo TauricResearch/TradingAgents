@@ -79,6 +79,9 @@ class AgentState(MessagesState):
     scanner_graph_context_text: Annotated[
         str, "Prompt-ready ticker graph context rendered from scanner graph facts"
     ]
+    canonical_regime: Annotated[
+        dict[str, Any], "Canonical macro regime routed from the run-scoped macro brief"
+    ]
 
     sender: Annotated[str, "Agent that sent this message"]
 
