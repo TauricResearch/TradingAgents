@@ -122,7 +122,7 @@ def test_guard_node_passes_clean_rm_output():
     result = node(state)
     assert result["rm_consistency_status"] == "ok"
     assert result["sender"] == "rm_consistency_guard"
-    assert "consistency_violations" not in result
+    assert result["consistency_violations"] == []
     assert "_rm_consistency_attempt" not in result
 
 
@@ -183,5 +183,33 @@ def test_guard_graph_state_persists_reprompt_context_to_next_node():
             "investment_plan": "- EBITDA margin expanded +3.8% YoY",
             "fundamentals_report": "Operating margin compressed 270bps.",
             "_rm_consistency_attempt": 0,
+        }
+    )
+
+
+def test_guard_graph_state_clears_stale_violations_after_clean_pass():
+    """Successful corrective pass clears prior violation payload before downstream nodes."""
+    from tradingagents.graph.setup import GraphSetup
+
+    def probe_node(state: AgentState) -> dict:
+        assert state["rm_consistency_status"] == "ok"
+        assert state["consistency_violations"] == []
+        assert state["_rm_consistency_attempt"] == 1
+        return {"sender": "probe"}
+
+    workflow = StateGraph(AgentState)
+    workflow.add_node("Guard", GraphSetup._make_rm_consistency_guard_node())
+    workflow.add_node("Probe", probe_node)
+    workflow.add_edge(START, "Guard")
+    workflow.add_edge("Guard", "Probe")
+    workflow.add_edge("Probe", END)
+    graph = workflow.compile()
+
+    graph.invoke(
+        {
+            "investment_plan": "- Operating margin compressed 270bps over 2 quarters",
+            "fundamentals_report": "Operating margin compressed 270bps.",
+            "consistency_violations": [{"metric": "EBITDA margin", "reason": "stale"}],
+            "_rm_consistency_attempt": 1,
         }
     )

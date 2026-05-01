@@ -140,6 +140,7 @@ class GraphSetup:
                     "rm_consistency_flags": [
                         {"metric": f.metric, "value": f.value, "unit": f.unit} for f in flags
                     ],
+                    "consistency_violations": [],
                     "sender": "rm_consistency_guard",
                 }
             if attempt >= 1:
