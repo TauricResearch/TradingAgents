@@ -1233,7 +1233,7 @@ class LangGraphEngine:
         portfolio_graph = PortfolioGraph(
             config={
                 **self.config,
-                "run_path": str(run_daily_dir / "portfolio" / "report"),
+                "run_path": str(store.portfolio_report_dir(date)),
             }
         )
         all_daily_dir = get_daily_dir(date)

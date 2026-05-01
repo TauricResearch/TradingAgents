@@ -989,6 +989,50 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             captured_state["scan_summary"]["equity_candidates"][0]["instrument_key"], "equity:AAPL"
         )
 
+    def test_run_portfolio_uses_report_store_root_for_pm_snapshot_path(self):
+        """PM snapshot path should follow the run-scoped ReportStore root."""
+        from tradingagents.portfolio.report_store import ReportStore
+
+        mock_pg = self._make_mock_portfolio_graph()
+        engine = LangGraphEngine()
+        custom_reports_root = Path(tempfile.mkdtemp())
+        wrong_daily_dir = Path(tempfile.mkdtemp()) / "wrong-root"
+        expected_run_path = (
+            custom_reports_root / "daily" / "2026-01-01" / "run1" / "portfolio" / "report"
+        )
+
+        try:
+            with (
+                patch(
+                    "agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                    return_value=mock_pg,
+                ) as mock_portfolio_graph,
+                patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs,
+                patch(
+                    "agent_os.backend.services.langgraph_engine.get_daily_dir",
+                    return_value=wrong_daily_dir,
+                ),
+            ):
+                mock_rs.side_effect = lambda run_id=None: ReportStore(
+                    base_dir=custom_reports_root,
+                    run_id=run_id,
+                )
+
+                asyncio.run(
+                    _collect(
+                        engine.run_portfolio(
+                            "run1",
+                            {"date": "2026-01-01", "portfolio_id": "p1"},
+                        )
+                    )
+                )
+
+            config = mock_portfolio_graph.call_args.kwargs["config"]
+            self.assertEqual(config["run_path"], str(expected_run_path))
+        finally:
+            shutil.rmtree(custom_reports_root, ignore_errors=True)
+            shutil.rmtree(wrong_daily_dir.parent, ignore_errors=True)
+
     def test_run_portfolio_loads_ticker_analyses_from_daily_dir(self):
         """run_portfolio should load analyses for AAPL and TSLA (excluding market/portfolio dirs)."""
         mock_pg = self._make_mock_portfolio_graph()

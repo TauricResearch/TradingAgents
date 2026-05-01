@@ -42,6 +42,10 @@ class ReportStore:
         """The canonical run identifier set on this store, if any."""
         return self._run_id
 
+    def portfolio_report_dir(self, date: str) -> Path:
+        """Return the run-scoped portfolio report directory for *date*."""
+        return self._portfolio_dir(date, for_write=True) / "report"
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
