@@ -537,8 +537,12 @@ class PortfolioGraphSetup:
                     )
 
             # Check 2: Position-cap compliance.
+            # SGOV (cash-sweep equivalent) is exempt — the PM legitimately parks
+            # idle cash there and it can exceed the per-equity position cap.
             if projected_total_value > 0:
                 for ticker, h in projected_holdings.items():
+                    if ticker == "SGOV" and h.get("sector", "").casefold() == "cash equivalent":
+                        continue  # cash-sweep position is exempt from per-ticker cap
                     ticker_pct = h["value"] / projected_total_value
                     if ticker_pct > max_position_pct:
                         raise RuntimeError(
@@ -547,12 +551,16 @@ class PortfolioGraphSetup:
                         )
 
             # Check 3: Sector-cap compliance.
+            # "cash equivalent" sector is exempt — SGOV sweep can legitimately
+            # represent the majority of the portfolio when the PM is risk-off.
             if projected_total_value > 0:
                 sector_values: dict[str, float] = {}
                 for h in projected_holdings.values():
                     s = h["sector"]
                     sector_values[s] = sector_values.get(s, 0.0) + h["value"]
                 for sector, s_value in sector_values.items():
+                    if sector.casefold() == "cash equivalent":
+                        continue  # cash-equivalent sector is exempt from sector cap
                     sector_pct = s_value / projected_total_value
                     if sector_pct > max_sector_pct:
                         raise RuntimeError(
