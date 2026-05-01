@@ -38,6 +38,17 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
             if macro_regime_report
             else ""
         )
+        violations = state.get("consistency_violations") or []
+        if violations:
+            correction_block = (
+                "\n\n## CORRECTION REQUIRED\n"
+                "Your previous response contained numeric claims that contradict the "
+                "fundamentals report. Address each violation below by either correcting "
+                "the number to match the fundamentals report or removing the claim:\n"
+                + "\n".join(f"- {v['metric']}: {v['reason']}" for v in violations)
+            )
+        else:
+            correction_block = ""
 
         # Anonymize data variables to prevent training-data bias
         anon_research_packet = anonymize_ticker(
@@ -60,6 +71,7 @@ STRICT CONSTRAINTS:
 - Weight HIGH-confidence claims from the debate over MED/LOW claims.
 - Do NOT default to Hold simply because both sides have valid points. Commit to a stance grounded in the debate's strongest evidence.
 - **GROUND TRUTH**: The compressed research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values when citing oil, gold, bitcoin prices, FX levels, or event dates. Do NOT invent, estimate, or contradict these ground-truth figures. If an analyst report contradicts the Scanner Context numbers, flag the discrepancy and use the Scanner Context value.
+{correction_block}
 
 YOUR TASK:
 1. **Strongest Bull Evidence**: List the top 3 data-backed bull arguments with confidence tags.

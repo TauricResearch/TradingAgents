@@ -1,3 +1,5 @@
+import pytest
+
 from tradingagents.graph._consistency_guard import (
     NumericClaim,
     extract_numeric_claims,
@@ -103,3 +105,47 @@ def test_replay_et_rm_violations():
     violation_metrics = {violation.claim.metric.lower() for violation in result["violations"]}
     assert any("margin" in metric for metric in violation_metrics)
     assert any("leverage" in metric or "debt" in metric for metric in violation_metrics)
+
+
+def test_guard_node_passes_clean_rm_output():
+    """Clean RM output -> no violations, no re-prompt, sender set."""
+    from tradingagents.graph.setup import GraphSetup
+
+    node = GraphSetup._make_rm_consistency_guard_node()
+    state = {
+        "investment_plan": "- Operating margin compressed 270bps over 2 quarters",
+        "fundamentals_report": "Operating margins compressed 270bps from Q2 to Q4 2025.",
+        "_rm_consistency_attempt": 0,
+    }
+    result = node(state)
+    assert "violations" not in result.get("rm_consistency_status", "ok")
+
+
+def test_guard_node_raises_after_second_offense():
+    """Second-pass RM still violates -> hard fail."""
+    from tradingagents.graph.setup import GraphSetup
+
+    node = GraphSetup._make_rm_consistency_guard_node()
+    state = {
+        "investment_plan": "- EBITDA margin expanded +3.8% YoY",
+        "fundamentals_report": "Operating margin compressed 270bps.",
+        "_rm_consistency_attempt": 1,
+    }
+    with pytest.raises(ValueError, match=r"unresolved.*violations"):
+        node(state)
+
+
+def test_guard_node_routes_to_reprompt_on_first_offense():
+    """First-pass RM violates -> return signal to re-prompt RM."""
+    from tradingagents.graph.setup import GraphSetup
+
+    node = GraphSetup._make_rm_consistency_guard_node()
+    state = {
+        "investment_plan": "- EBITDA margin expanded +3.8% YoY",
+        "fundamentals_report": "Operating margin compressed 270bps.",
+        "_rm_consistency_attempt": 0,
+    }
+    result = node(state)
+    assert result.get("rm_consistency_status") == "reprompt"
+    assert "consistency_violations" in result
+    assert result["_rm_consistency_attempt"] == 1
