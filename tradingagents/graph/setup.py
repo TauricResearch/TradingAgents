@@ -397,9 +397,7 @@ class GraphSetup:
         workflow.add_conditional_edges(
             "RM Consistency Guard",
             lambda s: (
-                "Research Manager"
-                if s.get("rm_consistency_status") == "reprompt"
-                else "Trader"
+                "Research Manager" if s.get("rm_consistency_status") == "reprompt" else "Trader"
             ),
             {"Research Manager": "Research Manager", "Trader": "Trader"},
         )
@@ -462,9 +460,7 @@ class GraphSetup:
         workflow.add_conditional_edges(
             "RM Consistency Guard",
             lambda s: (
-                "Research Manager"
-                if s.get("rm_consistency_status") == "reprompt"
-                else "Trader"
+                "Research Manager" if s.get("rm_consistency_status") == "reprompt" else "Trader"
             ),
             {"Research Manager": "Research Manager", "Trader": "Trader"},
         )
