@@ -60,6 +60,8 @@ class PortfolioGraph:
         deep_llm = self._create_llm("deep_think")
 
         portfolio_config = self._get_portfolio_config()
+        if self.config.get("run_path"):
+            portfolio_config["run_path"] = self.config["run_path"]
 
         mongo_uri = self.config.get("mongo_uri")
         macro_mem = MacroMemory(mongo_uri=mongo_uri)

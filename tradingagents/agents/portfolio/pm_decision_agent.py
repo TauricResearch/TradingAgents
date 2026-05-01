@@ -320,6 +320,23 @@ def create_pm_decision_agent(
                 input_data = {"messages": extra_messages}
                 result = chain.invoke(input_data)
                 decision_str = result.model_dump_json()
+                # Persist the decision JSON before any downstream node can fail. This is
+                # the canonical artifact for postmortem; do not gate on success of later
+                # nodes.
+                run_path = cfg.get("run_path")
+                if run_path:
+                    try:
+                        from pathlib import Path
+
+                        snapshot_path = Path(run_path) / "portfolio_decision_snapshot.json"
+                        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+                        snapshot_path.write_text(decision_str)
+                    except Exception as exc:
+                        logger.warning(
+                            "pm_decision_agent: failed to persist snapshot at %s: %s",
+                            run_path,
+                            exc,
+                        )
                 breaker.record_success("pm_decision_agent")
                 break
             except Exception as exc:
