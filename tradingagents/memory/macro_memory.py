@@ -226,9 +226,7 @@ class MacroMemory:
     # Query
     # ------------------------------------------------------------------
 
-    def get_recent(
-        self, limit: int = 3, *, as_of_date: str | None = None
-    ) -> list[dict[str, Any]]:
+    def get_recent(self, limit: int = 3, *, as_of_date: str | None = None) -> list[dict[str, Any]]:
         """Return most recent macro states, newest first.
 
         Args:
@@ -255,9 +253,7 @@ class MacroMemory:
         else:
             return self._load_recent_local(limit, as_of_date=as_of_date)
 
-    def build_macro_context(
-        self, limit: int = 3, *, as_of_date: str | None = None
-    ) -> str:
+    def build_macro_context(self, limit: int = 3, *, as_of_date: str | None = None) -> str:
         """Build a human-readable context string from recent macro states.
 
         Suitable for injection into agent prompts. Returns a multi-line string

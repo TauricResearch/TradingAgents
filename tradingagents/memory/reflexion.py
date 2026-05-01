@@ -226,9 +226,7 @@ class ReflexionMemory:
         else:
             return self._load_local(ticker.upper(), limit, as_of_date=as_of_date)
 
-    def build_context(
-        self, ticker: str, limit: int = 3, *, as_of_date: str | None = None
-    ) -> str:
+    def build_context(self, ticker: str, limit: int = 3, *, as_of_date: str | None = None) -> str:
         """Build a human-readable context string from past decisions.
 
         Suitable for injection into agent system prompts::

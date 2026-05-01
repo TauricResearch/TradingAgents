@@ -83,6 +83,7 @@ def test_sanitize_multiple_closed_blocks():
     assert "second" not in result
     assert "end" in result
 
+
 # ─── Happy-path tests ─────────────────────────────────────────────────────────
 
 

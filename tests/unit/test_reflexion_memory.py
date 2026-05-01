@@ -260,8 +260,7 @@ def test_corrupt_local_reflexion_logs_warning(tmp_path, caplog):
         history = m.get_history("AAPL")
     assert history == []
     assert any(
-        "corrupt" in r.message.lower() or "malformed" in r.message.lower()
-        for r in caplog.records
+        "corrupt" in r.message.lower() or "malformed" in r.message.lower() for r in caplog.records
     )
 
 
@@ -302,7 +301,7 @@ def test_missing_decision_date_local_reflexion_filters_bad_record_only(tmp_path,
                     "ticker": "AAPL",
                     "decision": "BUY",
                     "rationale": "Malformed record",
-                }
+                },
             ]
         ),
         encoding="utf-8",

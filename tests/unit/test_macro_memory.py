@@ -170,9 +170,7 @@ class TestMacroMemoryLocalFallback:
         )
 
     @pytest.mark.parametrize("payload", ["{}", "[1]"])
-    def test_structurally_malformed_local_file_logs_warning(
-        self, tmp_path, caplog, payload
-    ):
+    def test_structurally_malformed_local_file_logs_warning(self, tmp_path, caplog, payload):
         """Valid JSON with the wrong shape must warn and return []."""
         import logging
 
@@ -210,7 +208,7 @@ class TestMacroMemoryLocalFallback:
                         "macro_call": "risk-on",
                         "sector_thesis": "Malformed record",
                         "key_themes": ["earnings"],
-                    }
+                    },
                 ]
             ),
             encoding="utf-8",
@@ -368,7 +366,9 @@ def test_record_outcome_legacy_date_only_updates_newest_missing_run_id_record(me
     assert len(updated) == 1
     assert updated[0].get("run_id") == "manual"
     assert updated[0]["sector_thesis"] == "legacy new"
-    assert all(rec["outcome"] is None for rec in records if rec.get("run_id") not in (None, "manual"))
+    assert all(
+        rec["outcome"] is None for rec in records if rec.get("run_id") not in (None, "manual")
+    )
 
 
 def test_record_outcome_legacy_date_only_does_not_update_run_id_records(mem):

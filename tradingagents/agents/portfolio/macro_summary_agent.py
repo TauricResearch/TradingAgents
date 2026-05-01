@@ -114,9 +114,7 @@ def create_macro_summary_agent(
                     "macro_summary_agent: missing analysis_date/as_of_date context "
                     "for memory lookup"
                 )
-            past_context = macro_memory.build_macro_context(
-                limit=3, as_of_date=analysis_date
-            )
+            past_context = macro_memory.build_macro_context(limit=3, as_of_date=analysis_date)
         else:
             past_context = "No prior macro regime history available."
 

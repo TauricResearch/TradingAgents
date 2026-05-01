@@ -296,9 +296,7 @@ def _make_postcheck_state(
 
     return {
         "pm_decision": json.dumps(decision),
-        "portfolio_data": json.dumps(
-            {"portfolio": _BASE_PORTFOLIO_DICT, "holdings": []}
-        ),
+        "portfolio_data": json.dumps({"portfolio": _BASE_PORTFOLIO_DICT, "holdings": []}),
         "prices": {ticker: live_price},
         "prioritized_candidates": json.dumps(candidates),
     }
@@ -413,10 +411,7 @@ def test_executor_layer(scenario: dict[str, Any]) -> None:
         )
     else:
         # Ticker must appear in failed_trades with an order-guard reason
-        order_guard_failures = [
-            t for t in failed
-            if str(t.get("ticker") or "") == ticker
-        ]
+        order_guard_failures = [t for t in failed if str(t.get("ticker") or "") == ticker]
         assert order_guard_failures, (
             f"executor_layer: scenario {scenario['id']!r} — "
             f"buy_order_guard said FAIL but executor did not add {ticker!r} to failed_trades. "

@@ -67,9 +67,7 @@ def resolve_buy_execution_price(
 
     price = float(raw)
     if price <= 0:
-        raise RuntimeError(
-            f"order_guards: non-positive live price {price} for {ticker}"
-        )
+        raise RuntimeError(f"order_guards: non-positive live price {price} for {ticker}")
     return price
 
 
@@ -95,9 +93,7 @@ def buy_order_guard(buy: dict[str, Any], live_price: float) -> str | None:
 
     order_type = str(buy.get("order_type") or "").strip().lower()
     if order_type and order_type != "limit":
-        return (
-            f"order_type for {ticker} must be 'limit', got {order_type!r}"
-        )
+        return f"order_type for {ticker} must be 'limit', got {order_type!r}"
 
     limit_price_raw = buy.get("limit_price")
     if limit_price_raw is not None:

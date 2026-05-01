@@ -472,9 +472,7 @@ class TestSummaryAgentMemoryFiltering:
 
         agent(state)
 
-        mock_memory.build_macro_context.assert_called_once_with(
-            limit=3, as_of_date="2026-03-20"
-        )
+        mock_memory.build_macro_context.assert_called_once_with(limit=3, as_of_date="2026-03-20")
 
     @pytest.mark.parametrize(
         "state",
@@ -493,9 +491,7 @@ class TestSummaryAgentMemoryFiltering:
         llm = _make_runnable_llm("MACRO REGIME: neutral\nKEY NUMBERS: VIX=18")
         agent = create_macro_summary_agent(llm, macro_memory=mock_memory)
 
-        with pytest.raises(
-            RuntimeError, match="macro_summary_agent.*analysis_date.*as_of_date"
-        ):
+        with pytest.raises(RuntimeError, match="macro_summary_agent.*analysis_date.*as_of_date"):
             agent(state)
 
         mock_memory.build_macro_context.assert_not_called()
@@ -566,9 +562,7 @@ class TestSummaryAgentMemoryFiltering:
         )
         agent = create_micro_summary_agent(llm, micro_memory=mock_memory)
 
-        with pytest.raises(
-            RuntimeError, match="micro_summary_agent.*analysis_date.*as_of_date"
-        ):
+        with pytest.raises(RuntimeError, match="micro_summary_agent.*analysis_date.*as_of_date"):
             agent(state)
 
         mock_memory.build_context.assert_not_called()
@@ -740,7 +734,9 @@ class TestPMDecisionAgentInputs:
 
                 return RunnableLambda(_invoke)
 
-        monkeypatch.setattr(pm_module, "circuit_breaker_from_config", lambda cfg: _RecordingBreaker())
+        monkeypatch.setattr(
+            pm_module, "circuit_breaker_from_config", lambda cfg: _RecordingBreaker()
+        )
         monkeypatch.setattr(pm_module.time, "sleep", lambda _: None)
 
         llm = _RetryCaptureLLM()
