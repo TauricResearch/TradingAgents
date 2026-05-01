@@ -150,7 +150,11 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
+For local models with Ollama or LM Studio:
+```bash
+export LM_STUDIO_BASE_URL=...      # LM Studio (default: http://localhost:1234/v1)
+```
+Configure with `llm_provider: "ollama"` or `llm_provider: "lm-studio"` in your config.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -208,7 +212,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, openrouter, ollama, lm-studio, azure
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
