@@ -115,9 +115,9 @@ class GraphSetup:
     @staticmethod
     def _make_market_regime_check_node() -> Callable[[AgentState], dict[str, Any]]:
         def market_regime_check_node(state: AgentState) -> dict[str, Any]:
-            canonical = state.get("canonical_regime")
-            if canonical is None:
+            if "canonical_regime" not in state:
                 return {"sender": "market_regime_check"}
+            canonical = state["canonical_regime"]
             assert_regime_consistent(state.get("market_report") or "", canonical)
             return {"sender": "market_regime_check"}
 

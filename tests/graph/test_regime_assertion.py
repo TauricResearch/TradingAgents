@@ -150,3 +150,15 @@ def test_validator_node_raises_when_canonical_present_but_empty():
     }
     with pytest.raises(ValueError, match=r"malformed canonical regime"):
         node(state)
+
+
+def test_validator_node_raises_when_canonical_present_but_none():
+    from tradingagents.graph.setup import GraphSetup
+
+    node = GraphSetup._make_market_regime_check_node()
+    state = {
+        "market_report": "Macro Regime: TRANSITION (+2/6)",
+        "canonical_regime": None,
+    }
+    with pytest.raises(ValueError, match=r"malformed canonical regime"):
+        node(state)
