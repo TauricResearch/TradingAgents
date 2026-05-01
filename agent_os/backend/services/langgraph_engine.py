@@ -1022,7 +1022,10 @@ class LangGraphEngine:
             analysis_date=date,
             run_id=root_run_id,
             macro_brief=str(
-                params.get("macro_brief") or injected_market["macro_regime_report"] or ""
+                params.get("macro_brief")
+                or params.get("macro_scan_summary")
+                or injected_market["macro_regime_report"]
+                or ""
             ),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
@@ -2129,6 +2132,7 @@ class LangGraphEngine:
                         "run_id": root_run_id,
                         "macro_brief": str(
                             scan_state.get("macro_brief")
+                            or scan_state.get("macro_scan_summary")
                             or scan_state.get("macro_regime_report")
                             or ""
                         ),
