@@ -325,6 +325,8 @@ class GraphSetup:
         }
         workflow.add_conditional_edges(
             "Instrument Preflight",
+            # Bind a copy at definition time so later selected_analysts changes
+            # cannot affect this compiled graph's routing closure.
             lambda state, analysts=list(selected_analysts): self._route_after_preflight(
                 state, self._resolve_next_analyst_node(state, analysts, 0)
             ),

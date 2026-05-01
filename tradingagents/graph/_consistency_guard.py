@@ -31,6 +31,10 @@ _NUMBER_RE = re.compile(
     r"(?<![A-Za-z0-9])(?P<value>[+-]?(?:\$)?\d+(?:\.\d+)?)\s*(?P<unit>%|bps|x|B|M)(?=$|\s|[,.;:)])",
     re.IGNORECASE,
 )
+# TODO(trust-first): If this guard grows beyond the current targeted metric set,
+# replace regex phrase extraction with a typed fundamentals metrics contract from
+# the Fundamentals Analyst. A structured upstream schema would make this guard a
+# deterministic contract comparison instead of maintaining a larger regex vocabulary.
 _METRIC_STOP_RE = re.compile(
     r"\b(?:and|but|while|with|as|to|from|vs|versus|over|in|at|since|have|has|a|an|the)\b",
     re.IGNORECASE,

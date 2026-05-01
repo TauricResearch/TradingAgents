@@ -215,16 +215,20 @@ def create_market_analyst(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
                 scanner_vix = float(scanner_vix_match.group(1))
                 regime_vix = float(regime_vix_match.group(1))
                 if scanner_vix > 0 and abs(regime_vix - scanner_vix) / scanner_vix > 0.20:
+                    original_vix_text = regime_vix_match.group(0)
+                    replacement_vix_text = f"VIX: {scanner_vix:.2f}"
                     _logger.warning(
                         "VIX divergence for %s: scanner=%.2f, macro_regime=%.2f (>20%%). "
-                        "Patching macro regime to use scanner value.",
+                        "Patching macro regime text %r -> %r.",
                         ticker,
                         scanner_vix,
                         regime_vix,
+                        original_vix_text,
+                        replacement_vix_text,
                     )
                     macro_regime_report = macro_regime_report.replace(
-                        regime_vix_match.group(0),
-                        f"VIX: {scanner_vix:.2f}",
+                        original_vix_text,
+                        replacement_vix_text,
                     )
 
         indicator_prefetched = prefetch_tools_parallel(
