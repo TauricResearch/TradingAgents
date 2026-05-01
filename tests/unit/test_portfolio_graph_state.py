@@ -112,6 +112,10 @@ def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents():
     ticker_analysis = {
         "analysis_status": "completed",
         "final_trade_decision": "Rating: Overweight\nExecutive Summary: durable moat",
+        "final_trade_decision_structured": {
+            "status": "completed",
+            "action": "BUY",
+        },
         "trader_investment_plan": "BUY AAPL",
         "investment_plan": "BUY",
     }
