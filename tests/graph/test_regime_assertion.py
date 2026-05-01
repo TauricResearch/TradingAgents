@@ -40,6 +40,16 @@ def test_uses_macro_regime_pair_not_prior_context():
         assert_regime_consistent(analyst, canonical)
 
 
+def test_macro_regime_context_does_not_mask_statement():
+    analyst = (
+        "Macro Regime Context: canonical brief said RISK-ON (+5/6)\n"
+        "Macro Regime: TRANSITION (+2/6) mixed signals..."
+    )
+    canonical = {"label": "RISK-ON", "score": 5}
+    with pytest.raises(ValueError, match=r"regime drift.*label"):
+        assert_regime_consistent(analyst, canonical)
+
+
 def test_missing_canonical_score_raises():
     analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
     canonical = {"label": "TRANSITION"}
@@ -50,6 +60,14 @@ def test_missing_canonical_score_raises():
 def test_malformed_canonical_score_raises():
     analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
     canonical = {"label": "TRANSITION", "score": "zero"}
+    with pytest.raises(ValueError, match=r"malformed canonical regime.*score"):
+        assert_regime_consistent(analyst, canonical)
+
+
+@pytest.mark.parametrize("score", ["5", 5.9, True, 7, -7])
+def test_non_integer_or_out_of_range_canonical_score_raises(score):
+    analyst = f"Macro Regime: RISK-ON ({int(score):+d}/6) aligned setup..."
+    canonical = {"label": "RISK-ON", "score": score}
     with pytest.raises(ValueError, match=r"malformed canonical regime.*score"):
         assert_regime_consistent(analyst, canonical)
 
@@ -74,5 +92,8 @@ def test_replay_qcom_failed_run_drift():
         "* Macro Regime: The environment is classified as TRANSITION with a score of +2/6"
     )
     canonical = {"label": "RISK-ON", "score": 5}
-    with pytest.raises(ValueError, match=r"regime drift"):
+    with pytest.raises(
+        ValueError,
+        match=r"canonical label 'RISK-ON' != analyst label 'TRANSITION'",
+    ):
         assert_regime_consistent(drifted, canonical)

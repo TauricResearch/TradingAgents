@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 _REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
-_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*Macro Regime\b[^\n]*")
+_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*Macro Regime\s*:[^\n]*")
 _REGIME_PAIR_RE = re.compile(
     r"\b(RISK-ON|RISK-OFF|TRANSITION)\b"
     r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,120}?"
@@ -102,10 +102,13 @@ def assert_regime_consistent(analyst_output: str, canonical: dict[str, Any]) -> 
     canonical_label = str(canonical.get("label", "")).upper()
     if not _REGIME_LABEL_RE.fullmatch(canonical_label):
         raise ValueError(f"malformed canonical regime label: {canonical.get('label')!r}")
-    try:
-        canonical_score = int(canonical["score"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"malformed canonical regime score: {canonical.get('score')!r}") from exc
+    canonical_score = canonical.get("score")
+    if (
+        not isinstance(canonical_score, int)
+        or isinstance(canonical_score, bool)
+        or not -6 <= canonical_score <= 6
+    ):
+        raise ValueError(f"malformed canonical regime score: {canonical_score!r}")
 
     line_match = _REGIME_LINE_RE.search(text)
     statement = line_match.group(0) if line_match else ""
