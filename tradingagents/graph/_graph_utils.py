@@ -117,15 +117,13 @@ def assert_regime_consistent(analyst_output: str, canonical: dict[str, Any]) -> 
     pair_match = _REGIME_PAIR_RE.search(statement)
     if not pair_match:
         raise ValueError(
-            f"could not parse regime from analyst output (first 200 chars): "
-            f"{text[:200]!r}"
+            f"could not parse regime from analyst output (first 200 chars): {text[:200]!r}"
         )
     analyst_label = pair_match.group(1).upper()
     analyst_score = int(pair_match.group(2) or pair_match.group(3))
     if analyst_label != canonical_label:
         raise ValueError(
-            f"regime drift: canonical label {canonical_label!r} != "
-            f"analyst label {analyst_label!r}"
+            f"regime drift: canonical label {canonical_label!r} != analyst label {analyst_label!r}"
         )
     if analyst_score != canonical_score:
         raise ValueError(
