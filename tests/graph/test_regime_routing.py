@@ -21,3 +21,19 @@ def test_market_analyst_prompt_includes_canonical_regime():
     assert "RISK-ON" in prompt
     assert "+5/6" in prompt
     assert "infer the regime" not in prompt.lower()
+
+
+def test_engine_routes_canonical_regime_into_trading_state():
+    """Initial trading state gets canonical regime from the run macro brief."""
+    from agent_os.backend.services.langgraph_engine import _build_trading_graph_initial_state
+
+    macro_brief = "Macro Regime: RISK-ON (+5/6)\nVIX 17.10..."
+    state = _build_trading_graph_initial_state(
+        ticker="QCOM",
+        analysis_date="2026-05-01",
+        run_id="run-123",
+        macro_brief=macro_brief,
+    )
+    assert state["canonical_regime"]["label"] == "RISK-ON"
+    assert state["canonical_regime"]["score"] == 5
+    assert state["canonical_regime"]["brief"].startswith("Macro Regime:")
