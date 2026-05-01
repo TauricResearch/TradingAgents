@@ -1017,15 +1017,17 @@ class LangGraphEngine:
                 date,
             )
 
-        initial_state = _build_trading_graph_initial_state(
-            ticker=ticker,
-            analysis_date=date,
+        initial_state = graph_wrapper.propagator.create_initial_state(
+            ticker,
+            date,
             run_id=root_run_id,
-            macro_brief=str(
-                params.get("macro_brief")
-                or params.get("macro_scan_summary")
-                or injected_market["macro_regime_report"]
-                or ""
+            canonical_regime=_parse_canonical_regime(
+                str(
+                    params.get("macro_brief")
+                    or params.get("macro_scan_summary")
+                    or injected_market["macro_regime_report"]
+                    or ""
+                )
             ),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
