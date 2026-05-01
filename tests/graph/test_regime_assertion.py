@@ -30,6 +30,43 @@ def test_missing_regime_in_analyst_raises():
         assert_regime_consistent(analyst, canonical)
 
 
+def test_uses_macro_regime_pair_not_prior_context():
+    analyst = (
+        "Canonical brief said RISK-ON (+5/6) before the final answer.\n"
+        "Macro Regime: TRANSITION (+2/6) mixed signals..."
+    )
+    canonical = {"label": "RISK-ON", "score": 5}
+    with pytest.raises(ValueError, match=r"regime drift.*label"):
+        assert_regime_consistent(analyst, canonical)
+
+
+def test_missing_canonical_score_raises():
+    analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
+    canonical = {"label": "TRANSITION"}
+    with pytest.raises(ValueError, match=r"malformed canonical regime.*score"):
+        assert_regime_consistent(analyst, canonical)
+
+
+def test_malformed_canonical_score_raises():
+    analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
+    canonical = {"label": "TRANSITION", "score": "zero"}
+    with pytest.raises(ValueError, match=r"malformed canonical regime.*score"):
+        assert_regime_consistent(analyst, canonical)
+
+
+def test_missing_canonical_label_raises():
+    analyst = "Macro Regime: TRANSITION (+0/6) neutral setup..."
+    canonical = {"score": 0}
+    with pytest.raises(ValueError, match=r"malformed canonical regime.*label"):
+        assert_regime_consistent(analyst, canonical)
+
+
+def test_negative_score_passes_silently():
+    analyst = "Macro Regime: RISK-OFF (-4/6) volatility expanding..."
+    canonical = {"label": "RISK-OFF", "score": -4}
+    assert assert_regime_consistent(analyst, canonical) is None
+
+
 def test_replay_qcom_failed_run_drift():
     """Reproduce the QCOM Market Analyst output from run 01KQHDVJB2R19S4D7Z7Z6DP9F7."""
     drifted = (
@@ -37,5 +74,5 @@ def test_replay_qcom_failed_run_drift():
         "* Macro Regime: The environment is classified as TRANSITION with a score of +2/6"
     )
     canonical = {"label": "RISK-ON", "score": 5}
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"regime drift"):
         assert_regime_consistent(drifted, canonical)

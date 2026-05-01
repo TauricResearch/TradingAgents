@@ -4,7 +4,13 @@ import re
 from typing import Any
 
 _REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
-_REGIME_SCORE_RE = re.compile(r"\(\s*([+-]?\d+)\s*/\s*6\s*\)")
+_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*Macro Regime\b[^\n]*")
+_REGIME_PAIR_RE = re.compile(
+    r"\b(RISK-ON|RISK-OFF|TRANSITION)\b"
+    r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,120}?"
+    r"(?:\(\s*([+-]?\d+)\s*/\s*6\s*\)|\bscore\s+of\s+([+-]?\d+)\s*/\s*6\b)",
+    re.IGNORECASE,
+)
 
 
 def get_provider_kwargs(config: dict[str, Any], tier: str) -> dict[str, Any]:
@@ -86,24 +92,31 @@ def visualize_graph(
         return mermaid_code
 
 
-def assert_regime_consistent(analyst_output: str, canonical: dict) -> None:
+def assert_regime_consistent(analyst_output: str, canonical: dict[str, Any]) -> None:
     """Compare regime label/score in analyst output against the canonical brief.
 
     Raises ValueError if the analyst output disagrees with the canonical regime.
     Returns None on match.
     """
     text = analyst_output or ""
-    label_match = _REGIME_LABEL_RE.search(text)
-    score_match = _REGIME_SCORE_RE.search(text)
-    if not label_match or not score_match:
+    canonical_label = str(canonical.get("label", "")).upper()
+    if not _REGIME_LABEL_RE.fullmatch(canonical_label):
+        raise ValueError(f"malformed canonical regime label: {canonical.get('label')!r}")
+    try:
+        canonical_score = int(canonical["score"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"malformed canonical regime score: {canonical.get('score')!r}") from exc
+
+    line_match = _REGIME_LINE_RE.search(text)
+    statement = line_match.group(0) if line_match else ""
+    pair_match = _REGIME_PAIR_RE.search(statement)
+    if not pair_match:
         raise ValueError(
             f"could not parse regime from analyst output (first 200 chars): "
             f"{text[:200]!r}"
         )
-    analyst_label = label_match.group(1).upper()
-    analyst_score = int(score_match.group(1))
-    canonical_label = str(canonical.get("label", "")).upper()
-    canonical_score = int(canonical.get("score", 0))
+    analyst_label = pair_match.group(1).upper()
+    analyst_score = int(pair_match.group(2) or pair_match.group(3))
     if analyst_label != canonical_label:
         raise ValueError(
             f"regime drift: canonical label {canonical_label!r} != "
