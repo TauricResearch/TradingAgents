@@ -24,11 +24,21 @@ def test_extract_bps_claim():
     assert bps and bps[0].value == 320 and bps[0].direction == "compression"
 
 
+def test_revenue_decline_extracts_decrease_not_compression():
+    rm_text = "- Revenue declined 5% year-over-year"
+    claims = extract_numeric_claims(rm_text)
+    assert any(
+        c.metric.lower() == "revenue"
+        and c.value == 5
+        and c.unit == "%"
+        and c.direction == "decrease"
+        for c in claims
+    )
+
+
 def test_verify_detects_sign_disagreement():
     """RM claims margin expansion; fundamentals shows compression."""
-    fundamentals = (
-        "Operating margin Q4 2025: 9.3% vs Q2 2025: 12.0% - 270bps compression"
-    )
+    fundamentals = "Operating margin Q4 2025: 9.3% vs Q2 2025: 12.0% - 270bps compression"
     claims = [
         NumericClaim(
             metric="EBITDA margin",
@@ -90,5 +100,6 @@ def test_replay_et_rm_violations():
     )
     claims = extract_numeric_claims(rm_text)
     result = verify_against_fundamentals(claims, fundamentals)
-    # All three claims contradict fundamentals -> 3 high-confidence violations.
-    assert len(result["violations"]) >= 2  # at least margin + leverage
+    violation_metrics = {violation.claim.metric.lower() for violation in result["violations"]}
+    assert any("margin" in metric for metric in violation_metrics)
+    assert any("leverage" in metric or "debt" in metric for metric in violation_metrics)

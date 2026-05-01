@@ -42,7 +42,7 @@ _DIRECTION_TERMS: tuple[tuple[str, str], ...] = (
     ("compressed", "compression"),
     ("compression", "compression"),
     ("contracted", "compression"),
-    ("declined", "compression"),
+    ("declined", "decrease"),
     ("decreased", "decrease"),
     ("decrease", "decrease"),
     ("down", "decrease"),
@@ -174,9 +174,7 @@ def _extract_metric(context: str) -> str:
     before_number = re.sub(r"^[^\w$]+", "", before_number).strip()
     for term, direction in _DIRECTION_TERMS:
         del direction
-        before_number = re.sub(
-            rf"\b{re.escape(term)}\b", "", before_number, flags=re.IGNORECASE
-        )
+        before_number = re.sub(rf"\b{re.escape(term)}\b", "", before_number, flags=re.IGNORECASE)
     parts = [part for part in _METRIC_STOP_RE.split(before_number) if part.strip()]
     metric = parts[-1].strip(" -:()") if parts else before_number.strip(" -:()")
     metric = re.sub(r"\s+", " ", metric)
@@ -188,15 +186,16 @@ def _extract_direction(context: str, metric: str) -> Direction:
     metric_category = _category_for_metric(metric)
     for term, direction in _DIRECTION_TERMS:
         if re.search(rf"\b{re.escape(term)}\b", lowered):
-            if direction == "increase" and metric_category == "margin":
-                return "expansion"
-            if direction in {"decrease", "compression"} and metric_category in {
-                "margin",
-                "leverage_debt",
-            }:
-                return "compression"
-            return direction  # type: ignore[return-value]
+            return _normalize_direction(direction, metric_category)
     return None
+
+
+def _normalize_direction(direction: str, metric_category: str | None) -> Direction:
+    if direction == "increase" and metric_category == "margin":
+        return "expansion"
+    if direction == "decrease" and metric_category in {"margin", "leverage_debt"}:
+        return "compression"
+    return direction  # type: ignore[return-value]
 
 
 def _confidence(metric: str) -> Confidence:
@@ -211,9 +210,7 @@ def _category_for_metric(metric: str) -> str | None:
     return None
 
 
-def _find_contradiction(
-    claim: NumericClaim, evidence: list[NumericClaim]
-) -> Violation | None:
+def _find_contradiction(claim: NumericClaim, evidence: list[NumericClaim]) -> Violation | None:
     opposite_directions = {
         "expansion": {"compression", "decrease"},
         "compression": {"expansion", "increase"},
@@ -232,7 +229,9 @@ def _find_contradiction(
                 evidence=_format_evidence(item),
             )
 
-    comparable = [item for item in evidence if item.unit == claim.unit and item.direction == claim.direction]
+    comparable = [
+        item for item in evidence if item.unit == claim.unit and item.direction == claim.direction
+    ]
     for item in comparable:
         if abs(item.value - claim.value) > _TOLERANCE_BY_UNIT.get(claim.unit, 0.0):
             return Violation(
