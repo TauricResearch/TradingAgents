@@ -143,16 +143,34 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 /* Datatype font charts */
 .sparkline {
   font-family: 'Datatype', sans-serif;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   color: var(--text-dim);
   letter-spacing: -0.5px;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  font-variation-settings: 'wdth' 100, 'wght' 400;
+  -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
 }
 .sparkline.buy { color: var(--green); }
 .sparkline.sell { color: var(--red); }
 .sparkline.hold { color: var(--yellow); }
+.sparkline.pie { font-size: 1.5rem; min-width: 2.5rem; text-align: center; display: inline-block; }
 
 .bar-chart {
   font-family: 'Datatype', sans-serif;
-  font-size: 1rem;
+  font-size: 1.5rem;
   color: var(--text-dim);
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
+  margin-bottom: 0.5rem;
+}
+
+.datatype-pie {
+  font-family: 'Datatype', sans-serif;
+  font-size: 1.5rem;
+  color: var(--blue);
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
+  display: inline-block;
+  min-width: 2rem;
+  text-align: center;
 }

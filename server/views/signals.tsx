@@ -98,16 +98,21 @@ function renderTimeline(ticker, signals) {
   // Build Datatype sparkline from confidence values (0-100)
   var confValues = signals.map(function(s) { return Math.round((s.confidence || 0.5) * 100); });
   var sparkline = '{l:' + confValues.join(',') + '}';
+  var barchart = '{b:' + confValues.join(',') + '}';
   var firstSig = signalClass(signals[0].signal);
 
   var html = '<div class="sparkline ' + firstSig + '">' + sparkline + '</div>';
+  html += '<div class="bar-chart">' + barchart + '</div>';
   html += '<div class="timeline-entries">';
   html += signals.map(function(s, i) {
     var cls = signalClass(s.signal);
+    var pct = s.confidence != null ? Math.round(s.confidence * 100) : 0;
+    var pie = '{p:' + pct + '}';
     return '<div class="timeline-row">' +
       '<span class="timeline-signal ' + cls + '">' + s.signal + '</span>' +
       '<span class="timeline-date">' + (s.date || '—') + '</span>' +
-      '<span class="timeline-confidence">' + (s.confidence != null ? Math.round(s.confidence * 100) + '%' : '—') + '</span>' +
+      '<span class="datatype-pie" title="' + pct + '% confidence">' + pie + '</span>' +
+      '<span class="timeline-confidence">' + pct + '%</span>' +
       (i === 0 ? '<span class="timeline-current">current</span>' : '') +
     '</div>';
   }).join('');
