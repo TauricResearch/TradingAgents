@@ -13,6 +13,7 @@ import { pricesRouter } from "./routes/prices.ts";
 import { analysesRouter } from "./routes/analyses.ts";
 import { holdingsRouter } from "./routes/holdings.ts";
 import { exitsRouter } from "./routes/exits.ts";
+import { prospectsRouter } from "./routes/prospects.ts";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -20,6 +21,7 @@ import { SignalsView } from "./views/signals.tsx";
 import { HistoryView } from "./views/history.tsx";
 import { HoldingsView } from "./views/holdings.tsx";
 import { ExitsView } from "./views/exits.tsx";
+import { ProspectsView } from "./views/prospects.tsx";
 import { DatatypeTestView } from "./views/datatype-test.tsx";
 
 const app = new Hono();
@@ -34,6 +36,15 @@ DatabaseFactory.connect(DB_PATH);
 const schemaPath = join(import.meta.dir, "lib", "schema.sql");
 const schema = readFileSync(schemaPath, "utf-8");
 DatabaseFactory.get().exec(schema);
+
+// Migration: add stage column to watchlist if missing
+try {
+  DatabaseFactory.get().exec(
+    "ALTER TABLE watchlist ADD COLUMN stage TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired'))",
+  );
+} catch {
+  // Column already exists — safe to ignore
+}
 
 app.get("/health", (c) => {
   return c.json({
@@ -58,6 +69,7 @@ app.get("/signals", (c) => pageOrPartial(c, <SignalsView />));
 app.get("/history", (c) => pageOrPartial(c, <HistoryView />));
 app.get("/holdings", (c) => pageOrPartial(c, <HoldingsView />));
 app.get("/exits", (c) => pageOrPartial(c, <ExitsView />));
+app.get("/prospects", (c) => pageOrPartial(c, <ProspectsView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
@@ -73,6 +85,7 @@ app.route("/api/prices", pricesRouter);
 app.route("/api/analyses", analysesRouter);
 app.route("/api/holdings", holdingsRouter);
 app.route("/api/positions/exits", exitsRouter);
+app.route("/api/prospects", prospectsRouter);
 
 // ── Start ──────────────────────────────────────────────────
 

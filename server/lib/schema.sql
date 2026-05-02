@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
     exchange    TEXT DEFAULT 'US',
     thesis      TEXT,
     priority    TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+    stage       TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired')),
     added_date  TEXT NOT NULL,
     last_signal TEXT,
     created_at  TEXT DEFAULT (datetime('now')),

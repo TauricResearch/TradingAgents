@@ -277,3 +277,21 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
   font-style: italic;
   margin-top: 8px;
 }
+
+/* Prospects pipeline */
+.pipeline { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.pipeline-column { min-width: 220px; flex: 1; }
+.pipeline-header { font-weight: 700; margin-bottom: 8px; text-transform: capitalize; }
+.pipeline-header .badge { background: var(--border); padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }
+.pipeline-body { display: flex; flex-direction: column; gap: 8px; }
+.pipeline-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+.pipeline-card .card-title { font-weight: 700; font-family: 'Datatype', monospace; }
+.pipeline-card .card-meta { display: flex; gap: 8px; margin: 4px 0; font-size: 0.85em; color: var(--text-dim); }
+.pipeline-card .card-thesis { font-size: 0.85em; color: var(--text-dim); margin-top: 4px; }
+.pipeline-card .card-actions { display: flex; gap: 4px; margin-top: 8px; }
+.priority-high { color: var(--red); }
+.priority-medium { color: var(--yellow); }
+.priority-low { color: var(--green); }
+.form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.form-row input, .form-row select { flex: 1; }
+.btn-sm.danger { background: var(--red); color: white; }
