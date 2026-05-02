@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { Database } from "bun:sqlite"
 
 /**
  * DatabaseFactory — singleton SQLite connection with hardened pragmas.
@@ -10,8 +10,8 @@ import { Database } from "bun:sqlite";
  *   - Graceful close with PRAGMA optimize before disconnect
  */
 
-let _instance: Database | null = null;
-let _path: string | null = null;
+let _instance: Database | null = null
+let _path: string | null = null
 
 const PRAGMAS = [
   "PRAGMA journal_mode = WAL",
@@ -19,7 +19,7 @@ const PRAGMAS = [
   "PRAGMA mmap_size = 0",
   "PRAGMA foreign_keys = ON",
   "PRAGMA synchronous = NORMAL",
-] as const;
+] as const
 
 export const DatabaseFactory = {
   /**
@@ -30,31 +30,33 @@ export const DatabaseFactory = {
   connect(path: string): Database {
     if (_instance) {
       // Normalize paths for comparison
-      const resolved = path.replace(/^\.\//, process.cwd() + "/");
-      const stored = (_path ?? "").replace(/^\.\//, process.cwd() + "/");
+      const resolved = path.replace(/^\.\//, `${process.cwd()}/`)
+      const stored = (_path ?? "").replace(/^\.\//, `${process.cwd()}/`)
       if (resolved !== stored) {
-        throw new Error(
-          `Database already connected to "${_path}". "${path}" ignored.`,
-        );
+        throw new Error(`Database already connected to "${_path}". "${path}" ignored.`)
       }
-      return _instance;
+      return _instance
     }
 
     // Initialize with local var — only assign to singleton after all pragmas succeed
-    const db = new Database(path, { readwrite: true, create: true });
+    const db = new Database(path, { readwrite: true, create: true })
     try {
       for (const pragma of PRAGMAS) {
-        db.run(pragma);
+        db.run(pragma)
       }
     } catch (e) {
-      try { db.close(); } catch { /* best effort */ }
-      _path = null;
-      throw e;
+      try {
+        db.close()
+      } catch {
+        /* best effort */
+      }
+      _path = null
+      throw e
     }
 
-    _path = path;
-    _instance = db;
-    return _instance;
+    _path = path
+    _instance = db
+    return _instance
   },
 
   /**
@@ -65,13 +67,13 @@ export const DatabaseFactory = {
   close(): void {
     if (_instance) {
       try {
-        _instance.run("PRAGMA optimize");
+        _instance.run("PRAGMA optimize")
       } catch {
         // optimize may fail on empty DB — safe to ignore
       }
-      _instance.close();
-      _instance = null;
-      _path = null;
+      _instance.close()
+      _instance = null
+      _path = null
     }
   },
 
@@ -80,24 +82,22 @@ export const DatabaseFactory = {
    */
   get(): Database {
     if (!_instance) {
-      throw new Error(
-        "Database not initialized. Call DatabaseFactory.connect(path) first.",
-      );
+      throw new Error("Database not initialized. Call DatabaseFactory.connect(path) first.")
     }
-    return _instance;
+    return _instance
   },
 
   /**
    * Check if the database is currently connected.
    */
   isConnected(): boolean {
-    return _instance !== null;
+    return _instance !== null
   },
 
   /**
    * Get the current database file path.
    */
   get path(): string | null {
-    return _path;
+    return _path
   },
-};
+}

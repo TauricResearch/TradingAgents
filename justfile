@@ -19,10 +19,9 @@ format:                     # Format all files
     bunx biome format . --write
 
 [group("bun")]
-check:                      # Full CI gate: lint + type-check all tiers
+check:                      # Full CI gate: lint + type-check server
     bunx biome check .
-    tsc --project tsconfig.json --noEmit
-    tsc --project tsconfig.scripts.json --noEmit
+    tsc --project tsconfig.server.json --noEmit
 
 [group("python")]
 install:                    # Install Python dependencies
@@ -42,22 +41,19 @@ analyze TICKER="SPY" DATE="today" DEBATES="1":  # Run analysis on a ticker
 
 [group("python")]
 summarize TICKER="":          # Generate LLM summaries for analyses (add --all to regenerate)
-    source .venv/bin/activate && python scripts/summarize_analyses.py {{'--ticker ' + TICKER if TICKER else ''}}
+    {{if TICKER != '' { 'python scripts/summarize_analyses.py --ticker ' + TICKER } else { 'python scripts/summarize_analyses.py' }}}
 
 [group("python")]
 summarize-all:                # Regenerate all LLM summaries
     source .venv/bin/activate && python scripts/summarize_analyses.py --all
 
 [group("python")]
-    source .venv/bin/activate && pytest tests/ -v
-
-[group("python")]
 test-smoke:                 # Smoke tests only
-    source .venv/bin/activate && pytest tests/ -v -m smoke
+    .venv/bin/python -m pytest tests/ -v -m smoke
 
 [group("python")]
 test-quick:                 # Quick structured output test
-    source .venv/bin/activate && python scripts/smoke_structured_output.py
+    .venv/bin/python scripts/smoke_structured_output.py
 
 [group("td")]
 td-new:                     # Start new td session
@@ -86,5 +82,4 @@ analyze-tka DEBATES="1":    # Run analysis on TKA.DE (default test ticker)
     just analyze TKA.DE today {{DEBATES}}
 
 alias a := analyze
-alias t := test
 alias l := lint

@@ -12,7 +12,8 @@
     "jsxImportSource": "hono/jsx",
     "esModuleInterop": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["server/**/*.ts", "server/**/*.tsx"]
 }

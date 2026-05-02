@@ -1,11 +1,11 @@
-import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
-import { spawn } from "node:child_process";
-import { join, dirname } from "node:path";
-import { existsSync } from "node:fs";
-import { DatabaseFactory } from "../lib/db.ts";
+import { spawn } from "node:child_process"
+import { existsSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { Hono } from "hono"
+import { streamSSE } from "hono/streaming"
+import { DatabaseFactory } from "../lib/db.ts"
 
-export const analysisRouter = new Hono();
+export const analysisRouter = new Hono()
 
 /**
  * Resolve the TradingAgents project root.
@@ -13,24 +13,22 @@ export const analysisRouter = new Hono();
  */
 function findProjectRoot(): string {
   // 1. Explicit env var
-  if (process.env.TA_ROOT) return process.env.TA_ROOT;
+  if (process.env.TA_ROOT) return process.env.TA_ROOT
 
   // 2. Sibling directory (worktree layout: TradingAgents-sse, TradingAgents)
   //    import.meta.dir in server/routes/analysis.ts → go up 2 levels to project root
-  const projectRoot = dirname(dirname(import.meta.dir));
-  const sibling = join(projectRoot, "..", "TradingAgents");
+  const projectRoot = dirname(dirname(import.meta.dir))
+  const sibling = join(projectRoot, "..", "TradingAgents")
   if (existsSync(join(sibling, "scripts", "analyze_stream.py"))) {
-    return sibling;
+    return sibling
   }
 
   // 3. Current directory (monolith layout)
   if (existsSync(join(projectRoot, "scripts", "analyze_stream.py"))) {
-    return projectRoot;
+    return projectRoot
   }
 
-  throw new Error(
-    "Cannot find TradingAgents root. Set TA_ROOT env var.",
-  );
+  throw new Error("Cannot find TradingAgents root. Set TA_ROOT env var.")
 }
 
 /**
@@ -42,40 +40,38 @@ function findProjectRoot(): string {
  *             decision, complete, error
  */
 analysisRouter.post("/", async (c) => {
-  const body = await c.req.json();
+  const body = await c.req.json()
+  const { ticker, analysts, debates, date } = body
   // Validate inputs
-  const analystsStr = typeof analysts === "string" ? analysts : "market,news,fundamentals";
-  const debatesNum = Math.min(Math.max(1, Number(debates) || 1), 5);
-  const dateStr = typeof date === "string" ? date : "today";
+  const analystsStr = typeof analysts === "string" ? analysts : "market,news,fundamentals"
+  const debatesNum = Math.min(Math.max(1, Number(debates) || 1), 5)
+  const dateStr = typeof date === "string" ? date : "today"
 
   if (!ticker) {
-    return c.json({ error: "ticker is required" }, 400);
+    return c.json({ error: "ticker is required" }, 400)
   }
 
-  const root = findProjectRoot();
-  const venvPython = join(root, ".venv", "bin", "python3");
-  const script = join(root, "scripts", "analyze_stream.py");
+  const root = findProjectRoot()
+  const venvPython = join(root, ".venv", "bin", "python3")
+  const script = join(root, "scripts", "analyze_stream.py")
 
   if (!existsSync(script)) {
-    return c.json(
-      { error: `analyze_stream.py not found at ${script}` },
-      500,
-    );
+    return c.json({ error: `analyze_stream.py not found at ${script}` }, 500)
   }
 
   // Look up position context from portfolio DB
-  let positionContext: string | null = null;
+  let positionContext: string | null = null
   try {
-    const db = DatabaseFactory.get();
+    const db = DatabaseFactory.get()
     const row = db
       .query("SELECT * FROM positions WHERE ticker = ? AND status = 'open' LIMIT 1")
-      .get(ticker) as Record<string, unknown> | undefined;
+      .get(ticker) as Record<string, unknown> | undefined
     if (row) {
-      const qty = row.quantity as number;
-      const cost = row.avg_cost as number;
-      const thesis = (row.thesis as string) || null;
-      positionContext = `${qty} shares @ ${cost}`;
-      if (thesis) positionContext += ` — thesis: ${thesis}`;
+      const qty = row.quantity as number
+      const cost = row.avg_cost as number
+      const thesis = (row.thesis as string) || null
+      positionContext = `${qty} shares @ ${cost}`
+      if (thesis) positionContext += ` — thesis: ${thesis}`
     }
   } catch {
     // DB not ready or no positions — proceed without context
@@ -85,43 +81,45 @@ analysisRouter.post("/", async (c) => {
     const args = [
       script,
       ticker,
-      "--date", dateStr,
-      "--analysts", analystsStr,
-      "--debates", String(debatesNum),
-    ];
+      "--date",
+      dateStr,
+      "--analysts",
+      analystsStr,
+      "--debates",
+      String(debatesNum),
+    ]
     if (positionContext) {
-      args.push("--position-context", positionContext);
+      args.push("--position-context", positionContext)
     }
 
     const child = spawn(venvPython, args, {
-        cwd: root,
-        env: {
-          ...process.env,
-          PYTHONUNBUFFERED: "1",
-        },
+      cwd: root,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1",
       },
-    );
+    })
 
-    let stderr = "";
-    const MAX_STDERR = 8192; // Cap stderr buffer
-    let buf = ""; // Accumulate partial lines
+    let stderr = ""
+    const MAX_STDERR = 8192 // Cap stderr buffer
+    let buf = "" // Accumulate partial lines
 
     child.stdout.on("data", (chunk: Buffer) => {
-      buf += chunk.toString();
-      const idx = buf.lastIndexOf("\n");
-      if (idx === -1) return; // Incomplete line, wait for more
-      const complete = buf.slice(0, idx);
-      buf = buf.slice(idx + 1);
+      buf += chunk.toString()
+      const idx = buf.lastIndexOf("\n")
+      if (idx === -1) return // Incomplete line, wait for more
+      const complete = buf.slice(0, idx)
+      buf = buf.slice(idx + 1)
 
       for (const line of complete.split("\n").filter(Boolean)) {
         try {
-          const parsed = JSON.parse(line);
+          const parsed = JSON.parse(line)
           if (parsed.event && parsed.data !== undefined) {
             // Auto-save decision as a signal in the DB
             if (parsed.event === "decision") {
               try {
-                const db = DatabaseFactory.get();
-                const d = parsed.data;
+                const db = DatabaseFactory.get()
+                const d = parsed.data
                 db.prepare(
                   "INSERT INTO signals (ticker, date, signal, reasoning, confidence) VALUES (?, ?, ?, ?, ?)",
                 ).run(
@@ -130,60 +128,64 @@ analysisRouter.post("/", async (c) => {
                   d.signal ?? "hold",
                   d.reasoning ?? null,
                   d.confidence ?? null,
-                );
-              } catch { /* DB write failure shouldn't break the stream */ }
+                )
+              } catch {
+                /* DB write failure shouldn't break the stream */
+              }
             }
-            stream.writeSSE({
-              event: parsed.event,
-              data: JSON.stringify(parsed.data),
-            }).catch(() => {});
+            stream
+              .writeSSE({
+                event: parsed.event,
+                data: JSON.stringify(parsed.data),
+              })
+              .catch(() => {})
           }
         } catch {
           // Skip non-JSON output (warnings, etc.)
         }
       }
-    });
+    })
 
     child.stderr.on("data", (chunk: Buffer) => {
-      const text = chunk.toString();
-      stderr += text;
-      if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR);
-    });
+      const text = chunk.toString()
+      stderr += text
+      if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR)
+    })
 
     // Abort child if client disconnects
     stream.onAbort?.(() => {
-      child.kill("SIGTERM");
-    });
+      child.kill("SIGTERM")
+    })
 
     await new Promise<void>((resolve) => {
       child.on("close", async (code) => {
         if (code !== 0) {
-          stream.writeSSE({
-            event: "error",
-            data: JSON.stringify({
-              message: `Python process exited with code ${code}`,
-              stderr: stderr.slice(-2000),
-            }),
-          }).catch(() => {});
+          stream
+            .writeSSE({
+              event: "error",
+              data: JSON.stringify({
+                message: `Python process exited with code ${code}`,
+                stderr: stderr.slice(-2000),
+              }),
+            })
+            .catch(() => {})
         }
 
-        // Auto-generate LLM summary after analysis completes
-        try {
-          await generateSummary(ticker, date);
-        } catch {
-          // Summary generation failure shouldn't break the analysis
-        }
+        // Summary generation is available via POST /api/analyses/:ticker/:date/explain
+        // or `just summarize` — not auto-triggered to avoid unnecessary API calls
 
-        resolve();
-      });
+        resolve()
+      })
 
       child.on("error", (err) => {
-        stream.writeSSE({
-          event: "error",
-          data: JSON.stringify({ message: err.message }),
-        }).catch(() => {});
-        resolve();
-      });
-    });
-  });
-});
+        stream
+          .writeSSE({
+            event: "error",
+            data: JSON.stringify({ message: err.message }),
+          })
+          .catch(() => {})
+        resolve()
+      })
+    })
+  })
+})

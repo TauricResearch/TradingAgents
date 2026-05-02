@@ -22,7 +22,7 @@ export function SignalsView() {
           <thead>
             <tr><th>Date</th><th>Ticker</th><th>Signal</th><th>Confidence</th><th>Reasoning</th></tr>
           </thead>
-          <tbody id="signals-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+          <tbody id="signals-body"><tr><td colspan={5} class="muted">Loading…</td></tr></tbody>
         </table>
       </section>
 

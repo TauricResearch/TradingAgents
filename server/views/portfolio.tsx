@@ -12,7 +12,7 @@ export function PortfolioView() {
               <th>Entry Date</th><th>Thesis</th><th></th>
             </tr>
           </thead>
-          <tbody><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+          <tbody><tr><td colspan={6} class="muted">Loading…</td></tr></tbody>
         </table>
       </section>
 

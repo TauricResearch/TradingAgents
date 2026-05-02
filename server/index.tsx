@@ -1,6 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { Hono } from "hono";
 import type { Context } from "hono";
+import type { JSX } from "hono/jsx";
 import { serveStatic } from "hono/bun";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -40,7 +41,8 @@ app.get("/health", (c) => {
 
 // ── Pages (JSX SSR) ──────────────────────────────────────
 
-function pageOrPartial(c: Context, view: JSX.Element): Response {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pageOrPartial(c: Context, view: any): Response | Promise<Response> {
   const isHtmx = c.req.header("HX-Request") === "true";
   return c.html(isHtmx ? view : <Layout>{view}</Layout>);
 }

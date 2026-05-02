@@ -10,7 +10,7 @@ export function HistoryView() {
           <thead>
             <tr><th>Date</th><th>Ticker</th><th></th></tr>
           </thead>
-          <tbody id="analyses-body"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody>
+          <tbody id="analyses-body"><tr><td colspan={3} class="muted">Loading…</td></tr></tbody>
         </table>
       </section>
 

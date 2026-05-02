@@ -1,6 +1,6 @@
-import { Hono } from "hono";
+import { Hono } from "hono"
 
-export const pricesRouter = new Hono();
+export const pricesRouter = new Hono()
 
 /**
  * GET /api/prices/:ticker — current price via yfinance subprocess
@@ -9,7 +9,7 @@ export const pricesRouter = new Hono();
  * For now, returns a placeholder
  */
 pricesRouter.get("/:ticker", (c) => {
-  const ticker = c.req.param("ticker");
+  const ticker = c.req.param("ticker")
   // Placeholder — will call scripts/get_price.py
   return c.json({
     ticker,
@@ -17,5 +17,5 @@ pricesRouter.get("/:ticker", (c) => {
     currency: "USD",
     note: "yfinance integration pending",
     timestamp: new Date().toISOString(),
-  });
-});
+  })
+})
