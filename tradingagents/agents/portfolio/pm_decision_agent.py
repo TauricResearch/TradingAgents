@@ -313,19 +313,32 @@ def create_pm_decision_agent(
                 # the canonical artifact for postmortem; do not gate on success of later
                 # nodes.
                 run_path = cfg.get("run_path")
-                if not run_path and analysis_date:
-                    # Fallback: derive a portfolio report path from the report
-                    # store so direct graph runs (CLI / tests) still satisfy
-                    # PR-B1's acceptance gate even if no run_path was wired.
-                    try:
-                        from tradingagents.store_factory import create_report_store
+                if not run_path:
+                    # Fallback: derive a run-scoped portfolio report path so
+                    # direct graph runs (CLI / tests) still satisfy PR-B1's
+                    # acceptance gate when no run_path was wired through cfg.
+                    # ReportStore writes require a run_id, so both
+                    # state["run_id"] and analysis_date must be present.
+                    state_run_id = state.get("run_id")
+                    if state_run_id and analysis_date:
+                        try:
+                            from tradingagents.portfolio.store_factory import (
+                                create_report_store,
+                            )
 
-                        run_path = str(create_report_store().portfolio_report_dir(analysis_date))
-                    except Exception as exc:  # pragma: no cover - defensive
-                        logger.warning(
-                            "pm_decision_agent: could not derive snapshot run_path: %s",
-                            exc,
-                        )
+                            run_path = str(
+                                create_report_store(run_id=state_run_id).portfolio_report_dir(
+                                    analysis_date
+                                )
+                            )
+                        except Exception as exc:  # pragma: no cover - defensive
+                            logger.warning(
+                                "pm_decision_agent: could not derive snapshot run_path "
+                                "from state run_id=%s date=%s: %s",
+                                state_run_id,
+                                analysis_date,
+                                exc,
+                            )
                 if run_path:
                     try:
                         from pathlib import Path
@@ -341,8 +354,11 @@ def create_pm_decision_agent(
                         )
                 else:
                     logger.warning(
-                        "pm_decision_agent: no run_path or analysis_date available; "
-                        "snapshot not persisted (PR-B1 acceptance gate not met)."
+                        "pm_decision_agent: no run_path in cfg and could not derive one "
+                        "from state (run_id=%s, analysis_date=%s); snapshot not persisted "
+                        "(PR-B1 acceptance gate not met).",
+                        state.get("run_id"),
+                        analysis_date,
                     )
                 breaker.record_success("pm_decision_agent")
                 break
