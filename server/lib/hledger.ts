@@ -5,8 +5,8 @@
  * This module spawns hledger and parses its JSON output into clean
  * holdings that the dashboard can display.
  *
- * Commodities with dots (e.g. "TKA.DE") must be quoted in the journal.
- * hLedger requires:  500 "TKA.DE"  and  P 2026-05-02 "TKA.DE" 9.20 EUR
+ * Commodities with dots (e.g. "TKA.DE") must be quoted in the journal:
+ *   500 "TKA.DE"  and  P 2026-05-02 "TKA.DE" 9.20 EUR
  */
 
 import { spawn } from "node:child_process";

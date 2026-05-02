@@ -58,7 +58,7 @@ document.body.addEventListener('htmx:afterOnLoad', function(evt) {
         '<td>' + (p.thesis || '—') + '</td>' +
         '<td><button class="btn-sm" hx-delete="/api/positions/' + p.id + '" ' +
         'hx-target="#positions-table" hx-swap="none" ' +
-        'hx-on::after-request="htmx.trigger(\'#positions-table\',\'load\')">Close</button></td>' +
+        'hx-on::after-request="htmx.trigger(\x27#positions-table\x27,\x27load\x27)">Close</button></td>' +
       '</tr>';
     }).join('');
   } catch(e) {}

@@ -83,7 +83,7 @@ app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
 
-app.get("/static/*", serveStatic({ root: "./server/static" }));
+app.get("/static/*", serveStatic({ root: "./server" }));
 
 // ── API routes ─────────────────────────────────────────────
 
