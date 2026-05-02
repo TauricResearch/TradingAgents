@@ -128,11 +128,13 @@ export function signalClass(signal: string): "buy" | "sell" | "hold" {
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Raw text `{l:30,70}` showing | `calt` feature not enabled | Add `font-feature-settings: 'calt' 1` |
-| Raw text showing | Wrong font file (static, not variable) | Replace with `Datatype[wdth,wght].woff2` |
+| Raw text `{l:30,70}` showing | Wrong font file (static, not variable) | Replace with `Datatype[wdth,wght].woff2` from repo |
+| Raw text showing | `calt` feature not enabled | Add `font-feature-settings: 'calt' 1` |
 | Raw text showing | Browser cached old font | Hard refresh (Cmd+Shift+R) |
-| Pie not rendering | Class not matching `.sparkline` or `.datatype-pie` | Use correct class with `font-family: 'Datatype'` |
+| Pie not rendering | Confidence is string from SQLite | `parseFloat(s.confidence)` before `Math.round()` |
+| Row not colored | Class on child spans, not parent div | Put class on parent, children use `color: inherit` |
 | Chart too small | `font-size` too small | Increase to 1.5rem+ |
+| Font not loading | Wrong MIME type | Server must return `font/woff2` |
 | Font not loading | Wrong MIME type | Server must return `font/woff2` |
 
 ### Verify the font file
