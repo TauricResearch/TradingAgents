@@ -306,3 +306,14 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .benchmark-summary { display: flex; gap: 16px; margin-bottom: 12px; }
 .positive { color: var(--green); }
 .negative { color: var(--red); }
+
+/* Feedback */
+.accuracy-summary { text-align: center; padding: 16px 0; }
+.accuracy-score { font-size: 1.5em; font-weight: 700; }
+.post-mortem-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+.pm-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.pm-header .ticker { font-family: 'Datatype', monospace; font-weight: 700; }
+.pm-header .pm-date { color: var(--text-dim); font-size: 0.85em; }
+.pm-thesis { font-size: 0.9em; margin-bottom: 8px; }
+.pm-outcome { display: flex; gap: 12px; font-size: 0.85em; color: var(--text-dim); }
+.pm-lesson { font-style: italic; color: var(--text-dim); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }

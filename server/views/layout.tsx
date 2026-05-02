@@ -89,6 +89,14 @@ export function Layout(props: PropsWithChildren) {
             >
               Benchmark
             </button>
+            <button
+              hx-get="/feedback"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Feedback
+            </button>
           </nav>
         </header>
         <main id="content">{props.children}</main>
