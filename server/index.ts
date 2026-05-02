@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseFactory } from "./lib/db.ts";
 import { portfolioRouter } from "./routes/portfolio.ts";
@@ -29,45 +29,36 @@ app.get("/health", (c) => {
   });
 });
 
+// ── View helpers ───────────────────────────────────────────
+
+const viewsDir = join(import.meta.dir, "views");
+
+function view(name: string): string {
+  const path = join(viewsDir, name);
+  return existsSync(path) ? readFileSync(path, "utf-8") : `<p>View not found: ${name}</p>`;
+}
+
+function renderPage(content: string): string {
+  const layout = view("layout.html");
+  return layout.replace("{{{content}}}", content);
+}
+
 // ── Pages ──────────────────────────────────────────────────
 
 app.get("/", (c) => {
-  return c.html(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TradingAgents Dashboard</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-</head>
-<body>
-  <header>
-    <h1>TradingAgents</h1>
-    <nav>
-      <a href="/portfolio">Portfolio</a>
-      <a href="/analyze">Analysis</a>
-      <a href="/signals">Signals</a>
-    </nav>
-  </header>
-  <main id="content"></main>
-</body>
-</html>`);
+  return c.html(renderPage(view("partials/portfolio.html")));
 });
 
 app.get("/portfolio", (c) => {
-  return c.html(`<!DOCTYPE html>
-<html><body><h2>Portfolio</h2><p>Coming soon.</p></body></html>`);
+  return c.html(renderPage(view("partials/portfolio.html")));
 });
 
 app.get("/analyze", (c) => {
-  return c.html(`<!DOCTYPE html>
-<html><body><h2>Analysis</h2><p>Coming soon.</p></body></html>`);
+  return c.html(renderPage(view("partials/analysis.html")));
 });
 
 app.get("/signals", (c) => {
-  return c.html(`<!DOCTYPE html>
-<html><body><h2>Signals</h2><p>Coming soon.</p></body></html>`);
+  return c.html(renderPage(view("partials/signals.html")));
 });
 
 // ── Static ─────────────────────────────────────────────────
