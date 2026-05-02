@@ -204,3 +204,42 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
   font-size: 0.875rem;
   color: var(--text-dim);
 }
+
+/* Analysis card */
+.analysis-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; gap: 1rem; }
+.analysis-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+.analysis-date { color: var(--text-dim); font-size: 0.875rem; white-space: nowrap; }
+.analysis-summary { line-height: 1.6; margin-bottom: 1.25rem; }
+
+.datatype-sparkline {
+  font-family: 'Datatype', sans-serif;
+  font-size: 1.5rem;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
+  margin-bottom: 0.75rem;
+  color: var(--text-dim);
+}
+
+.action-list { margin: 0 0 1rem 1.25rem; }
+.action-list li { margin-bottom: 0.4rem; font-size: 0.875rem; line-height: 1.5; }
+.agent-table { width: 100%; margin-bottom: 1rem; }
+.agent-table td:first-child { color: var(--text-dim); width: 120px; }
+.btn-detail {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.btn-detail:hover { border-color: var(--blue); color: var(--text); }
+.report-body { line-height: 1.7; }
+.report-body h1, .report-body h2 { margin-top: 1.5rem; margin-bottom: 0.5rem; }
+.report-body p { margin-bottom: 0.75rem; }
+
+/* LLM explanation card */
+.explain-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+.explain-text { line-height: 1.7; margin-bottom: 0.75rem; font-style: italic; color: var(--text); }
+.explain-field { margin-bottom: 0.5rem; font-size: 0.875rem; }
+.explain-field strong { color: var(--text-dim); min-width: 100px; display: inline-block; }

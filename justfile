@@ -41,7 +41,14 @@ analyze TICKER="SPY" DATE="today" DEBATES="1":  # Run analysis on a ticker
     source .venv/bin/activate && python scripts/analyze.py '{{TICKER}}' --date '{{DATE}}' --debates {{DEBATES}}
 
 [group("python")]
-test:                       # Run full test suite
+summarize TICKER="":          # Generate LLM summaries for analyses (add --all to regenerate)
+    source .venv/bin/activate && python scripts/summarize_analyses.py {{'--ticker ' + TICKER if TICKER else ''}}
+
+[group("python")]
+summarize-all:                # Regenerate all LLM summaries
+    source .venv/bin/activate && python scripts/summarize_analyses.py --all
+
+[group("python")]
     source .venv/bin/activate && pytest tests/ -v
 
 [group("python")]
