@@ -28,6 +28,7 @@ REGIME_RISK_OFF_THRESHOLD = -3  # score ≤ -3 → risk-off
 # Sector ETFs used for rotation signal
 _DEFENSIVE_ETFS = ["XLU", "XLP", "XLV"]  # Utilities, Staples, Health Care
 _CYCLICAL_ETFS = ["XLY", "XLK", "XLI"]  # Discretionary, Technology, Industrials
+_STRICT_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +208,8 @@ def _fmt_pct(val: float | None) -> str:
 def _parse_as_of_date(curr_date: str | None) -> pd.Timestamp | None:
     if curr_date is None:
         return None
+    if not isinstance(curr_date, str) or not _STRICT_DATE_RE.fullmatch(curr_date):
+        raise ValueError(f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD.")
     try:
         as_of_date = pd.Timestamp(curr_date).normalize()
     except (TypeError, ValueError) as exc:
@@ -217,6 +220,8 @@ def _parse_as_of_date(curr_date: str | None) -> pd.Timestamp | None:
         raise ValueError(
             f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD."
         )
+    if as_of_date.strftime("%Y-%m-%d") != curr_date:
+        raise ValueError(f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD.")
     return as_of_date
 
 

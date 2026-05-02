@@ -337,6 +337,36 @@ def test_macro_synthesis_idempotent_summary_loads_persisted_regime_report(monkey
     }
 
 
+def test_macro_synthesis_idempotent_summary_fails_without_regime_report(monkeypatch):
+    def _classify_macro_regime(_scan_date):
+        raise AssertionError("classification should not run for an existing summary")
+
+    def _invoke(_prompt_value):
+        raise AssertionError("LLM should not run for an existing summary")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.check_and_load_report",
+        lambda _state, report_key: "existing summary" if report_key == "macro_scan_summary" else "",
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.classify_macro_regime",
+        _classify_macro_regime,
+    )
+
+    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3)
+
+    with pytest.raises(RuntimeError) as exc:
+        agent(
+            {
+                "scan_date": "2026-03-30",
+                "run_id": "RUN1",
+                "messages": [],
+            }
+        )
+
+    assert "macro_regime_report" in str(exc.value)
+
+
 def test_macro_synthesis_fails_when_regime_report_lacks_score(monkeypatch):
     def _invoke(_prompt_value):
         raise AssertionError("LLM should not run when macro regime formatting is invalid")

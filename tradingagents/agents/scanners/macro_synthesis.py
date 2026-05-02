@@ -361,6 +361,12 @@ def create_macro_synthesis(
             existing_regime_report = state.get("macro_regime_report")
             if not existing_regime_report:
                 existing_regime_report = check_and_load_report(state, "macro_regime_report")
+            if not existing_regime_report:
+                raise RuntimeError(
+                    "macro_synthesis found existing macro_scan_summary but missing "
+                    "macro_regime_report; scanner resume cannot continue without "
+                    "deterministic canonical regime evidence."
+                )
             if existing_regime_report:
                 response["macro_regime_report"] = existing_regime_report
             return response

@@ -49,6 +49,32 @@ def test_env_float_timeout_rejects_non_positive_or_non_finite(monkeypatch, raw_t
     assert _env_float("TRADINGAGENTS_MACRO_REGIME_FINVIZ_TIMEOUT_SEC", 20.0) == 20.0
 
 
+@pytest.mark.parametrize(
+    "raw_date",
+    [
+        "today",
+        "2026-03-30 12:00:00",
+        "2026-03-30T00:00:00",
+        "03/30/2026",
+        "2026/03/30",
+        "2026-02-30",
+        "",
+        "2026-3-30",
+    ],
+)
+def test_parse_as_of_date_rejects_non_iso_dates(raw_date):
+    from tradingagents.dataflows.macro_regime import _parse_as_of_date
+
+    with pytest.raises(ValueError):
+        _parse_as_of_date(raw_date)
+
+
+def test_parse_as_of_date_accepts_strict_iso_date():
+    from tradingagents.dataflows.macro_regime import _parse_as_of_date
+
+    assert _parse_as_of_date("2026-03-30").strftime("%Y-%m-%d") == "2026-03-30"
+
+
 # ---------------------------------------------------------------------------
 # Helpers tests
 # ---------------------------------------------------------------------------
@@ -522,6 +548,64 @@ class TestFormatMacroReport:
     def test_risk_off_suggests_defensives(self):
         report = self.format(self._sample_regime("risk-off"))
         assert "defensive" in report.lower()
+
+    def test_get_macro_regime_passes_curr_date_to_report_formatter(self, monkeypatch):
+        from tradingagents.agents.utils import fundamental_data_tools
+
+        captured = {}
+
+        def fake_classify_macro_regime(curr_date):
+            captured["classify_date"] = curr_date
+            return {
+                "regime": "risk-on",
+                "score": 3,
+                "confidence": "high",
+                "signals": [],
+                "summary": "summary",
+            }
+
+        def fake_format_macro_report(regime_data, report_date=None):
+            captured["report_date"] = report_date
+            return f"report_date={report_date}"
+
+        monkeypatch.setattr(
+            fundamental_data_tools, "classify_macro_regime", fake_classify_macro_regime
+        )
+        monkeypatch.setattr(
+            fundamental_data_tools, "format_macro_report", fake_format_macro_report
+        )
+
+        result = fundamental_data_tools.get_macro_regime.invoke({"curr_date": "2026-03-30"})
+
+        assert result == "report_date=2026-03-30"
+        assert captured == {
+            "classify_date": "2026-03-30",
+            "report_date": "2026-03-30",
+        }
+
+    def test_get_macro_regime_preserves_live_report_formatter_when_date_missing(self, monkeypatch):
+        from tradingagents.agents.utils import fundamental_data_tools
+
+        captured = {}
+
+        monkeypatch.setattr(
+            fundamental_data_tools,
+            "classify_macro_regime",
+            lambda curr_date: captured.setdefault("classify_date", curr_date) or {},
+        )
+
+        def fake_format_macro_report(regime_data, report_date=None):
+            captured["report_date"] = report_date
+            return "live report"
+
+        monkeypatch.setattr(
+            fundamental_data_tools, "format_macro_report", fake_format_macro_report
+        )
+
+        result = fundamental_data_tools.get_macro_regime.invoke({})
+
+        assert result == "live report"
+        assert captured == {"classify_date": None, "report_date": None}
 
 
 # ---------------------------------------------------------------------------
