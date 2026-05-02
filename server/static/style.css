@@ -40,8 +40,99 @@ header nav a {
 
 header nav a:hover { color: var(--text); }
 
-main { padding: 2rem; }
+header nav .tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
 
+header nav .tab:hover { color: var(--text); }
+header nav .tab.active { color: var(--text); border-bottom-color: var(--blue); }
+
+main { padding: 2rem; max-width: 960px; }
+h2 { margin-bottom: 1.5rem; font-weight: 600; }
+h3 { margin-bottom: 0.75rem; font-size: 1rem; font-weight: 500; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.panel h3 { margin-top: 0; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+th { font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
+td { font-size: 0.875rem; }
+.muted { color: var(--text-dim); }
+
+/* Forms */
+.form-row { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; align-items: center; }
+input, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+input:focus, select:focus { outline: none; border-color: var(--blue); }
+button, .btn-sm {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+button:hover { opacity: 0.9; }
+.btn-sm { padding: 0.2rem 0.6rem; font-size: 0.75rem; background: var(--red); }
+
+label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
+
+/* Banner */
+.banner {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
+  font-size: 0.875rem;
+}
+
+/* Signal status */
 .status-buy { color: var(--green); }
 .status-sell { color: var(--red); }
 .status-hold { color: var(--yellow); }
+
+/* SSE events */
+.event { padding: 0.3rem 0; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
+.event:last-child { border-bottom: none; }
+
+/* Timeline */
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  font-size: 0.875rem;
+}
+.timeline-signal { min-width: 100px; font-weight: 600; }
+.timeline-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--blue);
+  opacity: 0.6;
+}
+.timeline-date { color: var(--text-dim); min-width: 90px; }
+.timeline-current { color: var(--blue); font-size: 0.75rem; font-weight: 500; }

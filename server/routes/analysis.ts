@@ -117,6 +117,22 @@ analysisRouter.post("/", async (c) => {
         try {
           const parsed = JSON.parse(line);
           if (parsed.event && parsed.data !== undefined) {
+            // Auto-save decision as a signal in the DB
+            if (parsed.event === "decision") {
+              try {
+                const db = DatabaseFactory.get();
+                const d = parsed.data;
+                db.prepare(
+                  "INSERT INTO signals (ticker, date, signal, reasoning, confidence) VALUES (?, ?, ?, ?, ?)",
+                ).run(
+                  ticker,
+                  date === "today" ? new Date().toISOString().slice(0, 10) : date,
+                  d.signal ?? "hold",
+                  d.reasoning ?? null,
+                  d.confidence ?? null,
+                );
+              } catch { /* DB write failure shouldn't break the stream */ }
+            }
             stream.writeSSE({
               event: parsed.event,
               data: JSON.stringify(parsed.data),
