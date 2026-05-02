@@ -196,6 +196,29 @@ def _parse_canonical_regime(macro_brief: str) -> dict[str, Any]:
     }
 
 
+def _resolve_macro_brief(sources: list[str]) -> str:
+    """Return the first source that _parse_canonical_regime can parse, else the first non-empty source.
+
+    Iterates through candidate strings in priority order. Each candidate is passed to
+    `_parse_canonical_regime`; the first one that parses successfully is returned.
+    If none parse, the first non-empty string is returned as a last resort so that
+    callers can still produce a meaningful error rather than an empty-brief error.
+    """
+    first_nonempty = ""
+    for src in sources:
+        text = str(src or "").strip()
+        if not text:
+            continue
+        if not first_nonempty:
+            first_nonempty = text
+        try:
+            _parse_canonical_regime(text)
+            return text
+        except ValueError:
+            continue
+    return first_nonempty
+
+
 def _require_scanner_date(params: dict[str, Any], *, run_kind: str) -> str:
     date = str(params.get("date") or "").strip()
     if not date:
@@ -1062,12 +1085,11 @@ class LangGraphEngine:
             date,
             run_id=root_run_id,
             canonical_regime=_parse_canonical_regime(
-                str(
-                    params.get("macro_brief")
-                    or params.get("macro_scan_summary")
-                    or injected_market["macro_regime_report"]
-                    or ""
-                )
+                _resolve_macro_brief([
+                    str(params.get("macro_brief") or ""),
+                    str(params.get("macro_scan_summary") or ""),
+                    str(injected_market.get("macro_regime_report") or ""),
+                ])
             ),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
@@ -2010,6 +2032,10 @@ class LangGraphEngine:
             if report_file.exists():
                 scan_state[key] = report_file.read_text()
 
+        regime_file = save_dir / "macro_regime_report.md"
+        if regime_file.exists():
+            scan_state["macro_regime_report"] = regime_file.read_text()
+
         scan_summary = store.load_scan(date)
         if scan_summary:
             scan_state["macro_scan_summary"] = scan_summary
@@ -2177,12 +2203,11 @@ class LangGraphEngine:
                         "ticker": ticker,
                         "date": date,
                         "run_id": root_run_id,
-                        "macro_brief": str(
-                            scan_state.get("macro_brief")
-                            or scan_state.get("macro_scan_summary")
-                            or scan_state.get("macro_regime_report")
-                            or ""
-                        ),
+                        "macro_brief": _resolve_macro_brief([
+                            scan_state.get("macro_brief") or "",
+                            scan_state.get("macro_scan_summary") or "",
+                            scan_state.get("macro_regime_report") or "",
+                        ]),
                         "portfolio_context": "holding"
                         if instrument.instrument_key in holding_instrument_keys
                         else "candidate",
