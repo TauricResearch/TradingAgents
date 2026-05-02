@@ -112,3 +112,72 @@ git push origin --delete feat/foo  # remote (if not auto-deleted by merge)
 - [ ] All review comments resolved or dismissed
 - [ ] CI checks pass (lint, type-check, tests)
 - [ ] No conflicts with `main`
+
+## td Integration
+
+td tracks **what** needs doing. Git tracks **how** it was built.
+The two link together at every stage:
+
+```
+  td add "Feature X" ─→ git checkout -b feat/x ─→ gh pr create
+        ↑                                                    ↓
+  td handoff ─→ code on feature branch ←── td start
+        ↓
+  td review ─→ git push fixes ─→ gh pr merge
+        ↓
+  td approve ─→ delete branch ─→ td closes issue
+```
+
+### Mapping td status to git state
+
+| td status | git state | Action |
+|-----------|-----------|--------|
+| `open` | No branch or unmerged branch | `td start <id>` → `git checkout -b feat/<slug>` |
+| `in_progress` | Feature branch, WIP commits | Code, commit, push |
+| `in_review` | PR open, awaiting feedback | `td handoff <id>` + `gh pr create` |
+| `done` | PR merged, branch deleted | `td approve <id>` + cleanup |
+
+### Workflow commands (combined)
+
+```bash
+# 1. Pick up next issue
+td next
+td start td-XXXX
+
+# 2. Create branch from issue ID
+git checkout -b feat/td-XXXX-short-desc
+
+# 3. Work normally (commit often, push regularly)
+
+# 4. Open PR when ready for review
+git push -u origin HEAD
+gh pr create --title "$(td context td-XXXX | head -1)"
+
+# 5. Signal review readiness
+td handoff td-XXXX
+
+# 6. Reviewer: check PR, test, then approve/reject
+td review td-XXXX    # inspect
+td approve td-XXXX   # or td reject td-XXXX
+
+# 7. After merge: clean up
+git checkout main && git pull origin main
+git fetch --prune
+git worktree prune
+```
+
+### Branch naming from td issues
+
+- Include the td ID in the branch name: `feat/td-12345-feature-name`
+- This makes it trivial to trace code back to the originating task
+- GitHub PR body should reference the td issue
+
+### Anti-patterns (td + git)
+
+| Mistake | Why it's bad |
+|---------|-------------|
+| Commit to `main` without a td issue | No audit trail |
+| `td handoff` without opening a PR | Reviewer has nothing to review |
+| `td approve` before PR is merged | Issue is done but code isn't |
+| Delete branch before `td approve` | Loses review context |
+| Multiple td issues in one PR | Blames the wrong issue when things break |
