@@ -8,10 +8,12 @@ import { portfolioRouter } from "./routes/portfolio.ts";
 import { analysisRouter } from "./routes/analysis.ts";
 import { signalsRouter } from "./routes/signals.ts";
 import { pricesRouter } from "./routes/prices.ts";
+import { analysesRouter } from "./routes/analyses.ts";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
 import { SignalsView } from "./views/signals.tsx";
+import { HistoryView } from "./views/history.tsx";
 
 const app = new Hono();
 
@@ -40,6 +42,7 @@ app.get("/", (c) => c.html(<Layout><PortfolioView /></Layout>));
 app.get("/portfolio", (c) => c.html(<Layout><PortfolioView /></Layout>));
 app.get("/analyze", (c) => c.html(<Layout><AnalysisView /></Layout>));
 app.get("/signals", (c) => c.html(<Layout><SignalsView /></Layout>));
+app.get("/history", (c) => c.html(<Layout><HistoryView /></Layout>));
 
 // ── Static ─────────────────────────────────────────────────
 
@@ -51,6 +54,7 @@ app.route("/api/positions", portfolioRouter);
 app.route("/api/analyze", analysisRouter);
 app.route("/api/signals", signalsRouter);
 app.route("/api/prices", pricesRouter);
+app.route("/api/analyses", analysesRouter);
 
 // ── Start ──────────────────────────────────────────────────
 

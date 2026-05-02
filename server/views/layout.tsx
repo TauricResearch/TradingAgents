@@ -40,6 +40,14 @@ export function Layout(props: PropsWithChildren) {
             >
               Signals
             </button>
+            <button
+              hx-get="/history"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              History
+            </button>
           </nav>
         </header>
         <main id="content">{props.children}</main>
