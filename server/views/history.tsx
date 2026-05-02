@@ -120,8 +120,8 @@ function loadAnalysisCard(ticker, date) {
         return '<tr><td>' + entry[0] + '</td><td class="' + signalClass(String(entry[1])) + '">' + entry[1] + '</td></tr>';
       }).join('');
 
-      var actionsHtml = (d.actions || []).map(function(a) {
-        return '<li>' + a + '</li>';
+      var actionsHtml = (d.keyPoints || []).map(function(a) {
+        return '<li><strong>' + (a.label ? a.label + ': ' : '') + a.text + '</strong></li>';
       }).join('');
       var actionsSection = actionsHtml ? '<h4>Recommended Actions</h4><ul class="action-list">' + actionsHtml + '</ul>' : '';
 

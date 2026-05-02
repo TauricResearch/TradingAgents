@@ -266,7 +266,7 @@ analysesRouter.get("/:ticker/:date/summary", (c) => {
     signal,
     confidence,
     summary,
-    actions,
+    keyPoints: actions,
     agents,
     sparkline,
     decision: decision.slice(0, 2000),

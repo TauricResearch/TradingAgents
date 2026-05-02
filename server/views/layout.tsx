@@ -10,6 +10,7 @@ export function Layout(props: PropsWithChildren) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>TradingAgents Dashboard</title>
         <link rel="stylesheet" href="/static/style.css" />
+        <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
         <script src="https://unpkg.com/htmx.org@2.0.4" />
       </head>
       <body>
