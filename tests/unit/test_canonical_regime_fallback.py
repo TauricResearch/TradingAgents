@@ -9,10 +9,6 @@ from agent_os.backend.services.langgraph_engine import (
     _resolve_macro_brief,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures / helpers
-# ---------------------------------------------------------------------------
-
 _STRUCTURED_JSON = json.dumps(
     {
         "canonical_regime": {
@@ -28,11 +24,6 @@ _REGIME_REPORT_TEXT = (
 )
 
 _UNPARSEABLE_TEXT = "This is just some random text with no regime information."
-
-
-# ---------------------------------------------------------------------------
-# _resolve_macro_brief tests
-# ---------------------------------------------------------------------------
 
 
 class TestResolveMacroBrief:
@@ -80,11 +71,6 @@ class TestResolveMacroBrief:
         assert result == _REGIME_REPORT_TEXT
 
 
-# ---------------------------------------------------------------------------
-# _parse_canonical_regime tests (sanity / edge cases used by _resolve_macro_brief)
-# ---------------------------------------------------------------------------
-
-
 class TestParseCanonicalRegime:
     def test_parses_structured_json(self) -> None:
         parsed = _parse_canonical_regime(_STRUCTURED_JSON)
@@ -97,9 +83,7 @@ class TestParseCanonicalRegime:
         assert parsed["label"] == "RISK-ON"
         assert parsed["score"] == 3
 
-    def test_raises_on_empty_string(self) -> None:
-        # Empty string returns {} — not a ValueError, so _resolve_macro_brief treats it
-        # as "failed to parse a usable regime" only because {} is falsy.
+    def test_returns_empty_dict_on_empty_string(self) -> None:
         result = _parse_canonical_regime("")
         assert result == {}
 

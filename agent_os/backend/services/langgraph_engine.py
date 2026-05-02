@@ -197,13 +197,7 @@ def _parse_canonical_regime(macro_brief: str) -> dict[str, Any]:
 
 
 def _resolve_macro_brief(sources: list[str]) -> str:
-    """Return the first source that _parse_canonical_regime can parse, else the first non-empty source.
-
-    Iterates through candidate strings in priority order. Each candidate is passed to
-    `_parse_canonical_regime`; the first one that parses successfully is returned.
-    If none parse, the first non-empty string is returned as a last resort so that
-    callers can still produce a meaningful error rather than an empty-brief error.
-    """
+    """Return the first source _parse_canonical_regime can parse, else the first non-empty source."""
     first_nonempty = ""
     for src in sources:
         text = str(src or "").strip()
