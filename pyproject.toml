@@ -41,8 +41,13 @@ include = ["tradingagents*", "cli*"]
 [tool.setuptools.package-data]
 cli = ["static/*"]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]
+
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "pa/tests"]
 addopts = "-ra --strict-markers"
 markers = [
     "unit: fast isolated unit tests",
