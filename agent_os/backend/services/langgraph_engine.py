@@ -1234,7 +1234,8 @@ class LangGraphEngine:
             config={
                 **self.config,
                 "run_path": str(store.portfolio_report_dir(date)),
-            }
+            },
+            callbacks=[rl.callback],
         )
         all_daily_dir = get_daily_dir(date)
         if run_daily_dir.exists():
