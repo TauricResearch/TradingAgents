@@ -25,21 +25,42 @@ export const DatabaseFactory = {
   /**
    * Get or create the singleton database connection.
    * Enforces all required pragmas on first connect.
+   * Throws if called with a different path after initialisation.
    */
   connect(path: string): Database {
-    if (!_instance) {
-      _path = path;
-      _instance = new Database(path, { readwrite: true, create: true });
-      for (const pragma of PRAGMAS) {
-        _instance.run(pragma);
+    if (_instance) {
+      // Normalize paths for comparison
+      const resolved = path.replace(/^\.\//, process.cwd() + "/");
+      const stored = (_path ?? "").replace(/^\.\//, process.cwd() + "/");
+      if (resolved !== stored) {
+        throw new Error(
+          `Database already connected to "${_path}". "${path}" ignored.`,
+        );
       }
+      return _instance;
     }
+
+    // Initialize with local var — only assign to singleton after all pragmas succeed
+    const db = new Database(path, { readwrite: true, create: true });
+    try {
+      for (const pragma of PRAGMAS) {
+        db.run(pragma);
+      }
+    } catch (e) {
+      try { db.close(); } catch { /* best effort */ }
+      _path = null;
+      throw e;
+    }
+
+    _path = path;
+    _instance = db;
     return _instance;
   },
 
   /**
    * Close the database gracefully.
-   * Runs PRAGMA optimize before closing to checkpoint WAL.
+   * Runs PRAGMA optimize (updates query-planner stats) before closing.
+   * WAL checkpointing is handled automatically by SQLite on close.
    */
   close(): void {
     if (_instance) {

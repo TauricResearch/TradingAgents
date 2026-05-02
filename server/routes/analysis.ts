@@ -43,12 +43,10 @@ function findProjectRoot(): string {
  */
 analysisRouter.post("/", async (c) => {
   const body = await c.req.json();
-  const {
-    ticker,
-    date = "today",
-    analysts = "market,news,fundamentals",
-    debates = 1,
-  } = body;
+  // Validate inputs
+  const analystsStr = typeof analysts === "string" ? analysts : "market,news,fundamentals";
+  const debatesNum = Math.min(Math.max(1, Number(debates) || 1), 5);
+  const dateStr = typeof date === "string" ? date : "today";
 
   if (!ticker) {
     return c.json({ error: "ticker is required" }, 400);
@@ -84,17 +82,12 @@ analysisRouter.post("/", async (c) => {
   }
 
   return streamSSE(c, async (stream) => {
-    await stream.writeSSE({
-      event: "start",
-      data: JSON.stringify({ ticker, date }),
-    });
-
     const args = [
       script,
       ticker,
-      "--date", date,
-      "--analysts", analysts,
-      "--debates", String(debates),
+      "--date", dateStr,
+      "--analysts", analystsStr,
+      "--debates", String(debatesNum),
     ];
     if (positionContext) {
       args.push("--position-context", positionContext);
@@ -110,10 +103,17 @@ analysisRouter.post("/", async (c) => {
     );
 
     let stderr = "";
+    const MAX_STDERR = 8192; // Cap stderr buffer
+    let buf = ""; // Accumulate partial lines
 
     child.stdout.on("data", (chunk: Buffer) => {
-      const lines = chunk.toString().split("\n").filter(Boolean);
-      for (const line of lines) {
+      buf += chunk.toString();
+      const idx = buf.lastIndexOf("\n");
+      if (idx === -1) return; // Incomplete line, wait for more
+      const complete = buf.slice(0, idx);
+      buf = buf.slice(idx + 1);
+
+      for (const line of complete.split("\n").filter(Boolean)) {
         try {
           const parsed = JSON.parse(line);
           if (parsed.event && parsed.data !== undefined) {
@@ -126,7 +126,7 @@ analysisRouter.post("/", async (c) => {
                   "INSERT INTO signals (ticker, date, signal, reasoning, confidence) VALUES (?, ?, ?, ?, ?)",
                 ).run(
                   ticker,
-                  date === "today" ? new Date().toISOString().slice(0, 10) : date,
+                  dateStr === "today" ? new Date().toISOString().slice(0, 10) : dateStr,
                   d.signal ?? "hold",
                   d.reasoning ?? null,
                   d.confidence ?? null,
@@ -145,10 +145,17 @@ analysisRouter.post("/", async (c) => {
     });
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
+      const text = chunk.toString();
+      stderr += text;
+      if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR);
     });
 
-    await new Promise<void>((resolve, reject) => {
+    // Abort child if client disconnects
+    stream.onAbort?.(() => {
+      child.kill("SIGTERM");
+    });
+
+    await new Promise<void>((resolve) => {
       child.on("close", async (code) => {
         if (code !== 0) {
           stream.writeSSE({

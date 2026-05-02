@@ -52,9 +52,9 @@ app.get("/signals", (c) => pageOrPartial(c, <SignalsView />));
 app.get("/history", (c) => pageOrPartial(c, <HistoryView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
-// ── Static ─────────────────────────────────────────────────
+// ── Static (serve only from static/ directory, not source files) ──
 
-app.get("/static/*", serveStatic({ root: "./server" }));
+app.get("/static/*", serveStatic({ root: "./server/static" }));
 
 // ── API routes ─────────────────────────────────────────────
 
@@ -69,6 +69,16 @@ app.route("/api/analyses", analysesRouter);
 const port = parseInt(process.env.PORT ?? "3000", 10);
 console.log(`DB connected: ${DatabaseFactory.path}`);
 console.log(`Listening on :${port}`);
+
+// Graceful shutdown: close DB on SIGINT/SIGTERM
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, () => {
+    console.log(`\n${sig} received, closing DB…`);
+    try { DatabaseFactory.close(); } catch { /* ignore */ }
+    process.exit(0);
+  });
+}
+
 export default {
   fetch: app.fetch,
   port,

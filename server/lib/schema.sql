@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS signals (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker     TEXT NOT NULL,
     date       TEXT NOT NULL,
-    signal     TEXT NOT NULL CHECK(signal IN ('Buy', 'Overweight', 'Hold', 'Underweight', 'Sell')),
+    signal     TEXT NOT NULL CHECK(signal IN ('buy', 'overweight', 'hold', 'underweight', 'sell')),
     reasoning  TEXT,
     confidence TEXT,
     created_at TEXT DEFAULT (datetime('now'))
@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS watchlist (
     priority    TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
     added_date  TEXT NOT NULL,
     last_signal TEXT,
-    created_at  TEXT DEFAULT (datetime('now'))
+    created_at  TEXT DEFAULT (datetime('now')),
+    UNIQUE(ticker, exchange)
 );
 
 -- Full analysis output (stored as JSON, rendered on demand)

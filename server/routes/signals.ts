@@ -42,6 +42,13 @@ signalsRouter.post("/", async (c) => {
     return c.json({ error: "ticker and signal are required" }, 400);
   }
 
+  // Validate signal against schema constraint
+  const VALID_SIGNALS = ["buy", "overweight", "hold", "underweight", "sell"];
+  const normalised = String(signal).toLowerCase();
+  if (!VALID_SIGNALS.includes(normalised)) {
+    return c.json({ error: `signal must be one of: ${VALID_SIGNALS.join(", ")}` }, 400);
+  }
+
   const stmt = db.prepare(
     `INSERT INTO signals (ticker, date, signal, reasoning, confidence)
      VALUES (?, ?, ?, ?, ?)`,
@@ -49,10 +56,16 @@ signalsRouter.post("/", async (c) => {
   const result = stmt.run(
     ticker,
     date ?? new Date().toISOString().slice(0, 10),
-    signal,
+    normalised,
     reasoning ?? null,
-    confidence ?? null,
+    confidence != null ? Number(confidence) : null,
   );
 
-  return c.json({ id: result.lastInsertRowid, ...body }, 201);
+  // Return only server-generated fields, not user input
+  return c.json({
+    id: result.lastInsertRowid,
+    ticker,
+    date: date ?? new Date().toISOString().slice(0, 10),
+    signal: normalised,
+  }, 201);
 });

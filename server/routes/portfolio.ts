@@ -34,7 +34,13 @@ portfolioRouter.post("/", async (c) => {
     thesis ?? null,
     notes ?? null,
   );
-  return c.json({ id: result.lastInsertRowid, ...body }, 201);
+  return c.json({
+    id: result.lastInsertRowid,
+    ticker,
+    exchange: exchange ?? "US",
+    quantity,
+    avg_cost,
+  }, 201);
 });
 
 /** DELETE /api/positions/:id — close a position */
