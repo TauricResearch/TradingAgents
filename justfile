@@ -81,5 +81,29 @@ td-reset:                   # Reset td database
 analyze-tka DEBATES="1":    # Run analysis on TKA.DE (default test ticker)
     just analyze TKA.DE today {{DEBATES}}
 
+[group("hledger")]
+hl:                         # Holdings summary
+    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} balance --tree --value end
+
+[group("hledger")]
+hl-prices:                  # Price history
+    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} prices
+
+[group("hledger")]
+hl-update-prices:           # Fetch latest prices from Yahoo Finance
+    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} prices --auto
+
+[group("hledger")]
+hl-allocation:              # Allocation tree by account
+    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} balance --tree --value end --depth 3
+
+[group("hledger")]
+hl-register TICKER:         # Transaction history for a ticker
+    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} reg {{TICKER}}
+
+[group("hledger")]
+hl-net-worth:               # Net worth over time
+    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} balance --tree --equity --monthly
+
 alias a := analyze
 alias l := lint

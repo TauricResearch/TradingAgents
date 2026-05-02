@@ -11,6 +11,7 @@ import { analysisRouter } from "./routes/analysis.ts";
 import { signalsRouter } from "./routes/signals.ts";
 import { pricesRouter } from "./routes/prices.ts";
 import { analysesRouter } from "./routes/analyses.ts";
+import { holdingsRouter } from "./routes/holdings.ts";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -65,6 +66,7 @@ app.route("/api/analyze", analysisRouter);
 app.route("/api/signals", signalsRouter);
 app.route("/api/prices", pricesRouter);
 app.route("/api/analyses", analysesRouter);
+app.route("/api/holdings", holdingsRouter);
 
 // ── Start ──────────────────────────────────────────────────
 
