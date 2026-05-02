@@ -1,12 +1,17 @@
+/** @jsxImportSource hono/jsx */
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseFactory } from "./lib/db.ts";
 import { portfolioRouter } from "./routes/portfolio.ts";
 import { analysisRouter } from "./routes/analysis.ts";
 import { signalsRouter } from "./routes/signals.ts";
 import { pricesRouter } from "./routes/prices.ts";
+import { Layout } from "./views/layout.tsx";
+import { PortfolioView } from "./views/portfolio.tsx";
+import { AnalysisView } from "./views/analysis.tsx";
+import { SignalsView } from "./views/signals.tsx";
 
 const app = new Hono();
 
@@ -29,37 +34,12 @@ app.get("/health", (c) => {
   });
 });
 
-// ── View helpers ───────────────────────────────────────────
+// ── Pages (JSX SSR) ──────────────────────────────────────
 
-const viewsDir = join(import.meta.dir, "views");
-
-function view(name: string): string {
-  const path = join(viewsDir, name);
-  return existsSync(path) ? readFileSync(path, "utf-8") : `<p>View not found: ${name}</p>`;
-}
-
-function renderPage(content: string): string {
-  const layout = view("layout.html");
-  return layout.replace("{{{content}}}", content);
-}
-
-// ── Pages ──────────────────────────────────────────────────
-
-app.get("/", (c) => {
-  return c.html(renderPage(view("partials/portfolio.html")));
-});
-
-app.get("/portfolio", (c) => {
-  return c.html(renderPage(view("partials/portfolio.html")));
-});
-
-app.get("/analyze", (c) => {
-  return c.html(renderPage(view("partials/analysis.html")));
-});
-
-app.get("/signals", (c) => {
-  return c.html(renderPage(view("partials/signals.html")));
-});
+app.get("/", (c) => c.html(<Layout><PortfolioView /></Layout>));
+app.get("/portfolio", (c) => c.html(<Layout><PortfolioView /></Layout>));
+app.get("/analyze", (c) => c.html(<Layout><AnalysisView /></Layout>));
+app.get("/signals", (c) => c.html(<Layout><SignalsView /></Layout>));
 
 // ── Static ─────────────────────────────────────────────────
 
