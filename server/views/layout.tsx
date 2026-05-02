@@ -49,6 +49,14 @@ export function Layout(props: PropsWithChildren) {
             >
               History
             </button>
+            <button
+              hx-get="/holdings"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Holdings
+            </button>
           </nav>
         </header>
         <main id="content">{props.children}</main>

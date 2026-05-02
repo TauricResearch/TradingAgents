@@ -17,6 +17,7 @@ import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
 import { SignalsView } from "./views/signals.tsx";
 import { HistoryView } from "./views/history.tsx";
+import { HoldingsView } from "./views/holdings.tsx";
 import { DatatypeTestView } from "./views/datatype-test.tsx";
 
 const app = new Hono();
@@ -53,6 +54,7 @@ app.get("/portfolio", (c) => pageOrPartial(c, <PortfolioView />));
 app.get("/analyze", (c) => pageOrPartial(c, <AnalysisView />));
 app.get("/signals", (c) => pageOrPartial(c, <SignalsView />));
 app.get("/history", (c) => pageOrPartial(c, <HistoryView />));
+app.get("/holdings", (c) => pageOrPartial(c, <HoldingsView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
