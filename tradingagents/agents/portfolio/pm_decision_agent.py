@@ -70,6 +70,65 @@ def _build_candidate_deep_dive_context(prioritized_candidates_raw: str) -> str:
     return json.dumps(summarized, indent=2)
 
 
+def _build_pm_context(state: dict, cfg: dict) -> str:
+    """Build the context block injected into the PM prompt.
+
+    Extracts portfolio constraints and summary from *state* and *cfg*, including
+    the dynamically resolved ``max_total_buy_notional`` hard ceiling so the LLM
+    cannot accidentally over-spend cash even without the rescale_buys guard.
+
+    Args:
+        state: Current LangGraph node state.
+        cfg: Portfolio configuration dict (e.g. min_cash_pct, max_position_pct).
+
+    Returns:
+        Multi-section context string ready to embed in the prompt.
+    """
+    portfolio_data_str = state.get("portfolio_data") or "{}"
+    try:
+        pd_raw = json.loads(portfolio_data_str)
+        portfolio = pd_raw.get("portfolio") or {}
+        holdings = pd_raw.get("holdings") or []
+        cash = float(portfolio.get("cash", 0.0))
+        total_value = float(portfolio.get("total_value") or cash)
+        n_positions = len(holdings)
+    except Exception:
+        cash, total_value, n_positions = 0.0, 0.0, 0
+
+    min_cash_pct = float(cfg.get("min_cash_pct", 0.05))
+    max_total_buy_notional = max(0.0, cash - min_cash_pct * total_value)
+
+    constraints_str = (
+        f"- Max position size: {cfg.get('max_position_pct', 0.15):.0%}\n"
+        f"- Max sector exposure: {cfg.get('max_sector_pct', 0.35):.0%}\n"
+        f"- Minimum cash reserve: {min_cash_pct:.0%}\n"
+        f"- Max total positions: {cfg.get('max_positions', 15)}\n"
+        f"- max_total_buy_notional: ${max_total_buy_notional:,.2f} "
+        f"(HARD CEILING — sum of all BUY shares*entry_price MUST NOT EXCEED this)\n"
+    )
+    compressed_str = json.dumps(
+        {
+            "cash": cash,
+            "n_positions": n_positions,
+            "total_value": total_value,
+            "max_total_buy_notional": max_total_buy_notional,
+        }
+    )
+
+    macro_brief = state.get("macro_brief") or ""
+    micro_brief = state.get("micro_brief") or "No micro brief available."
+    candidate_deep_dive_context = _build_candidate_deep_dive_context(
+        state.get("prioritized_candidates") or "[]"
+    )
+    return (
+        f"## Portfolio Constraints\n{constraints_str}\n\n"
+        f"## Portfolio Summary\n{compressed_str}\n\n"
+        f"## Input A — Macro Context & Memory\n{macro_brief}\n\n"
+        f"## Input B — Direct Candidate Final Trade Decision Summaries\n{candidate_deep_dive_context}\n\n"
+        f"## Input C — Micro Context & Memory\n{micro_brief}\n"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Pydantic output schema
 # ---------------------------------------------------------------------------
@@ -203,91 +262,21 @@ def create_pm_decision_agent(
     """
     cfg = config or {}
     breaker = circuit_breaker_from_config(cfg)
-    constraints_str = (
-        f"- Max position size: {cfg.get('max_position_pct', 0.15):.0%}\n"
-        f"- Max sector exposure: {cfg.get('max_sector_pct', 0.35):.0%}\n"
-        f"- Minimum cash reserve: {cfg.get('min_cash_pct', 0.05):.0%}\n"
-        f"- Max total positions: {cfg.get('max_positions', 15)}\n"
-    )
 
     def pm_decision_node(state: PortfolioManagerState) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
-
-        # Read brief fields written by upstream summary agents
-        _macro_brief_raw = state.get("macro_brief") or ""
-        macro_brief = _macro_brief_raw or ""
-        micro_brief = state.get("micro_brief") or "No micro brief available."
-        candidate_deep_dive_context = _build_candidate_deep_dive_context(
-            state.get("prioritized_candidates") or "[]"
-        )
-
-        # Build compressed portfolio summary — avoid passing the full blob
-        portfolio_data_str = state.get("portfolio_data") or "{}"
-        try:
-            pd_raw = json.loads(portfolio_data_str)
-            portfolio = pd_raw.get("portfolio") or {}
-            holdings = pd_raw.get("holdings") or []
-            compressed = {
-                "cash": portfolio.get("cash", 0.0),
-                "n_positions": len(holdings),
-                "total_value": portfolio.get("total_value"),
-            }
-            compressed_str = json.dumps(compressed)
-        except Exception:
-            # Fallback: truncated raw string keeps token count bounded
-            compressed_str = portfolio_data_str[:200]
-
-        context = (
-            f"## Portfolio Constraints\n{constraints_str}\n\n"
-            f"## Portfolio Summary\n{compressed_str}\n\n"
-            f"## Input A — Macro Context & Memory\n{macro_brief}\n\n"
-            f"## Input B — Direct Candidate Final Trade Decision Summaries\n{candidate_deep_dive_context}\n\n"
-            f"## Input C — Micro Context & Memory\n{micro_brief}\n"
-        )
+        context = _build_pm_context(state, cfg)
 
         system_message = (
-            "You are a portfolio manager making final, risk-adjusted investment decisions. "
-            "You receive three inputs: (A) a macro regime brief with memory, "
-            "(B) direct candidate final trade decision summaries extracted from completed ticker analyses, "
-            "and (C) a micro brief with per-ticker signals and memory. Synthesize these inputs into a Forensic Execution "
-            "Dashboard — a fully auditable decision plan where every trade is justified by both "
-            "macro alignment and micro thesis.\n\n"
-            "The direct candidate final trade decision summaries are the most authoritative source for new candidate buys. "
-            "Use them explicitly when evaluating candidate entries, and ensure your rationale reflects that evidence. "
-            "The micro brief is built from completed ticker deep-dive analyses and current holdings context. "
-            "Use both the direct candidate final trade decision summaries and the micro brief as the authoritative basis for buy, hold, and sell decisions. "
-            "Do not recommend a new buy for any ticker that is not supported by the completed deep-dive input.\n\n"
-            "## CONSTRAINTS COMPLIANCE:\n"
-            "You MUST ensure all buys adhere to the portfolio constraints. "
-            "If a high-conviction candidate exceeds max position size or sector limit, "
-            "adjust shares downward to fit. For every BUY: set stop_loss (5-15% below entry) "
-            "and take_profit (10-30% above entry).\n\n"
-            "Every BUY must be executable as a limit order. "
-            "Set entry_price to the price assumed by the candidate thesis, limit_price to the highest allowed execution price, "
-            "and max_chase_price to the highest price where the risk/reward still matches the thesis. "
-            "All three prices must be positive and satisfy entry_price <= max_chase_price <= limit_price. "
-            "If the candidate summary says not to chase above a level, max_chase_price and limit_price must not exceed that level. "
-            "Never use price_target as an entry price. "
-            "Set valid_as_of to the portfolio analysis date in strict YYYY-MM-DD format.\n\n"
-            "### STRICT OUTPUT REQUIREMENTS:\n"
-            "For every BUY, you MUST provide all required fields in the schema:\n"
-            "- ticker\n"
-            "- shares\n"
-            "- entry_price (numeric float > 0; price used for sizing and risk/reward)\n"
-            "- limit_price (numeric float > 0; execution must not buy above this level)\n"
-            "- max_chase_price (numeric float > 0; must be >= entry_price and <= limit_price)\n"
-            "- order_type (must be the literal string 'limit')\n"
-            "- valid_as_of (strict YYYY-MM-DD date string for the analysis date)\n"
-            "- price_target (numeric float)\n"
-            "- stop_loss (numeric float)\n"
-            "- take_profit (numeric float)\n"
-            "- sector\n"
-            "- rationale (DETAILED string)\n"
-            "- thesis (DETAILED string)\n"
-            "- macro_alignment (how it fits the current regime)\n"
-            "- memory_note (any relevant historical lesson)\n"
-            "- position_sizing_logic (why you chose this amount of shares)\n\n"
-            "Failure to include any of these fields will cause a system error.\n\n"
+            "You are a portfolio manager. Synthesize the inputs below into a JSON-only "
+            "decision matching the structured schema. Every BUY must satisfy: "
+            "entry_price > 0; entry_price <= max_chase_price <= limit_price; "
+            "stop_loss is 5-15% below entry; take_profit is 10-30% above entry; "
+            "valid_as_of is the analysis date in YYYY-MM-DD. "
+            "Sum of (shares*entry_price) across BUYs MUST NOT EXCEED "
+            "max_total_buy_notional shown in Portfolio Constraints. "
+            "Do not buy a ticker absent from Input B (candidate summaries). "
+            "Output JSON only.\n\n"
             f"{context}"
         )
 
@@ -320,6 +309,57 @@ def create_pm_decision_agent(
                 input_data = {"messages": extra_messages}
                 result = chain.invoke(input_data)
                 decision_str = result.model_dump_json()
+                # Persist the decision JSON before any downstream node can fail. This is
+                # the canonical artifact for postmortem; do not gate on success of later
+                # nodes.
+                run_path = cfg.get("run_path")
+                if not run_path:
+                    # Fallback: derive a run-scoped portfolio report path so
+                    # direct graph runs (CLI / tests) still satisfy PR-B1's
+                    # acceptance gate when no run_path was wired through cfg.
+                    # ReportStore writes require a run_id, so both
+                    # state["run_id"] and analysis_date must be present.
+                    state_run_id = state.get("run_id")
+                    if state_run_id and analysis_date:
+                        try:
+                            from tradingagents.portfolio.store_factory import (
+                                create_report_store,
+                            )
+
+                            run_path = str(
+                                create_report_store(run_id=state_run_id).portfolio_report_dir(
+                                    analysis_date
+                                )
+                            )
+                        except Exception as exc:  # pragma: no cover - defensive
+                            logger.warning(
+                                "pm_decision_agent: could not derive snapshot run_path "
+                                "from state run_id=%s date=%s: %s",
+                                state_run_id,
+                                analysis_date,
+                                exc,
+                            )
+                if run_path:
+                    try:
+                        from pathlib import Path
+
+                        snapshot_path = Path(run_path) / "portfolio_decision_snapshot.json"
+                        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+                        snapshot_path.write_text(decision_str)
+                    except Exception as exc:
+                        logger.warning(
+                            "pm_decision_agent: failed to persist snapshot at %s: %s",
+                            run_path,
+                            exc,
+                        )
+                else:
+                    logger.warning(
+                        "pm_decision_agent: no run_path in cfg and could not derive one "
+                        "from state (run_id=%s, analysis_date=%s); snapshot not persisted "
+                        "(PR-B1 acceptance gate not met).",
+                        state.get("run_id"),
+                        analysis_date,
+                    )
                 breaker.record_success("pm_decision_agent")
                 break
             except Exception as exc:

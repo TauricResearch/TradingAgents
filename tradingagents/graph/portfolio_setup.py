@@ -4,8 +4,8 @@ Fan-out/fan-in workflow:
   START → load_portfolio → compute_risk → portfolio_integrity_guard → review_holdings
         → prioritize_candidates → macro_summary (parallel)
                                 → micro_summary  (parallel)
-        → make_pm_decision → cash_sweep → pm_decision_postcheck → execute_trades
-        → record_pm_decisions → END
+        → make_pm_decision → rescale_buys → cash_sweep → pm_decision_postcheck
+        → execute_trades → record_pm_decisions → END
 
 Non-LLM nodes (load_portfolio, compute_risk, prioritize_candidates, execute_trades,
 portfolio_integrity_guard, pm_decision_postcheck, record_pm_decisions) receive
@@ -631,8 +631,99 @@ class PortfolioGraphSetup:
 
         return prioritize_candidates_node
 
+    def _make_rescale_buys_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
+        """Deterministic guard that scales buy notional to fit within the cash ceiling.
+
+        Computed ceiling: max(0, cash - min_cash_pct * total_value).
+        When aggregate buy notional exceeds the ceiling, ALL buy shares are scaled
+        down proportionally so the sum of (shares × execution_price) equals the
+        ceiling. When the ceiling is ≤ 0, all buys are cleared.
+
+        Notional is measured with ``resolve_buy_execution_price`` — the *same*
+        live-price source that ``pm_decision_postcheck`` uses to project cash.
+        Using ``entry_price`` here would let a rescaled basket pass this node
+        and still breach the floor in postcheck whenever live > entry (P2).
+
+        This runs BEFORE cash_sweep so the SGOV sweep added by that node is not
+        subject to rescaling (it manages cash the PM chose not to deploy).
+        """
+        config = self._config
+
+        def rescale_buys_node(state: PortfolioManagerState) -> dict[str, Any]:
+            pm_decision_str = state.get("pm_decision") or "{}"
+            portfolio_data_str = state.get("portfolio_data") or "{}"
+            prices = state.get("prices") or {}
+
+            try:
+                decision = json.loads(pm_decision_str)
+            except (json.JSONDecodeError, TypeError):
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            try:
+                pd = json.loads(portfolio_data_str)
+                portfolio = pd.get("portfolio") or {}
+                cash = float(portfolio.get("cash", 0.0))
+                total_value = float(portfolio.get("total_value") or cash)
+            except Exception:
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            min_cash_pct = float(config.get("min_cash_pct", 0.05))
+            ceiling = max(0.0, cash - min_cash_pct * total_value)
+
+            buys = decision.get("buys") or []
+            if not buys:
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            # Per-buy execution price: prefer live price (same source as
+            # postcheck). Fall back to entry_price only if the live price is
+            # missing or non-positive — postcheck will then reject the basket
+            # for missing prices, which is the correct behavior.
+            def _exec_price(buy: dict) -> float:
+                try:
+                    return resolve_buy_execution_price(buy, prices)
+                except Exception:
+                    return float(buy.get("entry_price", 0.0))
+
+            total_notional = sum(
+                float(b.get("shares", 0.0)) * _exec_price(b) for b in buys if isinstance(b, dict)
+            )
+
+            if total_notional <= 0.0:
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            if ceiling <= 0.0:
+                logger.warning(
+                    "rescale_buys: ceiling=0 (cash=%.2f, total_value=%.2f, min_cash_pct=%.2f) — "
+                    "dropping all %d buy order(s)",
+                    cash,
+                    total_value,
+                    min_cash_pct,
+                    len(buys),
+                )
+                decision["buys"] = []
+                return {"pm_decision": json.dumps(decision), "sender": "rescale_buys"}
+
+            if total_notional > ceiling:
+                scale = ceiling / total_notional
+                logger.warning(
+                    "rescale_buys: total_notional=%.2f exceeds ceiling=%.2f (priced at "
+                    "execution) — scaling all buys by %.4f",
+                    total_notional,
+                    ceiling,
+                    scale,
+                )
+                for b in buys:
+                    if isinstance(b, dict):
+                        b["shares"] = float(b.get("shares", 0.0)) * scale
+                decision["buys"] = buys
+
+            return {"pm_decision": json.dumps(decision), "sender": "rescale_buys"}
+
+        return rescale_buys_node
+
     def _make_cash_sweep_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Node to automatically sweep excess cash into a cash-equivalent ETF."""
+        config = self._config
 
         def cash_sweep_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_data_str = state.get("portfolio_data") or "{}"
@@ -658,8 +749,13 @@ class PortfolioGraphSetup:
 
                 total_value = portfolio.total_value or portfolio.cash
 
-                # Default target cash threshold
-                target_cash_pct = 0.05
+                # Sweep target reads from config; defaults to min_cash_pct so a
+                # deployment that raises the floor (e.g. min_cash_pct=0.10) does
+                # not have its operator-intent silently violated by a hardcoded
+                # 5% sweep target. ``target_cash_pct`` may still be set
+                # explicitly when desk policy wants a buffer above the floor.
+                min_cash_pct = float(config.get("min_cash_pct", 0.05))
+                target_cash_pct = float(config.get("target_cash_pct", min_cash_pct))
                 sweep_etf = "SGOV"
                 sweep_etf_price = prices.get(sweep_etf, 100.0)  # Assume 100.0 if not in prices
 
@@ -671,11 +767,35 @@ class PortfolioGraphSetup:
                 if "buys" not in decisions:
                     decisions["buys"] = []
 
+                # Subtract already-approved BUY notional (post-rescale) from
+                # available cash before computing sweep excess. Without this,
+                # the sweep would size SGOV against pre-buy cash and the
+                # combined basket (PM buys + SGOV) would breach the cash
+                # floor in postcheck — defeating rescale_buys upstream (P1).
+                # Use resolve_buy_execution_price so this matches postcheck's
+                # cash-projection arithmetic exactly. Skip any pre-existing
+                # SGOV sweep order (defensive — sweep should not have run
+                # yet, but graph re-entries can violate that assumption).
+                approved_buys = decisions.get("buys") or []
+                approved_buy_notional = 0.0
+                for buy in approved_buys:
+                    if not isinstance(buy, dict):
+                        continue
+                    if str(buy.get("ticker") or "").upper() == sweep_etf:
+                        continue
+                    try:
+                        bp = resolve_buy_execution_price(buy, prices)
+                    except Exception:
+                        bp = float(buy.get("entry_price", 0.0))
+                    approved_buy_notional += float(buy.get("shares", 0.0)) * bp
+
+                cash_after_buys = portfolio.cash - approved_buy_notional
+
                 sweep_details = "No sweep needed"
-                if total_value > 0:
-                    current_cash_pct = portfolio.cash / total_value
+                if total_value > 0 and cash_after_buys > 0:
+                    current_cash_pct = cash_after_buys / total_value
                     if current_cash_pct > target_cash_pct:
-                        excess_cash = portfolio.cash - (total_value * target_cash_pct)
+                        excess_cash = cash_after_buys - (total_value * target_cash_pct)
                         shares_to_buy = int(excess_cash / sweep_etf_price)
 
                         if shares_to_buy > 0:
@@ -867,6 +987,7 @@ class PortfolioGraphSetup:
         workflow.add_node("compute_risk", self._make_compute_risk_node())
         workflow.add_node("portfolio_integrity_guard", self._make_portfolio_integrity_guard_node())
         workflow.add_node("prioritize_candidates", self._make_prioritize_candidates_node())
+        workflow.add_node("rescale_buys", self._make_rescale_buys_node())
         workflow.add_node("cash_sweep", self._make_cash_sweep_node())
         workflow.add_node("pm_decision_postcheck", self._make_pm_decision_postcheck_node())
         workflow.add_node("execute_trades", self._make_execute_trades_node())
@@ -894,8 +1015,13 @@ class PortfolioGraphSetup:
         workflow.add_edge("macro_summary", "make_pm_decision")
         workflow.add_edge("micro_summary", "make_pm_decision")
 
-        # Tail — postcheck validates the final decision after cash_sweep (ADR 024)
-        workflow.add_edge("make_pm_decision", "cash_sweep")
+        # Tail — rescale_buys runs FIRST on the LLM's BUYs to enforce the cash floor,
+        # then cash_sweep adds the SGOV cash-equivalent order from the residual cash,
+        # then postcheck validates all invariants. Order matters: SGOV is a deliberate
+        # cash-park, not a discretionary BUY, so it must NOT be subject to proportional
+        # rescaling. Reversing this order would let the sweep crowd out PM buys. (ADR 024)
+        workflow.add_edge("make_pm_decision", "rescale_buys")
+        workflow.add_edge("rescale_buys", "cash_sweep")
         workflow.add_edge("cash_sweep", "pm_decision_postcheck")
         workflow.add_edge("pm_decision_postcheck", "execute_trades")
         workflow.add_edge("execute_trades", "record_pm_decisions")

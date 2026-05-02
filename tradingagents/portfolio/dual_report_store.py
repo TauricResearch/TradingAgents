@@ -63,6 +63,10 @@ class DualReportStore:
         """The canonical run identifier."""
         return self._local.run_id
 
+    def portfolio_report_dir(self, date: str):
+        """Return the local run-scoped portfolio report directory for *date*."""
+        return self._local.portfolio_report_dir(date)
+
     # ------------------------------------------------------------------
     # Macro Scan
     # ------------------------------------------------------------------

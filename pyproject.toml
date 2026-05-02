@@ -51,7 +51,7 @@ dev = [
     "pytest-recording>=0.13.2",
     "vcrpy>=6.0.2",
     "pytest-socket>=0.7.0",
-    "ruff>=0.9.0",
+    "ruff==0.15.12",
 ]
 
 [tool.ruff]

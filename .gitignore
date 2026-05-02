@@ -237,6 +237,8 @@ node_modules/
 agent_os/frontend/dist/
 
 .claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/skills/
 .obsidian/
 .intent/
 .DS_Store

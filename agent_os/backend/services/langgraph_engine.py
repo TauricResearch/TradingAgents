@@ -1223,8 +1223,6 @@ class LangGraphEngine:
         ):
             yield warning_event
 
-        portfolio_graph = PortfolioGraph(config=self.config)
-
         scan_summary = normalize_scan_summary(
             reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
         )
@@ -1232,6 +1230,13 @@ class LangGraphEngine:
 
         search_dirs: list[Path] = []
         run_daily_dir = get_daily_dir(date, root_run_id)
+        portfolio_graph = PortfolioGraph(
+            config={
+                **self.config,
+                "run_path": str(store.portfolio_report_dir(date)),
+            },
+            callbacks=[rl.callback],
+        )
         all_daily_dir = get_daily_dir(date)
         if run_daily_dir.exists():
             search_dirs.append(run_daily_dir)

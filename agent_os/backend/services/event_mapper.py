@@ -19,6 +19,9 @@ _MAX_FULL_LEN = 50_000
 # Keywords in tool output that indicate the error was handled gracefully
 _GRACEFUL_SKIP_KEYWORDS = ("gracefully", "fallback", "skipped")
 _DEFAULT_TIER = "mid"
+# Nodes whose chain-end output payload must never be truncated.
+# These nodes emit large structured JSON that is needed verbatim for postmortem.
+_FULL_PAYLOAD_NODES: frozenset[str] = frozenset({"make_pm_decision"})
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool-name → primary service mapping (best-effort, used for display only)
@@ -306,7 +309,13 @@ class EventMapper:
                         # has already finished and produced output. Discarding it is wasteful.
                 self._latest_nodes[execution_key] = node_name
                 output = (event.get("data") or {}).get("output")
-                output_text = _truncate(_extract_content(output)) if output is not None else ""
+                if output is not None:
+                    raw_text = _extract_content(output)
+                    output_text = (
+                        raw_text if node_name in _FULL_PAYLOAD_NODES else _truncate(raw_text)
+                    )
+                else:
+                    output_text = ""
                 logger.info(
                     "Node end node=%s latency=%dms run=%s", node_name, latency_ms, execution_key
                 )

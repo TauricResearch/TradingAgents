@@ -1856,8 +1856,11 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
 
     import yfinance as yf
 
+    from tradingagents.default_config import DEFAULT_CONFIG
     from tradingagents.graph.portfolio_graph import PortfolioGraph
     from tradingagents.portfolio.repository import PortfolioRepository
+    from tradingagents.portfolio.store_factory import create_report_store
+    from tradingagents.report_paths import generate_run_id
 
     console.print(
         Panel("[bold green]Portfolio Manager Execution[/bold green]", border_style="green")
@@ -1911,12 +1914,25 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
             console=console,
             transient=True,
         ):
-            graph = PortfolioGraph(debug=False, repo=repo)
+            # Generate a run_id and wire run_path through both the config and
+            # graph.run() so make_pm_decision can persist
+            # portfolio_decision_snapshot.json (PR-B1 acceptance: snapshot must
+            # exist after every portfolio run, including direct graph runs).
+            # ReportStore writes require a run_id, so we generate one here.
+            run_id = generate_run_id()
+            store = create_report_store(run_id=run_id)
+            run_path = str(store.portfolio_report_dir(date))
+            graph = PortfolioGraph(
+                debug=False,
+                repo=repo,
+                config={**DEFAULT_CONFIG, "run_path": run_path},
+            )
             result = graph.run(
                 portfolio_id=portfolio_id,
                 date=date,
                 prices=prices,
                 scan_summary=scan_summary,
+                run_id=run_id,
             )
     except Exception as e:
         console.print(f"[red]Portfolio execution failed: {e}[/red]")
