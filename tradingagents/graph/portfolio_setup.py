@@ -971,10 +971,12 @@ class PortfolioGraphSetup:
         workflow.add_edge("macro_summary", "make_pm_decision")
         workflow.add_edge("micro_summary", "make_pm_decision")
 
-        # Tail — rescale_buys caps notional to cash ceiling, then cash_sweep and postcheck (ADR 024)
-        workflow.add_edge("make_pm_decision", "rescale_buys")
-        workflow.add_edge("rescale_buys", "cash_sweep")
-        workflow.add_edge("cash_sweep", "pm_decision_postcheck")
+        # Tail — cash_sweep runs first (it updates projected cash), then rescale_buys
+        # proportionally scales BUYs to honour the floor, then postcheck validates all invariants.
+        # Order matters: rescale needs the post-sweep cash figure. (ADR 024)
+        workflow.add_edge("make_pm_decision", "cash_sweep")
+        workflow.add_edge("cash_sweep", "rescale_buys")
+        workflow.add_edge("rescale_buys", "pm_decision_postcheck")
         workflow.add_edge("pm_decision_postcheck", "execute_trades")
         workflow.add_edge("execute_trades", "record_pm_decisions")
         workflow.add_edge("record_pm_decisions", END)

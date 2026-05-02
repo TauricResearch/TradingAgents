@@ -1,7 +1,6 @@
 """Tests for RunLogger counters — isolation unit tests and wiring regression (PR-B3)."""
 
 import json
-from pathlib import Path
 
 from tradingagents.observability import RunLogger
 
@@ -128,19 +127,32 @@ def test_portfolio_graph_accepts_callbacks_kwarg():
 def test_engine_portfolio_passes_callbacks_to_graph():
     """LangGraphEngine.run_portfolio passes rl.callback to PortfolioGraph constructor.
 
-    Verifies the fix for the zero-counter bug: the engine must not create
-    PortfolioGraph without the RunLogger callback, otherwise on_llm_end never fires.
+    Uses AST analysis to verify the callbacks= keyword is present — immune to
+    whitespace changes and formatting rewrites that would fool a string grep.
     """
+    import ast
+    import inspect
+    import textwrap
 
-    engine_src = (
-        Path(__file__).parent.parent.parent / "agent_os/backend/services/langgraph_engine.py"
-    )
-    source = engine_src.read_text()
+    from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
-    # We expect to find PortfolioGraph( ... callbacks=[rl.callback] ... )
-    # A simple source-level check catches the most common regression.
-    assert "callbacks=[rl.callback]" in source or "callbacks = [rl.callback]" in source, (
-        "LangGraphEngine.run_portfolio does not pass rl.callback to PortfolioGraph. "
-        "This causes zero llm_calls in run_log.jsonl. "
-        "Fix: PortfolioGraph(config={...}, callbacks=[rl.callback])"
-    )
+    source = inspect.getsource(LangGraphEngine.run_portfolio)
+    tree = ast.parse(textwrap.dedent(source))
+
+    portfolio_graph_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "PortfolioGraph"
+    ]
+
+    assert portfolio_graph_calls, "No PortfolioGraph(...) call found in run_portfolio"
+
+    for call in portfolio_graph_calls:
+        kwarg_names = {kw.arg for kw in call.keywords}
+        assert "callbacks" in kwarg_names, (
+            "PortfolioGraph() call in run_portfolio is missing callbacks= keyword. "
+            "This causes zero llm_calls in run_log.jsonl. "
+            "Fix: PortfolioGraph(config={...}, callbacks=[rl.callback])"
+        )

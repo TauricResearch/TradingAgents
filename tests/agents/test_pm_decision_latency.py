@@ -1,19 +1,18 @@
-"""Latency test for PM decision node (PR-B4.1).
+"""Prompt-size budget tests for the PM decision node (PR-B4.1).
 
-Marked @pytest.mark.integration — excluded from default CI runs.
-Run with: pytest tests/agents/test_pm_decision_latency.py -m integration -v
+These tests verify that the prompt diet keeps context and instruction text within
+character budgets. They are static structural checks — no LLM call is made.
+Real end-to-end latency measurement requires a live LLM call and belongs in an
+integration test with live credentials.
+
+Run unit tests with: pytest tests/agents/test_pm_decision_latency.py -v
 """
 
-import pytest
 
+def test_pm_context_block_under_5000_chars():
+    """After prompt diet, the dynamic context block (_build_pm_context) is < 5000 chars.
 
-@pytest.mark.integration
-def test_pm_decision_prompt_char_count_under_8000():
-    """After prompt diet, system_message should be under 8000 chars for token savings.
-
-    This is a static structural test: we verify the actual prompt text
-    constructed by _build_pm_context + system_message is under a size budget.
-    Real latency testing requires a live LLM call and is environment-specific.
+    B4.1 acceptance: context block shrinks so total token consumption stays low.
     """
     import json
 
@@ -48,12 +47,11 @@ def test_pm_decision_prompt_char_count_under_8000():
     assert len(context) < 5000, f"Context block too large: {len(context)} chars"
 
 
-def test_pm_decision_system_message_char_count_under_2500():
-    """After prompt diet, the system_message (without context) must be < 2500 chars.
+def test_pm_system_message_instruction_under_2500_chars():
+    """After prompt diet, the static instruction preamble (before context) is < 2500 chars.
 
-    B4.1 acceptance criterion: the static instruction text (not counting the
-    dynamic context block) is trimmed to essential rules only.
-    The old prompt was ~3100 chars of instruction; target is < 2500.
+    B4.1 acceptance criterion: instruction text trimmed to essential rules only.
+    The pre-diet prompt was ~3100 chars of instruction; target is < 2500.
     """
     import json
 
