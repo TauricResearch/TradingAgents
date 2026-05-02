@@ -235,6 +235,5 @@ scratchpad/
 
 # Bun
 node_modules/
-bun.lock
 !server/lib/
 portfolio.db
