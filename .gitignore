@@ -232,3 +232,8 @@ scratchpad/
 .sidecar-start.sh
 .sidecar-base
 .td-root
+
+# Bun
+node_modules/
+bun.lock
+!server/lib/
