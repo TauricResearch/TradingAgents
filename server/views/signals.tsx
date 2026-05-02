@@ -103,10 +103,14 @@ function renderTimeline(ticker, signals) {
 
   var html = '<div class="sparkline ' + firstSig + '">' + sparkline + '</div>';
   html += '<div class="bar-chart">' + barchart + '</div>';
+  html += '<div style="font-family:Datatype,sans-serif; font-size:2rem; color:var(--blue); font-feature-settings:\'calt\' 1,\'liga\' 1; padding:1rem 0; border:1px dashed var(--border); margin:0.5rem 0;">';
+  html += 'bar: {b:50,80,30} &nbsp;|&nbsp; pie: {p:75} &nbsp;|&nbsp; line: {l:50,80,30}';
+  html += '</div>';
   html += '<div class="timeline-entries">';
   html += signals.map(function(s, i) {
     var cls = signalClass(s.signal);
-    var pct = s.confidence != null ? Math.round(s.confidence * 100) : 0;
+    var conf = parseFloat(s.confidence) || 0;
+    var pct = Math.round(conf * 100);
     var pie = '{p:' + pct + '}';
     return '<div class="timeline-row">' +
       '<span class="timeline-signal ' + cls + '">' + s.signal + '</span>' +

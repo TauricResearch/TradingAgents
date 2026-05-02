@@ -2,90 +2,104 @@
 
 ## What It Is
 
-[Datatype](https://github.com/franktisellano/datatype) is an OpenType variable font that turns text expressions into inline charts via ligature substitution. No JS, no canvas, no SVG — just type and the font renders it.
+[Datatype](https://franktisellano.github.io/datatype) is an OpenType variable font that turns text expressions into inline charts via **GSUB ligature substitution**. No JS, no canvas, no SVG — type the syntax and the font renders it.
 
 ## Font File
 
 ```
-server/static/fonts/Datatype.woff2  (51 KB)
+server/static/fonts/Datatype.woff2  (82 KB, variable font)
 ```
 
-Source: [Fontsource CDN](https://fontsource.org/fonts/datatype)  
+**Must be the variable font.** The static woff2 from Fontsource has no GSUB table and will not render charts.
+
+Source: [GitHub repo](https://github.com/franktisellano/datatype) — `fonts/variable/Datatype[wdth,wght].woff2`
 License: SIL Open Font License 1.1
 
-## CSS Setup
+## Three Chart Types
 
-Already configured in `server/static/style.css`:
+| Syntax | Renders | Max | Example |
+|--------|---------|-----|---------|
+| `{l:30,70,50,90}` | Sparkline (line) | 20 values | `{l:45,55,72,85}` |
+| `{b:30,70,50,90}` | Bar chart | 20 values | `{b:45,55,72,85}` |
+| `{p:65}` | Pie chart (filled %) | 1 value | `{p:85}` |
+
+**All values: 0–100.** Normalize raw data before use.
+
+## CSS Required
+
+Every element that contains Datatype expressions **must** have:
 
 ```css
-@font-face {
-  font-family: 'Datatype';
-  src: url('/static/fonts/Datatype.woff2') format('woff2');
-  font-display: swap;
-  font-weight: 100 900;
-  font-stretch: 50% 150%;
-}
-
-.sparkline {
+.chart {
   font-family: 'Datatype', sans-serif;
-  font-size: 1.25rem;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
+  font-variation-settings: 'wdth' 100, 'wght' 400;
 }
 ```
 
-## Syntax
+**The `calt` feature is mandatory.** Without it, you'll see raw text like `{l:30,70,50}` instead of a chart.
 
-| Type | Syntax | Values | Max |
-|------|--------|--------|-----|
-| Sparkline | `{l:10,40,25,70,50}` | 0–100 | 20 points |
-| Bar chart | `{b:30,70,20,90}` | 0–100 | 20 bars |
-| Pie chart | `{p:65}` | 0–100 | single value |
+## Variable Font Axes
 
-**All values must be 0–100.** Use the `normalize()` helper for raw data.
+| Axis | Tag | Range | Default | Controls |
+|------|-----|-------|---------|----------|
+| Width | `wdth` | 50–150 | 100 | Chart density/spacing |
+| Weight | `wght` | 100–900 | 400 | Stroke thickness |
+
+```css
+/* Thin, wide sparkline */
+.sparkline-light {
+  font-variation-settings: 'wdth' 125, 'wght' 200;
+}
+
+/* Bold, compact bar chart */
+.bar-bold {
+  font-variation-settings: 'wdth' 75, 'wght' 700;
+}
+```
 
 ## JSX Component
+
+`server/views/datatype.tsx` provides a typed helper:
 
 ```tsx
 import { DatatypeChart } from "./views/datatype.tsx";
 
-// Sparkline (auto-normalized)
-<DatatypeChart values={[8.45, 9.12, 10.09, 9.80, 10.50]} variant="sparkline" />
+// Sparkline (auto-normalized from raw values)
+<DatatypeChart values={[8.45, 9.12, 10.09, 9.80]} variant="sparkline" />
 
 // Bar chart
 <DatatypeChart values={[30, 70, 50, 90]} variant="bar" />
 
-// Pie chart (first value used)
+// Pie chart (first value used as %)
 <DatatypeChart values={[65]} variant="pie" />
-```
-
-## Raw HTML
-
-```html
-<span class="sparkline">{l:30,70,50,90,20}</span>
-<span class="bar-chart">{b:60,40,80}</span>
-<span class="sparkline">{p:73}</span>
 ```
 
 ## Normalize Helper
 
-The `DatatypeChart` component auto-normalizes values to 0–100:
-
 ```tsx
-// These raw prices → normalized to {l:0,44,100,87,100}
-<DatatypeChart values={[8.45, 9.12, 10.09, 9.80, 10.50]} />
-```
-
-For manual normalization in JS (client-side):
-
-```js
-function normalize(values) {
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
+// In datatype.tsx
+function normalize(values: number[], min?: number, max?: number): number[] {
+  const lo = min ?? Math.min(...values);
+  const hi = max ?? Math.max(...values);
   const range = hi - lo || 1;
   return values.map(v => Math.round(((v - lo) / range) * 100));
 }
 ```
 
-## Signal Coloring
+For client-side JS:
+
+```js
+function normalize(values) {
+  var lo = Math.min.apply(null, values);
+  var hi = Math.max.apply(null, values);
+  var range = hi - lo || 1;
+  return values.map(function(v) { return Math.round(((v - lo) / range) * 100); });
+}
+```
+
+## Signal Color Coding
 
 ```css
 .sparkline.buy  { color: var(--green); }   /* overweight, buy */
@@ -93,37 +107,61 @@ function normalize(values) {
 .sparkline.hold { color: var(--yellow); }  /* hold, neutral */
 ```
 
-Use `signalClass(signal)` from `datatype.tsx` to get the class name.
+```ts
+export function signalClass(signal: string): "buy" | "sell" | "hold" {
+  const s = signal.toLowerCase();
+  if (s.includes("buy") || s.includes("overweight")) return "buy";
+  if (s.includes("sell") || s.includes("underweight")) return "sell";
+  return "hold";
+}
+```
 
 ## Current Usage
 
-| View | Element | Type |
-|------|---------|------|
-| Signals timeline | confidence trend | sparkline |
-| (future) Portfolio table | price history per row | sparkline |
-| (future) Analysis output | debate round scores | bar chart |
+| View | Element | Type | Source |
+|------|---------|------|--------|
+| Signals timeline (top) | Confidence trend | sparkline `{l:...}` | Signals data |
+| Signals timeline (row 2) | Confidence bars | bar chart `{b:...}` | Signals data |
+| Signals timeline (per row) | Confidence level | pie chart `{p:...}` | Per-signal confidence |
 
-## Limitations
+## Troubleshooting
 
-- Values capped at 0–100 — must normalize raw data
-- Max 20 data points per expression
-- No per-value color control (color is set via CSS on the container)
-- No axis labels or gridlines
-- Static font (400 weight) from Fontsource; variable font (width/weight axes) not yet available via CDN
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Raw text `{l:30,70}` showing | `calt` feature not enabled | Add `font-feature-settings: 'calt' 1` |
+| Raw text showing | Wrong font file (static, not variable) | Replace with `Datatype[wdth,wght].woff2` |
+| Raw text showing | Browser cached old font | Hard refresh (Cmd+Shift+R) |
+| Pie not rendering | Class not matching `.sparkline` or `.datatype-pie` | Use correct class with `font-family: 'Datatype'` |
+| Chart too small | `font-size` too small | Increase to 1.5rem+ |
+| Font not loading | Wrong MIME type | Server must return `font/woff2` |
+
+### Verify the font file
+
+```bash
+cd /Users/petersmith/Dev/GitHub/TradingAgents
+.venv/bin/python3 -c "
+from fontTools.ttLib import TTFont
+f = TTFont('server/static/fonts/Datatype.woff2')
+print('GSUB:', 'GSUB' in f)
+print('calt:', 'calt' in [r.FeatureTag for r in f['GSUB'].table.FeatureList.FeatureRecord])
+print('Glyphs:', f['maxp'].numGlyphs)  # Should be ~10,850
+"
+```
 
 ## Updating the Font
 
-To replace with a newer version:
-
 ```bash
-curl -L -o server/static/fonts/Datatype.woff2 \
-  "https://cdn.jsdelivr.net/fontsource/fonts/datatype@latest/latin-400-normal.woff2"
+# Clone repo and copy variable font
+cd /tmp && rm -rf datatype
+git clone --depth 1 https://github.com/franktisellano/datatype.git
+cp datatype/fonts/variable/Datatype\[wdth,wght\].woff2 \
+  /path/to/TradingAgents/server/static/fonts/Datatype.woff2
 ```
 
-Or download the variable font from [GitHub releases](https://github.com/franktisellano/datatype/releases) if a woff2 is available:
+## Limitations
 
-```bash
-# Replace with actual release asset URL
-curl -L -o server/static/fonts/Datatype.woff2 \
-  "https://github.com/franktisellano/datatype/releases/download/vX.X.X/Datatype%5Bwdth%2Cwght%5D.woff2"
-```
+- Values **must** be 0–100 (integer)
+- Max **20 data points** per expression
+- No per-value color control (color set via CSS on container)
+- No axis labels, gridlines, or tooltips
+- LLM-generated chart text could theoretically produce invalid syntax — no validation layer yet

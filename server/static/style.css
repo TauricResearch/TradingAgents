@@ -174,3 +174,28 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
   min-width: 2rem;
   text-align: center;
 }
+
+/* Datatype test page */
+.dt-test code {
+  font-family: 'Fira Code', monospace;
+  font-size: 1.25rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+}
+.dt-render span {
+  font-family: 'Datatype', sans-serif;
+  font-size: 2rem;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+  -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
+  font-variation-settings: 'wdth' 100, 'wght' 400;
+  color: var(--text);
+}
+#font-info {
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
