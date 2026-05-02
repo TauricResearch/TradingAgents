@@ -243,3 +243,5 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .explain-text { line-height: 1.7; margin-bottom: 0.75rem; font-style: italic; color: var(--text); }
 .explain-field { margin-bottom: 0.5rem; font-size: 0.875rem; }
 .explain-field strong { color: var(--text-dim); min-width: 100px; display: inline-block; }
+
+.error-card { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); border-radius: 6px; padding: 1rem; color: var(--red); font-size: 0.875rem; }

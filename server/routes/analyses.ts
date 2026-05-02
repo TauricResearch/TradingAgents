@@ -269,7 +269,6 @@ analysesRouter.get("/:ticker/:date/summary", (c) => {
     actions,
     agents,
     sparkline,
-    keyPoints: extractKeyPoints(decision),
     decision: decision.slice(0, 2000),
   });
 });

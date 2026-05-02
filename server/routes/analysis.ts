@@ -149,7 +149,7 @@ analysisRouter.post("/", async (c) => {
     });
 
     await new Promise<void>((resolve, reject) => {
-      child.on("close", (code) => {
+      child.on("close", async (code) => {
         if (code !== 0) {
           stream.writeSSE({
             event: "error",
@@ -159,6 +159,14 @@ analysisRouter.post("/", async (c) => {
             }),
           }).catch(() => {});
         }
+
+        // Auto-generate LLM summary after analysis completes
+        try {
+          await generateSummary(ticker, date);
+        } catch {
+          // Summary generation failure shouldn't break the analysis
+        }
+
         resolve();
       });
 

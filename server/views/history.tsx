@@ -105,7 +105,10 @@ function loadAnalysisCard(ticker, date) {
   full.style.display = 'none';
   card.innerHTML = '<p class="muted">Loading summary…</p>';
   fetch('/api/analyses/' + ticker + '/' + date + '/summary')
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(err) { throw new Error(err.error || err.detail || 'Server error ' + r.status); });
+      return r.json();
+    })
     .then(function(d) {
       var cls = signalClass(d.signal);
       var pct = Math.round((d.confidence || 0.5) * 100);
@@ -135,7 +138,7 @@ function loadAnalysisCard(ticker, date) {
         '<table class="agent-table"><thead><tr><th>Agent</th><th>Verdict</th></tr></thead><tbody>' + agentsHtml + '</tbody></table>' +
         '<button class="btn-detail" onclick="showAnalysisFull(\\'' + d.ticker + '\\',\\'' + d.date + '\\')">View full report →</button>';
     })
-    .catch(function() { card.innerHTML = '<p class="muted">Failed to load summary</p>'; });
+    .catch(function(e) { card.innerHTML = '<div class="error-card"><strong>Error:</strong> ' + e.message + '</div>'; });
 }
 
 function signalClass(signal) {
