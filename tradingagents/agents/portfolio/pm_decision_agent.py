@@ -106,12 +106,14 @@ def _build_pm_context(state: dict, cfg: dict) -> str:
         f"- max_total_buy_notional: ${max_total_buy_notional:,.2f} "
         f"(HARD CEILING — sum of all BUY shares*entry_price MUST NOT EXCEED this)\n"
     )
-    compressed_str = json.dumps({
-        "cash": cash,
-        "n_positions": n_positions,
-        "total_value": total_value,
-        "max_total_buy_notional": max_total_buy_notional,
-    })
+    compressed_str = json.dumps(
+        {
+            "cash": cash,
+            "n_positions": n_positions,
+            "total_value": total_value,
+            "max_total_buy_notional": max_total_buy_notional,
+        }
+    )
 
     macro_brief = state.get("macro_brief") or ""
     micro_brief = state.get("micro_brief") or "No micro brief available."
@@ -277,7 +279,6 @@ def create_pm_decision_agent(
             "Output JSON only.\n\n"
             f"{context}"
         )
-
 
         prompt = ChatPromptTemplate.from_messages(
             [

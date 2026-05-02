@@ -52,9 +52,7 @@ def test_pm_decision_writes_snapshot_to_run_path(tmp_path, monkeypatch):
     result = node(state)
 
     snapshot_path = tmp_path / "portfolio_decision_snapshot.json"
-    assert snapshot_path.exists(), (
-        f"snapshot not written; cwd has {list(tmp_path.iterdir())}"
-    )
+    assert snapshot_path.exists(), f"snapshot not written; cwd has {list(tmp_path.iterdir())}"
     written = json.loads(snapshot_path.read_text())
     assert written == fake_decision_dict
     assert result["pm_decision"] == json.dumps(fake_decision_dict)

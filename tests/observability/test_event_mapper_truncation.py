@@ -1,4 +1,5 @@
 """Tests for make_pm_decision event-mapper truncation whitelist (PR-B1.2)."""
+
 import json
 
 from agent_os.backend.services.event_mapper import EventMapper

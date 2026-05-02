@@ -56,28 +56,43 @@ class MockEngine:
 
         # Analysts — order matches real graph: market → social → news → fundamentals
         analysts = [
-            ("market_analyst",       "gpt-4o-mini", 1.2, 390, 240, "get_market_data"),
-            ("social_analyst",       "gpt-4o-mini", 0.9, 310, 190, "get_social_data"),
-            ("news_analyst",         "gpt-4o-mini", 1.4, 480, 310, "get_news_data"),
-            ("fundamentals_analyst", "gpt-4o",      2.1, 620, 430, "get_fundamentals_data"),
+            ("market_analyst", "gpt-4o-mini", 1.2, 390, 240, "get_market_data"),
+            ("social_analyst", "gpt-4o-mini", 0.9, 310, 190, "get_social_data"),
+            ("news_analyst", "gpt-4o-mini", 1.4, 480, 310, "get_news_data"),
+            ("fundamentals_analyst", "gpt-4o", 2.1, 620, 430, "get_fundamentals_data"),
         ]
         prev = "start"
         for node, model, latency, tok_in, tok_out, tool_name in analysts:
             async for evt in self._agent_with_tool(
-                run_id, node, ticker, model, latency, tok_in, tok_out, speed,
-                tool_name=tool_name, parent_node_id=prev,
+                run_id,
+                node,
+                ticker,
+                model,
+                latency,
+                tok_in,
+                tok_out,
+                speed,
+                tool_name=tool_name,
+                parent_node_id=prev,
             ):
                 yield evt
             prev = node
 
         # Research debate
         for node, model, latency, tok_in, tok_out in [
-            ("bull_researcher",  "gpt-4o", 1.8, 540, 360),
-            ("bear_researcher",  "gpt-4o", 1.7, 510, 340),
+            ("bull_researcher", "gpt-4o", 1.8, 540, 360),
+            ("bear_researcher", "gpt-4o", 1.7, 510, 340),
             ("research_manager", "gpt-4o", 2.3, 680, 480),
         ]:
             async for evt in self._agent_no_tool(
-                run_id, node, ticker, model, latency, tok_in, tok_out, speed,
+                run_id,
+                node,
+                ticker,
+                model,
+                latency,
+                tok_in,
+                tok_out,
+                speed,
                 parent_node_id=prev,
             ):
                 yield evt
@@ -85,12 +100,19 @@ class MockEngine:
 
         # Trading decision + risk loop
         for node, model, latency, tok_in, tok_out in [
-            ("trader",          "gpt-4o", 2.0, 600, 420),
-            ("risk_analyst",    "gpt-4o", 1.5, 450, 310),
-            ("risk_synthesis",  "gpt-4o", 1.1, 380, 260),
+            ("trader", "gpt-4o", 2.0, 600, 420),
+            ("risk_analyst", "gpt-4o", 1.5, 450, 310),
+            ("risk_synthesis", "gpt-4o", 1.1, 380, 260),
         ]:
             async for evt in self._agent_no_tool(
-                run_id, node, ticker, model, latency, tok_in, tok_out, speed,
+                run_id,
+                node,
+                ticker,
+                model,
+                latency,
+                tok_in,
+                tok_out,
+                speed,
                 parent_node_id=prev,
             ):
                 yield evt
@@ -98,7 +120,14 @@ class MockEngine:
 
         # Portfolio manager — final decision node
         async for evt in self._agent_no_tool(
-            run_id, "portfolio_manager", ticker, "gpt-4o", 2.5, 740, 520, speed,
+            run_id,
+            "portfolio_manager",
+            ticker,
+            "gpt-4o",
+            2.5,
+            740,
+            520,
+            speed,
             parent_node_id=prev,
         ):
             yield evt
@@ -128,7 +157,10 @@ class MockEngine:
         # Emit thought events for all three before any complete (parallel fan-out)
         for node, model, _, _, _ in phase1:
             yield self._thought(
-                node, identifier, model, f"[MOCK] Scanning {node.replace('_', ' ')}…",
+                node,
+                identifier,
+                model,
+                f"[MOCK] Scanning {node.replace('_', ' ')}…",
                 parent_node_id="start",
             )
             await self._sleep(0.1, speed)
@@ -137,7 +169,12 @@ class MockEngine:
         for node, model, latency, tok_in, tok_out in phase1:
             await self._sleep(latency, speed)
             yield self._result(
-                node, identifier, model, tok_in, tok_out, round(latency * 1000),
+                node,
+                identifier,
+                model,
+                tok_in,
+                tok_out,
+                round(latency * 1000),
                 f"[MOCK] {node.replace('_', ' ').title()} report ready.",
                 parent_node_id="start",
             )
@@ -207,8 +244,13 @@ class MockEngine:
         tool_name: str,
         parent_node_id: str = "start",
     ) -> AsyncGenerator[dict[str, Any], None]:
-        yield self._thought(node, identifier, model, f"[MOCK] {node} analysing {identifier}…",
-                            parent_node_id=parent_node_id)
+        yield self._thought(
+            node,
+            identifier,
+            model,
+            f"[MOCK] {node} analysing {identifier}…",
+            parent_node_id=parent_node_id,
+        )
         await self._sleep(0.4, speed)
 
         yield self._tool_call(node, identifier, tool_name, f'{{"ticker": "{identifier}"}}')
@@ -220,7 +262,12 @@ class MockEngine:
         await self._sleep(latency - 1.0, speed)
 
         yield self._result(
-            node, identifier, model, tok_in, tok_out, round(latency * 1000),
+            node,
+            identifier,
+            model,
+            tok_in,
+            tok_out,
+            round(latency * 1000),
             f"[MOCK] {node.replace('_', ' ').title()} analysis complete for {identifier}.",
             parent_node_id=parent_node_id,
         )
@@ -237,12 +284,22 @@ class MockEngine:
         speed: float,
         parent_node_id: str = "start",
     ) -> AsyncGenerator[dict[str, Any], None]:
-        yield self._thought(node, identifier, model, f"[MOCK] {node} processing {identifier}…",
-                            parent_node_id=parent_node_id)
+        yield self._thought(
+            node,
+            identifier,
+            model,
+            f"[MOCK] {node} processing {identifier}…",
+            parent_node_id=parent_node_id,
+        )
         await self._sleep(latency, speed)
 
         yield self._result(
-            node, identifier, model, tok_in, tok_out, round(latency * 1000),
+            node,
+            identifier,
+            model,
+            tok_in,
+            tok_out,
+            round(latency * 1000),
             f"[MOCK] {node.replace('_', ' ').title()} decision for {identifier}.",
             parent_node_id=parent_node_id,
         )
@@ -277,8 +334,9 @@ class MockEngine:
             }
         )
 
-    def _thought(self, node: str, identifier: str, model: str, message: str,
-                 parent_node_id: str = "start") -> dict[str, Any]:
+    def _thought(
+        self, node: str, identifier: str, model: str, message: str, parent_node_id: str = "start"
+    ) -> dict[str, Any]:
         return self._with_defaults(
             {
                 "id": f"thought_{self._ns()}",

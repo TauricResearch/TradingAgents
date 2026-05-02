@@ -1,4 +1,5 @@
 """Tests for RunLogger counters — isolation unit tests and wiring regression (PR-B3)."""
+
 import json
 from pathlib import Path
 
@@ -15,8 +16,36 @@ def test_summary_counts_llm_events():
     # Simulate two LLM events by directly appending (mirrors callback behaviour)
     from tradingagents.observability import _Event
 
-    log._append(_Event(kind="llm", ts=0, data={"model": "gpt-4", "tokens_in": 100, "tokens_out": 200, "agent": "", "duration_ms": 0, "prompt": "", "response": ""}))
-    log._append(_Event(kind="llm", ts=0, data={"model": "gpt-4", "tokens_in": 50, "tokens_out": 75, "agent": "", "duration_ms": 0, "prompt": "", "response": ""}))
+    log._append(
+        _Event(
+            kind="llm",
+            ts=0,
+            data={
+                "model": "gpt-4",
+                "tokens_in": 100,
+                "tokens_out": 200,
+                "agent": "",
+                "duration_ms": 0,
+                "prompt": "",
+                "response": "",
+            },
+        )
+    )
+    log._append(
+        _Event(
+            kind="llm",
+            ts=0,
+            data={
+                "model": "gpt-4",
+                "tokens_in": 50,
+                "tokens_out": 75,
+                "agent": "",
+                "duration_ms": 0,
+                "prompt": "",
+                "response": "",
+            },
+        )
+    )
 
     summary = log.summary()
     assert summary["llm_calls"] == 2
@@ -43,7 +72,21 @@ def test_write_log_summary_reflects_recorded_events(tmp_path):
     log = RunLogger()
     from tradingagents.observability import _Event
 
-    log._append(_Event(kind="llm", ts=0, data={"model": "gpt-4", "tokens_in": 10, "tokens_out": 20, "agent": "", "duration_ms": 0, "prompt": "", "response": ""}))
+    log._append(
+        _Event(
+            kind="llm",
+            ts=0,
+            data={
+                "model": "gpt-4",
+                "tokens_in": 10,
+                "tokens_out": 20,
+                "agent": "",
+                "duration_ms": 0,
+                "prompt": "",
+                "response": "",
+            },
+        )
+    )
     log.log_vendor_call("ohlcv", "yfinance", success=True, duration_ms=50.0)
 
     out = tmp_path / "run_log.jsonl"
@@ -89,7 +132,9 @@ def test_engine_portfolio_passes_callbacks_to_graph():
     PortfolioGraph without the RunLogger callback, otherwise on_llm_end never fires.
     """
 
-    engine_src = Path(__file__).parent.parent.parent / "agent_os/backend/services/langgraph_engine.py"
+    engine_src = (
+        Path(__file__).parent.parent.parent / "agent_os/backend/services/langgraph_engine.py"
+    )
     source = engine_src.read_text()
 
     # We expect to find PortfolioGraph( ... callbacks=[rl.callback] ... )

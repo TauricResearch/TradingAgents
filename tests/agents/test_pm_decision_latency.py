@@ -20,21 +20,25 @@ def test_pm_decision_prompt_char_count_under_8000():
     from tradingagents.agents.portfolio.pm_decision_agent import _build_pm_context
 
     state = {
-        "portfolio_data": json.dumps({
-            "portfolio": {"cash": 50000.0, "total_value": 200000.0},
-            "holdings": [],
-        }),
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"cash": 50000.0, "total_value": 200000.0},
+                "holdings": [],
+            }
+        ),
         "macro_brief": "RISK-ON: Equities preferred. Earnings season positive.",
         "micro_brief": "AAPL: BUY thesis intact. ET: HOLD.",
-        "prioritized_candidates": json.dumps([
-            {
-                "ticker": "AAPL",
-                "conviction": "high",
-                "thesis_angle": "AI cycle",
-                "priority_score": 9.0,
-                "candidate_final_trade_decision_summary": "BUY AAPL at $175.",
-            }
-        ]),
+        "prioritized_candidates": json.dumps(
+            [
+                {
+                    "ticker": "AAPL",
+                    "conviction": "high",
+                    "thesis_angle": "AI cycle",
+                    "priority_score": 9.0,
+                    "candidate_final_trade_decision_summary": "BUY AAPL at $175.",
+                }
+            ]
+        ),
         "analysis_date": "2026-05-01",
     }
     cfg = {"min_cash_pct": 0.05}
@@ -57,10 +61,12 @@ def test_pm_decision_system_message_char_count_under_2500():
 
     # Build a minimal context and measure just the instruction preamble
     state = {
-        "portfolio_data": json.dumps({
-            "portfolio": {"cash": 50000.0, "total_value": 200000.0},
-            "holdings": [],
-        }),
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"cash": 50000.0, "total_value": 200000.0},
+                "holdings": [],
+            }
+        ),
         "macro_brief": "",
         "micro_brief": "",
         "prioritized_candidates": "[]",

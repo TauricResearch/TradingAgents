@@ -5,6 +5,7 @@ It demonstrates that the rescale_buys → pm_decision_postcheck pipeline
 would have succeeded for run 01KQHDVJB2R19S4D7Z7Z6DP9F7 instead of
 crashing at pm_decision_postcheck with a cash-adequacy violation.
 """
+
 import json
 
 import pytest
@@ -64,10 +65,12 @@ def test_failed_run_rescales_and_passes_postcheck():
         },
     }
     state = {
-        "portfolio_data": json.dumps({
-            "portfolio": {"cash": 2687.88, "total_value": 99923.20},
-            "holdings": [],
-        }),
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"cash": 2687.88, "total_value": 99923.20},
+                "holdings": [],
+            }
+        ),
         "pm_decision": json.dumps(pm_decision),
         "prices": {"ET": 20.18},
         "sender": "make_pm_decision",

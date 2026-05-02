@@ -681,7 +681,10 @@ class PortfolioGraphSetup:
                 logger.warning(
                     "rescale_buys: ceiling=0 (cash=%.2f, total_value=%.2f, min_cash_pct=%.2f) — "
                     "dropping all %d buy order(s)",
-                    cash, total_value, min_cash_pct, len(buys),
+                    cash,
+                    total_value,
+                    min_cash_pct,
+                    len(buys),
                 )
                 decision["buys"] = []
                 return {"pm_decision": json.dumps(decision), "sender": "rescale_buys"}
@@ -691,7 +694,9 @@ class PortfolioGraphSetup:
                 logger.warning(
                     "rescale_buys: total_notional=%.2f exceeds ceiling=%.2f — "
                     "scaling all buys by %.4f",
-                    total_notional, ceiling, scale,
+                    total_notional,
+                    ceiling,
+                    scale,
                 )
                 for b in buys:
                     if isinstance(b, dict):

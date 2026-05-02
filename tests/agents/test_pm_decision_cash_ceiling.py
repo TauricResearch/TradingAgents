@@ -1,4 +1,5 @@
 """Tests for PM decision cash ceiling injection (PR-B2.1)."""
+
 import json
 
 
@@ -7,10 +8,12 @@ def test_context_includes_resolved_cash_ceiling():
     from tradingagents.agents.portfolio.pm_decision_agent import _build_pm_context
 
     state = {
-        "portfolio_data": json.dumps({
-            "portfolio": {"cash": 25000.0, "total_value": 100000.0},
-            "holdings": [],
-        }),
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"cash": 25000.0, "total_value": 100000.0},
+                "holdings": [],
+            }
+        ),
         "macro_brief": "RISK-ON",
         "micro_brief": "ok",
         "prioritized_candidates": "[]",
@@ -28,10 +31,12 @@ def test_context_cash_ceiling_zero_when_below_floor():
     from tradingagents.agents.portfolio.pm_decision_agent import _build_pm_context
 
     state = {
-        "portfolio_data": json.dumps({
-            "portfolio": {"cash": 5000.0, "total_value": 100000.0},
-            "holdings": [],
-        }),
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"cash": 5000.0, "total_value": 100000.0},
+                "holdings": [],
+            }
+        ),
         "macro_brief": "",
         "micro_brief": "",
         "prioritized_candidates": "[]",
@@ -50,10 +55,12 @@ def test_context_includes_standard_constraint_fields():
     from tradingagents.agents.portfolio.pm_decision_agent import _build_pm_context
 
     state = {
-        "portfolio_data": json.dumps({
-            "portfolio": {"cash": 50000.0, "total_value": 200000.0},
-            "holdings": [],
-        }),
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"cash": 50000.0, "total_value": 200000.0},
+                "holdings": [],
+            }
+        ),
         "macro_brief": "neutral",
         "micro_brief": "micro",
         "prioritized_candidates": "[]",
