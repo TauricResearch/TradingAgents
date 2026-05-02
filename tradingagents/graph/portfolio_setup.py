@@ -631,6 +631,77 @@ class PortfolioGraphSetup:
 
         return prioritize_candidates_node
 
+    def _make_rescale_buys_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
+        """Deterministic guard that scales buy notional to fit within the cash ceiling.
+
+        Computed ceiling: max(0, cash - min_cash_pct * total_value).
+        When aggregate buy notional exceeds the ceiling, ALL buy shares are scaled
+        down proportionally so the sum of (shares × entry_price) equals the ceiling.
+        When the ceiling is ≤ 0, all buys are cleared.
+
+        This runs BEFORE cash_sweep so the SGOV sweep added by that node is not
+        subject to rescaling (it manages cash the PM chose not to deploy).
+        """
+        config = self._config
+
+        def rescale_buys_node(state: PortfolioManagerState) -> dict[str, Any]:
+            pm_decision_str = state.get("pm_decision") or "{}"
+            portfolio_data_str = state.get("portfolio_data") or "{}"
+
+            try:
+                decision = json.loads(pm_decision_str)
+            except (json.JSONDecodeError, TypeError):
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            try:
+                pd = json.loads(portfolio_data_str)
+                portfolio = pd.get("portfolio") or {}
+                cash = float(portfolio.get("cash", 0.0))
+                total_value = float(portfolio.get("total_value") or cash)
+            except Exception:
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            min_cash_pct = float(config.get("min_cash_pct", 0.05))
+            ceiling = max(0.0, cash - min_cash_pct * total_value)
+
+            buys = decision.get("buys") or []
+            if not buys:
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            total_notional = sum(
+                float(b.get("shares", 0.0)) * float(b.get("entry_price", 0.0))
+                for b in buys
+                if isinstance(b, dict)
+            )
+
+            if total_notional <= 0.0:
+                return {"pm_decision": pm_decision_str, "sender": "rescale_buys"}
+
+            if ceiling <= 0.0:
+                logger.warning(
+                    "rescale_buys: ceiling=0 (cash=%.2f, total_value=%.2f, min_cash_pct=%.2f) — "
+                    "dropping all %d buy order(s)",
+                    cash, total_value, min_cash_pct, len(buys),
+                )
+                decision["buys"] = []
+                return {"pm_decision": json.dumps(decision), "sender": "rescale_buys"}
+
+            if total_notional > ceiling:
+                scale = ceiling / total_notional
+                logger.warning(
+                    "rescale_buys: total_notional=%.2f exceeds ceiling=%.2f — "
+                    "scaling all buys by %.4f",
+                    total_notional, ceiling, scale,
+                )
+                for b in buys:
+                    if isinstance(b, dict):
+                        b["shares"] = float(b.get("shares", 0.0)) * scale
+                decision["buys"] = buys
+
+            return {"pm_decision": json.dumps(decision), "sender": "rescale_buys"}
+
+        return rescale_buys_node
+
     def _make_cash_sweep_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Node to automatically sweep excess cash into a cash-equivalent ETF."""
 
@@ -867,6 +938,7 @@ class PortfolioGraphSetup:
         workflow.add_node("compute_risk", self._make_compute_risk_node())
         workflow.add_node("portfolio_integrity_guard", self._make_portfolio_integrity_guard_node())
         workflow.add_node("prioritize_candidates", self._make_prioritize_candidates_node())
+        workflow.add_node("rescale_buys", self._make_rescale_buys_node())
         workflow.add_node("cash_sweep", self._make_cash_sweep_node())
         workflow.add_node("pm_decision_postcheck", self._make_pm_decision_postcheck_node())
         workflow.add_node("execute_trades", self._make_execute_trades_node())
@@ -894,8 +966,9 @@ class PortfolioGraphSetup:
         workflow.add_edge("macro_summary", "make_pm_decision")
         workflow.add_edge("micro_summary", "make_pm_decision")
 
-        # Tail — postcheck validates the final decision after cash_sweep (ADR 024)
-        workflow.add_edge("make_pm_decision", "cash_sweep")
+        # Tail — rescale_buys caps notional to cash ceiling, then cash_sweep and postcheck (ADR 024)
+        workflow.add_edge("make_pm_decision", "rescale_buys")
+        workflow.add_edge("rescale_buys", "cash_sweep")
         workflow.add_edge("cash_sweep", "pm_decision_postcheck")
         workflow.add_edge("pm_decision_postcheck", "execute_trades")
         workflow.add_edge("execute_trades", "record_pm_decisions")
