@@ -602,7 +602,7 @@ def classify_macro_regime(curr_date: str | None = None) -> dict:
     }
 
 
-def format_macro_report(regime_data: dict) -> str:
+def format_macro_report(regime_data: dict, report_date: str | None = None) -> str:
     """Format classify_macro_regime output as a Markdown report."""
     regime = regime_data.get("regime", "unknown")
     score = regime_data.get("score", 0)
@@ -618,7 +618,7 @@ def format_macro_report(regime_data: dict) -> str:
 
     lines = [
         "# Macro Regime Classification",
-        f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"# Data retrieved on: {report_date or datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",
         f"## Regime: {regime_display}",
         "",

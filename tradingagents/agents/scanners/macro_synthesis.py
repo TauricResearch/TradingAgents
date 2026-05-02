@@ -360,7 +360,7 @@ def create_macro_synthesis(
 
         regime_data = classify_macro_regime(scan_date)
         canonical_regime = _canonical_regime_from_data(regime_data)
-        macro_regime_report = format_macro_report(regime_data)
+        macro_regime_report = format_macro_report(regime_data, report_date=scan_date)
         _validate_macro_regime_report(macro_regime_report, canonical_regime)
         save_node_report(state, "macro_regime_report", macro_regime_report)
 

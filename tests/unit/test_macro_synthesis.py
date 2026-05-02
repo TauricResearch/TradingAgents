@@ -13,6 +13,7 @@ from tradingagents.agents.scanners.macro_synthesis import (
     _repair_macro_summary,
     create_macro_synthesis,
 )
+from tradingagents.dataflows.macro_regime import format_macro_report as real_format_macro_report
 
 
 @pytest.fixture(autouse=True)
@@ -32,8 +33,9 @@ def _deterministic_macro_regime(monkeypatch):
     monkeypatch.setattr(
         macro_synthesis_module,
         "format_macro_report",
-        lambda regime_data: (
+        lambda regime_data, *, report_date=None: (
             "# Macro Regime Classification\n\n"
+            f"# Data retrieved on: {report_date or 'fixture-date'}\n\n"
             f"## Regime: {regime_data['regime'].upper()}\n\n"
             f"| Composite Score | {regime_data['score']:+d} / 6 |"
         ),
@@ -302,7 +304,9 @@ def test_macro_synthesis_fails_when_regime_report_lacks_score(monkeypatch):
 
     monkeypatch.setattr(
         "tradingagents.agents.scanners.macro_synthesis.format_macro_report",
-        lambda _regime_data: "# Macro Regime Classification\n\n## Regime: RISK-ON",
+        lambda _regime_data, *, report_date=None: (
+            "# Macro Regime Classification\n\n## Regime: RISK-ON"
+        ),
     )
 
     agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3)
@@ -317,6 +321,51 @@ def test_macro_synthesis_fails_when_regime_report_lacks_score(monkeypatch):
         )
 
     assert "score" in str(exc.value)
+
+
+def test_macro_synthesis_regime_report_uses_scan_date_not_wall_clock(monkeypatch):
+    saved_reports = []
+
+    def _save_node_report(_state, report_key, report):
+        saved_reports.append((report_key, report))
+
+    def _invoke(_prompt_value):
+        return AIMessage(
+            content='{"timeframe":"1 month","executive_summary":"Summary",'
+            '"macro_context":{},"key_themes":[],"stocks_to_investigate":[],'
+            '"risk_factors":[]}'
+        )
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.format_macro_report",
+        real_format_macro_report,
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.save_node_report",
+        _save_node_report,
+    )
+
+    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3)
+
+    result = agent(
+        {
+            "scan_date": "2026-03-30",
+            "run_id": "RUN1",
+            "messages": [],
+            "gatekeeper_universe_report": "NVDA AAPL MSFT",
+            "geopolitical_report": "Geopolitical context",
+            "market_movers_report": "Market movers context",
+            "sector_performance_report": "Sector context",
+            "factor_alignment_report": "Factor context",
+            "drift_opportunities_report": "Drift context",
+            "smart_money_report": "Smart money context",
+            "industry_deep_dive_report": "Industry context",
+        }
+    )
+
+    assert "# Data retrieved on: 2026-03-30" in result["macro_regime_report"]
+    assert "2026-03-30 " not in result["macro_regime_report"]
+    assert saved_reports[0] == ("macro_regime_report", result["macro_regime_report"])
 
 
 def test_macro_synthesis_respects_configured_deep_timeout_cap(monkeypatch):
