@@ -70,6 +70,63 @@ def _build_candidate_deep_dive_context(prioritized_candidates_raw: str) -> str:
     return json.dumps(summarized, indent=2)
 
 
+def _build_pm_context(state: dict, cfg: dict) -> str:
+    """Build the context block injected into the PM prompt.
+
+    Extracts portfolio constraints and summary from *state* and *cfg*, including
+    the dynamically resolved ``max_total_buy_notional`` hard ceiling so the LLM
+    cannot accidentally over-spend cash even without the rescale_buys guard.
+
+    Args:
+        state: Current LangGraph node state.
+        cfg: Portfolio configuration dict (e.g. min_cash_pct, max_position_pct).
+
+    Returns:
+        Multi-section context string ready to embed in the prompt.
+    """
+    portfolio_data_str = state.get("portfolio_data") or "{}"
+    try:
+        pd_raw = json.loads(portfolio_data_str)
+        portfolio = pd_raw.get("portfolio") or {}
+        holdings = pd_raw.get("holdings") or []
+        cash = float(portfolio.get("cash", 0.0))
+        total_value = float(portfolio.get("total_value") or cash)
+        n_positions = len(holdings)
+    except Exception:
+        cash, total_value, n_positions = 0.0, 0.0, 0
+
+    min_cash_pct = float(cfg.get("min_cash_pct", 0.05))
+    max_total_buy_notional = max(0.0, cash - min_cash_pct * total_value)
+
+    constraints_str = (
+        f"- Max position size: {cfg.get('max_position_pct', 0.15):.0%}\n"
+        f"- Max sector exposure: {cfg.get('max_sector_pct', 0.35):.0%}\n"
+        f"- Minimum cash reserve: {min_cash_pct:.0%}\n"
+        f"- Max total positions: {cfg.get('max_positions', 15)}\n"
+        f"- max_total_buy_notional: ${max_total_buy_notional:,.2f} "
+        f"(HARD CEILING — sum of all BUY shares*entry_price MUST NOT EXCEED this)\n"
+    )
+    compressed_str = json.dumps({
+        "cash": cash,
+        "n_positions": n_positions,
+        "total_value": total_value,
+        "max_total_buy_notional": max_total_buy_notional,
+    })
+
+    macro_brief = state.get("macro_brief") or ""
+    micro_brief = state.get("micro_brief") or "No micro brief available."
+    candidate_deep_dive_context = _build_candidate_deep_dive_context(
+        state.get("prioritized_candidates") or "[]"
+    )
+    return (
+        f"## Portfolio Constraints\n{constraints_str}\n\n"
+        f"## Portfolio Summary\n{compressed_str}\n\n"
+        f"## Input A — Macro Context & Memory\n{macro_brief}\n\n"
+        f"## Input B — Direct Candidate Final Trade Decision Summaries\n{candidate_deep_dive_context}\n\n"
+        f"## Input C — Micro Context & Memory\n{micro_brief}\n"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Pydantic output schema
 # ---------------------------------------------------------------------------
@@ -203,47 +260,10 @@ def create_pm_decision_agent(
     """
     cfg = config or {}
     breaker = circuit_breaker_from_config(cfg)
-    constraints_str = (
-        f"- Max position size: {cfg.get('max_position_pct', 0.15):.0%}\n"
-        f"- Max sector exposure: {cfg.get('max_sector_pct', 0.35):.0%}\n"
-        f"- Minimum cash reserve: {cfg.get('min_cash_pct', 0.05):.0%}\n"
-        f"- Max total positions: {cfg.get('max_positions', 15)}\n"
-    )
 
     def pm_decision_node(state: PortfolioManagerState) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
-
-        # Read brief fields written by upstream summary agents
-        _macro_brief_raw = state.get("macro_brief") or ""
-        macro_brief = _macro_brief_raw or ""
-        micro_brief = state.get("micro_brief") or "No micro brief available."
-        candidate_deep_dive_context = _build_candidate_deep_dive_context(
-            state.get("prioritized_candidates") or "[]"
-        )
-
-        # Build compressed portfolio summary — avoid passing the full blob
-        portfolio_data_str = state.get("portfolio_data") or "{}"
-        try:
-            pd_raw = json.loads(portfolio_data_str)
-            portfolio = pd_raw.get("portfolio") or {}
-            holdings = pd_raw.get("holdings") or []
-            compressed = {
-                "cash": portfolio.get("cash", 0.0),
-                "n_positions": len(holdings),
-                "total_value": portfolio.get("total_value"),
-            }
-            compressed_str = json.dumps(compressed)
-        except Exception:
-            # Fallback: truncated raw string keeps token count bounded
-            compressed_str = portfolio_data_str[:200]
-
-        context = (
-            f"## Portfolio Constraints\n{constraints_str}\n\n"
-            f"## Portfolio Summary\n{compressed_str}\n\n"
-            f"## Input A — Macro Context & Memory\n{macro_brief}\n\n"
-            f"## Input B — Direct Candidate Final Trade Decision Summaries\n{candidate_deep_dive_context}\n\n"
-            f"## Input C — Micro Context & Memory\n{micro_brief}\n"
-        )
+        context = _build_pm_context(state, cfg)
 
         system_message = (
             "You are a portfolio manager making final, risk-adjusted investment decisions. "
@@ -262,6 +282,8 @@ def create_pm_decision_agent(
             "If a high-conviction candidate exceeds max position size or sector limit, "
             "adjust shares downward to fit. For every BUY: set stop_loss (5-15% below entry) "
             "and take_profit (10-30% above entry).\n\n"
+            "Sum of (shares × entry_price) across ALL BUYs MUST NOT EXCEED max_total_buy_notional shown "
+            "in Portfolio Constraints. This is a HARD CEILING — violating it will crash the trade execution.\n\n"
             "Every BUY must be executable as a limit order. "
             "Set entry_price to the price assumed by the candidate thesis, limit_price to the highest allowed execution price, "
             "and max_chase_price to the highest price where the risk/reward still matches the thesis. "
