@@ -57,6 +57,14 @@ export function Layout(props: PropsWithChildren) {
             >
               Holdings
             </button>
+            <button
+              hx-get="/exits"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Exits
+            </button>
           </nav>
         </header>
         <main id="content">{props.children}</main>

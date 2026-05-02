@@ -245,3 +245,35 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .explain-field strong { color: var(--text-dim); min-width: 100px; display: inline-block; }
 
 .error-card { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); border-radius: 6px; padding: 1rem; color: var(--red); font-size: 0.875rem; }
+
+/* Exit plans */
+.exit-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.exit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.exit-header .ticker {
+  font-family: 'Datatype', monospace;
+  font-weight: 700;
+  font-size: 1.1em;
+}
+.exit-details {
+  display: grid;
+  gap: 4px;
+}
+.exit-details div {
+  font-size: 0.9em;
+  color: var(--text-dim);
+}
+.exit-details .notes {
+  font-style: italic;
+  margin-top: 8px;
+}

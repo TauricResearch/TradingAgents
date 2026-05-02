@@ -10,11 +10,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/js-yaml": "^4.0.9"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
     "hono": "^4.9.8",
+    "js-yaml": "^4.1.1",
     "marked": "^16.3.0"
   }
 }
