@@ -135,10 +135,13 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
   padding: 0.4rem 0;
   font-size: 0.875rem;
 }
+.timeline-row.status-buy { color: var(--green); }
+.timeline-row.status-sell { color: var(--red); }
+.timeline-row.status-hold { color: var(--yellow); }
 .timeline-signal { min-width: 100px; font-weight: 600; }
 .timeline-bar { color: var(--text-dim); min-width: 120px; }
-.timeline-date { color: var(--text-dim); min-width: 90px; }
-.timeline-current { color: var(--blue); font-size: 0.75rem; font-weight: 500; }
+.timeline-date { min-width: 90px; opacity: 0.7; }
+.timeline-current { font-size: 0.75rem; font-weight: 500; opacity: 0.6; }
 
 /* Datatype font charts */
 .sparkline {
@@ -167,13 +170,15 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .datatype-pie {
   font-family: 'Datatype', sans-serif;
   font-size: 1.5rem;
-  color: var(--blue);
+  color: inherit;
   font-feature-settings: 'calt' 1, 'liga' 1;
   -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
   display: inline-block;
   min-width: 2rem;
   text-align: center;
 }
+
+.timeline-confidence { color: inherit; font-weight: 600; }
 
 /* Datatype test page */
 .dt-test code {

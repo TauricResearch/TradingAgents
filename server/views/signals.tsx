@@ -6,7 +6,7 @@ export function SignalsView() {
       <section class="panel">
         <div class="form-row">
           <select id="signals-ticker" hx-get="/api/signals" hx-target="#signals-body"
-                  hx-swap="innerHTML" hx-trigger="change">
+                  hx-swap="none" hx-trigger="change">
             <option value="">All tickers</option>
           </select>
         </div>
@@ -18,8 +18,7 @@ export function SignalsView() {
       </section>
 
       <section class="panel">
-        <table id="signals-table" hx-get="/api/signals" hx-trigger="load"
-               hx-target="#signals-body" hx-swap="innerHTML">
+        <table id="signals-table">
           <thead>
             <tr><th>Date</th><th>Ticker</th><th>Signal</th><th>Confidence</th><th>Reasoning</th></tr>
           </thead>
@@ -34,54 +33,53 @@ export function SignalsView() {
 
 function signalsScript(): string {
   return `
-document.body.addEventListener('htmx:afterOnLoad', function(evt) {
-  var isSignals = evt.detail.target.id === 'signals-body';
-  var isTimeline = evt.detail.target.id === 'signals-timeline';
-  if (!isSignals && !isTimeline) return;
-  try {
-    var data = JSON.parse(evt.detail.xhr.responseText);
+// Load signals on page load
+function loadSignals(ticker) {
+  var url = '/api/signals' + (ticker ? '?ticker=' + encodeURIComponent(ticker) : '');
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    var tbody = document.getElementById('signals-body');
+    if (!tbody) return;
     if (data.length === 0) {
-      if (isSignals) {
-        document.getElementById('signals-body').innerHTML = '<tr><td colspan="5" class="muted">No signals recorded</td></tr>';
-      }
+      tbody.innerHTML = '<tr><td colspan="5" class="muted">No signals recorded</td></tr>';
       return;
     }
-    // Render table rows
-    if (isSignals) {
-      document.getElementById('signals-body').innerHTML = data.map(function(s) {
-        var cls = signalClass(s.signal);
-        return '<tr>' +
-          '<td>' + (s.date || '—') + '</td>' +
-          '<td>' + s.ticker + '</td>' +
-          '<td class="' + cls + '">' + s.signal + '</td>' +
-          '<td>' + (s.confidence != null ? Math.round(s.confidence * 100) + '%' : '—') + '</td>' +
-          '<td class="muted">' + (s.reasoning || '').substring(0, 120) + '</td>' +
-        '</tr>';
-      }).join('');
+    tbody.innerHTML = data.map(function(s) {
+      var cls = signalClass(s.signal);
+      return '<tr>' +
+        '<td>' + (s.date || '—') + '</td>' +
+        '<td>' + s.ticker + '</td>' +
+        '<td class="' + cls + '">' + s.signal + '</td>' +
+        '<td>' + (s.confidence != null ? Math.round((parseFloat(s.confidence) || 0) * 100) + '%' : '—') + '</td>' +
+        '<td class="muted">' + (s.reasoning || '').substring(0, 120) + '</td>' +
+      '</tr>';
+    }).join('');
 
-      // Populate ticker dropdown
-      var select = document.getElementById('signals-ticker');
-      if (select && select.options.length <= 1) {
-        var tickers = [];
-        data.forEach(function(s) { if (!tickers.includes(s.ticker)) tickers.push(s.ticker); });
-        tickers.forEach(function(t) {
-          var opt = document.createElement('option');
-          opt.value = t; opt.textContent = t;
-          select.appendChild(opt);
-        });
-      }
+    // Populate ticker dropdown
+    var select = document.getElementById('signals-ticker');
+    if (select && select.options.length <= 1) {
+      var tickers = [];
+      data.forEach(function(s) { if (!tickers.includes(s.ticker)) tickers.push(s.ticker); });
+      tickers.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t; opt.textContent = t;
+        select.appendChild(opt);
+      });
     }
 
     // Render timeline if a single ticker is selected
-    var ticker = document.getElementById('signals-ticker').value;
-    if (ticker && data.length > 0) {
-      var filtered = data.filter(function(s) { return s.ticker === ticker; });
-      if (filtered.length > 0) renderTimeline(ticker, filtered);
+    var sel = document.getElementById('signals-ticker').value;
+    if (sel && data.length > 0) {
+      var filtered = data.filter(function(s) { return s.ticker === sel; });
+      if (filtered.length > 0) renderTimeline(sel, filtered);
     } else {
-      document.getElementById('timeline-panel').style.display = 'none';
+      var tp = document.getElementById('timeline-panel');
+      if (tp) tp.style.display = 'none';
     }
-  } catch(e) {}
-});
+  }).catch(function() {
+    var tbody = document.getElementById('signals-body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="muted">Failed to load signals</td></tr>';
+  });
+}
 
 function signalClass(signal) {
   var s = (signal || '').toLowerCase();
@@ -95,25 +93,21 @@ function renderTimeline(ticker, signals) {
   var container = document.getElementById('signal-timeline');
   panel.style.display = 'block';
 
-  // Build Datatype sparkline from confidence values (0-100)
-  var confValues = signals.map(function(s) { return Math.round((s.confidence || 0.5) * 100); });
+  var confValues = signals.map(function(s) { return Math.round((parseFloat(s.confidence) || 0.5) * 100); });
   var sparkline = '{l:' + confValues.join(',') + '}';
   var barchart = '{b:' + confValues.join(',') + '}';
   var firstSig = signalClass(signals[0].signal);
 
   var html = '<div class="sparkline ' + firstSig + '">' + sparkline + '</div>';
   html += '<div class="bar-chart">' + barchart + '</div>';
-  html += '<div style="font-family:Datatype,sans-serif; font-size:2rem; color:var(--blue); font-feature-settings:\'calt\' 1,\'liga\' 1; padding:1rem 0; border:1px dashed var(--border); margin:0.5rem 0;">';
-  html += 'bar: {b:50,80,30} &nbsp;|&nbsp; pie: {p:75} &nbsp;|&nbsp; line: {l:50,80,30}';
-  html += '</div>';
   html += '<div class="timeline-entries">';
   html += signals.map(function(s, i) {
     var cls = signalClass(s.signal);
     var conf = parseFloat(s.confidence) || 0;
     var pct = Math.round(conf * 100);
     var pie = '{p:' + pct + '}';
-    return '<div class="timeline-row">' +
-      '<span class="timeline-signal ' + cls + '">' + s.signal + '</span>' +
+    return '<div class="timeline-row ' + cls + '">' +
+      '<span class="timeline-signal">' + s.signal + '</span>' +
       '<span class="timeline-date">' + (s.date || '—') + '</span>' +
       '<span class="datatype-pie" title="' + pct + '% confidence">' + pie + '</span>' +
       '<span class="timeline-confidence">' + pct + '%</span>' +
@@ -122,5 +116,12 @@ function renderTimeline(ticker, signals) {
   }).join('');
   html += '</div>';
   container.innerHTML = html;
-}`;
+}
+
+// Init on load
+loadSignals();
+
+document.getElementById('signals-ticker').addEventListener('change', function() {
+  loadSignals(this.value || undefined);
+});`;
 }
