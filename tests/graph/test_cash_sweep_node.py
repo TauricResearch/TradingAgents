@@ -166,6 +166,54 @@ def test_cash_sweep_no_op_when_buys_consume_target_cash():
     assert sgov_buys == [], f"Expected no sweep when PM buys hit target reserve; got {sgov_buys}"
 
 
+def test_cash_sweep_target_defaults_to_min_cash_pct():
+    """When target_cash_pct is unset, the sweep target follows min_cash_pct.
+
+    Without this defaulting, a deployment that raises min_cash_pct above 0.05
+    would still see SGOV pushing cash down to 5% — silently violating the
+    operator's reserve. Audit finding (Important).
+    """
+    from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
+
+    # cash=$50K, NAV=$200K, min_cash_pct=0.10 → target reserve is 0.10*200K=$20K.
+    # No PM buys. Excess = 50K - 20K = $30K → 300 SGOV shares (not 400 from 0.05).
+    state = _make_state(
+        cash=50_000.0,
+        total_value=200_000.0,
+        buys=[],
+        prices={"SGOV": 100.0},
+    )
+
+    setup = PortfolioGraphSetup(agents={}, config={"min_cash_pct": 0.10})
+    node = setup._make_cash_sweep_node()
+    result = node(state)
+    sgov_buys = [b for b in json.loads(result["pm_decision"])["buys"] if b["ticker"] == "SGOV"]
+    assert sgov_buys, "expected sweep to fire"
+    assert sgov_buys[0]["shares"] == pytest.approx(300.0, rel=0.001), (
+        f"target_cash_pct should follow min_cash_pct; got {sgov_buys[0]['shares']} shares "
+        "(would be 400 if hardcoded to 0.05)"
+    )
+
+
+def test_cash_sweep_explicit_target_cash_pct_wins():
+    """Operators can still set target_cash_pct above min_cash_pct for a buffer."""
+    from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
+
+    # cash=$50K, NAV=$200K, min=5% but target=15% → reserve $30K → excess $20K → 200 shares
+    state = _make_state(
+        cash=50_000.0,
+        total_value=200_000.0,
+        buys=[],
+        prices={"SGOV": 100.0},
+    )
+
+    setup = PortfolioGraphSetup(agents={}, config={"min_cash_pct": 0.05, "target_cash_pct": 0.15})
+    node = setup._make_cash_sweep_node()
+    result = node(state)
+    sgov_buys = [b for b in json.loads(result["pm_decision"])["buys"] if b["ticker"] == "SGOV"]
+    assert sgov_buys[0]["shares"] == pytest.approx(200.0, rel=0.001)
+
+
 def test_cash_sweep_skips_when_buys_exceed_cash():
     """Defensive: if (post-rescale) buy notional exceeds cash, no sweep —
     rescale should have prevented this; sweep must not 'rescue' by going

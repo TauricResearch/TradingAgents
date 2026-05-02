@@ -89,9 +89,14 @@ if cash_after_buys / total_value > target_cash_pct:
     append SGOV buy with sector="Cash Equivalent"
 ```
 
-`target_cash_pct` is hardcoded at `0.05` in the sweep node. This is the value
-the sweep aims to leave on hand; it is **not** a hard constraint. The hard
-constraint is `min_cash_pct`, enforced by postcheck.
+`target_cash_pct` reads from `config["target_cash_pct"]` and defaults to
+`min_cash_pct` when unset. This is the value the sweep aims to leave on hand;
+it is **not** a hard constraint — the hard constraint is `min_cash_pct`,
+enforced by postcheck. Defaulting `target_cash_pct` to `min_cash_pct`
+guarantees that a deployment which raises the floor (e.g. `min_cash_pct=0.10`)
+does not have its operator-intent silently violated by a hardcoded 5% target.
+Operators may still set `target_cash_pct > min_cash_pct` to keep a buffer
+above the floor.
 
 ### 2.4 `pm_decision_postcheck`
 
@@ -120,7 +125,7 @@ The postcheck also enforces position-cap (`max_position_pct`) and sector-cap
 | `cash`                  | Current portfolio cash, in base currency                                           | `portfolio.cash` in `portfolio_data` JSON           | `load_portfolio` node, ultimately the DB                          |
 | `total_value`           | Current NAV (cash + equity at live prices) — pre-trade                             | `portfolio.total_value` or recomputed inline        | `compute_risk` / `prioritize_candidates` enrichment               |
 | `min_cash_pct`          | **Hard floor.** Minimum cash as fraction of NAV that postcheck enforces.           | Config, default `0.05`                              | `default_config.py`; can be overridden per deployment             |
-| `target_cash_pct`       | **Soft target.** Level the sweep aims to leave on hand after parking excess.       | Hardcoded `0.05` in `_make_cash_sweep_node`         | `tradingagents/graph/portfolio_setup.py` (cash_sweep node)        |
+| `target_cash_pct`       | **Soft target.** Level the sweep aims to leave on hand after parking excess.       | Config, defaults to `min_cash_pct` when unset       | `default_config.py` / `_make_cash_sweep_node`                     |
 | `max_position_pct`      | Per-ticker cap (excludes SGOV)                                                     | Config, default `0.15`                              | `default_config.py`                                               |
 | `max_sector_pct`        | Per-sector cap (excludes "Cash Equivalent")                                        | Config, default `0.35`                              | `default_config.py`                                               |
 | `prices[ticker]`        | Live market price used for projection and execution                                | State key `prices`                                  | `compute_risk` / vendor fetch                                     |
@@ -244,14 +249,12 @@ trust-first review.
 These are *not* fixed in this iteration. They are flagged here as future work
 so the next person who touches this code knows where the rough edges are.
 
-- [ ] **`target_cash_pct` is hardcoded to 0.05 in `cash_sweep`.** If a
-  deployment overrides `min_cash_pct` to, say, 0.10, the sweep will keep
-  trying to leave only 5% on hand — the sweep would shovel cash into SGOV
-  beyond what the deployment wants reserved. The sweep would never *violate*
-  the floor (its target is below the floor in that scenario, so its excess
-  computation would yield 0 once cash dropped below 10%). But the sweep would
-  no longer match operator intent. **Fix:** read `target_cash_pct` from
-  `config`, default to `min_cash_pct`. Severity: Important.
+- [x] ~~**`target_cash_pct` is hardcoded to 0.05 in `cash_sweep`.**~~ **Fixed.**
+  `target_cash_pct` now reads from `config["target_cash_pct"]` and defaults to
+  `min_cash_pct` when unset, so a deployment that raises the floor no longer
+  has its operator intent silently violated by a hardcoded 5% target. Tests:
+  `tests/graph/test_cash_sweep_node.py::test_cash_sweep_target_defaults_to_min_cash_pct`
+  and `::test_cash_sweep_explicit_target_cash_pct_wins`.
 
 - [ ] **Sells are not projected forward into the cash basis used by `rescale_buys`
   and `cash_sweep`.** Postcheck applies sells before buys when projecting,

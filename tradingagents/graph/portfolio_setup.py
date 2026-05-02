@@ -723,6 +723,7 @@ class PortfolioGraphSetup:
 
     def _make_cash_sweep_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Node to automatically sweep excess cash into a cash-equivalent ETF."""
+        config = self._config
 
         def cash_sweep_node(state: PortfolioManagerState) -> dict[str, Any]:
             portfolio_data_str = state.get("portfolio_data") or "{}"
@@ -748,8 +749,13 @@ class PortfolioGraphSetup:
 
                 total_value = portfolio.total_value or portfolio.cash
 
-                # Default target cash threshold
-                target_cash_pct = 0.05
+                # Sweep target reads from config; defaults to min_cash_pct so a
+                # deployment that raises the floor (e.g. min_cash_pct=0.10) does
+                # not have its operator-intent silently violated by a hardcoded
+                # 5% sweep target. ``target_cash_pct`` may still be set
+                # explicitly when desk policy wants a buffer above the floor.
+                min_cash_pct = float(config.get("min_cash_pct", 0.05))
+                target_cash_pct = float(config.get("target_cash_pct", min_cash_pct))
                 sweep_etf = "SGOV"
                 sweep_etf_price = prices.get(sweep_etf, 100.0)  # Assume 100.0 if not in prices
 
