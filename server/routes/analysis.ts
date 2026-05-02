@@ -1,27 +1,67 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import { spawn } from "node:child_process";
+import { join, dirname } from "node:path";
+import { existsSync } from "node:fs";
 
 export const analysisRouter = new Hono();
+
+/**
+ * Resolve the TradingAgents project root.
+ * Order: TA_ROOT env → sibling directory → parent directory
+ */
+function findProjectRoot(): string {
+  // 1. Explicit env var
+  if (process.env.TA_ROOT) return process.env.TA_ROOT;
+
+  // 2. Sibling directory (worktree layout: TradingAgents-sse, TradingAgents)
+  //    import.meta.dir in server/routes/analysis.ts → go up 2 levels to project root
+  const projectRoot = dirname(dirname(import.meta.dir));
+  const sibling = join(projectRoot, "..", "TradingAgents");
+  if (existsSync(join(sibling, "scripts", "analyze_stream.py"))) {
+    return sibling;
+  }
+
+  // 3. Current directory (monolith layout)
+  if (existsSync(join(projectRoot, "scripts", "analyze_stream.py"))) {
+    return projectRoot;
+  }
+
+  throw new Error(
+    "Cannot find TradingAgents root. Set TA_ROOT env var.",
+  );
+}
 
 /**
  * POST /api/analyze — trigger analysis, stream progress via SSE
  *
  * Body: { ticker, date?, analysts?, llm_provider?, debates? }
  *
- * SSE events:
- *   agent_start, tool_call, report, decision, complete, error
+ * SSE events: start, agent_report, debate_round, risk_assessment,
+ *             decision, complete, error
  */
 analysisRouter.post("/", async (c) => {
   const body = await c.req.json();
   const {
     ticker,
     date = "today",
-    analysts = ["market", "news", "fundamentals"],
+    analysts = "market,news,fundamentals",
     debates = 1,
   } = body;
 
   if (!ticker) {
     return c.json({ error: "ticker is required" }, 400);
+  }
+
+  const root = findProjectRoot();
+  const venvPython = join(root, ".venv", "bin", "python3");
+  const script = join(root, "scripts", "analyze_stream.py");
+
+  if (!existsSync(script)) {
+    return c.json(
+      { error: `analyze_stream.py not found at ${script}` },
+      500,
+    );
   }
 
   return streamSSE(c, async (stream) => {
@@ -30,38 +70,71 @@ analysisRouter.post("/", async (c) => {
       data: JSON.stringify({ ticker, date }),
     });
 
-    // TODO: spawn Python subprocess: scripts/analyze.py
-    // For now, simulate events
-    const agents = [
-      "Market Analyst",
-      "News Analyst",
-      "Fundamentals Analyst",
-    ];
+    const child = spawn(
+      venvPython,
+      [
+        script,
+        ticker,
+        "--date",
+        date,
+        "--analysts",
+        analysts,
+        "--debates",
+        String(debates),
+      ],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          PYTHONUNBUFFERED: "1",
+        },
+      },
+    );
 
-    for (const agent of analysts) {
-      await stream.writeSSE({
-        event: "agent_start",
-        data: JSON.stringify({ agent }),
-      });
-      // Simulate work delay
-      await new Promise((r) => setTimeout(r, 500));
-      await stream.writeSSE({
-        event: "agent_complete",
-        data: JSON.stringify({ agent }),
-      });
-    }
+    let stderr = "";
 
-    await stream.writeSSE({
-      event: "decision",
-      data: JSON.stringify({
-        signal: "Hold",
-        reasoning: "Placeholder — full Python integration coming next.",
-      }),
+    child.stdout.on("data", (chunk: Buffer) => {
+      const lines = chunk.toString().split("\n").filter(Boolean);
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.event && parsed.data !== undefined) {
+            stream.writeSSE({
+              event: parsed.event,
+              data: JSON.stringify(parsed.data),
+            }).catch(() => {});
+          }
+        } catch {
+          // Skip non-JSON output (warnings, etc.)
+        }
+      }
     });
 
-    await stream.writeSSE({
-      event: "complete",
-      data: JSON.stringify({ ticker }),
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      child.on("close", (code) => {
+        if (code !== 0) {
+          stream.writeSSE({
+            event: "error",
+            data: JSON.stringify({
+              message: `Python process exited with code ${code}`,
+              stderr: stderr.slice(-2000),
+            }),
+          }).catch(() => {});
+        }
+        resolve();
+      });
+
+      child.on("error", (err) => {
+        stream.writeSSE({
+          event: "error",
+          data: JSON.stringify({ message: err.message }),
+        }).catch(() => {});
+        resolve();
+      });
     });
   });
 });

@@ -89,4 +89,5 @@ console.log(`Listening on :${port}`);
 export default {
   fetch: app.fetch,
   port,
+  idleTimeout: 240, // 4 minutes for long-running analyses
 };
