@@ -164,6 +164,60 @@ def test_rescale_buys_zero_ceiling_clears_all_buys():
     assert decision["buys"] == []
 
 
+def test_rescale_buys_uses_execution_price_not_entry_price():
+    """P2 regression: rescale must price notional at the live execution price
+    (same source as pm_decision_postcheck), not entry_price.
+
+    With live > entry, sizing on entry_price would let the basket pass rescale
+    but breach the cash floor in postcheck.
+    """
+    from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
+
+    # cash=10k, NAV=100k, min_cash_pct=5% → ceiling = 5000
+    # entry_price=150, live=200 → at 100 shares: notional@entry=15000, notional@live=20000
+    state = _make_state(
+        cash=10_000.0,
+        total_value=100_000.0,
+        buys=[
+            {
+                "ticker": "AAPL",
+                "shares": 100.0,
+                "entry_price": 150.0,
+                "limit_price": 210.0,
+                "max_chase_price": 205.0,
+                "order_type": "limit",
+                "valid_as_of": "2025-01-01",
+                "price_target": 250.0,
+                "stop_loss": 130.0,
+                "take_profit": 240.0,
+                "sector": "Technology",
+                "rationale": "r",
+                "thesis": "t",
+                "macro_alignment": "m",
+                "memory_note": "",
+                "position_sizing_logic": "p",
+            }
+        ],
+    )
+    state["prices"] = {"AAPL": 200.0}  # live > entry
+
+    setup = PortfolioGraphSetup(agents={}, config={"min_cash_pct": 0.05})
+    node = setup._make_rescale_buys_node()
+    result = node(state)
+    decision = json.loads(result["pm_decision"])
+    scaled_shares = decision["buys"][0]["shares"]
+
+    # Scale must be ceiling / (shares * live_price) = 5000 / (100*200) = 0.25
+    # Not ceiling / (shares * entry_price) = 5000 / 15000 = 0.333
+    assert scaled_shares == pytest.approx(25.0, rel=0.01), (
+        f"Expected scale via live price (25 shares), got {scaled_shares}. "
+        "Rescale must use resolve_buy_execution_price, not entry_price."
+    )
+
+    # Verify the rescaled basket is within the floor when projected at live price
+    assert scaled_shares * 200.0 <= 5000.0 + 1e-6
+
+
 def test_rescale_buys_node_registered_in_graph():
     """rescale_buys appears as a node in the compiled portfolio graph."""
     from pathlib import Path
