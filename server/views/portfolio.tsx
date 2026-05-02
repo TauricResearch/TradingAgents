@@ -3,8 +3,6 @@
 export function PortfolioView() {
   return (
     <>
-      <h2>Portfolio</h2>
-
       <section class="panel">
         <h3>Positions</h3>
         <table id="positions-table" hx-get="/api/positions" hx-trigger="load" hx-target="#positions-table" hx-swap="innerHTML">

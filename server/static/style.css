@@ -10,6 +10,14 @@
   --blue: #3b82f6;
 }
 
+@font-face {
+  font-family: 'Datatype';
+  src: url('/static/fonts/Datatype.woff2') format('woff2');
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 50% 150%;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -128,11 +136,23 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
   font-size: 0.875rem;
 }
 .timeline-signal { min-width: 100px; font-weight: 600; }
-.timeline-bar {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--blue);
-  opacity: 0.6;
-}
+.timeline-bar { color: var(--text-dim); min-width: 120px; }
 .timeline-date { color: var(--text-dim); min-width: 90px; }
 .timeline-current { color: var(--blue); font-size: 0.75rem; font-weight: 500; }
+
+/* Datatype font charts */
+.sparkline {
+  font-family: 'Datatype', sans-serif;
+  font-size: 1.25rem;
+  color: var(--text-dim);
+  letter-spacing: -0.5px;
+}
+.sparkline.buy { color: var(--green); }
+.sparkline.sell { color: var(--red); }
+.sparkline.hold { color: var(--yellow); }
+
+.bar-chart {
+  font-family: 'Datatype', sans-serif;
+  font-size: 1rem;
+  color: var(--text-dim);
+}

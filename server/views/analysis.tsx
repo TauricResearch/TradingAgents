@@ -3,8 +3,6 @@
 export function AnalysisView() {
   return (
     <>
-      <h2>Analysis</h2>
-
       <section class="panel">
         <h3>Run New Analysis</h3>
         <form id="analysis-form">

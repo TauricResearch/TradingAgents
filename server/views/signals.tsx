@@ -3,8 +3,6 @@
 export function SignalsView() {
   return (
     <>
-      <h2>Signals</h2>
-
       <section class="panel">
         <div class="form-row">
           <select id="signals-ticker" hx-get="/api/signals" hx-target="#signals-body"
