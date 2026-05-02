@@ -1,5 +1,6 @@
 /** @jsxImportSource hono/jsx */
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { serveStatic } from "hono/bun";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -38,11 +39,16 @@ app.get("/health", (c) => {
 
 // ── Pages (JSX SSR) ──────────────────────────────────────
 
+function pageOrPartial(c: Context, view: JSX.Element): Response {
+  const isHtmx = c.req.header("HX-Request") === "true";
+  return c.html(isHtmx ? view : <Layout>{view}</Layout>);
+}
+
 app.get("/", (c) => c.html(<Layout><PortfolioView /></Layout>));
-app.get("/portfolio", (c) => c.html(<Layout><PortfolioView /></Layout>));
-app.get("/analyze", (c) => c.html(<Layout><AnalysisView /></Layout>));
-app.get("/signals", (c) => c.html(<Layout><SignalsView /></Layout>));
-app.get("/history", (c) => c.html(<Layout><HistoryView /></Layout>));
+app.get("/portfolio", (c) => pageOrPartial(c, <PortfolioView />));
+app.get("/analyze", (c) => pageOrPartial(c, <AnalysisView />));
+app.get("/signals", (c) => pageOrPartial(c, <SignalsView />));
+app.get("/history", (c) => pageOrPartial(c, <HistoryView />));
 
 // ── Static ─────────────────────────────────────────────────
 

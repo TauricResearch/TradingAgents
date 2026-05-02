@@ -94,16 +94,24 @@ function renderTimeline(ticker, signals) {
   var panel = document.getElementById('timeline-panel');
   var container = document.getElementById('signal-timeline');
   panel.style.display = 'block';
-  var maxLen = 30;
-  container.innerHTML = signals.map(function(s, i) {
+
+  // Build Datatype sparkline from confidence values (0-100)
+  var confValues = signals.map(function(s) { return Math.round((s.confidence || 0.5) * 100); });
+  var sparkline = '{l:' + confValues.join(',') + '}';
+  var firstSig = signalClass(signals[0].signal);
+
+  var html = '<div class="sparkline ' + firstSig + '">' + sparkline + '</div>';
+  html += '<div class="timeline-entries">';
+  html += signals.map(function(s, i) {
     var cls = signalClass(s.signal);
-    var barLen = Math.max(4, maxLen - i * 2);
     return '<div class="timeline-row">' +
       '<span class="timeline-signal ' + cls + '">' + s.signal + '</span>' +
-      '<span class="timeline-bar" style="width:' + barLen + 'px"></span>' +
       '<span class="timeline-date">' + (s.date || '—') + '</span>' +
+      '<span class="timeline-confidence">' + (s.confidence != null ? Math.round(s.confidence * 100) + '%' : '—') + '</span>' +
       (i === 0 ? '<span class="timeline-current">current</span>' : '') +
     '</div>';
   }).join('');
+  html += '</div>';
+  container.innerHTML = html;
 }`;
 }
