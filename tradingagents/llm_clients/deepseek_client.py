@@ -39,6 +39,9 @@ class NormalizedChatDeepSeek(ChatDeepSeek):
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
 
+    async def ainvoke(self, input, config=None, **kwargs):
+        return normalize_content(await super().ainvoke(input, config, **kwargs))
+
     def with_structured_output(self, schema, *, method=None, **kwargs):
         if method is None:
             method = "function_calling"
@@ -58,24 +61,22 @@ class NormalizedChatDeepSeek(ChatDeepSeek):
         it in additional_kwargs but doesn't include it in request payloads
         by default.
         """
-        # Build a position-ordered list of reasoning_content values from
-        # original AIMessages before super() converts them to dicts.
-        reasoning_values: list[Optional[str]] = []
+        messages: list[BaseMessage]
         if isinstance(input_, list):
-            for msg in input_:
-                if isinstance(msg, AIMessage):
-                    reasoning_values.append(
-                        msg.additional_kwargs.get("reasoning_content")
-                    )
-                else:
-                    reasoning_values.append(None)
+            messages = input_
         elif isinstance(input_, BaseMessage):
-            if isinstance(input_, AIMessage):
-                reasoning_values = [
-                    input_.additional_kwargs.get("reasoning_content")
-                ]
-            else:
-                reasoning_values = [None]
+            messages = [input_]
+        elif hasattr(input_, "to_messages"):
+            messages = input_.to_messages()
+        else:
+            messages = self._convert_input(input_).to_messages()
+
+        reasoning_values: list[Optional[str]] = [
+            msg.additional_kwargs.get("reasoning_content")
+            if isinstance(msg, AIMessage)
+            else None
+            for msg in messages
+        ]
 
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
 
