@@ -3,7 +3,6 @@
 Marked @pytest.mark.integration — excluded from default CI runs.
 Run with: pytest tests/agents/test_pm_decision_latency.py -m integration -v
 """
-import time
 
 import pytest
 
@@ -17,6 +16,7 @@ def test_pm_decision_prompt_char_count_under_8000():
     Real latency testing requires a live LLM call and is environment-specific.
     """
     import json
+
     from tradingagents.agents.portfolio.pm_decision_agent import _build_pm_context
 
     state = {
@@ -52,6 +52,7 @@ def test_pm_decision_system_message_char_count_under_2500():
     The old prompt was ~3100 chars of instruction; target is < 2500.
     """
     import json
+
     from tradingagents.agents.portfolio.pm_decision_agent import _build_pm_context
 
     # Build a minimal context and measure just the instruction preamble

@@ -1,8 +1,5 @@
 """Tests for PM decision cash ceiling injection (PR-B2.1)."""
 import json
-from unittest.mock import MagicMock
-
-import pytest
 
 
 def test_context_includes_resolved_cash_ceiling():

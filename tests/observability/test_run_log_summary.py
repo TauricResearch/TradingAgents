@@ -2,10 +2,7 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from tradingagents.observability import RunLogger
-
 
 # ---------------------------------------------------------------------------
 # Unit tests: logger works in isolation
@@ -91,8 +88,6 @@ def test_engine_portfolio_passes_callbacks_to_graph():
     Verifies the fix for the zero-counter bug: the engine must not create
     PortfolioGraph without the RunLogger callback, otherwise on_llm_end never fires.
     """
-    import inspect
-    import ast
 
     engine_src = Path(__file__).parent.parent.parent / "agent_os/backend/services/langgraph_engine.py"
     source = engine_src.read_text()

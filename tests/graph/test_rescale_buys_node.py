@@ -122,7 +122,6 @@ def test_rescale_buys_zero_ceiling_clears_all_buys():
 
 def test_rescale_buys_node_registered_in_graph():
     """rescale_buys appears as a node in the compiled portfolio graph."""
-    import inspect
     from pathlib import Path
 
     setup_src = Path(__file__).parent.parent.parent / "tradingagents/graph/portfolio_setup.py"
