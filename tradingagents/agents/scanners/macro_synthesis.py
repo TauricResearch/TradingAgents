@@ -15,6 +15,7 @@ from tradingagents.agents.utils.scanner_idempotency import (
     save_node_report,
 )
 from tradingagents.agents.utils.scanner_states import ScannerState
+from tradingagents.dataflows.macro_regime import classify_macro_regime, format_macro_report
 from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,12 @@ _TICKER_STOPWORDS = {
     "NYQ",
     "ASE",
 }
+_CANONICAL_REGIME_LABELS = {
+    "risk-on": "RISK-ON",
+    "risk-off": "RISK-OFF",
+    "transition": "TRANSITION",
+}
+_CANONICAL_CONFIDENCE_VALUES = {"high", "medium", "low"}
 
 
 def _format_horizon_label(scan_horizon_days: int) -> str:
@@ -217,6 +224,51 @@ def _fallback_candidate_from_ranking(
     }
 
 
+def _canonical_regime_from_data(regime_data: dict) -> dict[str, object]:
+    regime = str(regime_data.get("regime") or "").strip().lower()
+    label = _CANONICAL_REGIME_LABELS.get(regime)
+    if label is None:
+        raise RuntimeError(
+            "Macro regime classifier did not produce a canonical regime label "
+            f"(got {regime_data.get('regime')!r})."
+        )
+
+    score = regime_data.get("score")
+    if isinstance(score, bool) or not isinstance(score, int):
+        raise RuntimeError(
+            "Macro regime classifier did not produce an integer score "
+            f"(got {score!r})."
+        )
+
+    confidence = str(regime_data.get("confidence") or "").strip().lower()
+    if confidence not in _CANONICAL_CONFIDENCE_VALUES:
+        raise RuntimeError(
+            "Macro regime classifier did not produce a canonical confidence "
+            f"(got {regime_data.get('confidence')!r})."
+        )
+
+    return {"label": label, "score": score, "confidence": confidence}
+
+
+def _validate_macro_regime_report(report: str, canonical_regime: dict[str, object]) -> None:
+    if not report:
+        raise RuntimeError("Macro regime formatter did not produce a report.")
+
+    label = str(canonical_regime["label"])
+    if label not in report:
+        raise RuntimeError(
+            "Macro regime formatter did not include the canonical label "
+            f"{label!r} in the report."
+        )
+
+    signed_score = f"{int(canonical_regime['score']):+d}"
+    if signed_score not in report:
+        raise RuntimeError(
+            "Macro regime formatter did not include the canonical score "
+            f"{signed_score!r} in the report."
+        )
+
+
 def _repair_macro_summary(
     parsed: dict,
     state: ScannerState,
@@ -297,10 +349,20 @@ def create_macro_synthesis(
         # 1. Idempotency Check
         existing_report = check_and_load_report(state, "macro_scan_summary")
         if existing_report:
-            return {
+            response = {
                 "macro_scan_summary": existing_report,
                 "sender": "macro_synthesis",
             }
+            existing_regime_report = state.get("macro_regime_report")
+            if existing_regime_report:
+                response["macro_regime_report"] = existing_regime_report
+            return response
+
+        regime_data = classify_macro_regime(scan_date)
+        canonical_regime = _canonical_regime_from_data(regime_data)
+        macro_regime_report = format_macro_report(regime_data)
+        _validate_macro_regime_report(macro_regime_report, canonical_regime)
+        save_node_report(state, "macro_regime_report", macro_regime_report)
 
         horizon_label = _format_horizon_label(scan_horizon_days)
 
@@ -420,6 +482,7 @@ def create_macro_synthesis(
         try:
             parsed = extract_json(report)
             parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
+            parsed["canonical_regime"] = canonical_regime
             report = json.dumps(parsed)
         except (ValueError, json.JSONDecodeError):
             # JSON extraction failed; strip think blocks from the raw string so that
@@ -438,6 +501,7 @@ def create_macro_synthesis(
         return {
             "messages": [result_message],
             "macro_scan_summary": report,
+            "macro_regime_report": macro_regime_report,
             "sender": "macro_synthesis",
         }
 
