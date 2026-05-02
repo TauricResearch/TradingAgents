@@ -298,6 +298,45 @@ def test_macro_synthesis_idempotent_summary_returns_existing_regime_report(monke
     }
 
 
+def test_macro_synthesis_idempotent_summary_loads_persisted_regime_report(monkeypatch):
+    def _classify_macro_regime(_scan_date):
+        raise AssertionError("classification should not run for an existing summary")
+
+    def _invoke(_prompt_value):
+        raise AssertionError("LLM should not run for an existing summary")
+
+    def _check_and_load_report(_state, report_key):
+        return {
+            "macro_scan_summary": "existing summary",
+            "macro_regime_report": "persisted regime report",
+        }.get(report_key, "")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.check_and_load_report",
+        _check_and_load_report,
+    )
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.classify_macro_regime",
+        _classify_macro_regime,
+    )
+
+    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3)
+
+    result = agent(
+        {
+            "scan_date": "2026-03-30",
+            "run_id": "RUN1",
+            "messages": [],
+        }
+    )
+
+    assert result == {
+        "macro_scan_summary": "existing summary",
+        "macro_regime_report": "persisted regime report",
+        "sender": "macro_synthesis",
+    }
+
+
 def test_macro_synthesis_fails_when_regime_report_lacks_score(monkeypatch):
     def _invoke(_prompt_value):
         raise AssertionError("LLM should not run when macro regime formatting is invalid")
@@ -321,6 +360,65 @@ def test_macro_synthesis_fails_when_regime_report_lacks_score(monkeypatch):
         )
 
     assert "score" in str(exc.value)
+
+
+def test_macro_synthesis_fails_when_canonical_score_out_of_range(monkeypatch):
+    def _invoke(_prompt_value):
+        raise AssertionError("LLM should not run when canonical score is invalid")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.classify_macro_regime",
+        lambda _scan_date: {
+            "regime": "risk-on",
+            "score": 7,
+            "confidence": "high",
+            "summary": "Invalid score",
+            "signals": [],
+        },
+    )
+
+    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3)
+
+    with pytest.raises(RuntimeError) as exc:
+        agent(
+            {
+                "scan_date": "2026-03-30",
+                "run_id": "RUN1",
+                "messages": [],
+            }
+        )
+
+    assert "-6..6" in str(exc.value)
+
+
+def test_macro_synthesis_fails_without_persisting_raw_summary_for_invalid_json(monkeypatch):
+    saved_reports = []
+
+    def _save_node_report(_state, report_key, report):
+        saved_reports.append((report_key, report))
+
+    def _invoke(_prompt_value):
+        return AIMessage(content="not json <think>private</think>")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.macro_synthesis.save_node_report",
+        _save_node_report,
+    )
+
+    agent = create_macro_synthesis(RunnableLambda(_invoke), max_scan_tickers=3)
+
+    with pytest.raises(RuntimeError) as exc:
+        agent(
+            {
+                "scan_date": "2026-03-30",
+                "run_id": "RUN1",
+                "messages": [],
+            }
+        )
+
+    assert "valid JSON" in str(exc.value)
+    assert "private" not in str(exc.value)
+    assert [report_key for report_key, _report in saved_reports] == ["macro_regime_report"]
 
 
 def test_macro_synthesis_regime_report_uses_scan_date_not_wall_clock(monkeypatch):

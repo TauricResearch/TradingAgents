@@ -46,10 +46,19 @@ def _env_float(key: str, default: float) -> float:
     return value
 
 
-def _download(symbols: list[str], period: str = "3mo") -> pd.DataFrame | None:
+def _download(
+    symbols: list[str],
+    period: str = "3mo",
+    start: str | None = None,
+    end: str | None = None,
+) -> pd.DataFrame | None:
     """Download closing prices, returning None on failure."""
     try:
-        hist = safe_yf_download(symbols, period=period, auto_adjust=True, progress=False)
+        download_kwargs = {"auto_adjust": True, "progress": False}
+        if start or end:
+            hist = safe_yf_download(symbols, start=start, end=end, **download_kwargs)
+        else:
+            hist = safe_yf_download(symbols, period=period, **download_kwargs)
         if hist is None:
             return None
         if hist.empty:
@@ -193,6 +202,36 @@ def _fmt_pct(val: float | None) -> str:
     if val is None:
         return "N/A"
     return f"{val:+.1f}%"
+
+
+def _parse_as_of_date(curr_date: str | None) -> pd.Timestamp | None:
+    if curr_date is None:
+        return None
+    try:
+        as_of_date = pd.Timestamp(curr_date).normalize()
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD."
+        ) from exc
+    if pd.isna(as_of_date):
+        raise ValueError(
+            f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD."
+        )
+    return as_of_date
+
+
+def _require_dated_series(
+    symbol: str,
+    series: pd.Series | None,
+    min_rows: int,
+    curr_date: str | None,
+) -> None:
+    available_rows = 0 if series is None else len(series.dropna())
+    if available_rows < min_rows:
+        raise RuntimeError(
+            f"Macro regime date-bounded data for {curr_date} is unavailable for {symbol}: "
+            f"need at least {min_rows} rows, got {available_rows}."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -355,11 +394,38 @@ def _fetch_macro_data() -> tuple[
     str,
     float | None,
 ]:
-    vix_data = _download(["^VIX"], period="3mo")
-    market_data = _download(["^GSPC"], period="14mo")  # 14mo for 200-SMA
-    hyg_lqd_data = _download(["HYG", "LQD"], period="3mo")
-    tlt_shy_data = _download(["TLT", "SHY"], period="3mo")
-    sector_data = _download(_DEFENSIVE_ETFS + _CYCLICAL_ETFS, period="3mo")
+    return _fetch_macro_data_for_date(None)
+
+
+def _fetch_macro_data_for_date(curr_date: str | None = None) -> tuple[
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    pd.Series | None,
+    dict[str, pd.Series],
+    dict[str, pd.Series],
+    float | None,
+    str,
+    float | None,
+]:
+    as_of_date = _parse_as_of_date(curr_date)
+    if as_of_date is None:
+        vix_data = _download(["^VIX"], period="3mo")
+        market_data = _download(["^GSPC"], period="14mo")  # 14mo for 200-SMA
+        hyg_lqd_data = _download(["HYG", "LQD"], period="3mo")
+        tlt_shy_data = _download(["TLT", "SHY"], period="3mo")
+        sector_data = _download(_DEFENSIVE_ETFS + _CYCLICAL_ETFS, period="3mo")
+    else:
+        end = (as_of_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+        start_3mo = (as_of_date - pd.DateOffset(months=3)).strftime("%Y-%m-%d")
+        start_14mo = (as_of_date - pd.DateOffset(months=14)).strftime("%Y-%m-%d")
+        vix_data = _download(["^VIX"], start=start_3mo, end=end)
+        market_data = _download(["^GSPC"], start=start_14mo, end=end)
+        hyg_lqd_data = _download(["HYG", "LQD"], start=start_3mo, end=end)
+        tlt_shy_data = _download(["TLT", "SHY"], start=start_3mo, end=end)
+        sector_data = _download(_DEFENSIVE_ETFS + _CYCLICAL_ETFS, start=start_3mo, end=end)
 
     # Extract series with validation
     vix_series = vix_data["^VIX"] if vix_data is not None and "^VIX" in vix_data.columns else None
@@ -396,6 +462,39 @@ def _fetch_macro_data() -> tuple[
     yfinance_vix_corrupt = vix_price is not None and vix_price > 100
     vix_source = "yfinance:^VIX"
     vix_proxy_change_1d: float | None = None
+
+    if as_of_date is not None:
+        required_series = {
+            "^VIX": (vix_series, 21),
+            "^GSPC": (spx_series, 200),
+            "HYG": (hyg_series, 22),
+            "LQD": (lqd_series, 22),
+            "TLT": (tlt_series, 22),
+            "SHY": (shy_series, 22),
+            **{symbol: (defensive_closes.get(symbol), 22) for symbol in _DEFENSIVE_ETFS},
+            **{symbol: (cyclical_closes.get(symbol), 22) for symbol in _CYCLICAL_ETFS},
+        }
+        for symbol, (series, min_rows) in required_series.items():
+            _require_dated_series(symbol, series, min_rows, curr_date)
+        if vix_price is None:
+            raise RuntimeError(f"Macro regime data for {curr_date} is missing ^VIX close.")
+        if vix_price > 100:
+            raise RuntimeError(
+                f"Macro regime data for {curr_date} has implausible ^VIX close {vix_price:.2f}."
+            )
+        return (
+            vix_series,
+            spx_series,
+            hyg_series,
+            lqd_series,
+            tlt_series,
+            shy_series,
+            defensive_closes,
+            cyclical_closes,
+            vix_price,
+            vix_source,
+            vix_proxy_change_1d,
+        )
 
     if vix_series is None or yfinance_vix_corrupt:
         av_change_1d, av_symbol, av_price = _download_vix_proxy_from_alpha_vantage()
@@ -539,7 +638,10 @@ def classify_macro_regime(curr_date: str | None = None) -> dict:
     Classify current macro regime using 6 market signals.
 
     Args:
-        curr_date: Optional reference date (informational only; always uses latest data)
+        curr_date: Optional deterministic as-of date. When provided, yfinance
+            downloads are bounded to windows ending on that date and live
+            fallback sources are disabled. When omitted, legacy latest-data
+            behavior is preserved.
 
     Returns:
         dict with keys:
@@ -562,7 +664,7 @@ def classify_macro_regime(curr_date: str | None = None) -> dict:
         vix_price,
         vix_source,
         vix_proxy_change_1d,
-    ) = _fetch_macro_data()
+    ) = _fetch_macro_data_for_date(curr_date)
 
     # --- Evaluate each signal ---
     total_score, signals = _evaluate_signals(

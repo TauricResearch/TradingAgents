@@ -406,6 +406,71 @@ class TestClassifyMacroRegime:
             result = classify_macro_regime()
         assert result["confidence"] in ("high", "medium", "low")
 
+    def test_curr_date_uses_bounded_downloads_including_scan_date(self, monkeypatch):
+        from tradingagents.dataflows import macro_regime
+        from tradingagents.dataflows.macro_regime import classify_macro_regime
+
+        calls = []
+        series_map = self._mock_download("risk_on")
+
+        def fake_safe_yf_download(symbols, start=None, end=None, **kwargs):
+            calls.append({"symbols": list(symbols), "start": start, "end": end, "kwargs": kwargs})
+            data = {symbol: series_map[symbol] for symbol in symbols if symbol in series_map}
+            return pd.concat({"Close": pd.DataFrame(data)}, axis=1)
+
+        monkeypatch.setattr(macro_regime, "safe_yf_download", fake_safe_yf_download)
+        monkeypatch.setattr(
+            macro_regime,
+            "_download_vix_proxy_from_alpha_vantage",
+            lambda: (_ for _ in ()).throw(AssertionError("Alpha Vantage fallback called")),
+        )
+        monkeypatch.setattr(
+            macro_regime,
+            "_download_vix_from_finviz_vx_futures",
+            lambda: (_ for _ in ()).throw(AssertionError("Finviz fallback called")),
+        )
+
+        result = classify_macro_regime("2026-03-30")
+
+        assert result["regime"] == "risk-on"
+        assert {call["end"] for call in calls} == {"2026-03-31"}
+        assert {"^GSPC"} in [set(call["symbols"]) for call in calls]
+        market_call = next(call for call in calls if call["symbols"] == ["^GSPC"])
+        assert market_call["start"] < "2026-03-30"
+
+    def test_curr_date_fails_without_latest_only_vix_fallback(self, monkeypatch):
+        from tradingagents.dataflows import macro_regime
+        from tradingagents.dataflows.macro_regime import classify_macro_regime
+
+        series_map = self._mock_download("risk_on")
+
+        def fake_safe_yf_download(symbols, start=None, end=None, **kwargs):
+            data = {
+                symbol: series_map[symbol]
+                for symbol in symbols
+                if symbol in series_map and symbol != "^VIX"
+            }
+            if not data:
+                return pd.DataFrame()
+            return pd.concat({"Close": pd.DataFrame(data)}, axis=1)
+
+        monkeypatch.setattr(macro_regime, "safe_yf_download", fake_safe_yf_download)
+        monkeypatch.setattr(
+            macro_regime,
+            "_download_vix_proxy_from_alpha_vantage",
+            lambda: (_ for _ in ()).throw(AssertionError("Alpha Vantage fallback called")),
+        )
+        monkeypatch.setattr(
+            macro_regime,
+            "_download_vix_from_finviz_vx_futures",
+            lambda: (_ for _ in ()).throw(AssertionError("Finviz fallback called")),
+        )
+
+        with pytest.raises(RuntimeError) as exc:
+            classify_macro_regime("2026-03-30")
+
+        assert "^VIX" in str(exc.value)
+
 
 # ---------------------------------------------------------------------------
 # Format macro report

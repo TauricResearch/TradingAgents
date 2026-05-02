@@ -239,6 +239,11 @@ def _canonical_regime_from_data(regime_data: dict) -> dict[str, object]:
             "Macro regime classifier did not produce an integer score "
             f"(got {score!r})."
         )
+    if score < -6 or score > 6:
+        raise RuntimeError(
+            "Macro regime classifier produced a score outside the canonical -6..6 range "
+            f"(got {score!r})."
+        )
 
     confidence = str(regime_data.get("confidence") or "").strip().lower()
     if confidence not in _CANONICAL_CONFIDENCE_VALUES:
@@ -354,6 +359,8 @@ def create_macro_synthesis(
                 "sender": "macro_synthesis",
             }
             existing_regime_report = state.get("macro_regime_report")
+            if not existing_regime_report:
+                existing_regime_report = check_and_load_report(state, "macro_regime_report")
             if existing_regime_report:
                 response["macro_regime_report"] = existing_regime_report
             return response
@@ -478,20 +485,20 @@ def create_macro_synthesis(
         report = str(getattr(result, "content", "") or "")
         result_message = result
 
-        # Sanitize LLM output: strip markdown fences / <think> blocks before storing
         try:
             parsed = extract_json(report)
             parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
             parsed["canonical_regime"] = canonical_regime
             report = json.dumps(parsed)
         except (ValueError, json.JSONDecodeError):
-            # JSON extraction failed; strip think blocks from the raw string so that
-            # internal monologue is not persisted or forwarded as downstream context.
-            report = sanitize_llm_output(report)
-            logger.warning(
-                "macro_synthesis: could not extract JSON from LLM output; "
-                "storing sanitized raw content (first 200 chars): %s",
-                report[:200],
+            sanitized_report = sanitize_llm_output(report)
+            logger.error(
+                "macro_synthesis: could not extract JSON from LLM output; first 200 chars: %s",
+                sanitized_report[:200],
+            )
+            raise RuntimeError(
+                "Macro synthesis LLM output was not valid JSON; scanner cannot persist "
+                "macro_scan_summary without canonical_regime."
             )
 
         # 3. Resumability: Save after completion
