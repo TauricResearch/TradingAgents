@@ -301,3 +301,8 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .violation-breach { background: #451a1a; border-left: 3px solid var(--red); padding: 8px 12px; margin: 6px 0; border-radius: 4px; }
 .violation-warn { background: #453a1a; border-left: 3px solid var(--yellow); padding: 8px 12px; margin: 6px 0; border-radius: 4px; }
 .ok { color: var(--green); padding: 8px 0; }
+
+/* Benchmark */
+.benchmark-summary { display: flex; gap: 16px; margin-bottom: 12px; }
+.positive { color: var(--green); }
+.negative { color: var(--red); }

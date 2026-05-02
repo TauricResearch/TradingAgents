@@ -15,6 +15,7 @@ import { holdingsRouter } from "./routes/holdings.ts";
 import { exitsRouter } from "./routes/exits.ts";
 import { prospectsRouter } from "./routes/prospects.ts";
 import { governanceRouter } from "./routes/governance.ts";
+import { benchmarkRouter } from "./routes/benchmark.ts";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -24,6 +25,7 @@ import { HoldingsView } from "./views/holdings.tsx";
 import { ExitsView } from "./views/exits.tsx";
 import { ProspectsView } from "./views/prospects.tsx";
 import { GovernanceView } from "./views/governance.tsx";
+import { BenchmarkView } from "./views/benchmark.tsx";
 import { DatatypeTestView } from "./views/datatype-test.tsx";
 
 const app = new Hono();
@@ -73,6 +75,7 @@ app.get("/holdings", (c) => pageOrPartial(c, <HoldingsView />));
 app.get("/exits", (c) => pageOrPartial(c, <ExitsView />));
 app.get("/prospects", (c) => pageOrPartial(c, <ProspectsView />));
 app.get("/governance", (c) => pageOrPartial(c, <GovernanceView />));
+app.get("/benchmark", (c) => pageOrPartial(c, <BenchmarkView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
@@ -90,6 +93,7 @@ app.route("/api/holdings", holdingsRouter);
 app.route("/api/positions/exits", exitsRouter);
 app.route("/api/prospects", prospectsRouter);
 app.route("/api/governance", governanceRouter);
+app.route("/api/benchmark", benchmarkRouter);
 
 // ── Start ──────────────────────────────────────────────────
 
