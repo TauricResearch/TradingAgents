@@ -217,3 +217,18 @@ __marimo__/
 
 # Cache
 **/data_cache/
+.todos/
+
+# SQLite WAL files
+*.db-wal
+*.db-shm
+
+# Scratchpad (agent working area)
+scratchpad/
+.sidecar/
+.sidecar-agent
+.sidecar-task
+.sidecar-pr
+.sidecar-start.sh
+.sidecar-base
+.td-root

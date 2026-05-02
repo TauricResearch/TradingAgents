@@ -108,15 +108,26 @@ git clone https://github.com/TauricResearch/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+Create a virtual environment:
+
 ```bash
+# Option 1: conda
 conda create -n tradingagents python=3.13
 conda activate tradingagents
+
+# Option 2: uv (recommended if you don't use conda)
+uv venv --python 3.13
+source .venv/bin/activate
 ```
+
+> [!NOTE]
+> Python 3.13 is required. Python 3.14+ will fail during native extension builds
+> (PyO3 used by tiktoken does not yet support 3.14).
 
 Install the package and its dependencies:
 ```bash
-pip install .
+pip install .       # with conda or venv
+uv sync             # with uv (uses locked dependency versions)
 ```
 
 ### Docker
@@ -219,6 +230,17 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+> [!NOTE]
+> When using the Python API directly (not the CLI), you must load environment
+> variables manually, as the CLI handles this automatically:
+>
+> ```python
+> from dotenv import load_dotenv
+> load_dotenv()       # loads .env before creating TradingAgentsGraph
+>
+> from tradingagents.graph.trading_graph import TradingAgentsGraph
+> ```
 
 ## Persistence and Recovery
 

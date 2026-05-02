@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "lib": ["ESNext"],
+
+    /* Tier 1: Standard Mode — internal tooling, not shipped */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
+
+    /* Emit */
+    "outDir": "./dist/scripts",
+    "rootDir": "./scripts",
+    "noEmit": true,
+
+    /* Interop */
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+
+    /* Performance */
+    "skipLibCheck": true
+  },
+  "include": ["scripts/**/*.ts", "scripts/**/*.js"],
+  "exclude": ["scripts/lab", "node_modules", ".venv"]
+}

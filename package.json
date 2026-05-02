@@ -1,0 +1,19 @@
+{
+  "name": "tradingagents-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "format": "biome format . --write",
+    "check": "biome check . && tsc --project tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "hono": "^4.9.8",
+    "marked": "^16.3.0"
+  }
+}
