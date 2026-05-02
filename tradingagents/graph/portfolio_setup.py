@@ -971,12 +971,14 @@ class PortfolioGraphSetup:
         workflow.add_edge("macro_summary", "make_pm_decision")
         workflow.add_edge("micro_summary", "make_pm_decision")
 
-        # Tail — cash_sweep runs first (it updates projected cash), then rescale_buys
-        # proportionally scales BUYs to honour the floor, then postcheck validates all invariants.
-        # Order matters: rescale needs the post-sweep cash figure. (ADR 024)
-        workflow.add_edge("make_pm_decision", "cash_sweep")
-        workflow.add_edge("cash_sweep", "rescale_buys")
-        workflow.add_edge("rescale_buys", "pm_decision_postcheck")
+        # Tail — rescale_buys runs FIRST on the LLM's BUYs to enforce the cash floor,
+        # then cash_sweep adds the SGOV cash-equivalent order from the residual cash,
+        # then postcheck validates all invariants. Order matters: SGOV is a deliberate
+        # cash-park, not a discretionary BUY, so it must NOT be subject to proportional
+        # rescaling. Reversing this order would let the sweep crowd out PM buys. (ADR 024)
+        workflow.add_edge("make_pm_decision", "rescale_buys")
+        workflow.add_edge("rescale_buys", "cash_sweep")
+        workflow.add_edge("cash_sweep", "pm_decision_postcheck")
         workflow.add_edge("pm_decision_postcheck", "execute_trades")
         workflow.add_edge("execute_trades", "record_pm_decisions")
         workflow.add_edge("record_pm_decisions", END)

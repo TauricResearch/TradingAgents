@@ -85,10 +85,10 @@ Two streams, seven PRs. Streams are independent; within a stream, PRs are sequen
 
 (1) Inject `max_total_buy_notional = available_cash - min_cash_pct * NAV` as an explicit number into the PM prompt and into the response-schema description. Today's prompt only states the percentage cap; we add the resolved dollar number so the LLM can sanity-check itself.
 
-(2) Add a new graph node `rescale_buys` between `cash_sweep` and `pm_decision_postcheck` that proportionally scales every BUY's `shares` down (rounded down to integers) until the cash floor holds. Postcheck stays as the safety net for any other invariants.
+(2) Add a new graph node `rescale_buys` between `make_pm_decision` and `cash_sweep` that proportionally scales every PM-issued BUY's `shares` down (rounded down to integers) until the cash floor holds. Final order: `make_pm_decision → rescale_buys → cash_sweep → pm_decision_postcheck`. Rationale: `cash_sweep` adds an SGOV cash-equivalent order from residual cash, which is a deliberate cash-park — it must NOT be subject to proportional rescaling, otherwise the sweep would compete with PM buys. Postcheck stays as the safety net for any other invariants.
 
 **Files.**
-- `tradingagents/graph/portfolio_setup.py` — add `_make_rescale_buys_node()`, mirroring postcheck's projection math at lines 480–491. Insert into workflow at line ~895: `workflow.add_edge("cash_sweep", "rescale_buys")`, `workflow.add_edge("rescale_buys", "pm_decision_postcheck")`. Update the PM prompt builder to inject the notional ceiling.
+- `tradingagents/graph/portfolio_setup.py` — add `_make_rescale_buys_node()`, mirroring postcheck's projection math at lines 480–491. Insert into workflow: `workflow.add_edge("make_pm_decision", "rescale_buys")`, `workflow.add_edge("rescale_buys", "cash_sweep")`, `workflow.add_edge("cash_sweep", "pm_decision_postcheck")`. Update the PM prompt builder to inject the notional ceiling.
 
 **Rescale algorithm.**
 ```

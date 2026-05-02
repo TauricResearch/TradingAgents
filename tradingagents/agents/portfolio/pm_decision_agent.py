@@ -313,6 +313,19 @@ def create_pm_decision_agent(
                 # the canonical artifact for postmortem; do not gate on success of later
                 # nodes.
                 run_path = cfg.get("run_path")
+                if not run_path and analysis_date:
+                    # Fallback: derive a portfolio report path from the report
+                    # store so direct graph runs (CLI / tests) still satisfy
+                    # PR-B1's acceptance gate even if no run_path was wired.
+                    try:
+                        from tradingagents.store_factory import create_report_store
+
+                        run_path = str(create_report_store().portfolio_report_dir(analysis_date))
+                    except Exception as exc:  # pragma: no cover - defensive
+                        logger.warning(
+                            "pm_decision_agent: could not derive snapshot run_path: %s",
+                            exc,
+                        )
                 if run_path:
                     try:
                         from pathlib import Path
@@ -326,6 +339,11 @@ def create_pm_decision_agent(
                             run_path,
                             exc,
                         )
+                else:
+                    logger.warning(
+                        "pm_decision_agent: no run_path or analysis_date available; "
+                        "snapshot not persisted (PR-B1 acceptance gate not met)."
+                    )
                 breaker.record_success("pm_decision_agent")
                 break
             except Exception as exc:

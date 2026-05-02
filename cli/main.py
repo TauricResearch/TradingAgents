@@ -1855,7 +1855,9 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
     import json
 
     import yfinance as yf
+    from tradingagents.store_factory import create_report_store
 
+    from tradingagents.default_config import DEFAULT_CONFIG
     from tradingagents.graph.portfolio_graph import PortfolioGraph
     from tradingagents.portfolio.repository import PortfolioRepository
 
@@ -1911,7 +1913,16 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
             console=console,
             transient=True,
         ):
-            graph = PortfolioGraph(debug=False, repo=repo)
+            # Pass run_path so make_pm_decision can persist
+            # portfolio_decision_snapshot.json (PR-B1 acceptance: snapshot must
+            # exist after every portfolio run, including direct graph runs).
+            store = create_report_store()
+            run_path = str(store.portfolio_report_dir(date))
+            graph = PortfolioGraph(
+                debug=False,
+                repo=repo,
+                config={**DEFAULT_CONFIG, "run_path": run_path},
+            )
             result = graph.run(
                 portfolio_id=portfolio_id,
                 date=date,

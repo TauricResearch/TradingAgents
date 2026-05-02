@@ -33,8 +33,10 @@ jobs:
 
       - name: Run Tests
         run: |
-          # Running unit tests, ignoring integration and e2e which require API keys or are slow
-          pytest tests/unit
+          # Run all non-integration tests. Excludes integration/e2e (live API keys)
+          # via -m "not integration"; covers tests/unit, tests/agents,
+          # tests/graph, tests/observability so trust-first guards are gated.
+          pytest tests/unit tests/agents tests/graph tests/observability -m "not integration"
 
   frontend-lint:
     name: Frontend Lint
