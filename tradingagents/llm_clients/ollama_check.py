@@ -8,6 +8,9 @@ from __future__ import annotations
 import os
 import sys
 import requests
+from rich.console import Console
+
+_console = Console()
 
 
 def _resolve_base_url(config: dict) -> str:
@@ -49,7 +52,7 @@ def list_local_models(base_url: str) -> list[str]:
     try:
         resp = requests.get(f"{base_url}/api/tags", timeout=5)
         return [m["name"] for m in resp.json().get("models", [])]
-    except Exception:
+    except (requests.exceptions.RequestException, ValueError, KeyError):
         return []
 
 
@@ -81,35 +84,35 @@ def run_ollama_check(config: dict, exit_on_failure: bool = False) -> bool:
     quick_model = config.get("quick_think_llm")
     all_ok = True
 
-    print(f"[Ollama Check] Pinging server at {base_url} ...")
+    _console.print(f"[Ollama Check] Pinging server at {base_url} ...")
 
     if not ping_ollama(base_url):
-        print(
-            f"[Ollama Check] ✗ Cannot reach Ollama at {base_url}\n"
-            f"               → Is Ollama running? Try: ollama serve"
+        _console.print(
+            f"[red][Ollama Check] ✗ Cannot reach Ollama at {base_url}[/red]\n"
+            f"               → Try: ollama serve"
         )
         if exit_on_failure:
             sys.exit(1)
         return False
 
-    print("[Ollama Check] ✓ Server is reachable.")
+    _console.print("[green][Ollama Check] ✓ Server is reachable.[/green]")
 
     local_models = list_local_models(base_url)
     if local_models:
-        print("[Ollama Check] Available local models:")
+        _console.print("[Ollama Check] Available local models:")
         for m in local_models:
-            print(f"               - {m}")
+            _console.print(f"               - {m}")
     else:
-        print("[Ollama Check] ⚠ No models found locally. Try: ollama pull qwen3")
+        _console.print("[Ollama Check] ⚠ No models found locally. Try: ollama pull qwen3")
 
     for label, model in [("Deep", deep_model), ("Quick", quick_model)]:
         if not model:
             continue
         if check_model_available(model, local_models):
-            print(f'[Ollama Check] ✓ {label} model "{model}" found.')
+            _console.print(f'[green][Ollama Check] ✓ {label} model "{model}" found.[/green]')
         else:
-            print(
-                f'[Ollama Check] ✗ {label} model "{model}" NOT found locally.\n'
+            _console.print(
+                f'[red][Ollama Check] ✗ {label} model "{model}" NOT found.[/red]\n'
                 f"               → Run: ollama pull {model}"
             )
             all_ok = False

@@ -1370,11 +1370,12 @@ def check():
     # Build a minimal config from defaults.
     # backend_url is None here (user hasn't selected a provider yet),
     # so _resolve_base_url will fall back to OLLAMA_HOST env var or localhost.
+    import os
     check_config = {
-        "llm_provider": DEFAULT_CONFIG.get("llm_provider", "openai"),
-        "backend_url": DEFAULT_CONFIG.get("backend_url"),  # None by default
-        "deep_think_llm": DEFAULT_CONFIG.get("deep_think_llm"),
-        "quick_think_llm": DEFAULT_CONFIG.get("quick_think_llm"),
+        "llm_provider": os.getenv("LLM_PROVIDER", DEFAULT_CONFIG.get("llm_provider", "openai")),
+        "backend_url": os.getenv("OLLAMA_HOST", DEFAULT_CONFIG.get("backend_url")),
+        "deep_think_llm": os.getenv("DEEP_THINK_LLM", DEFAULT_CONFIG.get("deep_think_llm")),
+        "quick_think_llm": os.getenv("QUICK_THINK_LLM", DEFAULT_CONFIG.get("quick_think_llm")),
     }
 
     if check_config["llm_provider"] != "ollama":
