@@ -3,6 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { spawn } from "node:child_process";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
+import { DatabaseFactory } from "../lib/db.ts";
 
 export const analysisRouter = new Hono();
 
@@ -64,25 +65,42 @@ analysisRouter.post("/", async (c) => {
     );
   }
 
+  // Look up position context from portfolio DB
+  let positionContext: string | null = null;
+  try {
+    const db = DatabaseFactory.get();
+    const row = db
+      .query("SELECT * FROM positions WHERE ticker = ? AND status = 'open' LIMIT 1")
+      .get(ticker) as Record<string, unknown> | undefined;
+    if (row) {
+      const qty = row.quantity as number;
+      const cost = row.avg_cost as number;
+      const thesis = (row.thesis as string) || null;
+      positionContext = `${qty} shares @ ${cost}`;
+      if (thesis) positionContext += ` — thesis: ${thesis}`;
+    }
+  } catch {
+    // DB not ready or no positions — proceed without context
+  }
+
   return streamSSE(c, async (stream) => {
     await stream.writeSSE({
       event: "start",
       data: JSON.stringify({ ticker, date }),
     });
 
-    const child = spawn(
-      venvPython,
-      [
-        script,
-        ticker,
-        "--date",
-        date,
-        "--analysts",
-        analysts,
-        "--debates",
-        String(debates),
-      ],
-      {
+    const args = [
+      script,
+      ticker,
+      "--date", date,
+      "--analysts", analysts,
+      "--debates", String(debates),
+    ];
+    if (positionContext) {
+      args.push("--position-context", positionContext);
+    }
+
+    const child = spawn(venvPython, args, {
         cwd: root,
         env: {
           ...process.env,

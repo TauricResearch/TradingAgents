@@ -5,10 +5,9 @@ Each line is a JSON object with an "event" key and optional "data".
 The Hono SSE endpoint reads these lines and forwards them as SSE events.
 
 Events emitted:
-  {"event":"start","data":{"ticker":"TKA.DE","date":"2026-05-02"}}
+  {"event":"start","data":{"ticker":"TKA.DE","date":"2026-05-02","position_context":"500 shares @ 8.45"}}
   {"event":"agent_report","data":{"agent":"market","content":"..."}}
-  {"event":"debate_round","data":{"round":1,"bull":"...","bear":"..."}}
-  {"event":"risk_assessment","data":{"signal":"buy","confidence":0.7}}
+  {"event":"debate_round","data":{"round":1,"data":"..."}}
   {"event":"decision","data":{"signal":"buy","reasoning":"...","confidence":0.7}}
   {"event":"complete","data":{"ticker":"TKA.DE"}}
   {"event":"error","data":{"message":"..."}}
@@ -22,6 +21,32 @@ from dotenv import load_dotenv
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+
+
+def _inject_position_context(memory_log, ticker: str, context: str, date: str) -> None:
+    """Write a synthetic entry to the memory log so get_past_context() includes it.
+
+    Uses the same markdown format as store_decision() so the parser picks it up.
+    This is a 'wrap, don't fork' approach — no TradingAgents core modifications.
+    """
+    if not memory_log._log_path:
+        return
+
+    log_path = memory_log._log_path
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    tag = f"[{date} | {ticker} | neutral | n/a | n/a | n/a]"
+    entry = (
+        f"{tag}\n\n"
+        f"DECISION:\n"
+        f"**Position context (current holding):** {context}\n\n"
+        f"REFLECTION:\n"
+        f"Position context injected from portfolio database.\n"
+        f"{memory_log._SEPARATOR}"
+    )
+
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(entry)
 
 
 def emit(event: str, data: dict):
@@ -38,6 +63,8 @@ def main():
     parser.add_argument("--debates", type=int, default=1, help="Number of debate rounds")
     parser.add_argument("--analysts", default="market,news,fundamentals",
                         help="Comma-separated analyst types")
+    parser.add_argument("--position-context", default=None,
+                        help="Position context string (e.g. '500 shares @ 8.45 — thesis: value play')")
     args = parser.parse_args()
 
     load_dotenv()
@@ -45,7 +72,7 @@ def main():
     if args.date == "today":
         args.date = datetime.date.today().isoformat()
 
-    emit("start", {"ticker": args.ticker, "date": args.date})
+    emit("start", {"ticker": args.ticker, "date": args.date, "position_context": args.position_context})
 
     try:
         config = DEFAULT_CONFIG.copy()
@@ -59,6 +86,15 @@ def main():
         analysts = [a.strip() for a in args.analysts.split(",")]
 
         graph = TradingAgentsGraph(analysts, config=config, debug=False)
+
+        # Inject position context via memory log so agents know about existing holdings
+        if args.position_context and graph.memory_log._log_path:
+            _inject_position_context(
+                graph.memory_log,
+                ticker=args.ticker,
+                context=args.position_context,
+                date=args.date,
+            )
         final_state, decision = graph.propagate(args.ticker, args.date)
 
         # Emit reports from final state
