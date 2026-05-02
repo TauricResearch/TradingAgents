@@ -1,0 +1,58 @@
+import { Hono } from "hono";
+import { DatabaseFactory } from "../lib/db.ts";
+
+export const signalsRouter = new Hono();
+
+/** GET /api/signals — list all signals, optionally filter by ticker */
+signalsRouter.get("/", (c) => {
+  const db = DatabaseFactory.get();
+  const ticker = c.req.query("ticker");
+
+  let query = "SELECT * FROM signals ORDER BY date DESC, id DESC";
+  const params: string[] = [];
+
+  if (ticker) {
+    query = "SELECT * FROM signals WHERE ticker = ? ORDER BY date DESC, id DESC";
+    params.push(ticker);
+  }
+
+  const rows = db.query(query).all(...params);
+  return c.json(rows);
+});
+
+/** GET /api/signals/:ticker — signal timeline for a specific ticker */
+signalsRouter.get("/:ticker", (c) => {
+  const db = DatabaseFactory.get();
+  const ticker = c.req.param("ticker");
+  const rows = db
+    .query(
+      "SELECT * FROM signals WHERE ticker = ? ORDER BY date DESC, id DESC",
+    )
+    .all(ticker);
+  return c.json(rows);
+});
+
+/** POST /api/signals — record a new signal */
+signalsRouter.post("/", async (c) => {
+  const db = DatabaseFactory.get();
+  const body = await c.req.json();
+  const { ticker, date, signal, reasoning, confidence } = body;
+
+  if (!ticker || !signal) {
+    return c.json({ error: "ticker and signal are required" }, 400);
+  }
+
+  const stmt = db.prepare(
+    `INSERT INTO signals (ticker, date, signal, reasoning, confidence)
+     VALUES (?, ?, ?, ?, ?)`,
+  );
+  const result = stmt.run(
+    ticker,
+    date ?? new Date().toISOString().slice(0, 10),
+    signal,
+    reasoning ?? null,
+    confidence ?? null,
+  );
+
+  return c.json({ id: result.lastInsertRowid, ...body }, 201);
+});
