@@ -98,6 +98,15 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+## Environment Setup
+
+Before running the project, create a `.env` file in the root directory of the repository.
+
+You can create it by copying the provided example file:
+
+```bash
+cp .env.example .env
+
 ## Installation and CLI
 
 ### Installation
