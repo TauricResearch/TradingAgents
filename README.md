@@ -169,6 +169,18 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+LLM runtime settings can come from CLI options or `.env` variables. CLI options take precedence over `.env` and environment variables; missing values are requested by the interactive TUI.
+
+For any OpenAI-compatible endpoint, use the OpenAI provider with a custom base URL:
+
+```bash
+tradingagents \
+  --llm-provider openai \
+  --backend-url https://api.inceptionlabs.ai/v1 \
+  --quick-model mercury \
+  --deep-model mercury
+```
+
 ### CLI Usage
 
 Launch the interactive CLI:
