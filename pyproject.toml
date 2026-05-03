@@ -32,11 +32,19 @@ dependencies = [
     "yfinance>=0.2.63",
 ]
 
+[project.optional-dependencies]
+gui = [
+    "streamlit>=1.36.0",
+    "markdown>=3.5",
+    "xhtml2pdf>=0.2.13",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-gui = "gui.launcher:main"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "gui*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
