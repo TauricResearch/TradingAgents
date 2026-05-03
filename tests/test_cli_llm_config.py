@@ -1,4 +1,5 @@
 import cli.main
+import pytest
 from cli.llm_config import LLMConfigOverrides, ResolvedLLMConfig, resolve_llm_config
 from typer.testing import CliRunner
 
