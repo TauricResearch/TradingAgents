@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Defuddle Pi-Coding-Agent extension** (`.pi/extensions/defuddle.ts`) — `defuddle` tool and `/defuddle` command to fetch any webpage as clean Markdown via the hosted defuddle.md API. Domain blacklist (16 financial/news sites), configurable whitelist (`.pi/defuddle-whitelist.json`), and JSONL telemetry log (`.pi/defuddle-log.jsonl`) with per-fetch success/fail tracking.
+- **Defuddle playbook** (`playbooks/defuddle-playbook.md`) — CLI usage, Node.js API, response object, key options, and project integration patterns.
+
+### Fixed
+
+- **server/routes/analysis.ts**: SSE JSONL parsing — flush remaining buffer on process close so last line without trailing newline is no longer silently dropped.
+- **server/routes/analysis.ts**: Subprocess lifecycle — proper AbortController with dual registration (Hono stream.onAbort + raw request signal) so Python child is killed when client disconnects.
+
 ## [0.2.4] — 2026-04-25
 
 ### Added
