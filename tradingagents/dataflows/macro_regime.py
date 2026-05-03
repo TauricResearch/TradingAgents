@@ -217,9 +217,7 @@ def _parse_as_of_date(curr_date: str | None) -> pd.Timestamp | None:
             f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD."
         ) from exc
     if pd.isna(as_of_date):
-        raise ValueError(
-            f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD."
-        )
+        raise ValueError(f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD.")
     if as_of_date.strftime("%Y-%m-%d") != curr_date:
         raise ValueError(f"Invalid macro regime curr_date {curr_date!r}; expected YYYY-MM-DD.")
     return as_of_date
@@ -402,7 +400,9 @@ def _fetch_macro_data() -> tuple[
     return _fetch_macro_data_for_date(None)
 
 
-def _fetch_macro_data_for_date(curr_date: str | None = None) -> tuple[
+def _fetch_macro_data_for_date(
+    curr_date: str | None = None,
+) -> tuple[
     pd.Series | None,
     pd.Series | None,
     pd.Series | None,

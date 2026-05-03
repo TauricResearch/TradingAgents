@@ -83,7 +83,6 @@ class Propagator:
             "news_report_structured": {},
             "investment_plan": "",
             "rm_consistency_status": "",
-            "rm_consistency_flags": [],
             "consistency_violations": [],
             "_rm_consistency_attempt": 0,
             "trader_investment_plan": "",

@@ -1,283 +1,202 @@
-"""Pure numeric extraction and fundamentals consistency checks."""
+"""RM consistency guard: structural claim extraction + LLM-as-judge verification."""
 
 from __future__ import annotations
 
+import json
 import re
-from dataclasses import dataclass
-from typing import Literal
+from typing import Any
 
-type Direction = Literal["expansion", "compression", "increase", "decrease"] | None
-type Confidence = Literal["high", "low"]
-type Unit = Literal["%", "bps", "x", "B", "M"]
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 
-@dataclass(frozen=True)
-class NumericClaim:
-    metric: str
-    value: float
-    unit: Unit
-    direction: Direction
-    confidence: Confidence
-
-
-@dataclass(frozen=True)
-class Violation:
-    claim: NumericClaim
-    reason: str
-    evidence: str
-
-
-_NUMBER_RE = re.compile(
-    r"(?<![A-Za-z0-9])(?P<value>[+-]?(?:\$)?\d+(?:\.\d+)?)\s*(?P<unit>%|bps|x|B|M)(?=$|\s|[,.;:)])",
-    re.IGNORECASE,
+# Prefix format: - [HIGH] claim text  /  • (MED) claim text
+_CLAIM_PREFIX_RE = re.compile(
+    r"^\s*[-•*]\s*[\[\(](HIGH|MED|LOW)[\]\)]\s+(.+)",
+    re.IGNORECASE | re.MULTILINE,
 )
-# TODO(trust-first): If this guard grows beyond the current targeted metric set,
-# replace regex phrase extraction with a typed fundamentals metrics contract from
-# the Fundamentals Analyst. A structured upstream schema would make this guard a
-# deterministic contract comparison instead of maintaining a larger regex vocabulary.
-_METRIC_STOP_RE = re.compile(
-    r"\b(?:and|but|while|with|as|to|from|vs|versus|over|in|at|since|have|has|a|an|the)\b",
-    re.IGNORECASE,
+
+# Trailing format: - claim text [HIGH]  /  - claim text (MED)
+_CLAIM_TRAILING_RE = re.compile(
+    r"^\s*[-•*]\s+(.+?)\s+[\[\(](HIGH|MED|LOW)[\]\)]\s*$",
+    re.IGNORECASE | re.MULTILINE,
 )
-_DIRECTION_TERMS: tuple[tuple[str, str], ...] = (
-    ("expanded", "expansion"),
-    ("expansion", "expansion"),
-    ("expanding", "expansion"),
-    ("compressed", "compression"),
-    ("compression", "compression"),
-    ("contracted", "compression"),
-    ("declined", "decrease"),
-    ("decreased", "decrease"),
-    ("decrease", "decrease"),
-    ("down", "decrease"),
-    ("fell", "decrease"),
-    ("reduced", "decrease"),
-    ("increased", "increase"),
-    ("increase", "increase"),
-    ("improved", "increase"),
-    ("improvement", "increase"),
-    ("rose", "increase"),
-    ("up", "increase"),
-    ("negative", "decrease"),
-)
-_METRIC_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("margin", ("margin",)),
-    ("leverage_debt", ("leverage", "debt")),
-    ("free_cash_flow", ("free cash flow", "fcf", "cash flow")),
-    ("revenue", ("revenue",)),
-    ("net_income", ("net income",)),
-    ("eps", ("eps", "earnings per share")),
-    ("interest_expense", ("interest expense",)),
-)
-_TOLERANCE_BY_UNIT: dict[str, float] = {
-    "%": 0.25,
-    "bps": 25.0,
-    "x": 0.1,
-    "B": 0.25,
-    "M": 25.0,
-}
+
+_SYSTEM_PROMPT = """You are a fact-checker for financial research reports.
+Given a list of claims and a fundamentals report, identify which claims contradict the fundamentals.
+
+A CONTRADICTION is: a wrong direction (claims growth but fundamentals show decline), \
+or a specific number that is clearly inconsistent with the fundamentals for the same metric and same period.
+
+NOT a contradiction: different time-period framing, emphasis, forward projection, or interpretation. \
+If in doubt, mark ok.
+
+Examples:
+
+FUNDAMENTALS: "Q1 2025: $4.39B, Q4 2025: $6.13B (+26.9% QoQ)"
+CLAIM: "Revenue accelerated from $4.39B in Q1 2025 to $6.13B in Q4 2025"
+→ {"ok": true}  ← historical range, both numbers match
+
+FUNDAMENTALS: "Q1 2025: $4.39B, Q2 2025: $4.55B, Q3 2025: $4.83B, Q4 2025: $6.13B"
+CLAIM: "Revenue declined throughout 2025"
+→ {"ok": false, "reason": "Fundamentals show revenue grew every quarter in 2025, not declined"}
+
+FUNDAMENTALS: "Gross margin Q4 2025: 44.9% (+120bps QoQ)"
+CLAIM: "Gross margin expanded +120bps QoQ in Q4 2025"
+→ {"ok": true}  ← exact match
+
+FUNDAMENTALS: "Gross margin Q4 2025: 44.9% (+120bps QoQ)"
+CLAIM: "Gross margin compressed 200bps in Q4 2025"
+→ {"ok": false, "reason": "Fundamentals show +120bps expansion, not compression"}
+
+FUNDAMENTALS: "Q1 2026: $4.50B (-26.6% QoQ)"
+CLAIM: "Revenue is on a strong multi-quarter acceleration trend"
+→ {"ok": true}  ← interpretation/emphasis, not a factual claim
+
+FUNDAMENTALS: "Net leverage 3.8x, down 320bps YoY"
+CLAIM: "Leverage expanded significantly this year"
+→ {"ok": false, "reason": "Fundamentals show leverage declined 320bps, not expanded"}
+
+FUNDAMENTALS: "EPS: $0.08 in Q4 2025"
+CLAIM: "EPS of $0.08 supports continued investment"
+→ {"ok": true}  ← number matches, rest is interpretation
+
+Output schema (strictly enforced):
+- Return exactly one result per claim, indexed 0 to claim_count-1 (claim_count is provided in the input)
+- "ok" must be a JSON boolean: true or false (never the string "true" or "false")
+- "reason" is required and must be non-empty when ok is false; omit it when ok is true
+- No duplicate or missing indexes
+
+Respond with ONLY valid JSON, no prose:
+{"results": [{"index": 0, "ok": true}, {"index": 1, "ok": false, "reason": "..."}]}"""
+
+_REPAIR_TEMPLATE = """\
+Your previous response did not satisfy the required schema: {error}
+
+Return exactly {n} result(s) — one per claim, indexes 0 to {last}:
+- "ok" must be JSON boolean true or false (not a string)
+- "reason" must be non-empty when ok is false
+- No duplicate or missing indexes
+
+Respond with ONLY valid JSON."""
 
 
-def extract_numeric_claims(rm_text: str) -> list[NumericClaim]:
-    """Extract deterministic numeric claims from research-manager style text."""
+def extract_rm_claims(rm_text: str) -> list[str]:
+    """Return claim strings from [HIGH]/[MED]/[LOW] bullet lines in RM investment plan.
 
-    claims: list[NumericClaim] = []
-    for match in _NUMBER_RE.finditer(rm_text):
-        value = _parse_value(match.group("value"))
-        unit = _normalize_unit(match.group("unit"))
-        context = _claim_context(rm_text, match.start(), match.end())
-        metric = _extract_metric(context)
-        direction = _extract_direction(context, metric)
-        claims.append(
-            NumericClaim(
-                metric=metric,
-                value=value,
-                unit=unit,
-                direction=direction,
-                confidence=_confidence(metric),
-            )
-        )
+    Handles both prefix format (- [HIGH] claim) and trailing format (- claim (HIGH)).
+    Deduplicates while preserving order; prefix matches take priority.
+    """
+    seen: set[str] = set()
+    claims: list[str] = []
+    for m in _CLAIM_PREFIX_RE.finditer(rm_text):
+        text = m.group(2).strip()
+        if text not in seen:
+            seen.add(text)
+            claims.append(text)
+    for m in _CLAIM_TRAILING_RE.finditer(rm_text):
+        text = m.group(1).strip()
+        if text not in seen:
+            seen.add(text)
+            claims.append(text)
     return claims
 
 
-def verify_against_fundamentals(
-    claims: list[NumericClaim], fundamentals: str
-) -> dict[str, list[Violation] | list[NumericClaim]]:
-    """Compare extracted claims to fundamentals text without side effects."""
+def _parse_and_validate(raw: str, claim_count: int) -> list[dict[str, Any]]:
+    """Parse raw LLM output and validate schema. Raises ValueError on any problem."""
+    try:
+        parsed = extract_json(raw)
+    except Exception as exc:
+        raise ValueError(
+            f"rm_consistency_guard: LLM response is not valid JSON — {raw[:300]}"
+        ) from exc
 
-    fundamentals_claims = extract_numeric_claims(fundamentals)
-    violations: list[Violation] = []
-    flags: list[NumericClaim] = []
+    if not isinstance(parsed, dict) or "results" not in parsed:
+        raise ValueError(f"rm_consistency_guard: LLM response missing 'results' key — {raw[:300]}")
 
-    for claim in claims:
-        category = _category_for_metric(claim.metric)
-        if claim.confidence == "low" or category is None:
-            flags.append(claim)
+    results = parsed["results"]
+    if not isinstance(results, list):
+        raise ValueError(f"rm_consistency_guard: 'results' is not a list — {raw[:300]}")
+
+    index_map: dict[int, dict[str, Any]] = {}
+    schema_errors: list[str] = []
+
+    for i, r in enumerate(results):
+        if not isinstance(r, dict):
+            schema_errors.append(f"result[{i}] is not a dict")
             continue
-
-        evidence = [
-            fundamental_claim
-            for fundamental_claim in fundamentals_claims
-            if _category_for_metric(fundamental_claim.metric) == category
-        ]
-        evidence.extend(_sentence_evidence_for_category(fundamentals, category))
-        if not evidence:
-            flags.append(claim)
+        idx = r.get("index")
+        if type(idx) is not int or not (0 <= idx < claim_count):
+            schema_errors.append(f"result[{i}] has invalid index {idx!r}")
             continue
+        if idx in index_map:
+            schema_errors.append(f"duplicate index {idx}")
+            continue
+        ok = r.get("ok")
+        if not isinstance(ok, bool):
+            schema_errors.append(f"result[{idx}] has non-bool ok: {ok!r}")
+            continue
+        reason = r.get("reason", "")
+        if not ok and (not isinstance(reason, str) or not reason.strip()):
+            schema_errors.append(f"result[{idx}] is ok=False but has no reason")
+            continue
+        index_map[idx] = r
 
-        contradiction = _find_contradiction(claim, evidence)
-        if contradiction is not None:
-            violations.append(contradiction)
+    missing = [i for i in range(claim_count) if i not in index_map]
+    if missing:
+        schema_errors.append(f"missing verdicts for claim indexes: {missing}")
 
-    return {"violations": violations, "flags": flags}
+    if schema_errors:
+        raise ValueError(
+            f"rm_consistency_guard: malformed judge response — {'; '.join(schema_errors)} — {raw[:200]}"
+        )
 
-
-def _parse_value(raw_value: str) -> float:
-    value = float(raw_value.replace("$", ""))
-    if value.is_integer():
-        return int(value)
-    return value
-
-
-def _normalize_unit(raw_unit: str) -> Unit:
-    unit = raw_unit.lower()
-    if unit == "bps":
-        return "bps"
-    if unit == "x":
-        return "x"
-    if unit == "%":
-        return "%"
-    if unit == "b":
-        return "B"
-    return "M"
+    return [index_map[i] for i in range(claim_count)]
 
 
-def _claim_context(text: str, start: int, end: int) -> str:
-    left_boundary = max(
-        text.rfind("\n", 0, start),
-        text.rfind(";", 0, start),
-        text.rfind(".", 0, start),
-        text.rfind(",", 0, start),
+def check_claims_via_llm(
+    claims: list[str],
+    fundamentals: str,
+    llm: Any,
+) -> list[dict[str, Any]]:
+    """Verdict each claim against fundamentals via a single LLM call with one schema retry.
+
+    Returns one {index, ok, reason?} dict per claim in index order.
+    On schema errors, retries once with a repair prompt before raising ValueError.
+    Raises ValueError if the response is unparseable, timed out, or fails schema
+    validation after both attempts.
+    """
+    if not claims:
+        return []
+
+    payload = json.dumps(
+        {"claim_count": len(claims), "claims": claims, "fundamentals": fundamentals},
+        ensure_ascii=False,
     )
-    for separator in (" while ", " but ", " and "):
-        left_boundary = max(left_boundary, text.lower().rfind(separator, 0, start))
-    right_boundary = len(text)
-    for separator in ("\n", ";", ".", ","):
-        idx = text.find(separator, end)
-        if idx != -1:
-            right_boundary = min(right_boundary, idx)
-    for separator in (" while ", " but ", " and "):
-        idx = text.lower().find(separator, end)
-        if idx != -1:
-            right_boundary = min(right_boundary, idx)
-    return text[left_boundary + 1 : right_boundary].strip(" -")
+    messages: list[Any] = [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=payload)]
+    timeout = resolve_timeout("quick")
 
+    response, invoke_error = invoke_with_timeout(llm, messages, timeout_seconds=timeout)
+    if invoke_error is not None or response is None:
+        raise ValueError(f"rm_consistency_guard: LLM judge call failed — {invoke_error}")
+    raw = response.content if hasattr(response, "content") else str(response)
 
-def _extract_metric(context: str) -> str:
-    before_number = _NUMBER_RE.split(context, maxsplit=1)[0]
-    before_number = re.sub(r"^[^\w$]+", "", before_number).strip()
-    for term, direction in _DIRECTION_TERMS:
-        del direction
-        before_number = re.sub(rf"\b{re.escape(term)}\b", "", before_number, flags=re.IGNORECASE)
-    parts = [part for part in _METRIC_STOP_RE.split(before_number) if part.strip()]
-    metric = parts[-1].strip(" -:()") if parts else before_number.strip(" -:()")
-    metric = re.sub(r"\s+", " ", metric)
-    return metric or "numeric claim"
-
-
-def _extract_direction(context: str, metric: str) -> Direction:
-    lowered = context.lower()
-    metric_category = _category_for_metric(metric)
-    for term, direction in _DIRECTION_TERMS:
-        if re.search(rf"\b{re.escape(term)}\b", lowered):
-            return _normalize_direction(direction, metric_category)
-    return None
-
-
-def _normalize_direction(direction: str, metric_category: str | None) -> Direction:
-    if direction == "increase" and metric_category == "margin":
-        return "expansion"
-    if direction == "decrease" and metric_category in {"margin", "leverage_debt"}:
-        return "compression"
-    return direction  # type: ignore[return-value]
-
-
-def _confidence(metric: str) -> Confidence:
-    return "high" if _category_for_metric(metric) is not None else "low"
-
-
-def _category_for_metric(metric: str) -> str | None:
-    normalized = metric.lower()
-    for category, terms in _METRIC_CATEGORIES:
-        if any(term in normalized for term in terms):
-            return category
-    return None
-
-
-def _find_contradiction(claim: NumericClaim, evidence: list[NumericClaim]) -> Violation | None:
-    opposite_directions = {
-        "expansion": {"compression", "decrease"},
-        "compression": {"expansion", "increase"},
-        "increase": {"decrease", "compression"},
-        "decrease": {"increase", "expansion"},
-    }
-    claim_opposites = opposite_directions.get(claim.direction or "", set())
-    for item in evidence:
-        if item.direction in claim_opposites:
-            return Violation(
-                claim=claim,
-                reason=(
-                    f"Claim states {claim.direction} for {claim.metric}, "
-                    f"but fundamentals show {item.direction}."
-                ),
-                evidence=_format_evidence(item),
-            )
-
-    comparable = [
-        item for item in evidence if item.unit == claim.unit and item.direction == claim.direction
-    ]
-    for item in comparable:
-        if abs(item.value - claim.value) > _TOLERANCE_BY_UNIT.get(claim.unit, 0.0):
-            return Violation(
-                claim=claim,
-                reason=(
-                    f"Claim value {claim.value}{claim.unit} differs from fundamentals "
-                    f"{item.value}{item.unit} beyond tolerance."
-                ),
-                evidence=_format_evidence(item),
-            )
-    return None
-
-
-def _sentence_evidence_for_category(fundamentals: str, category: str) -> list[NumericClaim]:
-    evidence: list[NumericClaim] = []
-    for sentence in re.split(r"(?<=[.!?])\s+", fundamentals):
-        terms = _terms_for_category(category)
-        if not any(term in sentence.lower() for term in terms):
-            continue
-        direction = _extract_direction(sentence, terms[0])
-        if direction is None:
-            continue
-        for match in _NUMBER_RE.finditer(sentence):
-            evidence.append(
-                NumericClaim(
-                    metric=terms[0],
-                    value=_parse_value(match.group("value")),
-                    unit=_normalize_unit(match.group("unit")),
-                    direction=direction,
-                    confidence="high",
-                )
-            )
-    return evidence
-
-
-def _terms_for_category(category: str) -> tuple[str, ...]:
-    for known_category, terms in _METRIC_CATEGORIES:
-        if known_category == category:
-            return terms
-    return ()
-
-
-def _format_evidence(claim: NumericClaim) -> str:
-    direction = f" {claim.direction}" if claim.direction else ""
-    return f"{claim.metric}: {claim.value}{claim.unit}{direction}"
+    try:
+        return _parse_and_validate(raw, len(claims))
+    except ValueError as first_err:
+        repair_prompt = _REPAIR_TEMPLATE.format(
+            error=first_err,
+            n=len(claims),
+            last=len(claims) - 1,
+        )
+        repair_messages = messages + [AIMessage(content=raw), HumanMessage(content=repair_prompt)]
+        response2, invoke_error2 = invoke_with_timeout(
+            llm, repair_messages, timeout_seconds=timeout
+        )
+        if invoke_error2 is not None or response2 is None:
+            raise ValueError(
+                f"rm_consistency_guard: repair retry failed — {invoke_error2}"
+            ) from first_err
+        raw2 = response2.content if hasattr(response2, "content") else str(response2)
+        return _parse_and_validate(raw2, len(claims))

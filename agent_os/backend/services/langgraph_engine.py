@@ -166,10 +166,14 @@ def _parse_canonical_regime(macro_brief: Any) -> dict[str, Any]:
             return {}
         try:
             payload = json.loads(text)
-        except json.JSONDecodeError:
-            raise ValueError("canonical macro regime: macro_scan_summary is not valid JSON")
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                "canonical macro regime: macro_scan_summary is not valid JSON"
+            ) from exc
     if not isinstance(payload, dict) or not isinstance(payload.get("canonical_regime"), dict):
-        raise ValueError("canonical macro regime: macro_scan_summary JSON missing canonical_regime key")
+        raise ValueError(
+            "canonical macro regime: macro_scan_summary JSON missing canonical_regime key"
+        )
     canonical = payload["canonical_regime"]
     label = str(canonical.get("label") or "").strip().upper()
     score = canonical.get("score")

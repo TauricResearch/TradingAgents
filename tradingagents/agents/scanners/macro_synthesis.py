@@ -236,8 +236,7 @@ def _canonical_regime_from_data(regime_data: dict) -> dict[str, object]:
     score = regime_data.get("score")
     if isinstance(score, bool) or not isinstance(score, int):
         raise RuntimeError(
-            "Macro regime classifier did not produce an integer score "
-            f"(got {score!r})."
+            f"Macro regime classifier did not produce an integer score (got {score!r})."
         )
     if score < -6 or score > 6:
         raise RuntimeError(
@@ -262,8 +261,7 @@ def _validate_macro_regime_report(report: str, canonical_regime: dict[str, objec
     label = str(canonical_regime["label"])
     if label not in report:
         raise RuntimeError(
-            "Macro regime formatter did not include the canonical label "
-            f"{label!r} in the report."
+            f"Macro regime formatter did not include the canonical label {label!r} in the report."
         )
 
     signed_score = f"{int(canonical_regime['score']):+d}"
@@ -496,7 +494,7 @@ def create_macro_synthesis(
             parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
             parsed["canonical_regime"] = canonical_regime
             report = json.dumps(parsed)
-        except (ValueError, json.JSONDecodeError):
+        except (ValueError, json.JSONDecodeError) as exc:
             sanitized_report = sanitize_llm_output(report)
             logger.error(
                 "macro_synthesis: could not extract JSON from LLM output; first 200 chars: %s",
@@ -505,7 +503,7 @@ def create_macro_synthesis(
             raise RuntimeError(
                 "Macro synthesis LLM output was not valid JSON; scanner cannot persist "
                 "macro_scan_summary without canonical_regime."
-            )
+            ) from exc
 
         # 3. Resumability: Save after completion
         if report:

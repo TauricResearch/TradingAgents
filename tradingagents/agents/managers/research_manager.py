@@ -45,7 +45,7 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
                 "Your previous response contained numeric claims that contradict the "
                 "fundamentals report. Address each violation below by either correcting "
                 "the number to match the fundamentals report or removing the claim:\n"
-                + "\n".join(f"- {v['metric']}: {v['reason']}" for v in violations)
+                + "\n".join(f"- {v.get('claim', '')}: {v.get('reason', '')}" for v in violations)
             )
         else:
             correction_block = ""
