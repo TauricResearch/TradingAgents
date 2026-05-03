@@ -152,14 +152,41 @@ analysisRouter.post("/", async (c) => {
       if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR)
     })
 
-    // Abort child if client disconnects
-    stream.onAbort?.(() => {
+    // Abort child if client disconnects — must resolve the promise too
+    const abortController = new AbortController()
+
+    const abortHandler = () => {
       child.kill("SIGTERM")
-    })
+      abortController.abort()
+    }
+
+    // Hono stream-level abort
+    if (stream.onAbort) {
+      stream.onAbort(abortHandler)
+    }
+    // Fallback: raw request signal (covers cases where stream.onAbort is unavailable)
+    c.req.raw.signal.addEventListener("abort", abortHandler, { once: true })
 
     await new Promise<void>((resolve) => {
+      const cleanup = () => {
+        // Flush any remaining buffered data (last line may lack trailing newline)
+        const remaining = buf.trim()
+        if (remaining) {
+          try {
+            const parsed = JSON.parse(remaining)
+            if (parsed.event && parsed.data !== undefined) {
+              stream.writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) }).catch(() => {})
+            }
+          } catch {
+            // Not valid JSON — skip
+          }
+        }
+        resolve()
+      }
+
       child.on("close", async (code) => {
-        if (code !== 0) {
+        cleanup()
+        if (code !== 0 && code !== null) {
           stream
             .writeSSE({
               event: "error",
@@ -170,22 +197,20 @@ analysisRouter.post("/", async (c) => {
             })
             .catch(() => {})
         }
-
-        // Summary generation is available via POST /api/analyses/:ticker/:date/explain
-        // or `just summarize` — not auto-triggered to avoid unnecessary API calls
-
-        resolve()
       })
 
       child.on("error", (err) => {
+        cleanup()
         stream
           .writeSSE({
             event: "error",
             data: JSON.stringify({ message: err.message }),
           })
           .catch(() => {})
-        resolve()
       })
+
+      // If the client aborted before the child closed naturally, resolve promptly
+      abortController.signal.addEventListener("abort", () => resolve(), { once: true })
     })
   })
 })
