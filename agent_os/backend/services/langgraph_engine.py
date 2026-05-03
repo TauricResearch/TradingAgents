@@ -156,14 +156,18 @@ def _load_injected_market_report(file_path: str) -> dict[str, Any]:
     }
 
 
-def _parse_canonical_regime(macro_brief: str) -> dict[str, Any]:
-    text = str(macro_brief or "").strip()
-    if not text:
-        return {}
-    try:
-        payload = json.loads(text)
-    except json.JSONDecodeError:
-        raise ValueError("canonical macro regime: macro_scan_summary is not valid JSON")
+def _parse_canonical_regime(macro_brief: Any) -> dict[str, Any]:
+    if isinstance(macro_brief, dict):
+        payload = macro_brief
+        text = json.dumps(macro_brief)
+    else:
+        text = str(macro_brief or "").strip()
+        if not text:
+            return {}
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            raise ValueError("canonical macro regime: macro_scan_summary is not valid JSON")
     if not isinstance(payload, dict) or not isinstance(payload.get("canonical_regime"), dict):
         raise ValueError("canonical macro regime: macro_scan_summary JSON missing canonical_regime key")
     canonical = payload["canonical_regime"]
@@ -1047,7 +1051,7 @@ class LangGraphEngine:
             ticker,
             date,
             run_id=root_run_id,
-            canonical_regime=_parse_canonical_regime(str(params.get("macro_brief") or "")),
+            canonical_regime=_parse_canonical_regime(params.get("macro_brief") or ""),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
             scanner_graph_context_text=scanner_graph_context_text,
@@ -2156,7 +2160,7 @@ class LangGraphEngine:
                         "ticker": ticker,
                         "date": date,
                         "run_id": root_run_id,
-                        "macro_brief": str(scan_state.get("macro_scan_summary") or ""),
+                        "macro_brief": scan_state.get("macro_scan_summary") or "",
                         "portfolio_context": "holding"
                         if instrument.instrument_key in holding_instrument_keys
                         else "candidate",
