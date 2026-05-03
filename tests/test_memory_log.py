@@ -564,10 +564,11 @@ class TestDeferredReflection:
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AAPL") == "SPY"
 
     def test_resolve_benchmark_unknown_suffix_falls_back(self):
-        """Unrecognised suffix falls back to the "" key (SPY)."""
+        """Unrecognised suffix (including US tickers with dots like BRK.B) falls back to SPY."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.config = {"benchmark_ticker": None, "benchmark_map": {"": "SPY"}}
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "FAKE.XX") == "SPY"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "BRK.B") == "SPY"
 
     # Reflector.reflect_on_final_decision — benchmark_name label
 
