@@ -926,3 +926,26 @@ class TestRecordPmDecisionsNode:
         assert ("compute_risk", "review_holdings") not in edges
         assert ("make_pm_decision", "cash_sweep") not in edges
         assert ("cash_sweep", "execute_trades") not in edges
+
+    def test_candidate_handoff_guard_is_wired_in_graph(self):
+        """Verify candidate_handoff_guard node is wired between prioritize_candidates and summaries."""
+        agents = {
+            "review_holdings": lambda state: {"sender": "review_holdings"},
+            "macro_summary": lambda state: {"sender": "macro_summary"},
+            "micro_summary": lambda state: {"sender": "micro_summary"},
+            "pm_decision": lambda state: {"sender": "pm_decision"},
+        }
+        graph = PortfolioGraphSetup(agents=agents, micro_memory=Mock()).setup_graph().get_graph()
+
+        edges = {(edge.source, edge.target) for edge in graph.edges}
+
+        # Guard is wired after prioritize_candidates
+        assert ("prioritize_candidates", "candidate_handoff_guard") in edges
+
+        # Guard fans out to both summary nodes
+        assert ("candidate_handoff_guard", "macro_summary") in edges
+        assert ("candidate_handoff_guard", "micro_summary") in edges
+
+        # Ensure old direct edges from prioritize_candidates are removed
+        assert ("prioritize_candidates", "macro_summary") not in edges
+        assert ("prioritize_candidates", "micro_summary") not in edges
