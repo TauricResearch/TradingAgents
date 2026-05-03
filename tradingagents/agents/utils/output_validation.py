@@ -10,8 +10,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from langchain_core.messages import HumanMessage, SystemMessage
+
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -636,6 +639,58 @@ def _extract_action_regex(text: str) -> ExtractionResult | None:
         )
 
     return None
+
+
+_EXTRACTION_SYSTEM_PROMPT = """\
+You extract the final trading action from a portfolio manager's report.
+The action must be one of BUY, SELL, or HOLD.
+Return strict JSON — no prose, no markdown fences:
+{"action": "BUY"|"SELL"|"HOLD", "confidence": "high"|"med"|"low", "evidence_quote": "<verbatim ≤200 chars>"}
+Set confidence to "low" if the text is ambiguous or the action is not clearly stated.
+The evidence_quote must be a direct verbatim excerpt from the text that shows the action."""
+
+
+def _extract_action_llm(text: str, llm: Any) -> ExtractionResult:
+    """Call LLM to extract action. Never raises — returns low-confidence sentinel on any failure.
+
+    The sentinel has confidence="low" so the caller's hard-fail path triggers uniformly.
+    """
+    _sentinel = ExtractionResult(action="HOLD", confidence="low", source="llm", evidence_quote=None)
+    try:
+        messages = [
+            SystemMessage(content=_EXTRACTION_SYSTEM_PROMPT),
+            HumanMessage(content=f"TEXT:\n<<<{text}>>>"),
+        ]
+        timeout = resolve_timeout("quick")
+        response, invoke_error = invoke_with_timeout(llm, messages, timeout_seconds=timeout)
+        if invoke_error is not None or response is None:
+            return _sentinel
+        raw = response.content if hasattr(response, "content") else str(response)
+        try:
+            parsed = extract_json(raw)
+        except Exception:
+            return _sentinel
+        if not isinstance(parsed, dict):
+            return _sentinel
+        action = str(parsed.get("action") or "").upper()
+        if action not in {"BUY", "SELL", "HOLD"}:
+            return _sentinel
+        confidence = str(parsed.get("confidence") or "").lower()
+        if confidence not in {"high", "med", "low"}:
+            return _sentinel
+        evidence_quote = parsed.get("evidence_quote")
+        if isinstance(evidence_quote, str):
+            evidence_quote = evidence_quote[:200] or None
+        else:
+            evidence_quote = None
+        return ExtractionResult(
+            action=action,  # type: ignore[arg-type]
+            confidence=confidence,  # type: ignore[arg-type]
+            source="llm",
+            evidence_quote=evidence_quote,
+        )
+    except Exception:
+        return _sentinel
 
 
 def _infer_recommendation(text: str) -> str:
