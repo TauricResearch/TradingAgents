@@ -135,7 +135,7 @@ class GraphSetup:
                 if not r.get("ok"):
                     idx = r.get("index")
                     claim_text = claims[idx] if isinstance(idx, int) and 0 <= idx < len(claims) else ""
-                    violations.append({**r, "claim": claim_text})
+                    violations.append({"claim": claim_text, "reason": r.get("reason", "")})
             attempt = int(state.get("_rm_consistency_attempt") or 0)
             if not violations:
                 return {

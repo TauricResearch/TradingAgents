@@ -226,7 +226,8 @@ def test_guard_node_nok_regression_no_false_positive():
 
 
 def test_guard_node_no_claims_extracted_passes_without_llm_call():
-    """RM with no [HIGH]/[MED]/[LOW] bullets — check_claims_via_llm still called with empty list."""
+    """RM with no [HIGH]/[MED]/[LOW] bullets — guard delegates to check_claims_via_llm with empty list."""
+    from unittest.mock import ANY
     with patch("tradingagents.graph.setup.check_claims_via_llm", return_value=[]) as mock_check:
         from tradingagents.graph.setup import GraphSetup
         gs = object.__new__(GraphSetup)
@@ -238,4 +239,23 @@ def test_guard_node_no_claims_extracted_passes_without_llm_call():
             "_rm_consistency_attempt": 0,
         })
     assert result["rm_consistency_status"] == "ok"
-    mock_check.assert_called_once()
+    mock_check.assert_called_once_with([], "Revenue: +15% YoY.", ANY)
+
+
+def test_guard_node_violation_dict_has_no_index_key():
+    """Violation stored in state has claim+reason only — no LLM-internal index."""
+    violation_result = {"index": 0, "ok": False, "reason": "Fundamentals show compression.", "claim": "Margin expanded 200bps."}
+    with patch("tradingagents.graph.setup.check_claims_via_llm", return_value=[violation_result]):
+        from tradingagents.graph.setup import GraphSetup
+        gs = object.__new__(GraphSetup)
+        gs.quick_thinking_llm = MagicMock()
+        node = gs._make_rm_consistency_guard_node(gs.quick_thinking_llm)
+        result = node({
+            "investment_plan": "- [HIGH] Margin expanded 200bps.",
+            "fundamentals_report": "Margin compressed 270bps.",
+            "_rm_consistency_attempt": 0,
+        })
+    v = result["consistency_violations"][0]
+    assert "index" not in v
+    assert "claim" in v
+    assert "reason" in v

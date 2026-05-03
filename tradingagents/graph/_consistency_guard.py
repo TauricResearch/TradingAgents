@@ -30,9 +30,9 @@ FUNDAMENTALS: "Q1 2025: $4.39B, Q4 2025: $6.13B (+26.9% QoQ)"
 CLAIM: "Revenue accelerated from $4.39B in Q1 2025 to $6.13B in Q4 2025"
 → {"ok": true}  ← historical range, both numbers match
 
-FUNDAMENTALS: "Q1 2025: $4.39B, Q4 2025: $6.13B (+26.9% QoQ)"
-CLAIM: "Revenue declined from $6.13B in Q4 2025 to $4.39B in Q1 2026"
-→ {"ok": false, "reason": "Q1 2026 figure not in fundamentals; direction framed as decline but this period is not reported"}
+FUNDAMENTALS: "Q1 2025: $4.39B, Q2 2025: $4.55B, Q3 2025: $4.83B, Q4 2025: $6.13B"
+CLAIM: "Revenue declined throughout 2025"
+→ {"ok": false, "reason": "Fundamentals show revenue grew every quarter in 2025, not declined"}
 
 FUNDAMENTALS: "Gross margin Q4 2025: 44.9% (+120bps QoQ)"
 CLAIM: "Gross margin expanded +120bps QoQ in Q4 2025"
@@ -93,5 +93,5 @@ def check_claims_via_llm(
     if not isinstance(results, list):
         raise ValueError(f"rm_consistency_guard: 'results' is not a list — {raw[:300]}")
 
-    result_by_index = {r.get("index"): r for r in results if isinstance(r.get("index"), int)}
+    result_by_index = {r.get("index"): r for r in results if isinstance(r, dict) and isinstance(r.get("index"), int)}
     return [result_by_index.get(i, {"index": i, "ok": True}) for i in range(len(claims))]
