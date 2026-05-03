@@ -103,7 +103,8 @@ def analyze_stock(
 
         # Use today's date if not specified
         if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
+            from datetime import timezone
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         # Create trading graph with specified provider
         config = DEFAULT_CONFIG.copy()
