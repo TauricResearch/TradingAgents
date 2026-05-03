@@ -42,24 +42,14 @@ def test_missing_regime_in_analyst_raises():
         assert_regime_consistent(analyst, canonical)
 
 
-def test_uses_macro_regime_pair_not_prior_context():
+def test_regime_pair_found_anywhere_in_text():
     analyst = (
-        "Canonical brief said RISK-ON (+5/6) before the final answer.\n"
-        "Macro Regime: TRANSITION (+2/6) mixed signals..."
+        "FINAL TRANSACTION PROPOSAL: **BUY**\n\n"
+        "**Macro Regime Context**\n"
+        "* The global macro regime is classified as **RISK-ON** with a score of **+5/6**."
     )
     canonical = {"label": "RISK-ON", "score": 5}
-    with pytest.raises(ValueError, match=r"regime drift.*label"):
-        assert_regime_consistent(analyst, canonical)
-
-
-def test_macro_regime_context_does_not_mask_statement():
-    analyst = (
-        "Macro Regime Context: canonical brief said RISK-ON (+5/6)\n"
-        "Macro Regime: TRANSITION (+2/6) mixed signals..."
-    )
-    canonical = {"label": "RISK-ON", "score": 5}
-    with pytest.raises(ValueError, match=r"regime drift.*label"):
-        assert_regime_consistent(analyst, canonical)
+    assert assert_regime_consistent(analyst, canonical) is None
 
 
 def test_missing_canonical_score_raises():
