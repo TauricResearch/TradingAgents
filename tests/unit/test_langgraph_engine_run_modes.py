@@ -85,12 +85,6 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             },
         )
 
-    def test_parse_canonical_regime_preserves_legacy_prose_fallback(self):
-        parsed = _parse_canonical_regime("Macro regime: RISK-OFF (score -4/6).")
-
-        self.assertEqual(parsed["label"], "RISK-OFF")
-        self.assertEqual(parsed["score"], -4)
-
     def testis_rate_limit_error_matches_status_code(self):
         exc = RuntimeError("boom")
         exc.status_code = 429
@@ -702,7 +696,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
                         {
                             "ticker": "AAPL",
                             "date": "2026-01-01",
-                            "macro_scan_summary": macro_summary,
+                            "macro_brief": macro_summary,
                         },
                     )
                 )

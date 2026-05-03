@@ -77,8 +77,6 @@ from tradingagents.report_paths import (
 
 logger = logging.getLogger("agent_os.engine")
 
-_REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
-_REGIME_SCORE_RE = re.compile(r"(?:\(\s*|score\s+(?:of\s+)?)?([+-]?\d+)\s*/\s*6", re.IGNORECASE)
 _SCAN_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -165,52 +163,23 @@ def _parse_canonical_regime(macro_brief: str) -> dict[str, Any]:
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
-        payload = None
-    if isinstance(payload, dict) and isinstance(payload.get("canonical_regime"), dict):
-        canonical = payload["canonical_regime"]
-        label = str(canonical.get("label") or "").strip().upper()
-        score = canonical.get("score")
-        confidence = str(canonical.get("confidence") or "").strip().lower()
-        if label not in {"RISK-ON", "RISK-OFF", "TRANSITION"}:
-            raise ValueError("structured canonical_regime has invalid label")
-        if isinstance(score, bool) or not isinstance(score, int) or score < -6 or score > 6:
-            raise ValueError("structured canonical_regime has invalid score")
-        parsed: dict[str, Any] = {
-            "label": label,
-            "score": score,
-            "brief": text,
-        }
-        if confidence:
-            if confidence not in {"high", "medium", "low"}:
-                raise ValueError("structured canonical_regime has invalid confidence")
-            parsed["confidence"] = confidence
-        return parsed
-    label_match = _REGIME_LABEL_RE.search(text)
-    score_match = _REGIME_SCORE_RE.search(text)
-    if not label_match or not score_match:
-        raise ValueError("canonical macro regime could not be parsed from macro brief")
-    return {
-        "label": label_match.group(1).upper(),
-        "score": int(score_match.group(1)),
-        "brief": text,
-    }
-
-
-def _resolve_macro_brief(sources: list[str]) -> str:
-    """Return the first source _parse_canonical_regime can parse, else the first non-empty source."""
-    first_nonempty = ""
-    for src in sources:
-        text = str(src or "").strip()
-        if not text:
-            continue
-        if not first_nonempty:
-            first_nonempty = text
-        try:
-            _parse_canonical_regime(text)
-            return text
-        except ValueError:
-            continue
-    return first_nonempty
+        raise ValueError("canonical macro regime: macro_scan_summary is not valid JSON")
+    if not isinstance(payload, dict) or not isinstance(payload.get("canonical_regime"), dict):
+        raise ValueError("canonical macro regime: macro_scan_summary JSON missing canonical_regime key")
+    canonical = payload["canonical_regime"]
+    label = str(canonical.get("label") or "").strip().upper()
+    score = canonical.get("score")
+    confidence = str(canonical.get("confidence") or "").strip().lower()
+    if label not in {"RISK-ON", "RISK-OFF", "TRANSITION"}:
+        raise ValueError(f"canonical_regime has invalid label: {label!r}")
+    if isinstance(score, bool) or not isinstance(score, int) or score < -6 or score > 6:
+        raise ValueError(f"canonical_regime has invalid score: {score!r}")
+    parsed: dict[str, Any] = {"label": label, "score": score, "brief": text}
+    if confidence:
+        if confidence not in {"high", "medium", "low"}:
+            raise ValueError(f"canonical_regime has invalid confidence: {confidence!r}")
+        parsed["confidence"] = confidence
+    return parsed
 
 
 def _require_scanner_date(params: dict[str, Any], *, run_kind: str) -> str:
@@ -1078,13 +1047,7 @@ class LangGraphEngine:
             ticker,
             date,
             run_id=root_run_id,
-            canonical_regime=_parse_canonical_regime(
-                _resolve_macro_brief([
-                    str(params.get("macro_brief") or ""),
-                    str(params.get("macro_scan_summary") or ""),
-                    str(injected_market.get("macro_regime_report") or ""),
-                ])
-            ),
+            canonical_regime=_parse_canonical_regime(str(params.get("macro_brief") or "")),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
             scanner_graph_context_text=scanner_graph_context_text,
@@ -2026,10 +1989,6 @@ class LangGraphEngine:
             if report_file.exists():
                 scan_state[key] = report_file.read_text()
 
-        regime_file = save_dir / "macro_regime_report.md"
-        if regime_file.exists():
-            scan_state["macro_regime_report"] = regime_file.read_text()
-
         scan_summary = store.load_scan(date)
         if scan_summary:
             scan_state["macro_scan_summary"] = scan_summary
@@ -2197,11 +2156,7 @@ class LangGraphEngine:
                         "ticker": ticker,
                         "date": date,
                         "run_id": root_run_id,
-                        "macro_brief": _resolve_macro_brief([
-                            scan_state.get("macro_brief") or "",
-                            scan_state.get("macro_scan_summary") or "",
-                            scan_state.get("macro_regime_report") or "",
-                        ]),
+                        "macro_brief": str(scan_state.get("macro_scan_summary") or ""),
                         "portfolio_context": "holding"
                         if instrument.instrument_key in holding_instrument_keys
                         else "candidate",
