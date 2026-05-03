@@ -5,7 +5,7 @@ export function BenchmarkView() {
     <>
       <section class="panel" id="benchmark-panel">
         <h3>Benchmark — Portfolio vs. {process.env.BENCHMARK || "VWCE.DE"}</h3>
-        <div id="benchmark-body" hx-get="/api/benchmark" hx-trigger="load" hx-swap="innerHTML">
+        <div id="benchmark-body">
           <div class="muted">Loading…</div>
         </div>
       </section>

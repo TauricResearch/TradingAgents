@@ -1,89 +1,107 @@
 """
-Defuddle integration — fetch full article content as Markdown via the hosted endpoint.
+Article content extraction via the defuddle npm CLI.
 
-Usage:
-    from tradingagents.dataflows.defuddle import deep_fetch_article
-    markdown = deep_fetch_article("https://example.com/article")
+Provides deep_fetch_article and deep_fetch_batch for fetching
+full article text as clean Markdown from URLs. Requires the
+`defuddle` npm package to be installed globally:
 
-Config via env var DEFUDDELL_BASE (default: "https://defuddle.md").
+    npm install -g defuddle
 """
 
-import os
-import re
-import requests
-from typing import Optional
+import subprocess
+import json
+import logging
+from typing import List, Optional
 
-DEFUDDLE_BASE = os.environ.get("DEFUDDLE_BASE", "https://defuddle.md").rstrip("/")
-FETCH_TIMEOUT = int(os.environ.get("DEFUDDLE_TIMEOUT", "15"))
-MAX_CONTENT_LEN = int(os.environ.get("DEFUDDLE_MAX_LEN", "100000"))  # ~100KB cap
+logger = logging.getLogger(__name__)
 
-# Block private/internal URLs to prevent SSRF
-_BLOCKED_PATTERNS = [
-    re.compile(r"^https?://(localhost|127\.|0\.0\.0\.0)", re.I),
-    re.compile(r"^https?://10\.", re.I),
-    re.compile(r"^https?://192\.168\.", re.I),
-    re.compile(r"^https?://172\.(1[6-9]|2\d|3[01])\.", re.I),
-    re.compile(r"^https?://169\.254\.", re.I),      # Link-local / AWS metadata
-    re.compile(r"^(file|ftp|gopher|data):", re.I),    # Non-HTTP schemes
-]
+DEFUDDLE_CMD = "defuddle"
 
 
-def _is_blocked(url: str) -> bool:
-    return any(p.match(url) for p in _BLOCKED_PATTERNS)
+def _defuddle_binary() -> Optional[str]:
+    """Check if defuddle CLI is available. Returns path or None."""
+    try:
+        result = subprocess.run(
+            ["which", DEFUDDLE_CMD], capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    # Try npx as fallback
+    try:
+        result = subprocess.run(
+            ["npx", DEFUDDLE_CMD, "--version"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            return "npx defuddle"
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    return None
 
 
-def deep_fetch_article(url: str) -> Optional[str]:
+def deep_fetch_article(url: str, timeout: int = 30) -> str:
     """
-    Fetch a single article URL and return full content as Markdown
-    via the hosted defuddle.md endpoint.
+    Fetch a single URL and return cleaned Markdown content.
 
     Args:
-        url: Full HTTP(S) URL of the article to fetch.
+        url: Full HTTP(S) URL to fetch
+        timeout: Subprocess timeout in seconds
 
     Returns:
-        Markdown string with YAML frontmatter (title, author, date, etc.),
-        or None if fetch failed or URL is blocked.
+        Article content as Markdown string, or empty string on failure
     """
-    if not url or not url.startswith(("http://", "https://")):
-        return None
+    binary = _defuddle_binary()
+    if binary is None:
+        logger.warning("defuddle CLI not available — install with: npm install -g defuddle")
+        return ""
 
-    if _is_blocked(url):
-        return None
+    cmd_parts = binary.split() if binary == "npx defuddle" else [binary]
+    cmd = [*cmd_parts, "parse", url, "--markdown"]
 
     try:
-        resp = requests.get(
-            f"{DEFUDDLE_BASE}/{url}",
-            timeout=FETCH_TIMEOUT,
-            headers={"Accept": "text/plain"},
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout
         )
-        resp.raise_for_status()
-        content = resp.text[:MAX_CONTENT_LEN]
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            logger.warning(f"defuddle failed for {url}: {result.stderr.strip()}")
+            return ""
+    except subprocess.TimeoutExpired:
+        logger.warning(f"defuddle timed out for {url}")
+        return ""
+    except Exception as e:
+        logger.warning(f"defuddle error for {url}: {e}")
+        return ""
 
-        # If the response is too short, defuddle may have failed to extract
-        if len(content.strip()) < 50:
-            return None
 
-        return content
-
-    except (requests.RequestException, ValueError, KeyError):
-        return None
-
-
-def deep_fetch_batch(urls: list[str], max_articles: int = 5) -> str:
+def deep_fetch_batch(
+    urls: List[str], max_articles: int = 5, timeout: int = 30
+) -> str:
     """
-    Fetch multiple articles and return combined Markdown.
-    Articles that fail or are blocked are silently skipped.
+    Fetch multiple URLs and return combined Markdown content.
 
     Args:
-        urls: List of article URLs to fetch.
-        max_articles: Maximum number of articles to fetch (default 5).
+        urls: List of HTTP(S) URLs to fetch
+        max_articles: Maximum number of articles to fetch
+        timeout: Per-article subprocess timeout in seconds
 
     Returns:
-        Combined Markdown from all successfully fetched articles.
+        Combined Markdown content separated by dividers, or empty
+        string if all fetches failed
     """
+    if not urls:
+        return ""
+
+    urls = urls[:max_articles]
     results = []
-    for url in urls[:max_articles]:
-        content = deep_fetch_article(url)
+
+    for url in urls:
+        content = deep_fetch_article(url, timeout=timeout)
         if content:
             results.append(content)
 

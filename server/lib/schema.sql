@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS positions (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker     TEXT NOT NULL,
     exchange   TEXT DEFAULT 'US',
+    platform   TEXT DEFAULT 'unknown',
     quantity   INTEGER NOT NULL,
     avg_cost   REAL NOT NULL,
     entry_date TEXT NOT NULL,
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS trades (
 CREATE TABLE IF NOT EXISTS signals (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker     TEXT NOT NULL,
+    platform   TEXT DEFAULT 'unknown',
     date       TEXT NOT NULL,
     signal     TEXT NOT NULL CHECK(signal IN ('buy', 'overweight', 'hold', 'underweight', 'sell')),
     reasoning  TEXT,
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS signals (
 CREATE TABLE IF NOT EXISTS watchlist (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker      TEXT NOT NULL,
+    platform    TEXT DEFAULT 'unknown',
     exchange    TEXT DEFAULT 'US',
     thesis      TEXT,
     priority    TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
@@ -60,6 +63,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
 CREATE TABLE IF NOT EXISTS analyses (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker     TEXT NOT NULL,
+    platform   TEXT DEFAULT 'unknown',
     date       TEXT NOT NULL,
     config     TEXT,
     raw_state  TEXT,
@@ -68,6 +72,8 @@ CREATE TABLE IF NOT EXISTS analyses (
 );
 
 -- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_signals_platform ON signals(platform);
+CREATE INDEX IF NOT EXISTS idx_positions_platform ON positions(platform);
 CREATE INDEX IF NOT EXISTS idx_signals_ticker ON signals(ticker);
 CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(date);
 CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status);

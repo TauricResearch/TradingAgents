@@ -6,32 +6,32 @@
  */
 
 export interface GovernanceRule {
-  id: string;
-  name: string;
-  limit: number;
-  unit: "%" | "EUR" | "count";
-  description: string;
+  id: string
+  name: string
+  limit: number
+  unit: "%" | "EUR" | "count"
+  description: string
 }
 
 export interface RuleViolation {
-  rule: GovernanceRule;
-  current: number;
-  severity: "warn" | "breach";
-  detail: string;
+  rule: GovernanceRule
+  current: number
+  severity: "warn" | "breach"
+  detail: string
 }
 
 export interface AllocationItem {
-  ticker: string;
-  value: number;
-  weight: number; // percentage
+  ticker: string
+  value: number
+  weight: number // percentage
 }
 
 export interface RebalanceSuggestion {
-  ticker: string;
-  action: "trim" | "add";
-  currentWeight: number;
-  targetWeight: number;
-  delta: number; // percentage points to adjust
+  ticker: string
+  action: "trim" | "add"
+  currentWeight: number
+  targetWeight: number
+  delta: number // percentage points to adjust
 }
 
 export const DEFAULT_RULES: GovernanceRule[] = [
@@ -70,7 +70,13 @@ export const DEFAULT_RULES: GovernanceRule[] = [
     unit: "count",
     description: "Keep portfolio manageable (< 24 positions)",
   },
-];
+]
+
+function findRule(id: string): GovernanceRule {
+  const rule = DEFAULT_RULES.find((r) => r.id === id)
+  if (!rule) throw new Error(`Governance rule not found: ${id}`)
+  return rule
+}
 
 /**
  * Check holdings against governance rules.
@@ -82,11 +88,11 @@ export function checkRules(
   peakValue: number,
   currentValue: number,
 ): RuleViolation[] {
-  const violations: RuleViolation[] = [];
-  const totalValue = allocations.reduce((s, a) => s + a.value, 0) + (cashPct / 100) * currentValue;
+  const violations: RuleViolation[] = []
+  const _totalValue = allocations.reduce((s, a) => s + a.value, 0) + (cashPct / 100) * currentValue
 
   // Max single position
-  const maxPosRule = DEFAULT_RULES.find((r) => r.id === "max-position")!;
+  const maxPosRule = findRule("max-position")
   for (const a of allocations) {
     if (a.weight > maxPosRule.limit) {
       violations.push({
@@ -94,47 +100,47 @@ export function checkRules(
         current: a.weight,
         severity: a.weight > maxPosRule.limit * 1.2 ? "breach" : "warn",
         detail: `${a.ticker} is ${a.weight.toFixed(1)}% (limit: ${maxPosRule.limit}%)`,
-      });
+      })
     }
   }
 
   // Cash floor
-  const cashRule = DEFAULT_RULES.find((r) => r.id === "cash-floor")!;
-  if (cashPct < cashRule.limit) {
+  const cashRule1 = findRule("cash-floor")
+  if (cashPct < cashRule1.limit) {
     violations.push({
-      rule: cashRule,
+      rule: cashRule1,
       current: cashPct,
       severity: "breach",
-      detail: `Cash is ${cashPct.toFixed(1)}% (minimum: ${cashRule.limit}%)`,
-    });
+      detail: `Cash is ${cashPct.toFixed(1)}% (minimum: ${cashRule1.limit}%)`,
+    })
   }
 
   // Max drawdown
-  const ddRule = DEFAULT_RULES.find((r) => r.id === "max-drawdown")!;
+  const ddRule = findRule("max-drawdown")
   if (peakValue > 0) {
-    const drawdown = ((peakValue - currentValue) / peakValue) * 100;
+    const drawdown = ((peakValue - currentValue) / peakValue) * 100
     if (drawdown > ddRule.limit) {
       violations.push({
         rule: ddRule,
         current: drawdown,
         severity: "breach",
         detail: `Drawdown is ${drawdown.toFixed(1)}% (limit: ${ddRule.limit}%)`,
-      });
+      })
     }
   }
 
   // Max holdings count
-  const countRule = DEFAULT_RULES.find((r) => r.id === "max-holdings")!;
+  const countRule = findRule("max-holdings")
   if (allocations.length > countRule.limit) {
     violations.push({
       rule: countRule,
       current: allocations.length,
       severity: "warn",
       detail: `${allocations.length} holdings (limit: ${countRule.limit})`,
-    });
+    })
   }
 
-  return violations;
+  return violations
 }
 
 /**
@@ -145,20 +151,20 @@ export function suggestRebalance(
   allocations: AllocationItem[],
   cashPct: number,
 ): RebalanceSuggestion[] {
-  const suggestions: RebalanceSuggestion[] = [];
-  const n = allocations.length;
-  if (n === 0) return suggestions;
+  const suggestions: RebalanceSuggestion[] = []
+  const n = allocations.length
+  if (n === 0) return suggestions
 
   // Target: equal weight for holdings, respecting cash floor
-  const cashRule = DEFAULT_RULES.find((r) => r.id === "cash-floor")!;
-  const availableForHoldings = 100 - Math.max(cashPct, cashRule.limit);
-  const targetWeight = availableForHoldings / n;
-  const maxPosRule = DEFAULT_RULES.find((r) => r.id === "max-position")!;
-  const effectiveTarget = Math.min(targetWeight, maxPosRule.limit);
+  const cashRule2 = findRule("cash-floor")
+  const availableForHoldings = 100 - Math.max(cashPct, cashRule2.limit)
+  const targetWeight = availableForHoldings / n
+  const maxPosRule2 = findRule("max-position")
+  const effectiveTarget = Math.min(targetWeight, maxPosRule2.limit)
 
   for (const a of allocations) {
-    const delta = a.weight - effectiveTarget;
-    if (Math.abs(delta) < 1) continue; // Ignore < 1% drift
+    const delta = a.weight - effectiveTarget
+    if (Math.abs(delta) < 1) continue // Ignore < 1% drift
 
     suggestions.push({
       ticker: a.ticker,
@@ -166,10 +172,10 @@ export function suggestRebalance(
       currentWeight: a.weight,
       targetWeight: effectiveTarget,
       delta: Math.abs(delta),
-    });
+    })
   }
 
   // Sort by delta descending (biggest drift first)
-  suggestions.sort((a, b) => b.delta - a.delta);
-  return suggestions;
+  suggestions.sort((a, b) => b.delta - a.delta)
+  return suggestions
 }

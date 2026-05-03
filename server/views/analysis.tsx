@@ -10,9 +10,11 @@ export function AnalysisView() {
             <input name="ticker" placeholder="Ticker (e.g. TKA.DE)" required id="analysis-ticker" />
             <input name="date" type="date" id="analysis-date" />
             <select name="debates" id="analysis-debates">
-              <option value="1">1 debate round</option>
-              <option value="2">2 debate rounds</option>
-              <option value="3">3 debate rounds</option>
+              <option value="1">1 round — quick check</option>
+              <option value="2">2 rounds — standard</option>
+              <option value="3" selected>3 rounds — thorough</option>
+              <option value="4">4 rounds — deep</option>
+              <option value="5">5 rounds — exhaustive</option>
             </select>
           </div>
           <div class="form-row">

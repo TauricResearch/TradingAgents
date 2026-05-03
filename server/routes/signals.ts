@@ -1,22 +1,35 @@
 import { Hono } from "hono"
 import { DatabaseFactory } from "../lib/db.ts"
+import { sanitizeForDb } from "../lib/sanitize.ts"
 
 export const signalsRouter = new Hono()
 
-/** GET /api/signals — list all signals, optionally filter by ticker */
+/** GET /api/signals — list all signals, optionally filter by ticker or platform */
 signalsRouter.get("/", (c) => {
   const db = DatabaseFactory.get()
   const ticker = c.req.query("ticker")
+  const platform = c.req.query("platform")
 
-  let query = "SELECT * FROM signals ORDER BY date DESC, id DESC"
-  const params: string[] = []
-
+  if (ticker && platform) {
+    const rows = db
+      .query("SELECT * FROM signals WHERE ticker = ? AND platform = ? ORDER BY date DESC, id DESC")
+      .all(ticker, platform)
+    return c.json(rows)
+  }
   if (ticker) {
-    query = "SELECT * FROM signals WHERE ticker = ? ORDER BY date DESC, id DESC"
-    params.push(ticker)
+    const rows = db
+      .query("SELECT * FROM signals WHERE ticker = ? ORDER BY date DESC, id DESC")
+      .all(ticker)
+    return c.json(rows)
+  }
+  if (platform) {
+    const rows = db
+      .query("SELECT * FROM signals WHERE platform = ? ORDER BY date DESC, id DESC")
+      .all(platform)
+    return c.json(rows)
   }
 
-  const rows = db.query(query).all(...params)
+  const rows = db.query("SELECT * FROM signals ORDER BY date DESC, id DESC").all()
   return c.json(rows)
 })
 
@@ -34,7 +47,7 @@ signalsRouter.get("/:ticker", (c) => {
 signalsRouter.post("/", async (c) => {
   const db = DatabaseFactory.get()
   const body = await c.req.json()
-  const { ticker, date, signal, reasoning, confidence } = body
+  const { ticker, date, signal, reasoning, confidence, platform } = body
 
   if (!ticker || !signal) {
     return c.json({ error: "ticker and signal are required" }, 400)
@@ -48,22 +61,23 @@ signalsRouter.post("/", async (c) => {
   }
 
   const stmt = db.prepare(
-    `INSERT INTO signals (ticker, date, signal, reasoning, confidence)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO signals (ticker, platform, date, signal, reasoning, confidence)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   )
   const result = stmt.run(
     ticker,
+    platform ?? "unknown",
     date ?? new Date().toISOString().slice(0, 10),
     normalised,
-    reasoning ?? null,
+    sanitizeForDb(reasoning) ?? null,
     confidence != null ? Number(confidence) : null,
   )
 
-  // Return only server-generated fields, not user input
   return c.json(
     {
       id: result.lastInsertRowid,
       ticker,
+      platform: platform ?? "unknown",
       date: date ?? new Date().toISOString().slice(0, 10),
       signal: normalised,
     },

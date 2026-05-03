@@ -26,6 +26,14 @@ export function Layout(props: PropsWithChildren) {
               Portfolio
             </button>
             <button
+              hx-get="/workflow"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Workflow
+            </button>
+            <button
               hx-get="/analyze"
               hx-target="#content"
               hx-push-url="true"
@@ -96,6 +104,14 @@ export function Layout(props: PropsWithChildren) {
               class="tab"
             >
               Feedback
+            </button>
+            <button
+              hx-get="/about"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              About
             </button>
           </nav>
         </header>

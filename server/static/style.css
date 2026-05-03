@@ -80,6 +80,8 @@ h3 { margin-bottom: 0.75rem; font-size: 1rem; font-weight: 500; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
 th { font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); font-weight: 500; }
+/* Date column — not enough width to wrap "03 May 26" */
+th.date-col, td.date-col { min-width: 80px; white-space: nowrap; }
 td { font-size: 0.875rem; }
 .muted { color: var(--text-dim); }
 
@@ -317,3 +319,135 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .pm-thesis { font-size: 0.9em; margin-bottom: 8px; }
 .pm-outcome { display: flex; gap: 12px; font-size: 0.85em; color: var(--text-dim); }
 .pm-lesson { font-style: italic; color: var(--text-dim); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+/* Platform cards (Holdings tab) */
+.platform-cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.platform-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; min-width: 140px; flex: 1; }
+.platform-card .platform-name { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; }
+.platform-card .platform-total { font-size: 1.4em; font-weight: 700; font-family: 'Datatype', monospace; }
+.platform-card .platform-detail { font-size: 0.8em; color: var(--text-dim); margin-top: 4px; }
+.platform-group-header td { padding-top: 12px !important; padding-bottom: 4px !important; }
+
+/* Platform tag — used in tables to show which platform a row belongs to */
+.platform-tag {
+  font-size: 0.75em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text-dim);
+  font-family: 'Datatype', monospace;
+  text-transform: lowercase;
+}
+.platform-tag.test { border-color: var(--yellow); color: var(--yellow); }
+.platform-tag.degiero { border-color: var(--green); color: var(--green); }
+.platform-tag.ibkr { border-color: var(--blue, #5b8dd9); color: var(--blue, #5b8dd9); }
+.platform-tag.pension\:nn { border-color: var(--purple, #9b59b6); color: var(--purple, #9b59b6); }
+.platform-tag.unknown { border-color: var(--border); color: var(--text-dim); }
+
+/* ── Workflow pipeline (position lifecycle Kanban) ────────────────────────── */
+.workflow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.workflow-col { min-width: 240px; flex: 1; max-width: 280px; }
+.workflow-header {
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 0 6px;
+  border-top: 3px solid var(--border);
+  margin-bottom: 8px;
+}
+.workflow-header .badge {
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.workflow-body { display: flex; flex-direction: column; gap: 8px; }
+.workflow-empty { color: var(--text-dim); text-align: center; padding: 16px; font-size: 0.85em; }
+
+.workflow-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  transition: border-color 0.15s;
+}
+.workflow-card:hover { border-color: var(--text-dim); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.card-ticker {
+  font-family: 'Datatype', monospace;
+  font-weight: 700;
+  font-size: 1em;
+}
+.card-meta {
+  font-size: 0.82em;
+  color: var(--text-dim);
+  margin: 3px 0;
+}
+.card-meta.muted { color: var(--text-dim); opacity: 0.7; }
+.card-meta.positive { color: var(--green); }
+.card-meta.negative { color: var(--red); }
+.card-thesis {
+  font-size: 0.82em;
+  color: var(--text-dim);
+  margin-top: 6px;
+  line-height: 1.4;
+  font-style: italic;
+}
+.card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.urgency-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+/* ── Workflow process rows ─────────────────────────────────── */
+.entry-process,
+.exit-strategy {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.process-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 0.78em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+.process-row:last-child { border-bottom: none; }
+.process-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.7em;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.process-dot.hit { background: #22c55e; }
+.process-dot.pending { background: var(--text-dim); opacity: 0.4; }
+.process-dot.warning { background: #ef4444; }

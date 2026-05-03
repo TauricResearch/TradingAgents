@@ -5,14 +5,14 @@ export function FeedbackView() {
     <>
       <section class="panel" id="accuracy-panel">
         <h3>Signal Accuracy</h3>
-        <div id="accuracy-body" hx-get="/api/feedback/accuracy" hx-trigger="load" hx-swap="innerHTML">
+        <div id="accuracy-body">
           <div class="muted">Loading…</div>
         </div>
       </section>
 
       <section class="panel" id="post-mortems-panel">
         <h3>Post-Mortems</h3>
-        <div id="post-mortems-body" hx-get="/api/feedback/post-mortems" hx-trigger="load" hx-swap="innerHTML">
+        <div id="post-mortems-body">
           <div class="muted">Loading…</div>
         </div>
       </section>

@@ -4,6 +4,7 @@ import { dirname, join } from "node:path"
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
 import { DatabaseFactory } from "../lib/db.ts"
+import { sanitizeForDb } from "../lib/sanitize.ts"
 
 export const analysisRouter = new Hono()
 
@@ -12,18 +13,14 @@ export const analysisRouter = new Hono()
  * Order: TA_ROOT env → sibling directory → parent directory
  */
 function findProjectRoot(): string {
-  // 1. Explicit env var
   if (process.env.TA_ROOT) return process.env.TA_ROOT
 
-  // 2. Sibling directory (worktree layout: TradingAgents-sse, TradingAgents)
-  //    import.meta.dir in server/routes/analysis.ts → go up 2 levels to project root
   const projectRoot = dirname(dirname(import.meta.dir))
   const sibling = join(projectRoot, "..", "TradingAgents")
   if (existsSync(join(sibling, "scripts", "analyze_stream.py"))) {
     return sibling
   }
 
-  // 3. Current directory (monolith layout)
   if (existsSync(join(projectRoot, "scripts", "analyze_stream.py"))) {
     return projectRoot
   }
@@ -38,18 +35,40 @@ function findProjectRoot(): string {
  *
  * SSE events: start, agent_report, debate_round, risk_assessment,
  *             decision, complete, error
+ *
+ * After completion, the full analysis state (all agent reports, debate rounds,
+ * risk assessment, final decision) is saved to the analyses table as JSON
+ * in the raw_state column.
  */
 analysisRouter.post("/", async (c) => {
   const body = await c.req.json()
   const { ticker, analysts, debates, date } = body
-  // Validate inputs
+
+  if (!ticker) return c.json({ error: "ticker is required" }, 400)
+
   const analystsStr = typeof analysts === "string" ? analysts : "market,news,fundamentals"
   const debatesNum = Math.min(Math.max(1, Number(debates) || 1), 5)
-  const dateStr = typeof date === "string" ? date : "today"
+  const dateStr = typeof date === "string" && date ? date : new Date().toISOString().slice(0, 10)
+  const config = JSON.stringify({ analysts: analystsStr, debates: debatesNum, date: dateStr })
 
-  if (!ticker) {
-    return c.json({ error: "ticker is required" }, 400)
+  // ── Pre-create analyses record ──────────────────────────────────────
+  let analysisId: number | null = null
+  try {
+    const db = DatabaseFactory.get()
+    const result = db
+      .prepare(
+        "INSERT INTO analyses (ticker, date, config, decision, platform) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(ticker, dateStr, config, null, "unknown")
+    analysisId = result.lastInsertRowid as number
+  } catch (err) {
+    console.error("Failed to create analyses record:", err)
+    // Proceed without analysis ID — stream still works, just no DB state
   }
+
+  // ── Event collector ─────────────────────────────────────────────────
+  // Collect all events so we can save the full state after stream ends
+  const events: Array<{ event: string; data: unknown }> = []
 
   const root = findProjectRoot()
   const venvPython = join(root, ".venv", "bin", "python3")
@@ -59,7 +78,7 @@ analysisRouter.post("/", async (c) => {
     return c.json({ error: `analyze_stream.py not found at ${script}` }, 500)
   }
 
-  // Look up position context from portfolio DB
+  // Position context from DB
   let positionContext: string | null = null
   try {
     const db = DatabaseFactory.get()
@@ -74,7 +93,7 @@ analysisRouter.post("/", async (c) => {
       if (thesis) positionContext += ` — thesis: ${thesis}`
     }
   } catch {
-    // DB not ready or no positions — proceed without context
+    // DB not ready
   }
 
   return streamSSE(c, async (stream) => {
@@ -88,26 +107,21 @@ analysisRouter.post("/", async (c) => {
       "--debates",
       String(debatesNum),
     ]
-    if (positionContext) {
-      args.push("--position-context", positionContext)
-    }
+    if (positionContext) args.push("--position-context", positionContext)
 
     const child = spawn(venvPython, args, {
       cwd: root,
-      env: {
-        ...process.env,
-        PYTHONUNBUFFERED: "1",
-      },
+      env: { ...process.env, PYTHONUNBUFFERED: "1" },
     })
 
     let stderr = ""
-    const MAX_STDERR = 8192 // Cap stderr buffer
-    let buf = "" // Accumulate partial lines
+    const MAX_STDERR = 8192
+    let buf = ""
 
     child.stdout.on("data", (chunk: Buffer) => {
       buf += chunk.toString()
       const idx = buf.lastIndexOf("\n")
-      if (idx === -1) return // Incomplete line, wait for more
+      if (idx === -1) return
       const complete = buf.slice(0, idx)
       buf = buf.slice(idx + 1)
 
@@ -115,29 +129,30 @@ analysisRouter.post("/", async (c) => {
         try {
           const parsed = JSON.parse(line)
           if (parsed.event && parsed.data !== undefined) {
+            // Collect for post-stream persistence
+            events.push({ event: parsed.event, data: parsed.data })
+
             // Auto-save decision as a signal in the DB
             if (parsed.event === "decision") {
+              const d = parsed.data as Record<string, unknown>
               try {
                 const db = DatabaseFactory.get()
-                const d = parsed.data
                 db.prepare(
                   "INSERT INTO signals (ticker, date, signal, reasoning, confidence) VALUES (?, ?, ?, ?, ?)",
                 ).run(
                   ticker,
-                  dateStr === "today" ? new Date().toISOString().slice(0, 10) : dateStr,
-                  d.signal ?? "hold",
-                  d.reasoning ?? null,
-                  d.confidence ?? null,
+                  dateStr,
+                  (d.signal as string) ?? "hold",
+                  sanitizeForDb(d.reasoning as string) ?? null,
+                  (d.confidence as string) ?? null,
                 )
               } catch {
                 /* DB write failure shouldn't break the stream */
               }
             }
+
             stream
-              .writeSSE({
-                event: parsed.event,
-                data: JSON.stringify(parsed.data),
-              })
+              .writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) })
               .catch(() => {})
           }
         } catch {
@@ -152,42 +167,54 @@ analysisRouter.post("/", async (c) => {
       if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR)
     })
 
-    // Abort child if client disconnects — must resolve the promise too
     const abortController = new AbortController()
-
     const abortHandler = () => {
       child.kill("SIGTERM")
       abortController.abort()
     }
 
-    // Hono stream-level abort
-    if (stream.onAbort) {
-      stream.onAbort(abortHandler)
-    }
-    // Fallback: raw request signal (covers cases where stream.onAbort is unavailable)
+    if (stream.onAbort) stream.onAbort(abortHandler)
     c.req.raw.signal.addEventListener("abort", abortHandler, { once: true })
 
+    // ── Persist full analysis state to DB ──────────────────────────────
+    function persistState() {
+      if (analysisId === null) return
+
+      try {
+        const db = DatabaseFactory.get()
+        // Extract final decision text from events
+        const decisionEvent = events.find((e) => e.event === "decision")
+        const decisionText = decisionEvent
+          ? `${(decisionEvent.data as Record<string, unknown>).signal ?? "hold"} — ${sanitizeForDb((decisionEvent.data as Record<string, unknown>).reasoning as string) ?? ""}`
+          : null
+
+        db.prepare("UPDATE analyses SET raw_state = ?, decision = ? WHERE id = ?").run(
+          JSON.stringify(events),
+          decisionText,
+          analysisId,
+        )
+      } catch (err) {
+        console.error("Failed to persist analysis state:", err)
+      }
+    }
+
     await new Promise<void>((resolve) => {
-      const cleanup = () => {
-        // Flush any remaining buffered data (last line may lack trailing newline)
+      child.on("close", (code) => {
+        // Flush remaining buffer
         const remaining = buf.trim()
         if (remaining) {
           try {
             const parsed = JSON.parse(remaining)
             if (parsed.event && parsed.data !== undefined) {
-              stream
-                .writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) })
-                .catch(() => {})
+              events.push({ event: parsed.event, data: parsed.data })
             }
           } catch {
-            // Not valid JSON — skip
+            // Not valid JSON
           }
         }
-        resolve()
-      }
 
-      child.on("close", async (code) => {
-        cleanup()
+        persistState()
+
         if (code !== 0 && code !== null) {
           stream
             .writeSSE({
@@ -199,19 +226,18 @@ analysisRouter.post("/", async (c) => {
             })
             .catch(() => {})
         }
+
+        resolve()
       })
 
       child.on("error", (err) => {
-        cleanup()
+        persistState()
         stream
-          .writeSSE({
-            event: "error",
-            data: JSON.stringify({ message: err.message }),
-          })
+          .writeSSE({ event: "error", data: JSON.stringify({ message: err.message }) })
           .catch(() => {})
+        resolve()
       })
 
-      // If the client aborted before the child closed naturally, resolve promptly
       abortController.signal.addEventListener("abort", () => resolve(), { once: true })
     })
   })

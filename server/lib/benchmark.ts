@@ -3,45 +3,56 @@
  *
  * Uses yfinance via Python subprocess to fetch benchmark prices.
  * Portfolio returns are computed from hLedger holdings + cash.
+ *
+ * NOTE: Portfolio values use cost basis (not current market value) until
+ * live price integration is wired through. This means benchmark comparisons
+ * will show inaccurate alpha until that's done.
  */
 
-import { spawn } from "node:child_process";
-import { join, dirname } from "node:path";
-import { getHoldings } from "./hledger.ts";
+import { spawn } from "node:child_process"
+import { dirname, join } from "node:path"
+import { getHoldings } from "./hledger.ts"
 
-const DEFAULT_BENCHMARK = process.env.BENCHMARK ?? "VWCE.DE";
+const DEFAULT_BENCHMARK = process.env.BENCHMARK ?? "VWCE.DE"
 
-// Find the project root (this file is in server/lib/, so go up 2 levels)
-const PROJECT_ROOT = dirname(dirname(import.meta.dir));
-const VENV_PYTHON = join(PROJECT_ROOT, ".venv", "bin", "python3");
+function findProjectRoot(): string {
+  if (process.env.TA_ROOT) return process.env.TA_ROOT
+  const projectRoot = dirname(dirname(import.meta.dir))
+  if (projectRoot.includes("TradingAgents")) return projectRoot
+  return projectRoot
+}
+
+function venvPython(): string {
+  return join(findProjectRoot(), ".venv", "bin", "python3")
+}
 
 export interface BenchmarkPrice {
-  date: string;
-  price: number;
+  date: string
+  price: number
 }
 
 export interface PeriodReturn {
-  period: "3m" | "6m" | "1y";
-  portfolioPct: number;
-  benchmarkPct: number;
-  alpha: number; // portfolio - benchmark
+  period: "3m" | "6m" | "1y"
+  portfolioPct: number
+  benchmarkPct: number
+  alpha: number // portfolio - benchmark
 }
 
 export interface BenchmarkResult {
-  ticker: string;
-  currentValue: number;
-  benchmarkPrices: BenchmarkPrice[];
-  periodReturns: PeriodReturn[];
+  ticker: string
+  currentValue: number
+  benchmarkPrices: BenchmarkPrice[]
+  periodReturns: PeriodReturn[]
 }
 
 /**
  * Fetch benchmark price history via yfinance subprocess.
  * Returns daily closing prices for the last 12 months.
  */
-export function fetchBenchmarkPrices(ticker: string = DEFAULT_BENCHMARK): Promise<BenchmarkPrice[]> {
+export function fetchBenchmarkPrices(
+  ticker: string = DEFAULT_BENCHMARK,
+): Promise<BenchmarkPrice[]> {
   return new Promise((resolve, reject) => {
-    const root = process.env.TA_ROOT ?? "";
-    const python = process.env.TA_PYTHON ?? (root ? root + "/.venv/bin/python3" : "python3");
     const script = `
 import yfinance as yf, json, sys
 ticker = sys.argv[1]
@@ -52,37 +63,37 @@ if hist.empty:
     sys.exit(0)
 prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(r["Close"], 2)} for d, r in hist.iterrows()]
 print(json.dumps(prices))
-`;
-    const child = spawn(VENV_PYTHON, ["-c", script, ticker], {
+`
+    const child = spawn(venvPython(), ["-c", script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
-    });
+    })
 
-    let stdout = "";
-    let stderr = "";
+    let stdout = ""
+    let stderr = ""
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
+      stdout += chunk.toString()
+    })
 
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
+      stderr += chunk.toString()
+    })
 
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`yfinance exited with code ${code}: ${stderr.trim()}`));
-        return;
+        reject(new Error(`yfinance exited with code ${code}: ${stderr.trim()}`))
+        return
       }
       try {
-        const prices = JSON.parse(stdout.trim()) as BenchmarkPrice[];
-        resolve(prices);
+        const prices = JSON.parse(stdout.trim()) as BenchmarkPrice[]
+        resolve(prices)
       } catch {
-        reject(new Error(`Failed to parse benchmark prices: ${stdout.slice(0, 200)}`));
+        reject(new Error(`Failed to parse benchmark prices: ${stdout.slice(0, 200)}`))
       }
-    });
+    })
 
-    child.on("error", reject);
-  });
+    child.on("error", reject)
+  })
 }
 
 /**
@@ -94,61 +105,60 @@ export function computeReturns(
   historicalPortfolioValues: Record<string, number> = {},
 ): PeriodReturn[] {
   if (benchmarkPrices.length < 60) {
-    return []; // Need at least ~3 months of data
+    return [] // Need at least ~3 months of data
   }
 
-  const latest = benchmarkPrices[benchmarkPrices.length - 1]!;
+  const latest = benchmarkPrices[benchmarkPrices.length - 1]
+  if (!latest) return []
   const periods: Array<{ period: "3m" | "6m" | "1y"; days: number }> = [
     { period: "3m", days: 63 },
     { period: "6m", days: 126 },
     { period: "1y", days: 252 },
-  ];
+  ]
 
-  const results: PeriodReturn[] = [];
+  const results: PeriodReturn[] = []
 
   for (const { period, days } of periods) {
-    const idx = Math.max(0, benchmarkPrices.length - days);
-    const startPrice = benchmarkPrices[idx]?.price;
-    if (!startPrice) continue;
+    const idx = Math.max(0, benchmarkPrices.length - days)
+    const idxPrice = benchmarkPrices[idx]
+    const startPrice = idxPrice?.price
+    if (!startPrice) continue
 
-    const benchmarkPct = ((latest.price - startPrice) / startPrice) * 100;
+    const benchmarkPct = ((latest.price - startPrice) / startPrice) * 100
 
     // Portfolio return — use historical values if available, otherwise estimate
-    const startValue = historicalPortfolioValues[benchmarkPrices[idx]!.date];
+    const startValue = idxPrice ? historicalPortfolioValues[idxPrice.date] : undefined
     const portfolioPct = startValue
       ? ((currentPortfolioValue - startValue) / startValue) * 100
-      : benchmarkPct; // Fallback: assume portfolio tracks benchmark
+      : benchmarkPct // Fallback: assume portfolio tracks benchmark
 
     results.push({
       period,
       portfolioPct: Math.round(portfolioPct * 100) / 100,
       benchmarkPct: Math.round(benchmarkPct * 100) / 100,
       alpha: Math.round((portfolioPct - benchmarkPct) * 100) / 100,
-    });
+    })
   }
 
-  return results;
+  return results
 }
 
 /**
  * Full benchmark check: fetch prices + compute returns.
  */
-export async function getBenchmark(
-  ticker: string = DEFAULT_BENCHMARK,
-): Promise<BenchmarkResult> {
-  const prices = await fetchBenchmarkPrices(ticker);
-  const { holdings, cash } = await getHoldings();
+export async function getBenchmark(ticker: string = DEFAULT_BENCHMARK): Promise<BenchmarkResult> {
+  const prices = await fetchBenchmarkPrices(ticker)
+  const { holdings, cash } = await getHoldings()
 
   const currentPortfolioValue =
-    holdings.reduce((s, h) => s + h.costBasis, 0) +
-    cash.reduce((s, c) => s + c.amount, 0);
+    holdings.reduce((s, h) => s + h.costBasis, 0) + cash.reduce((s, c) => s + c.amount, 0)
 
-  const periodReturns = computeReturns(prices, currentPortfolioValue);
+  const periodReturns = computeReturns(prices, currentPortfolioValue)
 
   return {
     ticker,
     currentValue: currentPortfolioValue,
     benchmarkPrices: prices,
     periodReturns,
-  };
+  }
 }

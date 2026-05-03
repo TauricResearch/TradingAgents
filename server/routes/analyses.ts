@@ -280,7 +280,9 @@ analysesRouter.get("/:ticker/:date/summary", (c) => {
 
   // Extract confidence from decision text (e.g., "Confidence: 0.75" or similar)
   const confMatch = decision.match(/[Cc]onfidence[:\s]*([0-9.]+)/)
-  const confidence = confMatch ? parseFloat(confMatch[1]!) : estimateConfidence(decision, signal)
+  const confidence = confMatch?.[1]
+    ? parseFloat(confMatch[1])
+    : estimateConfidence(decision, signal)
 
   // Extract executive summary
   const summaryMatch = decision.match(/\*\*Executive Summary\*\*[:\s]*([\s\S]*?)(?=\n\*\*|$)/)
@@ -318,7 +320,7 @@ analysesRouter.get("/:ticker/:date/summary", (c) => {
 
 function extractConfidence(text: string): number | null {
   const confMatch = text.match(/[Cc]onfidence[:\s]*([0-9.]+)/)
-  return confMatch ? parseFloat(confMatch[1]!) : null
+  return confMatch?.[1] ? parseFloat(confMatch[1]) : null
 }
 
 function estimateConfidence(text: string, signal: string): number {
@@ -335,36 +337,40 @@ function estimateConfidence(text: string, signal: string): number {
 function extractActions(text: string): Array<{ label: string; text: string }> {
   const items: Array<{ label: string; text: string }> = []
   const summaryMatch = text.match(/\*\*Executive Summary\*\*[:\s]*([\s\S]*?)(?=\n\*\*|$)/)
-  if (!summaryMatch) return items
-  const body = summaryMatch[1]!.trim()
+  if (!summaryMatch?.[1]) return items
+  const body = summaryMatch[1].trim()
 
   // Position sizing
   const sizeMatch = body.match(/(\d+\.?\d*x\s*(?:to|–|-)\s*\d+\.?\d*x\s*benchmark)/i)
-  if (sizeMatch) items.push({ label: "Position size", text: sizeMatch[1]! })
+  if (sizeMatch?.[1]) items.push({ label: "Position size", text: sizeMatch[1] })
 
   // Entry strategy
   const entryMatch = body.match(/(build[^,]+in tranches[^,.]*[,.])/i)
-  if (entryMatch) items.push({ label: "Entry", text: entryMatch[1]!.replace(/[,.]$/, "").trim() })
+  if (entryMatch?.[1])
+    items.push({
+      label: "Entry",
+      text: entryMatch[1].replace(/[,.]$/, "").trim(),
+    })
   const pullbackMatch = body.match(/(prioritizing[^,.]+[,.])/i)
-  if (pullbackMatch)
-    items.push({ label: "Strategy", text: pullbackMatch[1]!.replace(/[,.]$/, "").trim() })
+  if (pullbackMatch?.[1])
+    items.push({ label: "Strategy", text: pullbackMatch[1].replace(/[,.]$/, "").trim() })
 
   // Risk levels
   const riskMatch = body.match(/(tighten risk[^,.]+[,.]|(?:stop|invalidation)[^,.]*[,.])/i)
-  if (riskMatch)
-    items.push({ label: "Risk control", text: riskMatch[1]!.replace(/[,.]$/, "").trim() })
+  if (riskMatch?.[1])
+    items.push({ label: "Risk control", text: riskMatch[1].replace(/[,.]$/, "").trim() })
 
   // Time horizon
   const horizonMatch = body.match(
     /((?:\d+[-–]?\d+\s*(?:month|week|day|year)[^,.]*)|(?:short|medium|long)[- ]?term[^,.]*[,.])/i,
   )
-  if (horizonMatch)
-    items.push({ label: "Horizon", text: horizonMatch[1]!.replace(/[,.]$/, "").trim() })
+  if (horizonMatch?.[1])
+    items.push({ label: "Horizon", text: horizonMatch[1].replace(/[,.]$/, "").trim() })
 
   // Watch/catalysts
   const watchMatch = body.match(/(reassess if[^,.]+[,.]|monitor[^,.]+[,.]|watch for[^,.]+[,.])/i)
-  if (watchMatch)
-    items.push({ label: "Watch for", text: watchMatch[1]!.replace(/[,.]$/, "").trim() })
+  if (watchMatch?.[1])
+    items.push({ label: "Watch for", text: watchMatch[1].replace(/[,.]$/, "").trim() })
 
   // Fallback: if nothing structured, just return raw summary split by semicolons
   if (items.length === 0) {

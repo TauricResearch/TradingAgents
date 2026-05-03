@@ -5,14 +5,14 @@ export function GovernanceView() {
     <>
       <section class="panel" id="governance-panel">
         <h3>Governance — Risk Rules</h3>
-        <div id="rules-body" hx-get="/api/governance/rules" hx-trigger="load" hx-swap="innerHTML">
+        <div id="rules-body">
           <div class="muted">Loading…</div>
         </div>
       </section>
 
       <section class="panel" id="violations-panel">
         <h3>Violations</h3>
-        <div id="violations-body" hx-get="/api/governance/check" hx-trigger="load" hx-swap="innerHTML">
+        <div id="violations-body">
           <div class="muted">Loading…</div>
         </div>
       </section>

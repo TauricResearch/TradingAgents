@@ -23,6 +23,11 @@ check:                      # Full CI gate: lint + type-check server
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
 
+[group("bun")]
+serve:                      # Start dashboard server
+    pkill -9 -f bun 2>/dev/null || true
+    bun run server/index.tsx
+
 [group("python")]
 install:                    # Install Python dependencies
     uv sync
@@ -41,19 +46,19 @@ analyze TICKER="SPY" DATE="today" DEBATES="1":  # Run analysis on a ticker
 
 [group("python")]
 summarize TICKER="":          # Generate LLM summaries for analyses (add --all to regenerate)
-    {{if TICKER != '' { 'python scripts/summarize_analyses.py --ticker ' + TICKER } else { 'python scripts/summarize_analyses.py' }}}
+    {{if TICKER != '' { '.venv/bin/python scripts/summarize_analyses.py --ticker ' + TICKER } else { '.venv/bin/python scripts/summarize_analyses.py' }}}
 
 [group("python")]
 summarize-all:                # Regenerate all LLM summaries
     source .venv/bin/activate && python scripts/summarize_analyses.py --all
 
 [group("python")]
-test-smoke:                 # Smoke tests only
-    .venv/bin/python -m pytest tests/ -v -m smoke
+test-smoke:                 # Run test suite (all fast unit tests)
+    uv run pytest tests/ -v
 
 [group("python")]
-test-quick:                 # Quick structured output test
-    .venv/bin/python scripts/smoke_structured_output.py
+test-quick PROVIDER="openai":  # Quick structured output test (openai, google, anthropic, deepseek)
+    .venv/bin/python scripts/smoke_structured_output.py {{PROVIDER}}
 
 [group("td")]
 td-new:                     # Start new td session
@@ -81,29 +86,58 @@ td-reset:                   # Reset td database
 analyze-tka DEBATES="1":    # Run analysis on TKA.DE (default test ticker)
     just analyze TKA.DE today {{DEBATES}}
 
+[group("convenience")]
+seed-test-journal JOURNAL="${HOME}/.hledger.journal":  # Generate test hLedger journal with 3 platforms
+    bash scripts/seed_test_journal.sh "{{JOURNAL}}"
+
+[group("convenience")]
+seed-db:                     # Seed SQLite database with simulation data (all tables)
+    .venv/bin/python scripts/seed_database.py
+
+[group("convenience")]
+seed-db-positions:           # Seed positions only
+    .venv/bin/python scripts/seed_database.py --positions
+
+[group("convenience")]
+seed-db-signals:             # Seed signals only
+    .venv/bin/python scripts/seed_database.py --signals
+
+[group("convenience")]
+seed-db-exit-plans:          # Seed exit plans (YAML) only
+    .venv/bin/python scripts/seed_database.py --exit-plans
+
+[group("convenience")]
+seed-db-post-mortems:        # Seed post-mortems only
+    .venv/bin/python scripts/seed_database.py --post-mortems
+
+[group("convenience")]
+seed-all:                    # Full seed: hLedger journal + DB + exit plans + post-mortems
+    just seed-test-journal
+    just seed-db
+
 [group("hledger")]
 hl:                         # Holdings summary
-    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} balance --tree --value end
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --value end
 
 [group("hledger")]
 hl-prices:                  # Price history
-    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} prices
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" prices
 
 [group("hledger")]
 hl-update-prices:           # Fetch latest prices from Yahoo Finance
-    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} prices --auto
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" prices --auto
 
 [group("hledger")]
 hl-allocation:              # Allocation tree by account
-    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} balance --tree --value end --depth 3
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --value end --depth 3
 
 [group("hledger")]
 hl-register TICKER:         # Transaction history for a ticker
-    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} reg {{TICKER}}
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" reg {{TICKER}}
 
 [group("hledger")]
 hl-net-worth:               # Net worth over time
-    hledger -f {{get_env("HLEDGER_FILE", default="~/.hledger.journal")}} balance --tree --equity --monthly
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --equity --monthly
 
 alias a := analyze
 alias l := lint

@@ -118,11 +118,17 @@ export function signalClass(signal: string): "buy" | "sell" | "hold" {
 
 ## Current Usage
 
+`datatype.tsx` exists and is unused — no views currently render Datatype charts. Planned:
+
 | View | Element | Type | Source |
 |------|---------|------|--------|
-| Signals timeline (top) | Confidence trend | sparkline `{l:...}` | Signals data |
-| Signals timeline (row 2) | Confidence bars | bar chart `{b:...}` | Signals data |
-| Signals timeline (per row) | Confidence level | pie chart `{p:...}` | Per-signal confidence |
+| Signals | Price history sparkline per row | sparkline `{l:...}` | `/api/prices/:ticker` history |
+| Portfolio | Position P&L sparkline | sparkline `{l:...}` | `/api/prices/:ticker` history |
+| Governance | Position weight bar | bar `{b:...}` | Computed from DB positions |
+| Exits | Distance-to-stop bar | bar `{b:...}` | `distanceToStopPct` from exit status |
+| Benchmark | Portfolio vs benchmark trend | sparkline `{l:...}` | After portfolio value wired |
+
+See `briefs/datatype-sparklines.md` for full implementation plan.
 
 ## Troubleshooting
 

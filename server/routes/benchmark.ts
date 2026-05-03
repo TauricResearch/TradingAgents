@@ -1,13 +1,13 @@
-import { Hono } from "hono";
-import { getBenchmark } from "../lib/benchmark.ts";
+import { Hono } from "hono"
+import { getBenchmark } from "../lib/benchmark.ts"
 
-export const benchmarkRouter = new Hono();
+export const benchmarkRouter = new Hono()
 
 /** GET /api/benchmark — portfolio vs. benchmark returns */
 benchmarkRouter.get("/", async (c) => {
   try {
-    const result = await getBenchmark();
-    return c.json(result);
+    const result = await getBenchmark()
+    return c.json(result)
   } catch (e: unknown) {
     return c.json(
       {
@@ -16,6 +16,6 @@ benchmarkRouter.get("/", async (c) => {
         hint: "Ensure yfinance is installed (uv pip install yfinance)",
       },
       500,
-    );
+    )
   }
-});
+})

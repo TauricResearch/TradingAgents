@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { getHoldings, getPrices, getAllocation } from "../lib/hledger.ts"
+import { getAllocation, getHoldings, getPrices } from "../lib/hledger.ts"
 
 export const holdingsRouter = new Hono()
 

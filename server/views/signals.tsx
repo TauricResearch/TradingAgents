@@ -5,8 +5,15 @@ export function SignalsView() {
     <>
       <section class="panel">
         <div class="form-row">
-          <select id="signals-ticker" hx-get="/api/signals" hx-target="#signals-body"
-                  hx-swap="none" hx-trigger="change">
+          <select id="signals-platform">
+            <option value="">— Platform —</option>
+            <option value="degiero">DeGiro</option>
+            <option value="ibkr">IBKR</option>
+            <option value="pension:nn">Pension (NN)</option>
+            <option value="test">Test</option>
+            <option value="unknown">Other/Unknown</option>
+          </select>
+          <select id="signals-ticker">
             <option value="">All tickers</option>
           </select>
         </div>
@@ -20,9 +27,9 @@ export function SignalsView() {
       <section class="panel">
         <table id="signals-table">
           <thead>
-            <tr><th>Date</th><th>Ticker</th><th>Signal</th><th>Confidence</th><th>Reasoning</th></tr>
+            <tr><th>Platform</th><th class="date-col">Date</th><th>Ticker</th><th>Signal</th><th>Conf.</th><th>Reasoning</th></tr>
           </thead>
-          <tbody id="signals-body"><tr><td colspan={5} class="muted">Loading…</td></tr></tbody>
+          <tbody id="signals-body"><tr><td colSpan={6} class="muted">Loading…</td></tr></tbody>
         </table>
       </section>
 
@@ -34,20 +41,34 @@ export function SignalsView() {
 function signalsScript(): string {
   return `
 // Load signals on page load
-function loadSignals(ticker) {
-  var url = '/api/signals' + (ticker ? '?ticker=' + encodeURIComponent(ticker) : '');
+function loadSignals() {
+  var params = [];
+  var pSel = document.getElementById('signals-platform');
+  var tSel = document.getElementById('signals-ticker');
+  if (pSel && pSel.value) params.push('platform=' + encodeURIComponent(pSel.value));
+  if (tSel && tSel.value) params.push('ticker=' + encodeURIComponent(tSel.value));
+  var url = '/api/signals' + (params.length ? '?' + params.join('&') : '');
   fetch(url).then(function(r) { return r.json(); }).then(function(data) {
     var tbody = document.getElementById('signals-body');
     if (!tbody) return;
     if (data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="muted">No signals recorded</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No signals recorded</td></tr>';
       return;
     }
+    var _fmt = function(d) {
+      if (!d) return '—';
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var parts = d.split('-');
+      if (parts.length !== 3) return d;
+      return parseInt(parts[2], 10) + months[parseInt(parts[1], 10) - 1] + parts[0].slice(2);
+    };
     tbody.innerHTML = data.map(function(s) {
       var cls = signalClass(s.signal);
+      var plat = s.platform || 'unknown';
       return '<tr>' +
-        '<td>' + (s.date || '—') + '</td>' +
-        '<td>' + s.ticker + '</td>' +
+        '<td><span class="platform-tag date-col">' + plat + '</span></td>' +
+        '<td class="date-col">' + _fmt(s.date) + '</td>' +
+        '<td class="ticker">' + s.ticker + '</td>' +
         '<td class="' + cls + '">' + s.signal + '</td>' +
         '<td>' + (s.confidence != null ? Math.round((parseFloat(s.confidence) || 0) * 100) + '%' : '—') + '</td>' +
         '<td class="muted">' + (s.reasoning || '').substring(0, 120) + '</td>' +
@@ -108,7 +129,7 @@ function renderTimeline(ticker, signals) {
     var pie = '{p:' + pct + '}';
     return '<div class="timeline-row ' + cls + '">' +
       '<span class="timeline-signal">' + s.signal + '</span>' +
-      '<span class="timeline-date">' + (s.date || '—') + '</span>' +
+      '<span class="timeline-date date-col">' + _fmt(s.date) + '</span>' +
       '<span class="datatype-pie" title="' + pct + '% confidence">' + pie + '</span>' +
       '<span class="timeline-confidence">' + pct + '%</span>' +
       (i === 0 ? '<span class="timeline-current">current</span>' : '') +
@@ -122,6 +143,9 @@ function renderTimeline(ticker, signals) {
 loadSignals();
 
 document.getElementById('signals-ticker').addEventListener('change', function() {
-  loadSignals(this.value || undefined);
+  loadSignals();
+});
+document.getElementById('signals-platform').addEventListener('change', function() {
+  loadSignals();
 });`;
 }

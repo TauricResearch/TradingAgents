@@ -7,25 +7,41 @@ export function ProspectsView() {
     <>
       <section class="panel" id="prospects-panel">
         <h3>Prospects Pipeline</h3>
-        <div id="pipeline-container" hx-get="/api/prospects" hx-trigger="load" hx-swap="innerHTML">
+        <div id="pipeline-container">
           <div class="muted">Loading…</div>
         </div>
       </section>
 
       <section class="panel" id="add-prospect">
         <h3>Add to Watchlist</h3>
-        <form id="prospect-form" hx-post="/api/prospects" hx-target="#pipeline-container" hx-swap="innerHTML">
+        <form
+          id="prospect-form"
+          hx-post="/api/prospects"
+          hx-swap="none"
+          {...{ "hx-on::after-request": "handleProspectSubmit(event)" }}
+        >
           <div class="form-row">
             <input name="ticker" placeholder="Ticker (e.g. AAPL)" required />
             <input name="exchange" placeholder="Exchange" value="US" />
+            <select name="platform">
+              <option value="">— Platform —</option>
+              <option value="degiero">DeGiro</option>
+              <option value="ibkr">IBKR</option>
+              <option value="pension:nn">Pension (NN)</option>
+              <option value="test">Test</option>
+              <option value="unknown">Other</option>
+            </select>
+          </div>
+          <div class="form-row">
             <select name="priority">
               <option value="high">High</option>
               <option value="medium" selected>Medium</option>
               <option value="low">Low</option>
             </select>
+            <input name="thesis" placeholder="Investment thesis" />
+            <button type="submit" class="btn">Add</button>
           </div>
-          <input name="thesis" placeholder="Investment thesis" />
-          <button type="submit" class="btn">Add</button>
+          <div id="prospect-error" class="error-card" style="display:none"></div>
         </form>
       </section>
 
@@ -36,76 +52,121 @@ export function ProspectsView() {
 
 function prospectsScript(): string {
   return `
-  (function() {
-    function renderPipeline(items) {
-      const el = document.getElementById('pipeline-container');
-      if (!items || items.length === 0) {
-        el.innerHTML = '<div class="muted">No prospects. Add tickers above.</div>';
-        return;
-      }
+(function() {
 
-      // Group by stage
-      const stages = ${JSON.stringify(STAGES)};
-      const groups = {};
-      for (const s of stages) groups[s] = [];
-      for (const item of items) {
-        if (groups[item.stage]) groups[item.stage].push(item);
-      }
+  // ── Event delegation ────────────────────────────────────────────────
+  function wireActions() {
+    document.querySelectorAll('[data-action]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        var action = e.currentTarget.dataset.action;
+        if (action === 'advanceStage') advanceStage(
+          e.currentTarget.dataset.id, e.currentTarget.dataset.stage);
+        if (action === 'removeProspect') removeProspect(e.currentTarget.dataset.id);
+      });
+    });
+  }
 
-      let html = '<div class="pipeline">';
-      for (const stage of stages) {
-        const items = groups[stage] || [];
-        const count = items.length;
-        html += '<div class="pipeline-column">';
-        html += '<div class="pipeline-header">' + stage.charAt(0).toUpperCase() + stage.slice(1);
-        html += ' <span class="badge">' + count + '</span></div>';
-        html += '<div class="pipeline-body">';
-
-        for (const item of items) {
-          html += '<div class="pipeline-card" data-id="' + item.id + '">';
-          html += '<div class="card-title">' + item.ticker + '</div>';
-          html += '<div class="card-meta">';
-          html += '<span class="priority-' + (item.priority || 'medium') + '">' + (item.priority || 'medium') + '</span>';
-          html += '<span class="signal">' + (item.last_signal || '—') + '</span>';
-          html += '</div>';
-          if (item.thesis) {
-            html += '<div class="card-thesis">' + item.thesis + '</div>';
-          }
-          html += '<div class="card-actions">';
-          html += '<button class="btn-sm" onclick="advanceStage(' + item.id + ', \\'' + stage + '\\')">→</button>';
-          html += '<button class="btn-sm danger" onclick="removeProspect(' + item.id + ')">✕</button>';
-          html += '</div></div>';
-        }
-
-        html += '</div></div>';
-      }
-      html += '</div>';
-      el.innerHTML = html;
+  function renderPipeline(items) {
+    var el = document.getElementById('pipeline-container');
+    if (!items || items.length === 0) {
+      el.innerHTML = '<div class="muted">No prospects. Add tickers above.</div>';
+      return;
     }
 
-    // Wire form reset after HTMX swap
-    document.body.addEventListener('htmx:afterRequest', function(e) {
-      if (e.detail.elt && e.detail.elt.id === 'prospect-form') {
-        e.detail.elt.reset();
+    var stages = ${JSON.stringify(STAGES)};
+    var groups = {};
+    for (var si = 0; si < stages.length; si++) {
+      groups[stages[si]] = [];
+    }
+    for (var ii = 0; ii < items.length; ii++) {
+      var item = items[ii];
+      if (groups[item.stage]) groups[item.stage].push(item);
+    }
+
+    var html = '<div class="pipeline">';
+    for (var si = 0; si < stages.length; si++) {
+      var stage = stages[si];
+      var stageItems = groups[stage] || [];
+      var count = stageItems.length;
+      html += '<div class="pipeline-column">';
+      html += '<div class="pipeline-header">' + stage.charAt(0).toUpperCase() + stage.slice(1);
+      html += ' <span class="badge">' + count + '</span></div>';
+      html += '<div class="pipeline-body">';
+
+      for (var ji = 0; ji < stageItems.length; ji++) {
+        var item = stageItems[ji];
+        html += '<div class="pipeline-card" data-id="' + item.id + '">';
+        html += '<div class="card-title">' + item.ticker + '</div>';
+        html += '<div class="card-meta">';
+        if (item.platform && item.platform !== 'unknown') {
+          html += '<span class="platform-tag">' + item.platform + '</span>';
+        }
+        html += '<span class="priority-' + (item.priority || 'medium') + '">' + (item.priority || 'medium') + '</span>';
+        html += '<span class="signal">' + (item.last_signal || '—') + '</span>';
+        html += '</div>';
+        if (item.thesis) {
+          html += '<div class="card-thesis">' + item.thesis + '</div>';
+        }
+        html += '<div class="card-actions">';
+        html += '<button class="btn-sm" data-action="advanceStage" data-id="' + item.id + '" data-stage="' + stage + '">→</button>';
+        html += '<button class="btn-sm danger" data-action="removeProspect" data-id="' + item.id + '">✕</button>';
+        html += '</div></div>';
       }
+
+      html += '</div></div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+    wireActions();
+  }
+
+  window.handleProspectSubmit = function(e) {
+    var form = e.detail.elt;
+    if (e.detail.successful) {
+      form.reset();
+      document.getElementById('prospect-error').style.display = 'none';
+      fetch('/api/prospects')
+        .then(function(r) { return r.json(); })
+        .then(renderPipeline)
+        .catch(function() {});
+    } else if (e.detail.failed) {
+      var errEl = document.getElementById('prospect-error');
+      if (errEl) { errEl.textContent = 'Failed to add prospect'; errEl.style.display = 'block'; }
+    }
+  };
+
+  window.advanceStage = function(id, currentStage) {
+    var stages = ${JSON.stringify(STAGES)};
+    var idx = stages.indexOf(currentStage);
+    if (idx >= stages.length - 1) return;
+    var next = stages[idx + 1];
+    fetch('/api/prospects/' + id + '/stage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: next }),
+    }).then(function() {
+      fetch('/api/prospects')
+        .then(function(r) { return r.json(); })
+        .then(renderPipeline)
+        .catch(function() {});
     });
+  };
 
-    window.advanceStage = function(id, currentStage) {
-      const stages = ${JSON.stringify(STAGES)};
-      const idx = stages.indexOf(currentStage);
-      if (idx >= stages.length - 1) return; // Already at last stage
-      const next = stages[idx + 1];
-      fetch('/api/prospects/' + id + '/stage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage: next })
-      }).then(() => htmx.ajax('GET', '/api/prospects', { target: '#pipeline-container' }));
-    };
+  window.removeProspect = function(id) {
+    fetch('/api/prospects/' + id, { method: 'DELETE' })
+      .then(function() {
+        fetch('/api/prospects')
+          .then(function(r) { return r.json(); })
+          .then(renderPipeline)
+          .catch(function() {});
+      });
+  };
 
-    window.removeProspect = function(id) {
-      fetch('/api/prospects/' + id, { method: 'DELETE' })
-        .then(() => htmx.ajax('GET', '/api/prospects', { target: '#pipeline-container' }));
-    };
-  })();
-  `;
+  fetch('/api/prospects')
+    .then(function(r) { return r.json(); })
+    .then(renderPipeline)
+    .catch(function() { document.getElementById('pipeline-container').innerHTML = '<div class="muted">Failed to load prospects</div>'; });
+
+})();
+`;
 }

@@ -5,7 +5,7 @@ export function ExitsView() {
     <>
       <section class="panel" id="exits-panel">
         <h3>Exit Plans</h3>
-        <div id="exits-body" hx-get="/api/positions/exits" hx-trigger="load" hx-swap="innerHTML">
+        <div id="exits-body">
           <div class="muted">Loading…</div>
         </div>
       </section>
@@ -25,25 +25,33 @@ function exitsScript(): string {
         return;
       }
 
+      var _e = function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
       let html = '';
       for (const s of statuses) {
         const p = s.plan;
         const pnlClass = s.pnlPct >= 0 ? 'positive' : 'negative';
-        const stopWarning = s.distanceToStopPct < 10 ? ' style="background:#fff3cd"' : '';
+        const isWarn = s.distanceToStopPct < 10;
+        // Warning card: light yellow bg → dark text. Normal card: dark bg → light text.
+        const warnStyle = isWarn ? ' style="background:#fff3cd;color:#1a1a2e"' : '';
 
-        html += '<div class="exit-card"' + stopWarning + '>';
+        html += '<div class="exit-card"' + warnStyle + '>';
         html += '<div class="exit-header">';
         html += '<span class="ticker">' + p.ticker + '</span>';
-        html += '<span class="pnl ' + pnlClass + '">';
+        if (p.platform && p.platform !== 'unknown') {
+          html += '<span class="platform-tag">' + p.platform + '</span>';
+        }
+        const pnlColor = isWarn ? '#1a1a2e' : (s.pnlPct >= 0 ? 'var(--green)' : 'var(--red)');
+        html += '<span class="pnl" style="color:' + pnlColor + '">';
         html += (s.pnlPct >= 0 ? '+' : '') + s.pnlPct.toFixed(1) + '%</span>';
         html += '</div>';
 
         html += '<div class="exit-details">';
-        html += '<div><strong>Thesis:</strong> ' + (p.thesis || '—') + '</div>';
+        html += '<div><strong>Thesis:</strong> ' + _e(p.thesis || '—') + '</div>';
         html += '<div><strong>Entry:</strong> ' + p.quantity + ' @ €' + p.entry_price.toFixed(2) + '</div>';
 
-        // Stop loss
-        html += '<div><strong>Stop:</strong> €' + p.invalidation.price.toFixed(2);
+        // Stop loss (handle flat YAML format: invalidation_price vs nested invalidation.price)
+        const stopPrice = p.invalidation?.price ?? p.invalidation_price ?? 0;
+        html += '<div><strong>Stop:</strong> €' + stopPrice.toFixed(2);
         if (s.distanceToStopPct !== undefined) {
           html += ' (' + s.distanceToStopPct.toFixed(1) + '% away)';
         }
@@ -67,12 +75,13 @@ function exitsScript(): string {
           html += '<div><strong>Time stop:</strong> ' + s.timeStopDaysLeft + ' days left' + urgency + '</div>';
         }
 
-        // Invalidation thesis
-        html += '<div><strong>Invalidation:</strong> ' + (p.invalidation.thesis || '—') + '</div>';
+        // Invalidation thesis (flat: invalidation_thesis, nested: invalidation.thesis)
+        const invThesis = p.invalidation?.thesis ?? p.invalidation_thesis ?? '—';
+        html += '<div><strong>Invalidation:</strong> ' + _e(invThesis) + '</div>';
 
         // Notes
         if (p.notes) {
-          html += '<div class="notes">' + p.notes + '</div>';
+          html += '<div class="notes">' + _e(p.notes) + '</div>';
         }
 
         html += '</div></div>';

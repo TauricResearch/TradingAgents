@@ -1,11 +1,19 @@
 import { Hono } from "hono"
 import { DatabaseFactory } from "../lib/db.ts"
+import { sanitizeForDb } from "../lib/sanitize.ts"
 
 export const portfolioRouter = new Hono()
 
-/** GET /api/positions — list all open positions */
+/** GET /api/positions — list all open positions, optionally filter by platform */
 portfolioRouter.get("/", (c) => {
   const db = DatabaseFactory.get()
+  const platform = c.req.query("platform")
+  if (platform) {
+    const rows = db
+      .query("SELECT * FROM positions WHERE status = 'open' AND platform = ? ORDER BY ticker")
+      .all(platform)
+    return c.json(rows)
+  }
   const rows = db.query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker").all()
   return c.json(rows)
 })
@@ -14,28 +22,30 @@ portfolioRouter.get("/", (c) => {
 portfolioRouter.post("/", async (c) => {
   const db = DatabaseFactory.get()
   const body = await c.req.json()
-  const { ticker, exchange, quantity, avg_cost, entry_date, thesis, notes } = body
+  const { ticker, exchange, platform, quantity, avg_cost, entry_date, thesis, notes } = body
   if (!ticker || quantity == null || avg_cost == null) {
     return c.json({ error: "ticker, quantity, avg_cost required" }, 400)
   }
   const stmt = db.prepare(
-    `INSERT INTO positions (ticker, exchange, quantity, avg_cost, entry_date, thesis, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO positions (ticker, exchange, platform, quantity, avg_cost, entry_date, thesis, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const result = stmt.run(
     ticker,
     exchange ?? "US",
+    platform ?? "unknown",
     quantity,
     avg_cost,
     entry_date ?? new Date().toISOString().slice(0, 10),
-    thesis ?? null,
-    notes ?? null,
+    sanitizeForDb(thesis) ?? null,
+    sanitizeForDb(notes) ?? null,
   )
   return c.json(
     {
       id: result.lastInsertRowid,
       ticker,
       exchange: exchange ?? "US",
+      platform: platform ?? "unknown",
       quantity,
       avg_cost,
     },
