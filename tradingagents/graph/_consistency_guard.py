@@ -93,4 +93,5 @@ def check_claims_via_llm(
     if not isinstance(results, list):
         raise ValueError(f"rm_consistency_guard: 'results' is not a list — {raw[:300]}")
 
-    return results
+    result_by_index = {r.get("index"): r for r in results if isinstance(r.get("index"), int)}
+    return [result_by_index.get(i, {"index": i, "ok": True}) for i in range(len(claims))]

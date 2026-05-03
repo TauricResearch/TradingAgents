@@ -116,9 +116,6 @@ class AgentState(MessagesState):
         "Compact canonical research-manager contract for downstream machine consumers",
     ]
     rm_consistency_status: Annotated[str, "Research-manager numeric consistency guard status"]
-    rm_consistency_flags: Annotated[
-        list[dict[str, Any]], "Flag-only numeric claims found by the RM consistency guard"
-    ]
     consistency_violations: Annotated[
         list[dict[str, Any]],
         "Numeric consistency violations for corrective research-manager re-prompt",

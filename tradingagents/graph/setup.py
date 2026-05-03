@@ -124,14 +124,18 @@ class GraphSetup:
 
         return market_regime_check_node
 
-    @staticmethod
-    def _make_rm_consistency_guard_node(llm: Any) -> Callable[[AgentState], dict[str, Any]]:
+    def _make_rm_consistency_guard_node(self, llm: Any) -> Callable[[AgentState], dict[str, Any]]:
         def rm_consistency_guard_node(state: AgentState) -> dict[str, Any]:
             rm_text = state.get("investment_plan") or ""
             fundamentals = state.get("fundamentals_report") or ""
             claims = extract_rm_claims(rm_text)
             results = check_claims_via_llm(claims, fundamentals, llm)
-            violations = [r for r in results if not r.get("ok")]
+            violations = []
+            for r in results:
+                if not r.get("ok"):
+                    idx = r.get("index")
+                    claim_text = claims[idx] if isinstance(idx, int) and 0 <= idx < len(claims) else ""
+                    violations.append({**r, "claim": claim_text})
             attempt = int(state.get("_rm_consistency_attempt") or 0)
             if not violations:
                 return {
