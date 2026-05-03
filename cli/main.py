@@ -19,7 +19,7 @@ from rich.text import Text
 from rich.table import Table
 
 from cli.announcements import fetch_announcements, display_announcements
-from cli.llm_config import LLMConfigOverrides
+from cli.llm_config import LLMConfigOverrides, ResolvedLLMConfig, resolve_llm_config
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
@@ -497,7 +497,7 @@ def update_display(layout, message_buffer: MessageBuffer, spinner_text=None, sta
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
+def get_user_selections(resolved_llm: ResolvedLLMConfig | None = None):
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
@@ -585,30 +585,41 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
+    selected_llm_provider = resolved_llm.provider if resolved_llm else None
+    backend_url = resolved_llm.backend_url if resolved_llm else None
+
     # Step 6: LLM Provider
-    console.print(
-        create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+    if not selected_llm_provider:
+        console.print(
+            create_question_box(
+                "Step 6: LLM Provider", "Select your LLM provider"
+            )
         )
-    )
-    selected_llm_provider, backend_url = select_llm_provider()
+        selected_llm_provider, selected_backend_url = select_llm_provider()
+        if backend_url is None:
+            backend_url = selected_backend_url
 
     # Step 7: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+    selected_shallow_thinker = resolved_llm.quick_model if resolved_llm else None
+    selected_deep_thinker = resolved_llm.deep_model if resolved_llm else None
+    if not selected_shallow_thinker or not selected_deep_thinker:
+        console.print(
+            create_question_box(
+                "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            )
         )
-    )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    if not selected_shallow_thinker:
+        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+    if not selected_deep_thinker:
+        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     # Step 8: Provider-specific thinking configuration
-    thinking_level = None
-    reasoning_effort = None
-    anthropic_effort = None
+    thinking_level = resolved_llm.google_thinking_level if resolved_llm else None
+    reasoning_effort = resolved_llm.openai_reasoning_effort if resolved_llm else None
+    anthropic_effort = resolved_llm.anthropic_effort if resolved_llm else None
 
     provider_lower = selected_llm_provider.lower()
-    if provider_lower == "google":
+    if provider_lower == "google" and not thinking_level:
         console.print(
             create_question_box(
                 "Step 8: Thinking Mode",
@@ -616,7 +627,7 @@ def get_user_selections():
             )
         )
         thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
+    elif provider_lower == "openai" and not reasoning_effort:
         console.print(
             create_question_box(
                 "Step 8: Reasoning Effort",
@@ -624,7 +635,7 @@ def get_user_selections():
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
-    elif provider_lower == "anthropic":
+    elif provider_lower == "anthropic" and not anthropic_effort:
         console.print(
             create_question_box(
                 "Step 8: Effort Level",
@@ -968,7 +979,8 @@ def run_analysis(
     llm_overrides: LLMConfigOverrides | None = None,
 ):
     # First get all user selections
-    selections = get_user_selections()
+    resolved_llm = resolve_llm_config(llm_overrides)
+    selections = get_user_selections(resolved_llm)
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()

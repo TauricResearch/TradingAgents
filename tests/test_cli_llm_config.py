@@ -1,4 +1,5 @@
-from cli.llm_config import LLMConfigOverrides, resolve_llm_config
+import cli.main
+from cli.llm_config import LLMConfigOverrides, ResolvedLLMConfig, resolve_llm_config
 from typer.testing import CliRunner
 
 from cli.main import app
@@ -99,3 +100,44 @@ def test_analyze_accepts_llm_config_options(monkeypatch):
     assert captured["llm_overrides"].quick_model == "mercury"
     assert captured["llm_overrides"].deep_model == "mercury"
     assert captured["llm_overrides"].backend_url == "https://api.inceptionlabs.ai/v1"
+
+
+def test_get_user_selections_skips_llm_prompts_when_config_complete(monkeypatch):
+    monkeypatch.setattr("cli.main.fetch_announcements", lambda: [])
+    monkeypatch.setattr("cli.main.display_announcements", lambda console, announcements: None)
+    monkeypatch.setattr("cli.main.get_ticker", lambda: "SPY")
+    monkeypatch.setattr("cli.main.get_analysis_date", lambda: "2026-05-01")
+    monkeypatch.setattr("cli.main.ask_output_language", lambda: "English")
+    monkeypatch.setattr("cli.main.select_analysts", lambda: [])
+    monkeypatch.setattr("cli.main.select_research_depth", lambda: 1)
+    monkeypatch.setattr("cli.main.ask_openai_reasoning_effort", lambda: None)
+
+    monkeypatch.setattr(
+        "cli.main.select_llm_provider",
+        lambda: pytest.fail("provider prompt should be skipped"),
+    )
+    monkeypatch.setattr(
+        "cli.main.select_shallow_thinking_agent",
+        lambda provider: pytest.fail("quick model prompt should be skipped"),
+    )
+    monkeypatch.setattr(
+        "cli.main.select_deep_thinking_agent",
+        lambda provider: pytest.fail("deep model prompt should be skipped"),
+    )
+
+    selections = cli.main.get_user_selections(
+        ResolvedLLMConfig(
+            provider="openai",
+            quick_model="mercury",
+            deep_model="mercury",
+            backend_url="https://api.inceptionlabs.ai/v1",
+            openai_reasoning_effort=None,
+            google_thinking_level=None,
+            anthropic_effort=None,
+        )
+    )
+
+    assert selections["llm_provider"] == "openai"
+    assert selections["shallow_thinker"] == "mercury"
+    assert selections["deep_thinker"] == "mercury"
+    assert selections["backend_url"] == "https://api.inceptionlabs.ai/v1"
