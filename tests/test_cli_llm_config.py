@@ -1,4 +1,7 @@
 from cli.llm_config import LLMConfigOverrides, resolve_llm_config
+from typer.testing import CliRunner
+
+from cli.main import app
 
 
 LLM_CONFIG_ENV_VARS = (
@@ -65,3 +68,34 @@ def test_partial_config_is_not_complete(monkeypatch):
     assert resolved.quick_model == "mercury"
     assert resolved.deep_model is None
     assert resolved.is_complete is False
+
+
+def test_analyze_accepts_llm_config_options(monkeypatch):
+    runner = CliRunner()
+    captured = {}
+
+    def fake_run_analysis(*, checkpoint, llm_overrides):
+        captured["checkpoint"] = checkpoint
+        captured["llm_overrides"] = llm_overrides
+
+    monkeypatch.setattr("cli.main.run_analysis", fake_run_analysis)
+
+    result = runner.invoke(
+        app,
+        [
+            "--llm-provider",
+            "openai",
+            "--quick-model",
+            "mercury",
+            "--deep-model",
+            "mercury",
+            "--backend-url",
+            "https://api.inceptionlabs.ai/v1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["llm_overrides"].provider == "openai"
+    assert captured["llm_overrides"].quick_model == "mercury"
+    assert captured["llm_overrides"].deep_model == "mercury"
+    assert captured["llm_overrides"].backend_url == "https://api.inceptionlabs.ai/v1"
