@@ -593,6 +593,51 @@ def build_trader_plan_fallback(
     return "\n".join(lines).strip()
 
 
+def _extract_action_regex(text: str) -> ExtractionResult | None:
+    """Return ExtractionResult via regex on known-format labels, or None on miss.
+
+    Never returns a default — None means "no pattern matched".
+    """
+    raw = str(text or "")
+    single_line_patterns = [
+        # explicit proposal/recommendation labels (original six)
+        r"FINAL\s+TRANSACTION\s+PROPOSAL\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"FINAL\s+RECOMMENDATION\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"RECOMMENDATION\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"BALANCED\s+ASSESSMENT\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"RATING\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"ACTION\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        # numbered-prefix variants: "1. Rating: Buy" / "1) Rating — Sell"
+        r"^\s*\d+[.)]\s+(?:Final\s+)?Rating\s*[:\-—]\s*[*_]*(BUY|SELL|HOLD)\b",
+    ]
+    for pattern in single_line_patterns:
+        m = re.search(pattern, raw, re.IGNORECASE | re.MULTILINE)
+        if m:
+            return ExtractionResult(
+                action=m.group(1).upper(),
+                confidence="high",
+                source="regex",
+                evidence_quote=None,
+            )
+
+    # Multi-line header patterns: bold/ATX header followed by action on next line
+    # Covers: **1. Rating**\n**Buy**, **Rating**\n**Buy**, ### Rating\nBuy, etc.
+    multi_line_pattern = re.compile(
+        r"(?:#{1,3}\s*|[*_]{1,2})\d*[.)?\s]*(?:Final\s+)?Rating[*_]*\s*\n\s*[*_]*(BUY|SELL|HOLD)\b",
+        re.IGNORECASE,
+    )
+    m = multi_line_pattern.search(raw)
+    if m:
+        return ExtractionResult(
+            action=m.group(1).upper(),
+            confidence="high",
+            source="regex",
+            evidence_quote=None,
+        )
+
+    return None
+
+
 def _infer_recommendation(text: str) -> str:
     """Return BUY/SELL/HOLD from explicit decision fields, not incidental prose."""
     raw = str(text or "")
