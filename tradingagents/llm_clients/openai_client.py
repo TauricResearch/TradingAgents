@@ -8,6 +8,49 @@ from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
 
+_RETIRED_DEEPSEEK_MODELS = {"deepseek-chat", "deepseek-reasoner"}
+
+
+def reject_retired_deepseek_model(model: str) -> None:
+    """Reject DeepSeek model IDs that should no longer be silently aliased."""
+    if model in _RETIRED_DEEPSEEK_MODELS:
+        raise ValueError(
+            f"DeepSeek model '{model}' is retired for TradingAgents. "
+            "Use 'deepseek-v4-flash' or 'deepseek-v4-pro' instead."
+        )
+
+
+def _copy_message_without_reasoning_content(message):
+    if isinstance(message, dict):
+        cleaned = dict(message)
+        cleaned.pop("reasoning_content", None)
+        return cleaned
+
+    copied = (
+        message.model_copy(deep=True)
+        if hasattr(message, "model_copy")
+        else message.copy(deep=True)
+    )
+
+    additional_kwargs = getattr(copied, "additional_kwargs", None)
+    if isinstance(additional_kwargs, dict):
+        additional_kwargs.pop("reasoning_content", None)
+
+    if hasattr(copied, "reasoning_content"):
+        copied.reasoning_content = None
+
+    return copied
+
+
+def strip_deepseek_reasoning_content(input):
+    """Remove stale DeepSeek thinking content from outbound message history."""
+    if isinstance(input, list):
+        return [_copy_message_without_reasoning_content(message) for message in input]
+    if isinstance(input, tuple):
+        return tuple(_copy_message_without_reasoning_content(message) for message in input)
+    return input
+
+
 class NormalizedChatOpenAI(ChatOpenAI):
     """ChatOpenAI with normalized content output.
 
@@ -107,17 +150,31 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
     "api_key", "callbacks", "http_client", "http_async_client",
+    "extra_body",
 )
 
 # Provider base URLs and API key env vars
 _PROVIDER_CONFIG = {
-    "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
-    "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
-    "qwen": ("https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY"),
-    "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
-    "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+    "xai": ("https://api.x.ai/v1", ("XAI_API_KEY",)),
+    "deepseek": ("https://api.deepseek.com", ("DEEPSEEK_API_KEY",)),
+    "qwen": ("https://dashscope.aliyuncs.com/compatible-mode/v1", ("DASHSCOPE_API_KEY",)),
+    "glm": ("https://api.z.ai/api/paas/v4/", ("ZAI_API_KEY", "ZHIPU_API_KEY")),
+    "openrouter": ("https://openrouter.ai/api/v1", ("OPENROUTER_API_KEY",)),
     "ollama": ("http://localhost:11434/v1", None),
 }
+
+_BASE_URL_ENV = {
+    "xai": ("XAI_BASE_URL",),
+    "deepseek": ("DEEPSEEK_BASE_URL",),
+    "qwen": ("DASHSCOPE_BASE_URL", "QWEN_BASE_URL"),
+    "glm": ("ZAI_BASE_URL", "GLM_BASE_URL"),
+    "openrouter": ("OPENROUTER_BASE_URL",),
+    "ollama": ("OLLAMA_BASE_URL",),
+}
+
+
+def _first_env_value(names: tuple[str, ...]) -> str | None:
+    return next((os.environ.get(name) for name in names if os.environ.get(name)), None)
 
 
 class OpenAIClient(BaseLLMClient):
@@ -141,17 +198,21 @@ class OpenAIClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance."""
+        if self.provider == "deepseek":
+            reject_retired_deepseek_model(self.model)
         self.warn_if_unknown_model()
-        llm_kwargs = {"model": self.model}
+        model = self.model
+        llm_kwargs = {"model": model}
 
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
         if self.provider in _PROVIDER_CONFIG:
-            default_base, api_key_env = _PROVIDER_CONFIG[self.provider]
-            llm_kwargs["base_url"] = self.base_url or default_base
-            if api_key_env:
-                api_key = os.environ.get(api_key_env)
+            default_base_url, api_key_envs = _PROVIDER_CONFIG[self.provider]
+            base_url_envs = _BASE_URL_ENV.get(self.provider, ())
+            llm_kwargs["base_url"] = self.base_url or _first_env_value(base_url_envs) or default_base_url
+            if api_key_envs:
+                api_key = _first_env_value(api_key_envs)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
             else:
@@ -163,6 +224,15 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+
+        # DeepSeek V4 enables thinking mode by default on some models.
+        # Thinking + tool calls
+        # requires preserving provider-specific reasoning_content across every
+        # subsequent tool turn, which LangChain does not reliably round-trip.
+        # Use non-thinking mode for agent tool calls unless explicitly
+        # overridden by the caller.
+        if self.provider == "deepseek" and "extra_body" not in llm_kwargs:
+            llm_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
 
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.

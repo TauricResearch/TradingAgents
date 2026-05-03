@@ -38,13 +38,27 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance,tushare,akshare,alpha_vantage",  # Options: yfinance, tushare, akshare, alpha_vantage
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "fundamental_data": "yfinance,tushare,akshare,alpha_vantage",  # Options: yfinance, tushare, akshare, alpha_vantage
+        "news_data": "tavily,yfinance,alpha_vantage",  # Options: tavily, alpha_vantage, yfinance
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # Tavily news search controls. Defaults intentionally keep API usage low.
+    "halt_on_missing_data": True,
+    "a_share_yfinance_min_coverage_ratio": 0.6,
+    "a_share_yfinance_min_rows": 3,
+    "a_share_yfinance_min_fundamental_fields": 5,
+    "akshare_adjust": "",
+    "tavily_search_depth": "basic",
+    "tavily_max_results": 5,
+    "tavily_topic": "finance",
+    "tavily_include_raw_content": False,
+    "tavily_include_answer": False,
+    "tavily_include_images": False,
+    "tavily_auto_parameters": False,
+    "news_curator_max_items": 10,
 }

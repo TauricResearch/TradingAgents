@@ -215,5 +215,21 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Local runtime artifacts
+tradingagents/reports/
+reports/
+logs/
+
+# Local configuration and secrets
+.env.*
+!.env.example
+*.local
+*.local.*
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
 # Cache
 **/data_cache/

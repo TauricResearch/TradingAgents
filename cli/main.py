@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import os
 import typer
 from pathlib import Path
 from functools import wraps
@@ -7,8 +8,9 @@ from rich.console import Console
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
-load_dotenv(".env.enterprise", override=False)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env", override=True)
+load_dotenv(PROJECT_ROOT / ".env.enterprise", override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -33,11 +35,40 @@ from cli.stats_handler import StatsCallbackHandler
 
 console = Console()
 
+PROVIDER_KEY_ENVS = {
+    "openai": ("OPENAI_API_KEY",),
+    "google": ("GOOGLE_API_KEY",),
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "xai": ("XAI_API_KEY",),
+    "deepseek": ("DEEPSEEK_API_KEY",),
+    "mimo": ("MIMO_API_KEY",),
+    "qwen": ("DASHSCOPE_API_KEY",),
+    "glm": ("ZAI_API_KEY", "ZHIPU_API_KEY"),
+    "openrouter": ("OPENROUTER_API_KEY",),
+    "azure": ("AZURE_OPENAI_API_KEY",),
+}
+
 app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+
+
+def validate_provider_api_key(provider: str) -> None:
+    """Fail early when the selected hosted LLM provider has no loaded API key."""
+    provider = provider.lower()
+    if provider == "ollama":
+        return
+    env_names = PROVIDER_KEY_ENVS.get(provider, ())
+    if not env_names:
+        return
+    if any(os.getenv(name) for name in env_names):
+        return
+    joined = " or ".join(env_names)
+    raise typer.BadParameter(
+        f"No API key loaded for provider '{provider}'. Set {joined} in {PROJECT_ROOT / '.env'}."
+    )
 
 
 # Create a deque to store recent messages with a maximum length
@@ -503,7 +534,7 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+            "Enter the ticker symbol to analyze (examples: SPY, 002636, 600519.SS, CNC.TO, 7203.T, 0700.HK)",
             "SPY",
         )
     )
@@ -614,7 +645,7 @@ def get_user_selections():
 
 def get_ticker():
     """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    return normalize_ticker_symbol(typer.prompt("", default="SPY"))
 
 
 def get_analysis_date():
@@ -938,6 +969,7 @@ def run_analysis(checkpoint: bool = False):
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    validate_provider_api_key(config["llm_provider"])
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")

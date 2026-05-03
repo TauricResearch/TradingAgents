@@ -38,9 +38,9 @@ def create_llm_client(
         from .openai_client import OpenAIClient
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
 
-    if provider_lower == "anthropic":
+    if provider_lower in {"anthropic", "mimo"}:
         from .anthropic_client import AnthropicClient
-        return AnthropicClient(model, base_url, **kwargs)
+        return AnthropicClient(model, base_url, provider=provider_lower, **kwargs)
 
     if provider_lower == "google":
         from .google_client import GoogleClient
