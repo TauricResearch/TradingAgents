@@ -8,7 +8,7 @@ import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.json_utils import extract_json
@@ -32,6 +32,46 @@ class ValidationResult:
     is_valid: bool
     reason: str
     code: str = "ok"
+
+
+@dataclass(frozen=True)
+class ExtractionResult:
+    """Result of action extraction from text."""
+    action: Literal["BUY", "SELL", "HOLD"]
+    confidence: Literal["high", "med", "low"]
+    source: Literal["regex", "llm"]
+    evidence_quote: str | None
+
+
+class ActionExtractionError(Exception):
+    """Raised when action extraction fails for all methods."""
+    def __init__(self, text_excerpt: str, last_attempt: "ExtractionResult | None" = None):
+        self.text_excerpt = text_excerpt
+        self.last_attempt = last_attempt
+        excerpt_display = text_excerpt[:300] if len(text_excerpt) > 300 else text_excerpt
+        super().__init__(
+            f"action_extraction_failed: could not determine BUY/SELL/HOLD from text "
+            f"(first 300 chars): {excerpt_display!r}"
+        )
+
+
+class CandidateHandoffError(Exception):
+    """Raised when candidate handoff validation fails."""
+    def __init__(
+        self,
+        kind: Literal["unaccountable_drop", "all_extraction_failed"],
+        n_in: int,
+        n_out: int,
+        per_ticker_status: dict[str, str],
+    ):
+        self.kind = kind
+        self.n_in = n_in
+        self.n_out = n_out
+        self.per_ticker_status = per_ticker_status
+        super().__init__(
+            f"candidate_handoff_error kind={kind} n_in={n_in} n_out={n_out} "
+            f"per_ticker={per_ticker_status}"
+        )
 
 
 CANONICAL_SOURCE_REGISTRY = {
