@@ -120,14 +120,6 @@ def _make_invoke_with_timeout_patch(response_json: dict):
     return msg
 
 
-def _mock_llm(response_json: dict) -> MagicMock:
-    llm = MagicMock()
-    msg = MagicMock()
-    msg.content = json.dumps(response_json)
-    llm.invoke.return_value = msg
-    return llm
-
-
 _IWT_PATH = "tradingagents.graph._consistency_guard.invoke_with_timeout"
 
 
