@@ -233,6 +233,26 @@ def test_check_claims_duplicate_index_raises():
             check_claims_via_llm(["Only claim."], "some fundamentals", MagicMock())
 
 
+def test_check_claims_boolean_index_raises():
+    """JSON boolean indexes must not be accepted as integer claim indexes."""
+    msg = _make_invoke_with_timeout_patch({
+        "results": [{"index": True, "ok": True}]
+    })
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        with pytest.raises(ValueError, match="malformed judge response"):
+            check_claims_via_llm(["Only claim."], "some fundamentals", MagicMock())
+
+
+def test_check_claims_nonstring_violation_reason_raises():
+    """ok=False requires a non-empty string reason, not a structured placeholder."""
+    msg = _make_invoke_with_timeout_patch({
+        "results": [{"index": 0, "ok": False, "reason": []}]
+    })
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        with pytest.raises(ValueError, match="malformed judge response"):
+            check_claims_via_llm(["Only claim."], "some fundamentals", MagicMock())
+
+
 def test_check_claims_retry_succeeds_on_second_attempt():
     """First response is malformed; repair retry returns valid schema — succeeds."""
     bad_msg = MagicMock()

@@ -253,6 +253,7 @@ class GraphSetup:
             selected_analysts = ["market", "news", "fundamentals"]
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
+        has_fundamentals = "fundamentals" in selected_analysts
 
         # Create analyst nodes
         analyst_nodes = {}
@@ -301,7 +302,11 @@ class GraphSetup:
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("RM Consistency Guard", self._make_rm_consistency_guard_node(self.quick_thinking_llm))
+        if has_fundamentals:
+            workflow.add_node(
+                "RM Consistency Guard",
+                self._make_rm_consistency_guard_node(self.quick_thinking_llm),
+            )
         workflow.add_node("Trader", trader_node)
         workflow.add_node("News Fact Checker", news_fact_checker_node)
         if "market" in selected_analysts:
@@ -391,14 +396,17 @@ class GraphSetup:
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
             },
         )
-        workflow.add_edge("Research Manager", "RM Consistency Guard")
-        workflow.add_conditional_edges(
-            "RM Consistency Guard",
-            lambda s: (
-                "Research Manager" if s.get("rm_consistency_status") == "reprompt" else "Trader"
-            ),
-            {"Research Manager": "Research Manager", "Trader": "Trader"},
-        )
+        if has_fundamentals:
+            workflow.add_edge("Research Manager", "RM Consistency Guard")
+            workflow.add_conditional_edges(
+                "RM Consistency Guard",
+                lambda s: (
+                    "Research Manager" if s.get("rm_consistency_status") == "reprompt" else "Trader"
+                ),
+                {"Research Manager": "Research Manager", "Trader": "Trader"},
+            )
+        else:
+            workflow.add_edge("Research Manager", "Trader")
 
         self._wire_risk_debate(workflow, risk_nodes)
 

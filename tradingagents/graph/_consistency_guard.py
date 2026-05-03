@@ -125,7 +125,7 @@ def _parse_and_validate(raw: str, claim_count: int) -> list[dict[str, Any]]:
             schema_errors.append(f"result[{i}] is not a dict")
             continue
         idx = r.get("index")
-        if not isinstance(idx, int) or not (0 <= idx < claim_count):
+        if type(idx) is not int or not (0 <= idx < claim_count):
             schema_errors.append(f"result[{i}] has invalid index {idx!r}")
             continue
         if idx in index_map:
@@ -135,7 +135,8 @@ def _parse_and_validate(raw: str, claim_count: int) -> list[dict[str, Any]]:
         if not isinstance(ok, bool):
             schema_errors.append(f"result[{idx}] has non-bool ok: {ok!r}")
             continue
-        if not ok and not str(r.get("reason", "")).strip():
+        reason = r.get("reason", "")
+        if not ok and (not isinstance(reason, str) or not reason.strip()):
             schema_errors.append(f"result[{idx}] is ok=False but has no reason")
             continue
         index_map[idx] = r
