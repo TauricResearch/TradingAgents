@@ -16,6 +16,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
             ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
         ],
+        "openai_compatible": {
+            "quick": [("Custom OpenAI-Compatible Model", "custom")],
+            "deep": [("Custom OpenAI-Compatible Model", "custom")],
+        },
         "deep": [
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
             ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),

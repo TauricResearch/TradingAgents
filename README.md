@@ -54,6 +54,24 @@
 
 </div>
 
+## OpenAI-Compatible Providers
+
+TradingAgents also supports OpenAI-compatible providers through the existing OpenAI client interface.
+
+Use the `openai_compatible` provider for services that expose an OpenAI-compatible API, such as:
+
+- OpenRouter
+- Ollama
+- Together
+- Volcano Engine
+- other OpenAI-format endpoints
+
+Set:
+
+```env
+OPENAI_API_KEY=your_provider_api_key
+OPENAI_BASE_URL=your_provider_base_url
+
 ## TradingAgents Framework
 
 TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
