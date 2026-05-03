@@ -94,8 +94,10 @@ def check_claims_via_llm(
 ) -> list[dict[str, Any]]:
     """Verdict each claim against fundamentals via a single LLM call.
 
-    Returns a list of dicts with keys: index (int), ok (bool), reason (str, violations only).
-    Missing indexes are treated as ok=True (fail-open for partial responses).
+    Returns only well-formed verdict entries: {index (int), ok (bool), reason (str if ok=False)}.
+    Malformed entries (non-int index, non-bool ok, ok=False with empty reason) are dropped.
+    Unvicted claims (no well-formed entry returned by LLM) are not included — callers treat
+    absent claims as ok (fail-open for partial responses).
     Raises ValueError on unparseable or timed-out LLM response.
     """
     if not claims:
@@ -124,16 +126,18 @@ def check_claims_via_llm(
     if not isinstance(results, list):
         raise ValueError(f"rm_consistency_guard: 'results' is not a list — {raw[:300]}")
 
-    result_by_index: dict[int, dict[str, Any]] = {}
+    well_formed: list[dict[str, Any]] = []
     for r in results:
         if not isinstance(r, dict):
             continue
         idx = r.get("index")
-        if not isinstance(idx, int):
+        if not isinstance(idx, int) or not (0 <= idx < len(claims)):
             continue
         ok = r.get("ok")
         if not isinstance(ok, bool):
             continue
-        result_by_index[idx] = r
+        if not ok and not str(r.get("reason", "")).strip():
+            continue
+        well_formed.append(r)
 
-    return [result_by_index.get(i, {"index": i, "ok": True}) for i in range(len(claims))]
+    return well_formed

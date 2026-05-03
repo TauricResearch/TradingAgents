@@ -128,6 +128,10 @@ class GraphSetup:
         def rm_consistency_guard_node(state: AgentState) -> dict[str, Any]:
             rm_text = state.get("investment_plan") or ""
             fundamentals = state.get("fundamentals_report") or ""
+            if not fundamentals.strip():
+                raise ValueError(
+                    "rm_consistency_guard: fundamentals_report is missing — cannot verify RM claims"
+                )
             claims = extract_rm_claims(rm_text)
             results = check_claims_via_llm(claims, fundamentals, llm)
             violations = []

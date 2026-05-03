@@ -174,8 +174,8 @@ def test_check_claims_missing_results_key_raises():
             check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
 
 
-def test_check_claims_fail_open_for_missing_index():
-    """LLM returns fewer results than claims — missing indexes default to ok=True."""
+def test_check_claims_partial_response_drops_missing():
+    """LLM returns fewer results than claims — only the judged entries are returned."""
     msg = _make_invoke_with_timeout_patch({"results": [{"index": 0, "ok": True}]})
     with patch(_IWT_PATH, return_value=(msg, None)):
         result = check_claims_via_llm(
@@ -183,10 +183,9 @@ def test_check_claims_fail_open_for_missing_index():
             "some fundamentals",
             MagicMock(),
         )
-    assert len(result) == 3
+    assert len(result) == 1
+    assert result[0]["index"] == 0
     assert result[0]["ok"] is True
-    assert result[1]["ok"] is True
-    assert result[2]["ok"] is True
 
 
 def test_check_claims_timeout_raises():
@@ -196,19 +195,53 @@ def test_check_claims_timeout_raises():
             check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
 
 
-def test_check_claims_nonboolean_ok_treated_as_fail_open():
-    """Result with non-boolean ok (e.g. string 'true') is filtered → treated as ok=True."""
+def test_check_claims_nonboolean_ok_dropped():
+    """Result with non-boolean ok (e.g. string 'true') is dropped — absent from output."""
     msg = _make_invoke_with_timeout_patch({
         "results": [{"index": 0, "ok": "true"}]  # string, not bool
     })
     with patch(_IWT_PATH, return_value=(msg, None)):
         result = check_claims_via_llm(["Claim 0."], "some fundamentals", MagicMock())
-    assert result[0]["ok"] is True  # fail-open default
+    assert result == []
+
+
+def test_check_claims_violation_without_reason_dropped():
+    """ok=False with empty reason is dropped — LLM must provide a reason for violations."""
+    msg = _make_invoke_with_timeout_patch({
+        "results": [{"index": 0, "ok": False, "reason": ""}]
+    })
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        result = check_claims_via_llm(["Claim 0."], "some fundamentals", MagicMock())
+    assert result == []
+
+
+def test_check_claims_out_of_range_index_dropped():
+    """Result with index outside claims range is dropped."""
+    msg = _make_invoke_with_timeout_patch({
+        "results": [{"index": 5, "ok": False, "reason": "bogus"}]
+    })
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        result = check_claims_via_llm(["Only claim."], "some fundamentals", MagicMock())
+    assert result == []
 
 
 # ---------------------------------------------------------------------------
 # Guard node behavior (patching check_claims_via_llm)
 # ---------------------------------------------------------------------------
+
+
+def test_guard_node_missing_fundamentals_raises():
+    """Guard raises immediately when fundamentals_report is absent."""
+    from tradingagents.graph.setup import GraphSetup
+    gs = object.__new__(GraphSetup)
+    gs.quick_thinking_llm = MagicMock()
+    node = gs._make_rm_consistency_guard_node(gs.quick_thinking_llm)
+    with pytest.raises(ValueError, match="fundamentals_report is missing"):
+        node({
+            "investment_plan": "- [HIGH] Revenue expanded +15% YoY.",
+            "fundamentals_report": "",
+            "_rm_consistency_attempt": 0,
+        })
 
 
 def test_guard_node_passes_clean_rm_output():
