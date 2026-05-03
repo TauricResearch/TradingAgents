@@ -626,7 +626,7 @@ def _extract_action_regex(text: str) -> ExtractionResult | None:
     # Multi-line header patterns: bold/ATX header followed by action on next line
     # Covers: **1. Rating**\n**Buy**, **Rating**\n**Buy**, ### Rating\nBuy, etc.
     multi_line_pattern = re.compile(
-        r"(?:#{1,3}\s*|[*_]{1,2})\d*[.)?\s]*(?:Final\s+)?Rating[*_]*\s*\n\s*[*_]*(BUY|SELL|HOLD)\b",
+        r"(?:#{1,3}\s*|[*_]{1,2})\d*[.)\s]*(?:Final\s+)?Rating[*_]*\s*\n\s*[*_]*(BUY|SELL|HOLD)\b",
         re.IGNORECASE,
     )
     m = multi_line_pattern.search(raw)

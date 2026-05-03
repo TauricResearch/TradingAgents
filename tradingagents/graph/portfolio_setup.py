@@ -638,7 +638,8 @@ class PortfolioGraphSetup:
         - All candidates have extraction_failed status and n_out == 0
         - Candidate drop count is unaccountable (n_in - n_out != accounted drops)
 
-        Accounted drops include: extraction_failed, analysis_failed, HOLD/SELL, no deep-dive.
+        Accounted drops include: extraction_failed, analysis_failed,
+        completed HOLD/SELL, empty/timeout_fallback, no deep-dive.
         """
         def candidate_handoff_guard_node(state: PortfolioManagerState) -> dict[str, Any]:
             from tradingagents.agents.utils.output_validation import CandidateHandoffError
@@ -694,6 +695,9 @@ class PortfolioGraphSetup:
                 elif analysis_status == "failed" and status != "extraction_failed":
                     n_other_fail += 1
                     per_ticker_status[ticker] = "analysis_failed"
+                elif status in {"empty", "timeout_fallback"}:
+                    n_not_buy += 1
+                    per_ticker_status[ticker] = status
                 elif status == "completed" and action in {"HOLD", "SELL"}:
                     n_not_buy += 1
                     per_ticker_status[ticker] = f"completed:{action}"

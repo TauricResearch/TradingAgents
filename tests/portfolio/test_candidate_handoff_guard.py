@@ -96,6 +96,46 @@ def test_guard_passes_on_partial_extraction_failure():
     assert result.get("sender") == "candidate_handoff_guard"
 
 
+def test_guard_passes_on_timeout_fallback_drop():
+    """timeout_fallback status is a legitimate non-buy drop and should not raise."""
+    guard = _make_guard_node()
+    state = _make_state(
+        equity_candidates=[{"ticker": "OWL"}, {"ticker": "TEAM"}],
+        ticker_analyses={
+            "OWL": {"final_trade_decision_structured": {"status": "completed", "action": "BUY"}},
+            "TEAM": {
+                "final_trade_decision_structured": {
+                    "status": "timeout_fallback",
+                    "action": "HOLD",
+                }
+            },
+        },
+        prioritized_candidates=[{"ticker": "OWL"}],
+    )
+    result = guard(state)
+    assert result.get("sender") == "candidate_handoff_guard"
+
+
+def test_guard_passes_on_empty_structured_drop():
+    """empty status is a legitimate non-buy drop and should not raise."""
+    guard = _make_guard_node()
+    state = _make_state(
+        equity_candidates=[{"ticker": "OWL"}, {"ticker": "TEAM"}],
+        ticker_analyses={
+            "OWL": {"final_trade_decision_structured": {"status": "completed", "action": "BUY"}},
+            "TEAM": {
+                "final_trade_decision_structured": {
+                    "status": "empty",
+                    "action": "HOLD",
+                }
+            },
+        },
+        prioritized_candidates=[{"ticker": "OWL"}],
+    )
+    result = guard(state)
+    assert result.get("sender") == "candidate_handoff_guard"
+
+
 def test_guard_raises_all_extraction_failed():
     """2 candidates, both extraction_failed, N_out == 0 → CandidateHandoffError."""
     from tradingagents.agents.utils.output_validation import CandidateHandoffError
