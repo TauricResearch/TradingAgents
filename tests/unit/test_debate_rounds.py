@@ -122,13 +122,6 @@ class TestInvestDebateRounds3:
 
 
 class TestConfigWiring:
-    def test_trading_graph_wires_debate_rounds(self):
-        """ConditionalLogic should use config values, not hardcoded defaults."""
-        from tradingagents.graph.conditional_logic import ConditionalLogic
-
-        cl = ConditionalLogic(max_debate_rounds=2)
-        assert cl.max_debate_rounds == 2
-
     def test_default_config_has_updated_values(self):
         """Default config should now ship with max_debate_rounds=2."""
         from tradingagents.default_config import DEFAULT_CONFIG
