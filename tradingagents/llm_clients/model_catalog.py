@@ -65,12 +65,27 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "deepseek": {
         "quick": [
-            ("DeepSeek V3.2", "deepseek-chat"),
+            ("DeepSeek V4 Flash", "deepseek-v4-flash"),
+            ("DeepSeek V4 Pro", "deepseek-v4-pro"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("DeepSeek V3.2 (thinking)", "deepseek-reasoner"),
-            ("DeepSeek V3.2", "deepseek-chat"),
+            ("DeepSeek V4 Pro", "deepseek-v4-pro"),
+            ("DeepSeek V4 Flash", "deepseek-v4-flash"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "mimo": {
+        "quick": [
+            ("MiMo V2.5", "mimo-v2.5"),
+            ("MiMo V2 Flash", "mimo-v2-flash"),
+            ("MiMo V2.5 Pro", "mimo-v2.5-pro"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("MiMo V2.5 Pro", "mimo-v2.5-pro"),
+            ("MiMo V2.5", "mimo-v2.5"),
+            ("MiMo V2 Pro", "mimo-v2-pro"),
             ("Custom model ID", "custom"),
         ],
     },
