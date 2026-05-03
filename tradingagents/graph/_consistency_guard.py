@@ -94,11 +94,9 @@ def check_claims_via_llm(
 ) -> list[dict[str, Any]]:
     """Verdict each claim against fundamentals via a single LLM call.
 
-    Returns only well-formed verdict entries: {index (int), ok (bool), reason (str if ok=False)}.
-    Malformed entries (non-int index, non-bool ok, ok=False with empty reason) are dropped.
-    Unvicted claims (no well-formed entry returned by LLM) are not included — callers treat
-    absent claims as ok (fail-open for partial responses).
-    Raises ValueError on unparseable or timed-out LLM response.
+    Returns one {index, ok, reason?} dict per claim in index order.
+    Raises ValueError if the response is unparseable, timed out, or does not contain
+    exactly one well-formed verdict for every claim index (strict schema validation).
     """
     if not claims:
         return []
@@ -126,18 +124,36 @@ def check_claims_via_llm(
     if not isinstance(results, list):
         raise ValueError(f"rm_consistency_guard: 'results' is not a list — {raw[:300]}")
 
-    well_formed: list[dict[str, Any]] = []
-    for r in results:
+    index_map: dict[int, dict[str, Any]] = {}
+    schema_errors: list[str] = []
+
+    for i, r in enumerate(results):
         if not isinstance(r, dict):
+            schema_errors.append(f"result[{i}] is not a dict")
             continue
         idx = r.get("index")
         if not isinstance(idx, int) or not (0 <= idx < len(claims)):
+            schema_errors.append(f"result[{i}] has invalid index {idx!r}")
+            continue
+        if idx in index_map:
+            schema_errors.append(f"duplicate index {idx}")
             continue
         ok = r.get("ok")
         if not isinstance(ok, bool):
+            schema_errors.append(f"result[{idx}] has non-bool ok: {ok!r}")
             continue
         if not ok and not str(r.get("reason", "")).strip():
+            schema_errors.append(f"result[{idx}] is ok=False but has no reason")
             continue
-        well_formed.append(r)
+        index_map[idx] = r
 
-    return well_formed
+    missing = [i for i in range(len(claims)) if i not in index_map]
+    if missing:
+        schema_errors.append(f"missing verdicts for claim indexes: {missing}")
+
+    if schema_errors:
+        raise ValueError(
+            f"rm_consistency_guard: malformed judge response — {'; '.join(schema_errors)} — {raw[:200]}"
+        )
+
+    return [index_map[i] for i in range(len(claims))]
