@@ -209,17 +209,37 @@ class TradingAgentsGraph:
                 return None, None, None
 
             actual_days = min(holding_days, len(stock) - 1, len(spy) - 1)
+            
+            # Validate prices before division to prevent zero-division errors
+            stock_open = float(stock["Close"].iloc[0])
+            spy_open = float(spy["Close"].iloc[0])
+            
+            if stock_open <= 0 or spy_open <= 0:
+                logger.warning(
+                    "Invalid price data for %s on %s (open price <= 0)",
+                    ticker, trade_date,
+                )
+                return None, None, None
+            
             raw = float(
-                (stock["Close"].iloc[actual_days] - stock["Close"].iloc[0])
-                / stock["Close"].iloc[0]
+                (stock["Close"].iloc[actual_days] - stock_open)
+                / stock_open
             )
             spy_ret = float(
-                (spy["Close"].iloc[actual_days] - spy["Close"].iloc[0])
-                / spy["Close"].iloc[0]
+                (spy["Close"].iloc[actual_days] - spy_open)
+                / spy_open
             )
             alpha = raw - spy_ret
             return raw, alpha, actual_days
+        except (ValueError, KeyError) as e:
+            # ValueError: Invalid date format; KeyError: Missing 'Close' column
+            logger.warning(
+                "Invalid data for %s on %s: %s",
+                ticker, trade_date, e,
+            )
+            return None, None, None
         except Exception as e:
+            # Transient errors (network, etc.) - will retry next run
             logger.warning(
                 "Could not resolve outcome for %s on %s (will retry next run): %s",
                 ticker, trade_date, e,
@@ -232,6 +252,7 @@ class TradingAgentsGraph:
         Fetches returns for each same-ticker pending entry, generates reflections,
         then writes all updates in a single atomic batch write to avoid redundant I/O.
         Skips entries whose price data is not yet available (too recent or delisted).
+        Marks entries as unresolvable after max retry attempts to prevent infinite loops.
 
         Trade-off: only same-ticker entries are resolved per run.  Entries for
         other tickers accumulate until that ticker is run again.
@@ -241,10 +262,27 @@ class TradingAgentsGraph:
             return
 
         updates = []
+        unresolvable = []
+        max_retry_days = 30  # Mark as failed if >30 days have passed without data
+        
         for entry in pending:
             raw, alpha, days = self._fetch_returns(ticker, entry["date"])
             if raw is None:
-                continue  # price not available yet — try again next run
+                # Check if this entry has been pending too long (data probably unavailable)
+                from datetime import datetime as dt
+                entry_date = dt.strptime(entry["date"], "%Y-%m-%d")
+                days_pending = (dt.now() - entry_date).days
+                
+                if days_pending > max_retry_days:
+                    # Mark as unresolvable after max retries
+                    unresolvable.append({
+                        "ticker": ticker,
+                        "trade_date": entry["date"],
+                        "outcome": "outcome_unavailable",
+                        "reason": f"Data unavailable after {days_pending} days (likely delisted or data issue)",
+                    })
+                continue  # Otherwise try again next run
+            
             reflection = self.reflector.reflect_on_final_decision(
                 final_decision=entry.get("decision", ""),
                 raw_return=raw,
@@ -261,6 +299,8 @@ class TradingAgentsGraph:
 
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
+        if unresolvable:
+            self.memory_log.batch_mark_unresolvable(unresolvable)
 
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date.

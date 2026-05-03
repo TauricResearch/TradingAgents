@@ -42,8 +42,16 @@ class AlphaVantageRateLimitError(Exception):
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
     
+    Args:
+        function_name: Alpha Vantage function to call
+        params: Additional parameters to pass
+    
+    Returns:
+        Response text (JSON or CSV depending on function)
+        
     Raises:
         AlphaVantageRateLimitError: When API rate limit is exceeded
+        requests.Timeout: When request times out (default 30 seconds)
     """
     # Create a copy of params to avoid modifying the original
     api_params = params.copy()
@@ -63,7 +71,7 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
+    response = requests.get(API_BASE_URL, params=api_params, timeout=30)
     response.raise_for_status()
 
     response_text = response.text
