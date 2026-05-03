@@ -82,3 +82,45 @@ def test_llm_evidence_quote_propagated():
     llm = _make_llm(_make_llm_response({"action": "BUY", "confidence": "high", "evidence_quote": quote}))
     result = _extract_action_llm("...", llm=llm)
     assert result.evidence_quote == quote
+
+
+# Orchestrator tests
+
+
+def test_extract_action_uses_regex_first_no_llm_call():
+    """When regex matches, LLM is never called."""
+    from tradingagents.agents.utils.output_validation import extract_action
+
+    llm = MagicMock()
+    result = extract_action("FINAL TRANSACTION PROPOSAL: **BUY**", llm=llm)
+    assert result.action == "BUY"
+    assert result.source == "regex"
+    llm.invoke.assert_not_called()
+
+
+def test_extract_action_falls_back_to_llm_on_regex_miss():
+    from tradingagents.agents.utils.output_validation import extract_action
+
+    llm = _make_llm(_make_llm_response({"action": "SELL", "confidence": "high", "evidence_quote": "sell"}))
+    result = extract_action("Some prose without a clear label.", llm=llm)
+    assert result.action == "SELL"
+    assert result.source == "llm"
+
+
+def test_extract_action_raises_on_low_confidence():
+    from tradingagents.agents.utils.output_validation import ActionExtractionError, extract_action
+
+    llm = _make_llm(_make_llm_response({"action": "HOLD", "confidence": "low", "evidence_quote": None}))
+    with pytest.raises(ActionExtractionError) as exc_info:
+        extract_action("ambiguous text", llm=llm)
+    assert "ambiguous text" in str(exc_info.value)
+
+
+def test_extract_action_raises_when_llm_errors():
+    from tradingagents.agents.utils.output_validation import ActionExtractionError, extract_action
+
+    llm = MagicMock()
+    llm.invoke.side_effect = TimeoutError("timed out")
+    with pytest.raises(ActionExtractionError):
+        extract_action("ambiguous text", llm=llm)
+

@@ -693,6 +693,28 @@ def _extract_action_llm(text: str, llm: Any) -> ExtractionResult:
         return _sentinel
 
 
+def extract_action(text: str, llm: Any = None) -> ExtractionResult:
+    """Two-stage action extractor. Raises ActionExtractionError on hard fail.
+
+    Stage 1: regex (fast, deterministic, no LLM call).
+    Stage 2: LLM fallback if regex misses (requires llm argument).
+
+    Raises ActionExtractionError when:
+    - regex misses AND llm is None (caller must provide llm for fallback)
+    - regex misses AND LLM returns confidence=="low"
+    - regex misses AND LLM errors (timeout, parse fail, etc.)
+    """
+    regex_result = _extract_action_regex(text)
+    if regex_result is not None:
+        return regex_result
+    if llm is None:
+        raise ActionExtractionError(text_excerpt=text[:300], last_attempt=None)
+    llm_result = _extract_action_llm(text, llm=llm)
+    if llm_result.confidence == "low":
+        raise ActionExtractionError(text_excerpt=text[:300], last_attempt=llm_result)
+    return llm_result
+
+
 def _infer_recommendation(text: str) -> str:
     """Return BUY/SELL/HOLD from explicit decision fields, not incidental prose."""
     raw = str(text or "")
