@@ -230,3 +230,6 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Local git worktrees
+.worktrees/
