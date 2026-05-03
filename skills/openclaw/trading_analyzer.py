@@ -206,7 +206,8 @@ async def handle_trading_query(
         )
 
     # Run analysis
-    report = analyze_stock(ticker, date)
+    import asyncio
+    report = await asyncio.to_thread(analyze_stock, ticker, date)
     return report
 
 
