@@ -1,6 +1,52 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.defuddle import deep_fetch_article, deep_fetch_batch
+import re
+
+
+@tool
+def deep_fetch_articles(
+    urls: Annotated[str, "Newline-separated list of article URLs to fetch full content for"],
+    max_articles: Annotated[int, "Maximum number of articles to fetch (default 5)"] = 5,
+) -> str:
+    """
+    Fetch full article content from URLs as Markdown.
+
+    Use this AFTER get_news to get the complete text of articles for deeper
+    analysis. Extract URLs from the get_news output and pass them here.
+
+    Uses the hosted defuddle.md endpoint — strips ads, navigation, and
+    returns only the main article content with metadata.
+
+    Args:
+        urls: Newline-separated list of article URLs to fetch
+        max_articles: Max articles to fetch (default 5, max 10)
+
+    Returns:
+        Combined Markdown of full article contents, or empty string if
+        all fetches failed.
+    """
+    # Clamp to reasonable max
+    max_articles = min(max(1, max_articles), 10)
+
+    # Parse URLs from newline-separated input
+    candidate_urls = [u.strip() for u in urls.split("\n") if u.strip()]
+
+    # Extract valid HTTP URLs (in case user pastes full text with URLs inline)
+    found_urls = []
+    for candidate in candidate_urls:
+        found_urls.extend(re.findall(r"https?://[^\s<>]+", candidate))
+
+    if not found_urls:
+        return "No valid URLs provided."
+
+    content = deep_fetch_batch(found_urls, max_articles=max_articles)
+
+    if not content:
+        return "Failed to fetch content from any provided URL."
+
+    return content
 
 @tool
 def get_news(
