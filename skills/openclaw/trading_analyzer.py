@@ -147,7 +147,8 @@ def format_trading_report(state: Dict[str, Any], decision: Dict[str, Any]) -> st
     # Analyst reports (if available)
     if "market_report" in state:
         lines.append("### Market Analysis")
-        lines.append(state["market_report"][:500] + "...\n")
+        report = state["market_report"]
+        lines.append(f"{report[:500]}...\n" if len(report) > 500 else f"{report}\n")
 
     if "fundamentals_report" in state:
         lines.append("### Fundamentals")
