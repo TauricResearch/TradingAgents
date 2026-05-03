@@ -668,15 +668,21 @@ class PortfolioGraphSetup:
             per_ticker_status: dict[str, str] = {}
 
             for raw_candidate in equity_candidates:
+                instrument_key = ""
                 if isinstance(raw_candidate, dict):
                     ticker = (raw_candidate.get("ticker") or raw_candidate.get("symbol") or "").upper()
+                    instrument_key = str(raw_candidate.get("instrument_key") or "")
                 else:
                     ticker = str(raw_candidate).upper()
                 if not ticker:
                     n_no_entry += 1
                     continue
 
-                analysis = ticker_analyses.get(ticker, {}) if isinstance(ticker_analyses, dict) else {}
+                analysis = {}
+                if isinstance(ticker_analyses, dict):
+                    analysis = ticker_analyses.get(ticker, {})
+                    if not analysis and instrument_key:
+                        analysis = ticker_analyses.get(instrument_key, {})
                 structured = analysis.get("final_trade_decision_structured") or {}
                 analysis_status = str(analysis.get("analysis_status") or "").lower()
                 status = str(structured.get("status") or "").lower()
@@ -715,6 +721,13 @@ class PortfolioGraphSetup:
                     per_ticker_status=per_ticker_status,
                 )
 
+            logger.info(
+                "candidate_handoff_guard: ok n_in=%d n_out=%d n_extraction_failed=%d n_not_buy=%d",
+                n_in,
+                n_out,
+                n_extr_fail,
+                n_not_buy,
+            )
             return {"sender": "candidate_handoff_guard"}
 
         return candidate_handoff_guard_node

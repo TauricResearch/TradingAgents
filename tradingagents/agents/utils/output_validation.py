@@ -1099,6 +1099,11 @@ def build_investment_plan_structured(
             recommendation = None
             status = "extraction_failed"
             abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_investment_plan_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", plan))
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
@@ -1155,6 +1160,11 @@ def build_trader_plan_structured(
             final_action = None
             status = "extraction_failed"
             abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_trader_plan_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     has_entry = bool(re.search(r"entry\s*(price|setup|point)", plan, re.IGNORECASE))
     has_stop = bool(re.search(r"stop[.\- ]?loss", plan, re.IGNORECASE))
     has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", plan, re.IGNORECASE))
@@ -1213,6 +1223,11 @@ def build_risk_synthesis_structured(
             consensus_direction = None
             status = "extraction_failed"
             abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_risk_synthesis_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     agreements = len(
         re.findall(
             r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)",
@@ -1276,6 +1291,11 @@ def build_final_decision_structured(
             action = None
             status = "extraction_failed"
             abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_final_decision_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
     )
