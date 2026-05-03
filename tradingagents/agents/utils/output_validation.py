@@ -715,23 +715,16 @@ def extract_action(text: str, llm: Any = None) -> ExtractionResult:
     return llm_result
 
 
-def _infer_recommendation(text: str) -> str:
-    """Return BUY/SELL/HOLD from explicit decision fields, not incidental prose."""
-    raw = str(text or "")
-    patterns = [
-        r"FINAL\s+TRANSACTION\s+PROPOSAL\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"FINAL\s+RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"BALANCED\s+ASSESSMENT\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"RATING\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"ACTION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, raw, re.IGNORECASE)
-        if match:
-            return match.group(1).upper()
-
-    return "HOLD"
+def _infer_recommendation(text: str, llm: Any = None) -> str:
+    """Back-compat shim. Raises ActionExtractionError on hard fail (no HOLD default).
+    
+    Empty input returns HOLD without calling extraction (preserves existing tests).
+    Non-empty input delegates to extract_action which raises ActionExtractionError
+    if no pattern matches and either no LLM is provided or LLM returns low confidence.
+    """
+    if not str(text or "").strip():
+        return "HOLD"
+    return extract_action(text, llm=llm).action
 
 
 def _infer_sentiment_direction(text: str) -> str:

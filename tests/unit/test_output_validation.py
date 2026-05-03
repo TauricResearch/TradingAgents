@@ -708,6 +708,22 @@ class TestInvestmentPlanStructuredContract:
         )
         assert structured["status"] == "empty"
 
+    def test_build_investment_plan_raises_on_ambiguous_input(self):
+        """Test that ambiguous non-empty input raises ActionExtractionError."""
+        from tradingagents.agents.utils.output_validation import (
+            ActionExtractionError,
+            build_investment_plan_structured,
+        )
+
+        ambiguous = "The committee considered the matter. Bears say caution. Bulls say proceed. Outcome: deferred."
+        with pytest.raises(ActionExtractionError) as exc_info:
+            build_investment_plan_structured(
+                ticker="XYZ",
+                as_of_date="2026-05-03",
+                investment_plan=ambiguous,
+            )
+        assert "action_extraction_failed" in str(exc_info.value)
+
 
 class TestTraderPlanStructuredContract:
     def test_build_completed_with_entry_and_stop(self):
@@ -742,6 +758,22 @@ class TestTraderPlanStructuredContract:
         )
         assert structured["status"] == "empty"
         assert structured["final_action"] == "HOLD"
+
+    def test_build_trader_plan_raises_on_ambiguous_input(self):
+        """Test that ambiguous non-empty input raises ActionExtractionError."""
+        from tradingagents.agents.utils.output_validation import (
+            ActionExtractionError,
+            build_trader_plan_structured,
+        )
+
+        ambiguous = "The committee saw mixed signals. Technical indicators are unclear. Outcome: uncertain."
+        with pytest.raises(ActionExtractionError) as exc_info:
+            build_trader_plan_structured(
+                ticker="XYZ",
+                as_of_date="2026-05-03",
+                trader_plan=ambiguous,
+            )
+        assert "action_extraction_failed" in str(exc_info.value)
 
 
 class TestRiskSynthesisStructuredContract:
@@ -793,6 +825,22 @@ class TestRiskSynthesisStructuredContract:
         )
         assert structured["status"] == "empty"
 
+    def test_build_risk_synthesis_raises_on_ambiguous_input(self):
+        """Test that ambiguous non-empty input raises ActionExtractionError."""
+        from tradingagents.agents.utils.output_validation import (
+            ActionExtractionError,
+            build_risk_synthesis_structured,
+        )
+
+        ambiguous = "The committee debated extensively. Multiple viewpoints were presented. No consensus reached."
+        with pytest.raises(ActionExtractionError) as exc_info:
+            build_risk_synthesis_structured(
+                ticker="XYZ",
+                as_of_date="2026-05-03",
+                risk_synthesis=ambiguous,
+            )
+        assert "action_extraction_failed" in str(exc_info.value)
+
 
 class TestFinalDecisionStructuredContract:
     def test_build_completed_buy(self):
@@ -827,10 +875,26 @@ class TestFinalDecisionStructuredContract:
         assert structured["status"] == "empty"
         assert structured["action"] == "HOLD"
 
+    def test_build_final_decision_raises_on_ambiguous_input(self):
+        """Test that ambiguous non-empty input raises ActionExtractionError."""
+        from tradingagents.agents.utils.output_validation import (
+            ActionExtractionError,
+            build_final_decision_structured,
+        )
+
+        ambiguous = "The portfolio manager reviewed all data. Various factors were considered. Decision pending further analysis."
+        with pytest.raises(ActionExtractionError) as exc_info:
+            build_final_decision_structured(
+                ticker="XYZ",
+                as_of_date="2026-05-03",
+                final_decision=ambiguous,
+            )
+        assert "action_extraction_failed" in str(exc_info.value)
+
     def test_decision_excerpt_truncated(self):
         from tradingagents.agents.utils.output_validation import build_final_decision_structured
 
-        long_text = "BUY " + "A" * 500
+        long_text = "ACTION: BUY\n" + "A" * 500
         structured = build_final_decision_structured(
             ticker="XYZ",
             as_of_date="2026-04-03",
