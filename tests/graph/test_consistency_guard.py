@@ -233,6 +233,32 @@ def test_check_claims_duplicate_index_raises():
             check_claims_via_llm(["Only claim."], "some fundamentals", MagicMock())
 
 
+def test_check_claims_retry_succeeds_on_second_attempt():
+    """First response is malformed; repair retry returns valid schema — succeeds."""
+    bad_msg = MagicMock()
+    bad_msg.content = json.dumps({"results": [{"index": 0, "ok": "not_a_bool"}]})
+    good_msg = _make_invoke_with_timeout_patch({"results": [{"index": 0, "ok": True}]})
+    with patch(_IWT_PATH, side_effect=[(bad_msg, None), (good_msg, None)]):
+        result = check_claims_via_llm(["Revenue grew +15% YoY."], "Revenue: +15% YoY.", MagicMock())
+    assert result == [{"index": 0, "ok": True}]
+
+
+def test_check_claims_raises_after_retry_also_malformed():
+    """Both attempts return malformed schema — raises ValueError after retry."""
+    bad_msg = _make_invoke_with_timeout_patch({"results": []})
+    with patch(_IWT_PATH, return_value=(bad_msg, None)):
+        with pytest.raises(ValueError, match="malformed judge response"):
+            check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
+
+
+def test_check_claims_repair_retry_invoke_failure_raises():
+    """Repair retry itself fails (e.g. timeout) — raises ValueError."""
+    bad_msg = _make_invoke_with_timeout_patch({"results": []})
+    with patch(_IWT_PATH, side_effect=[(bad_msg, None), (None, TimeoutError("timeout"))]):
+        with pytest.raises(ValueError, match="repair retry failed"):
+            check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
+
+
 # ---------------------------------------------------------------------------
 # Guard node behavior (patching check_claims_via_llm)
 # ---------------------------------------------------------------------------

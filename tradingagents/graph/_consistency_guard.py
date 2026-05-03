@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
@@ -62,8 +62,24 @@ FUNDAMENTALS: "EPS: $0.08 in Q4 2025"
 CLAIM: "EPS of $0.08 supports continued investment"
 → {"ok": true}  ← number matches, rest is interpretation
 
+Output schema (strictly enforced):
+- Return exactly one result per claim, indexed 0 to claim_count-1 (claim_count is provided in the input)
+- "ok" must be a JSON boolean: true or false (never the string "true" or "false")
+- "reason" is required and must be non-empty when ok is false; omit it when ok is true
+- No duplicate or missing indexes
+
 Respond with ONLY valid JSON, no prose:
 {"results": [{"index": 0, "ok": true}, {"index": 1, "ok": false, "reason": "..."}]}"""
+
+_REPAIR_TEMPLATE = """\
+Your previous response did not satisfy the required schema: {error}
+
+Return exactly {n} result(s) — one per claim, indexes 0 to {last}:
+- "ok" must be JSON boolean true or false (not a string)
+- "reason" must be non-empty when ok is false
+- No duplicate or missing indexes
+
+Respond with ONLY valid JSON."""
 
 
 def extract_rm_claims(rm_text: str) -> list[str]:
@@ -87,31 +103,8 @@ def extract_rm_claims(rm_text: str) -> list[str]:
     return claims
 
 
-def check_claims_via_llm(
-    claims: list[str],
-    fundamentals: str,
-    llm: Any,
-) -> list[dict[str, Any]]:
-    """Verdict each claim against fundamentals via a single LLM call.
-
-    Returns one {index, ok, reason?} dict per claim in index order.
-    Raises ValueError if the response is unparseable, timed out, or does not contain
-    exactly one well-formed verdict for every claim index (strict schema validation).
-    """
-    if not claims:
-        return []
-
-    payload = json.dumps({"claims": claims, "fundamentals": fundamentals}, ensure_ascii=False)
-    timeout = resolve_timeout("quick")
-    response, invoke_error = invoke_with_timeout(
-        llm,
-        [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=payload)],
-        timeout_seconds=timeout,
-    )
-    if invoke_error is not None or response is None:
-        raise ValueError(f"rm_consistency_guard: LLM judge call failed — {invoke_error}")
-    raw = response.content if hasattr(response, "content") else str(response)
-
+def _parse_and_validate(raw: str, claim_count: int) -> list[dict[str, Any]]:
+    """Parse raw LLM output and validate schema. Raises ValueError on any problem."""
     try:
         parsed = extract_json(raw)
     except Exception as exc:
@@ -132,7 +125,7 @@ def check_claims_via_llm(
             schema_errors.append(f"result[{i}] is not a dict")
             continue
         idx = r.get("index")
-        if not isinstance(idx, int) or not (0 <= idx < len(claims)):
+        if not isinstance(idx, int) or not (0 <= idx < claim_count):
             schema_errors.append(f"result[{i}] has invalid index {idx!r}")
             continue
         if idx in index_map:
@@ -147,7 +140,7 @@ def check_claims_via_llm(
             continue
         index_map[idx] = r
 
-    missing = [i for i in range(len(claims)) if i not in index_map]
+    missing = [i for i in range(claim_count) if i not in index_map]
     if missing:
         schema_errors.append(f"missing verdicts for claim indexes: {missing}")
 
@@ -156,4 +149,49 @@ def check_claims_via_llm(
             f"rm_consistency_guard: malformed judge response — {'; '.join(schema_errors)} — {raw[:200]}"
         )
 
-    return [index_map[i] for i in range(len(claims))]
+    return [index_map[i] for i in range(claim_count)]
+
+
+def check_claims_via_llm(
+    claims: list[str],
+    fundamentals: str,
+    llm: Any,
+) -> list[dict[str, Any]]:
+    """Verdict each claim against fundamentals via a single LLM call with one schema retry.
+
+    Returns one {index, ok, reason?} dict per claim in index order.
+    On schema errors, retries once with a repair prompt before raising ValueError.
+    Raises ValueError if the response is unparseable, timed out, or fails schema
+    validation after both attempts.
+    """
+    if not claims:
+        return []
+
+    payload = json.dumps(
+        {"claim_count": len(claims), "claims": claims, "fundamentals": fundamentals},
+        ensure_ascii=False,
+    )
+    messages: list[Any] = [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=payload)]
+    timeout = resolve_timeout("quick")
+
+    response, invoke_error = invoke_with_timeout(llm, messages, timeout_seconds=timeout)
+    if invoke_error is not None or response is None:
+        raise ValueError(f"rm_consistency_guard: LLM judge call failed — {invoke_error}")
+    raw = response.content if hasattr(response, "content") else str(response)
+
+    try:
+        return _parse_and_validate(raw, len(claims))
+    except ValueError as first_err:
+        repair_prompt = _REPAIR_TEMPLATE.format(
+            error=first_err,
+            n=len(claims),
+            last=len(claims) - 1,
+        )
+        repair_messages = messages + [AIMessage(content=raw), HumanMessage(content=repair_prompt)]
+        response2, invoke_error2 = invoke_with_timeout(llm, repair_messages, timeout_seconds=timeout)
+        if invoke_error2 is not None or response2 is None:
+            raise ValueError(
+                f"rm_consistency_guard: repair retry failed — {invoke_error2}"
+            ) from first_err
+        raw2 = response2.content if hasattr(response2, "content") else str(response2)
+        return _parse_and_validate(raw2, len(claims))
