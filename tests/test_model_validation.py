@@ -93,3 +93,25 @@ def test_openai_custom_base_url_does_not_force_responses_api(monkeypatch):
     assert captured["model"] == "mercury"
     assert captured["base_url"] == "https://api.inceptionlabs.ai/v1"
     assert "use_responses_api" not in captured
+
+
+def test_openai_custom_base_url_does_not_forward_reasoning_effort(monkeypatch):
+    from tradingagents.llm_clients import openai_client
+
+    captured = {}
+
+    class FakeChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(openai_client, "NormalizedChatOpenAI", FakeChat)
+
+    client = openai_client.OpenAIClient(
+        "mercury",
+        base_url="https://api.inceptionlabs.ai/v1",
+        provider="openai",
+        reasoning_effort="high",
+    )
+    client.get_llm()
+
+    assert "reasoning_effort" not in captured

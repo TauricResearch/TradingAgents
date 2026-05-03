@@ -44,14 +44,24 @@ _ENV_VARS = {
 def resolve_llm_config(overrides: LLMConfigOverrides | None = None) -> ResolvedLLMConfig:
     overrides = overrides or LLMConfigOverrides()
 
-    values = {
-        field: _first_present(getattr(overrides, field), os.environ.get(env_var))
-        for field, env_var in _ENV_VARS.items()
-    }
-    if values["provider"] is not None:
-        values["provider"] = values["provider"].lower()
+    cli_provider = _normalize_provider(overrides.provider)
+    env_provider = _normalize_provider(os.environ.get(_ENV_VARS["provider"]))
+    provider = cli_provider or env_provider
+    use_env_provider_config = bool(env_provider and provider == env_provider)
+
+    values = {"provider": provider}
+    for field, env_var in _ENV_VARS.items():
+        if field == "provider":
+            continue
+        env_value = os.environ.get(env_var) if use_env_provider_config else None
+        values[field] = _first_present(getattr(overrides, field), env_value)
 
     return ResolvedLLMConfig(**values)
+
+
+def _normalize_provider(value: str | None) -> str | None:
+    normalized = _blank_to_none(value)
+    return normalized.lower() if normalized is not None else None
 
 
 def _first_present(*values: str | None) -> str | None:

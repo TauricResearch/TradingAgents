@@ -43,6 +43,7 @@ def test_cli_overrides_env(monkeypatch):
     monkeypatch.setenv("TRADINGAGENTS_LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("TRADINGAGENTS_QUICK_MODEL", "claude-3-5-haiku-latest")
     monkeypatch.setenv("TRADINGAGENTS_DEEP_MODEL", "claude-3-7-sonnet-latest")
+    monkeypatch.setenv("TRADINGAGENTS_BACKEND_URL", "https://api.anthropic.com")
 
     resolved = resolve_llm_config(
         LLMConfigOverrides(
@@ -57,6 +58,17 @@ def test_cli_overrides_env(monkeypatch):
     assert resolved.quick_model == "gpt-5.4-mini"
     assert resolved.deep_model == "gpt-5.4"
     assert resolved.backend_url == "https://api.openai.com/v1"
+
+
+def test_cli_provider_override_does_not_inherit_env_backend_url(monkeypatch):
+    clear_llm_config_env(monkeypatch)
+    monkeypatch.setenv("TRADINGAGENTS_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("TRADINGAGENTS_BACKEND_URL", "https://api.inceptionlabs.ai/v1")
+
+    resolved = resolve_llm_config(LLMConfigOverrides(provider="google"))
+
+    assert resolved.provider == "google"
+    assert resolved.backend_url is None
 
 
 def test_partial_config_is_not_complete(monkeypatch):
@@ -142,3 +154,31 @@ def test_get_user_selections_skips_llm_prompts_when_config_complete(monkeypatch)
     assert selections["shallow_thinker"] == "mercury"
     assert selections["deep_thinker"] == "mercury"
     assert selections["backend_url"] == "https://api.inceptionlabs.ai/v1"
+
+
+def test_custom_openai_base_url_skips_reasoning_effort_prompt(monkeypatch):
+    monkeypatch.setattr("cli.main.fetch_announcements", lambda: [])
+    monkeypatch.setattr("cli.main.display_announcements", lambda console, announcements: None)
+    monkeypatch.setattr("cli.main.get_ticker", lambda: "SPY")
+    monkeypatch.setattr("cli.main.get_analysis_date", lambda: "2026-05-01")
+    monkeypatch.setattr("cli.main.ask_output_language", lambda: "English")
+    monkeypatch.setattr("cli.main.select_analysts", lambda: [])
+    monkeypatch.setattr("cli.main.select_research_depth", lambda: 1)
+    monkeypatch.setattr(
+        "cli.main.ask_openai_reasoning_effort",
+        lambda: pytest.fail("reasoning effort prompt should be skipped for custom base URLs"),
+    )
+
+    selections = cli.main.get_user_selections(
+        ResolvedLLMConfig(
+            provider="openai",
+            quick_model="mercury",
+            deep_model="mercury",
+            backend_url="https://api.inceptionlabs.ai/v1",
+            openai_reasoning_effort=None,
+            google_thinking_level=None,
+            anthropic_effort=None,
+        )
+    )
+
+    assert selections["openai_reasoning_effort"] is None

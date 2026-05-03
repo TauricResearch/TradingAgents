@@ -627,7 +627,7 @@ def get_user_selections(resolved_llm: ResolvedLLMConfig | None = None):
             )
         )
         thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai" and not reasoning_effort:
+    elif provider_lower == "openai" and not backend_url and not reasoning_effort:
         console.print(
             create_question_box(
                 "Step 8: Reasoning Effort",

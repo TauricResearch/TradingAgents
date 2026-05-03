@@ -162,6 +162,8 @@ class OpenAIClient(BaseLLMClient):
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
+                if key == "reasoning_effort" and self.provider == "openai" and self.base_url:
+                    continue
                 llm_kwargs[key] = self.kwargs[key]
 
         # Native OpenAI: use Responses API for consistent behavior across
