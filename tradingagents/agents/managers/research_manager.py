@@ -136,6 +136,7 @@ Debate History:
             as_of_date=state.get("trade_date", ""),
             investment_plan=output_content,
             is_timeout_fallback=False,
+            llm=llm,
         )
 
         new_investment_debate_state = {

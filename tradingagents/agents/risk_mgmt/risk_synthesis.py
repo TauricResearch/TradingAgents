@@ -111,6 +111,7 @@ Output a structured risk synthesis in under 400 words."""
             as_of_date=state.get("trade_date", ""),
             risk_synthesis=summary,
             is_timeout_fallback=is_timeout,
+            llm=llm,
         )
 
         # Build risk_debate_state for Portfolio Manager backward compatibility

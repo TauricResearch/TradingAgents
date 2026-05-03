@@ -163,6 +163,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             ticker=state.get("company_of_interest", ""),
             as_of_date=state.get("trade_date", ""),
             final_decision=final_decision_text,
+            llm=llm,
         )
 
         return {

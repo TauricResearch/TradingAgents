@@ -198,6 +198,7 @@ Apply lessons from past decisions:
             as_of_date=state.get("trade_date", ""),
             trader_plan=output_content,
             is_timeout_fallback=False,
+            llm=llm,
         )
 
         return {
