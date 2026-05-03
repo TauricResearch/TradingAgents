@@ -149,18 +149,6 @@ def test_check_claims_fail_open_for_missing_index():
 # Guard node behavior (patching check_claims_via_llm)
 # ---------------------------------------------------------------------------
 
-def _make_node(mock_results: list[dict]) -> object:
-    """Build a guard node with check_claims_via_llm patched to return mock_results."""
-    from tradingagents.graph.setup import GraphSetup
-    mock_llm = MagicMock()
-    gs = object.__new__(GraphSetup)
-    gs.quick_thinking_llm = mock_llm
-    with patch(
-        "tradingagents.graph.setup.check_claims_via_llm",
-        return_value=mock_results,
-    ):
-        return gs._make_rm_consistency_guard_node(mock_llm), mock_llm
-
 
 def test_guard_node_passes_clean_rm_output():
     with patch("tradingagents.graph.setup.check_claims_via_llm", return_value=[{"index": 0, "ok": True}]):
