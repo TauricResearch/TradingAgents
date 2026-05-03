@@ -119,6 +119,27 @@ Install the package and its dependencies:
 pip install .
 ```
 
+## Running with Ollama
+
+TradingAgents can also run with Ollama using its OpenAI-compatible API interface.
+
+To use Ollama locally:
+
+1. Start the Ollama server
+2. Pull the models you want to use
+3. Point TradingAgents to your local Ollama endpoint
+4. Select your local models in the CLI
+
+Example setup:
+
+```bash
+ollama serve
+ollama pull qwen3:latest
+ollama pull glm4.7:latest
+
+OPENAI_API_KEY=dummy
+OPENAI_BASE_URL=http://localhost:11434/v1
+
 ### Docker
 
 Alternatively, run with Docker:
