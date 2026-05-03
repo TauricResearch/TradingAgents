@@ -15,6 +15,7 @@ import os
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompt_values import ChatPromptValue
+from pydantic import SecretStr
 
 from tradingagents.llm_clients.openai_client import (
     DeepSeekChatOpenAI,
@@ -57,7 +58,7 @@ class TestDeepSeekReasoningContent:
         os.environ.setdefault("DEEPSEEK_API_KEY", "placeholder")
         return DeepSeekChatOpenAI(
             model="deepseek-v4-flash",
-            api_key="placeholder",
+            api_key=SecretStr("placeholder"),
             base_url="https://api.deepseek.com",
         )
 
@@ -121,10 +122,10 @@ class TestDeepSeekReasoningContent:
 
 @pytest.mark.unit
 class TestDeepSeekReasonerStructuredOutput:
-    def test_with_structured_output_raises_for_reasoner(self):
+    def test_with_structured_output_raises_for_reasoner(self) -> None:
         client = DeepSeekChatOpenAI(
             model="deepseek-reasoner",
-            api_key="placeholder",
+            api_key=SecretStr("placeholder"),
             base_url="https://api.deepseek.com",
         )
         from pydantic import BaseModel
@@ -135,11 +136,11 @@ class TestDeepSeekReasonerStructuredOutput:
         with pytest.raises(NotImplementedError):
             client.with_structured_output(_Sample)
 
-    def test_with_structured_output_works_for_v4(self):
+    def test_with_structured_output_works_for_v4(self) -> None:
         """V4 models (non-reasoner) accept tool_choice; structured output works."""
         client = DeepSeekChatOpenAI(
             model="deepseek-v4-flash",
-            api_key="placeholder",
+            api_key=SecretStr("placeholder"),
             base_url="https://api.deepseek.com",
         )
         from pydantic import BaseModel

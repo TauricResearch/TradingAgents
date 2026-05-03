@@ -16,7 +16,7 @@ class TradingMemoryLog:
     _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
 
-    def __init__(self, config: dict = None):
+    def __init__(self, config: dict | None = None):
         cfg = config or {}
         self._log_path = None
         path = cfg.get("memory_log_path")
@@ -74,7 +74,8 @@ class TradingMemoryLog:
         if not entries:
             return ""
 
-        same, cross = [], []
+        same: list[dict] = []
+        cross: list[dict] = []
         for e in reversed(entries):
             if len(same) >= n_same and len(cross) >= n_cross:
                 break

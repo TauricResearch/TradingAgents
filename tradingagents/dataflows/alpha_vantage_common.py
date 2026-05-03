@@ -6,6 +6,7 @@ from datetime import datetime
 from io import StringIO
 
 API_BASE_URL = "https://www.alphavantage.co/query"
+DEFAULT_ALPHA_VANTAGE_TIMEOUT = 15
 
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
@@ -39,7 +40,12 @@ class AlphaVantageRateLimitError(Exception):
     """Exception raised when Alpha Vantage API rate limit is exceeded."""
     pass
 
-def _make_api_request(function_name: str, params: dict) -> dict | str:
+
+class AlphaVantageTemporaryError(Exception):
+    """Exception raised for temporary Alpha Vantage request failures."""
+    pass
+
+def _make_api_request(function_name: str, params: dict) -> str:
     """Helper function to make API requests and handle responses.
     
     Raises:
@@ -63,8 +69,19 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            API_BASE_URL,
+            params=api_params,
+            timeout=DEFAULT_ALPHA_VANTAGE_TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.Timeout as exc:
+        raise AlphaVantageTemporaryError(
+            f"Alpha Vantage request timed out after {DEFAULT_ALPHA_VANTAGE_TIMEOUT}s"
+        ) from exc
+    except requests.RequestException as exc:
+        raise AlphaVantageTemporaryError(f"Alpha Vantage request failed: {exc}") from exc
 
     response_text = response.text
     

@@ -109,9 +109,12 @@ def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = Non
             reasoning="Strong setup.",
         )
     structured = MagicMock()
-    structured.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or proposal
-    )
+
+    def invoke(prompt):
+        captured["prompt"] = prompt
+        return proposal
+
+    structured.invoke.side_effect = invoke
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm
@@ -187,9 +190,12 @@ def _structured_rm_llm(captured: dict, plan: ResearchPlan | None = None):
             strategic_actions="Hold current position; reassess after earnings.",
         )
     structured = MagicMock()
-    structured.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or plan
-    )
+
+    def invoke(prompt):
+        captured["prompt"] = prompt
+        return plan
+
+    structured.invoke.side_effect = invoke
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm

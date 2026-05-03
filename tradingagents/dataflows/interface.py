@@ -1,4 +1,5 @@
-from typing import Annotated
+from collections.abc import Callable
+from typing import Any
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -22,13 +23,13 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_global_news as get_alpha_vantage_global_news,
 )
-from .alpha_vantage_common import AlphaVantageRateLimitError
+from .alpha_vantage_common import AlphaVantageRateLimitError, AlphaVantageTemporaryError
 
 # Configuration and routing logic
 from .config import get_config
 
 # Tools organized by category
-TOOLS_CATEGORIES = {
+TOOLS_CATEGORIES: dict[str, dict[str, str | list[str]]] = {
     "core_stock_apis": {
         "description": "OHLCV stock price data",
         "tools": [
@@ -60,13 +61,15 @@ TOOLS_CATEGORIES = {
     }
 }
 
-VENDOR_LIST = [
+VENDOR_LIST: list[str] = [
     "yfinance",
     "alpha_vantage",
 ]
 
 # Mapping of methods to their vendor-specific implementations
-VENDOR_METHODS = {
+VendorFunction = Callable[..., Any]
+
+VENDOR_METHODS: dict[str, dict[str, VendorFunction]] = {
     # core_stock_apis
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
@@ -116,7 +119,13 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
-def get_vendor(category: str, method: str = None) -> str:
+def _require_vendor_string(value: Any, source: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{source} vendor must be a string, got {value!r}")
+    return value
+
+
+def get_vendor(category: str, method: str | None = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
     Tool-level configuration takes precedence over category-level.
     """
@@ -126,10 +135,11 @@ def get_vendor(category: str, method: str = None) -> str:
     if method:
         tool_vendors = config.get("tool_vendors", {})
         if method in tool_vendors:
-            return tool_vendors[method]
+            return _require_vendor_string(tool_vendors[method], f"tool '{method}'")
 
     # Fall back to category-level configuration
-    return config.get("data_vendors", {}).get(category, "default")
+    vendor = config.get("data_vendors", {}).get(category, "default")
+    return _require_vendor_string(vendor, f"category '{category}'")
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
@@ -156,7 +166,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+        except (AlphaVantageRateLimitError, AlphaVantageTemporaryError):
+            continue  # Only rate limits and temporary request failures trigger fallback
 
     raise RuntimeError(f"No available vendor for '{method}'")

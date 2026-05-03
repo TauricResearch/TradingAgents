@@ -1,50 +1,40 @@
 # TradingAgents/graph/trading_graph.py
 
 import logging
+import json
 import os
 from pathlib import Path
-import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import yfinance as yf
-
-logger = logging.getLogger(__name__)
-
 from langgraph.prebuilt import ToolNode
 
-from tradingagents.llm_clients import create_llm_client
-
-from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.dataflows.utils import safe_ticker_component
-from tradingagents.agents.utils.agent_states import (
-    AgentState,
-    InvestDebateState,
-    RiskDebateState,
-)
-from tradingagents.dataflows.config import set_config
-
-# Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
-    get_fundamentals,
     get_balance_sheet,
     get_cashflow,
+    get_fundamentals,
+    get_global_news,
+    get_indicators,
     get_income_statement,
-    get_news,
     get_insider_transactions,
-    get_global_news
+    get_news,
+    get_stock_data,
 )
+from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.dataflows.config import reset_config, use_config
+from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients import create_llm_client
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
+from .setup import GraphSetup
 from .signal_processing import SignalProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class TradingAgentsGraph:
@@ -54,7 +44,7 @@ class TradingAgentsGraph:
         self,
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
-        config: Dict[str, Any] = None,
+        config: Dict[str, Any] | None = None,
         callbacks: Optional[List] = None,
     ):
         """Initialize the trading agents graph and components.
@@ -69,12 +59,19 @@ class TradingAgentsGraph:
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
-        # Update the interface's config
-        set_config(self.config)
+        data_cache_dir = self._require_config_str("data_cache_dir")
+        results_dir = self._require_config_str("results_dir")
+        llm_provider = self._require_config_str("llm_provider")
+        deep_think_llm = self._require_config_str("deep_think_llm")
+        quick_think_llm = self._require_config_str("quick_think_llm")
+        backend_url = self._optional_config_str("backend_url")
+        max_debate_rounds = self._require_config_int("max_debate_rounds")
+        max_risk_discuss_rounds = self._require_config_int("max_risk_discuss_rounds")
+        max_recur_limit = self._require_config_int("max_recur_limit")
 
         # Create necessary directories
-        os.makedirs(self.config["data_cache_dir"], exist_ok=True)
-        os.makedirs(self.config["results_dir"], exist_ok=True)
+        os.makedirs(data_cache_dir, exist_ok=True)
+        os.makedirs(results_dir, exist_ok=True)
 
         # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = self._get_provider_kwargs()
@@ -84,15 +81,15 @@ class TradingAgentsGraph:
             llm_kwargs["callbacks"] = self.callbacks
 
         deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
+            provider=llm_provider,
+            model=deep_think_llm,
+            base_url=backend_url,
             **llm_kwargs,
         )
         quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
+            provider=llm_provider,
+            model=quick_think_llm,
+            base_url=backend_url,
             **llm_kwargs,
         )
 
@@ -106,8 +103,8 @@ class TradingAgentsGraph:
 
         # Initialize components
         self.conditional_logic = ConditionalLogic(
-            max_debate_rounds=self.config["max_debate_rounds"],
-            max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
+            max_debate_rounds=max_debate_rounds,
+            max_risk_discuss_rounds=max_risk_discuss_rounds,
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
@@ -116,24 +113,42 @@ class TradingAgentsGraph:
             self.conditional_logic,
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(max_recur_limit=max_recur_limit)
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
         # State tracking
         self.curr_state = None
         self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
+        self.log_states_dict: dict[str, dict[str, Any]] = {}  # date to full state dict
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
+    def _require_config_str(self, key: str) -> str:
+        value = self.config.get(key)
+        if not isinstance(value, str):
+            raise ValueError(f"{key} must be a string, got {value!r}")
+        return value
+
+    def _optional_config_str(self, key: str) -> str | None:
+        value = self.config.get(key)
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f"{key} must be a string or None, got {value!r}")
+        return value
+
+    def _require_config_int(self, key: str) -> int:
+        value = self.config.get(key)
+        if not isinstance(value, int):
+            raise ValueError(f"{key} must be an int, got {value!r}")
+        return value
+
     def _get_provider_kwargs(self) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
-        provider = self.config.get("llm_provider", "").lower()
+        provider = self._require_config_str("llm_provider").lower()
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
@@ -243,7 +258,7 @@ class TradingAgentsGraph:
         updates = []
         for entry in pending:
             raw, alpha, days = self._fetch_returns(ticker, entry["date"])
-            if raw is None:
+            if raw is None or alpha is None or days is None:
                 continue  # price not available yet — try again next run
             reflection = self.reflector.reflect_on_final_decision(
                 final_decision=entry.get("decision", ""),
@@ -269,36 +284,38 @@ class TradingAgentsGraph:
         with a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
         """
-        self.ticker = company_name
-
-        # Resolve any pending memory-log entries for this ticker before the pipeline runs.
-        self._resolve_pending_entries(company_name)
-
-        # Recompile with a checkpointer if the user opted in.
-        if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
-            )
-            saver = self._checkpointer_ctx.__enter__()
-            self.graph = self.workflow.compile(checkpointer=saver)
-
-            step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date)
-            )
-            if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
-            else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
-
+        token = use_config(self.config)
         try:
+            self.ticker = company_name
+
+            # Resolve any pending memory-log entries for this ticker before the pipeline runs.
+            self._resolve_pending_entries(company_name)
+
+            # Recompile with a checkpointer if the user opted in.
+            if self.config.get("checkpoint_enabled"):
+                self._checkpointer_ctx = get_checkpointer(
+                    self.config["data_cache_dir"], company_name
+                )
+                saver = self._checkpointer_ctx.__enter__()
+                self.graph = self.workflow.compile(checkpointer=saver)
+
+                step = checkpoint_step(
+                    self.config["data_cache_dir"], company_name, str(trade_date)
+                )
+                if step is not None:
+                    logger.info(
+                        "Resuming from step %d for %s on %s", step, company_name, trade_date
+                    )
+                else:
+                    logger.info("Starting fresh for %s on %s", company_name, trade_date)
+
             return self._run_graph(company_name, trade_date)
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
+            reset_config(token)
 
     def _run_graph(self, company_name, trade_date):
         """Execute the graph and write the resulting state to disk and memory log."""

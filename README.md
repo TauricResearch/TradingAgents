@@ -108,15 +108,27 @@ git clone https://github.com/TauricResearch/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+Create a virtual environment with python 3.13 in any of your favorite environment managers:
 ```bash
 conda create -n tradingagents python=3.13
 conda activate tradingagents
 ```
 
+For local Windows development, a project-local virtual environment is recommended:
+```powershell
+python -m venv tradingagents
+.\tradingagents\Scripts\activate
+python -m pip install -e ".[dev]"
+```
+
 Install the package and its dependencies:
 ```bash
 pip install .
+```
+
+Run tests from the active environment with:
+```powershell
+python -m pytest
 ```
 
 ### Docker
