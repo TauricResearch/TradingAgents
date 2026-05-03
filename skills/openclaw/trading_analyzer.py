@@ -49,7 +49,7 @@ def parse_trading_command(user_input: str) -> tuple[str, Optional[str]]:
     ticker = None
     for part in parts:
         cleaned = part.upper().replace(",", "").replace(".", "")
-        if 1 <= len(cleaned) <= 5 and cleaned.isalpha():
+        if 1 <= len(cleaned) <= 5 and cleaned.isalpha() and cleaned not in {"THE", "AND", "FOR", "WITH", "THIS", "THAT", "HELP"}:
             ticker = cleaned
             break
 
