@@ -1,12 +1,12 @@
 import json
-import pytest
 from unittest.mock import MagicMock, patch
 
-from tradingagents.graph._consistency_guard import (
-    extract_rm_claims,
-    check_claims_via_llm,
-)
+import pytest
 
+from tradingagents.graph._consistency_guard import (
+    check_claims_via_llm,
+    extract_rm_claims,
+)
 
 # ---------------------------------------------------------------------------
 # extract_rm_claims

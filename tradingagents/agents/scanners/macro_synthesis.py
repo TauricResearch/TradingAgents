@@ -496,7 +496,7 @@ def create_macro_synthesis(
             parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
             parsed["canonical_regime"] = canonical_regime
             report = json.dumps(parsed)
-        except (ValueError, json.JSONDecodeError):
+        except (ValueError, json.JSONDecodeError) as exc:
             sanitized_report = sanitize_llm_output(report)
             logger.error(
                 "macro_synthesis: could not extract JSON from LLM output; first 200 chars: %s",
@@ -505,7 +505,7 @@ def create_macro_synthesis(
             raise RuntimeError(
                 "Macro synthesis LLM output was not valid JSON; scanner cannot persist "
                 "macro_scan_summary without canonical_regime."
-            )
+            ) from exc
 
         # 3. Resumability: Save after completion
         if report:
