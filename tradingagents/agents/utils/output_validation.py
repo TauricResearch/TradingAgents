@@ -1076,21 +1076,29 @@ def build_investment_plan_structured(
     investment_plan: str,
     contract_version: str = "investment_plan_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for research-manager output."""
     plan = str(investment_plan or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    recommendation: str | None
     if not plan:
         status = "empty"
         abort_reason = ""
+        recommendation = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        recommendation = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    recommendation = _infer_recommendation(plan)
+        try:
+            recommendation = _infer_recommendation(plan, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            recommendation = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
     bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", plan))
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
@@ -1124,21 +1132,29 @@ def build_trader_plan_structured(
     trader_plan: str,
     contract_version: str = "trader_plan_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for trader node output."""
     plan = str(trader_plan or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    final_action: str | None
     if not plan:
         status = "empty"
         abort_reason = ""
+        final_action = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        final_action = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    final_action = _infer_recommendation(plan)
+        try:
+            final_action = _infer_recommendation(plan, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            final_action = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
     has_entry = bool(re.search(r"entry\s*(price|setup|point)", plan, re.IGNORECASE))
     has_stop = bool(re.search(r"stop[.\- ]?loss", plan, re.IGNORECASE))
     has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", plan, re.IGNORECASE))
@@ -1174,21 +1190,29 @@ def build_risk_synthesis_structured(
     risk_synthesis: str,
     contract_version: str = "risk_synthesis_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for risk synthesis node output."""
     text = str(risk_synthesis or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    consensus_direction: str | None
     if not text:
         status = "empty"
         abort_reason = ""
+        consensus_direction = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        consensus_direction = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    consensus_direction = _infer_recommendation(text)
+        try:
+            consensus_direction = _infer_recommendation(text, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            consensus_direction = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
     agreements = len(
         re.findall(
             r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)",
@@ -1229,21 +1253,29 @@ def build_final_decision_structured(
     final_decision: str,
     contract_version: str = "final_decision_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for portfolio-manager final decision."""
     text = str(final_decision or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    action: str | None
     if not text:
         status = "empty"
         abort_reason = ""
+        action = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        action = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    action = _infer_recommendation(text)
+        try:
+            action = _infer_recommendation(text, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            action = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
     )
