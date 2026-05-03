@@ -24,10 +24,12 @@ def test_market_analyst_prompt_includes_canonical_regime():
 
 
 def test_engine_routes_canonical_regime_into_trading_state():
-    """Initial trading state gets canonical regime from the run macro brief."""
+    """Initial trading state gets canonical regime from structured macro_scan_summary JSON."""
+    import json
+
     from agent_os.backend.services.langgraph_engine import _build_trading_graph_initial_state
 
-    macro_brief = "Macro Regime: RISK-ON (+5/6)\nVIX 17.10..."
+    macro_brief = json.dumps({"canonical_regime": {"label": "RISK-ON", "score": 5, "confidence": "high"}})
     state = _build_trading_graph_initial_state(
         ticker="QCOM",
         analysis_date="2026-05-01",
@@ -36,4 +38,3 @@ def test_engine_routes_canonical_regime_into_trading_state():
     )
     assert state["canonical_regime"]["label"] == "RISK-ON"
     assert state["canonical_regime"]["score"] == 5
-    assert state["canonical_regime"]["brief"].startswith("Macro Regime:")

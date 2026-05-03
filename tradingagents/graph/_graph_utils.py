@@ -3,12 +3,12 @@
 import re
 from typing import Any
 
-_REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
-_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*Macro Regime\s*:[^\n]*")
+_REGIME_LABEL_RE = re.compile(r"^(RISK-ON|RISK-OFF|TRANSITION)$", re.IGNORECASE)
+_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*\**\s*Macro Regime(?:\s+Alignment)?\**\s*:[^\n]*")
 _REGIME_PAIR_RE = re.compile(
     r"\b(RISK-ON|RISK-OFF|TRANSITION)\b"
     r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,120}?"
-    r"(?:\(\s*([+-]?\d+)\s*/\s*6\s*\)|\bscore\s+(?:of\s+)?([+-]?\d+)\s*/\s*6\b)",
+    r"(?:\(\s*(?:Score\s*:?\s*)?([+-]?\d+)\s*/\s*6\s*\)|\bscore\s*:?\s*(?:of\s+)?([+-]?\d+)\s*/\s*6\b)",
     re.IGNORECASE,
 )
 

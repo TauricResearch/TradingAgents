@@ -197,4 +197,4 @@ def get_macro_regime(
         str: Formatted Markdown report with regime classification and signal breakdown
     """
     regime_data = classify_macro_regime(curr_date)
-    return format_macro_report(regime_data)
+    return format_macro_report(regime_data, report_date=curr_date)

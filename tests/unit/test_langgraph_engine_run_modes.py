@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 from agent_os.backend.services.langgraph_engine import (
     LangGraphEngine,
     _load_injected_market_report,
+    _parse_canonical_regime,
 )
 from agent_os.backend.services.report_helpers import extract_tickers_from_scan_data
 from agent_os.backend.services.run_helpers import (
@@ -60,6 +61,30 @@ def _root_chain_end_event(output: dict) -> dict:
 
 
 class TestLangGraphHelperClassifiers(unittest.TestCase):
+    def test_parse_canonical_regime_prefers_structured_json(self):
+        payload = json.dumps(
+            {
+                "canonical_regime": {
+                    "label": "RISK-ON",
+                    "score": 4,
+                    "confidence": "high",
+                },
+                "executive_summary": "No score token in prose.",
+            }
+        )
+
+        parsed = _parse_canonical_regime(payload)
+
+        self.assertEqual(
+            parsed,
+            {
+                "label": "RISK-ON",
+                "score": 4,
+                "confidence": "high",
+                "brief": payload,
+            },
+        )
+
     def testis_rate_limit_error_matches_status_code(self):
         exc = RuntimeError("boom")
         exc.status_code = 429
@@ -274,6 +299,27 @@ class TestRunScanReportStorage(unittest.TestCase):
             "macro_scan_summary",
         ):
             self.assertIn(f"{key}.md", written, f"Expected write_text called for {key}.md")
+
+    def test_run_scan_requires_date(self):
+        engine = LangGraphEngine()
+
+        with self.assertRaisesRegex(ValueError, "date"):
+            asyncio.run(_collect(engine.run_scan("run1", {})))
+
+    def test_run_scan_from_node_requires_date(self):
+        engine = LangGraphEngine()
+
+        with self.assertRaisesRegex(ValueError, "date"):
+            asyncio.run(
+                _collect(
+                    engine.run_scan_from_node(
+                        "run1",
+                        {},
+                        "industry_deep_dive",
+                        {"messages": []},
+                    )
+                )
+            )
 
     def test_run_scan_saves_report_store_json(self):
         """run_scan should call ReportStore().save_scan with the parsed summary dict."""
@@ -606,6 +652,66 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         self.assertIn("pipeline_node_results", saved_state)
         self.assertEqual(saved_state["pipeline_node_results"]["market_report"], "market is bullish")
         self.assertEqual(saved_state["pipeline_node_results"]["final_trade_decision"], "BUY AAPL")
+
+    def test_run_pipeline_accepts_structured_canonical_regime_summary(self):
+        mock_wrapper = self._make_mock_graph_wrapper()
+        engine = LangGraphEngine()
+        macro_summary = json.dumps(
+            {
+                "canonical_regime": {
+                    "label": "RISK-ON",
+                    "score": 4,
+                    "confidence": "high",
+                },
+                "executive_summary": "Structured regime only.",
+            }
+        )
+
+        with (
+            patch(
+                "agent_os.backend.services.langgraph_engine.TradingAgentsGraph",
+                return_value=mock_wrapper,
+            ),
+            patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd,
+            patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls,
+            patch(
+                "agent_os.backend.services.langgraph_engine.get_scanner_graph_facts_path"
+            ) as mock_gfp,
+            patch("agent_os.backend.services.langgraph_engine.append_to_digest"),
+            patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"),
+        ):
+            fake_dir = MagicMock(spec=Path)
+            fake_dir.mkdir = MagicMock()
+            mock_gtd.return_value = fake_dir
+            mock_path = MagicMock(spec=Path)
+            mock_path.exists.return_value = False
+            mock_gfp.return_value = mock_path
+            mock_store = MagicMock()
+            mock_rs_cls.return_value = mock_store
+
+            asyncio.run(
+                _collect(
+                    engine.run_pipeline(
+                        "run1",
+                        {
+                            "ticker": "AAPL",
+                            "date": "2026-01-01",
+                            "macro_brief": macro_summary,
+                        },
+                    )
+                )
+            )
+
+        initial_kwargs = mock_wrapper.propagator.create_initial_state.call_args.kwargs
+        self.assertEqual(
+            initial_kwargs["canonical_regime"],
+            {
+                "label": "RISK-ON",
+                "score": 4,
+                "confidence": "high",
+                "brief": macro_summary,
+            },
+        )
 
     def test_run_pipeline_writes_complete_report_md(self):
         """run_pipeline should call _write_complete_report_md."""
@@ -1509,6 +1615,83 @@ class TestRunAutoTickerSource(unittest.TestCase):
         )
         # Config must be restored after fallback failure
         self.assertEqual(engine.config.get("mid_think_llm"), "qwen/qwen3.6-plus-preview:free")
+
+    def test_run_auto_requires_date(self):
+        engine = LangGraphEngine()
+
+        with self.assertRaisesRegex(ValueError, "date"):
+            asyncio.run(_collect(engine.run_auto("auto1", {})))
+
+    def test_run_auto_from_scan_rerun_requires_date(self):
+        engine = LangGraphEngine()
+
+        with self.assertRaisesRegex(ValueError, "date"):
+            asyncio.run(
+                _collect(
+                    engine.run_auto_from_scan_rerun(
+                        "auto1",
+                        {},
+                        "industry_deep_dive",
+                        {"messages": []},
+                    )
+                )
+            )
+
+    def test_run_auto_phase_two_passes_structured_canonical_regime_summary(self):
+        scan_summary = json.dumps(
+            {
+                "canonical_regime": {
+                    "label": "RISK-ON",
+                    "score": 4,
+                    "confidence": "high",
+                },
+                "stocks_to_investigate": [{"ticker": "AAPL"}],
+            }
+        )
+        scan_data = {"stocks_to_investigate": [{"ticker": "AAPL"}]}
+        pipeline_params = []
+        completed_tickers = set()
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            pipeline_params.append(params)
+            completed_tickers.add(params["ticker"])
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+        mock_store = self._make_runtime_analysis_store(scan_data, completed_tickers)
+
+        async def fake_phase_three(**kwargs):
+            yield {"type": "log", "message": "phase three"}
+
+        engine._run_auto_phase_three = fake_phase_three
+
+        with patch(
+            "agent_os.backend.services.langgraph_engine.build_scanner_context_packet",
+            return_value="scanner packet",
+        ):
+            events = asyncio.run(
+                _collect(
+                    engine._run_auto_after_scan(
+                        root_run_id="auto1",
+                        date="2026-01-01",
+                        force=True,
+                        params={"run_id": "auto1"},
+                        store=mock_store,
+                        scan_state={
+                            "scan_date": "2026-01-01",
+                            "run_id": "auto1",
+                            "macro_scan_summary": scan_summary,
+                        },
+                        continue_on_ticker_failure=False,
+                        include_portfolio_holdings=False,
+                    )
+                )
+            )
+
+        self.assertTrue(events)
+        self.assertEqual(pipeline_params[0]["macro_brief"], scan_summary)
 
     def test_run_auto_fallback_applied_when_tier_unknown(self):
         """When infer_fallback_tier cannot identify the tier (model not in error

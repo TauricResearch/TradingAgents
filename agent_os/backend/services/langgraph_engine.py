@@ -11,6 +11,7 @@ import logging
 import re
 import time
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -76,8 +77,7 @@ from tradingagents.report_paths import (
 
 logger = logging.getLogger("agent_os.engine")
 
-_REGIME_LABEL_RE = re.compile(r"\b(RISK-ON|RISK-OFF|TRANSITION)\b", re.IGNORECASE)
-_REGIME_SCORE_RE = re.compile(r"(?:\(\s*|score\s+(?:of\s+)?)?([+-]?\d+)\s*/\s*6", re.IGNORECASE)
+_SCAN_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 # ------------------------------------------------------------------
@@ -156,19 +156,49 @@ def _load_injected_market_report(file_path: str) -> dict[str, Any]:
     }
 
 
-def _parse_canonical_regime(macro_brief: str) -> dict[str, Any]:
-    text = str(macro_brief or "").strip()
-    if not text:
-        return {}
-    label_match = _REGIME_LABEL_RE.search(text)
-    score_match = _REGIME_SCORE_RE.search(text)
-    if not label_match or not score_match:
-        raise ValueError("canonical macro regime could not be parsed from macro brief")
-    return {
-        "label": label_match.group(1).upper(),
-        "score": int(score_match.group(1)),
-        "brief": text,
-    }
+def _parse_canonical_regime(macro_brief: Any) -> dict[str, Any]:
+    if isinstance(macro_brief, dict):
+        payload = macro_brief
+        text = json.dumps(macro_brief)
+    else:
+        text = str(macro_brief or "").strip()
+        if not text:
+            return {}
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            raise ValueError("canonical macro regime: macro_scan_summary is not valid JSON")
+    if not isinstance(payload, dict) or not isinstance(payload.get("canonical_regime"), dict):
+        raise ValueError("canonical macro regime: macro_scan_summary JSON missing canonical_regime key")
+    canonical = payload["canonical_regime"]
+    label = str(canonical.get("label") or "").strip().upper()
+    score = canonical.get("score")
+    confidence = str(canonical.get("confidence") or "").strip().lower()
+    if label not in {"RISK-ON", "RISK-OFF", "TRANSITION"}:
+        raise ValueError(f"canonical_regime has invalid label: {label!r}")
+    if isinstance(score, bool) or not isinstance(score, int) or score < -6 or score > 6:
+        raise ValueError(f"canonical_regime has invalid score: {score!r}")
+    parsed: dict[str, Any] = {"label": label, "score": score, "brief": text}
+    if confidence:
+        if confidence not in {"high", "medium", "low"}:
+            raise ValueError(f"canonical_regime has invalid confidence: {confidence!r}")
+        parsed["confidence"] = confidence
+    return parsed
+
+
+def _require_scanner_date(params: dict[str, Any], *, run_kind: str) -> str:
+    date = str(params.get("date") or "").strip()
+    if not date:
+        raise ValueError(f"{run_kind} requires explicit date (YYYY-MM-DD); no wall-clock fallback.")
+    if not _SCAN_DATE_RE.fullmatch(date):
+        raise ValueError(f"{run_kind} date must be YYYY-MM-DD, got {date!r}.")
+    try:
+        parsed = datetime.strptime(date, "%Y-%m-%d")
+    except ValueError as exc:
+        raise ValueError(f"{run_kind} date must be YYYY-MM-DD, got {date!r}.") from exc
+    if parsed.strftime("%Y-%m-%d") != date:
+        raise ValueError(f"{run_kind} date must be YYYY-MM-DD, got {date!r}.")
+    return date
 
 
 def _build_trading_graph_initial_state(
@@ -632,7 +662,7 @@ class LangGraphEngine:
         self, run_id: str, params: dict[str, Any]
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Run the 3-phase macro scanner and stream events."""
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = _require_scanner_date(params, run_kind="run_scan")
         root_run_id = _root_run_id(run_id, params)
         execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
@@ -816,7 +846,7 @@ class LangGraphEngine:
             yield system_log(f"Unknown scan node '{start_node}' — skipping")
             return
 
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = _require_scanner_date(params, run_kind="run_scan_from_node")
         root_run_id = _root_run_id(run_id, params)
         execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
@@ -1021,14 +1051,7 @@ class LangGraphEngine:
             ticker,
             date,
             run_id=root_run_id,
-            canonical_regime=_parse_canonical_regime(
-                str(
-                    params.get("macro_brief")
-                    or params.get("macro_scan_summary")
-                    or injected_market["macro_regime_report"]
-                    or ""
-                )
-            ),
+            canonical_regime=_parse_canonical_regime(params.get("macro_brief") or ""),
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
             scanner_graph_context_text=scanner_graph_context_text,
@@ -1871,7 +1894,7 @@ class LangGraphEngine:
         self, run_id: str, params: dict[str, Any]
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = _require_scanner_date(params, run_kind="run_auto")
         force = params.get("force", False)
         continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
         include_portfolio_holdings = params.get("include_portfolio_holdings", True)
@@ -2137,12 +2160,7 @@ class LangGraphEngine:
                         "ticker": ticker,
                         "date": date,
                         "run_id": root_run_id,
-                        "macro_brief": str(
-                            scan_state.get("macro_brief")
-                            or scan_state.get("macro_scan_summary")
-                            or scan_state.get("macro_regime_report")
-                            or ""
-                        ),
+                        "macro_brief": scan_state.get("macro_scan_summary") or "",
                         "portfolio_context": "holding"
                         if instrument.instrument_key in holding_instrument_keys
                         else "candidate",
@@ -2398,7 +2416,7 @@ class LangGraphEngine:
         initial_state: dict[str, Any],
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Continue an auto workflow after re-running part of the market scan."""
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = _require_scanner_date(params, run_kind="run_auto_from_scan_rerun")
         force = params.get("force", False)
         continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
         include_portfolio_holdings = params.get("include_portfolio_holdings", True)

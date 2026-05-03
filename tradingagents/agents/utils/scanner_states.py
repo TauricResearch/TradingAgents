@@ -54,6 +54,7 @@ class ScannerState(MessagesState):
 
     # Phase 3: Final output
     macro_scan_summary: Annotated[str, _last_value]
+    macro_regime_report: Annotated[str, _last_value]
 
     # Sender tracking — written by every node, needs reducer for parallel writes
     sender: Annotated[str, _last_value]
