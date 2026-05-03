@@ -175,7 +175,9 @@ analysisRouter.post("/", async (c) => {
           try {
             const parsed = JSON.parse(remaining)
             if (parsed.event && parsed.data !== undefined) {
-              stream.writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) }).catch(() => {})
+              stream
+                .writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) })
+                .catch(() => {})
             }
           } catch {
             // Not valid JSON — skip
