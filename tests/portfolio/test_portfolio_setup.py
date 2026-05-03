@@ -897,3 +897,32 @@ class TestRecordPmDecisionsNode:
         assert ("execute_trades", "record_pm_decisions") in edges
         assert ("record_pm_decisions", "__end__") in edges
         assert ("execute_trades", "__end__") not in edges
+
+    def test_graph_topology_matches_active_guarded_path(self):
+        """Compiled graph must enforce current guarded portfolio execution path."""
+        agents = {
+            "review_holdings": lambda state: {"sender": "review_holdings"},
+            "macro_summary": lambda state: {"sender": "macro_summary"},
+            "micro_summary": lambda state: {"sender": "micro_summary"},
+            "pm_decision": lambda state: {"sender": "pm_decision"},
+        }
+        graph = PortfolioGraphSetup(agents=agents, micro_memory=Mock()).setup_graph().get_graph()
+
+        edges = {(edge.source, edge.target) for edge in graph.edges}
+
+        # Active backbone before fan-out
+        assert ("load_portfolio", "compute_risk") in edges
+        assert ("compute_risk", "portfolio_integrity_guard") in edges
+        assert ("portfolio_integrity_guard", "review_holdings") in edges
+        assert ("review_holdings", "prioritize_candidates") in edges
+
+        # Active tail after fan-in
+        assert ("make_pm_decision", "rescale_buys") in edges
+        assert ("rescale_buys", "cash_sweep") in edges
+        assert ("cash_sweep", "pm_decision_postcheck") in edges
+        assert ("pm_decision_postcheck", "execute_trades") in edges
+
+        # Ensure stale direct edges are not reintroduced
+        assert ("compute_risk", "review_holdings") not in edges
+        assert ("make_pm_decision", "cash_sweep") not in edges
+        assert ("cash_sweep", "execute_trades") not in edges
