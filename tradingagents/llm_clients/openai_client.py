@@ -60,9 +60,10 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
        fails with HTTP 400. ``_create_chat_result`` captures the field on
        receive and ``_get_request_payload`` re-attaches it on send.
 
-    2. **deepseek-reasoner has no tool_choice.** Structured output via
-       function-calling is unavailable, so we raise NotImplementedError
-       and let the agent factories fall back to free-text generation
+    2. **DeepSeek models do not support tool_choice.** Structured output
+       via function-calling is unavailable for all DeepSeek models (not
+       just deepseek-reasoner), so we raise NotImplementedError and let
+       the agent factories fall back to free-text generation
        (see ``tradingagents/agents/utils/structured.py``).
     """
 
@@ -95,13 +96,11 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
         return chat_result
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
-        if self.model_name == "deepseek-reasoner":
-            raise NotImplementedError(
-                "deepseek-reasoner does not support tool_choice; structured "
-                "output is unavailable. Agent factories fall back to "
-                "free-text generation automatically."
-            )
-        return super().with_structured_output(schema, method=method, **kwargs)
+        raise NotImplementedError(
+            f"{self.model_name} does not support tool_choice; structured "
+            "output is unavailable. Agent factories fall back to "
+            "free-text generation automatically."
+        )
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (

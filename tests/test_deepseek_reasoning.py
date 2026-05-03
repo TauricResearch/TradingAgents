@@ -5,9 +5,9 @@ Two pieces verified:
 1. ``reasoning_content`` is captured on receive into the AIMessage's
    ``additional_kwargs`` and re-attached on send so DeepSeek's API
    sees the same value across turns.
-2. ``with_structured_output`` raises NotImplementedError for
-   ``deepseek-reasoner`` so the agent factories' free-text fallback
-   handles the request instead of failing at runtime.
+2. ``with_structured_output`` raises NotImplementedError for all
+   DeepSeek models so the agent factories' free-text fallback handles
+   the request instead of failing at runtime with HTTP 400.
 """
 
 import os
@@ -135,22 +135,27 @@ class TestDeepSeekReasonerStructuredOutput:
         with pytest.raises(NotImplementedError):
             client.with_structured_output(_Sample)
 
-    def test_with_structured_output_works_for_v4(self):
-        """V4 models (non-reasoner) accept tool_choice; structured output works."""
-        client = DeepSeekChatOpenAI(
-            model="deepseek-v4-flash",
-            api_key="placeholder",
-            base_url="https://api.deepseek.com",
-        )
-        from pydantic import BaseModel
+    def test_with_structured_output_raises_for_v4(self):
+        """All DeepSeek models reject tool_choice, not just deepseek-reasoner.
 
-        class _Sample(BaseModel):
-            answer: str
+        V4 Flash, V4 Pro, and deepseek-chat all return HTTP 400 when
+        tool_choice is set. Raising NotImplementedError at bind time lets
+        bind_structured() fall back to free-text cleanly without wasting
+        an API call.
+        """
+        for model in ("deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat"):
+            client = DeepSeekChatOpenAI(
+                model=model,
+                api_key="placeholder",
+                base_url="https://api.deepseek.com",
+            )
+            from pydantic import BaseModel
 
-        # Should return a Runnable, not raise. (The actual API call would
-        # require a real key; we only assert binding succeeds.)
-        wrapped = client.with_structured_output(_Sample)
-        assert wrapped is not None
+            class _Sample(BaseModel):
+                answer: str
+
+            with pytest.raises(NotImplementedError, match="does not support tool_choice"):
+                client.with_structured_output(_Sample)
 
 
 # ---------------------------------------------------------------------------
