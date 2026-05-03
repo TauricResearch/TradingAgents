@@ -535,6 +535,57 @@ class TestDeferredReflection:
         assert raw is not None and alpha is not None and days is not None
         assert days == 2
 
+    # TradingAgentsGraph._resolve_benchmark
+
+    def test_resolve_benchmark_explicit_override(self):
+        """config["benchmark_ticker"] wins over the suffix map."""
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": "QQQ", "benchmark_map": {"": "SPY"}}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "7203.T") == "QQQ"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "NVDA") == "QQQ"
+
+    def test_resolve_benchmark_suffix_map(self):
+        """Known suffixes resolve to their regional benchmark."""
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": None, "benchmark_map": {
+            ".T": "^N225", ".HK": "^HSI", ".NS": "^NSEI", ".L": "^FTSE",
+            ".TO": "^GSPTSE", ".AX": "^AXJO", ".BO": "^BSESN", "": "SPY",
+        }}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "7203.T") == "^N225"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "0700.HK") == "^HSI"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "RELIANCE.NS") == "^NSEI"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AZN.L") == "^FTSE"
+
+    def test_resolve_benchmark_no_suffix_us_ticker(self):
+        """US tickers without a dot suffix resolve to SPY."""
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": None, "benchmark_map": {"": "SPY"}}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "NVDA") == "SPY"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AAPL") == "SPY"
+
+    def test_resolve_benchmark_unknown_suffix_falls_back(self):
+        """Unrecognised suffix falls back to the "" key (SPY)."""
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": None, "benchmark_map": {"": "SPY"}}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "FAKE.XX") == "SPY"
+
+    # Reflector.reflect_on_final_decision — benchmark_name label
+
+    def test_reflect_includes_benchmark_name(self):
+        """benchmark_name appears in the human message sent to the LLM."""
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value.content = "Directionally correct."
+        reflector = Reflector(mock_llm)
+        reflector.reflect_on_final_decision(
+            final_decision=DECISION_BUY,
+            raw_return=0.05,
+            alpha_return=0.02,
+            benchmark_name="^N225",
+        )
+        messages = mock_llm.invoke.call_args[0][0]
+        human_content = next(content for role, content in messages if role == "human")
+        assert "Alpha vs ^N225:" in human_content
+
     # TradingAgentsGraph._resolve_pending_entries
 
     def test_resolve_skips_other_tickers(self, tmp_path):

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+- Configurable alpha benchmark for non-US tickers. `DEFAULT_CONFIG` now exposes
+  `benchmark_ticker` (explicit override) and `benchmark_map` (suffix-based
+  auto-detection: `.T` → `^N225`, `.HK` → `^HSI`, `.NS` → `^NSEI`, etc.).
+  US tickers continue to use SPY by default. The reflection log now labels
+  alpha against the actual benchmark used (e.g. `Alpha vs ^N225`) instead of
+  the hardcoded `Alpha vs SPY`. (#628)
+
 ## [0.2.4] — 2026-04-25
 
 ### Added

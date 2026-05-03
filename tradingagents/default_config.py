@@ -43,6 +43,20 @@ DEFAULT_CONFIG = {
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
     },
+    # Benchmark for alpha calculation in the reflection layer.
+    # None = auto-detect from ticker suffix via benchmark_map.
+    # Set an explicit ticker (e.g. "QQQ") to override for all tickers.
+    "benchmark_ticker": None,
+    "benchmark_map": {
+        ".NS":  "^NSEI",    # NSE India — Nifty 50
+        ".BO":  "^BSESN",   # BSE India — Sensex
+        ".T":   "^N225",    # Tokyo — Nikkei 225
+        ".HK":  "^HSI",     # Hong Kong — Hang Seng
+        ".L":   "^FTSE",    # London — FTSE 100
+        ".TO":  "^GSPTSE",  # Toronto — TSX Composite
+        ".AX":  "^AXJO",    # Australia — ASX 200
+        "":     "SPY",      # default for US-listed (no suffix)
+    },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
