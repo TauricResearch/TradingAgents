@@ -4,12 +4,12 @@ import re
 from typing import Any
 
 _REGIME_LABEL_RE = re.compile(r"^(RISK-ON|RISK-OFF|TRANSITION)$", re.IGNORECASE)
-_REGIME_LINE_RE = re.compile(r"(?im)^\s*[*-]?\s*\**\s*Macro Regime(?:\s+Alignment)?\**\s*:[^\n]*")
 _REGIME_PAIR_RE = re.compile(
     r"\b(RISK-ON|RISK-OFF|TRANSITION)\b"
-    r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,120}?"
-    r"(?:\(\s*(?:Score\s*:?\s*)?([+-]?\d+)\s*/\s*6\s*\)|\bscore\s*:?\s*(?:of\s+)?([+-]?\d+)\s*/\s*6\b)",
-    re.IGNORECASE,
+    r"(?:(?!\b(?:RISK-ON|RISK-OFF|TRANSITION)\b).){0,200}?"
+    r"(?:\(\s*(?:Score\s*:?\s*)?\*{0,2}([+-]?\d+)\s*/\s*6\*{0,2}\s*\)"
+    r"|\bscore\s*:?\s*(?:of\s+)?\*{0,2}([+-]?\d+)\s*/\s*6\b)",
+    re.IGNORECASE | re.DOTALL,
 )
 
 
@@ -112,9 +112,7 @@ def assert_regime_consistent(analyst_output: str, canonical: dict[str, Any]) -> 
     ):
         raise ValueError(f"malformed canonical regime score: {canonical_score!r}")
 
-    line_match = _REGIME_LINE_RE.search(text)
-    statement = line_match.group(0) if line_match else ""
-    pair_match = _REGIME_PAIR_RE.search(statement)
+    pair_match = _REGIME_PAIR_RE.search(text)
     if not pair_match:
         raise ValueError(
             f"could not parse regime from analyst output (first 200 chars): {text[:200]!r}"
