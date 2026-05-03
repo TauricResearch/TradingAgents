@@ -4,6 +4,7 @@ from typing import Any, Optional
 from langchain_openai import AzureChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
+from .retry import llm_retry
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
@@ -16,7 +17,7 @@ class NormalizedAzureChatOpenAI(AzureChatOpenAI):
     """AzureChatOpenAI with normalized content output."""
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        return normalize_content(llm_retry(super().invoke, input, config, **kwargs))
 
 
 class AzureOpenAIClient(BaseLLMClient):

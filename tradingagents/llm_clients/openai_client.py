@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
+from .retry import llm_retry
 from .validators import validate_model
 
 
@@ -24,7 +25,7 @@ class NormalizedChatOpenAI(ChatOpenAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        return normalize_content(llm_retry(super().invoke, input, config, **kwargs))
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
         if method is None:
