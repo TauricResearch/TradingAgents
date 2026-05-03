@@ -80,9 +80,49 @@ def test_extract_nok_real_output():
     assert any("$4.39B" in c and "$6.13B" in c for c in claims)
 
 
+def test_extract_trailing_tag_high():
+    text = "- Revenue grew +15% YoY, increasing from $906M to $1,043M. [HIGH]"
+    assert extract_rm_claims(text) == ["Revenue grew +15% YoY, increasing from $906M to $1,043M."]
+
+
+def test_extract_trailing_tag_parenthesis():
+    text = "- Asset price breakout at $79.93 on 11.54x relative volume. (MED)"
+    assert extract_rm_claims(text) == ["Asset price breakout at $79.93 on 11.54x relative volume."]
+
+
+def test_extract_trailing_tag_mixed_format():
+    """Both prefix and trailing formats in the same text — all claims extracted."""
+    text = (
+        "- [HIGH] Revenue grew +15% YoY.\n"
+        "- Margin compressed 120bps QoQ. (MED)\n"
+    )
+    claims = extract_rm_claims(text)
+    assert len(claims) == 2
+    assert "Revenue grew +15% YoY." in claims
+    assert "Margin compressed 120bps QoQ." in claims
+
+
+def test_extract_deduplicates_same_claim():
+    """Same claim text matched by both prefix and trailing patterns → appears once."""
+    text = (
+        "- [HIGH] Revenue grew +15% YoY.\n"
+        "- Revenue grew +15% YoY. [HIGH]\n"
+    )
+    claims = extract_rm_claims(text)
+    assert len(claims) == 1
+    assert claims[0] == "Revenue grew +15% YoY."
+
+
 # ---------------------------------------------------------------------------
 # check_claims_via_llm
 # ---------------------------------------------------------------------------
+
+def _make_invoke_with_timeout_patch(response_json: dict):
+    """Return a patch target and side_effect for invoke_with_timeout."""
+    msg = MagicMock()
+    msg.content = json.dumps(response_json)
+    return msg
+
 
 def _mock_llm(response_json: dict) -> MagicMock:
     llm = MagicMock()
@@ -92,57 +132,78 @@ def _mock_llm(response_json: dict) -> MagicMock:
     return llm
 
 
+_IWT_PATH = "tradingagents.graph._consistency_guard.invoke_with_timeout"
+
+
 def test_check_claims_no_violations():
-    llm = _mock_llm({"results": [{"index": 0, "ok": True}]})
-    result = check_claims_via_llm(["Revenue grew +15% YoY."], "Revenue: +15% YoY.", llm)
+    msg = _make_invoke_with_timeout_patch({"results": [{"index": 0, "ok": True}]})
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        result = check_claims_via_llm(["Revenue grew +15% YoY."], "Revenue: +15% YoY.", MagicMock())
     assert result == [{"index": 0, "ok": True}]
 
 
 def test_check_claims_with_violation():
-    llm = _mock_llm({
-        "results": [
-            {"index": 0, "ok": False, "reason": "Fundamentals show compression, not expansion."}
-        ]
+    msg = _make_invoke_with_timeout_patch({
+        "results": [{"index": 0, "ok": False, "reason": "Fundamentals show compression, not expansion."}]
     })
-    result = check_claims_via_llm(["Margin expanded 200bps."], "Margin compressed 270bps.", llm)
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        result = check_claims_via_llm(["Margin expanded 200bps."], "Margin compressed 270bps.", MagicMock())
     assert result[0]["ok"] is False
     assert "compression" in result[0]["reason"]
 
 
 def test_check_claims_empty_list_skips_llm():
-    llm = MagicMock()
-    result = check_claims_via_llm([], "any fundamentals", llm)
+    with patch(_IWT_PATH) as mock_iwt:
+        result = check_claims_via_llm([], "any fundamentals", MagicMock())
     assert result == []
-    llm.invoke.assert_not_called()
+    mock_iwt.assert_not_called()
 
 
 def test_check_claims_invalid_json_raises():
-    llm = MagicMock()
     msg = MagicMock()
     msg.content = "not valid json at all"
-    llm.invoke.return_value = msg
-    with pytest.raises(ValueError, match="not valid JSON"):
-        check_claims_via_llm(["some claim"], "some fundamentals", llm)
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        with pytest.raises(ValueError, match="not valid JSON"):
+            check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
 
 
 def test_check_claims_missing_results_key_raises():
-    llm = _mock_llm({"something_else": []})
-    with pytest.raises(ValueError, match="missing 'results' key"):
-        check_claims_via_llm(["some claim"], "some fundamentals", llm)
+    msg = _make_invoke_with_timeout_patch({"something_else": []})
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        with pytest.raises(ValueError, match="missing 'results' key"):
+            check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
 
 
 def test_check_claims_fail_open_for_missing_index():
     """LLM returns fewer results than claims — missing indexes default to ok=True."""
-    llm = _mock_llm({"results": [{"index": 0, "ok": True}]})
-    result = check_claims_via_llm(
-        ["Claim 0.", "Claim 1.", "Claim 2."],
-        "some fundamentals",
-        llm,
-    )
+    msg = _make_invoke_with_timeout_patch({"results": [{"index": 0, "ok": True}]})
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        result = check_claims_via_llm(
+            ["Claim 0.", "Claim 1.", "Claim 2."],
+            "some fundamentals",
+            MagicMock(),
+        )
     assert len(result) == 3
     assert result[0]["ok"] is True
     assert result[1]["ok"] is True
     assert result[2]["ok"] is True
+
+
+def test_check_claims_timeout_raises():
+    """invoke_with_timeout returning an error raises ValueError."""
+    with patch(_IWT_PATH, return_value=(None, TimeoutError("exceeded 300.0s"))):
+        with pytest.raises(ValueError, match="LLM judge call failed"):
+            check_claims_via_llm(["some claim"], "some fundamentals", MagicMock())
+
+
+def test_check_claims_nonboolean_ok_treated_as_fail_open():
+    """Result with non-boolean ok (e.g. string 'true') is filtered → treated as ok=True."""
+    msg = _make_invoke_with_timeout_patch({
+        "results": [{"index": 0, "ok": "true"}]  # string, not bool
+    })
+    with patch(_IWT_PATH, return_value=(msg, None)):
+        result = check_claims_via_llm(["Claim 0."], "some fundamentals", MagicMock())
+    assert result[0]["ok"] is True  # fail-open default
 
 
 # ---------------------------------------------------------------------------

@@ -9,9 +9,17 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 
-_CLAIM_RE = re.compile(
+# Prefix format: - [HIGH] claim text  /  • (MED) claim text
+_CLAIM_PREFIX_RE = re.compile(
     r"^\s*[-•*]\s*[\[\(](HIGH|MED|LOW)[\]\)]\s+(.+)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Trailing format: - claim text [HIGH]  /  - claim text (MED)
+_CLAIM_TRAILING_RE = re.compile(
+    r"^\s*[-•*]\s+(.+?)\s+[\[\(](HIGH|MED|LOW)[\]\)]\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -59,8 +67,24 @@ Respond with ONLY valid JSON, no prose:
 
 
 def extract_rm_claims(rm_text: str) -> list[str]:
-    """Return claim strings from [HIGH]/[MED]/[LOW] bullet lines in RM investment plan."""
-    return [m.group(2).strip() for m in _CLAIM_RE.finditer(rm_text)]
+    """Return claim strings from [HIGH]/[MED]/[LOW] bullet lines in RM investment plan.
+
+    Handles both prefix format (- [HIGH] claim) and trailing format (- claim (HIGH)).
+    Deduplicates while preserving order; prefix matches take priority.
+    """
+    seen: set[str] = set()
+    claims: list[str] = []
+    for m in _CLAIM_PREFIX_RE.finditer(rm_text):
+        text = m.group(2).strip()
+        if text not in seen:
+            seen.add(text)
+            claims.append(text)
+    for m in _CLAIM_TRAILING_RE.finditer(rm_text):
+        text = m.group(1).strip()
+        if text not in seen:
+            seen.add(text)
+            claims.append(text)
+    return claims
 
 
 def check_claims_via_llm(
@@ -72,13 +96,20 @@ def check_claims_via_llm(
 
     Returns a list of dicts with keys: index (int), ok (bool), reason (str, violations only).
     Missing indexes are treated as ok=True (fail-open for partial responses).
-    Raises ValueError on unparseable LLM response.
+    Raises ValueError on unparseable or timed-out LLM response.
     """
     if not claims:
         return []
 
     payload = json.dumps({"claims": claims, "fundamentals": fundamentals}, ensure_ascii=False)
-    response = llm.invoke([SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=payload)])
+    timeout = resolve_timeout("quick")
+    response, invoke_error = invoke_with_timeout(
+        llm,
+        [SystemMessage(content=_SYSTEM_PROMPT), HumanMessage(content=payload)],
+        timeout_seconds=timeout,
+    )
+    if invoke_error is not None or response is None:
+        raise ValueError(f"rm_consistency_guard: LLM judge call failed — {invoke_error}")
     raw = response.content if hasattr(response, "content") else str(response)
 
     try:
@@ -93,5 +124,16 @@ def check_claims_via_llm(
     if not isinstance(results, list):
         raise ValueError(f"rm_consistency_guard: 'results' is not a list — {raw[:300]}")
 
-    result_by_index = {r.get("index"): r for r in results if isinstance(r, dict) and isinstance(r.get("index"), int)}
+    result_by_index: dict[int, dict[str, Any]] = {}
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        idx = r.get("index")
+        if not isinstance(idx, int):
+            continue
+        ok = r.get("ok")
+        if not isinstance(ok, bool):
+            continue
+        result_by_index[idx] = r
+
     return [result_by_index.get(i, {"index": i, "ok": True}) for i in range(len(claims))]
