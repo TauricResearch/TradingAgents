@@ -124,7 +124,7 @@ def analyze_stock(
 
     except Exception as e:
         error_msg = f"Error analyzing {ticker}: {str(e)}"
-        return f"❌ {error_msg}\n\n```\n{traceback.format_exc()}\n```"
+        return f"❌ {error_msg}\n\nPlease check the application logs for more details."
 
 
 def format_trading_report(state: Dict[str, Any], decision: Dict[str, Any]) -> str:
