@@ -29,7 +29,9 @@ def test_engine_routes_canonical_regime_into_trading_state():
 
     from agent_os.backend.services.langgraph_engine import _build_trading_graph_initial_state
 
-    macro_brief = json.dumps({"canonical_regime": {"label": "RISK-ON", "score": 5, "confidence": "high"}})
+    macro_brief = json.dumps(
+        {"canonical_regime": {"label": "RISK-ON", "score": 5, "confidence": "high"}}
+    )
     state = _build_trading_graph_initial_state(
         ticker="QCOM",
         analysis_date="2026-05-01",

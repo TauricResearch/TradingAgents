@@ -108,7 +108,9 @@ def _parse_and_validate(raw: str, claim_count: int) -> list[dict[str, Any]]:
     try:
         parsed = extract_json(raw)
     except Exception as exc:
-        raise ValueError(f"rm_consistency_guard: LLM response is not valid JSON — {raw[:300]}") from exc
+        raise ValueError(
+            f"rm_consistency_guard: LLM response is not valid JSON — {raw[:300]}"
+        ) from exc
 
     if not isinstance(parsed, dict) or "results" not in parsed:
         raise ValueError(f"rm_consistency_guard: LLM response missing 'results' key — {raw[:300]}")
@@ -189,7 +191,9 @@ def check_claims_via_llm(
             last=len(claims) - 1,
         )
         repair_messages = messages + [AIMessage(content=raw), HumanMessage(content=repair_prompt)]
-        response2, invoke_error2 = invoke_with_timeout(llm, repair_messages, timeout_seconds=timeout)
+        response2, invoke_error2 = invoke_with_timeout(
+            llm, repair_messages, timeout_seconds=timeout
+        )
         if invoke_error2 is not None or response2 is None:
             raise ValueError(
                 f"rm_consistency_guard: repair retry failed — {invoke_error2}"

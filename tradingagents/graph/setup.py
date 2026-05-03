@@ -138,7 +138,9 @@ class GraphSetup:
             for r in results:
                 if not r.get("ok"):
                     idx = r.get("index")
-                    claim_text = claims[idx] if isinstance(idx, int) and 0 <= idx < len(claims) else ""
+                    claim_text = (
+                        claims[idx] if isinstance(idx, int) and 0 <= idx < len(claims) else ""
+                    )
                     violations.append({"claim": claim_text, "reason": r.get("reason", "")})
             attempt = int(state.get("_rm_consistency_attempt") or 0)
             if not violations:
@@ -435,7 +437,9 @@ class GraphSetup:
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("RM Consistency Guard", self._make_rm_consistency_guard_node(self.quick_thinking_llm))
+        workflow.add_node(
+            "RM Consistency Guard", self._make_rm_consistency_guard_node(self.quick_thinking_llm)
+        )
         workflow.add_node("Trader", trader_node)
 
         workflow.add_edge(START, "Bull Researcher")

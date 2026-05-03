@@ -571,9 +571,7 @@ class TestFormatMacroReport:
         monkeypatch.setattr(
             fundamental_data_tools, "classify_macro_regime", fake_classify_macro_regime
         )
-        monkeypatch.setattr(
-            fundamental_data_tools, "format_macro_report", fake_format_macro_report
-        )
+        monkeypatch.setattr(fundamental_data_tools, "format_macro_report", fake_format_macro_report)
 
         result = fundamental_data_tools.get_macro_regime.invoke({"curr_date": "2026-03-30"})
 
@@ -598,9 +596,7 @@ class TestFormatMacroReport:
             captured["report_date"] = report_date
             return "live report"
 
-        monkeypatch.setattr(
-            fundamental_data_tools, "format_macro_report", fake_format_macro_report
-        )
+        monkeypatch.setattr(fundamental_data_tools, "format_macro_report", fake_format_macro_report)
 
         result = fundamental_data_tools.get_macro_regime.invoke({})
 
