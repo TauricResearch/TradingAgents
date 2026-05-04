@@ -1,0 +1,6 @@
+# This is Git's per-user configuration file.
+[user]
+  name = Eric Guo
+  email = zujian.guo@hotmail.com
+[push]
+  autoSetupRemote = true
