@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+import streamlit as st
+
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -21,8 +23,13 @@ def results_dir() -> Path:
     return Path(DEFAULT_CONFIG["results_dir"])
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def discover_logs() -> List[Dict[str, Any]]:
     """Walk the results directory and return one entry per state-log file.
+
+    Cached for 30 seconds — long enough that clicking around the History
+    page doesn't re-walk the filesystem every interaction, short enough
+    that a freshly completed run shows up promptly.
 
     Two kinds of files are surfaced:
     - **Archived per-run files** under ``<ticker>/TradingAgentsStrategy_logs/runs/``
