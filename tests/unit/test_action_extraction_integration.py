@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # Realistic PM output that bit us in audit run 01KQQGTQN98BZHTFECB8QXPTKA
 # Multi-line markdown header format that the old regex missed
 _OWL_PM_EXCERPT = """\

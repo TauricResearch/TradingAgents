@@ -6,7 +6,6 @@ import pytest
 def test_extraction_result_importable():
     """Verify ExtractionResult dataclass can be imported and instantiated."""
     from tradingagents.agents.utils.output_validation import (
-        ActionExtractionError,
         ExtractionResult,
     )
     

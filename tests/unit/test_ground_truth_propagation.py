@@ -14,7 +14,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from langchain_core.messages import HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.summary_context import build_research_packet
 
