@@ -181,19 +181,23 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 }
 
 /* Signals table — price history sparkline column */
-.signals-table .trend-cell {
+.signals-table .trend-cell,
+.positions-table .trend-cell {
   font-family: 'Datatype', sans-serif;
   font-feature-settings: 'calt' 1, 'liga' 1;
   -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
   font-size: 1rem;
-  min-width: 6rem;
+  min-width: 5rem;
 }
 .trend-sparkline {
   font-family: 'Datatype', sans-serif;
   font-feature-settings: 'calt' 1, 'liga' 1;
   -webkit-font-feature-settings: 'calt' 1, 'liga' 1;
   font-size: 0.95rem;
+  color: inherit;
 }
+.positions-table .trend-cell.positive { color: var(--green); }
+.positions-table .trend-cell.negative { color: var(--red); }
 .signals-table .status-buy   { color: var(--green); }
 .signals-table .status-sell  { color: var(--red); }
 .signals-table .status-hold  { color: var(--text-dim); }

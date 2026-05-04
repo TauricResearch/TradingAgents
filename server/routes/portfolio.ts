@@ -82,6 +82,7 @@ portfolioRouter.delete("/:id", (c) => {
 interface PriceData {
   price: number | null
   currency: string
+  history: { date: string; close: number }[]
 }
 
 interface PositionEnriched {
@@ -100,6 +101,7 @@ interface PositionEnriched {
   pnl_gbp: number | null
   pnl_pct: number | null
   currency: string
+  price_history: { date: string; close: number }[] | null
 }
 
 interface PortfolioSummary {
@@ -140,7 +142,7 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
   const fxPairs = ["GBPEUR=X", "GBPUSD=X", "GBPEUR", "GBPUSD"]
   const allTickers = [...tickers, ...fxPairs]
 
-  // Batch fetch using prices batch endpoint logic (inline to avoid circular deps)
+  // Use /api/prices/batch to get full price data (price + history) for all tickers
   const priceResults = await batchFetchPrices(allTickers)
 
   // Build FX rate map
@@ -167,7 +169,7 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
   let totalCost = 0
 
   const enriched: PositionEnriched[] = rows.map((p) => {
-    const priceData = priceResults.get(p.ticker)
+    const priceData = priceResults.get(p.ticker) ?? null
     let currentPriceGbp: number | null = null
 
     if (priceData?.price != null) {
@@ -211,6 +213,7 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
       pnl_gbp: pnlGbp != null ? Math.round(pnlGbp * 100) / 100 : null,
       pnl_pct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
       currency: priceData?.currency ?? "GBP",
+      price_history: priceData?.history ?? null,
     }
   })
 
@@ -257,7 +260,7 @@ async function batchFetchPrices(
         const cached = priceCache.get(ticker)
         const now = Date.now()
         if (cached && cached.expires > now) {
-          resolve([ticker, { price: cached.price, currency: "USD" }])
+          resolve([ticker, { price: cached.price, currency: "USD", history: [] }])
           return
         }
 
@@ -276,12 +279,13 @@ async function batchFetchPrices(
             if (price != null) {
               priceCache.set(ticker, { price, expires: endOfToday() })
             }
-            resolve([ticker, { price, currency }])
+            const history: { date: string; close: number }[] = (data.history ?? []).slice(-20)
+          resolve([ticker, { price, currency, history }])
           } catch {
-            resolve([ticker, { price: null, currency: "USD" }])
+            resolve([ticker, { price: null, currency: "USD", history: [] }])
           }
         })
-        child.on("error", () => resolve([ticker, { price: null, currency: "USD" }]))
+        child.on("error", () => resolve([ticker, { price: null, currency: "USD", history: [] }]))
       }),
   )
 

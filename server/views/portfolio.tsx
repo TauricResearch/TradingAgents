@@ -36,7 +36,7 @@ export function PortfolioView() {
       <section class="panel">
         <h3>Positions</h3>
         <div style="overflow-x:auto">
-          <table id="positions-table">
+          <table id="positions-table" class="positions-table">
             <thead>
               <tr>
                 <th>Platform</th>
@@ -44,6 +44,7 @@ export function PortfolioView() {
                 <th>Qty</th>
                 <th>Avg Cost</th>
                 <th>Current</th>
+                <th>Trend</th>
                 <th>Value (GBP)</th>
                 <th>P&amp;L</th>
                 <th class="date-col">Entry</th>
@@ -52,7 +53,7 @@ export function PortfolioView() {
               </tr>
             </thead>
             <tbody id="positions-tbody">
-              <tr><td colSpan={10} class="muted">Loading…</td></tr>
+              <tr><td colSpan={11} class="muted">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -131,6 +132,20 @@ function _fmtDate(d) {
   if (parts.length !== 3) return d;
   return parseInt(parts[2],10) + '-' + months[parseInt(parts[1],10)-1];
 }
+function _norm(vals) {
+  if (!vals || vals.length === 0) return [];
+  var lo = Math.min.apply(null, vals);
+  var hi = Math.max.apply(null, vals);
+  var rng = hi - lo;
+  if (rng === 0) return vals.map(function() { return 50; });
+  return vals.map(function(v) { return Math.round(((v - lo) / rng) * 100); });
+}
+function _sparkline(priceHistory) {
+  if (!priceHistory || priceHistory.length === 0) return null;
+  var closes = priceHistory.slice(-20).map(function(h) { return h.close; }).reverse();
+  var norm = _norm(closes);
+  return norm.length > 0 ? '{l:' + norm.join(',') + '}' : null;
+}
 
 function loadSummary() {
   var loading = document.getElementById('pnl-loading');
@@ -174,14 +189,17 @@ function updatePositionsTable(positions) {
   var tbody = document.getElementById('positions-tbody');
   if (!tbody) return;
   if (!positions || positions.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="muted">No open positions</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="muted">No open positions</td></tr>';
     return;
   }
   tbody.innerHTML = positions.map(function(p) {
     var pnl = p.pnl_gbp;
     var pnlPct = p.pnl_pct;
     var pnlCls = _cls(pnl);
-    var pnlStr = pnl != null ? _fmtPnl(pnl) + ' (' + (pnlPct != null ? (pnl >= 0 ? '+' : '') + _fmt(pnlPct) + '%' : '') + ')' : '—';
+    var pnlPctStr = pnlPct != null ? _fmt(pnlPct) + '%' : null;
+    var pnlStr = pnl != null
+      ? _fmtPnl(pnl) + (pnlPctStr ? ' (' + (pnl >= 0 ? '+' : '') + pnlPctStr + ')' : '')
+      : '—';
     var curPrice = p.current_price_gbp != null ? '\\u00a3' + _fmt(p.current_price_gbp) : '—';
     var curVal = p.current_value_gbp != null ? '\\u00a3' + _fmt(p.current_value_gbp) : '—';
     return '<tr>' +
