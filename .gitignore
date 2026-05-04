@@ -237,3 +237,4 @@ scratchpad/
 node_modules/
 !server/lib/
 portfolio.db
+test_portfolio.db
