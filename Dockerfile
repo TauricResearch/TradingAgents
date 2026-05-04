@@ -20,7 +20,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 RUN useradd --create-home appuser \
     && mkdir -p /home/appuser/.tradingagents \
-    && chown -R appuser:appuser /home/appuser/.tradingagents
+    && chown -R appuser:appuser /home/appuser
 USER appuser
 WORKDIR /home/appuser/app
 
