@@ -5,6 +5,11 @@ from typing import Any
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.historical_context import (
+    find_latest_prior_analysis,
+    find_latest_prior_pm_decision,
+    format_prior_context_block,
+)
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_trader_plan_structured,
@@ -82,6 +87,24 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
 
+        prior_analysis = find_latest_prior_analysis(
+            ticker=ticker,
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        prior_pm_decision = find_latest_prior_pm_decision(
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "default"),
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        prior_context_block = format_prior_context_block(
+            ticker=ticker,
+            prior_analysis=prior_analysis,
+            prior_pm_decision=prior_pm_decision,
+            max_chars=1200,
+        )
+        anon_prior_context = (
+            anonymize_ticker(prior_context_block, ticker) if prior_context_block else ""
+        )
+
         scanner_section = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context to preserve catalysts, exposure edges, and risk factors when translating research into a trade plan."
@@ -127,7 +150,9 @@ YOUR TASK:
 5. **FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL****
 
 Apply lessons from past decisions:
-{anon_past_memory_str}""",
+{anon_past_memory_str}
+
+{anon_prior_context}""",
             },
             context,
         ]
