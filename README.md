@@ -1,6 +1,3 @@
-
----
-
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## Fork Status
@@ -11,12 +8,7 @@ The fork keeps the original multi-agent trading analysis foundation, but its dir
 
 Selective upstream sync means upstream bug fixes, security fixes, and useful infrastructure improvements may be pulled in when they fit this fork. This project does not aim to mirror upstream feature direction or preserve strict drop-in compatibility.
 
-
-<div align="center">
-
-üöÄ [TradingAgents](#tradingagents-framework) | ‚ö° [Installation & CLI](#installation-and-cli) | üé¨ [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | üì¶ [Package Usage](#tradingagents-package) | ü§ù [Contributing](#contributing) | üìÑ [Citation](#citation)
-
-</div>
+?öÄ [TradingAgents](#tradingagents-framework) | ‚ö° [Install & Run](#installation-and-cli) | ?é¨ [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | ?ì¶ [Package Usage](#tradingagents-package) | ?§? [Contributing](#contributing) | ?ìÑ [Citation](#citation)
 
 ## TradingAgents Framework
 
@@ -77,18 +69,11 @@ git clone https://github.com/skanga/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment with python 3.13 in any of your favorite environment managers:
-
-```bash
-conda create -n tradingagents python=3.13
-conda activate tradingagents
-```
-
-For local Windows development, a project-local virtual environment is recommended:
+Create a project-local virtual environment with Python 3.13:
 
 ```powershell
-python -m venv tradingagents
-.\tradingagents\Scripts\activate
+python -m venv .venv
+.\.venv\Scripts\activate
 python -m pip install -e ".[dev]"
 ```
 
@@ -96,6 +81,12 @@ Install the package and its dependencies:
 
 ```bash
 pip install .
+```
+
+Run it interactively (you will be prompted for everything)
+
+```bash
+python -m cli.main
 ```
 
 Run tests from the active environment with:
@@ -175,7 +166,7 @@ TRADINGAGENTS_GOOGLE_THINKING_LEVEL=
 TRADINGAGENTS_ANTHROPIC_EFFORT=
 ```
 
-For any OpenAI-compatible endpoint, use the OpenAI provider with a custom base URL:
+For any unknown OpenAI-compatible endpoint (like InceptionLabs in this case), use the OpenAI provider with a custom base URL:
 
 ```bash
 tradingagents \
@@ -196,14 +187,14 @@ tradingagents \
 When all pre-analysis options are supplied, the CLI skips the setup prompts and starts the analysis directly.
 Use `--analysis-date today` to resolve the date at runtime, or pass an explicit `YYYY-MM-DD` value for reproducible historical runs.
 
-The same setup can live in `.env`:
+The same setup can live in the `.env` file instead - this example uses groq:
 
 ```bash
 OPENAI_API_KEY=...
 TRADINGAGENTS_LLM_PROVIDER=openai
-TRADINGAGENTS_BACKEND_URL=https://api.inceptionlabs.ai/v1
-TRADINGAGENTS_QUICK_MODEL=mercury-2
-TRADINGAGENTS_DEEP_MODEL=mercury-2
+TRADINGAGENTS_BACKEND_URL=https://api.groq.com/openai/v1
+TRADINGAGENTS_QUICK_MODEL=openai/gpt-oss-20b
+TRADINGAGENTS_DEEP_MODEL=openai/gpt-oss-120b
 ```
 
 Custom OpenAI-compatible base URLs use the Chat Completions-compatible path and accept unknown model IDs without catalog validation warnings.
