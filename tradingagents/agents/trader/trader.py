@@ -92,7 +92,7 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             as_of_date=str(state.get("trade_date") or ""),
         )
         prior_pm_decision = find_latest_prior_pm_decision(
-            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "default"),
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
             as_of_date=str(state.get("trade_date") or ""),
         )
         prior_context_block = format_prior_context_block(
@@ -122,6 +122,7 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for the stock. {instrument_context} This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {anon_investment_plan}\n\nLeverage these insights to make an informed and strategic decision.{scanner_section}",
         }
 
+        _prior_suffix = f"\n\n{anon_prior_context}" if anon_prior_context else ""
         messages = [
             {
                 "role": "system",
@@ -150,9 +151,7 @@ YOUR TASK:
 5. **FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL****
 
 Apply lessons from past decisions:
-{anon_past_memory_str}
-
-{anon_prior_context}""",
+{anon_past_memory_str}{_prior_suffix}""",
             },
             context,
         ]
