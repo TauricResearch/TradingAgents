@@ -112,7 +112,7 @@ CREATE TABLE prices (
 
 | Story | Status |
 |---|---|
-| S01 — prices table + historical backfill | 🔲 |
+| S01 — prices table + historical backfill | ✅ Done |
 | S02 — sync-prices.ts catch-up + gap fill | 🔲 |
 | S03 — holdings view real sparklines + stop monitoring | 🔲 |
 | S04 — price freshness indicator | 🔲 |
