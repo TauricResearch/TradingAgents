@@ -1,4 +1,5 @@
 """Tests for _extract_action_llm — all LLM calls are mocked."""
+
 import json
 from unittest.mock import MagicMock
 
@@ -20,7 +21,9 @@ def _make_llm(response_msg):
 def test_llm_high_confidence_buy():
     from tradingagents.agents.utils.output_validation import _extract_action_llm
 
-    llm = _make_llm(_make_llm_response({"action": "BUY", "confidence": "high", "evidence_quote": "Rating: Buy"}))
+    llm = _make_llm(
+        _make_llm_response({"action": "BUY", "confidence": "high", "evidence_quote": "Rating: Buy"})
+    )
     result = _extract_action_llm("some text", llm=llm)
     assert result.action == "BUY"
     assert result.confidence == "high"
@@ -31,7 +34,11 @@ def test_llm_high_confidence_buy():
 def test_llm_med_confidence_sell():
     from tradingagents.agents.utils.output_validation import _extract_action_llm
 
-    llm = _make_llm(_make_llm_response({"action": "SELL", "confidence": "med", "evidence_quote": "bearish view"}))
+    llm = _make_llm(
+        _make_llm_response(
+            {"action": "SELL", "confidence": "med", "evidence_quote": "bearish view"}
+        )
+    )
     result = _extract_action_llm("some text", llm=llm)
     assert result.action == "SELL"
     assert result.confidence == "med"
@@ -41,7 +48,9 @@ def test_llm_low_confidence_returns_sentinel():
     """Low confidence must return sentinel, not raise — caller decides."""
     from tradingagents.agents.utils.output_validation import _extract_action_llm
 
-    llm = _make_llm(_make_llm_response({"action": "HOLD", "confidence": "low", "evidence_quote": None}))
+    llm = _make_llm(
+        _make_llm_response({"action": "HOLD", "confidence": "low", "evidence_quote": None})
+    )
     result = _extract_action_llm("ambiguous", llm=llm)
     assert result.confidence == "low"
     assert result.source == "llm"
@@ -61,7 +70,9 @@ def test_llm_invalid_json_returns_sentinel():
 def test_llm_invalid_action_enum_returns_sentinel():
     from tradingagents.agents.utils.output_validation import _extract_action_llm
 
-    llm = _make_llm(_make_llm_response({"action": "MAYBE", "confidence": "high", "evidence_quote": "x"}))
+    llm = _make_llm(
+        _make_llm_response({"action": "MAYBE", "confidence": "high", "evidence_quote": "x"})
+    )
     result = _extract_action_llm("text", llm=llm)
     assert result.confidence == "low"
 
@@ -79,7 +90,9 @@ def test_llm_evidence_quote_propagated():
     from tradingagents.agents.utils.output_validation import _extract_action_llm
 
     quote = "The final rating is Buy given strong earnings momentum"
-    llm = _make_llm(_make_llm_response({"action": "BUY", "confidence": "high", "evidence_quote": quote}))
+    llm = _make_llm(
+        _make_llm_response({"action": "BUY", "confidence": "high", "evidence_quote": quote})
+    )
     result = _extract_action_llm("...", llm=llm)
     assert result.evidence_quote == quote
 
@@ -101,7 +114,9 @@ def test_extract_action_uses_regex_first_no_llm_call():
 def test_extract_action_falls_back_to_llm_on_regex_miss():
     from tradingagents.agents.utils.output_validation import extract_action
 
-    llm = _make_llm(_make_llm_response({"action": "SELL", "confidence": "high", "evidence_quote": "sell"}))
+    llm = _make_llm(
+        _make_llm_response({"action": "SELL", "confidence": "high", "evidence_quote": "sell"})
+    )
     result = extract_action("Some prose without a clear label.", llm=llm)
     assert result.action == "SELL"
     assert result.source == "llm"
@@ -110,7 +125,9 @@ def test_extract_action_falls_back_to_llm_on_regex_miss():
 def test_extract_action_raises_on_low_confidence():
     from tradingagents.agents.utils.output_validation import ActionExtractionError, extract_action
 
-    llm = _make_llm(_make_llm_response({"action": "HOLD", "confidence": "low", "evidence_quote": None}))
+    llm = _make_llm(
+        _make_llm_response({"action": "HOLD", "confidence": "low", "evidence_quote": None})
+    )
     with pytest.raises(ActionExtractionError) as exc_info:
         extract_action("ambiguous text", llm=llm)
     assert "ambiguous text" in str(exc_info.value)
@@ -123,4 +140,3 @@ def test_extract_action_raises_when_llm_errors():
     llm.invoke.side_effect = TimeoutError("timed out")
     with pytest.raises(ActionExtractionError):
         extract_action("ambiguous text", llm=llm)
-

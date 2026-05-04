@@ -283,9 +283,7 @@ def test_trader_uses_mid_llm():
                 p.stop()
 
     call_args = mock_create.call_args
-    assert call_args[0][0] is mid_llm, (
-        f"Trader got {call_args[0][0].name!r}, expected mid_llm"
-    )
+    assert call_args[0][0] is mid_llm, f"Trader got {call_args[0][0].name!r}, expected mid_llm"
 
 
 def test_research_manager_uses_deep_llm():
@@ -376,5 +374,3 @@ def test_resolve_next_analyst_node_falls_through_to_bull_researcher_when_all_sel
     )
 
     assert next_node == "Bull Researcher"
-
-

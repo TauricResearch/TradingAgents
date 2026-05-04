@@ -40,6 +40,7 @@ class ValidationResult:
 @dataclass(frozen=True)
 class ExtractionResult:
     """Result of action extraction from text."""
+
     action: Literal["BUY", "SELL", "HOLD"]
     confidence: Literal["high", "med", "low"]
     source: Literal["regex", "llm"]
@@ -48,6 +49,7 @@ class ExtractionResult:
 
 class ActionExtractionError(Exception):
     """Raised when action extraction fails for all methods."""
+
     def __init__(self, text_excerpt: str, last_attempt: "ExtractionResult | None" = None):
         self.text_excerpt = text_excerpt
         self.last_attempt = last_attempt
@@ -60,6 +62,7 @@ class ActionExtractionError(Exception):
 
 class CandidateHandoffError(Exception):
     """Raised when candidate handoff validation fails."""
+
     def __init__(
         self,
         kind: Literal["unaccountable_drop", "all_extraction_failed"],
@@ -717,7 +720,7 @@ def extract_action(text: str, llm: Any = None) -> ExtractionResult:
 
 def _infer_recommendation(text: str, llm: Any = None) -> str:
     """Back-compat shim. Raises ActionExtractionError on hard fail (no HOLD default).
-    
+
     Empty input returns HOLD without calling extraction (preserves existing tests).
     Non-empty input delegates to extract_action which raises ActionExtractionError
     if no pattern matches and either no LLM is provided or LLM returns low confidence.

@@ -631,7 +631,9 @@ class PortfolioGraphSetup:
 
         return prioritize_candidates_node
 
-    def _make_candidate_handoff_guard_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
+    def _make_candidate_handoff_guard_node(
+        self,
+    ) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Validates candidate flow from prioritize_candidates to summary agents.
 
         Raises CandidateHandoffError when:
@@ -641,6 +643,7 @@ class PortfolioGraphSetup:
         Accounted drops include: extraction_failed, analysis_failed,
         completed HOLD/SELL, empty/timeout_fallback, no deep-dive.
         """
+
         def candidate_handoff_guard_node(state: PortfolioManagerState) -> dict[str, Any]:
             from tradingagents.agents.utils.output_validation import CandidateHandoffError
 
@@ -648,12 +651,18 @@ class PortfolioGraphSetup:
             ticker_analyses = state.get("ticker_analyses") or {}
             prioritized_raw = state.get("prioritized_candidates") or "[]"
             try:
-                prioritized = json.loads(prioritized_raw) if isinstance(prioritized_raw, str) else prioritized_raw
+                prioritized = (
+                    json.loads(prioritized_raw)
+                    if isinstance(prioritized_raw, str)
+                    else prioritized_raw
+                )
             except (json.JSONDecodeError, TypeError):
                 prioritized = []
 
             equity_candidates = (
-                scan_summary.get("equity_candidates") or scan_summary.get("stocks_to_investigate") or []
+                scan_summary.get("equity_candidates")
+                or scan_summary.get("stocks_to_investigate")
+                or []
             )
             n_in = len(equity_candidates)
             n_out = len(prioritized) if isinstance(prioritized, list) else 0
@@ -671,7 +680,9 @@ class PortfolioGraphSetup:
             for raw_candidate in equity_candidates:
                 instrument_key = ""
                 if isinstance(raw_candidate, dict):
-                    ticker = (raw_candidate.get("ticker") or raw_candidate.get("symbol") or "").upper()
+                    ticker = (
+                        raw_candidate.get("ticker") or raw_candidate.get("symbol") or ""
+                    ).upper()
                     instrument_key = str(raw_candidate.get("instrument_key") or "")
                 else:
                     ticker = str(raw_candidate).upper()

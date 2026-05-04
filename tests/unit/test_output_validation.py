@@ -762,7 +762,9 @@ class TestTraderPlanStructuredContract:
         """Test that ambiguous non-empty input returns extraction_failed status."""
         from tradingagents.agents.utils.output_validation import build_trader_plan_structured
 
-        ambiguous = "The committee saw mixed signals. Technical indicators are unclear. Outcome: uncertain."
+        ambiguous = (
+            "The committee saw mixed signals. Technical indicators are unclear. Outcome: uncertain."
+        )
         structured = build_trader_plan_structured(
             ticker="XYZ",
             as_of_date="2026-05-03",

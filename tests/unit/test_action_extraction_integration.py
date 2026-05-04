@@ -1,4 +1,5 @@
 """Integration tests for extract_action against realistic PM report text."""
+
 import json
 from unittest.mock import MagicMock
 
@@ -39,7 +40,9 @@ _MANGLED_PROSE = (
 
 def _make_llm_high(action: str) -> MagicMock:
     msg = MagicMock()
-    msg.content = json.dumps({"action": action, "confidence": "high", "evidence_quote": f"Rating: {action}"})
+    msg.content = json.dumps(
+        {"action": action, "confidence": "high", "evidence_quote": f"Rating: {action}"}
+    )
     llm = MagicMock()
     llm.invoke.return_value = msg
     return llm

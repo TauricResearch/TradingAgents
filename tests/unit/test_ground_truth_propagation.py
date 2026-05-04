@@ -166,9 +166,7 @@ class TestResearchManagerGroundTruth:
 
         # Extract prompt from the FIRST LLM call (research manager main prompt)
         # There may be multiple calls due to action extraction, so check the first one
-        call_args_list = (
-            llm.bind.return_value.invoke.call_args_list or llm.invoke.call_args_list
-        )
+        call_args_list = llm.bind.return_value.invoke.call_args_list or llm.invoke.call_args_list
         first_call = call_args_list[0]
         prompt = first_call.args[0]
         assert "GROUND TRUTH" in prompt
