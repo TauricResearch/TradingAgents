@@ -217,3 +217,12 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Local credentials for NAS / deploy automation. NEVER COMMITTED.
+# Author this from scripts/nas/credentials.local.example.
+scripts/nas/credentials.local
+*.local
+*.local.sh
+
+# Synology bind-mount target if developer mirrors it locally.
+data/
