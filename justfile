@@ -47,15 +47,15 @@ run-cli:                    # Launch CLI via python module
 
 [group("python")]
 analyze TICKER="SPY" DATE="today" DEBATES="1":  # Run analysis on a ticker
-    source .venv/bin/activate && python scripts/analyze.py '{{TICKER}}' --date '{{DATE}}' --debates {{DEBATES}}
+    source .venv/bin/activate && python scripts/py/analyze.py '{{TICKER}}' --date '{{DATE}}' --debates {{DEBATES}}
 
 [group("python")]
-summarize TICKER="":          # Generate LLM summaries for analyses (add --all to regenerate)
-    {{if TICKER != '' { '.venv/bin/python scripts/summarize_analyses.py --ticker ' + TICKER } else { '.venv/bin/python scripts/summarize_analyses.py' }}}
+summarize TICKER="":          # Generate LLM summaries (add --all to regenerate all)
+    {{if TICKER != '' { 'bun run scripts/summarize_analyses.ts --ticker ' + TICKER } else { 'bun run scripts/summarize_analyses.ts' }}}
 
 [group("python")]
 summarize-all:                # Regenerate all LLM summaries
-    source .venv/bin/activate && python scripts/summarize_analyses.py --all
+    bun run scripts/summarize_analyses.ts --all
 
 [group("python")]
 test-smoke:                 # Run test suite (all fast unit tests)
@@ -63,7 +63,7 @@ test-smoke:                 # Run test suite (all fast unit tests)
 
 [group("python")]
 test-quick PROVIDER="openai":  # Quick structured output test (openai, google, anthropic, deepseek)
-    .venv/bin/python scripts/smoke_structured_output.py {{PROVIDER}}
+    .venv/bin/python scripts/py/smoke_structured_output.py {{PROVIDER}}
 
 [group("td")]
 td-new:                     # Start new td session
@@ -97,39 +97,39 @@ seed-test-journal JOURNAL="${HOME}/.hledger.journal":  # Generate test hLedger j
 
 [group("convenience")]
 portfolio-intel:              # Show portfolio intelligence (DEV mode)
-    .venv/bin/python scripts/portfolio-intel.py
+    bun scripts/portfolio-intel.ts
 
 [group("convenience")]
 portfolio-intel-test:        # Show portfolio intelligence (TEST mode)
-    TEST_MODE=1 .venv/bin/python scripts/portfolio-intel.py test
+    TA_DASHBOARD_PORT=3000 bun scripts/portfolio-intel.ts test
 
 [group("convenience")]
 seed-db:                     # Seed DEV SQLite database (uses PORTFOLIO_DB env or default)
-    .venv/bin/python scripts/seed_database.py
+    bun scripts/seed_database.ts
 
 [group("convenience")]
 test-seed-db:                # Seed TEST SQLite database (uses TEST_MODE=1)
-    TEST_MODE=1 .venv/bin/python scripts/seed_database.py --db ./test_portfolio.db
+    TEST_MODE=1 bun scripts/seed_database.ts --db ./test_portfolio.db
 
 [group("convenience")]
 seed-db-positions:           # Seed positions only (DEV)
-    .venv/bin/python scripts/seed_database.py --positions
+    bun scripts/seed_database.ts --positions
 
 [group("convenience")]
 seed-db-signals:             # Seed signals only (DEV)
-    .venv/bin/python scripts/seed_database.py --signals
+    bun scripts/seed_database.ts --signals
 
 [group("convenience")]
 seed-db-exit-plans:          # Seed exit plans (YAML) only
-    .venv/bin/python scripts/seed_database.py --exit-plans
+    bun scripts/seed_database.ts --exit-plans
 
 [group("convenience")]
 seed-db-post-mortems:        # Seed post-mortems only
-    .venv/bin/python scripts/seed_database.py --post-mortems
+    bun scripts/seed_database.ts --post-mortems
 
 [group("convenience")]
 test-db-signal:              # Seed signals to TEST DB
-    .venv/bin/python scripts/seed_database.py --db ./test_portfolio.db --signals
+    bun scripts/seed_database.ts --db ./test_portfolio.db --signals
 
 [group("convenience")]
 test-init:                   # Create fresh test_portfolio.db with schema
@@ -168,7 +168,7 @@ copy-test-to-dev-apply:      # Copy TEST artefacts to DEV (apply)
 
 [group("diagrams")]
 diagrams:                     # Render .dot and .mmd source files to .svg
-    python3 scripts/render_diagrams.py
+    bun scripts/render_diagrams.ts
 
 [group("diagrams")]
 diagrams-clean:               # Remove all generated .svg files
