@@ -906,6 +906,7 @@ def build_news_report_structured(
                 evidence_id = str(claim.get("evidence_id") or "").strip()
                 if evidence_id:
                     output_claim["evidence_id"] = evidence_id
+                output_claim["verified"] = "scan_sourced"
             else:
                 # Article claims: require non-empty evidence_id, include published_at, strip scan_date
                 published_at = str(claim.get("published_at") or "").strip()
@@ -932,6 +933,7 @@ def build_news_report_structured(
                 output_claim["published_at"] = published_at
                 output_claim["evidence_id"] = evidence_id
                 # scan_date is stripped for non-scanner claims
+                output_claim["verified"] = True
 
             output_claims.append(output_claim)
 

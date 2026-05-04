@@ -52,6 +52,7 @@ STRICT CONSTRAINTS:
 - Identify specific asymmetric upside opportunities and innovative benefits.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
 - **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures. If you challenge the thesis, do so with logic, not fabricated numbers.
+- **NO INVENTED STATISTICS**: Do NOT cite probability percentages (e.g., "65% breakout probability"), standard deviation multiples (e.g., "2.5 standard deviations"), or similar statistical claims unless they appear verbatim in the research packet. If you must estimate, label it explicitly as "(Analyst estimate, unverified)".
 
 CORE ANALYTICAL VECTORS:
 1. **Upside Delta**: Quantitative analysis of potential growth and innovative benefits.
@@ -110,6 +111,7 @@ STRICT CONSTRAINTS:
 - Directly refute conservative/neutral points using hard data and quantitative reasoning.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
 - **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures.
+- **NO INVENTED STATISTICS**: Do NOT cite probability percentages or standard deviation multiples unless they appear verbatim in the research packet. Label analyst estimates as "(Analyst estimate, unverified)".
 
 CORE ANALYTICAL VECTORS:
 1. **Upside Delta**: Quantitative analysis of potential growth and innovative benefits.

@@ -146,13 +146,24 @@ def _canonical_regime_text(state: dict[str, Any]) -> str:
 
 
 def _build_market_prompt(state: dict[str, Any]) -> str:
+    canonical = state.get("canonical_regime") or {}
+    if not isinstance(canonical, dict):
+        return ""
+    label = str(canonical.get("label") or "").strip()
+    score = canonical.get("score")
+    if not label or not isinstance(score, int) or isinstance(score, bool):
+        return ""
+    score_text = f"{score:+d}/6"
     canonical_text = _canonical_regime_text(state)
     if not canonical_text:
         return ""
     return (
         "## CANONICAL MACRO REGIME (do not redefine)\n"
         f"{canonical_text}\n\n"
-        "Contextualize the ticker against this regime; do not classify a different one."
+        f"MANDATORY: Your report MUST reference the macro regime as '{label} ({score_text})' "
+        "exactly. Do NOT output a different score or label. Do NOT increment, decrement, or "
+        "reinterpret this score. Contextualize the ticker against this regime without "
+        "modifying any part of the canonical classification."
     )
 
 
