@@ -1,0 +1,39 @@
+digraph PersistenceArchitecture {
+    rankdir=TB;
+    node [shape=box style=filled fillcolor="#eee" color="#999" fontsize=12];
+    edge [color="#666" fontsize=11];
+
+    subgraph cluster_authoritative {
+        label="Authoritative Sources";
+        style=solid;
+        hLedger [label="hLedger\n~/.hledger.journal\n▸ Positions ▸ Transactions ▸ Prices" fillcolor="#d4edda"];
+    }
+
+    subgraph cluster_aiartefacts {
+        label="AI Artefacts (SQLite WAL)";
+        style=solid;
+        SQLite [label="portfolio.db" shape=cylinder fillcolor="#fff3cd"];
+        Signals [label="signals\n▸ Signal ▸ Reasoning ▸ Confidence" fillcolor="#fff3cd"];
+        Analyses [label="analyses\n▸ Config ▸ Raw State ▸ Decision" fillcolor="#fff3cd"];
+        Watchlist [label="watchlist\n▸ Stage ▸ Priority ▸ Thesis" fillcolor="#fff3cd"];
+        Trades [label="trades\n▸ Buy/Sell records" fillcolor="#fff3cd"];
+    }
+
+    subgraph cluster_ephemeral {
+        label="Ephemeral / Cache";
+        style=solid;
+        Memory [label="Decision Memory\ntrading_memory.md\n▸ Append-only log" fillcolor="#f8d7da"];
+        Checkpoints [label="Checkpoints\n~/.tradingagents/cache/\n▸ Per-ticker SQLite\n▸ Auto-cleared on success" fillcolor="#f8d7da"];
+        ExitPlans [label="Exit Plans\n~/.tradingagents/positions/\n▸ Per-position YAML" fillcolor="#f8d7da"];
+    }
+
+    Hono [label="Bun/Hono Server" fillcolor="#e8f4fd"];
+    TradingGraph [label="TradingAgentsGraph" fillcolor="#e8f4fd"];
+
+    hLedger -> Hono [label="read-only" style=dashed];
+    SQLite -> Hono [label="read/write"];
+    Hono -> Signals [label="save signal"];
+    Hono -> Analyses [label="save analysis"];
+    TradingGraph -> Memory [label="append decision"];
+    TradingGraph -> Checkpoints [label="checkpoint"];
+}

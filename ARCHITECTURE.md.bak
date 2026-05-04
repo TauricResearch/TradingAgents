@@ -11,7 +11,26 @@ TradingAgents is a **multi-agent LLM trading framework** (`tradingagents` Python
 with a **web dashboard** (Bun/Hono) that wraps it. The dashboard never modifies the core
 framework — communication is via subprocess bridge.
 
-![System Overview](docs/diagrams/system-overview.svg)
+```
+┌─────────────┐     SSE/HTMX      ┌───────────────────┐   PYTHONUNBUFFERED=1    ┌──────────────────────────┐
+│   Browser   │ ◄────────────────► │  Bun/Hono (3000)  │ ◄─────────────────────► │  Python Subprocess        │
+│  (no SPA)   │    HTML + SSE     │  server/index.tsx │   spawn() → JSON lines  │  scripts/analyze_stream.py│
+└─────────────┘                   └────────┬──────────┘                         └─────────────┬────────────┘
+                                           │                                                   │
+                                  ┌────────▼──────────┐                              ┌────────▼────────┐
+                                  │  SQLite (WAL)     │                              │ TradingAgents   │
+                                  │  portfolio.db     │                              │ Python Package  │
+                                  │  - signals        │                              │ tradingagents/  │
+                                  │  - positions      │                              └────────┬────────┘
+                                  │  - watchlist      │                                       │
+                                  │  - analyses       │                              ┌────────▼────────┐
+                                  └───────────────────┘                              │  yfinance      │
+                                                                                     │  (data source) │
+                                  ┌───────────────────┐                              └─────────────────┘
+                                  │  hLedger (read)   │
+                                  │  ~/.hledger.journal│
+                                  └───────────────────┘
+```
 
 ---
 
@@ -43,8 +62,6 @@ tradingagents/
 3. **Trader** — Composes analyst+research reports into trading plan
 4. **Risk Management** — Aggressive/Conservative/Neutral debate
 5. **Portfolio Manager** — Final Buy/Sell/Hold decision
-
-![LangGraph Workflow](docs/diagrams/langgraph-workflow.svg)
 
 ### CLI (`cli/`)
 
@@ -168,7 +185,7 @@ server/
 
 ## SSE Event Schema
 
-Events flow from `scripts/py/analyze_stream.py` stdout → Bun SSE → browser.
+Events flow from `scripts/analyze_stream.py` stdout → Bun SSE → browser.
 
 ```typescript
 // Line format: {"event": string, "data": {...}}
@@ -188,8 +205,6 @@ and forwards it as an SSE event to the connected browser client.
 ---
 
 ## Persistence Layers
-
-![Persistence Architecture](docs/diagrams/persistence.svg)
 
 ### SQLite (`portfolio.db` / `test_portfolio.db`)
 
@@ -261,13 +276,37 @@ in `~/.tradingagents/logs/<TICKER>/<DATE>/`.
 | `ALPHA_VANTAGE_API_KEY` | — | Data vendor (optional) |
 
 LLM provider keys are loaded via `dotenv` in both the CLI (`cli/main.py`) and
-the analysis script (`scripts/py/analyze_stream.py`). The Bun server loads `.env`
+the analysis script (`scripts/analyze_stream.py`). The Bun server loads `.env`
 for the summarisation endpoint (`server/routes/analyses.ts`).
 
 ---
 
 ## Data Flow: Analysis Request
 
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. User clicks "Run Analysis" in browser                                    │
+│    → HTMX POST to /api/analyze with { ticker, date, analysts, debates }    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 2. Bun/Hono receives POST                                                   │
+│    → Checks SQLite for existing position (position context injection)       │
+│    → Builds command: PYTHONUNBUFFERED=1 python3 scripts/analyze_stream.py   │
+│    → Creates SSE response with streamSSE()                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 3. Bun spawns Python subprocess                                             │
+│    → Reads stdout line-by-line                                              │
+│    → Each JSON line → SSE event → browser                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 4. Python runs TradingAgentsGraph.propagate(ticker, date)                   │
+│    → Analyst Team → Research → Trader → Risk → Portfolio Manager            │
+│    → Emits JSON lines: start → agent_report → debate_round → decision → end │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 5. On "complete" event                                                      │
+│    → Bun saves signal to SQLite                                             │
+│    → Bun triggers LLM summarisation (POST /api/analyses/:ticker/:date/explain)│
+│    → Browser shows final decision + rendered report                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 

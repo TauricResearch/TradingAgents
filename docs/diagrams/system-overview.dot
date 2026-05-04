@@ -1,0 +1,22 @@
+digraph SystemOverview {
+    rankdir=LR;
+    node [shape=box style=filled fillcolor="#eee" color="#999" fontsize=12];
+    edge [color="#666" fontsize=11];
+
+    Browser [label="Browser\nHTMX + SSE" fillcolor="#e8f4fd"];
+    Hono [label="Bun/Hono Server\nPort 3000" fillcolor="#e8f4fd"];
+    Python [label="Python Subprocess\nscripts/analyze_stream.py" fillcolor="#fdf4e8"];
+    TradingGraph [label="TradingAgentsGraph\nLangGraph" fillcolor="#fdf4e8"];
+    YF [label="yfinance\nMarket Data" fillcolor="#f0f9f0"];
+    SQLite [label="SQLite WAL\nportfolio.db" fillcolor="#f0f9f0"];
+    hLedger [label="hLedger\n~/.hledger.journal" fillcolor="#f0f9f0"];
+    Memory [label="Decision Memory\ntrading_memory.md" fillcolor="#f9f0f0"];
+
+    Browser -> Hono [label="HTMX requests"];
+    Hono -> Python [label="spawn subprocess"];
+    Python -> TradingGraph [label=".propagate()"];
+    TradingGraph -> YF [label="fetch market data"];
+    Hono -> SQLite [label="read/write"];
+    Hono -> hLedger [label="read-only"];
+    TradingGraph -> Memory [label="append decision"];
+}

@@ -10,6 +10,13 @@ export function FeedbackView() {
         </div>
       </section>
 
+      <section class="panel" id="correlations-panel">
+        <h3>Signal × Position Correlation</h3>
+        <div id="correlations-body">
+          <div class="muted">Loading…</div>
+        </div>
+      </section>
+
       <section class="panel" id="post-mortems-panel">
         <h3>Post-Mortems</h3>
         <div id="post-mortems-body">
@@ -83,6 +90,60 @@ function feedbackScript(): string {
       }
       el.innerHTML = html;
     }
+
+    function renderCorrelations(data) {
+      var el = document.getElementById('correlations-body');
+      if (!data || !data.correlations || data.correlations.length === 0) {
+        el.innerHTML = '<div class="muted">No signals recorded yet.</div>';
+        return;
+      }
+
+      var summary = data.summary || {};
+      var accCls = summary.accuracy >= 60 ? 'positive' : 'negative';
+      var html = '<div class="accuracy-summary" style="margin-bottom:1rem">';
+      html += '<span>Signal accuracy: </span>';
+      html += '<span class="accuracy-score ' + accCls + '">' + summary.accuracy + '%</span>';
+      html += '<span class="muted"> (' + summary.accurate + '/' + summary.total + ' buy/sell signals with positions)</span>';
+      html += '</div>';
+
+      html += '<table class="data-table" style="font-size:0.85em"><thead><tr>';
+      html += '<th>Ticker</th><th>Latest Signal</th><th>Platform</th>';
+      html += '<th>Position</th><th>Entry</th><th>P&amp;L</th><th>Signal Outcome</th>';
+      html += '</tr></thead><tbody>';
+
+      for (var i = 0; i < data.correlations.length; i++) {
+        var c = data.correlations[i];
+        var p = c.position;
+        var sCls = c.signalOutcome.indexOf('success') !== -1 ? 'positive' :
+                   c.signalOutcome.indexOf('failure') !== -1 ? 'negative' :
+                   c.signalOutcome === 'hold' ? 'status-hold' : 'muted';
+        var pnlCls = c.outcomePct != null ? (c.outcomePct >= 0 ? 'positive' : 'negative') : 'muted';
+        var pnlStr = c.outcomePct != null ? (c.outcomePct >= 0 ? '+' : '') + c.outcomePct.toFixed(1) + '%' : '—';
+
+        html += '<tr>';
+        html += '<td class="ticker">' + c.ticker + '</td>';
+        html += '<td class="status-' + (c.latestSignal.includes('buy') ? 'buy' : c.latestSignal.includes('sell') ? 'sell' : 'hold') + '">' + c.latestSignal + '</td>';
+        html += '<td><span class="platform-tag">' + (c.signals[0] && c.signals[0].platform ? c.signals[0].platform : 'unknown') + '</span></td>';
+        if (p) {
+          html += '<td>' + p.quantity + ' shares @ \u00a3' + p.avg_cost.toFixed(2) + ' <span class="muted">(GBP)</span></td>';
+          html += '<td>' + p.entry_date + '</td>';
+          html += '<td class="pnl-cell ' + pnlCls + '" style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">' + pnlStr + '</td>';
+        } else {
+          html += '<td class="muted">—</td><td class="muted">—</td><td class="muted">—</td>';
+        }
+        html += '<td class="' + sCls + '">' + c.signalOutcome + '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      el.innerHTML = html;
+    }
+
+    fetch('/api/feedback/with-positions')
+      .then(function(r) { return r.json(); })
+      .then(renderCorrelations)
+      .catch(function() {
+        document.getElementById('correlations-body').innerHTML = '<div class="muted">Failed to load correlations</div>';
+      });
 
     fetch('/api/feedback/accuracy')
       .then(r => r.json())

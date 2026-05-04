@@ -6,6 +6,10 @@
  *   holdings     — open positions with exit plan, no urgency signal
  *   pendingExit  — open positions with exit plan AND urgency signal
  *
+ * hledger is the authoritative source for real holdings.
+ * Only positions for platforms with actual hledger holdings are shown.
+ * Empty hledger → empty workflow (clean, no phantom positions).
+ *
  * Price cache: daily (expires at midnight UTC) — shared with exits.ts via ../lib/cache.ts.
  */
 import { dirname, join } from "node:path"
@@ -13,6 +17,7 @@ import { Hono } from "hono"
 import { DatabaseFactory } from "../lib/db.ts"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
 import { priceCache, fetchPrice } from "../lib/cache.ts"
+import { getHoldings } from "../lib/hledger.ts"
 
 export const workflowRouter = new Hono()
 
@@ -26,7 +31,15 @@ function findProjectRoot(): string {
 workflowRouter.get("/", async (c) => {
   const db = DatabaseFactory.get()
 
-  const openPositions = db
+  // hledger is the authoritative source for real holdings.
+  // Only show positions for platforms that have actual hledger holdings.
+  const { holdings: hlHoldings } = await getHoldings()
+  const hledgerPlatforms = new Set<string>(["test"]) // always allow test platform (for dev)
+  for (const h of hlHoldings) {
+    hledgerPlatforms.add(h.platform)
+  }
+
+  const rawPositions = db
     .query(
       "SELECT id, ticker, exchange, platform, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open' ORDER BY ticker",
     )
@@ -35,10 +48,13 @@ workflowRouter.get("/", async (c) => {
     quantity: number; avg_cost: number; entry_date: string; thesis: string;
   }>
 
+  const openPositions = rawPositions.filter((p) => hledgerPlatforms.has(p.platform))
+
+  // Load exit plans
   const plans = loadAllPlans()
   const planSet = new Set(plans.map((p: ExitPlan) => `${p.ticker}::${p.platform || "unknown"}`))
 
-  // Fetch live prices for all unique tickers (batched, 4 at a time)
+  // Fetch live prices for plan tickers (batched, 4 at a time)
   const uniqueTickers = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
   const script = join(findProjectRoot(), "scripts", "get_price.py")
   const priceMap = new Map<string, number | null>()
@@ -48,7 +64,7 @@ workflowRouter.get("/", async (c) => {
     batch.forEach((t, idx) => void priceMap.set(t, results[idx] ?? null))
   }
 
-  // Build exit statuses with live prices
+  // Build exit statuses
   const exitStatuses = new Map<string, ReturnType<typeof computeExitStatus>>()
   for (const plan of plans) {
     const key = `${plan.ticker}::${plan.platform || "unknown"}`
@@ -56,7 +72,7 @@ workflowRouter.get("/", async (c) => {
     exitStatuses.set(key, computeExitStatus(plan, currentPrice))
   }
 
-  // APPROVED
+  // APPROVED — open positions with no exit plan
   const approved = openPositions
     .filter((p) => !planSet.has(`${p.ticker}::${p.platform}`))
     .map((p) => ({
@@ -65,7 +81,7 @@ workflowRouter.get("/", async (c) => {
       entryDate: p.entry_date, thesis: p.thesis,
     }))
 
-  // HOLDINGS vs PENDING EXIT (split by urgency signal)
+  // HOLDINGS vs PENDING EXIT — split by urgency signal
   type ExitPlanData = {
     entryPrice: number; invalidationPrice: number; invalidationThesis: string;
     targets: unknown[]; timeStop: string | null;
@@ -107,5 +123,20 @@ workflowRouter.get("/", async (c) => {
     else holdings.push(item)
   }
 
-  return c.json({ approved, holdings, pendingExit })
+  // Empty hledger → explain the clean state
+  const note =
+    openPositions.length === 0 && rawPositions.length > 0
+      ? "Portfolio appears empty — hledger has no real holdings. " +
+        "Add positions to hledger to see them in the workflow."
+      : openPositions.length === 0
+      ? "No holdings in hledger. Portfolio is empty."
+      : undefined
+
+  return c.json({
+    approved,
+    holdings,
+    pendingExit,
+    hledgerPlatforms: [...hledgerPlatforms],
+    note,
+  })
 })

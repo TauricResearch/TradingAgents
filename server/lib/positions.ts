@@ -151,7 +151,7 @@ export function computeExitStatus(plan: ExitPlan, currentPrice?: number): ExitSt
   // Backward-compat: normalize flat YAML fields (invalidation_price/thesis)
   // to nested object format (invalidation: { price, thesis })
   const invalidation = plan.invalidation ?? {
-    price: plan.invalidation_price ?? 0,
+    price: parseFloat(String(plan.invalidation_price ?? 0)),
     thesis: plan.invalidation_thesis ?? "",
   }
 

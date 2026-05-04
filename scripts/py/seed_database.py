@@ -22,7 +22,27 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "portfolio.db"
+def resolve_db_path(explicit_path: str | None = None) -> Path:
+    """Resolve target DB path.
+
+    Precedence (highest → lowest):
+      1. --db CLI argument
+      2. PORTFOLIO_DB env var
+      3. TEST_MODE + TEST_PORTFOLIO_DB env var (mirrors server/index.tsx)
+      4. fallback to ./portfolio.db
+    """
+    if explicit_path:
+        p = Path(explicit_path).expanduser()
+        if not p.is_absolute():
+            p = (Path(__file__).parent.parent / p).resolve()
+        return p
+    if os.environ.get("PORTFOLIO_DB"):
+        return Path(os.environ["PORTFOLIO_DB"]).expanduser()
+    if os.environ.get("TEST_MODE") == "1":
+        return Path(os.environ.get("TEST_PORTFOLIO_DB", "./test_portfolio.db")).expanduser()
+    return Path(__file__).parent.parent / "portfolio.db"
+
+DB_PATH = None  # set in main() after arg parsing
 POSITIONS_BASE = Path.home() / ".tradingagents" / "positions"
 POST_MORTEMS_DIR = Path.home() / ".tradingagents" / "post-mortems"
 
@@ -68,17 +88,26 @@ def get_db():
     db.row_factory = sqlite3.Row
     return db
 
+def ensure_db_path():
+    """Validate DB_PATH is set before any seed function runs."""
+    if DB_PATH is None:
+        raise RuntimeError("DB_PATH not set — call main() first")
+
 
 def clear_table(table: str, keep_types: list = None):
-    """Delete seeded rows (identified by platform != 'unknown' or known dates)."""
+    """Delete seeded rows.
+
+    positions: test-platform only — degiero/ibkr come from hledger (SSOT),
+    not seed data. watchlist: test-platform only.
+    signals/analyses: synthetic date-range rows (useful AI artefacts).
+    """
     db = get_db()
     if table == "positions":
-        db.execute("DELETE FROM positions WHERE platform != 'unknown'")
+        db.execute("DELETE FROM positions WHERE platform = 'test'")
     elif table == "signals":
-        # Only clear synthetic test signals (we mark them with specific dates)
         db.execute("DELETE FROM signals WHERE date BETWEEN '2026-01-01' AND '2026-04-01'")
     elif table == "watchlist":
-        db.execute("DELETE FROM watchlist WHERE platform != 'unknown'")
+        db.execute("DELETE FROM watchlist WHERE platform = 'test'")
     elif table == "analyses":
         db.execute("DELETE FROM analyses WHERE date BETWEEN '2026-01-01' AND '2026-04-01'")
     db.commit()
@@ -88,93 +117,20 @@ def clear_table(table: str, keep_types: list = None):
 def seed_positions():
     clear_table("positions")
 
+    # ── Test platform only — matches seed-test-db.sql ───────────────────────
+    # degiero/ibkr positions come from hledger journal entries (SSOT), not seed data.
     positions = [
-        # ── DeGiro: sensible, diversified ─────────────────────────────────────
         {
             "ticker": "VWCE.DE",
             "exchange": "XETRA",
-            "platform": "degiero",
-            "quantity": 35,
-            "avg_cost": 126.40,
-            "entry_date": d(weeks=16),
+            "platform": "test",
+            "quantity": 10,
+            "avg_cost": 132.00,
+            "entry_date": d(weeks=3),
             "thesis": "All-world ETF — low-cost core holding, accumulating",
             "status": "open",
             "notes": "Accumulating quarterly. MSCI World exposure.",
         },
-        {
-            "ticker": "AAPL",
-            "exchange": "US",
-            "platform": "degiero",
-            "quantity": 25,
-            "avg_cost": 188.50,
-            "entry_date": d(weeks=10),
-            "thesis": "Services segment compounding; Vision Pro ecosystem building",
-            "status": "open",
-            "notes": "Hold signal from analysis. Services revenue acceleration.",
-        },
-        {
-            "ticker": "MSFT",
-            "exchange": "US",
-            "platform": "degiero",
-            "quantity": 20,
-            "avg_cost": 430.00,
-            "entry_date": d(weeks=8),
-            "thesis": "Azure AI monetization accelerating; Copilot enterprise adoption strong",
-            "status": "open",
-        },
-        {
-            "ticker": "NVDA",
-            "exchange": "US",
-            "platform": "degiero",
-            "quantity": 15,
-            "avg_cost": 880.00,
-            "entry_date": d(weeks=6),
-            "thesis": "AI infrastructure demand insatiable; H100/H200 supply constrained",
-            "status": "open",
-        },
-        # ── IBKR: slightly overweight — triggers governance ───────────────────
-        {
-            "ticker": "AAPL",
-            "exchange": "US",
-            "platform": "ibkr",
-            "quantity": 150,
-            "avg_cost": 182.30,
-            "entry_date": d(weeks=14),
-            "thesis": "Long-term AI services compounding — larger position here",
-            "status": "open",
-            "notes": "Note: this position alone is ~28% of ibkr portfolio — triggers max-position rule",
-        },
-        {
-            "ticker": "MSFT",
-            "exchange": "US",
-            "platform": "ibkr",
-            "quantity": 40,
-            "avg_cost": 408.00,
-            "entry_date": d(weeks=7),
-            "thesis": "Cloud + AI platform play; GitHub Copilot enterprise roll-out",
-            "status": "open",
-        },
-        {
-            "ticker": "TKA.DE",
-            "exchange": "XETRA",
-            "platform": "ibkr",
-            "quantity": 1000,
-            "avg_cost": 8.62,
-            "entry_date": d(weeks=5),
-            "thesis": "German industrial automation; order pipeline strong for H2",
-            "status": "open",
-        },
-        {
-            "ticker": "VWCE.DE",
-            "exchange": "XETRA",
-            "platform": "ibkr",
-            "quantity": 20,
-            "avg_cost": 133.20,
-            "entry_date": d(weeks=4),
-            "thesis": "Core satnav ETF position alongside individual stock picks",
-            "status": "open",
-        },
-        # ── Test platform: edge cases ────────────────────────────────────────
         {
             "ticker": "AAPL",
             "exchange": "US",
@@ -184,6 +140,7 @@ def seed_positions():
             "entry_date": d(weeks=3),
             "thesis": "Testing signal accuracy — smaller position",
             "status": "open",
+            "notes": "Test position — WWDC catalyst watch",
         },
         {
             "ticker": "ETH",
@@ -192,9 +149,9 @@ def seed_positions():
             "quantity": 0.5,
             "avg_cost": 2850.00,
             "entry_date": d(weeks=2),
-            "thesis": "Crypto exposure test — ETH blockchain infrastructure",
+            "thesis": "Crypto exposure test — ETH staking yield 3.8%",
             "status": "open",
-            "notes": "Crypto position — risk-off behaviour expected",
+            "notes": "Risk-off behaviour expected. Small position.",
         },
         {
             "ticker": "TSLA",
@@ -595,7 +552,18 @@ def seed_post_mortems():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed TradingAgents database with simulation data")
+    parser = argparse.ArgumentParser(
+        description="Seed the TradingAgents database with simulation data.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+DB resolution (mirrors server/index.tsx):
+  --db PATH         Explicit path (highest priority)
+  PORTFOLIO_DB env  DEV database path
+  TEST_MODE=1       Uses TEST_PORTFOLIO_DB or ./test_portfolio.db
+  default           ./portfolio.db
+""")
+    parser.add_argument("--db", metavar="PATH", default=None,
+                        help="Target database path (default: see env vars above)")
     parser.add_argument("--positions", action="store_true", help="Seed positions only")
     parser.add_argument("--signals", action="store_true", help="Seed signals only")
     parser.add_argument("--watchlist", action="store_true", help="Seed watchlist only")
@@ -604,11 +572,16 @@ def main():
     parser.add_argument("--post-mortems", action="store_true", help="Seed post-mortems only")
     args = parser.parse_args()
 
+    global DB_PATH
+    DB_PATH = resolve_db_path(args.db)
+
     # Default: seed everything
     seed_all = not any([args.positions, args.signals, args.watchlist,
                         args.analyses, args.exit_plans, args.post_mortems])
 
-    print("Seeding TradingAgents database...")
+    test_label = " [TEST MODE]" if str(DB_PATH).endswith("test_portfolio.db") else ""
+    print(f"Seeding TradingAgents database{test_label}...")
+    print(f"  Target DB: {DB_PATH}")
 
     if seed_all or args.positions:
         seed_positions()

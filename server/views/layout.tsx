@@ -2,7 +2,11 @@
 
 import type { PropsWithChildren } from "hono/jsx";
 
-export function Layout(props: PropsWithChildren) {
+interface LayoutProps extends PropsWithChildren {
+  testMode?: boolean;
+}
+
+export function Layout(props: LayoutProps) {
   return (
     <html lang="en">
       <head>
@@ -14,6 +18,11 @@ export function Layout(props: PropsWithChildren) {
         <script src="https://unpkg.com/htmx.org@2.0.4" />
       </head>
       <body>
+        {props.testMode && (
+          <div style="background:#f59e0b;color:#000;text-align:center;padding:4px;font-size:0.75em;font-weight:700;letter-spacing:0.05em">
+            TEST MODE — data is isolated from production
+          </div>
+        )}
         <header>
           <h1>TradingAgents</h1>
           <nav id="tabs">
@@ -24,6 +33,14 @@ export function Layout(props: PropsWithChildren) {
               class="tab active"
             >
               Portfolio
+            </button>
+            <button
+              hx-get="/intelligence"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Intelligence
             </button>
             <button
               hx-get="/workflow"

@@ -1,0 +1,76 @@
+digraph LangGraphWorkflow {
+    rankdir=TB;
+    node [shape=box style=filled fillcolor="#eee" color="#999" fontsize=12];
+    edge [color="#666" fontsize=11];
+
+    Start [label="User: Ticker + Date" shape=ellipse fillcolor="#d4edda"];
+
+    subgraph cluster_s1 {
+        label="Stage 1: Analyst Team";
+        MA [label="Market Analyst"];
+        SA [label="Social Analyst"];
+        NA [label="News Analyst"];
+        FA [label="Fundamentals Analyst"];
+    }
+    Reports [label="Combined Reports" shape=ellipse fillcolor="#fff3cd"];
+
+    subgraph cluster_s2 {
+        label="Stage 2: Research Debate";
+        Bull [label="Bull Researcher"];
+        Bear [label="Bear Researcher"];
+        Judge1 [label="Judge / Manager"];
+    }
+    InvestmentPlan [label="Investment Plan" shape=ellipse fillcolor="#fff3cd"];
+
+    subgraph cluster_s3 {
+        label="Stage 3: Trader";
+        Trader [label="Trader Agent"];
+    }
+    TradingPlan [label="Trading Plan" shape=ellipse fillcolor="#fff3cd"];
+
+    subgraph cluster_s4 {
+        label="Stage 4: Risk Debate";
+        Agg [label="Aggressive"];
+        Con [label="Conservative"];
+        Neu [label="Neutral"];
+        Judge2 [label="Risk Judge"];
+    }
+    FinalRisk [label="Risk-Adjusted Plan" shape=ellipse fillcolor="#fff3cd"];
+
+    subgraph cluster_s5 {
+        label="Stage 5: Portfolio Manager";
+        PM [label="Portfolio Manager"];
+    }
+    Decision [label="Buy / Sell / Hold\n+ Reasoning" shape=ellipse fillcolor="#d4edda"];
+    Save [label="signals table" shape=cylinder fillcolor="#f0f9f0"];
+
+    Start -> MA;
+    Start -> SA;
+    Start -> NA;
+    Start -> FA;
+    MA -> Reports;
+    SA -> Reports;
+    NA -> Reports;
+    FA -> Reports;
+    Reports -> Bull;
+    Reports -> Bear;
+    Bull -> Judge1;
+    Bear -> Judge1;
+    Bull -> Bear [label="debate rounds" style=dashed dir=none];
+    Bear -> Bull [label="debate rounds" style=dashed dir=none];
+    Judge1 -> InvestmentPlan;
+    InvestmentPlan -> Trader;
+    Trader -> TradingPlan;
+    TradingPlan -> Agg;
+    TradingPlan -> Con;
+    TradingPlan -> Neu;
+    Agg -> Judge2;
+    Con -> Judge2;
+    Neu -> Judge2;
+    Agg -> Con [label="debate rounds" style=dashed dir=none];
+    Con -> Agg [label="debate rounds" style=dashed dir=none];
+    Judge2 -> FinalRisk;
+    FinalRisk -> PM;
+    PM -> Decision;
+    Decision -> Save;
+}

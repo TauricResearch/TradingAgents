@@ -1,290 +1,167 @@
-# Playbook: td — Local-First Task Management
+# Playbook: Task Management with td
 
-**Essential context, process, and agent coordination tool.**
-
----
-
-## Why td?
-
-We use `td` because:
-
-1. **Context preservation** — Sessions track work across agent invocations. No "where was I?"
-2. **Process visibility** — Issues, handoffs, and reviews make the workflow explicit
-3. **Agent coordination** — Multiple agents can work in the same issue space without collision
-4. **Local-first** — SQLite in `~/.config/.todos/`. No server, no sync, no vendor lock-in
-
-> We miss it when it's not there. It's that fundamental.
+**Tool:** `td` — local task management CLI
+**Reference:** `td usage --new-session` for full command reference
 
 ---
 
-## Core Concepts
+## Core Workflow
 
-| Concept | Purpose |
-|---------|---------|
-| **Issue** | A unit of work. Has ID, title, tags, priority, status |
-| **Session** | A work context. Tracks who did what, when |
-| **Workspace** | Groups issues for a project or sprint |
-| **Handoff** | Captures state when transitioning between agents |
-| **Review** | Formal approval before closing |
-
----
-
-## Essential Commands
-
-```bash
-# Start a new session (do this at conversation start)
-td usage --new-session
-
-# Create an issue
-td add "Implement user auth" --tags auth,backend --priority P1
-
-# Start working
-td start <issue-id>
-
-# Log progress
-td log "Implemented login endpoint" --result
-
-# Blocked on something?
-td log "Waiting for API spec" --blocker
-
-# Mark a decision
-td log "Using JWT for auth tokens" --decision
-
-# Done with your part, need review
-td handoff <issue-id>
-td review <issue-id>
-
-# Someone else reviews and approves
-td approve <issue-id>   # Complete
-# or
-td reject <issue-id>     # Send back
-```
-
----
-
-## Multi-Agent Workflow
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Agent A (Builder)                                               │
-│   td add "Build user service" --priority P1                    │
-│   td start td-123                                              │
-│   ... builds ...                                                │
-│   td log "Service complete" --result                            │
-│   td handoff td-123                                           │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ Agent B (Operator) — reviews, tests, deploys                    │
-│   td review td-123        # Agent A's handoff                   │
-│   ... tests ...                                                  │
-│   td approve td-123       # Complete the issue                 │
-└─────────────────────────────────────────────────────────────────┘
+```text
+td start <id>      → begin work
+td log "msg"       → log progress
+td handoff <id>    → capture state (REQUIRED before stopping)
+td review <id>     → submit for review
 ```
 
 ---
 
 ## Session Management
 
+Run `td usage --new-session` at the start of every conversation (or after `/clear`).
+
 ```bash
-# New session (clears context tracking)
+td usage --new-session     # new session, see current tasks
+td usage -q               # quiet (hide instructions after first read)
+```
+
+Sessions track identity — a reviewer cannot be the same session as the implementer.
+
+---
+
+## Task Lifecycle
+
+```
+open → in_progress → in_review → done/closed
+         ↑
+      td start <id>
+```
+
+| Command | When | Who |
+|---|---|---|
+| `td start <id>` | Begin work on an issue | Implementer |
+| `td log "msg"` | Log progress, decisions | Implementer |
+| `td handoff <id>` | Capture state before stopping | Implementer |
+| `td review <id>` | Submit for review | Implementer |
+| `td approve <id>` | Close in_review work | **Reviewer (different session)** |
+| `td reject <id>` | Send back to open | **Reviewer (different session)** |
+
+---
+
+## The Review Constraint
+
+**You cannot approve tasks you implemented.**
+
+This is enforced by `td approve` and `td close`. The reviewer must be a different session identity.
+
+### Solo context (one agent)
+
+- Implementer: agent working on tasks
+- Reviewer: **the user** approving via `td approve <id>`
+
+The user is a separate td identity and can approve any task. Alternatively, start a second agent session as the reviewer:
+
+```bash
+# In a separate terminal — reviewer agent
 td usage --new-session
-
-# Label current session
-td session "sprint-42"
-
-# View current state
-td ws current
-
-# Handoff entire workspace
-td ws handoff
-
-# Next priority issue
-td next
-
-# Critical path analysis
-td critical-path
+td reviewable        # see tasks awaiting review
+td approve <id>      # close approved work
 ```
+
+### Team context (multiple agents)
+
+Each agent has its own session. Agent A implements, submits for review (`td review`), Agent B approves.
 
 ---
 
-## Issue Lifecycle
+## Epic Workflow
 
-```
-     ┌─────────┐
-     │  TODO   │ ← td add
-     └────┬────┘
-          │ td start
-          ↓
-     ┌─────────┐
-     │ IN PROG │ ← td log (progress, blockers, decisions)
-     └────┬────┘
-          │ td handoff
-          ↓
-     ┌─────────┐
-     │ REVIEW  │ ← td review
-     └────┬────┘
-          │ td approve / td reject
-          ↓
-     ┌─────────┐
-     │ DONE    │ ← Complete
-     └─────────┘
-```
+Large work is grouped into epics (briefs in `briefs/epic-*.md`).
 
----
-
-## Priority Levels
-
-| Priority | Use |
-|----------|-----|
-| `P0` | Blocker — everything stops |
-| `P1` | This sprint — critical path |
-| `P2` | Next — important but can wait |
-| `P3` | Backlog — nice to have |
-
----
-
-## Tags
-
-Tags are free-form. Conventions we use:
-
-- `infra` — Infrastructure
-- `docs` — Documentation
-- `bug` — Bug fix
-- `feat` — New feature
-- `refactor` — Code improvement
-- `review` — Needs review
-
----
-
-## Tips
-
-### Start every session fresh
-```
-td usage --new-session
-```
-This establishes session identity for review tracking.
-
-### Log decisions, not just progress
 ```bash
-td log "Chose PostgreSQL over MySQL" --decision
-```
-Later agents know *why*, not just *what*.
+# Create epic story tasks
+td add "EPI-001-S01: Story title" --points 3 --labels feat
+td add "EPI-001-S02: Story title" --points 5 --labels feat
 
-### Use blockers sparingly but honestly
-```bash
-td log "API spec not ready" --blocker
-```
-Blocks surface early, before they cascade.
-
-### Handoff with context
-```
-td handoff <issue-id>
-```
-Include: what was done, what's left, known unknowns.
-
----
-
-## Troubleshooting
-
-### "No focused issue"
-```bash
-td start <issue-id>
-# or
-td ws start "my-workspace"
-```
-
-### "Cannot approve issue I implemented"
-Correct. External review prevents self-review bias.
-Close with self-close exception: `td close <issue-id> --self-close-exception "Reason"`
-
-### Session diverged from reality
-```bash
-td usage --new-session
-td context <issue-id>   # Restore context for an issue
-```
-
-### "database is locked" or "database malformed"
-
-**Root cause (historical):** SQLite WAL corruption under concurrent access was fixed by Marcus in td core. If you encounter this, update td to the latest version.
-
-**Recovery:**
-```bash
-# Reset database if needed
-rm -rf .todos
-td init
+# Track epic in debrief
+echo "Epic: DASH-001 | Status: in_progress" >> debriefs/debrief-$(date +%Y-%m-%d).md
 ```
 
 ---
 
-## Testing
+## Common Commands
 
-### Smoke Test
-
-Run the full workflow test:
 ```bash
-just td-test
+td list                    # all tasks (default: open + in_progress)
+td list --json             # machine-readable
+td status --json           # session + review state
+td next                    # highest priority open issue
+td critical-path           # what unblocks the most work
+
+td ws start "name"         # start a named work session (multi-issue)
+td ws tag <ids>            # associate issues with current session
+td ws handoff              # end session, generate handoffs for all tagged
+
+td add "title" --points 3 --labels feat,backend  # create task
+td add "title" --minor                          # self-reviewable task
+td close <id> "reason"                          # admin closure (dups, won't-fix)
 ```
-
-This tests 12 steps:
-1. Initialize
-2. Create issues
-3. Start work
-4. Log progress
-5. Block issues
-6. Create dependencies
-7. List issues
-8. Check blocked
-9. Check dependencies
-10. Status check
-11. Handoff
-12. Review submission
-
-**Status:** ✅ Passed — all 12 steps verified working.
 
 ---
 
-## Assessment: Uses of td Database
+## Handoff Format
 
-### Current Usage (Coordination Layer)
+When `td handoff` is called, it captures:
+- Git commit + changes since start
+- Summary of what was done
+- Next steps
 
-| Use | Value |
-|-----|-------|
-| Issue tracking | High — coordination tool |
-| Session management | Medium — context continuity |
-| Review workflow | High — prevents self-review bias |
-| Agent coordination | High — prevents collision |
+For cross-agent handoffs, also record:
+- Current file state (what changed)
+- Outstanding questions or blockers
+- Any decisions made that need to be preserved
 
-### Potential Future Uses
-
-| Use Case | Effort | Opinion |
-|----------|--------|---------|
-| **Time tracking** — log hours per issue | Low | Valuable. We already log progress; add `--hours` flag. |
-| **Sprint velocity** — issues completed per week | Low | Useful for retrospectives. |
-| **Review turnaround** — handoff → approve latency | Low | Good ops metric. |
-| **Agent performance** — error rates, retry counts | Medium | Interesting but requires td schema changes. |
-| **Knowledge graph** — issue relationships | High | Overkill. Git + briefs already cover this. |
-
-### Principle
-
-The database should do one thing well: **coordination**. It is persistent, local-first SQLite. Treat it as infrastructure — it works, it persists, move on.
+```bash
+# Before stopping work:
+td handoff <id>
+# This records state — reviewer can `td context <id>` to resume
+```
 
 ---
 
-## Decision Framework
+## New Session Checklist
 
-```
-Is td working?          → Use it normally
-Is td outdated?         → Update td (SQLite WAL bugs were fixed in recent versions)
-Is td completely gone?  → Use git + logs as fallback, reinstall td
-```
+When starting a new session (or after `/clear`):
 
-**Rule:** td serves the work. The work does not depend on td.
+1. `td usage --new-session` — reset session context
+2. `td list` — see what's in progress and open
+3. `td ws current` — see current work session (if any)
+4. Read `briefs/epic-*.md` — understand the epic context
+5. Pick up where previous session left off using `td context <id>`
 
 ---
 
-## Related
+## Error Handling
 
-- [Edinburgh Protocol Playbook](edinburgh-protocol-playbook.md) — Decision framework
-- [Briefs/Debriefs Pattern](briefs-playbook.md) — Pre/post work documentation
-- [Agent Ops Playbook](agent-ops-playbook.md) — Human/agent coordination
+**"Error: cannot approve: you were involved with implementation"**
+→ The implementer cannot self-approve. Get a reviewer (user or separate agent).
+
+**"Warning: No handoff recorded"**
+→ `td ws handoff` wasn't called before ending a session. Resumable with `td ws start <session-id>`.
+
+**"Warning: issue not found: message text"**
+→ Second argument to `td close` was interpreted as an issue ID. Use: `td close <id> "reason string"` — issue ID comes first.
+
+---
+
+## Review Process for Solo Agent
+
+When working alone:
+
+1. Implementer agent completes a story
+2. Implementer calls `td handoff <id>` to capture state
+3. User reviews the work (reads the commit, checks the code)
+4. User runs `td approve <id>` to close the task
+5. If issues found, user runs `td reject <id>` with feedback — task goes back to `open`
+
+The handoff captures everything the reviewer needs to evaluate the work.

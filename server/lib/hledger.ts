@@ -11,7 +11,10 @@
 
 import { spawn } from "node:child_process"
 
-const DEFAULT_JOURNAL = process.env.HLEDGER_FILE ?? `${process.env.HOME}/.hledger.journal`
+const DEFAULT_JOURNAL =
+  process.env.TEST_MODE === "1" && process.env.TEST_HLEDGER_FILE
+    ? process.env.TEST_HLEDGER_FILE
+    : (process.env.HLEDGER_FILE ?? `${process.env.HOME}/.hledger.journal`)
 
 interface HLAmount {
   aquantity: { floatingPoint: number }

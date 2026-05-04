@@ -27,7 +27,7 @@ function benchmarkScript(): string {
       }
 
       let html = '<div class="benchmark-summary">';
-      html += '<div>Portfolio value: €' + result.currentValue.toFixed(2) + '</div>';
+      html += '<div>Portfolio value: \u00a3' + result.currentValue.toFixed(2) + ' <span class="muted">(base: GBP, live prices)</span></div>';
       html += '<div>Benchmark: ' + result.ticker + '</div>';
       html += '</div>';
 

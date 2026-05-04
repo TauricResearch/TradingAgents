@@ -6,17 +6,21 @@
 
 ## Journal File
 
-**Location:** `~/.hledger.journal` (or set `$HLEDGER_FILE`)
+**Location:** `~/.hledger.journal` (DEV) or `~/.tradingagents/test_hledger.journal` (TEST, set `$TEST_HLEDGER_FILE`)
+
+| Environment | Journal | Env vars |
 
 ### Account Naming
 
 ```
-Assets:Broker:Cash          # cash balances (EUR, USD, etc.)
-Assets:Broker:TICKER        # holdings — quote commodity if it contains dots
+assets:<platform>:cash      # cash balances (EUR, USD, etc.)
+assets:<platform>:holdings  # holdings — quote commodity if it contains dots
 Equity:Opening-Balances     # initial balances
 Expenses:Fees               # broker commissions
 Income:Dividends            # dividend income
 ```
+
+Platform examples: `degiero`, `ibkr`, `pension:nn`, `test`
 
 ### Commodity Quoting
 
@@ -34,12 +38,12 @@ Ticker symbols with dots **must be quoted**:
 
 ```
 2026-04-20 Buy TKA.DE
-  Assets:Broker:TKA.DE               500 "TKA.DE"
-  Assets:Broker:Cash               -4225 EUR          @ 8.45 EUR
-  Expenses:Fees                       10 EUR
+  assets:ibkr:holdings          1000 "TKA.DE"
+  assets:ibkr:cash              -8620 EUR
 ```
 
-The `@ 8.45 EUR` records the per-share price. hLedger computes total cost (500 × 8.45 = 4225).
+Use two-line double-entry: holdings account (stock commodity) + cash account (currency commodity).
+Both postings must balance in EUR equivalent.
 
 ### Recording Dividends
 
@@ -93,7 +97,8 @@ The server reads hLedger via `server/lib/hledger.ts`:
 - `GET /api/holdings/prices` → price history
 - `GET /api/holdings/allocation` → human-readable allocation tree
 
-No price data is stored in SQLite. hLedger is the single source of truth.
+No price data is stored in SQLite. hLedger is the single source of truth for what you own.
+Positions live in hledger only — the SQLite `positions` table is deprecated.
 
 ---
 
@@ -102,7 +107,9 @@ No price data is stored in SQLite. hLedger is the single source of truth.
 ### New Position
 
 1. Add transaction to journal: `just hl` to verify
-2. Create exit plan: `~/.tradingagents/positions/TICKER.yaml`
+2. Create exit plan: `~/.tradingagents/positions/<platform>/TICKER.yaml`
+   e.g. `~/.tradingagents/positions/ibkr/AAPL.yaml`
+   Each YAML file must include `platform:` field for correct routing.
 3. (Optional) Add to prospects pipeline via dashboard
 
 ### Price Update
