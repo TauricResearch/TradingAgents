@@ -1,0 +1,847 @@
+{
+  "/Users/Ahmet/Repo/TradingAgents/tests/unit/test_scanner_mocked.py": {
+    "nodes": 112,
+    "edges": 143,
+    "last_extracted": "2026-04-22T18:14:43.560688"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/unit/test_stockstats_utils.py": {
+    "nodes": 33,
+    "edges": 38,
+    "last_extracted": "2026-04-22T18:14:43.560724"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/unit/test_scanner_graph_context_prompt.py": {
+    "nodes": 15,
+    "edges": 21,
+    "last_extracted": "2026-04-22T18:14:43.560730"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/unit/agents/test_analyst_agents.py": {
+    "nodes": 58,
+    "edges": 93,
+    "last_extracted": "2026-04-22T18:14:43.560733"
+  },
+  "": {
+    "nodes": 6,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560735"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/test_propagation_scanner_context.py": {
+    "nodes": 13,
+    "edges": 35,
+    "last_extracted": "2026-04-22T18:14:43.560744"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_normalize_integration.py": {
+    "nodes": 20,
+    "edges": 28,
+    "last_extracted": "2026-04-22T18:14:43.560747"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_search.py": {
+    "nodes": 31,
+    "edges": 33,
+    "last_extracted": "2026-04-22T18:14:43.560751"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_from_markdown.py": {
+    "nodes": 49,
+    "edges": 77,
+    "last_extracted": "2026-04-22T18:14:43.560756"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/__init__.py": {
+    "nodes": 2,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.560764"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_schema.py": {
+    "nodes": 14,
+    "edges": 15,
+    "last_extracted": "2026-04-22T18:14:43.560765"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_from_macro_json.py": {
+    "nodes": 30,
+    "edges": 47,
+    "last_extracted": "2026-04-22T18:14:43.560768"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_builder.py": {
+    "nodes": 27,
+    "edges": 32,
+    "last_extracted": "2026-04-22T18:14:43.560774"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_aliases.py": {
+    "nodes": 7,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560778"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_render.py": {
+    "nodes": 34,
+    "edges": 108,
+    "last_extracted": "2026-04-22T18:14:43.560780"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_backend_wiring.py": {
+    "nodes": 9,
+    "edges": 25,
+    "last_extracted": "2026-04-22T18:14:43.560786"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_rebuild.py": {
+    "nodes": 19,
+    "edges": 35,
+    "last_extracted": "2026-04-22T18:14:43.560788"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/test_normalize.py": {
+    "nodes": 55,
+    "edges": 57,
+    "last_extracted": "2026-04-22T18:14:43.560792"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tests/graph/scanner_facts/fixtures/__init__.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560801"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/report_paths.py": {
+    "nodes": 19,
+    "edges": 28,
+    "last_extracted": "2026-04-22T18:14:43.560802"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/default_config.py": {
+    "nodes": 18,
+    "edges": 37,
+    "last_extracted": "2026-04-22T18:14:43.560806"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_graph.py": {
+    "nodes": 14,
+    "edges": 23,
+    "last_extracted": "2026-04-22T18:14:43.560810"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/propagation.py": {
+    "nodes": 9,
+    "edges": 21,
+    "last_extracted": "2026-04-22T18:14:43.560813"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/from_macro_json.py": {
+    "nodes": 8,
+    "edges": 16,
+    "last_extracted": "2026-04-22T18:14:43.560815"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/render.py": {
+    "nodes": 10,
+    "edges": 14,
+    "last_extracted": "2026-04-22T18:14:43.560817"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/normalize.py": {
+    "nodes": 13,
+    "edges": 15,
+    "last_extracted": "2026-04-22T18:14:43.560819"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/__init__.py": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.560822"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/from_markdown.py": {
+    "nodes": 25,
+    "edges": 60,
+    "last_extracted": "2026-04-22T18:14:43.560823"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/builder.py": {
+    "nodes": 14,
+    "edges": 27,
+    "last_extracted": "2026-04-22T18:14:43.560828"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/aliases.py": {
+    "nodes": 8,
+    "edges": 8,
+    "last_extracted": "2026-04-22T18:14:43.560830"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/search.py": {
+    "nodes": 6,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560832"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/rebuild.py": {
+    "nodes": 9,
+    "edges": 21,
+    "last_extracted": "2026-04-22T18:14:43.560834"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/scanner_facts/schema.py": {
+    "nodes": 8,
+    "edges": 12,
+    "last_extracted": "2026-04-22T18:14:43.560836"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/researchers/bull_researcher.py": {
+    "nodes": 2,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560838"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/researchers/bear_researcher.py": {
+    "nodes": 2,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560839"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/risk_mgmt/conservative_debator.py": {
+    "nodes": 2,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560841"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/risk_mgmt/aggressive_debator.py": {
+    "nodes": 2,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560842"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/risk_mgmt/risk_synthesis.py": {
+    "nodes": 3,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560843"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/risk_mgmt/neutral_debator.py": {
+    "nodes": 2,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560844"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/trader/trader.py": {
+    "nodes": 5,
+    "edges": 13,
+    "last_extracted": "2026-04-22T18:14:43.560845"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/managers/portfolio_manager.py": {
+    "nodes": 2,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560847"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/managers/context_summaries.py": {
+    "nodes": 7,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560848"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/managers/research_manager.py": {
+    "nodes": 2,
+    "edges": 8,
+    "last_extracted": "2026-04-22T18:14:43.560850"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/fundamental_data_tools.py": {
+    "nodes": 17,
+    "edges": 22,
+    "last_extracted": "2026-04-22T18:14:43.560851"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/summary_context.py": {
+    "nodes": 20,
+    "edges": 29,
+    "last_extracted": "2026-04-22T18:14:43.560855"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/agent_utils.py": {
+    "nodes": 8,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560859"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/agent_states.py": {
+    "nodes": 4,
+    "edges": 13,
+    "last_extracted": "2026-04-22T18:14:43.560861"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/tool_runner.py": {
+    "nodes": 4,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560862"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/llm_guard.py": {
+    "nodes": 4,
+    "edges": 8,
+    "last_extracted": "2026-04-22T18:14:43.560864"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/analysts/market_analyst.py": {
+    "nodes": 6,
+    "edges": 17,
+    "last_extracted": "2026-04-22T18:14:43.560865"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/analysts/social_media_analyst.py": {
+    "nodes": 2,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560867"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/analysts/news_analyst.py": {
+    "nodes": 5,
+    "edges": 15,
+    "last_extracted": "2026-04-22T18:14:43.560868"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/analysts/fundamentals_analyst.py": {
+    "nodes": 2,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560869"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/scanners/macro_synthesis.py": {
+    "nodes": 9,
+    "edges": 25,
+    "last_extracted": "2026-04-22T18:14:43.560871"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/scanners/drift_scanner.py": {
+    "nodes": 2,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560873"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/dataflows/yfinance_scanner.py": {
+    "nodes": 20,
+    "edges": 31,
+    "last_extracted": "2026-04-22T18:14:43.560874"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/tradingagents/llm_clients/base_client.py": {
+    "nodes": 10,
+    "edges": 13,
+    "last_extracted": "2026-04-22T18:14:43.560878"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/report_helpers.py": {
+    "nodes": 18,
+    "edges": 31,
+    "last_extracted": "2026-04-22T18:14:43.560880"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/langgraph_engine.py": {
+    "nodes": 62,
+    "edges": 218,
+    "last_extracted": "2026-04-22T18:14:43.560883"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/event_mapper.py": {
+    "nodes": 28,
+    "edges": 48,
+    "last_extracted": "2026-04-22T18:14:43.560893"
+  },
+  "/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/run_helpers.py": {
+    "nodes": 28,
+    "edges": 33,
+    "last_extracted": "2026-04-22T18:14:43.560898"
+  },
+  "README.md": {
+    "nodes": 12,
+    "edges": 10,
+    "last_extracted": "2026-04-22T18:14:43.560903"
+  },
+  "PLAN.md": {
+    "nodes": 6,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560905"
+  },
+  "GEMINI.md": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560907"
+  },
+  "CLAUDE.md": {
+    "nodes": 6,
+    "edges": 10,
+    "last_extracted": "2026-04-22T18:14:43.560908"
+  },
+  "docs/optimization_strategy.md": {
+    "nodes": 7,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560910"
+  },
+  "docs/agent_dataflow.md": {
+    "nodes": 25,
+    "edges": 12,
+    "last_extracted": "2026-04-22T18:14:43.560911"
+  },
+  "docs/architecture_learnings.md": {
+    "nodes": 6,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.560915"
+  },
+  "docs/graph_flows.md": {
+    "nodes": 4,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560917"
+  },
+  "docs/graph_execution_reference.md": {
+    "nodes": 8,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560919"
+  },
+  "docs/agent/CURRENT_STATE.md": {
+    "nodes": 2,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560921"
+  },
+  "docs/agent/context/ARCHITECTURE.md": {
+    "nodes": 6,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560922"
+  },
+  "docs/agent/context/CONVENTIONS.md": {
+    "nodes": 4,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.560923"
+  },
+  "docs/agent/context/GLOSSARY.md": {
+    "nodes": 12,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560925"
+  },
+  "docs/agent/context/COMPONENTS.md": {
+    "nodes": 9,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560927"
+  },
+  "docs/testing.md": {
+    "nodes": 5,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560929"
+  },
+  "docs/upstream_pr_review.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560931"
+  },
+  "docs/finnhub_evaluation.md": {
+    "nodes": 5,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560932"
+  },
+  "docs/README.md": {
+    "nodes": 1,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560934"
+  },
+  "docs/agent/context/TECH_STACK.md": {
+    "nodes": 10,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560935"
+  },
+  "docs/agent/plans/018-agent-handoff-matrix.md": {
+    "nodes": 9,
+    "edges": 10,
+    "last_extracted": "2026-04-22T18:14:43.560937"
+  },
+  "docs/agent/plans/013-canonical-instrument-layer.md": {
+    "nodes": 4,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.560939"
+  },
+  "agent_os/backend/services/langgraph_engine.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560941"
+  },
+  "tradingagents/pipeline/macro_bridge.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560942"
+  },
+  "tradingagents/graph/portfolio_setup.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560943"
+  },
+  "docs/agent/plans/012-fix-preexisting-test-failures.md": {
+    "nodes": 3,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560944"
+  },
+  "tests/test_config_wiring.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560949"
+  },
+  "tests/test_env_override.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560950"
+  },
+  "docs/agent/plans/021-post-news-node-implementation-plan.md": {
+    "nodes": 3,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560951"
+  },
+  "docs/agent/plans/025-news-integration-tests-from-scanner-artifacts.md": {
+    "nodes": 2,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.560953"
+  },
+  "docs/agent/plans/022-live-run-issue-handoff.md": {
+    "nodes": 2,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560954"
+  },
+  "docs/agent/plans/011-opt-in-vendor-fallback.md": {
+    "nodes": 3,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.560958"
+  },
+  "tradingagents/dataflows/interface.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560959"
+  },
+  "docs/agent/plans/020-structured-contracts-revised-plan.md": {
+    "nodes": 3,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560960"
+  },
+  "docs/agent/plans/017-structured-contracts-and-raw-context-experiment.md": {
+    "nodes": 3,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.560961"
+  },
+  "docs/agent/plans/024-news-structured-contract-handoff.md": {
+    "nodes": 4,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.560963"
+  },
+  "tradingagents/agents/managers/news_fact_checker.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560964"
+  },
+  "tradingagents/agents/utils/output_validation.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560965"
+  },
+  "tradingagents/agents/analysts/news_analyst.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560966"
+  },
+  "tradingagents/agents/utils/summary_context.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560967"
+  },
+  "docs/agent/plans/023-upstream-evidence-quality-plan.md": {
+    "nodes": 4,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560968"
+  },
+  "docs/agent/plans/016-summary-first-workflow-refactor.md": {
+    "nodes": 3,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.560969"
+  },
+  "docs/agent/plans/019-structured-contracts-implementation-checklist.md": {
+    "nodes": 2,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560970"
+  },
+  "docs/agent/plans/014-simplify-env-config-precedence.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560972"
+  },
+  "docs/agent/decisions/013-agentos-websocket-streaming.md": {
+    "nodes": 4,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.560973"
+  },
+  "docs/agent/decisions/007-thread-safe-rate-limiter.md": {
+    "nodes": 2,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560974"
+  },
+  "tradingagents/dataflows/alpha_vantage_common.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560988"
+  },
+  "docs/agent/decisions/012-portfolio-no-orm.md": {
+    "nodes": 2,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.560989"
+  },
+  "tradingagents/portfolio/supabase_client.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560990"
+  },
+  "tradingagents/portfolio/repository.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560994"
+  },
+  "docs/agent/decisions/016-pr106-review-findings.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560995"
+  },
+  "docs/agent/decisions/022-json-scanner-graph-facts.md": {
+    "nodes": 3,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.560996"
+  },
+  "docs/agent/decisions/005-langgraph-parallel-reducers.md": {
+    "nodes": 2,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.560998"
+  },
+  "tradingagents/agents/utils/scanner_states.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.560999"
+  },
+  "docs/agent/decisions/010-finnhub-vendor-integration.md": {
+    "nodes": 3,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.561000"
+  },
+  "tradingagents/dataflows/finnhub_scanner.py": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.561001"
+  },
+  "docs/agent/decisions/014-finviz-smart-money-scanner.md": {
+    "nodes": 5,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.561002"
+  },
+  "docs/agent/decisions/020-global-gap-detector-candidate-ranking.md": {
+    "nodes": 4,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.561004"
+  },
+  "docs/agent/decisions/017-llm-policy-fallback.md": {
+    "nodes": 3,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.561005"
+  },
+  "docs/agent/decisions/011-opt-in-vendor-fallback.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561007"
+  },
+  "docs/agent/decisions/019-fast-reject-short-circuits.md": {
+    "nodes": 3,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561008"
+  },
+  "docs/agent/decisions/009-industry-deep-dive-quality.md": {
+    "nodes": 4,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.561009"
+  },
+  "docs/agent/decisions/004-inline-tool-execution.md": {
+    "nodes": 2,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561011"
+  },
+  "docs/agent/decisions/008-lessons-learned.md": {
+    "nodes": 4,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.561012"
+  },
+  "docs/agent/decisions/021-auto-run-task-lifecycle.md": {
+    "nodes": 3,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561013"
+  },
+  "docs/agent/decisions/006-env-var-config-overrides.md": {
+    "nodes": 3,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561015"
+  },
+  "docs/agent/decisions/002-data-vendor-fallback.md": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561016"
+  },
+  "docs/agent/decisions/001-hybrid-llm-setup.md": {
+    "nodes": 2,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561017"
+  },
+  "docs/agent/decisions/003-yfinance-etf-proxies.md": {
+    "nodes": 2,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561018"
+  },
+  "docs/agent/templates/commit-template.txt": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.561019"
+  },
+  "docs/agent/templates/agent-decision-template.md": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561023"
+  },
+  "docs/agent/templates/pr-template.md": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561024"
+  },
+  "docs/testing/node-by-node-terminal-guide.md": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.561025"
+  },
+  "docs/testing/live-integration-strategy.md": {
+    "nodes": 2,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.561026"
+  },
+  "docs/scratch/Fix.md": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561027"
+  },
+  "docs/scratch/Task3_Implementation_Plan.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561028"
+  },
+  "docs/portfolio/04_repository_api.md": {
+    "nodes": 5,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.561029"
+  },
+  "docs/portfolio/03_database_schema.md": {
+    "nodes": 6,
+    "edges": 9,
+    "last_extracted": "2026-04-22T18:14:43.561031"
+  },
+  "docs/portfolio/00_overview.md": {
+    "nodes": 14,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.561033"
+  },
+  "docs/portfolio/02_data_models.md": {
+    "nodes": 4,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561035"
+  },
+  "docs/portfolio/01_phase1_plan.md": {
+    "nodes": 2,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.561037"
+  },
+  "docs/superpowers/plans/2026-04-18-graphrag-knowledge-graph.md": {
+    "nodes": 10,
+    "edges": 11,
+    "last_extracted": "2026-04-22T18:14:43.561038"
+  },
+  "docs/superpowers/plans/2026-04-19-json-scanner-graph-facts.md": {
+    "nodes": 10,
+    "edges": 11,
+    "last_extracted": "2026-04-22T18:14:43.561040"
+  },
+  "docs/superpowers/plans/2026-04-21-ohlcv-cache-defence.md": {
+    "nodes": 12,
+    "edges": 17,
+    "last_extracted": "2026-04-22T18:14:43.561042"
+  },
+  "docs/superpowers/specs/2026-04-21-ohlcv-cache-defence-design.md": {
+    "nodes": 2,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.561045"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/01-schema-validation-alias-registry.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561046"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/02-normalization-classification-confidence-polarity.md": {
+    "nodes": 7,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.561048"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/03-macro-json-adapter.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561050"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/04-markdown-adapter.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561051"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/05-builder-merge-immutable-persistence.md": {
+    "nodes": 5,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.561053"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/06-rebuild-cli.md": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561054"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/07-json-graph-search.md": {
+    "nodes": 2,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561055"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/08-renderer-render-tool.md": {
+    "nodes": 4,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.561057"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/09-state-field-propagation.md": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561058"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/10-backend-wiring-fail-loud.md": {
+    "nodes": 1,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561059"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/11-analyst-trader-summary-prompt-integration.md": {
+    "nodes": 1,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561060"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/12-fixtures-smoke-checks.md": {
+    "nodes": 1,
+    "edges": 0,
+    "last_extracted": "2026-04-22T18:14:43.561061"
+  },
+  "docs/superpowers/plans/tasks/2026-04-19-json-scanner-graph-facts/13-adr-022-json-scanner-graph-facts.md": {
+    "nodes": 1,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561062"
+  },
+  "assets/TauricResearch.png": {
+    "nodes": 2,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561063"
+  },
+  "assets/researcher.png": {
+    "nodes": 5,
+    "edges": 5,
+    "last_extracted": "2026-04-22T18:14:43.561064"
+  },
+  "assets/trader.png": {
+    "nodes": 3,
+    "edges": 2,
+    "last_extracted": "2026-04-22T18:14:43.561066"
+  },
+  "assets/analyst.png": {
+    "nodes": 8,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.561067"
+  },
+  "assets/schema.png": {
+    "nodes": 10,
+    "edges": 14,
+    "last_extracted": "2026-04-22T18:14:43.561069"
+  },
+  "assets/wechat.png": {
+    "nodes": 1,
+    "edges": 1,
+    "last_extracted": "2026-04-22T18:14:43.561071"
+  },
+  "assets/risk.png": {
+    "nodes": 5,
+    "edges": 6,
+    "last_extracted": "2026-04-22T18:14:43.561072"
+  },
+  "assets/cli/cli_transaction.png": {
+    "nodes": 4,
+    "edges": 4,
+    "last_extracted": "2026-04-22T18:14:43.561074"
+  },
+  "assets/cli/cli_technical.png": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561075"
+  },
+  "assets/cli/cli_news.png": {
+    "nodes": 3,
+    "edges": 3,
+    "last_extracted": "2026-04-22T18:14:43.561077"
+  },
+  "assets/cli/cli_init.png": {
+    "nodes": 3,
+    "edges": 7,
+    "last_extracted": "2026-04-22T18:14:43.561078"
+  }
+}

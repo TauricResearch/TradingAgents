@@ -1,0 +1,32 @@
+{
+  "files": {
+    "code": [
+      "agent_os/frontend/tailwind.config.js",
+      "agent_os/frontend/vite.config.ts",
+      "agent_os/frontend/postcss.config.js",
+      "agent_os/frontend/src/App.tsx",
+      "agent_os/frontend/src/main.tsx",
+      "agent_os/frontend/src/Dashboard.tsx",
+      "agent_os/frontend/src/vite-env.d.ts",
+      "agent_os/frontend/src/theme.ts",
+      "agent_os/frontend/src/config/api.ts",
+      "agent_os/frontend/src/components/MetricHeader.tsx",
+      "agent_os/frontend/src/components/PortfolioViewer.tsx",
+      "agent_os/frontend/src/components/AgentGraph.tsx",
+      "agent_os/frontend/src/hooks/useAgentStream.ts"
+    ],
+    "document": [
+      "agent_os/frontend/README.md",
+      "agent_os/frontend/graphify-out/GRAPH_REPORT.md"
+    ],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 15,
+  "total_words": 13630,
+  "needs_graph": false,
+  "warning": "Corpus is ~13,630 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [],
+  "graphifyignore_patterns": 29
+}

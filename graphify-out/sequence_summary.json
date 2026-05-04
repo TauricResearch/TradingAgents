@@ -1,0 +1,54 @@
+[
+  {
+    "path": "tradingagents",
+    "status": "ok",
+    "total_files": 153,
+    "total_words": 118222,
+    "code_files": 153,
+    "doc_files": 0,
+    "image_files": 0,
+    "video_files": 0,
+    "graph_nodes": 1835,
+    "graph_edges": 3408,
+    "communities": 95
+  },
+  {
+    "path": "agent_os/backend",
+    "status": "ok",
+    "total_files": 16,
+    "total_words": 19625,
+    "code_files": 16,
+    "doc_files": 0,
+    "image_files": 0,
+    "video_files": 0,
+    "graph_nodes": 269,
+    "graph_edges": 581,
+    "communities": 19
+  },
+  {
+    "path": "agent_os/frontend",
+    "status": "ok",
+    "total_files": 15,
+    "total_words": 13630,
+    "code_files": 13,
+    "doc_files": 2,
+    "image_files": 0,
+    "video_files": 0,
+    "graph_nodes": 50,
+    "graph_edges": 43,
+    "communities": 16
+  },
+  {
+    "path": "tests",
+    "status": "ok",
+    "total_files": 165,
+    "total_words": 110739,
+    "code_files": 159,
+    "doc_files": 6,
+    "image_files": 0,
+    "video_files": 0,
+    "graph_nodes": 3796,
+    "graph_edges": 4736,
+    "communities": 155
+  }
+]

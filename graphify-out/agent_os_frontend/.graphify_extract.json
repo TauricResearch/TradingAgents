@@ -1,0 +1,1079 @@
+{
+  "nodes": [
+    {
+      "id": "tailwind_config_js",
+      "label": "tailwind.config.js",
+      "file_type": "code",
+      "source_file": "tailwind.config.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "vite_config_ts",
+      "label": "vite.config.ts",
+      "file_type": "code",
+      "source_file": "vite.config.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "postcss_config_js",
+      "label": "postcss.config.js",
+      "file_type": "code",
+      "source_file": "postcss.config.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_app_tsx",
+      "label": "App.tsx",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "app_app",
+      "label": "App()",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_main_tsx",
+      "label": "main.tsx",
+      "file_type": "code",
+      "source_file": "src/main.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_dashboard_tsx",
+      "label": "Dashboard.tsx",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "dashboard_parsetickerinput",
+      "label": "parseTickerInput()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L99"
+    },
+    {
+      "id": "dashboard_restoretickerinput",
+      "label": "restoreTickerInput()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L105"
+    },
+    {
+      "id": "dashboard_errordetail",
+      "label": "errorDetail()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L117"
+    },
+    {
+      "id": "dashboard_eventcolor",
+      "label": "eventColor()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L143"
+    },
+    {
+      "id": "dashboard_eventlabel",
+      "label": "eventLabel()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L158"
+    },
+    {
+      "id": "dashboard_eventsummary",
+      "label": "eventSummary()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L172"
+    },
+    {
+      "id": "dashboard_fetchconfig",
+      "label": "fetchConfig()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L571"
+    },
+    {
+      "id": "dashboard_loadpausedrun",
+      "label": "loadPausedRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L602"
+    },
+    {
+      "id": "dashboard_startrun",
+      "label": "startRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L676"
+    },
+    {
+      "id": "dashboard_resetportfoliostage",
+      "label": "resetPortfolioStage()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L792"
+    },
+    {
+      "id": "dashboard_loadrun",
+      "label": "loadRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L813"
+    },
+    {
+      "id": "dashboard_resumerun",
+      "label": "resumeRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L850"
+    },
+    {
+      "id": "dashboard_stoprun",
+      "label": "stopRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L891"
+    },
+    {
+      "id": "dashboard_submitphase3decision",
+      "label": "submitPhase3Decision()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L925"
+    },
+    {
+      "id": "src_vite_env_d_ts",
+      "label": "vite-env.d.ts",
+      "file_type": "code",
+      "source_file": "src/vite-env.d.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_theme_ts",
+      "label": "theme.ts",
+      "file_type": "code",
+      "source_file": "src/theme.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_config_api_ts",
+      "label": "api.ts",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "api_trimtrailingslash",
+      "label": "trimTrailingSlash()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L4"
+    },
+    {
+      "id": "api_getbackendorigin",
+      "label": "getBackendOrigin()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L8"
+    },
+    {
+      "id": "api_buildwebsocketurl",
+      "label": "buildWebSocketUrl()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L23"
+    },
+    {
+      "id": "src_components_metricheader_tsx",
+      "label": "MetricHeader.tsx",
+      "file_type": "code",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "metricheader_metricheader",
+      "label": "MetricHeader()",
+      "file_type": "code",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_components_portfolioviewer_tsx",
+      "label": "PortfolioViewer.tsx",
+      "file_type": "code",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "portfolioviewer_fetchlist",
+      "label": "fetchList()",
+      "file_type": "code",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L81"
+    },
+    {
+      "id": "src_components_agentgraph_tsx",
+      "label": "AgentGraph.tsx",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "agentgraph_normalizenodeid",
+      "label": "normalizeNodeId()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L159"
+    },
+    {
+      "id": "agentgraph_tolabel",
+      "label": "toLabel()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L173"
+    },
+    {
+      "id": "agentgraph_scopeid",
+      "label": "scopeId()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L180"
+    },
+    {
+      "id": "agentgraph_classifynode",
+      "label": "classifyNode()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L184"
+    },
+    {
+      "id": "agentgraph_canrerunnode",
+      "label": "canRerunNode()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L192"
+    },
+    {
+      "id": "agentgraph_geteventrerunseq",
+      "label": "getEventRerunSeq()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L197"
+    },
+    {
+      "id": "agentgraph_getnodeorder",
+      "label": "getNodeOrder()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L217"
+    },
+    {
+      "id": "agentgraph_statuscolor",
+      "label": "statusColor()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L230"
+    },
+    {
+      "id": "agentgraph_identifiercolor",
+      "label": "identifierColor()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L239"
+    },
+    {
+      "id": "agentgraph_geticon",
+      "label": "getIcon()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L248"
+    },
+    {
+      "id": "agentgraph_toggle",
+      "label": "toggle()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L823"
+    },
+    {
+      "id": "agentgraph_pushedge",
+      "label": "pushEdge()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1206"
+    },
+    {
+      "id": "agentgraph_nodedata",
+      "label": "nodeData()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1452"
+    },
+    {
+      "id": "agentgraph_tickerx",
+      "label": "tickerX()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1485"
+    },
+    {
+      "id": "src_hooks_useagentstream_ts",
+      "label": "useAgentStream.ts",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L1"
+    },
+    {
+      "id": "useagentstream_isstreampayload",
+      "label": "isStreamPayload()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L49"
+    },
+    {
+      "id": "useagentstream_isagentevent",
+      "label": "isAgentEvent()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L53"
+    },
+    {
+      "id": "useagentstream_useagentstream",
+      "label": "useAgentStream()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L61"
+    }
+  ],
+  "edges": [
+    {
+      "source": "vite_config_ts",
+      "target": "vite",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "vite.config.ts",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "vite_config_ts",
+      "target": "plugin_react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "vite.config.ts",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_app_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_app_tsx",
+      "target": "theme",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.tsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_app_tsx",
+      "target": "dashboard",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.tsx",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_app_tsx",
+      "target": "app_app",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main_tsx",
+      "target": "client",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main.tsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main_tsx",
+      "target": "app",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main.tsx",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main_tsx",
+      "target": "index_css",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/main.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L47",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "metricheader",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L48",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "agentgraph",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L49",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "portfolioviewer",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L50",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "useagentstream",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L51",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "api",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L52",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "axios",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L53",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_parsetickerinput",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L99",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_restoretickerinput",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L105",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_errordetail",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L117",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventcolor",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L143",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventlabel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L158",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventsummary",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L172",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_fetchconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L571",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadpausedrun",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L602",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_startrun",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L676",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_resetportfoliostage",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L792",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadrun",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L813",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_resumerun",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L850",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_stoprun",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L891",
+      "weight": 1.0
+    },
+    {
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_submitphase3decision",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L925",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_startrun",
+      "target": "dashboard_parsetickerinput",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L702",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_resumerun",
+      "target": "dashboard_errordetail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L879",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_stoprun",
+      "target": "dashboard_errordetail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L913",
+      "weight": 1.0
+    },
+    {
+      "source": "dashboard_submitphase3decision",
+      "target": "dashboard_errordetail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L950",
+      "weight": 1.0
+    },
+    {
+      "source": "src_theme_ts",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/theme.ts",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_config_api_ts",
+      "target": "api_trimtrailingslash",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_config_api_ts",
+      "target": "api_getbackendorigin",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "src_config_api_ts",
+      "target": "api_buildwebsocketurl",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L23",
+      "weight": 1.0
+    },
+    {
+      "source": "api_buildwebsocketurl",
+      "target": "api_getbackendorigin",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_metricheader_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_metricheader_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_metricheader_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_metricheader_tsx",
+      "target": "axios",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_metricheader_tsx",
+      "target": "api",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_metricheader_tsx",
+      "target": "metricheader_metricheader",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "axios",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L27",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "api",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L28",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "portfolioviewer_fetchlist",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L81",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "reactflow",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "style_css",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "lucide_react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "useagentstream",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_normalizenodeid",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L159",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_tolabel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L173",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_scopeid",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L180",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_classifynode",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L184",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_canrerunnode",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L192",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_geteventrerunseq",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L197",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_getnodeorder",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L217",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_statuscolor",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L230",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_identifiercolor",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L239",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_geticon",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L248",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_toggle",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L823",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_pushedge",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1206",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_nodedata",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1452",
+      "weight": 1.0
+    },
+    {
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_tickerx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1485",
+      "weight": 1.0
+    },
+    {
+      "source": "agentgraph_nodedata",
+      "target": "agentgraph_canrerunnode",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1462",
+      "weight": 1.0
+    },
+    {
+      "source": "src_hooks_useagentstream_ts",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_hooks_useagentstream_ts",
+      "target": "api",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_isstreampayload",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L49",
+      "weight": 1.0
+    },
+    {
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_isagentevent",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L53",
+      "weight": 1.0
+    },
+    {
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_useagentstream",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L61",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

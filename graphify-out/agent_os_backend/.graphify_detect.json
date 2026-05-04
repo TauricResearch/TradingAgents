@@ -1,0 +1,32 @@
+{
+  "files": {
+    "code": [
+      "agent_os/backend/store.py",
+      "agent_os/backend/run_metadata.py",
+      "agent_os/backend/__init__.py",
+      "agent_os/backend/main.py",
+      "agent_os/backend/dependencies.py",
+      "agent_os/backend/routes/__init__.py",
+      "agent_os/backend/routes/portfolios.py",
+      "agent_os/backend/routes/runs.py",
+      "agent_os/backend/routes/websocket.py",
+      "agent_os/backend/services/scanner_context.py",
+      "agent_os/backend/services/report_helpers.py",
+      "agent_os/backend/services/__init__.py",
+      "agent_os/backend/services/langgraph_engine.py",
+      "agent_os/backend/services/event_mapper.py",
+      "agent_os/backend/services/mock_engine.py",
+      "agent_os/backend/services/run_helpers.py"
+    ],
+    "document": [],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 16,
+  "total_words": 19625,
+  "needs_graph": false,
+  "warning": "Corpus is ~19,625 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [],
+  "graphifyignore_patterns": 29
+}

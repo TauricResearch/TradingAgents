@@ -1,0 +1,45 @@
+# Graphify ignore rules for TradingAgents
+# Syntax matches .gitignore
+
+# VCS and local editor metadata
+.git/
+.vscode/
+.idea/
+.DS_Store
+
+# Python caches and virtual environments
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node dependencies/build output
+node_modules/
+agent_os/frontend/dist/
+
+# Generated or local-only outputs
+artifacts/
+logs/
+reports/
+results/
+eval_results/
+
+# Internal worktree and agent metadata
+.worktrees/
+.claude/worktrees/
+.codex/
+
+# Existing graph artifacts (keep source-of-truth graph files by default)
+graphify-out/cache/
+graphify-out/.graphify_detect.json
+graphify-out/.graphify_incremental.json
+graphify-out/manifest.json
+graphify-out/cost.json
+
+# Temp and backup files
+*.tmp
+*.temp
+*.backup
+*.log

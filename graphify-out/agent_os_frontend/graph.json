@@ -1,0 +1,926 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "tailwind.config.js",
+      "file_type": "code",
+      "source_file": "tailwind.config.js",
+      "source_location": "L1",
+      "id": "tailwind_config_js",
+      "community": 10
+    },
+    {
+      "label": "vite.config.ts",
+      "file_type": "code",
+      "source_file": "vite.config.ts",
+      "source_location": "L1",
+      "id": "vite_config_ts",
+      "community": 11
+    },
+    {
+      "label": "postcss.config.js",
+      "file_type": "code",
+      "source_file": "postcss.config.js",
+      "source_location": "L1",
+      "id": "postcss_config_js",
+      "community": 12
+    },
+    {
+      "label": "App.tsx",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L1",
+      "id": "src_app_tsx",
+      "community": 5
+    },
+    {
+      "label": "App()",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L5",
+      "id": "app_app",
+      "community": 5
+    },
+    {
+      "label": "main.tsx",
+      "file_type": "code",
+      "source_file": "src/main.tsx",
+      "source_location": "L1",
+      "id": "src_main_tsx",
+      "community": 13
+    },
+    {
+      "label": "Dashboard.tsx",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L1",
+      "id": "src_dashboard_tsx",
+      "community": 1
+    },
+    {
+      "label": "parseTickerInput()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L99",
+      "id": "dashboard_parsetickerinput",
+      "community": 6
+    },
+    {
+      "label": "restoreTickerInput()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L105",
+      "id": "dashboard_restoretickerinput",
+      "community": 1
+    },
+    {
+      "label": "errorDetail()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L117",
+      "id": "dashboard_errordetail",
+      "community": 2
+    },
+    {
+      "label": "eventColor()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L143",
+      "id": "dashboard_eventcolor",
+      "community": 1
+    },
+    {
+      "label": "eventLabel()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L158",
+      "id": "dashboard_eventlabel",
+      "community": 1
+    },
+    {
+      "label": "eventSummary()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L172",
+      "id": "dashboard_eventsummary",
+      "community": 1
+    },
+    {
+      "label": "fetchConfig()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L571",
+      "id": "dashboard_fetchconfig",
+      "community": 1
+    },
+    {
+      "label": "loadPausedRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L602",
+      "id": "dashboard_loadpausedrun",
+      "community": 1
+    },
+    {
+      "label": "startRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L676",
+      "id": "dashboard_startrun",
+      "community": 6
+    },
+    {
+      "label": "resetPortfolioStage()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L792",
+      "id": "dashboard_resetportfoliostage",
+      "community": 1
+    },
+    {
+      "label": "loadRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L813",
+      "id": "dashboard_loadrun",
+      "community": 1
+    },
+    {
+      "label": "resumeRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L850",
+      "id": "dashboard_resumerun",
+      "community": 2
+    },
+    {
+      "label": "stopRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L891",
+      "id": "dashboard_stoprun",
+      "community": 2
+    },
+    {
+      "label": "submitPhase3Decision()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L925",
+      "id": "dashboard_submitphase3decision",
+      "community": 2
+    },
+    {
+      "label": "vite-env.d.ts",
+      "file_type": "code",
+      "source_file": "src/vite-env.d.ts",
+      "source_location": "L1",
+      "id": "src_vite_env_d_ts",
+      "community": 14
+    },
+    {
+      "label": "theme.ts",
+      "file_type": "code",
+      "source_file": "src/theme.ts",
+      "source_location": "L1",
+      "id": "src_theme_ts",
+      "community": 15
+    },
+    {
+      "label": "api.ts",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L1",
+      "id": "src_config_api_ts",
+      "community": 3
+    },
+    {
+      "label": "trimTrailingSlash()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L4",
+      "id": "api_trimtrailingslash",
+      "community": 3
+    },
+    {
+      "label": "getBackendOrigin()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L8",
+      "id": "api_getbackendorigin",
+      "community": 3
+    },
+    {
+      "label": "buildWebSocketUrl()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L23",
+      "id": "api_buildwebsocketurl",
+      "community": 3
+    },
+    {
+      "label": "MetricHeader.tsx",
+      "file_type": "code",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L1",
+      "id": "src_components_metricheader_tsx",
+      "community": 7
+    },
+    {
+      "label": "MetricHeader()",
+      "file_type": "code",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L20",
+      "id": "metricheader_metricheader",
+      "community": 7
+    },
+    {
+      "label": "PortfolioViewer.tsx",
+      "file_type": "code",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L1",
+      "id": "src_components_portfolioviewer_tsx",
+      "community": 8
+    },
+    {
+      "label": "fetchList()",
+      "file_type": "code",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L81",
+      "id": "portfolioviewer_fetchlist",
+      "community": 8
+    },
+    {
+      "label": "AgentGraph.tsx",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1",
+      "id": "src_components_agentgraph_tsx",
+      "community": 0
+    },
+    {
+      "label": "normalizeNodeId()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L159",
+      "id": "agentgraph_normalizenodeid",
+      "community": 0
+    },
+    {
+      "label": "toLabel()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L173",
+      "id": "agentgraph_tolabel",
+      "community": 0
+    },
+    {
+      "label": "scopeId()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L180",
+      "id": "agentgraph_scopeid",
+      "community": 0
+    },
+    {
+      "label": "classifyNode()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L184",
+      "id": "agentgraph_classifynode",
+      "community": 0
+    },
+    {
+      "label": "canRerunNode()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L192",
+      "id": "agentgraph_canrerunnode",
+      "community": 9
+    },
+    {
+      "label": "getEventRerunSeq()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L197",
+      "id": "agentgraph_geteventrerunseq",
+      "community": 0
+    },
+    {
+      "label": "getNodeOrder()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L217",
+      "id": "agentgraph_getnodeorder",
+      "community": 0
+    },
+    {
+      "label": "statusColor()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L230",
+      "id": "agentgraph_statuscolor",
+      "community": 0
+    },
+    {
+      "label": "identifierColor()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L239",
+      "id": "agentgraph_identifiercolor",
+      "community": 0
+    },
+    {
+      "label": "getIcon()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L248",
+      "id": "agentgraph_geticon",
+      "community": 0
+    },
+    {
+      "label": "toggle()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L823",
+      "id": "agentgraph_toggle",
+      "community": 0
+    },
+    {
+      "label": "pushEdge()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1206",
+      "id": "agentgraph_pushedge",
+      "community": 0
+    },
+    {
+      "label": "nodeData()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1452",
+      "id": "agentgraph_nodedata",
+      "community": 9
+    },
+    {
+      "label": "tickerX()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1485",
+      "id": "agentgraph_tickerx",
+      "community": 0
+    },
+    {
+      "label": "useAgentStream.ts",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L1",
+      "id": "src_hooks_useagentstream_ts",
+      "community": 4
+    },
+    {
+      "label": "isStreamPayload()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L49",
+      "id": "useagentstream_isstreampayload",
+      "community": 4
+    },
+    {
+      "label": "isAgentEvent()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L53",
+      "id": "useagentstream_isagentevent",
+      "community": 4
+    },
+    {
+      "label": "useAgentStream()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L61",
+      "id": "useagentstream_useagentstream",
+      "community": 4
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_src": "src_app_tsx",
+      "_tgt": "app_app",
+      "source": "src_app_tsx",
+      "target": "app_app",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L99",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_parsetickerinput",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_parsetickerinput",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L105",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_restoretickerinput",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_restoretickerinput",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L117",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_errordetail",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_errordetail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L143",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_eventcolor",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventcolor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L158",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_eventlabel",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L172",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_eventsummary",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventsummary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L571",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_fetchconfig",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_fetchconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L602",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_loadpausedrun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadpausedrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L676",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_startrun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_startrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L792",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_resetportfoliostage",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_resetportfoliostage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L813",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_loadrun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L850",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_resumerun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_resumerun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L891",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_stoprun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_stoprun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L925",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_submitphase3decision",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_submitphase3decision",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L702",
+      "weight": 1.0,
+      "_src": "dashboard_startrun",
+      "_tgt": "dashboard_parsetickerinput",
+      "source": "dashboard_parsetickerinput",
+      "target": "dashboard_startrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L879",
+      "weight": 1.0,
+      "_src": "dashboard_resumerun",
+      "_tgt": "dashboard_errordetail",
+      "source": "dashboard_errordetail",
+      "target": "dashboard_resumerun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L913",
+      "weight": 1.0,
+      "_src": "dashboard_stoprun",
+      "_tgt": "dashboard_errordetail",
+      "source": "dashboard_errordetail",
+      "target": "dashboard_stoprun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L950",
+      "weight": 1.0,
+      "_src": "dashboard_submitphase3decision",
+      "_tgt": "dashboard_errordetail",
+      "source": "dashboard_errordetail",
+      "target": "dashboard_submitphase3decision",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_src": "src_config_api_ts",
+      "_tgt": "api_trimtrailingslash",
+      "source": "src_config_api_ts",
+      "target": "api_trimtrailingslash",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_src": "src_config_api_ts",
+      "_tgt": "api_getbackendorigin",
+      "source": "src_config_api_ts",
+      "target": "api_getbackendorigin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_src": "src_config_api_ts",
+      "_tgt": "api_buildwebsocketurl",
+      "source": "src_config_api_ts",
+      "target": "api_buildwebsocketurl",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_src": "api_buildwebsocketurl",
+      "_tgt": "api_getbackendorigin",
+      "source": "api_getbackendorigin",
+      "target": "api_buildwebsocketurl",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_src": "src_components_metricheader_tsx",
+      "_tgt": "metricheader_metricheader",
+      "source": "src_components_metricheader_tsx",
+      "target": "metricheader_metricheader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L81",
+      "weight": 1.0,
+      "_src": "src_components_portfolioviewer_tsx",
+      "_tgt": "portfolioviewer_fetchlist",
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "portfolioviewer_fetchlist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L159",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_normalizenodeid",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_normalizenodeid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L173",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_tolabel",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_tolabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L180",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_scopeid",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_scopeid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L184",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_classifynode",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_classifynode",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L192",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_canrerunnode",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_canrerunnode",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L197",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_geteventrerunseq",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_geteventrerunseq",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L217",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_getnodeorder",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_getnodeorder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L230",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_statuscolor",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_statuscolor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L239",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_identifiercolor",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_identifiercolor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L248",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_geticon",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_geticon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L823",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_toggle",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_toggle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1206",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_pushedge",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_pushedge",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1452",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_nodedata",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_nodedata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1485",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_tickerx",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_tickerx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1462",
+      "weight": 1.0,
+      "_src": "agentgraph_nodedata",
+      "_tgt": "agentgraph_canrerunnode",
+      "source": "agentgraph_canrerunnode",
+      "target": "agentgraph_nodedata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "_src": "src_hooks_useagentstream_ts",
+      "_tgt": "useagentstream_isstreampayload",
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_isstreampayload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_src": "src_hooks_useagentstream_ts",
+      "_tgt": "useagentstream_isagentevent",
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_isagentevent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L61",
+      "weight": 1.0,
+      "_src": "src_hooks_useagentstream_ts",
+      "_tgt": "useagentstream_useagentstream",
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_useagentstream",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": []
+}
