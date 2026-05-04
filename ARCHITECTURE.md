@@ -11,26 +11,7 @@ TradingAgents is a **multi-agent LLM trading framework** (`tradingagents` Python
 with a **web dashboard** (Bun/Hono) that wraps it. The dashboard never modifies the core
 framework — communication is via subprocess bridge.
 
-```
-┌─────────────┐     SSE/HTMX      ┌───────────────────┐   PYTHONUNBUFFERED=1    ┌──────────────────────────┐
-│   Browser   │ ◄────────────────► │  Bun/Hono (3000)  │ ◄─────────────────────► │  Python Subprocess        │
-│  (no SPA)   │    HTML + SSE     │  server/index.tsx │   spawn() → JSON lines  │  scripts/analyze_stream.py│
-└─────────────┘                   └────────┬──────────┘                         └─────────────┬────────────┘
-                                           │                                                   │
-                                  ┌────────▼──────────┐                              ┌────────▼────────┐
-                                  │  SQLite (WAL)     │                              │ TradingAgents   │
-                                  │  portfolio.db     │                              │ Python Package  │
-                                  │  - signals        │                              │ tradingagents/  │
-                                  │  - positions      │                              └────────┬────────┘
-                                  │  - watchlist      │                                       │
-                                  │  - analyses       │                              ┌────────▼────────┐
-                                  └───────────────────┘                              │  yfinance      │
-                                                                                     │  (data source) │
-                                  ┌───────────────────┐                              └─────────────────┘
-                                  │  hLedger (read)   │
-                                  │  ~/.hledger.journal│
-                                  └───────────────────┘
-```
+![System Overview](docs/diagrams/system-overview.svg)
 
 ---
 
@@ -63,6 +44,8 @@ tradingagents/
 4. **Risk Management** — Aggressive/Conservative/Neutral debate
 5. **Portfolio Manager** — Final Buy/Sell/Hold decision
 
+![LangGraph Workflow](docs/diagrams/langgraph-workflow.svg)
+
 ### CLI (`cli/`)
 
 Typer-based interactive CLI. Handles user prompts, Rich display, report saving.
@@ -79,7 +62,7 @@ cli/
 
 ### Dashboard Server (`server/`)
 
-Bun/Hono web server. 10 tabs, 11 API route groups, ~2100 lines total.
+Bun/Hono web server. 11 tabs, 12 API route groups, ~2400 lines total. TEST_MODE=1 uses test_portfolio.db with isolated data and a visual amber banner.
 
 ```
 server/
@@ -90,7 +73,7 @@ server/
 │   ├── schema.sql          ← 5 tables: positions, trades, signals, watchlist, analyses
 │   ├── hledger.ts          ← hLedger subprocess wrapper (balance, prices, register)
 │   ├── markdown.ts         ← Server-side MD rendering (marked + sanitizer)
-│   ├── positions.ts        ← Position helpers (P&L calc, enrichment)
+│   ├── positions.ts        ← Exit plan helpers (load plans, compute exit status)
 │   ├── governance.ts       ← Risk rules engine (max position %, sector cap, etc.)
 │   ├── benchmark.ts        │   Portfolio vs. benchmark (3m/6m/1y alpha)
 │   └── feedback.ts         │   Signal accuracy tracking, post-mortems
@@ -121,7 +104,7 @@ server/
 │   ├── benchmark.tsx       │   Portfolio vs. benchmark chart
 │   ├── feedback.tsx        │   Signal accuracy + post-mortems
 │   ├── datatype-test.tsx   │   Font test page
-│   ├── datatype.tsx        │   JSX helper (unused — inline JS is simpler)
+│   ├── intelligence.tsx    │   Portfolio Intelligence view
 │   └── partials/           │   HTMX swap fragments
 │
 └── static/
@@ -141,15 +124,17 @@ server/
 |-------|------|-------------|
 | `GET /` | Layout + PortfolioView | Dashboard home (portfolio tab) |
 | `GET /portfolio` | PortfolioView | Positions tab (HTMX partial if HX-Request) |
+| `GET /intelligence` | IntelligenceView | Portfolio Intelligence (GBP, hledger cash + live prices) |
 | `GET /analyze` | AnalysisView | Run analysis tab |
 | `GET /signals` | SignalsView | Signal history + timeline |
 | `GET /history` | HistoryView | Past analyses with summary cards |
-| `GET /holdings` | HoldingsView | hLedger holdings |
+| `GET /holdings` | HoldingsView | hLedger holdings (GBP-converted via live FX) |
 | `GET /exits` | ExitsView | Exit dashboard |
 | `GET /prospects` | ProspectsView | Watchlist pipeline |
 | `GET /governance` | GovernanceView | Risk rules |
 | `GET /benchmark` | BenchmarkView | Benchmark comparison |
-| `GET /feedback` | FeedbackView | Signal accuracy |
+| `GET /feedback` | FeedbackView | Signal accuracy + post-mortems |
+| `GET /workflow` | WorkflowView | Position lifecycle Kanban (hledger-gated) |
 | `GET /test/datatype` | DatatypeTestView | Font test page |
 
 ### API Routes
@@ -160,18 +145,23 @@ server/
 | `/api/positions` | POST | Create position | JSON |
 | `/api/positions/:id` | DELETE | Close/remove position | JSON |
 | `/api/positions/exits` | GET/POST | Exit management | JSON |
+| `/api/portfolio/summary` | GET | Live P&L (GBP) for all open positions | JSON |
+| `/api/portfolio/intelligence` | GET | Unified view: hledger cash + live positions + allocation + governance | JSON |
 | `/api/analyze` | POST | Trigger analysis | SSE stream |
 | `/api/signals` | GET | Signal history (filterable) | JSON array |
+| `/api/signals/table` | GET | Signals + price history for sparklines | JSON array |
 | `/api/signals/:ticker` | GET | Signal timeline per ticker | JSON array |
 | `/api/prices/:ticker` | GET | Current price (yfinance) | JSON |
 | `/api/analyses` | GET | Past analyses list | JSON array |
 | `/api/analyses/:ticker/:date` | GET | Rendered analysis report | HTML/JSON |
 | `/api/analyses/:ticker/:date/explain` | POST | LLM summarisation | JSON |
-| `/api/holdings` | GET | hLedger balances | JSON |
+| `/api/holdings` | GET | hLedger balances (GBP-converted) | JSON |
 | `/api/prospects` | GET/POST/DELETE | Watchlist pipeline CRUD | JSON |
 | `/api/governance` | GET | Risk rules + violations | JSON |
 | `/api/benchmark` | GET | Portfolio vs. benchmark | JSON |
-| `/api/feedback` | GET/POST | Signal accuracy + post-mortems | JSON |
+| `/api/feedback` | GET | Accuracy + post-mortems | JSON |
+| `/api/feedback/with-positions` | GET | Signals correlated with position P&L | JSON |
+| `/api/workflow` | GET | Position lifecycle Kanban | JSON |
 | `/api/health` | GET | Server health check | JSON |
 
 ---
@@ -199,17 +189,25 @@ and forwards it as an SSE event to the connected browser client.
 
 ## Persistence Layers
 
-### SQLite (`portfolio.db`)
+![Persistence Architecture](docs/diagrams/persistence.svg)
+
+### SQLite (`portfolio.db` / `test_portfolio.db`)
 
 WAL mode, singleton via `DatabaseFactory`. Schema in `server/lib/schema.sql`.
 
+**Positions are deprecated in SQLite** — hledger is the authoritative source for what you own.
+The `positions` table is kept for AI artefacts (signals, analyses, watchlist) only.
+Set `TEST_MODE=1` to use `test_portfolio.db` instead of `portfolio.db`.
+
 | Table | Purpose | Written by |
 |-------|---------|-----------|
-| `positions` | Open positions (ticker, qty, cost, entry date) | Bun API routes |
+| `positions` | Seed data only — deprecated | Bun API routes (historical) |
 | `trades` | Trade history (buy/sell records) | Bun API routes |
 | `signals` | AI signal history (signal, reasoning, confidence) | Auto-saved after analysis |
-| `watchlist` | Prospect pipeline (stage, priority, thesis) | Bun API routes |
+| `watchlist` | Prospect pipeline + watchlist (stage, priority, thesis) | Bun API routes |
 | `analyses` | Full analysis output (config, raw state, decision) | Auto-saved after analysis |
+| `positions_archive` | Archive of non-test positions (before hledger migration) | Migration script |
+| `signals_archive` | Archive of non-test signals (before hledger migration) | Migration script |
 
 ### hLedger (`~/.hledger.journal`)
 
@@ -231,10 +229,11 @@ its decision + reflection. Injected into future prompts for same ticker.
 LangGraph SQLite checkpoints for crash recovery. Opt-in via `--checkpoint` flag.
 Auto-cleared on successful completion.
 
-### Exit Plans (`~/.tradingagents/positions/<TICKER>.yaml`)
+### Exit Plans (`~/.tradingagents/positions/<platform>/<TICKER>.yaml`)
 
-Per-position YAML files capturing entry thesis, invalidation conditions, profit targets.
-Used by the Exits dashboard.
+Per-position YAML files (platform subdirectory convention). Key fields: `platform:`,
+`entry_price`, `invalidation` (stop loss), `targets`, `time_stop`. Used by the Exits
+dashboard and Workflow Kanban. Route key: `${ticker}::${platform}`.
 
 ### Analysis Summaries (cache)
 
@@ -253,6 +252,8 @@ in `~/.tradingagents/logs/<TICKER>/<DATE>/`.
 | `TRADINGAGENTS_MEMORY_LOG_PATH` | `~/.tradingagents/memory/trading_memory.md` | `tradingagents` package |
 | `TRADINGAGENTS_CACHE_DIR` | `~/.tradingagents/cache` | `tradingagents` package |
 | `HLEDGER_FILE` | `~/.hledger.journal` | `server/lib/hledger.ts`, Justfile |
+| `TEST_MODE` | `0` | Set to `1` to use `test_portfolio.db` (isolated test environment) |
+| `TEST_PORTFOLIO_DB` | `./test_portfolio.db` | Path to test SQLite DB |
 | `OPENAI_API_KEY` | — | LLM provider |
 | `GOOGLE_API_KEY` | — | LLM provider |
 | `ANTHROPIC_API_KEY` | — | LLM provider |
@@ -267,30 +268,6 @@ for the summarisation endpoint (`server/routes/analyses.ts`).
 
 ## Data Flow: Analysis Request
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. User clicks "Run Analysis" in browser                                    │
-│    → HTMX POST to /api/analyze with { ticker, date, analysts, debates }    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 2. Bun/Hono receives POST                                                   │
-│    → Checks SQLite for existing position (position context injection)       │
-│    → Builds command: PYTHONUNBUFFERED=1 python3 scripts/analyze_stream.py   │
-│    → Creates SSE response with streamSSE()                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 3. Bun spawns Python subprocess                                             │
-│    → Reads stdout line-by-line                                              │
-│    → Each JSON line → SSE event → browser                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 4. Python runs TradingAgentsGraph.propagate(ticker, date)                   │
-│    → Analyst Team → Research → Trader → Risk → Portfolio Manager            │
-│    → Emits JSON lines: start → agent_report → debate_round → decision → end │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ 5. On "complete" event                                                      │
-│    → Bun saves signal to SQLite                                             │
-│    → Bun triggers LLM summarisation (POST /api/analyses/:ticker/:date/explain)│
-│    → Browser shows final decision + rendered report                         │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 

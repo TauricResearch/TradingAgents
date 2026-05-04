@@ -56,10 +56,13 @@ pkill -9 -f bun   # zombie bun processes are common
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `TA_DASHBOARD_PORT` | `3000` | Dashboard HTTP port |
-| `PORTFOLIO_DB` | `./portfolio.db` | SQLite database path |
+| `PORTFOLIO_DB` | `./portfolio.db` | SQLite database path (dev) |
+| `TEST_MODE` | `0` | Set to `1` to use `test_portfolio.db` instead of `portfolio.db` |
+| `TEST_PORTFOLIO_DB` | `./test_portfolio.db` | Path to test SQLite DB (when `TEST_MODE=1`) |
 | `TRADINGAGENTS_MEMORY_LOG_PATH` | `~/.tradingagents/memory/trading_memory.md` | Decision memory log |
 | `TRADINGAGENTS_CACHE_DIR` | `~/.tradingagents/cache` | Checkpoint cache base |
-| `HLEDGER_FILE` | `~/.hledger.journal` | hLedger journal path |
+| `HLEDGER_FILE` | `~/.hledger.journal` | hLedger journal path (DEV) |
+| `TEST_HLEDGER_FILE` | `~/.tradingagents/test_hledger.journal` | hLedger journal path (TEST — active when TEST_MODE=1) |
 
 ---
 
@@ -135,15 +138,19 @@ TradingAgents/
 │   ├── index.tsx              │   Entry: routes, lifecycle, graceful shutdown
 │   ├── lib/                   │
 │   │   ├── db.ts              │   DatabaseFactory (WAL, singleton)
-│   │   ├── schema.sql         │   5-table schema + migrations
+│   │   ├── schema.sql         │   5-table schema (signals, analyses, watchlist; positions deprecated — hledger owns real data)
 │   │   ├── hledger.ts         │   hLedger subprocess wrapper
 │   │   ├── markdown.ts        │   Server-side markdown renderer
-│   │   ├── positions.ts       │   Position helpers
+│   │   ├── positions.ts       │   Exit plan helpers (load, compute status)
 │   │   ├── governance.ts      │   Risk rules engine
+│   │   ├── benchmark.ts       │   Portfolio vs. benchmark (SQLite live prices)
+│   │   ├── feedback.ts        │   Signal accuracy + post-mortems
 │   │   ├── benchmark.ts       │   Portfolio vs. benchmark comparison
-│   │   └── feedback.ts        │   Signal accuracy + post-mortems
-│   ├── routes/                │   (11 route modules — see ARCHITECTURE.md)
-│   ├── views/                 │   (11 .tsx views + partials/)
+│   │   └── feedback.ts        │   Signal accuracy tracking
+│   ├── routes/                │   (12 route modules — see ARCHITECTURE.md)
+│   │   └── portfolio-intelligence.ts  │   Unified portfolio view (hledger cash + SQLite positions)
+│   ├── views/                 │   (12 .tsx views + partials/)
+│   │   └── intelligence.tsx   │   Portfolio Intelligence view
 │   └── static/                │   CSS, fonts, favicon
 │
 ├── scripts/                   ← Utility scripts
@@ -163,27 +170,4 @@ TradingAgents/
 
 ## Quick Reference: How Things Flow
 
-```
-User clicks "Run Analysis" in browser
-         │
-         ▼
-Bun/Hono POST /api/analyze
-         │
-         ▼
-Bun spawns: PYTHONUNBUFFERED=1 python3 scripts/analyze_stream.py
-         │
-         ▼
-analyze_stream.py creates TradingAgentsGraph, calls .propagate()
-         │
-         ▼
-TradingAgentsGraph runs: Analysts → Research → Trader → Risk → Portfolio Manager
-         │
-         ▼
-analyze_stream.py emits JSON lines: start → agent_report → debate_round → decision → complete
-         │
-         ▼
-Bun reads stdout line-by-line, forwards as SSE events to browser
-         │
-         ▼
-Browser HTMX appends events to progress panel; final decision saved to signals table
-```
+
