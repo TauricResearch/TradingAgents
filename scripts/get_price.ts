@@ -25,6 +25,17 @@ if (!TICKER) {
   process.exit(1);
 }
 
+// Yahoo Finance ticker mapping (some symbols need suffix)
+function yfTicker(ticker: string): string {
+  const CRYPTO_MAP: Record<string, string> = {
+    BTC: "BTC-USD",
+    ETH: "ETH-USD",
+    SOL: "SOL-USD",
+    XRP: "XRP-USD",
+  };
+  return CRYPTO_MAP[ticker] ?? ticker;
+}
+
 interface Meta {
   regularMarketPrice: number | null;
   currency: string;
@@ -49,9 +60,10 @@ interface YFChartResponse {
 }
 
 async function getPrice(ticker: string): Promise<object> {
+  const yf = yfTicker(ticker);
   const url =
     `https://query1.finance.yahoo.com/v8/finance/chart/` +
-    `${encodeURIComponent(ticker)}?interval=1d&range=1mo`;
+    `${encodeURIComponent(yf)}?interval=1d&range=1mo`;
 
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },

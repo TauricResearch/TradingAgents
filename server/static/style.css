@@ -603,3 +603,75 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .position-pill .positive { color: var(--green); }
 .position-pill .negative { color: var(--red); }
 .intel-body table td:last-child { max-width: 400px; }
+
+/* ── Positions table (holdings view with prices + sparklines) ────────────── */
+
+.positions-platform {
+  margin-bottom: 1.5rem;
+}
+.positions-platform-header {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.positions-table {
+  font-size: 0.9em;
+}
+.positions-table td {
+  vertical-align: middle;
+}
+.positions-table .ticker-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.positions-table .ticker-cell .ticker {
+  font-family: 'Datatype', monospace;
+  font-weight: 600;
+}
+.platform-tag {
+  font-size: 0.75em;
+  background: var(--bg);
+  color: var(--text-muted);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.sparkline-muted {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+.mono {
+  font-family: 'Datatype', monospace;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+}
+
+/* Stop badges */
+.stop-badge {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.stop-danger { background: color-mix(in srgb, var(--red) 20%, transparent); color: var(--red); }
+.stop-watch  { background: color-mix(in srgb, var(--yellow) 20%, transparent); color: var(--yellow); }
+.stop-safe   { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+.stop-none   { color: var(--text-muted); }
+
+/* P&L colours */
+.pnl-pos { color: var(--green); }
+.pnl-neg { color: var(--red); }
+
+/* Freshness indicators */
+.freshness { font-size: 0.8em; }
+.fresh-ok   { color: var(--green); }
+.fresh-stale { color: var(--yellow); }
+.fresh-old  { color: var(--red); }
+.freshness-none { color: var(--text-muted); }
+
+/* Row urgency highlighting */
+.position-row.position-danger { background: color-mix(in srgb, var(--red) 5%, transparent); }
+.position-row.position-watch  { background: color-mix(in srgb, var(--yellow) 5%, transparent); }
