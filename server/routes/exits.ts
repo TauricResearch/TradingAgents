@@ -3,11 +3,14 @@
  *
  * Fetches live prices for each ticker, then computes exit status
  * (P&L, distance to stop, distance to targets).
+ *
+ * Price cache: daily (expires at midnight UTC) — one fetch per ticker per calendar day.
+ * Response cache: 30s — avoids recomputing when multiple routes hit simultaneously.
  */
-import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
 import { Hono } from "hono"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
+import { priceCache, fetchPrice, endOfToday } from "../lib/cache.ts"
 
 export const exitsRouter = new Hono()
 
@@ -18,56 +21,8 @@ function findProjectRoot(): string {
   return projectRoot
 }
 
-// Simple in-memory cache — prices valid for 60s
-const priceCache = new Map<string, { price: number | null; expires: number }>()
-
 // Response-level cache — full exit statuses valid for 30s
 let responseCache: { statuses: unknown[]; expires: number } | null = null
-
-function fetchPrice(ticker: string): Promise<number | null> {
-  return new Promise((resolve) => {
-    const now = Date.now()
-    const cached = priceCache.get(ticker)
-    if (cached && cached.expires > now) {
-      resolve(cached.price)
-      return
-    }
-
-    const root = findProjectRoot()
-    const script = join(root, "scripts", "get_price.py")
-    const child = spawn("python3", [script, ticker], {
-      env: { ...process.env, PYTHONUNBUFFERED: "1" },
-    })
-    let resolved = false
-    const finish = (price: number | null) => {
-      if (resolved) return
-      resolved = true
-      child.kill()
-      // Cache success OR failure (don't hammer on outages)
-      priceCache.set(ticker, { price, expires: now + 60_000 })
-      resolve(price)
-    }
-    let stdout = ""
-    child.stdout.on("data", (d: Buffer) => {
-      stdout += d.toString()
-    })
-    // Hard timeout — per ticker budget
-    setTimeout(() => finish(null), 8_000)
-    child.on("close", (code) => {
-      if (code !== 0) {
-        finish(null)
-        return
-      }
-      try {
-        const data = JSON.parse(stdout.trim())
-        finish(data.price ?? null)
-      } catch {
-        finish(null)
-      }
-    })
-    child.on("error", () => finish(null))
-  })
-}
 
 exitsRouter.get("/", async (c) => {
   const now = Date.now()
@@ -79,13 +34,14 @@ exitsRouter.get("/", async (c) => {
 
   const plans = loadAllPlans()
   const unique = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
+  const script = join(findProjectRoot(), "scripts", "get_price.py")
 
-  // Fetch in parallel batches (4 at a time) — keeps total time under ~40s
+  // Fetch in parallel batches (4 at a time) — keeps total time under ~40s on first load
   const BATCH_SIZE = 4
   const priceMap = new Map<string, number | null>()
   for (let i = 0; i < unique.length; i += BATCH_SIZE) {
     const batch = unique.slice(i, i + BATCH_SIZE)
-    const results = await Promise.all(batch.map((t) => fetchPrice(t)))
+    const results = await Promise.all(batch.map((t) => fetchPrice(t, script, findProjectRoot())))
     batch.forEach((ticker, idx) => void priceMap.set(ticker, results[idx] ?? null))
   }
 

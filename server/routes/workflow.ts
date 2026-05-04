@@ -5,63 +5,22 @@
  *   approved     — open DB positions with no exit plan yet
  *   holdings     — open positions with exit plan, no urgency signal
  *   pendingExit  — open positions with exit plan AND urgency signal
+ *
+ * Price cache: daily (expires at midnight UTC) — shared with exits.ts via ../lib/cache.ts.
  */
-import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
 import { Hono } from "hono"
 import { DatabaseFactory } from "../lib/db.ts"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
+import { priceCache, fetchPrice } from "../lib/cache.ts"
 
 export const workflowRouter = new Hono()
 
-// ── Price cache (shared with exits.ts) ───────────────────────────────────────
-
-const priceCache = new Map<string, { price: number | null; expires: number }>()
-
-function fetchPrice(ticker: string): Promise<number | null> {
-  return new Promise((resolve) => {
-    const now = Date.now()
-    const cached = priceCache.get(ticker)
-    if (cached && cached.expires > now) {
-      resolve(cached.price)
-      return
-    }
-
-    const root = (() => {
-      if (process.env.TA_ROOT) return process.env.TA_ROOT
-      const p = dirname(dirname(import.meta.dir))
-      return p.includes("TradingAgents") ? p : p
-    })()
-    const child = spawn("python3", [join(root, "scripts", "get_price.py"), ticker], {
-      env: { ...process.env, PYTHONUNBUFFERED: "1" },
-    })
-    let resolved = false
-    const finish = (price: number | null) => {
-      if (resolved) return
-      resolved = true
-      child.kill()
-      priceCache.set(ticker, { price, expires: now + 60_000 })
-      resolve(price)
-    }
-    let stdout = ""
-    child.stdout.on("data", (d: Buffer) => {
-      stdout += d.toString()
-    })
-    setTimeout(() => finish(null), 8_000)
-    child.on("close", (code) => {
-      if (code !== 0) {
-        finish(null)
-        return
-      }
-      try {
-        const data = JSON.parse(stdout.trim())
-        finish(data.price ?? null)
-      } catch {
-        finish(null)
-      }
-    })
-    child.on("error", () => finish(null))
-  })
+function findProjectRoot(): string {
+  if (process.env.TA_ROOT) return process.env.TA_ROOT
+  const projectRoot = dirname(dirname(import.meta.dir))
+  if (projectRoot.includes("TradingAgents")) return projectRoot
+  return projectRoot
 }
 
 workflowRouter.get("/", async (c) => {
@@ -72,14 +31,8 @@ workflowRouter.get("/", async (c) => {
       "SELECT id, ticker, exchange, platform, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open' ORDER BY ticker",
     )
     .all() as Array<{
-    id: number
-    ticker: string
-    exchange: string
-    platform: string
-    quantity: number
-    avg_cost: number
-    entry_date: string
-    thesis: string
+    id: number; ticker: string; exchange: string; platform: string;
+    quantity: number; avg_cost: number; entry_date: string; thesis: string;
   }>
 
   const plans = loadAllPlans()
@@ -87,10 +40,11 @@ workflowRouter.get("/", async (c) => {
 
   // Fetch live prices for all unique tickers (batched, 4 at a time)
   const uniqueTickers = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
+  const script = join(findProjectRoot(), "scripts", "get_price.py")
   const priceMap = new Map<string, number | null>()
   for (let i = 0; i < uniqueTickers.length; i += 4) {
     const batch = uniqueTickers.slice(i, i + 4)
-    const results = await Promise.all(batch.map((t) => fetchPrice(t)))
+    const results = await Promise.all(batch.map((t) => fetchPrice(t, script, findProjectRoot())))
     batch.forEach((t, idx) => void priceMap.set(t, results[idx] ?? null))
   }
 
@@ -106,36 +60,21 @@ workflowRouter.get("/", async (c) => {
   const approved = openPositions
     .filter((p) => !planSet.has(`${p.ticker}::${p.platform}`))
     .map((p) => ({
-      id: p.id,
-      ticker: p.ticker,
-      exchange: p.exchange,
-      platform: p.platform,
-      quantity: p.quantity,
-      avgCost: p.avg_cost,
-      entryDate: p.entry_date,
-      thesis: p.thesis,
+      id: p.id, ticker: p.ticker, exchange: p.exchange,
+      platform: p.platform, quantity: p.quantity, avgCost: p.avg_cost,
+      entryDate: p.entry_date, thesis: p.thesis,
     }))
 
   // HOLDINGS vs PENDING EXIT (split by urgency signal)
   type ExitPlanData = {
-    entryPrice: number
-    invalidationPrice: number
-    invalidationThesis: string
-    targets: unknown[]
-    timeStop: string | null
-    timeStopDaysLeft?: number
-    targetsHit: number
-    distanceToStopPct: number
+    entryPrice: number; invalidationPrice: number; invalidationThesis: string;
+    targets: unknown[]; timeStop: string | null;
+    timeStopDaysLeft?: number; targetsHit: number; distanceToStopPct: number;
   }
   type PositionItem = {
-    id: number
-    ticker: string
-    platform: string
-    quantity: number
-    avgCost: number
-    entryDate: string
-    thesis: string
-    exitPlan: ExitPlanData
+    id: number; ticker: string; platform: string; quantity: number;
+    avgCost: number; entryDate: string; thesis: string;
+    exitPlan: ExitPlanData;
   }
   const holdings: PositionItem[] = []
   const pendingExit: PositionItem[] = []
@@ -144,19 +83,15 @@ workflowRouter.get("/", async (c) => {
     if (!planSet.has(`${p.ticker}::${p.platform}`)) continue
     const key = `${p.ticker}::${p.platform}`
     const status = exitStatuses.get(key)
-    const isUrgent =
-      !!status &&
-      (status.distanceToStopPct < 15 ||
-        (status.targetsHit ?? 0) > 0 ||
-        (status.timeStopDaysLeft ?? 999) < 30)
+    const isUrgent = !!status && (
+      status.distanceToStopPct < 15 ||
+      (status.targetsHit ?? 0) > 0 ||
+      (status.timeStopDaysLeft ?? 999) < 30
+    )
     const item: PositionItem = {
-      id: p.id,
-      ticker: p.ticker,
-      platform: p.platform,
-      quantity: p.quantity,
-      avgCost: p.avg_cost,
-      entryDate: p.entry_date,
-      thesis: p.thesis,
+      id: p.id, ticker: p.ticker, platform: p.platform,
+      quantity: p.quantity, avgCost: p.avg_cost,
+      entryDate: p.entry_date, thesis: p.thesis,
       exitPlan: {
         entryPrice: status?.plan.entry_price ?? p.avg_cost,
         invalidationPrice: status?.plan.invalidation?.price ?? 0,
