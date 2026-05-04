@@ -70,7 +70,7 @@ def _load_latest_in_date(
         matches.extend(p for p in scan_dir.iterdir() if p.is_file() and p.name.endswith(filename_tail))
     if not matches:
         return None
-    matches.sort(key=lambda p: (p.parent.parent.name, p.name), reverse=True)
+    matches.sort(key=lambda p: (p.parent.parent.parent.name, p.name), reverse=True)
     try:
         return json.loads(matches[0].read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
