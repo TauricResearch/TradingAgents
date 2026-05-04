@@ -48,7 +48,12 @@ def emit(event: Dict[str, Any]) -> None:
 
 
 class GuiCallbackHandler(BaseCallbackHandler):
-    """Aggregates stats and forwards LangChain events to the GUI as NDJSON."""
+    """Aggregates stats and forwards LangChain events to the GUI as NDJSON.
+
+    Also records every tool call (name, input, output preview, timing) so
+    the worker can persist the full trace into the run archive — useful for
+    reviewing months later "what did the news tool actually return?".
+    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -57,6 +62,8 @@ class GuiCallbackHandler(BaseCallbackHandler):
         self.tokens_in = 0
         self.tokens_out = 0
         self._last_emit = 0.0
+        self.tool_trace: List[Dict[str, Any]] = []
+        self._pending_tool: Optional[Dict[str, Any]] = None
 
     def _stats_snapshot(self) -> Dict[str, int]:
         return {
@@ -99,11 +106,22 @@ class GuiCallbackHandler(BaseCallbackHandler):
     def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs: Any) -> None:
         self.tool_calls += 1
         tool_name = (serialized or {}).get("name") or "unknown"
+        self._pending_tool = {
+            "tool": tool_name,
+            "input": input_str or "",
+            "started_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        }
         emit({"type": "tool_start", "tool": tool_name, "input": (input_str or "")[:500]})
         self._maybe_emit_stats()
 
     def on_tool_end(self, output: Any, **kwargs: Any) -> None:
         text = str(output) if output is not None else ""
+        if self._pending_tool is not None:
+            entry = dict(self._pending_tool)
+            entry["output"] = text
+            entry["ended_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            self.tool_trace.append(entry)
+            self._pending_tool = None
         emit({"type": "tool_end", "preview": text[:500]})
         self._maybe_emit_stats()
 
@@ -188,8 +206,10 @@ def _emit_chunk(chunk: Dict[str, Any], prev_seen: Dict[str, str]) -> None:
 def run(job: Dict[str, Any]) -> None:
     ticker = job["ticker"]
     trade_date = job["trade_date"]
+    started_iso = datetime.utcnow().isoformat(timespec="seconds") + "Z"
 
-    emit({"type": "start", "ticker": ticker, "trade_date": trade_date})
+    emit({"type": "start", "ticker": ticker, "trade_date": trade_date,
+          "started_at": started_iso})
 
     # Imports here so any ImportError surfaces as an ``error`` event rather
     # than killing the worker before it can report.
@@ -266,23 +286,43 @@ def run(job: Dict[str, Any]) -> None:
 
     # Archive a per-run copy so re-running the same ticker/date never
     # overwrites a prior run's transcript. Path is
-    # ``<report_dir>/runs/<run_id>__<UTC_timestamp>.json``.
+    # ``<report_dir>/runs/<run_id>__<trade_date>__<UTC_timestamp>.json``.
+    # The archive is *richer* than the canonical state log — it includes
+    # run metadata (provider, models, timing, tokens) and the full tool-call
+    # trace, so months from now you can answer "which news did the analyst
+    # actually see?" without having to re-run.
     archive_path: Optional[Path] = None
     run_id = job.get("run_id") or "norunid"
     archive_dir = report_dir / "runs"
+    completed_iso = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    archive_doc = {
+        "schema_version": 1,
+        "kind": "tradingagents-gui-archive",
+        "metadata": {
+            "run_id": run_id,
+            "ticker": ticker,
+            "trade_date": str(trade_date),
+            "provider": config.get("llm_provider"),
+            "deep_think_llm": config.get("deep_think_llm"),
+            "quick_think_llm": config.get("quick_think_llm"),
+            "max_debate_rounds": config.get("max_debate_rounds"),
+            "max_risk_discuss_rounds": config.get("max_risk_discuss_rounds"),
+            "data_vendors": config.get("data_vendors"),
+            "started_at": started_iso,
+            "completed_at": completed_iso,
+            "stats": handler._stats_snapshot(),
+        },
+        "state": _state_for_archive(final_state),
+        "tool_trace": handler.tool_trace,
+    }
     try:
         archive_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         archive_path = archive_dir / f"{run_id}__{trade_date}__{ts}.json"
-        if canonical_path.exists():
-            shutil.copy2(canonical_path, archive_path)
-        else:
-            # Canonical write failed — write the state dict directly so the
-            # run is preserved.
-            archive_path.write_text(
-                json.dumps(_state_for_archive(final_state), indent=2, default=str),
-                encoding="utf-8",
-            )
+        archive_path.write_text(
+            json.dumps(archive_doc, indent=2, default=str),
+            encoding="utf-8",
+        )
     except Exception as e:
         if log_warning:
             log_warning = f"{log_warning}; archive also failed: {e}"

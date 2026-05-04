@@ -92,14 +92,45 @@ def discover_logs() -> List[Dict[str, Any]]:
 
 
 def load_log(path: str | Path) -> Optional[Dict[str, Any]]:
+    """Load a state log and unwrap GUI archive envelopes.
+
+    Three on-disk shapes coexist:
+    - **Canonical** (CLI / pre-archive): the raw graph state dict at the
+      top level. Returned as-is.
+    - **Old GUI archive** (v0): a copy of the canonical file. Returned as-is.
+    - **New GUI archive** (schema_version 1): ``{kind, metadata, state,
+      tool_trace}``. We return the inner ``state`` for back-compat with
+      callers that read ``state.get('market_report')`` etc. — extra
+      metadata is available via :func:`load_archive_full`.
+    """
     p = Path(path)
     if not p.exists():
         return None
     try:
         with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except (OSError, json.JSONDecodeError):
         return None
+    if isinstance(data, dict) and data.get("kind") == "tradingagents-gui-archive":
+        return data.get("state") or {}
+    return data
+
+
+def load_archive_full(path: str | Path) -> Optional[Dict[str, Any]]:
+    """Load a state log without unwrapping. Returns the full envelope when
+    the file is a GUI archive; returns ``{"state": ..., "metadata": {}}``
+    for legacy / canonical files so callers can use one shape."""
+    p = Path(path)
+    if not p.exists():
+        return None
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(data, dict) and data.get("kind") == "tradingagents-gui-archive":
+        return data
+    return {"kind": "legacy", "metadata": {}, "state": data, "tool_trace": []}
 
 
 def memory_log_path() -> Path:
