@@ -113,6 +113,40 @@ def _format_news_structured(structured: object) -> str:
     return "\n".join(line for line in lines if _has_value_after_colon(line))
 
 
+def _fundamentals_risk_block(state: dict) -> str:
+    """Extract critical fundamentals metrics from structured contract for debate context.
+    
+    Returns a formatted risk metrics block if key_metrics are present,
+    otherwise returns empty string.
+    """
+    structured = (state.get("fundamentals_report_structured") or {})
+    key_metrics = structured.get("key_metrics") or {}
+    if not key_metrics:
+        return ""
+    lines = ["### Fundamentals Risk Metrics (structured)"]
+    fields = [
+        ("pe_ratio", "P/E Ratio"),
+        ("debt_equity_ratio", "D/E Ratio"),
+        ("fcf_trend", "FCF Trend"),
+        ("operating_margin", "Operating Margin"),
+        ("current_ratio", "Current Ratio"),
+        ("working_capital", "Working Capital"),
+    ]
+    found = False
+    for key, label in fields:
+        val = key_metrics.get(key)
+        if val:
+            lines.append(f"- {label}: {val}")
+            found = True
+    if not found:
+        return ""
+    lines.append(
+        "\nNOTE: If any metric above is severely negative or deteriorating, "
+        "both researchers MUST address it explicitly in their arguments."
+    )
+    return "\n".join(lines)
+
+
 def build_debate_evidence_brief(state: AgentState) -> str:
     """Build a compact evidence brief for debaters from structured contracts.
 
@@ -291,6 +325,11 @@ def build_research_packet(state: AgentState) -> str:
         compact = _compact_lines(str(raw_value or ""), max_lines=max_lines, max_chars=max_chars)
         if compact:
             sections.append(f"{header}\n{compact}")
+
+    # Add fundamentals risk metrics block if present
+    fundamentals_risk = _fundamentals_risk_block(state)
+    if fundamentals_risk:
+        sections.append(fundamentals_risk)
 
     return "\n\n".join(sections).strip()
 
