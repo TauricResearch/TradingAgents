@@ -368,6 +368,102 @@ def test_get_user_selections_skips_all_pre_run_prompts_when_complete(monkeypatch
     assert selections["llm_provider"] == "openai"
 
 
+def test_save_report_to_disk_writes_complete_markdown_and_html(tmp_path):
+    final_state = {
+        "market_report": "market **details**",
+        "sentiment_report": "",
+        "news_report": "",
+        "fundamentals_report": "",
+    }
+
+    report_path = cli.main.save_report_to_disk(final_state, "SPY", tmp_path)
+
+    html_path = tmp_path / "complete_report.html"
+    assert report_path == tmp_path / "complete_report.md"
+    assert report_path.exists()
+    assert html_path.exists()
+
+    markdown = report_path.read_text(encoding="utf-8")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert "# Trading Analysis Report: SPY" in markdown
+    assert "<h1>Trading Analysis Report: SPY</h1>" in html
+    assert "<strong>details</strong>" in html
+
+
+def test_save_report_to_disk_includes_llm_metadata_in_markdown_and_html(tmp_path):
+    final_state = {
+        "market_report": "market",
+        "sentiment_report": "",
+        "news_report": "",
+        "fundamentals_report": "",
+    }
+
+    report_path = cli.main.save_report_to_disk(
+        final_state,
+        "SPY",
+        tmp_path,
+        report_metadata={
+            "LLM Provider": "openai",
+            "Quick Model": "mercury",
+            "Deep Model": "mercury-pro",
+            "Backend URL": "https://api.inceptionlabs.ai/v1",
+        },
+    )
+
+    markdown = report_path.read_text(encoding="utf-8")
+    html = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
+
+    assert "**LLM Provider**: openai" in markdown
+    assert "**Quick Model**: mercury" in markdown
+    assert "**Deep Model**: mercury-pro" in markdown
+    assert "**Backend URL**: https://api.inceptionlabs.ai/v1" in markdown
+    assert "<strong>LLM Provider</strong>: openai" in html
+    assert "<strong>Deep Model</strong>: mercury-pro" in html
+
+
+def test_save_report_to_disk_embeds_technical_charts(monkeypatch, tmp_path):
+    final_state = {
+        "company_of_interest": "SPY",
+        "trade_date": "2026-05-01",
+        "market_report": "market",
+        "sentiment_report": "",
+        "news_report": "",
+        "fundamentals_report": "",
+    }
+
+    def fake_generate_report_charts(symbol, trade_date, save_path):
+        chart_path = save_path / "charts" / "technical-analysis.png"
+        chart_path.parent.mkdir()
+        chart_path.write_bytes(b"png")
+        return [
+            cli.main.ChartArtifact(
+                title="SPY Technical Analysis",
+                path=chart_path,
+                description="Price, volume, MACD, Bollinger Bands, and RSI.",
+            )
+        ]
+
+    monkeypatch.setattr(cli.main, "generate_report_charts", fake_generate_report_charts)
+
+    report_path = cli.main.save_report_to_disk(final_state, "SPY", tmp_path)
+
+    markdown = report_path.read_text(encoding="utf-8")
+    html = (tmp_path / "complete_report.html").read_text(encoding="utf-8")
+    assert "## Technical Charts" in markdown
+    assert (
+        "[![SPY Technical Analysis](charts/technical-analysis.png)]"
+        "(charts/technical-analysis.png)"
+    ) in markdown
+    assert (
+        '<a href="charts/technical-analysis.png">'
+        '<img src="charts/technical-analysis.png" alt="SPY Technical Analysis"'
+    ) in html
+    assert "img {" in html
+    assert "max-width: 100%;" in html
+    assert "height: auto;" in html
+
+
 def test_save_report_flag_uses_default_path_without_prompt(monkeypatch, tmp_path):
     final_state = {
         "final_trade_decision": "BUY",
@@ -401,7 +497,11 @@ def test_save_report_flag_uses_default_path_without_prompt(monkeypatch, tmp_path
     monkeypatch.setattr("cli.main.update_display", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         "cli.main.save_report_to_disk",
-        lambda state, ticker, save_path: saved.setdefault("path", save_path)
+        lambda state, ticker, save_path, report_metadata=None: (
+            saved.setdefault("metadata", report_metadata)
+            and saved.setdefault("path", save_path)
+        )
+        or saved.setdefault("path", save_path)
         or save_path / "complete_report.md",
     )
     monkeypatch.setattr(
@@ -434,6 +534,12 @@ def test_save_report_flag_uses_default_path_without_prompt(monkeypatch, tmp_path
 
     assert saved["path"].parent == tmp_path / "reports"
     assert saved["path"].name.startswith("SPY_")
+    assert saved["metadata"] == {
+        "LLM Provider": "openai",
+        "Quick Model": "mercury",
+        "Deep Model": "mercury",
+        "Backend URL": "https://api.inceptionlabs.ai/v1",
+    }
 
 
 def _fake_graph(final_state):

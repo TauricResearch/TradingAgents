@@ -158,6 +158,10 @@ activemq-data/
 # Environments
 .env
 .env.enterprise
+.env.openai
+.env.gemini
+.env.inception
+.env.groq
 .envrc
 .venv/
 env/
@@ -165,6 +169,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+auth.json
 tradingagents/Lib/
 tradingagents/Scripts/
 tradingagents/Include/

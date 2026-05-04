@@ -115,3 +115,26 @@ def test_openai_custom_base_url_does_not_forward_reasoning_effort(monkeypatch):
     client.get_llm()
 
     assert "reasoning_effort" not in captured
+
+
+def test_openai_default_base_url_is_native_openai(monkeypatch):
+    from tradingagents.llm_clients import openai_client
+
+    captured = {}
+
+    class FakeChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(openai_client, "NormalizedChatOpenAI", FakeChat)
+
+    client = openai_client.OpenAIClient(
+        "gpt-5.4-mini",
+        base_url="https://api.openai.com/v1",
+        provider="openai",
+    )
+    client.get_llm()
+
+    assert "base_url" not in captured
+    assert captured["use_responses_api"] is True

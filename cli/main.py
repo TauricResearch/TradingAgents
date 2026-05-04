@@ -1,4 +1,5 @@
 import datetime
+from html import escape
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -7,6 +8,7 @@ from typing import Any, cast
 
 import typer
 from dotenv import load_dotenv
+from markdown_it import MarkdownIt
 from rich import box
 from rich.align import Align
 from rich.console import Console, RenderableType
@@ -35,6 +37,7 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.charts import ChartArtifact, generate_report_charts
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -766,10 +769,174 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def render_markdown_report_html(markdown_text: str, title: str) -> str:
+    """Render report Markdown as a standalone HTML document."""
+    body = MarkdownIt("commonmark", {"html": False}).enable("table").render(markdown_text)
+    safe_title = escape(title, quote=True)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{safe_title}</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --text: #1f2933;
+      --muted: #52616f;
+      --border: #d9e2ec;
+      --surface: #ffffff;
+      --accent: #0b7285;
+    }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }}
+    main {{
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+      background: var(--surface);
+      min-height: 100vh;
+    }}
+    h1, h2, h3, h4 {{
+      line-height: 1.25;
+      color: #102a43;
+    }}
+    h1 {{
+      margin-top: 0;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--accent);
+    }}
+    h2 {{
+      margin-top: 40px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }}
+    h3 {{
+      margin-top: 28px;
+    }}
+    p, li {{
+      color: var(--text);
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 0.95rem;
+    }}
+    th, td {{
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      vertical-align: top;
+    }}
+    th {{
+      background: #edf2f7;
+      text-align: left;
+    }}
+    code {{
+      background: #edf2f7;
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }}
+    pre {{
+      overflow-x: auto;
+      background: #102a43;
+      color: #f0f4f8;
+      padding: 16px;
+      border-radius: 6px;
+    }}
+    blockquote {{
+      margin-left: 0;
+      padding-left: 16px;
+      border-left: 4px solid var(--accent);
+      color: var(--muted);
+    }}
+    img {{
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }}
+    @media (max-width: 720px) {{
+      main {{
+        padding: 24px 16px 48px;
+      }}
+      table {{
+        display: block;
+        overflow-x: auto;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+{body}
+  </main>
+</body>
+</html>
+"""
+
+
+def build_llm_report_metadata(selections: dict[str, Any]) -> dict[str, str]:
+    """Build stable LLM metadata for UI and saved reports."""
+    metadata = {
+        "LLM Provider": str(selections["llm_provider"]),
+        "Quick Model": str(selections["shallow_thinker"]),
+        "Deep Model": str(selections["deep_thinker"]),
+    }
+    if selections.get("backend_url"):
+        metadata["Backend URL"] = str(selections["backend_url"])
+    return metadata
+
+
+def format_llm_runtime_summary(metadata: dict[str, str]) -> str:
+    quick = metadata["Quick Model"]
+    deep = metadata["Deep Model"]
+    provider = metadata["LLM Provider"]
+    return f"LLM: {provider} | quick: {quick} | deep: {deep}"
+
+
+def format_report_metadata(metadata: dict[str, str] | None) -> str:
+    if not metadata:
+        return ""
+    return "\n".join(f"**{key}**: {value}" for key, value in metadata.items()) + "\n\n"
+
+
+def format_chart_section(artifacts: list[ChartArtifact], save_path: Path) -> str:
+    lines = ["## Technical Charts"]
+    for artifact in artifacts:
+        relative_path = artifact.path.relative_to(save_path).as_posix()
+        lines.append("")
+        lines.append(f"[![{artifact.title}]({relative_path})]({relative_path})")
+        lines.append("")
+        lines.append(artifact.description)
+    return "\n".join(lines)
+
+
+def save_report_to_disk(
+    final_state,
+    ticker: str,
+    save_path: Path,
+    report_metadata: dict[str, str] | None = None,
+):
     """Save complete analysis report to disk with organized subfolders."""
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
+
+    symbol = final_state.get("company_of_interest") or ticker
+    trade_date = final_state.get("trade_date")
+    if symbol and trade_date:
+        try:
+            chart_artifacts = generate_report_charts(str(symbol), str(trade_date), save_path)
+            if chart_artifacts:
+                sections.append(format_chart_section(chart_artifacts, save_path))
+        except Exception:
+            pass
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"
@@ -852,8 +1019,12 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
-    return save_path / "complete_report.md"
+    complete_report = header + format_report_metadata(report_metadata) + "\n\n".join(sections)
+    markdown_path = save_path / "complete_report.md"
+    markdown_path.write_text(complete_report, encoding="utf-8")
+    html = render_markdown_report_html(complete_report, f"Trading Analysis Report: {ticker}")
+    (save_path / "complete_report.html").write_text(html, encoding="utf-8")
+    return markdown_path
 
 
 def display_complete_report(final_state):
@@ -1125,6 +1296,7 @@ def run_analysis(
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    llm_metadata = build_llm_report_metadata(selections)
     safe_ticker = normalize_ticker_symbol(selections["ticker"])
     selections["ticker"] = safe_ticker
 
@@ -1173,6 +1345,7 @@ def run_analysis(
             "System",
             f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
         )
+        message_buffer.add_message("System", format_llm_runtime_summary(llm_metadata))
         update_display(layout, message_buffer, stats_handler=stats_handler, start_time=start_time)
 
         # Update agent status to in_progress for the first analyst
@@ -1336,9 +1509,15 @@ def run_analysis(
                 ).strip()
                 save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state,
+                selections["ticker"],
+                save_path,
+                report_metadata=llm_metadata,
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            console.print(f"  [dim]HTML report:[/dim] {report_file.with_suffix('.html').name}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 

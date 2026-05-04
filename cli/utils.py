@@ -1,4 +1,5 @@
 import questionary
+import requests
 from typing import List, Tuple
 
 from rich.console import Console
@@ -146,7 +147,6 @@ def select_research_depth() -> int:
 
 def _fetch_openrouter_models() -> List[Tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
-    import requests
     try:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()
