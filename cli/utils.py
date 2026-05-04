@@ -326,6 +326,83 @@ def ask_gemini_thinking_config() -> str | None:
     ).ask()
 
 
+def select_data_vendors() -> dict:
+    """Select data vendors for each data category.
+
+    Returns a dict mapping category keys to vendor strings (e.g. "alpha_vantage"
+    or "alpha_vantage,yfinance" for fallback chains).
+    """
+    VENDOR_OPTIONS = [
+        questionary.Choice("Yahoo Finance (default)", "yfinance"),
+        questionary.Choice("Alpha Vantage", "alpha_vantage"),
+        questionary.Choice(
+            "Alpha Vantage → Yahoo Finance (fallback)", "alpha_vantage,yfinance"
+        ),
+        questionary.Choice(
+            "Yahoo Finance → Alpha Vantage (fallback)", "yfinance,alpha_vantage"
+        ),
+        questionary.Choice("Custom (per category)", "custom"),
+    ]
+
+    choice = questionary.select(
+        "Select Data Provider:",
+        choices=VENDOR_OPTIONS,
+        instruction="\n- Alpha Vantage requires ALPHA_VANTAGE_API_KEY env var\n- Fallback chains try the second provider if the first hits a rate limit",
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No data provider selected. Exiting...[/red]")
+        exit(1)
+
+    if choice != "custom":
+        return {
+            "core_stock_apis": choice,
+            "technical_indicators": choice,
+            "fundamental_data": choice,
+            "news_data": choice,
+        }
+
+    # Per-category customization
+    CATEGORIES = [
+        ("core_stock_apis", "Stock Price Data (OHLCV)"),
+        ("technical_indicators", "Technical Indicators (SMA, EMA, RSI, etc.)"),
+        ("fundamental_data", "Fundamental Data (Balance Sheet, Income, etc.)"),
+        ("news_data", "News & Insider Transactions"),
+    ]
+
+    vendors = {}
+    for key, label in CATEGORIES:
+        vendor = questionary.select(
+            f"Provider for {label}:",
+            choices=[
+                questionary.Choice("Yahoo Finance", "yfinance"),
+                questionary.Choice("Alpha Vantage", "alpha_vantage"),
+                questionary.Choice(
+                    "Alpha Vantage → Yahoo Finance", "alpha_vantage,yfinance"
+                ),
+                questionary.Choice(
+                    "Yahoo Finance → Alpha Vantage", "yfinance,alpha_vantage"
+                ),
+            ],
+            style=questionary.Style([
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]),
+        ).ask()
+        if vendor is None:
+            console.print("\n[red]No provider selected. Exiting...[/red]")
+            exit(1)
+        vendors[key] = vendor
+
+    return vendors
+
+
 def ask_output_language() -> str:
     """Ask for report output language."""
     choice = questionary.select(

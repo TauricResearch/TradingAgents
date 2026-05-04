@@ -596,6 +596,15 @@ def get_user_selections():
         )
         anthropic_effort = ask_anthropic_effort()
 
+    # Step 9: Data providers
+    console.print(
+        create_question_box(
+            "Step 9: Data Providers",
+            "Select market data provider for each category"
+        )
+    )
+    data_vendors = select_data_vendors()
+
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -609,6 +618,7 @@ def get_user_selections():
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        "data_vendors": data_vendors,
     }
 
 
@@ -944,6 +954,7 @@ def run_analysis(checkpoint: bool = False):
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    config["data_vendors"] = selections.get("data_vendors", config["data_vendors"])
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
