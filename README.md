@@ -191,6 +191,47 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+## Dashboard
+
+A companion web dashboard (Bun/Hono, TypeScript) wraps the TradingAgents package via SSE streaming. Provides a visual interface for managing positions, reviewing signals, tracking exits, and running analyses.
+
+```bash
+bun run server/index.tsx    # starts on port 3000
+```
+
+See `server/` for the dashboard implementation and `AGENTS.md` for architecture details.
+
+### Dashboard Features
+
+- **11 views:** Portfolio, Analysis, Signals, History, Holdings, Workflow, Exits, Prospects, Governance, Benchmark, Feedback
+- **Workflow Kanban:** 3-column pipeline (Approved / Holdings / Pending Exit) with live prices and urgency detection
+- **Agent report persistence:** All SSE events (market, news, fundamentals reports, debate rounds, risk assessment) saved to `analyses.raw_state` as JSON — survives the stream
+- **Exit strategy management:** Per-position exit plans with invalidation price, targets, and time stops. Live distance-to-stop computation via `/api/prices/:ticker`
+- **Secret sanitization:** All text fields sanitized before DB writes (API keys, tokens, credentials stripped)
+- **Daily price cache:** One fetch per ticker per calendar day — prices cached until midnight UTC
+- **DataType sparklines:** Font-based inline charts for price history (signals, portfolio, governance) — no canvas/SVG, zero JS overhead
+- **Multi-platform:** Per-platform position tracking (degiero, ibkr, pension, etc.) with platform-aware governance rules
+- **Seed data:** `scripts/seed_database.py` generates realistic simulation data (positions, signals, exit plans, post-mortems)
+
+### Quick Commands
+
+| Command | Purpose |
+|---------|---------|
+| `bun run server/index.tsx` | Start dashboard (port 3000) |
+| `pkill -9 -f bun` | Kill stale server processes |
+| `just seed-db` | Seed simulation data |
+| `just lint` | Biome lint check |
+| `just check` | Full CI gate (lint + type check) |
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `TA_DASHBOARD_PORT` | `3000` | Dashboard HTTP port |
+| `PORTFOLIO_DB` | `./portfolio.db` | SQLite database path |
+| `TRADINGAGENTS_MEMORY_LOG_PATH` | `~/.tradingagents/memory/trading_memory.md` | Decision memory log |
+| `HLEDGER_FILE` | `~/.hledger.journal` | hLedger journal path |
+
 ## TradingAgents Package
 
 ### Implementation Details
