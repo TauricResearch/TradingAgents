@@ -270,6 +270,22 @@ class TestTraderGroundTruth:
         assert "upstream Research Manager plan was empty" in str(exc.value)
         assert llm.invoke.call_count == 0
 
+    def test_extraction_failed_upstream_plan_raises_runtime_error(self):
+        from tradingagents.agents.trader.trader import create_trader
+
+        llm = _mock_llm("- FINAL TRANSACTION PROPOSAL: **BUY**")
+        node = create_trader(llm, _mock_memory())
+        with pytest.raises(RuntimeError) as exc:
+            node(
+                _base_state(
+                    investment_plan="Ambiguous upstream output with no executable recommendation",
+                    investment_plan_structured={"status": "extraction_failed"},
+                )
+            )
+
+        assert "upstream Research Manager plan was empty" in str(exc.value)
+        assert llm.invoke.call_count == 0
+
     def test_price_anchor_mismatch_raises_runtime_error(self):
         from tradingagents.agents.trader.trader import create_trader
 
