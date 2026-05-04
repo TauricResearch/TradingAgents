@@ -124,8 +124,21 @@ seed-db-exit-plans:          # Seed exit plans (YAML) only
     bun scripts/seed_database.ts --exit-plans
 
 [group("convenience")]
-seed-db-post-mortems:        # Seed post-mortems only
-    bun scripts/seed_database.ts --post-mortems
+seed-db-prices:               # Seed prices from Yahoo Finance (backfill all open positions)
+    bun scripts/seed_database.ts --prices
+
+[group("convenience")]
+sync-prices:                  # Sync prices for all open positions (catch-up latest)
+    bun run scripts/sync-prices.ts
+
+[group("convenience")]
+sync-prices-all:              # Full sync: gap fill + catch-up for all open positions
+    bun run scripts/sync-prices.ts --all
+
+[group("convenience")]
+sync-prices-ticker:           # Sync prices for a single ticker: TICKER=AAPL just sync-prices-ticker
+    @if [ -z "${TICKER}" ]; then echo "Usage: TICKER=AAPL just sync-prices-ticker"; exit 1; fi
+    bun scripts/sync-prices.ts --ticker "${TICKER}"
 
 [group("convenience")]
 test-db-signal:              # Seed signals to TEST DB
