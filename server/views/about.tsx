@@ -67,32 +67,14 @@ export function AboutView() {
 
       <section class="panel">
         <h3>Key Implementation Notes</h3>
-        <div class="dev-list">
-          <div class="dev-item">
-            <span class="tag green">LESSON</span>
-            <span>Inline JS in Hono JSX views must use <code>dangerouslySetInnerHTML</code> with a plain function — not a literal script block. See <code>playbooks/htmx-playbook.md</code>.</span>
-          </div>
-          <div class="dev-item">
-            <span class="tag green">LESSON</span>
-            <span>HTMX + JSON APIs don't mix. Use <code>fetch()</code> for JSON, <code>hx-swap="none"</code> + JS handler for HTMX forms.</span>
-          </div>
-          <div class="dev-item">
-            <span class="tag green">LESSON</span>
-            <span>Never use <code>onclick</code> with JS variable interpolation. Use <code>data-action</code> + event delegation instead.</span>
-          </div>
-          <div class="dev-item">
-            <span class="tag green">RESOLVED</span>
-            <span>Exits route price fetching — parallel subprocesses now killed after 8s, two-level response cache (30s full, 60s per-ticker)</span>
-          </div>
-          <div class="dev-item">
-            <span class="tag green">RESOLVED</span>
-            <span>Flat YAML vs nested object mismatch — normalization added to <code>positions.ts</code> and <code>computeExitStatus()</code></span>
-          </div>
-          <div class="dev-item">
-            <span class="tag green">RESOLVED</span>
-            <span>HTMX <code>insertBefore</code> error — regex literals and string escapes corrupted inside <code>dangerouslySetInnerHTML</code></span>
-          </div>
-        </div>
+        <ul class="notes-list">
+          <li><span class="tag green">LESSON</span> Inline JS in Hono JSX views must use <code>dangerouslySetInnerHTML</code> with a plain function — not a literal script block. See <code>playbooks/htmx-playbook.md</code>.</li>
+          <li><span class="tag green">LESSON</span> HTMX + JSON APIs don't mix. Use <code>fetch()</code> for JSON, <code>hx-swap="none"</code> + JS handler for HTMX forms.</li>
+          <li><span class="tag green">LESSON</span> Never use <code>onclick</code> with JS variable interpolation. Use <code>data-action</code> + event delegation instead.</li>
+          <li><span class="tag green">RESOLVED</span> Exits route price fetching — parallel subprocesses now killed after 8s, two-level response cache (30s full, daily per-ticker)</li>
+          <li><span class="tag green">RESOLVED</span> Flat YAML vs nested object mismatch — normalization added to <code>positions.ts</code> and <code>computeExitStatus()</code></li>
+          <li><span class="tag green">RESOLVED</span> HTMX <code>insertBefore</code> error — regex literals and string escapes corrupted inside <code>dangerouslySetInnerHTML</code></li>
+        </ul>
       </section>
 
       <section class="panel">
@@ -109,13 +91,13 @@ export function AboutView() {
       <section class="panel">
         <h3>Backlog</h3>
         <ul class="dev-list">
-          <li>Authentication / access control</li>
-          <li>Timeout handling for analyses &gt; 4 minutes (idleTimeout is 240s)</li>
-          <li>Analysis history drill-down — full report with back navigation</li>
-          <li>Signal accuracy tracking — correlate signals with position outcomes</li>
-          <li>Portfolio vs. benchmark comparison — wire portfolio total value into benchmark route</li>
-          <li>datatype.tsx JSX helper — either use or remove (currently unused)</li>
-          <li>Multi-currency P&amp;L — convert all values to base currency (EUR)</li>
+          <li class="tag-done">Auth/access control — not required for internal dev tool</li>
+          <li class="tag-done">Timeout handling for analyses — idleTimeout is 240s, seems ok</li>
+          <li class="tag-todo">Analysis history drill-down — full report with back navigation</li>
+          <li class="tag-todo">Signal accuracy tracking — correlate signals with position outcomes</li>
+          <li class="tag-todo">Portfolio vs. benchmark comparison — wire portfolio total value into benchmark route</li>
+          <li class="tag-done">datatype.tsx JSX helper — remove if unused, use if implementing sparklines</li>
+          <li>Multi-currency P&amp;L — convert all values to base currency (GBP)</li>
         </ul>
       </section>
 

@@ -451,3 +451,36 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .process-dot.hit { background: #22c55e; }
 .process-dot.pending { background: var(--text-dim); opacity: 0.4; }
 .process-dot.warning { background: #ef4444; }
+
+/* ── About page notes list ────────────────────────────────────── */
+.notes-list {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0;
+}
+.notes-list li {
+  padding: 6px 0;
+  color: var(--text);
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+.notes-list li:last-child {
+  border-bottom: none;
+}
+.notes-list .tag {
+  margin-right: 6px;
+}
+
+/* ── About backlog status tags ───────────────────────────────── */
+.tag-done {
+  opacity: 0.5;
+}
+.tag-done::before {
+  content: '— ';
+}
+.tag-todo {
+  font-weight: 600;
+}
+.tag-todo::before {
+  content: '→ ';
+}
