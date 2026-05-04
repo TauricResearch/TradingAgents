@@ -1,0 +1,64 @@
+---
+title: "LangGraph Agent Workflow"
+description: "Flowchart of the TradingAgentsGraph pipeline: Analyst Team → Research Debate → Trader → Risk Debate → Portfolio Manager."
+---
+
+```mermaid
+flowchart TD
+    Start([User: Ticker + Date]) --> Analysts
+
+    subgraph Stage1[Stage 1: Analyst Team]
+        direction TB
+        MA[Market Analyst]
+        SA[Social Analyst]
+        NA[News Analyst]
+        FA[Fundamentals Analyst]
+    end
+
+    Start --> Analysts
+    Analysts --> Reports[Combined Reports]
+
+    subgraph Stage2[Stage 2: Research Debate]
+        direction LR
+        Bull[Bull Researcher]
+        Bear[Bear Researcher]
+        Judge1[Judge / Manager]
+        Bull <-->|debate rounds| Bear
+        Bull --> Judge1
+        Bear --> Judge1
+    end
+
+    Reports --> Stage2
+    Judge1 --> InvestmentPlan[Investment Plan]
+
+    subgraph Stage3[Stage 3: Trader]
+        Trader[Trader Agent]
+    end
+
+    InvestmentPlan --> Trader
+    Trader --> TradingPlan[Trading Plan]
+
+    subgraph Stage4[Stage 4: Risk Debate]
+        direction LR
+        Agg[Aggressive]
+        Con[Conservative]
+        Neu[Neutral]
+        Judge2[Risk Judge]
+        Agg <-->|debate rounds| Con
+        Agg --> Neu
+        Agg --> Judge2
+        Con --> Judge2
+        Neu --> Judge2
+    end
+
+    TradingPlan --> Stage4
+    Judge2 --> FinalRisk[Risk-Adjusted Plan]
+
+    subgraph Stage5[Stage 5: Portfolio Manager]
+        PM[Portfolio Manager]
+    end
+
+    FinalRisk --> PM
+    PM --> Decision[Buy / Sell / Hold + Reasoning]
+    Decision --> Save[(signals table)]
+```

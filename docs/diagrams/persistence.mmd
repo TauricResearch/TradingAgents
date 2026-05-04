@@ -1,0 +1,32 @@
+---
+title: "Persistence Architecture"
+description: "C4-style diagram showing where data lives: hLedger (authoritative) vs SQLite (AI artefacts) vs Decision Memory (append-only) vs Checkpoints (ephemeral) vs Exit Plans (YAML)."
+---
+
+```mermaid
+graph TB
+    subgraph Authoritative["Authoritative Sources"]
+        hLedger[hLedger<br/>~/.hledger.journal<br/>▸ Positions ▸ Transactions ▸ Prices]
+    end
+
+    subgraph AIArtefacts["AI Artefacts (SQLite WAL)"]
+        SQLite[portfolio.db]
+        Signals[signals<br/>▸ Signal ▸ Reasoning ▸ Confidence]
+        Analyses[analyses<br/>▸ Config ▸ Raw State ▸ Decision]
+        Watchlist[watchlist<br/>▸ Stage ▸ Priority ▸ Thesis]
+        Trades[trades<br/>▸ Buy/Sell records]
+    end
+
+    subgraph Ephemeral["Ephemeral / Cache"]
+        Memory[Decision Memory<br/>trading_memory.md<br/>▸ Append-only log]
+        Checkpoints[Checkpoints<br/>~/.tradingagents/cache/<br/>▸ Per-ticker SQLite<br/>▸ Auto-cleared on success]
+        ExitPlans[Exit Plans<br/>~/.tradingagents/positions/<br/>▸ Per-position YAML]
+    end
+
+    hLedger -->|read-only| Hono[Bun/Hono Server]
+    SQLite -->|read/write| Hono
+    Hono -->|save signal| Signals
+    Hono -->|save analysis| Analyses
+    Graph[TradingAgentsGraph] -->|append decision| Memory
+    Graph -->|checkpoint| Checkpoints
+```

@@ -1,0 +1,25 @@
+---
+title: "System Overview"
+description: "C4 Level 2 container diagram: Browser → Bun/Hono → Python subprocess → TradingAgentsGraph → yfinance; SQLite + hLedger persistence layers."
+---
+
+```mermaid
+graph TB
+    Browser[Browser<br/>HTMX + SSE]
+    Hono[Bun/Hono Server<br/>Port 3000]
+    Python[Python Subprocess<br/>analyze_stream.py]
+    Graph[TradingAgentsGraph<br/>LangGraph]
+    YF[yfinance<br/>Market Data]
+    SQLite[SQLite WAL<br/>portfolio.db]
+    hLedger[hLedger<br/>~/.hledger.journal]
+    Memory[Decision Memory<br/>trading_memory.md]
+
+    Browser -->|HTMX requests| Hono
+    Browser -->|SSE events| Browser
+    Hono -->|spawn JSON lines| Python
+    Python -->|propagate| Graph
+    Graph -->|fetch data| YF
+    Hono -->|read/write| SQLite
+    Hono -->|read-only| hLedger
+    Graph -->|append decision| Memory
+```

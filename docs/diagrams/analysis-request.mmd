@@ -1,0 +1,52 @@
+---
+title: "Analysis Request Data Flow"
+description: "Sequence diagram showing what happens when the user clicks Run Analysis: browser → POST → Bun spawn → Python propagate → SSE events → decision save."
+---
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant B as Browser
+    participant H as Bun/Hono
+    participant P as Python Subprocess
+    participant G as TradingAgentsGraph
+    participant D as SQLite
+    participant M as Memory Log
+
+    U->>B: Click "Run Analysis"
+    B->>H: POST /api/analyze
+    H->>P: spawn analyze_stream.py<br/>PYTHONUNBUFFERED=1
+    activate P
+    P->>G: .propagate(ticker, date)
+    activate G
+
+    G-->>P: SSE: start
+    P-->>H: JSON: type=start
+    H-->>B: SSE: start
+
+    loop Each agent stage
+        G-->>P: SSE: agent_report
+        P-->>H: JSON: type=agent_report
+        H-->>B: SSE: agent_report
+        B->>B: Append to progress panel
+    end
+
+    loop Debate rounds
+        G-->>P: SSE: debate_round
+        P-->>H: JSON: type=debate_round
+        H-->>B: SSE: debate_round
+        B->>B: Append to progress panel
+    end
+
+    G-->>P: SSE: decision
+    P-->>H: JSON: type=decision
+    H-->>B: SSE: decision
+
+    G->>D: Save to signals table
+    G->>M: Append decision + reflection
+    G-->>P: SSE: complete
+    P-->>H: JSON: type=complete
+    H-->>B: SSE: complete
+    deactivate G
+    deactivate P
+```
