@@ -8,7 +8,8 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from gui import chat, runner, storage
+from gui import brief as brief_mod
+from gui import chat, charts, export, runner, storage
 from gui.config import (
     DATA_VENDORS,
     LLM_PROVIDERS,
@@ -362,7 +363,93 @@ for tab, (label, key) in zip(tabs, tab_labels):
                 st.caption("Waiting…")
 
 # ---------------------------------------------------------------------------
-# Chat about this run — appears as soon as a decision lands.
+# Plain-English brief — appears as soon as a decision lands. This is the
+# headline "what should I do" view.
+# ---------------------------------------------------------------------------
+if SS.run_id and SS.run_decision is not None:
+    st.divider()
+    st.subheader("📋 Plain-English brief")
+    st.caption(
+        "What to do, when, and what to watch — distilled by the quick-think model. "
+        "Generated once and cached; click Regenerate to refresh."
+    )
+
+    chat_state_for_brief = {
+        "market_report": SS.run_sections.get("market_report"),
+        "sentiment_report": SS.run_sections.get("sentiment_report"),
+        "news_report": SS.run_sections.get("news_report"),
+        "fundamentals_report": SS.run_sections.get("fundamentals_report"),
+        "trader_investment_plan": SS.run_sections.get("trader_investment_plan"),
+        "final_trade_decision": SS.run_sections.get("final_trade_decision"),
+        "investment_debate_state": {
+            "bull_history": SS.run_debates["bull"][-1] if SS.run_debates.get("bull") else "",
+            "bear_history": SS.run_debates["bear"][-1] if SS.run_debates.get("bear") else "",
+            "judge_decision": SS.run_sections.get("research_judge", ""),
+        },
+        "risk_debate_state": {
+            "aggressive_history": SS.run_debates["aggressive"][-1] if SS.run_debates.get("aggressive") else "",
+            "conservative_history": SS.run_debates["conservative"][-1] if SS.run_debates.get("conservative") else "",
+            "neutral_history": SS.run_debates["neutral"][-1] if SS.run_debates.get("neutral") else "",
+        },
+    }
+    brief_meta = {
+        "ticker": (SS.run_meta or {}).get("ticker"),
+        "trade_date": (SS.run_meta or {}).get("trade_date"),
+        "decision": SS.run_decision,
+        "run_id": SS.run_id,
+    }
+
+    cached_brief = brief_mod.get_cached_brief(SS.run_id)
+    bcol1, bcol2 = st.columns([5, 1])
+    if bcol2.button("🔄 Regenerate", key="run_regen_brief"):
+        try:
+            new_brief = brief_mod.generate_brief(chat_state_for_brief, brief_meta)
+            brief_mod.store_brief(SS.run_id, new_brief)
+            cached_brief = new_brief
+            st.rerun()
+        except Exception as e:
+            st.error(f"Brief generation failed: {e}")
+
+    if cached_brief is None:
+        if bcol1.button("✨ Generate plain-English brief", type="primary",
+                        key="run_gen_brief"):
+            try:
+                with st.spinner("Distilling the analysis…"):
+                    new_brief = brief_mod.generate_brief(chat_state_for_brief, brief_meta)
+                    brief_mod.store_brief(SS.run_id, new_brief)
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Brief generation failed: {e}")
+    else:
+        st.markdown(safe_md(cached_brief.to_markdown()))
+
+# ---------------------------------------------------------------------------
+# vs index quick view
+# ---------------------------------------------------------------------------
+if SS.run_id and SS.run_decision is not None:
+    st.divider()
+    st.subheader("📈 vs S&P 500 / Nasdaq-100")
+    ticker_for_chart = (SS.run_meta or {}).get("ticker")
+    date_for_chart = (SS.run_meta or {}).get("trade_date")
+    if ticker_for_chart and date_for_chart:
+        with st.spinner("Pulling price data from Yahoo…"):
+            chart_df = charts.build_comparison_frame(
+                ticker_for_chart, date_for_chart,
+                days_back=90, days_forward=180,
+                benchmarks=["SPY", "QQQ"],
+            )
+        if chart_df is not None and not chart_df.empty:
+            st.caption(f"Indexed to **100** at the trade date ({date_for_chart}).")
+            st.line_chart(chart_df, height=300)
+        else:
+            st.caption("Couldn't fetch price data for this ticker / window.")
+        rt = charts.realised_returns_table(ticker_for_chart, date_for_chart)
+        if rt is not None:
+            st.markdown("**Realised return windows** (vs SPY, post-trade-date):")
+            st.dataframe(rt, use_container_width=True, hide_index=True)
+
+# ---------------------------------------------------------------------------
+# Chat about this run — full Q&A panel.
 # ---------------------------------------------------------------------------
 if SS.run_id and SS.run_decision is not None:
     st.divider()
@@ -452,7 +539,10 @@ if SS.run_id:
 # session_state preserves the runner handle and accumulated events.
 # ---------------------------------------------------------------------------
 if SS.runner_handle is not None and SS.runner_handle.is_running():
-    time.sleep(0.6)
+    # Every rerun re-imports modules from Python's path; on NAS-hosted
+    # repos that's painful, so we keep the loop tick at ~1.5s. Streaming
+    # still feels responsive because the live log still updates per tick.
+    time.sleep(1.5)
     st.rerun()
 elif SS.runner_handle is not None and not SS.runner_handle.is_running():
     # Final drain after the process exits.
