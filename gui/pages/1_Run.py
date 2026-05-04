@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from gui import runner, storage
+from gui import chat, runner, storage
 from gui.config import (
     DATA_VENDORS,
     LLM_PROVIDERS,
@@ -129,7 +129,8 @@ def _config_form() -> Dict[str, Any] | None:
         c1, c2 = st.columns(2)
         ticker = c1.text_input("Ticker", value="NVDA",
                                help="Symbol with optional exchange suffix (e.g. AAPL, TD.TO)").strip().upper()
-        trade_date = c2.date_input("Trade date", value=date.today())
+        trade_date = c2.date_input("Trade date", value=date.today(),
+                                   format="YYYY-MM-DD")
 
         deep_values, deep_labels = model_choices_for(provider, "deep")
         quick_values, quick_labels = model_choices_for(provider, "quick")
@@ -262,7 +263,28 @@ with status_col:
             st.warning(SS.run_warning)
     elif SS.runner_handle and SS.runner_handle.is_running():
         meta = SS.run_meta or {}
-        st.info(f"Analyzing **{meta.get('ticker','?')}** for {meta.get('trade_date','?')}…")
+        # Figure out roughly where we are in the pipeline.
+        order = [
+            ("market_report", "Market analyst"),
+            ("sentiment_report", "Sentiment analyst"),
+            ("news_report", "News analyst"),
+            ("fundamentals_report", "Fundamentals analyst"),
+            ("research_judge", "Research manager"),
+            ("trader_investment_plan", "Trader"),
+            ("final_trade_decision", "Final decision"),
+        ]
+        latest_section = None
+        for key, label in order:
+            if SS.run_sections.get(key):
+                latest_section = label
+        if (SS.run_debates.get("bull") or SS.run_debates.get("bear")) \
+                and not SS.run_sections.get("research_judge"):
+            latest_section = "Bull/Bear debate"
+        if any(SS.run_debates.get(k) for k in ("aggressive", "conservative", "neutral")) \
+                and not SS.run_sections.get("final_trade_decision"):
+            latest_section = "Risk debate"
+        stage = f" · last finished: **{latest_section}**" if latest_section else ""
+        st.info(f"Analyzing **{meta.get('ticker','?')}** for {meta.get('trade_date','?')}…{stage}")
     elif SS.runner_handle and not SS.runner_handle.is_running():
         st.warning("Worker exited without emitting `done` — see the log below.")
 
@@ -338,6 +360,68 @@ for tab, (label, key) in zip(tabs, tab_labels):
                 st.markdown(safe_md(content))
             else:
                 st.caption("Waiting…")
+
+# ---------------------------------------------------------------------------
+# Chat about this run — appears as soon as a decision lands.
+# ---------------------------------------------------------------------------
+if SS.run_id and SS.run_decision is not None:
+    st.divider()
+    st.subheader("Chat about this run")
+    st.caption(
+        f"Asks the **quick-think** model ({chat.quick_think_label()}) with the full "
+        "analysis as context. Saved per-run; pick this run up later from **History**."
+    )
+
+    chat_state = {
+        "market_report": SS.run_sections.get("market_report"),
+        "sentiment_report": SS.run_sections.get("sentiment_report"),
+        "news_report": SS.run_sections.get("news_report"),
+        "fundamentals_report": SS.run_sections.get("fundamentals_report"),
+        "trader_investment_plan": SS.run_sections.get("trader_investment_plan"),
+        "final_trade_decision": SS.run_sections.get("final_trade_decision"),
+        "investment_debate_state": {
+            "bull_history": SS.run_debates["bull"][-1] if SS.run_debates.get("bull") else "",
+            "bear_history": SS.run_debates["bear"][-1] if SS.run_debates.get("bear") else "",
+            "judge_decision": SS.run_sections.get("research_judge", ""),
+        },
+        "risk_debate_state": {
+            "aggressive_history": SS.run_debates["aggressive"][-1] if SS.run_debates.get("aggressive") else "",
+            "conservative_history": SS.run_debates["conservative"][-1] if SS.run_debates.get("conservative") else "",
+            "neutral_history": SS.run_debates["neutral"][-1] if SS.run_debates.get("neutral") else "",
+        },
+    }
+    chat_meta = {
+        "ticker": (SS.run_meta or {}).get("ticker"),
+        "trade_date": (SS.run_meta or {}).get("trade_date"),
+        "decision": SS.run_decision,
+        "provider": (SS.run_meta or {}).get("llm_provider"),
+        "deep_model": (SS.run_meta or {}).get("deep_think_llm"),
+        "quick_model": (SS.run_meta or {}).get("quick_think_llm"),
+        "run_id": SS.run_id,
+    }
+
+    hist_key = f"chat_hist_{SS.run_id}"
+    if hist_key not in SS:
+        SS[hist_key] = []
+
+    for m in SS[hist_key]:
+        with st.chat_message(m["role"]):
+            st.markdown(safe_md(m["content"]))
+
+    q = st.chat_input("Ask anything about this analysis…")
+    if q:
+        SS[hist_key].append({"role": "user", "content": q})
+        storage.add_chat_message(run_id=SS.run_id, role="user", content=q)
+        with st.chat_message("user"):
+            st.markdown(safe_md(q))
+        with st.chat_message("assistant"):
+            history_for_llm = SS[hist_key][:-1]
+            stream = chat.stream_response(chat_state, chat_meta, history_for_llm, q)
+            response_text = st.write_stream(lambda: (safe_md(t) for t in stream))
+        SS[hist_key].append({"role": "assistant", "content": response_text})
+        storage.add_chat_message(run_id=SS.run_id, role="assistant",
+                                 content=response_text,
+                                 model=chat.quick_think_label())
 
 # ---------------------------------------------------------------------------
 # Quick note attach.

@@ -67,6 +67,16 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS notes_ticker ON notes(ticker);
             CREATE INDEX IF NOT EXISTS notes_run ON notes(run_id);
+
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                model TEXT
+            );
+            CREATE INDEX IF NOT EXISTS chat_messages_run ON chat_messages(run_id, id);
             """
         )
 
@@ -205,3 +215,32 @@ def get_note(note_id: int) -> Optional[Dict[str, Any]]:
     with _conn() as c:
         row = c.execute("SELECT * FROM notes WHERE id=?", (note_id,)).fetchone()
         return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# Chat messages — one conversation per run_id, persisted across reloads.
+# ---------------------------------------------------------------------------
+
+def add_chat_message(*, run_id: str, role: str, content: str,
+                     model: Optional[str] = None) -> int:
+    with _conn() as c:
+        cur = c.execute(
+            """INSERT INTO chat_messages(run_id, role, content, created_at, model)
+               VALUES (?, ?, ?, ?, ?)""",
+            (run_id, role, content, _now(), model),
+        )
+        return int(cur.lastrowid)
+
+
+def list_chat_messages(run_id: str) -> List[Dict[str, Any]]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM chat_messages WHERE run_id=? ORDER BY id ASC",
+            (run_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def clear_chat(run_id: str) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM chat_messages WHERE run_id=?", (run_id,))

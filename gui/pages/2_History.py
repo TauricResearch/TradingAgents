@@ -11,8 +11,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from gui import export, storage
-from gui.log_browser import discover_logs, load_log
+from gui import chat, export, storage
+from gui.log_browser import discover_logs, load_archive_full, load_log
 from gui.md_utils import safe_md
 
 st.set_page_config(page_title="History · TradingAgents", layout="wide")
@@ -223,31 +223,55 @@ with st.expander("📦 Export this run", expanded=False):
 
     # Also offer in-browser download of the rendered formats (no disk write).
     st.divider()
-    st.caption("Or download directly without saving to disk:")
-    dc1, dc2, dc3 = st.columns(3)
-    md_text = export.render_markdown(state, export_meta)
+    st.caption(
+        "Or download directly. Tip: the JSON archive is the richest format "
+        "(metadata + state + tool trace) and is what to drop into a Claude.ai "
+        "chat for further analysis."
+    )
+    dc1, dc2, dc3, dc4 = st.columns(4)
+
+    # JSON archive — read straight from disk so the user gets the exact bytes
+    # already on disk (including any tool_trace and metadata), not a re-render.
+    try:
+        json_bytes = Path(log_path).read_bytes()
+    except OSError:
+        json_bytes = b""
     dc1.download_button(
+        "⬇ JSON (archive)", data=json_bytes, mime="application/json",
+        file_name=Path(log_path).name,
+        use_container_width=True, key="dl_json",
+        disabled=not json_bytes,
+        help="The full archive JSON — drop this into Claude.ai for follow-up Q&A.",
+    )
+
+    md_text = export.render_markdown(state, export_meta)
+    dc2.download_button(
         "⬇ Markdown", data=md_text, mime="text/markdown",
         file_name=f"{export.export_basename(export_meta)}.md",
         use_container_width=True, key="dl_md",
     )
     html_text = export.render_html(state, export_meta)
-    dc2.download_button(
+    dc3.download_button(
         "⬇ HTML", data=html_text, mime="text/html",
         file_name=f"{export.export_basename(export_meta)}.html",
         use_container_width=True, key="dl_html",
     )
     if export.has_pdf_support():
         pdf_bytes = export.render_pdf(state, export_meta)
-        dc3.download_button(
+        dc4.download_button(
             "⬇ PDF", data=pdf_bytes or b"", mime="application/pdf",
             file_name=f"{export.export_basename(export_meta)}.pdf",
             use_container_width=True, key="dl_pdf",
             disabled=not pdf_bytes,
         )
     else:
-        dc3.button("⬇ PDF", disabled=True, use_container_width=True,
+        dc4.button("⬇ PDF", disabled=True, use_container_width=True,
                    help="Install xhtml2pdf to enable")
+
+    # File path display — no Streamlit clipboard API yet, so render the path
+    # in a code block so the user can triple-click + Ctrl+C cleanly.
+    st.caption("File on disk (triple-click the path, Ctrl+C):")
+    st.code(str(log_path), language="text")
 
     # Show prior exports for this run, if any.
     prior = export.list_exports_for_run(export_meta)
@@ -294,7 +318,74 @@ for tab, (label, content) in zip(tabs, tab_labels):
         else:
             st.markdown(safe_md(content) or "_(no content)_")
 
-# Notes attached to this run.
+# ---- Chat with this run ----------------------------------------------
+# Shows for any run that has a real run_id (so the chat can be persisted
+# in SQLite and reloaded later). Legacy CLI runs without a DB row use a
+# synthetic id derived from the log path so chats still work in-session.
+chat_key = chosen.get("run_id") or f"legacy-{abs(hash(log_path))}"
+
+st.divider()
+st.subheader("Chat about this run")
+st.caption(
+    f"Asks the **quick-think** model ({chat.quick_think_label()}) with the full "
+    "analysis as context. Conversation is saved per-run."
+)
+
+# Pull tool trace if this is a v1 archive — chat module gets richer context.
+archive_full = load_archive_full(log_path) or {}
+tool_trace = archive_full.get("tool_trace") or []
+
+# Load prior messages from SQLite (or in-memory legacy fallback).
+hist_key = f"chat_hist_{chat_key}"
+if hist_key not in st.session_state:
+    if chosen.get("run_id"):
+        prior = storage.list_chat_messages(chat_key)
+        st.session_state[hist_key] = [
+            {"role": m["role"], "content": m["content"]} for m in prior
+        ]
+    else:
+        st.session_state[hist_key] = []
+
+# Render history.
+for msg in st.session_state[hist_key]:
+    with st.chat_message(msg["role"]):
+        st.markdown(safe_md(msg["content"]))
+
+# Input.
+question = st.chat_input("Ask anything about this analysis…")
+if question:
+    # User turn
+    st.session_state[hist_key].append({"role": "user", "content": question})
+    if chosen.get("run_id"):
+        storage.add_chat_message(run_id=chat_key, role="user", content=question)
+    with st.chat_message("user"):
+        st.markdown(safe_md(question))
+
+    # Assistant turn (streamed)
+    with st.chat_message("assistant"):
+        history_for_llm = st.session_state[hist_key][:-1]  # exclude the just-added question
+        meta_for_chat = {**export_meta, "decision": chosen.get("decision")}
+        stream = chat.stream_response(state, meta_for_chat, history_for_llm,
+                                      question, tool_trace=tool_trace)
+        # st.write_stream renders chunks token-by-token AND returns the joined text.
+        response_text = st.write_stream(lambda: (safe_md(t) for t in stream))
+
+    st.session_state[hist_key].append({"role": "assistant", "content": response_text})
+    if chosen.get("run_id"):
+        from gui import chat as _chat_mod
+        storage.add_chat_message(run_id=chat_key, role="assistant",
+                                 content=response_text,
+                                 model=_chat_mod.quick_think_label())
+
+# Manage controls.
+mc1, mc2 = st.columns([1, 5])
+if mc1.button("🗑 Clear chat", help="Delete the saved conversation for this run"):
+    if chosen.get("run_id"):
+        storage.clear_chat(chat_key)
+    st.session_state[hist_key] = []
+    st.rerun()
+
+# ---- Notes -----------------------------------------------------------
 if chosen.get("run_id"):
     st.divider()
     st.subheader("Notes for this run")
@@ -303,7 +394,7 @@ if chosen.get("run_id"):
         st.caption("No notes yet.")
     for n in notes:
         with st.expander(f"{n['title']}  ·  {n['updated_at']}"):
-            st.markdown(n["body"])
+            st.markdown(safe_md(n["body"]))
             if n.get("tags"):
                 st.caption(f"Tags: {n['tags']}")
 
