@@ -262,6 +262,37 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .report-body h1, .report-body h2 { margin-top: 1.5rem; margin-bottom: 0.5rem; }
 .report-body p { margin-bottom: 0.75rem; }
 
+/* Analysis report */
+.report-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.report-header h2 { margin: 0; }
+.report-date, .report-platform { color: var(--text-dim); font-size: 0.875rem; }
+.report-decision { padding: 1rem; border-radius: 6px; margin-bottom: 1rem; border-left: 4px solid var(--text-dim); }
+.report-decision.status-buy { border-left-color: var(--green); background: rgba(34,197,94,0.05); }
+.report-decision.status-sell { border-left-color: var(--red); background: rgba(239,68,68,0.05); }
+.report-decision.status-hold { border-left-color: var(--yellow); background: rgba(234,179,8,0.05); }
+
+/* Event sections */
+.event-section { margin-bottom: 1.5rem; padding: 1rem; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); }
+.event-section h4 { margin: 0 0 0.75rem 0; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+.agent-report { border-left: 3px solid var(--blue); }
+.debate-round { border-left: 3px solid var(--purple); }
+.risk-assessment { border-left: 3px solid var(--yellow); }
+.risk-assessment.risk-high { border-left-color: var(--red); background: rgba(239,68,68,0.05); }
+.final-decision { border-left: 3px solid var(--green); background: rgba(34,197,94,0.03); }
+.verdict { margin-top: 0.75rem; padding: 0.75rem; background: var(--bg); border-radius: 4px; font-weight: 600; }
+.verdict.status-buy { color: var(--green); }
+.verdict.status-sell { color: var(--red); }
+.event-complete { background: transparent; border: none; }
+.event-error { border-left-color: var(--red); background: rgba(239,68,68,0.05); }
+.event-start { background: transparent; border: 1px dashed var(--border); }
+.risk-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--yellow); color: var(--bg); }
+.risk-assessment.risk-high .risk-badge { background: var(--red); }
+.risk-assessment.risk-low .risk-badge { background: var(--green); }
+
+/* Analysis list table */
+.has-raw td { font-weight: 500; }
+.dec-only td { opacity: 0.7; }
+
 /* LLM explanation card */
 .explain-card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin: 1rem 0; }
 .explain-text { line-height: 1.7; margin-bottom: 0.75rem; font-style: italic; color: var(--text); }
