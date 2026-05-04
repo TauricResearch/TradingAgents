@@ -1,6 +1,7 @@
 .git
 .venv
 .env
+.env.*
 .claude
 .idea
 .vscode
@@ -13,3 +14,7 @@ results
 eval_results
 Dockerfile
 docker-compose.yml
+# Host-side persistent data — must not be baked into the image.
+data
+# Local-disk runtime state that may exist if a developer poked around in-tree.
+.tradingagents

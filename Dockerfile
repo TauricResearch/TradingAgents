@@ -8,7 +8,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
 COPY . .
-RUN pip install --no-cache-dir .
+# Install the project with [gui] extras (streamlit + markdown + xhtml2pdf).
+# Pulling the GUI deps into the base image lets the same image serve both
+# the CLI and the Streamlit GUI — only the entrypoint changes per service.
+RUN pip install --no-cache-dir '.[gui]'
 
 FROM python:3.12-slim
 
@@ -18,10 +21,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN useradd --create-home appuser
+# UID/GID 1000 matches the default user on most Linux hosts and is what
+# Synology bind-mounts permission-check against when you set the share
+# owner via Control Panel → Shared Folder → permissions.
+RUN groupadd --gid 1000 appuser \
+ && useradd --uid 1000 --gid 1000 --create-home appuser
 USER appuser
 WORKDIR /home/appuser/app
 
 COPY --from=builder --chown=appuser:appuser /build .
 
+# CLI default — the docker-compose ``gui`` service overrides this with
+# its own ``entrypoint: []`` + ``command: streamlit run gui/app.py``.
 ENTRYPOINT ["tradingagents"]

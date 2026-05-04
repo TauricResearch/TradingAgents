@@ -1,4 +1,7 @@
 services:
+  # ---- Original CLI service --------------------------------------------
+  # Run a one-shot analysis from the terminal:
+  #   docker compose run --rm tradingagents
   tradingagents:
     build: .
     env_file:
@@ -8,6 +11,46 @@ services:
     tty: true
     stdin_open: true
 
+  # ---- Streamlit GUI service ------------------------------------------
+  # Long-running web UI on port 8501. Bind-mounts ./data so config,
+  # SQLite, run archives, and exports live on the host filesystem and
+  # survive container rebuilds.
+  #
+  # On Synology: clone this repo into /volume1/docker/tradingagents/ and
+  # ./data resolves to /volume1/docker/tradingagents/data/. See
+  # gui/DEPLOY.md for the full walkthrough including the permission step.
+  gui:
+    build: .
+    container_name: tradingagents-gui
+    entrypoint: []
+    command: >
+      streamlit run gui/app.py
+      --server.address 0.0.0.0
+      --server.port 8501
+      --server.headless true
+      --browser.gatherUsageStats false
+    env_file:
+      - .env
+    ports:
+      - "${TRADINGAGENTS_GUI_PORT:-8501}:8501"
+    volumes:
+      - ./data:/home/appuser/.tradingagents
+    restart: unless-stopped
+    healthcheck:
+      # Streamlit exposes a /_stcore/health endpoint that returns "ok"
+      # once the server is fully booted. Python urllib avoids needing
+      # curl in the slim image.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health').read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # ---- Optional: local Ollama models ----------------------------------
   ollama:
     image: ollama/ollama:latest
     volumes:
