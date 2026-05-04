@@ -19,14 +19,19 @@ format:                     # Format all files
     bunx biome format . --write
 
 [group("bun")]
+serve:                      # Start dashboard server (DEV mode)
+    pkill -9 -f bun 2>/dev/null || true
+    bun run server/index.tsx
+
+[group("bun")]
+serve-test:                  # Start dashboard server in TEST mode
+    pkill -9 -f bun 2>/dev/null || true
+    TEST_MODE=1 TEST_HLEDGER_FILE="${HOME}/.tradingagents/test_hledger.journal" bun run server/index.tsx
+
+[group("bun")]
 check:                      # Full CI gate: lint + type-check server
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
-
-[group("bun")]
-serve:                      # Start dashboard server
-    pkill -9 -f bun 2>/dev/null || true
-    bun run server/index.tsx
 
 [group("python")]
 install:                    # Install Python dependencies
@@ -91,15 +96,27 @@ seed-test-journal JOURNAL="${HOME}/.hledger.journal":  # Generate test hLedger j
     bash scripts/seed_test_journal.sh "{{JOURNAL}}"
 
 [group("convenience")]
-seed-db:                     # Seed SQLite database with simulation data (all tables)
+portfolio-intel:              # Show portfolio intelligence (DEV mode)
+    .venv/bin/python scripts/portfolio-intel.py
+
+[group("convenience")]
+portfolio-intel-test:        # Show portfolio intelligence (TEST mode)
+    TEST_MODE=1 .venv/bin/python scripts/portfolio-intel.py test
+
+[group("convenience")]
+seed-db:                     # Seed DEV SQLite database (uses PORTFOLIO_DB env or default)
     .venv/bin/python scripts/seed_database.py
 
 [group("convenience")]
-seed-db-positions:           # Seed positions only
+test-seed-db:                # Seed TEST SQLite database (uses TEST_MODE=1)
+    TEST_MODE=1 .venv/bin/python scripts/seed_database.py --db ./test_portfolio.db
+
+[group("convenience")]
+seed-db-positions:           # Seed positions only (DEV)
     .venv/bin/python scripts/seed_database.py --positions
 
 [group("convenience")]
-seed-db-signals:             # Seed signals only
+seed-db-signals:             # Seed signals only (DEV)
     .venv/bin/python scripts/seed_database.py --signals
 
 [group("convenience")]
@@ -111,13 +128,80 @@ seed-db-post-mortems:        # Seed post-mortems only
     .venv/bin/python scripts/seed_database.py --post-mortems
 
 [group("convenience")]
-seed-all:                    # Full seed: hLedger journal + DB + exit plans + post-mortems
-    just seed-test-journal
-    just seed-db
+test-db-signal:              # Seed signals to TEST DB
+    .venv/bin/python scripts/seed_database.py --db ./test_portfolio.db --signals
+
+[group("convenience")]
+test-init:                   # Create fresh test_portfolio.db with schema
+    bash scripts/init-test-db.sh
+
+[group("convenience")]
+test-reset:                  # Wipe and recreate test DB
+    bash scripts/init-test-db.sh --reset
+
+[group("convenience")]
+test-seed:                   # Seed test DB with E2E data
+    bash scripts/init-test-db.sh --reset
+    sqlite3 test_portfolio.db < scripts/seed-test-db.sql
+    echo "TEST DB seeded: $(sqlite3 test_portfolio.db 'SELECT COUNT(*) FROM positions') positions, $(sqlite3 test_portfolio.db 'SELECT COUNT(*) FROM signals') signals"
+
+[group("convenience")]
+test-db-stats:               # Show DEV and TEST DB row counts
+    @echo "=== DEV portfolio.db ==="
+    sqlite3 portfolio.db "SELECT 'positions', COUNT(*) FROM positions UNION ALL SELECT 'signals', COUNT(*) FROM signals UNION ALL SELECT 'analyses', COUNT(*) FROM analyses UNION ALL SELECT 'watchlist', COUNT(*) FROM watchlist"
+    @echo ""
+    @echo "=== TEST test_portfolio.db ==="
+    sqlite3 test_portfolio.db "SELECT 'positions', COUNT(*) FROM positions UNION ALL SELECT 'signals', COUNT(*) FROM signals UNION ALL SELECT 'analyses', COUNT(*) FROM analyses UNION ALL SELECT 'watchlist', COUNT(*) FROM watchlist"
+
+[group("convenience")]
+copy-test-to-dev:            # Copy TEST artefacts to DEV (dry-run)
+    ./scripts/copy-test-to-dev.sh
+
+[group("convenience")]
+copy-test-to-dev-apply:      # Copy TEST artefacts to DEV (apply)
+    ./scripts/copy-test-to-dev.sh --apply
+
+# [group("convenience")]
+# seed-all:                    # Full seed: hLedger journal + DB + exit plans + post-mortems
+#     just seed-test-journal
+#     just seed-db
+
+[group("diagrams")]
+diagrams:                     # Render .dot and .mmd source files to .svg
+    python3 scripts/render_diagrams.py
+
+[group("diagrams")]
+diagrams-clean:               # Remove all generated .svg files
+    rm -f docs/diagrams/*.svg
+    @echo "Cleaned SVG files."
 
 [group("hledger")]
-hl:                         # Holdings summary
+hl:                         # Holdings summary (market value)
     hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --value end
+
+[group("hledger")]
+hl-holdings:                # Holdings only (no cash)
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets: --tree
+
+[group("hledger")]
+hl-cash:                    # Cash balances per platform
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets: --tree | grep -E "(cash|EUR|USD)"
+
+[group("hledger")]
+hl-accounts:                # All accounts defined in journal
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" accounts
+
+[group("hledger")]
+hl-backup:                  # Backup hledger journal to ~/.tradingagents/backups/
+    ~/.tradingagents/bin/backup-hledger.sh
+
+[group("hledger")]
+hl-backup-verify:           # Verify latest backup integrity
+    ~/.tradingagents/bin/backup-hledger.sh --verify
+
+[group("hledger")]
+hl-backup-restore FILE:     # Restore hledger from a backup file
+    ~/.tradingagents/bin/backup-hledger.sh --restore {{FILE}}
 
 [group("hledger")]
 hl-prices:                  # Price history
