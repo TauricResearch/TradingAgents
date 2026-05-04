@@ -126,3 +126,44 @@ def find_latest_prior_pm_decision(
         if data is not None:
             return {"date": d, "data": data}
     return None
+
+
+def _truncate(text: str, limit: int) -> str:
+    text = str(text or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
+
+
+def format_prior_context_block(
+    ticker: str,
+    prior_analysis: dict[str, Any] | None,
+    prior_pm_decision: dict[str, Any] | None,
+    max_chars: int = 1200,
+) -> str:
+    """Format prior analysis + PM decision as a compact prompt block.
+
+    Returns an empty string if both inputs are ``None``.
+    """
+    if not prior_analysis and not prior_pm_decision:
+        return ""
+    per_section = max(200, (max_chars - 200) // 2)
+    parts: list[str] = [f"## Prior Run Context for {ticker.upper()}"]
+    if prior_analysis:
+        d = prior_analysis.get("date", "?")
+        data = prior_analysis.get("data") or {}
+        plan = data.get("trader_investment_plan") or data.get("final_trade_decision") or ""
+        parts.append(
+            f"\n### Last Trader Plan ({d})\n{_truncate(plan, per_section)}"
+        )
+    if prior_pm_decision:
+        d = prior_pm_decision.get("date", "?")
+        data = prior_pm_decision.get("data") or {}
+        decision = data.get("decision") or ""
+        rationale = data.get("rationale") or ""
+        body = decision if not rationale else f"{decision}\n\nRationale: {rationale}"
+        parts.append(
+            f"\n### Last PM Decision ({d})\n{_truncate(body, per_section)}"
+        )
+    out = "\n".join(parts)
+    return _truncate(out, max_chars)

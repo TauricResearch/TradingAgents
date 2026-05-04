@@ -5,6 +5,7 @@ from pathlib import Path
 from tradingagents.agents.utils.historical_context import (
     find_latest_prior_analysis,
     find_latest_prior_pm_decision,
+    format_prior_context_block,
 )
 
 
@@ -123,3 +124,43 @@ def test_find_latest_prior_analysis_picks_later_run_on_same_date(tmp_path: Path)
     )
     assert found is not None
     assert found["data"]["trader_investment_plan"] == "NEW_RUN"
+
+
+def test_format_prior_context_block_renders_compactly() -> None:
+    prior_analysis = {
+        "date": "2026-04-28",
+        "data": {
+            "trader_investment_plan": "BUY at $180, stop $170, target $200",
+            "final_trade_decision": "BUY",
+        },
+    }
+    prior_pm = {
+        "date": "2026-04-28",
+        "data": {
+            "decision": "BUY 100 AAPL @ market",
+            "rationale": "Earnings momentum",
+        },
+    }
+
+    out = format_prior_context_block(
+        ticker="AAPL",
+        prior_analysis=prior_analysis,
+        prior_pm_decision=prior_pm,
+        max_chars=1200,
+    )
+
+    assert "AAPL" in out
+    assert "2026-04-28" in out
+    assert "BUY at $180" in out
+    assert "BUY 100 AAPL" in out
+    assert len(out) <= 1200
+
+
+def test_format_prior_context_block_handles_missing() -> None:
+    out = format_prior_context_block(
+        ticker="AAPL",
+        prior_analysis=None,
+        prior_pm_decision=None,
+        max_chars=1200,
+    )
+    assert out == ""
