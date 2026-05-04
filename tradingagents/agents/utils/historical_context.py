@@ -51,8 +51,13 @@ def _candidate_dates(
 def _load_latest_in_date(
     date_dir: Path,
     relative_subpath: str,
-    suffix: str,
+    filename_tail: str,
 ) -> dict[str, Any] | None:
+    """Return the JSON data from the lexicographically-last file whose name ends with
+    ``filename_tail``, scanning all run-id subdirectories under ``date_dir / relative_subpath``.
+
+    Returns ``None`` on any error or if no matching file exists.
+    """
     if not date_dir.exists():
         return None
     matches: list[Path] = []
@@ -62,10 +67,10 @@ def _load_latest_in_date(
         scan_dir = run_dir / relative_subpath
         if not scan_dir.exists():
             continue
-        matches.extend(p for p in scan_dir.glob(f"*{suffix}") if p.is_file())
+        matches.extend(p for p in scan_dir.iterdir() if p.is_file() and p.name.endswith(filename_tail))
     if not matches:
         return None
-    matches.sort(key=lambda p: p.name, reverse=True)
+    matches.sort(key=lambda p: (p.parent.parent.name, p.name), reverse=True)
     try:
         return json.loads(matches[0].read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):

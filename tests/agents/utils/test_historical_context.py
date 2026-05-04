@@ -1,9 +1,6 @@
 # tests/agents/utils/test_historical_context.py
 import json
-from datetime import date
 from pathlib import Path
-
-import pytest
 
 from tradingagents.agents.utils.historical_context import (
     find_latest_prior_analysis,
@@ -106,3 +103,23 @@ def test_find_latest_prior_pm_decision(tmp_path: Path) -> None:
     assert found is not None
     assert found["date"] == "2026-04-28"
     assert found["data"]["decision"] == "BUY AAPL 100 shares"
+
+
+def test_find_latest_prior_analysis_picks_later_run_on_same_date(tmp_path: Path) -> None:
+    base = tmp_path / "reports" / "daily"
+    _write(
+        base / "2026-04-28" / "RUN_A" / "AAPL" / "report" / "00_complete_report.json",
+        {"trader_investment_plan": "OLD_RUN"},
+    )
+    _write(
+        base / "2026-04-28" / "RUN_B" / "AAPL" / "report" / "00_complete_report.json",
+        {"trader_investment_plan": "NEW_RUN"},
+    )
+    found = find_latest_prior_analysis(
+        ticker="AAPL",
+        as_of_date="2026-05-01",
+        reports_root=base,
+        lookback_days=30,
+    )
+    assert found is not None
+    assert found["data"]["trader_investment_plan"] == "NEW_RUN"
