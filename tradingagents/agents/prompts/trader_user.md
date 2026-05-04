@@ -1,0 +1,5 @@
+Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. {instrument_context} This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.
+
+Proposed Investment Plan: {investment_plan}
+
+Leverage these insights to make an informed and strategic decision.

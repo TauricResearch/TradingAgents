@@ -21,7 +21,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +136,17 @@ class TraderProposal(BaseModel):
         default=None,
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
     )
+
+    @model_validator(mode="after")
+    def validate_stop_loss_direction(self) -> "TraderProposal":
+        """Reject stop-loss levels that contradict the proposed trade direction."""
+        if self.entry_price is None or self.stop_loss is None:
+            return self
+        if self.action == TraderAction.BUY and self.stop_loss >= self.entry_price:
+            raise ValueError("Buy stop_loss must be below entry_price")
+        if self.action == TraderAction.SELL and self.stop_loss <= self.entry_price:
+            raise ValueError("Sell stop_loss must be above entry_price")
+        return self
 
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
