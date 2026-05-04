@@ -270,15 +270,19 @@ def compute_risk_metrics(
         r_p = returns[-min_len:]
         r_b = benchmark_returns[-min_len:]
         if min_len >= MIN_PERIODS_BETA:
-            mu_p = _mean(r_p)
-            mu_b = _mean(r_b)
-            # Optimized: Use zip to iterate over lists directly instead of expensive indexing
-            covariance = sum((p - mu_p) * (b - mu_b) for p, b in zip(r_p, r_b, strict=False)) / (
-                min_len - 1
-            )
-            var_b = _std(r_b) ** 2
-            if var_b > 0.0:
-                beta = covariance / var_b
+            # ⚡ BOLT OPTIMIZATION: Compute beta directly from sums of squares/cross-products
+            # instead of allocating intermediate std_dev, avoiding mean recalc and root/power ops.
+            # Degrees of freedom (N-1) inherently cancel out for beta ratios.
+            mu_p = sum(r_p) / min_len
+            mu_b = sum(r_b) / min_len
+            cov_sum = 0.0
+            var_b_sum = 0.0
+            for p, b in zip(r_p, r_b, strict=False):
+                b_diff = b - mu_b
+                cov_sum += (p - mu_p) * b_diff
+                var_b_sum += b_diff * b_diff
+            if var_b_sum > 0.0:
+                beta = cov_sum / var_b_sum
 
     # ------------------------------------------------------------------
     # Sector concentration  (from last snapshot's holdings_snapshot)
