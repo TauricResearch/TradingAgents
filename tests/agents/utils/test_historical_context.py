@@ -164,3 +164,25 @@ def test_format_prior_context_block_handles_missing() -> None:
         max_chars=1200,
     )
     assert out == ""
+
+
+def test_find_latest_prior_analysis_skips_corrupt_json(tmp_path: Path) -> None:
+    base = tmp_path / "reports" / "daily"
+    corrupt = base / "2026-04-29" / "RUN1" / "AAPL" / "report" / "00_complete_report.json"
+    corrupt.parent.mkdir(parents=True, exist_ok=True)
+    corrupt.write_text("{not valid json", encoding="utf-8")
+    _write(
+        base / "2026-04-28" / "RUN1" / "AAPL" / "report" / "00_complete_report.json",
+        {"trader_investment_plan": "VALID"},
+    )
+
+    found = find_latest_prior_analysis(
+        ticker="AAPL",
+        as_of_date="2026-05-01",
+        reports_root=base,
+        lookback_days=30,
+    )
+
+    assert found is not None
+    assert found["date"] == "2026-04-28"
+    assert found["data"]["trader_investment_plan"] == "VALID"

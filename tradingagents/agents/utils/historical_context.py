@@ -45,7 +45,8 @@ def _candidate_dates(
         if earliest <= d < target:
             out.append(d)
     out.sort(reverse=True)
-    return [d.isoformat() for d in out]
+    # Cap to lookback_days entries so inner _load_latest_in_date calls don't grow with calendar time
+    return [d.isoformat() for d in out[:lookback_days]]
 
 
 def _load_latest_in_date(
@@ -144,6 +145,9 @@ def format_prior_context_block(
     """Format prior analysis + PM decision as a compact prompt block.
 
     Returns an empty string if both inputs are ``None``.
+
+    Note: the returned string contains the raw ticker symbol in the section header.
+    Callers should anonymize the result before injecting it into LLM prompts.
     """
     if not prior_analysis and not prior_pm_decision:
         return ""

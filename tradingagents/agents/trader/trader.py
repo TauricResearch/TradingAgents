@@ -102,7 +102,8 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             max_chars=1200,
         )
         anon_prior_context = (
-            anonymize_ticker(prior_context_block, ticker) if prior_context_block else ""
+            truncate_text(anonymize_ticker(prior_context_block, ticker), max_chars=1200)
+            if prior_context_block else ""
         )
 
         scanner_section = ""
