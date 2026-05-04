@@ -110,6 +110,15 @@ STRICT CONSTRAINTS:
 - Every proposal must include entry price, stop-loss (5-15% below entry), and take-profit (10-30% above entry).
 - For the Catalyst Timeline, use ONLY dates from the Scanner Ground-Truth Data section. Do NOT estimate or invent earnings dates, FOMC dates, CPI dates, or any other event dates.
 
+## VOLATILITY & STOP-LOSS SANITY CHECK (mandatory on every run)
+
+Before setting stop-loss and position size:
+1. REALIZED RANGE CHECK: Compare the current session high/low range against the provided ATR.
+   - If (session_high - session_low) > ATR, the ATR is STALE. Do not use it directly.
+2. ADJUSTED STOP-LOSS RULE: If realized range > ATR, place stop-loss at LEAST 1.5× the provided ATR below entry OR below the nearest named structural support level — whichever is wider.
+3. ANTI-AIR-POCKET RULE: A stop-loss must be anchored to a named structural level (prior day close, 200-day SMA, earnings gap fill, named support from the market report). Never place a stop in a price zone with no structural reference.
+4. POSITION SIZE RECONCILIATION: If the wider stop forces your dollar-at-risk above your target, reduce share count to keep total risk constant — do not widen the stop AND keep the same size.
+
 YOUR TASK:
 1. **Research Manager's Verdict**: Restate the recommendation and top evidence.
 2. **Entry Setup**: Specific entry price or range with technical justification.
