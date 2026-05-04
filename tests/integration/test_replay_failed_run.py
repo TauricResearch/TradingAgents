@@ -58,7 +58,7 @@ def test_failed_run_rescales_and_passes_postcheck():
         "portfolio_thesis": "Defensive",
         "risk_summary": "Low",
         "forensic_report": {
-            "regime_alignment": "risk-off",
+            "regime_alignment": "regime-divergent",
             "key_risks": ["market volatility"],
             "decision_confidence": "medium",
             "position_sizing_rationale": "conservative sizing",

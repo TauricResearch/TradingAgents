@@ -42,7 +42,7 @@ def _make_state(
                 "portfolio_thesis": "test",
                 "risk_summary": "ok",
                 "forensic_report": {
-                    "regime_alignment": "test",
+                    "regime_alignment": "uncorrelated",
                     "key_risks": [],
                     "decision_confidence": "low",
                     "position_sizing_logic": "test",

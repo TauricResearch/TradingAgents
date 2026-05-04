@@ -86,7 +86,7 @@ def _valid_pm_payload() -> dict:
         "portfolio_thesis": "Selective quality exposure with cash buffer",
         "risk_summary": "Moderate portfolio risk",
         "forensic_report": {
-            "regime_alignment": "Defensive growth is acceptable",
+            "regime_alignment": "sector-aligned",
             "key_risks": ["multiple compression"],
             "decision_confidence": "medium",
             "position_sizing_rationale": "Keep exposure below hard caps",
@@ -733,7 +733,7 @@ class TestPMDecisionAgentInputs:
                             portfolio_thesis="test",
                             risk_summary="test",
                             forensic_report={
-                                "regime_alignment": "test",
+                                "regime_alignment": "uncorrelated",
                                 "key_risks": ["test"],
                                 "decision_confidence": "medium",
                                 "position_sizing_rationale": "test",

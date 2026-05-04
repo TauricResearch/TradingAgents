@@ -281,7 +281,7 @@ def _make_postcheck_state(
         "portfolio_thesis": "test",
         "risk_summary": "test",
         "forensic_report": {
-            "regime_alignment": "risk-on",
+            "regime_alignment": "macro-aligned",
             "key_risks": [],
             "decision_confidence": "high",
             "position_sizing_rationale": "test",

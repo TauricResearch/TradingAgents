@@ -66,7 +66,7 @@ def _valid_payload() -> dict:
         "portfolio_thesis": "Defensive tilt with energy exposure",
         "risk_summary": "Moderate risk; elevated VIX",
         "forensic_report": {
-            "regime_alignment": "risk-off favours energy and cash",
+            "regime_alignment": "regime-divergent",
             "key_risks": ["oil demand drop", "rate surprise"],
             "decision_confidence": "high",
             "position_sizing_rationale": "All positions within 15% cap",
@@ -233,7 +233,7 @@ class TestForensicReport:
     def test_valid_forensic_report(self):
         """ForensicReport validates correctly with all required fields."""
         report = ForensicReport(
-            regime_alignment="risk-off supports cash",
+            regime_alignment="macro-aligned",
             key_risks=["rate spike", "credit crunch"],
             decision_confidence="medium",
             position_sizing_rationale="All within 10% cap",
@@ -244,7 +244,7 @@ class TestForensicReport:
     def test_key_risks_can_be_empty(self):
         """key_risks list can be empty."""
         report = ForensicReport(
-            regime_alignment="aligned",
+            regime_alignment="uncorrelated",
             key_risks=[],
             decision_confidence="low",
             position_sizing_rationale="cautious",
