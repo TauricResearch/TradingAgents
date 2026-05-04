@@ -309,6 +309,12 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .positive { color: var(--green); }
 .negative { color: var(--red); }
 
+/* Portfolio P&L */
+#pnl-total-pnl.positive { color: var(--green); }
+#pnl-total-pnl.negative { color: var(--red); }
+.pnl-cell.positive { color: var(--green); }
+.pnl-cell.negative { color: var(--red); }
+
 /* Feedback */
 .accuracy-summary { text-align: center; padding: 16px 0; }
 .accuracy-score { font-size: 1.5em; font-weight: 700; }

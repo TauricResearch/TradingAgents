@@ -118,6 +118,10 @@ app.route("/api/benchmark", benchmarkRouter);
 app.route("/api/feedback", feedbackRouter);
 app.route("/api/workflow", workflowRouter);
 
+// ── Portfolio summary (P&L in GBP) ─────────────────────────
+import { handlePortfolioSummary } from "./routes/portfolio.ts";
+app.get("/api/portfolio/summary", handlePortfolioSummary);
+
 // ── Start ──────────────────────────────────────────────────
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
