@@ -31,7 +31,7 @@ class Propagator:
     ) -> dict[str, Any]:
         """Create the initial state for the agent graph."""
         instrument = resolve_instrument(company_name, source_context="trading_graph")
-        return {
+        state: dict[str, Any] = {
             "messages": [("human", company_name)],
             "run_id": str(run_id),
             "company_of_interest": company_name,
@@ -39,7 +39,6 @@ class Propagator:
             "portfolio_context": portfolio_context,
             "scanner_context_packet": scanner_context_packet,
             "scanner_graph_context_text": scanner_graph_context_text,
-            "canonical_regime": canonical_regime or {},
             "instrument_key": instrument.instrument_key,
             "asset_class": instrument.asset_class,
             "instrument_type": instrument.instrument_type,
@@ -90,6 +89,9 @@ class Propagator:
             "macro_regime_report": macro_regime_report,
             "research_packet_summary": "",
         }
+        if canonical_regime:
+            state["canonical_regime"] = canonical_regime
+        return state
 
     def get_graph_args(self, callbacks: list | None = None) -> dict[str, Any]:
         """Get arguments for the graph invocation.

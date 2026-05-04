@@ -2564,6 +2564,8 @@ class LangGraphEngine:
                     "Phase 2/3: retrying selected incomplete ticker(s): "
                     + ", ".join(sorted(retry_tickers))
                 )
+                scan_data = store.load_scan(date)
+                macro_brief = json.dumps(scan_data) if scan_data else ""
                 for ticker in retry_tickers:
                     if run_should_stop(root_run_id):
                         logger.info(
@@ -2573,15 +2575,24 @@ class LangGraphEngine:
                         yield system_log("Aborting retry due to graceful stop request.")
                         raise asyncio.CancelledError()
                     item = incomplete_map[ticker]
+
+                    # Load analyst reports from first run to skip re-analyzing
+                    analysts_ckpt = store.load_analysts_checkpoint(date, ticker)
+                    retry_params = {
+                        "ticker": ticker,
+                        "date": date,
+                        "run_id": root_run_id,
+                        "macro_brief": macro_brief,
+                        "portfolio_context": item.get("portfolio_context", "candidate"),
+                        "_execution_key": f"{root_run_id}:decision-retry:{ticker}",
+                    }
+                    if analysts_ckpt:
+                        # Inject all prior analyst reports to resume from market_regime_check_node
+                        retry_params.update(analysts_ckpt)
+
                     async for evt in self.run_pipeline(
                         f"{root_run_id}:decision-retry:{ticker}",
-                        {
-                            "ticker": ticker,
-                            "date": date,
-                            "run_id": root_run_id,
-                            "portfolio_context": item.get("portfolio_context", "candidate"),
-                            "_execution_key": f"{root_run_id}:decision-retry:{ticker}",
-                        },
+                        retry_params,
                     ):
                         yield evt
 
