@@ -51,6 +51,12 @@ STRICT CONSTRAINTS:
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
 - **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures. If you challenge the thesis, do so with logic, not fabricated numbers.
 
+## EVIDENCE CITATION RULES (mandatory)
+
+- Any numerical probability, rate, or statistical distribution you cite MUST appear in the analyst reports provided to you. Do NOT generate statistics from training data.
+- If you want to express a probability or rate that is your own judgment (not from reports), preface it with: "Analyst estimate, unverified:"
+- Hallucinated precision ("65% probability", "2.5 standard deviations") without a report source will be filtered. State your argument without false precision instead.
+
 CORE ANALYTICAL VECTORS:
 1. **Balanced Delta**: Quantitative analysis of trade-offs between growth and stability.
 2. **Diversification Efficacy**: Assessment of how the plan fits broader portfolio and market trends.
@@ -108,6 +114,12 @@ STRICT CONSTRAINTS:
 - Critique both aggressive and conservative positions for data gaps or extreme biases.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
 - **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures.
+
+## EVIDENCE CITATION RULES (mandatory)
+
+- Any numerical probability, rate, or statistical distribution you cite MUST appear in the analyst reports provided to you. Do NOT generate statistics from training data.
+- If you want to express a probability or rate that is your own judgment (not from reports), preface it with: "Analyst estimate, unverified:"
+- Hallucinated precision ("65% probability", "2.5 standard deviations") without a report source will be filtered. State your argument without false precision instead.
 
 CORE ANALYTICAL VECTORS:
 1. **Balanced Delta**: Quantitative analysis of trade-offs between growth and stability.
