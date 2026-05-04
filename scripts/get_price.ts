@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Fetch current price and recent history for a ticker via Yahoo Finance API.
+ * Fetch current price and recent OHLCV history for a ticker via Yahoo Finance API.
  *
  * Usage:
  *   bun run scripts/get_price.ts TICKER
@@ -14,7 +14,7 @@
  *     "dayHigh": 193.20,
  *     "dayLow": 191.50,
  *     "volume": 45000000,
- *     "history": [{"date": "2026-05-01", "close": 191.00}, ...]
+ *     "history": [{"date": "2026-05-01", "open": 190, "high": 193, "low": 189, "close": 191.00, "volume": 45000000}, ...]
  *   }
  */
 
@@ -34,18 +34,13 @@ interface Meta {
   regularMarketVolume: number | null;
 }
 
-interface Quote {
-  Date: string;
-  Close: number;
-}
-
 interface YFChartResponse {
   chart: {
     result: Array<{
       meta: Meta;
       timestamp: number[];
       indicators: {
-        quote: Array<{ quote: Quote[] }>;
+        quote: Array<Record<string, number[]>>;
         adjclose: Array<{ adjclose: number[] }>;
       };
     }> | null;
@@ -54,36 +49,39 @@ interface YFChartResponse {
 }
 
 async function getPrice(ticker: string): Promise<object> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1mo`;
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/` +
+    `${encodeURIComponent(ticker)}?interval=1d&range=1mo`;
 
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      Accept: "application/json",
-    },
+    headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
   });
 
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} for ${ticker}`);
-  }
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${ticker}`);
 
   const data: YFChartResponse = await res.json();
 
-  if (data.chart.error) {
+  if (data.chart.error)
     throw new Error(`${data.chart.error.code}: ${data.chart.error.description}`);
-  }
 
   const result = data.chart.result?.[0];
   if (!result) throw new Error(`No data for ${ticker}`);
 
   const { meta, timestamp, indicators } = result;
-  // quote is [{ quote: [...] }] — use adjclose for adjusted close prices
-  const adjcloseArr = indicators.adjclose?.[0]?.adjclose ?? [];
+
+  // indicators.quote[0] has keys: open, high, low, close, volume (each is an array)
+  // indicators.adjclose[0].adjclose has dividend-adjusted close prices
+  const q = indicators.quote?.[0];
+  const adj = indicators.adjclose?.[0]?.adjclose ?? [];
 
   const history = (timestamp ?? [])
     .map((ts, i) => ({
       date: new Date(ts * 1000).toISOString().split("T")[0],
-      close: adjcloseArr[i] != null ? Math.round(adjcloseArr[i] * 100) / 100 : null,
+      open: q?.open?.[i] ?? null,
+      high: q?.high?.[i] ?? null,
+      low: q?.low?.[i] ?? null,
+      close: adj[i] != null ? Math.round(adj[i] * 100) / 100 : null,
+      volume: q?.volume?.[i] ?? null,
     }))
     .filter((h) => h.close !== null);
 

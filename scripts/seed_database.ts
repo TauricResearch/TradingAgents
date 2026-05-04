@@ -55,6 +55,13 @@ function connectDb(path: string): Database {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA foreign_keys = ON");
+
+  // Auto-apply schema (CREATE TABLE IF NOT EXISTS is idempotent)
+  const schemaPath = join(__dirname, "..", "server", "lib", "schema.sql");
+  if (existsSync(schemaPath)) {
+    db.exec(readFileSync(schemaPath, "utf-8"));
+  }
+
   _db = db;
   return db;
 }
@@ -93,13 +100,15 @@ function d(weeks = 0, days = 0): string {
 function clearTable(table: string): void {
   const db = getDb();
   if (table === "positions") {
-    db.exec("DELETE FROM positions WHERE platform = 'test'");
+    db.exec("DELETE FROM positions");
   } else if (table === "signals") {
     db.exec("DELETE FROM signals WHERE date BETWEEN '2026-01-01' AND '2026-04-01'");
   } else if (table === "watchlist") {
     db.exec("DELETE FROM watchlist WHERE platform = 'test'");
   } else if (table === "analyses") {
     db.exec("DELETE FROM analyses WHERE date BETWEEN '2026-01-01' AND '2026-04-01'");
+  } else if (table === "prices") {
+    db.exec("DELETE FROM prices");
   }
   console.log(`  Cleared ${table}`);
 }
@@ -110,10 +119,21 @@ function seedPositions(): void {
   clearTable("positions");
 
   const positions = [
-    { ticker: "VWCE.DE", exchange: "XETRA", platform: "test", quantity: 10, avg_cost: 132.00, entry_date: d(-3), thesis: "All-world ETF — low-cost core holding, accumulating", status: "open", notes: "Accumulating quarterly. MSCI World exposure." },
+    // degiero
+    { ticker: "VWCE.DE", exchange: "XETRA", platform: "degiero", quantity: 35, avg_cost: 126.40, entry_date: d(-16), thesis: "All-world ETF accumulation — low-cost core holding", status: "open", notes: "Core satnav position. Accumulating quarterly." },
+    { ticker: "AAPL", exchange: "US", platform: "degiero", quantity: 25, avg_cost: 188.50, entry_date: d(-10), thesis: "Services segment compounding; Vision Pro ecosystem building", status: "open", notes: "Services margins 74%. WWDC catalyst watch." },
+    { ticker: "MSFT", exchange: "US", platform: "degiero", quantity: 20, avg_cost: 430.00, entry_date: d(-8), thesis: "Azure AI monetization accelerating; Copilot enterprise adoption strong", status: "open", notes: "GitHub Copilot 1.3M subscribers. Azure AI +30%." },
+    { ticker: "NVDA", exchange: "US", platform: "degiero", quantity: 15, avg_cost: 880.00, entry_date: d(-6), thesis: "AI infrastructure demand insatiable; H100/H200 supply constrained", status: "open", notes: "Blackwell architecture driving next wave." },
+    // ibkr
+    { ticker: "AAPL", exchange: "US", platform: "ibkr", quantity: 150, avg_cost: 182.30, entry_date: d(-14), thesis: "Long-term AI services compounding — high conviction position", status: "open", notes: "High conviction. ~28% of ibkr portfolio (violates 15% max — to be trimmed)." },
+    { ticker: "MSFT", exchange: "US", platform: "ibkr", quantity: 40, avg_cost: 408.00, entry_date: d(-7), thesis: "Cloud + AI platform play; GitHub Copilot enterprise roll-out", status: "open", notes: "GitHub Copilot enterprise rollout strong." },
+    { ticker: "TKA.DE", exchange: "XETRA", platform: "ibkr", quantity: 1000, avg_cost: 8.62, entry_date: d(-5), thesis: "German industrial automation; order pipeline strong for H2", status: "open", notes: "KONE partnership expected to close Q3." },
+    { ticker: "VWCE.DE", exchange: "XETRA", platform: "ibkr", quantity: 20, avg_cost: 133.20, entry_date: d(-4), thesis: "Core satnav ETF position alongside individual stock picks", status: "open", notes: "Core ETF alongside individual stock picks." },
+    // test
     { ticker: "AAPL", exchange: "US", platform: "test", quantity: 10, avg_cost: 192.00, entry_date: d(-3), thesis: "Testing signal accuracy — smaller position", status: "open", notes: "Test position — WWDC catalyst watch" },
     { ticker: "ETH", exchange: "CRYPTO", platform: "test", quantity: 0.5, avg_cost: 2850.00, entry_date: d(-2), thesis: "Crypto exposure test — ETH staking yield 3.8%", status: "open", notes: "Risk-off behaviour expected. Small position." },
     { ticker: "TSLA", exchange: "US", platform: "test", quantity: 5, avg_cost: 245.00, entry_date: d(-1), thesis: "EV market share pressure; FSD licensing optionality", status: "open", notes: "Recent addition — watch for thesis invalidation" },
+    { ticker: "VWCE.DE", exchange: "XETRA", platform: "test", quantity: 10, avg_cost: 132.00, entry_date: d(-3), thesis: "All-world ETF — low-cost core holding, accumulating", status: "open", notes: "Accumulating quarterly. MSCI World exposure." },
   ];
 
   const db = getDb();
@@ -124,7 +144,6 @@ function seedPositions(): void {
       [p.ticker, p.exchange, p.platform, p.quantity, p.avg_cost, p.entry_date, sanitize(p.thesis), p.status, sanitize(p.notes)],
     );
   }
-  db.exec("DELETE FROM positions WHERE platform = 'degiero' OR platform = 'ibkr'");
   console.log(`  Inserted ${positions.length} positions`);
 }
 
@@ -336,6 +355,7 @@ interface CliFlags {
   analyses?: boolean;
   "exit-plans"?: boolean;
   "post-mortems"?: boolean;
+  prices?: boolean;
   all?: boolean;
 }
 
@@ -352,12 +372,76 @@ function parseArgs(): CliFlags {
     else if (arg === "--analyses") { flags.analyses = true; }
     else if (arg === "--exit-plans") { flags["exit-plans"] = true; }
     else if (arg === "--post-mortems") { flags["post-mortems"] = true; }
+    else if (arg === "--prices") { flags.prices = true; }
     else if (arg === "--all") { flags.all = true; }
     else if (!arg.startsWith("-")) { /* positional, ignore */ }
     i++;
   }
   return flags;
 }
+
+// ─── Price seeding ──────────────────────────────────────────────────────────
+
+interface PriceBar {
+  date: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number;
+  volume: number | null;
+}
+
+async function seedPrices(): Promise<void> {
+  const db = getDb();
+
+  // Get unique tickers from open positions
+  const rows = db
+    .query("SELECT DISTINCT ticker FROM positions WHERE status = 'open'")
+    .all() as { ticker: string }[];
+
+  if (rows.length === 0) {
+    console.log("  No open positions — nothing to seed prices for");
+    return;
+  }
+
+  console.log(`  Fetching prices for ${rows.length} tickers...`);
+
+  const insertStmt = db.prepare(`
+    INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'GBP')
+  `);
+
+  for (const { ticker } of rows) {
+    const proc = Bun.spawnSync({
+      cmd: ["bun", "run", join(__dirname, "get_price.ts"), ticker],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    if (proc.exitCode !== 0) {
+      const err = new TextDecoder().decode(proc.stderr);
+      console.error(`    ${ticker}: fetch failed — ${err.trim()}`);
+      continue;
+    }
+
+    let data: { history: PriceBar[] };
+    try {
+      data = JSON.parse(new TextDecoder().decode(proc.stdout));
+    } catch {
+      console.error(`    ${ticker}: invalid JSON response`);
+      continue;
+    }
+
+    const history = data.history ?? [];
+    for (const bar of history) {
+      insertStmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume);
+    }
+
+    console.log(`    ${ticker}: ${history.length} bars seeded`);
+  }
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
   const flags = parseArgs();
@@ -367,18 +451,22 @@ async function main() {
 
   const seedAll =
     !flags.positions && !flags.signals && !flags.watchlist &&
-    !flags.analyses && !flags["exit-plans"] && !flags["post-mortems"];
+    !flags.analyses && !flags["exit-plans"] && !flags["post-mortems"] &&
+    !flags.prices;
 
-  const isTest = dbPath.endsWith("test_portfolio.db");
+  const isTest = dbPath.includes("test");
   console.log(`Seeding TradingAgents database${isTest ? " [TEST MODE]" : ""}...`);
   console.log(`  Target DB: ${dbPath}`);
 
   if (seedAll || flags.positions) seedPositions();
+  // --prices needs positions to exist first
+  if (flags.prices && !seedAll && !flags.positions) seedPositions();
   if (seedAll || flags.signals) seedSignals();
   if (seedAll || flags.watchlist) seedWatchlist();
   if (seedAll || flags.analyses) seedAnalyses();
   if (seedAll || flags["exit-plans"]) seedExitPlans();
   if (seedAll || flags["post-mortems"]) seedPostMortems();
+  if (seedAll || flags.prices) await seedPrices();
 
   console.log("Done.");
 }

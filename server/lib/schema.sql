@@ -71,6 +71,21 @@ CREATE TABLE IF NOT EXISTS analyses (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Daily OHLCV price records per ticker
+-- Source: Yahoo Finance API via scripts/get_price.ts
+-- Backfill on position open; catch-up via scripts/sync-prices.ts
+CREATE TABLE IF NOT EXISTS prices (
+    ticker    TEXT    NOT NULL,
+    date      TEXT    NOT NULL,  -- YYYY-MM-DD
+    open      REAL,
+    high      REAL,
+    low       REAL,
+    close     REAL    NOT NULL,
+    volume    INTEGER,
+    currency  TEXT    DEFAULT 'GBP',
+    PRIMARY KEY (ticker, date)
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_signals_platform ON signals(platform);
 CREATE INDEX IF NOT EXISTS idx_positions_platform ON positions(platform);

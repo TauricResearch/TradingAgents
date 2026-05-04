@@ -1,87 +1,112 @@
+# Briefs Playbook
 
----
-date: [YYYY-MM-DD]
-tags: [tag1, tag2, tag3]
-agent: [claude | cursor | local-ai | other]
-environment: [local | development | production]
+## Writing a Brief
+
+Every brief is a single `.md` file in `briefs/`. Use this format:
+
+```markdown
+# Epic/Brief: [Name]
+
+**Date:** [YYYY-MM-DD]
+**Epic ID:** [ID or omit for single brief]
+**Status:** [Open | In Progress | Done]
+
 ---
 
 ## Task: [Task Name]
 
-**Objective:** [Concise description of the main goal]
+**Objective:** One sentence. No jargon.
 
-- [ ] [High-level requirement 1]
-- [ ] [High-level requirement 2]
-- [ ] [High-level requirement 3]
+## What
 
-## Frontmatter Tags Best Practices
+- [ ] Specific, testable requirement 1
+- [ ] Specific, testable requirement 2
 
-### Recommended Tags by Category
+## How to Verify
 
-**Task Type:**
-- `cleanup` - Code cleanup, dead code removal, hygiene
-- `refactoring` - Code restructuring, architectural changes
-- `feature` - New feature implementation
-- `bugfix` - Bug resolution and fixes
-- `performance` - Performance optimization
-- `security` - Security improvements
-- `testing` - Test coverage, test improvements
+- [ ] Run `just check`
+- [ ] Manual: [exact steps to confirm it works]
+- [ ] Edge case: [what breaks if X]
 
-**Verification/Quality:**
-- `verification` - Verification of completed work
-- `mcp-server` - MCP server usage, configuration
-- `quality-assessment` - Code quality evaluations
-- `audit` - Code audits, compliance checks
+## Technical Notes
 
-**Phase:**
-- `phase1` - First phase of multi-phase task
-- `phase2` - Second phase, etc.
-- `planning` - Planning and design phase
-- `implementation` - Implementation phase
-- `review` - Review and refinement phase
+Any non-obvious constraints, dependencies, or decisions.
 
-**Domain:**
-- `database` - Database-related changes
-- `api` - API changes
-- `cli` - Command-line interface changes
-- `ui` - User interface changes
-- `infrastructure` - Infrastructure and tooling
-- `documentation` - Documentation updates
+---
 
-### Adding Frontmatter Tags
+## Done
 
-**Recommended Approach:**
-1. **Manual Addition:** Add frontmatter tags directly when creating brief
-2. **MCP-Assisted:** Use amalfa MCP server to suggest relevant tags based on semantic search
-3. **Post-Creation:** Review and add additional tags discovered through graph traversal
-
-**Using amalfa MCP Server:**
-```bash
-# Search for similar briefs to discover common tags
-amalfa serve  # Start MCP server (if not running)
-
-# Then in MCP client:
-search_documents("cleanup verification mcp server")
-# Review returned briefs for tag patterns
+When all `[ ]` items are checked and verified.
 ```
 
-**Recommended Tool for Adding Tags:** Use amalfa MCP server `search_documents` to find similar briefs and discover common tag patterns.
+**Rules:**
+- One brief per task or epic
+- Epic = multi-story, single brief = one deliverable
+- File name: `brief-[topic]-[YYYY-MM-DD].md` or `epic-[name].md`
+- Frontmatter (`date`, `tags`, `agent`, `environment`) is optional — use if you want MCP searchability
+- Be specific in requirements — "show sparklines" is not a requirement, "sparklines from prices table spread over holding period" is
 
-## Key Actions Checklist:
+## Executing a Brief
 
-- [ ] [Actionable step 1]
-- [ ] [Actionable step 2]
-- [ ] [Actionable step 3]
+1. **Review** the brief before starting
+2. **Verify** conditions at the top (what must already exist)
+3. **Check off** items as you complete them
+4. **Test** manually before closing
+5. **Update Status** to Done when verified
 
-## Detailed Requirements / Visuals
+## Archiving
 
-[Optional: Add detailed descriptions, ASCII art layouts, or specific constraints here]
+Completed briefs stay in `briefs/`. Keep them — they're a record of what was decided and why.
 
-## Best Practices
-- **Keep it focused:** One brief per distinct task.
-- **Use checklists:** Checklists allow for tracking progress within the brief itself.
-- **Be visual:** Use ASCII art or diagrams to explain layout changes.
-- **Include frontmatter:** Add `date`, `tags`, `agent`, and `environment` fields for discoverability.
-- **Tag strategically:** Use descriptive tags that enable semantic discovery across knowledge graph.
-- **Document verification:** Specify how work will be verified (manual testing, MCP server, automated tests).
-- **Date-prefix naming:** Use `brief-[topic]-[YYYY-MM-DD].md` format for automatic chronological sorting.
+## Epic Structure
+
+An epic groups related stories. Use this in `epic-[name].md`:
+
+```markdown
+# Epic: [Name]
+
+**Date:** [YYYY-MM-DD]
+**Epic ID:** [PREFIX-NNN]
+**Status:** [Open | In Progress | Done]
+**Stories:** [PREFIX-NNN-S01 through S0N]
+
+---
+
+## Vision
+
+One paragraph. Why does this matter?
+
+---
+
+## Stories
+
+### PREFIX-NNN-S01 — [Story name]
+
+**What:** [Description]
+
+**Acceptance:**
+- [ ] [Specific acceptance criterion]
+
+**Estimate:** [0.25d | 0.5d | 1d]
+
+---
+
+## Done
+
+| Story | Status |
+|---|---|
+| ... | 🔲 |
+
+## Exit Criteria
+
+What must be true for the epic to be considered complete?
+```
+
+## Review Checklist
+
+Before committing a brief:
+- [ ] Requirements are specific and testable
+- [ ] Verification steps are executable (not "test it works")
+- [ ] No ambiguous language ("should", "maybe", "consider")
+- [ ] Dependencies are listed
+- [ ] Technical notes explain non-obvious decisions
