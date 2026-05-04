@@ -43,7 +43,7 @@ function workflowScript(): string {
     if (stageId === 'approved') {
       var qty = item.quantity || 0;
       var cost = parseFloat(item.avgCost || 0);
-      html += '<div class="card-meta">Entry \u20AC' + cost.toFixed(2) + ' \u00B7 ' + qty + ' shares</div>';
+      html += '<div class="card-meta">Entry \u00a3' + cost.toFixed(2) + ' \u00B7 ' + qty + ' shares</div>';
       html += '<div class="card-meta muted">' + fmt(item.entryDate) + '</div>';
       if (item.thesis) html += '<div class="card-thesis">' + esc(item.thesis) + '</div>';
       html += '<div class="entry-process">';
@@ -62,7 +62,7 @@ function workflowScript(): string {
       var inv = parseFloat(ep.invalidationPrice || 0);
       var entry = parseFloat(item.avgCost || ep.entryPrice || 0);
       var days = ep.timeStopDaysLeft;
-      html += '<div class="card-meta">Entry \u20AC' + entry.toFixed(2) + ' \u00B7 Stop \u20AC' + inv.toFixed(2) + '</div>';
+      html += '<div class="card-meta">Entry \u00a3' + entry.toFixed(2) + ' \u00B7 Stop \u00a3' + inv.toFixed(2) + '</div>';
       if (days !== undefined) html += '<div class="card-meta muted">' + days + 'd to time stop</div>';
       html += '<div class="card-actions">';
       html += '<button class="btn-sm" data-action="analyzeTicker" data-ticker="' + item.ticker + '">Analyze</button>';
@@ -80,7 +80,7 @@ function workflowScript(): string {
       var targets = ep.targets || [];
 
       html += '<div class="exit-strategy">';
-      html += '<div class="process-row"><span class="process-dot" style="background:#ef4444">Stop</span><span>\u20AC' + inv.toFixed(2) + ' (' + dist.toFixed(0) + '%)</span></div>';
+      html += '<div class="process-row"><span class="process-dot" style="background:#ef4444">Stop</span><span>\u00a3' + inv.toFixed(2) + ' (' + dist.toFixed(0) + '%)</span></div>';
       for (var ti = 0; ti < targets.length; ti++) {
         var tp = targets[ti];
         var isHit = ti < hit;

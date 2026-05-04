@@ -4,14 +4,14 @@ export function HoldingsView() {
   return (
     <>
       <section class="panel" id="holdings-panel">
-        <h3>Holdings</h3>
+        <h3>Holdings <span class="muted" style="font-size:0.8em">(base: GBP)</span></h3>
         <div id="holdings-body">
           <div class="muted">Loading…</div>
         </div>
       </section>
 
       <section class="panel" id="cash-panel">
-        <h3>Cash</h3>
+        <h3>Cash <span class="muted" style="font-size:0.8em">(base: GBP)</span></h3>
         <div id="cash-body">
           <div class="muted">Loading…</div>
         </div>
@@ -25,6 +25,38 @@ export function HoldingsView() {
 function holdingsScript(): string {
   return `
 (function() {
+
+  // FX conversion helpers (GBP base currency)
+  // Rates fetched from /api/portfolio/intelligence; fallbacks for offline
+  var GBPEUR = 1.18;
+  var GBPUSD = 1.27;
+  var gbpPerEur = 1 / GBPEUR;
+  var gbpPerUsd = 1 / GBPUSD;
+
+  var ratesLoaded = false;
+  function loadRates(cb) {
+    if (ratesLoaded) { cb(); return; }
+    fetch('/api/portfolio/intelligence')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var fx = data.fx_rates || {};
+        if (fx.GBPEUR) { GBPEUR = fx.GBPEUR; gbpPerEur = 1 / GBPEUR; }
+        if (fx.GBPUSD) { GBPUSD = fx.GBPUSD; gbpPerUsd = 1 / GBPUSD; }
+        ratesLoaded = true;
+        cb();
+      })
+      .catch(function() { cb(); }); // fall back to defaults
+  }
+
+  function toGbp(amount, currency) {
+    if (currency === 'EUR') return amount * gbpPerEur;
+    if (currency === 'USD') return amount * gbpPerUsd;
+    return amount; // already GBP
+  }
+
+  function fmt(n) {
+    return '\\u00a3' + n.toFixed(2);
+  }
 
   // ── Event delegation ────────────────────────────────────────────────
   function wireActions() {
@@ -50,15 +82,15 @@ function holdingsScript(): string {
         var p = result.platforms[pi];
         html += '<div class="platform-card">';
         html += '<div class="platform-name">' + p.name + '</div>';
-        html += '<div class="platform-total">€' + p.totalValue.toFixed(0) + '</div>';
-        html += '<div class="platform-detail">' + p.holdingCount + ' holdings · €' + p.cash.toFixed(0) + ' cash</div>';
+        html += '<div class="platform-total">' + fmt(p.totalValue) + '</div>';
+        html += '<div class="platform-detail">' + p.holdingCount + ' holdings \\u00b7 ' + fmt(p.cash) + ' cash</div>';
         html += '</div>';
       }
       html += '</div>';
     }
 
     html += '<table class="data-table"><thead><tr>';
-    html += '<th>Platform</th><th>Ticker</th><th>Qty</th><th>Cost/Share</th><th>Cost Basis</th><th></th>';
+    html += '<th>Platform</th><th>Ticker</th><th>Qty</th><th>Cost/Share (GBP)</th><th>Cost Basis (GBP)</th><th></th>';
     html += '</tr></thead><tbody>';
 
     var groups = {};
@@ -77,20 +109,23 @@ function holdingsScript(): string {
       var total = 0;
       for (var hj = 0; hj < groupItems.length; hj++) {
         var h2 = groupItems[hj];
-        total += h2.costBasis;
+        // hledger costBasis is in the commodity's cost currency — convert to GBP
+        var costGbp = toGbp(h2.costBasis, h2.currency || 'EUR');
+        var costPerShareGbp = toGbp(h2.costPerShare || 0, h2.currency || 'EUR');
+        total += costGbp;
         groupHtml += '<tr>';
         groupHtml += '<td></td>';
         groupHtml += '<td class="ticker">' + h2.ticker + '</td>';
         groupHtml += '<td>' + h2.quantity + '</td>';
-        groupHtml += '<td>€' + h2.costPerShare.toFixed(2) + '</td>';
-        groupHtml += '<td>€' + h2.costBasis.toFixed(2) + '</td>';
+        groupHtml += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1">' + fmt(costPerShareGbp) + '</td>';
+        groupHtml += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1">' + fmt(costGbp) + '</td>';
         groupHtml += '<td><button class="btn-sm" data-action="analyzeTicker" data-ticker="' + h2.ticker + '">Analyze</button></td>';
         groupHtml += '</tr>';
       }
       html += '<tr class="platform-group-header">';
       html += '<td colspan="2"><strong>' + platName + '</strong></td>';
       html += '<td colspan="2" class="muted">' + groupItems.length + ' position(s)</td>';
-      html += '<td><strong>€' + total.toFixed(2) + '</strong></td>';
+      html += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1"><strong>' + fmt(total) + '</strong></td>';
       html += '<td></td>';
       html += '</tr>';
       html += groupHtml;
@@ -117,23 +152,24 @@ function holdingsScript(): string {
     }
 
     var html = '<table class="data-table"><thead><tr>';
-    html += '<th>Platform</th><th>Currency</th><th>Amount</th>';
+    html += '<th>Platform</th><th>Currency</th><th>Amount (GBP)</th>';
     html += '</tr></thead><tbody>';
 
     var platformNames = Object.keys(groups).sort();
     for (var gi = 0; gi < platformNames.length; gi++) {
       var platName = platformNames[gi];
       var groupItems = groups[platName];
-      var total = 0;
+      var totalGbp = 0;
       for (var cj = 0; cj < groupItems.length; cj++) {
         var c2 = groupItems[cj];
-        total += c2.amount;
-        html += '<tr><td></td><td>' + c2.currency + '</td><td>€' + c2.amount.toFixed(2) + '</td></tr>';
+        var amtGbp = toGbp(c2.amount, c2.currency);
+        totalGbp += amtGbp;
+        html += '<tr><td></td><td>' + c2.currency + '</td><td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1">' + fmt(amtGbp) + '</td></tr>';
       }
       html += '<tr class="platform-group-header">';
       html += '<td><strong>' + platName + '</strong></td>';
       html += '<td class="muted">' + groupItems.length + ' currency</td>';
-      html += '<td><strong>€' + total.toFixed(2) + '</strong></td>';
+      html += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1"><strong>' + fmt(totalGbp) + '</strong></td>';
       html += '</tr>';
     }
 
@@ -142,16 +178,18 @@ function holdingsScript(): string {
   }
 
   function refresh() {
-    fetch('/api/holdings')
-      .then(function(r) { return r.json(); })
-      .then(function(result) {
-        renderHoldings(result);
-        renderCash(result);
-      })
-      .catch(function(err) {
-        document.getElementById('holdings-body').innerHTML =
-          '<div class="error-card"><strong>hLedger error</strong><br>' + err.message + '</div>';
-      });
+    loadRates(function() {
+      fetch('/api/holdings')
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+          renderHoldings(result);
+          renderCash(result);
+        })
+        .catch(function(err) {
+          document.getElementById('holdings-body').innerHTML =
+            '<div class="error-card"><strong>hLedger error</strong><br>' + err.message + '</div>';
+        });
+    });
   }
 
   refresh();

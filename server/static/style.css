@@ -543,3 +543,63 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .tag-todo::before {
   content: '→ ';
 }
+
+/* ── Intelligence view ─────────────────────────────── */
+.intel-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+.intel-stat { }
+.intel-label {
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.25rem;
+}
+.intel-value {
+  font-size: 1.6em;
+  font-weight: 700;
+  font-family: 'Datatype', monospace;
+  font-feature-settings: 'calt' 1, 'liga' 1;
+}
+.intel-pct {
+  font-size: 0.6em;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.intel-fx {
+  font-size: 0.75em;
+  color: var(--text-dim);
+  display: flex;
+  gap: 1.5rem;
+}
+.intel-fx span { background: var(--bg); padding: 2px 8px; border-radius: 4px; }
+.allocation-bar {
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.allocation-bar > div:first-child {
+  height: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 6px;
+}
+.position-pill {
+  display: inline-block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.8em;
+  font-family: 'Datatype', monospace;
+  margin: 2px 4px 2px 0;
+}
+.position-pill .positive { color: var(--green); }
+.position-pill .negative { color: var(--red); }
+.intel-body table td:last-child { max-width: 400px; }

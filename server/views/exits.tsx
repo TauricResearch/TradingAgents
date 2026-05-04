@@ -47,11 +47,11 @@ function exitsScript(): string {
 
         html += '<div class="exit-details">';
         html += '<div><strong>Thesis:</strong> ' + _e(p.thesis || '—') + '</div>';
-        html += '<div><strong>Entry:</strong> ' + p.quantity + ' @ €' + p.entry_price.toFixed(2) + '</div>';
+        html += '<div><strong>Entry:</strong> ' + p.quantity + ' @ \u00a3' + p.entry_price.toFixed(2) + ' <span class="muted">(GBP)</span></div>';
 
         // Stop loss (handle flat YAML format: invalidation_price vs nested invalidation.price)
         const stopPrice = p.invalidation?.price ?? p.invalidation_price ?? 0;
-        html += '<div><strong>Stop:</strong> €' + stopPrice.toFixed(2);
+        html += '<div><strong>Stop:</strong> \u00a3' + stopPrice.toFixed(2) + ' <span class="muted">(GBP)</span>';
         if (s.distanceToStopPct !== undefined) {
           html += ' (' + s.distanceToStopPct.toFixed(1) + '% away)';
         }
@@ -61,7 +61,7 @@ function exitsScript(): string {
         if (p.targets && p.targets.length > 0) {
           html += '<div><strong>Targets:</strong> ' + s.targetsHit + '/' + p.targets.length + ' hit';
           if (s.nextTarget) {
-            html += ' → next €' + s.nextTarget.price.toFixed(2);
+            html += ' \u2192 next \u00a3' + s.nextTarget.price.toFixed(2) + ' <span class="muted">(GBP)</span>';
             if (s.distanceToTargetPct !== undefined) {
               html += ' (' + s.distanceToTargetPct.toFixed(1) + '% away)';
             }

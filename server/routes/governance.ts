@@ -2,6 +2,12 @@
  * GET /api/governance — aggregated rules + violations, platform-aware
  * GET /api/governance/rules — list all governance rules
  * GET /api/governance/check?platform= — evaluate holdings against rules for a platform
+ *
+ * NOTE: hledger stores holdings in native currencies (EUR, USD).
+ * portfolioValue and costBasis are summed without FX conversion.
+ * For GBP-consistent values, use /api/portfolio/intelligence instead.
+ * This endpoint is kept for per-rule evaluation (weights in %) which
+ * are currency-independent.
  */
 import { Hono } from "hono"
 import {
@@ -42,7 +48,7 @@ governanceRouter.get("/", async (c) => {
     const violations = checkRules(allocations, cashPct, portfolioValue, portfolioValue, rules)
     const suggestions = suggestRebalance(allocations, cashPct, rules)
 
-    return c.json({ rules, portfolioValue, cashPct, violations, suggestions, platforms: result.platforms })
+    return c.json({ rules, portfolioValue, cashPct, violations, suggestions, platforms: result.platforms, note: "hledger values are in native currencies (EUR/USD). Use /api/portfolio/intelligence for GBP-consistent totals.", baseCurrency: "mixed (EUR+USD)" })
   } catch (e: unknown) {
     return c.json({ error: "Governance check failed", detail: (e as Error).message }, 500)
   }
@@ -91,7 +97,7 @@ governanceRouter.get("/check", async (c) => {
     const violations = checkRules(allocations, cashPct, portfolioValue, portfolioValue, rules)
     const suggestions = suggestRebalance(allocations, cashPct, rules)
 
-    return c.json({ platform, portfolioValue, cashPct, violations, suggestions, rules })
+    return c.json({ platform, portfolioValue, cashPct, violations, suggestions, rules, note: "hledger values are in native currencies (EUR/USD). Use /api/portfolio/intelligence for GBP-consistent totals.", baseCurrency: "mixed (EUR+USD)" })
   } catch (e: unknown) {
     return c.json({ error: "Governance check failed", detail: (e as Error).message }, 500)
   }

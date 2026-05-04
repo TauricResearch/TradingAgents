@@ -18,6 +18,7 @@ import { governanceRouter } from "./routes/governance.ts";
 import { benchmarkRouter } from "./routes/benchmark.ts";
 import { feedbackRouter } from "./routes/feedback.ts";
 import { workflowRouter } from "./routes/workflow.ts";
+import { intelligenceRouter } from "./routes/portfolio-intelligence.ts";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -31,13 +32,23 @@ import { BenchmarkView } from "./views/benchmark.tsx";
 import { FeedbackView } from "./views/feedback.tsx";
 import { AboutView } from "./views/about.tsx";
 import { WorkflowView } from "./views/workflow.tsx";
+import { IntelligenceView } from "./views/intelligence.tsx";
 import { DatatypeTestView } from "./views/datatype-test.tsx";
 
 const app = new Hono();
 
 // ── Lifecycle ──────────────────────────────────────────────
 
-const DB_PATH = process.env.PORTFOLIO_DB ?? "./portfolio.db";
+// TEST_MODE=1 → use test_portfolio.db instead of portfolio.db
+// TEST_PORTFOLIO_DB env var overrides the test DB path
+const isTestMode = process.env.TEST_MODE === "1"
+const DB_PATH = isTestMode
+  ? (process.env.TEST_PORTFOLIO_DB ?? "./test_portfolio.db")
+  : (process.env.PORTFOLIO_DB ?? "./portfolio.db")
+
+if (isTestMode) {
+  console.log("[TEST MODE] Using DB: " + DB_PATH)
+}
 
 DatabaseFactory.connect(DB_PATH);
 
@@ -60,6 +71,7 @@ app.get("/health", (c) => {
     status: "ok",
     db: DatabaseFactory.isConnected(),
     path: DatabaseFactory.path,
+    testMode: isTestMode,
   });
 });
 
@@ -77,15 +89,16 @@ function pageOrPartial(c: Context, view: any): Response | Promise<Response> {
   if (isHtmx) return c.html(view);
   // Hono c.html() doesn't emit <!DOCTYPE html> — causes Quirks Mode.
   // Render the Layout through JSX, then prepend DOCTYPE manually.
-  const layout = String(<Layout>{view}</Layout>);
+  const layout = String(<Layout testMode={isTestMode}>{view}</Layout>);
   return renderHtml(layout);
 }
 
 app.get("/", (c) => {
-  const layout = String(<Layout><PortfolioView /></Layout>);
+  const layout = String(<Layout testMode={isTestMode}><PortfolioView /></Layout>);
   return renderHtml(layout);
 });
 app.get("/portfolio", (c) => pageOrPartial(c, <PortfolioView />));
+app.get("/intelligence", (c) => pageOrPartial(c, <IntelligenceView />));
 app.get("/workflow", (c) => pageOrPartial(c, <WorkflowView />));
 app.get("/analyze", (c) => pageOrPartial(c, <AnalysisView />));
 app.get("/signals", (c) => pageOrPartial(c, <SignalsView />));
@@ -117,6 +130,7 @@ app.route("/api/governance", governanceRouter);
 app.route("/api/benchmark", benchmarkRouter);
 app.route("/api/feedback", feedbackRouter);
 app.route("/api/workflow", workflowRouter);
+app.route("/api/portfolio/intelligence", intelligenceRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
 import { handlePortfolioSummary } from "./routes/portfolio.ts";
