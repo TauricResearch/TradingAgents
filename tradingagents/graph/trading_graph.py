@@ -262,6 +262,84 @@ class TradingAgentsGraph:
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
 
+    def resolve_all_pending(self) -> Dict[str, int]:
+        """Resolve outcomes for every pending entry in the memory log, across all tickers.
+
+        This is the cross-ticker counterpart to the per-ticker resolution that
+        runs at the start of every ``propagate`` call.  Use it when an
+        orchestrator wants to keep the cross-ticker reflection pool fresh
+        independent of the trading schedule — for example, a daily cron that
+        runs after the market closes:
+
+            graph = TradingAgentsGraph(config=config)
+            summary = graph.resolve_all_pending()
+            log.info("memory log resolved=%d skipped=%d", summary["resolved"], summary["skipped"])
+
+        Why this exists.  ``propagate(ticker, date)`` only resolves pending
+        entries for the ticker it is about to run, so a decision recorded for
+        AAPL on Monday stays pending until AAPL is re-run.  In sparse-coverage
+        deployments — running each ticker only when scheduled — that means
+        unresolved AAPL never contributes to the cross-ticker reflection pool
+        consumed by other tickers' ``past_context``.  ``resolve_all_pending``
+        closes that gap without changing per-ticker behaviour.
+
+        What it does.  For each pending entry it fetches the realised raw and
+        SPY-relative return over the configured holding window, runs the
+        Reflector LLM to generate a written lesson, then writes every update
+        back to the markdown log in a single atomic rewrite via
+        ``TradingMemoryLog.batch_update_with_outcomes`` — one read, one
+        temp-file replace, no partial state on crash.  Entries whose price
+        data is not yet available (too recent, delisted, network error) are
+        skipped silently and remain pending; call again on the next schedule.
+
+        Cost.  One Yahoo Finance round-trip per pending entry plus one
+        reflection LLM call per resolvable entry.  Both scale linearly with
+        the pending count, so prefer to run this off the hot path of
+        ``propagate`` rather than inline before each trading decision.
+
+        Concurrency.  Safe to run in a separate process from ``propagate``
+        for *different* tickers (the markdown log uses an atomic
+        temp-file-plus-replace).  Do not run two sweeps concurrently against
+        the same log file — the second writer's read can lose the first
+        writer's updates.
+
+        Returns:
+            A summary dict with ``resolved`` (entries written back),
+            ``skipped`` (price data unavailable), and ``total`` (pending
+            entries seen at the start of the sweep).
+        """
+        pending = self.memory_log.get_pending_entries()
+        if not pending:
+            return {"resolved": 0, "skipped": 0, "total": 0}
+
+        updates = []
+        for entry in pending:
+            raw, alpha, days = self._fetch_returns(entry["ticker"], entry["date"])
+            if raw is None:
+                continue
+            reflection = self.reflector.reflect_on_final_decision(
+                final_decision=entry.get("decision", ""),
+                raw_return=raw,
+                alpha_return=alpha,
+            )
+            updates.append({
+                "ticker": entry["ticker"],
+                "trade_date": entry["date"],
+                "raw_return": raw,
+                "alpha_return": alpha,
+                "holding_days": days,
+                "reflection": reflection,
+            })
+
+        if updates:
+            self.memory_log.batch_update_with_outcomes(updates)
+
+        return {
+            "resolved": len(updates),
+            "skipped": len(pending) - len(updates),
+            "total": len(pending),
+        }
+
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date.
 
