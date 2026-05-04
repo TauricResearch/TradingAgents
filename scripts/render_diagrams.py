@@ -19,13 +19,13 @@ for f in sorted(glob.glob(f"{DIAGRAMS_DIR}/*.mmd")):
     print(f"  {name} -> {os.path.basename(out)}")
 
     # Try direct render first (fast path — works when no front matter)
-    ok = run(["mmdc", "-i", f, "-o", out, "-t", "neutral", "-b", "transparent"])
+    ok = run(["mmdc", "-i", f, "-o", out, "-t", "neutral", "-b", "white"])
 
     if not ok:
         # Fall back: strip YAML front matter with helper, then render
         tmp = "/tmp/mmd-render.mmd"
         if run(["python3", HELPER, f, tmp]):
-            ok = run(["mmdc", "-i", tmp, "-o", out, "-t", "neutral", "-b", "transparent"])
+            ok = run(["mmdc", "-i", tmp, "-o", out, "-t", "neutral", "-b", "white"])
             try:
                 os.remove(tmp)
             except OSError:
