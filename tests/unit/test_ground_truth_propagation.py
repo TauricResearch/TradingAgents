@@ -164,9 +164,11 @@ class TestResearchManagerGroundTruth:
         node = create_research_manager(llm, _mock_memory())
         node(_base_state())
 
-        # Extract prompt from either bind().invoke or plain invoke
-        call_args = llm.bind.return_value.invoke.call_args or llm.invoke.call_args
-        prompt = call_args.args[0]
+        # Extract prompt from the FIRST LLM call (research manager main prompt)
+        # There may be multiple calls due to action extraction, so check the first one
+        call_args_list = llm.bind.return_value.invoke.call_args_list or llm.invoke.call_args_list
+        first_call = call_args_list[0]
+        prompt = first_call.args[0]
         assert "GROUND TRUTH" in prompt
         assert "Scanner Graph Context" in prompt
         assert "Do NOT invent" in prompt
@@ -214,9 +216,12 @@ class TestTraderGroundTruth:
         node = create_trader(llm, _mock_memory())
         node(_base_state())
 
-        call_args = llm.invoke.call_args.args[0]
-        # call_args is a list of messages
-        user_msg = next(m for m in call_args if m["role"] == "user")
+        # Get the first LLM call (main trader prompt, uses dict messages)
+        call_args_list = llm.invoke.call_args_list
+        first_call = call_args_list[0]
+        messages = first_call.args[0]
+        # messages is a list of dict messages with "role" and "content" keys
+        user_msg = next(m for m in messages if m["role"] == "user")
         assert "## Scanner Graph Context" in user_msg["content"]
         assert "$103.28" in user_msg["content"]
 
@@ -227,8 +232,11 @@ class TestTraderGroundTruth:
         node = create_trader(llm, _mock_memory())
         node(_base_state())
 
-        call_args = llm.invoke.call_args.args[0]
-        system_msg = next(m for m in call_args if m["role"] == "system")
+        # Get the first LLM call (main trader prompt, uses dict messages)
+        call_args_list = llm.invoke.call_args_list
+        first_call = call_args_list[0]
+        messages = first_call.args[0]
+        system_msg = next(m for m in messages if m["role"] == "system")
         assert "ground-truth calendar data ONLY" in system_msg["content"]
         assert "Do NOT estimate or invent" in system_msg["content"]
 
@@ -253,6 +261,22 @@ class TestTraderGroundTruth:
                 _base_state(
                     investment_plan="",
                     investment_plan_structured={"status": "empty"},
+                )
+            )
+
+        assert "upstream Research Manager plan was empty" in str(exc.value)
+        assert llm.invoke.call_count == 0
+
+    def test_extraction_failed_upstream_plan_raises_runtime_error(self):
+        from tradingagents.agents.trader.trader import create_trader
+
+        llm = _mock_llm("- FINAL TRANSACTION PROPOSAL: **BUY**")
+        node = create_trader(llm, _mock_memory())
+        with pytest.raises(RuntimeError) as exc:
+            node(
+                _base_state(
+                    investment_plan="Ambiguous upstream output with no executable recommendation",
+                    investment_plan_structured={"status": "extraction_failed"},
                 )
             )
 
@@ -374,7 +398,11 @@ class TestRiskSynthesisGroundTruth:
 
         node(state)
 
-        prompt = llm.invoke.call_args.args[0]
+        # Get the first LLM call (risk synthesis main prompt)
+        # There may be multiple calls due to action extraction, so check the first one
+        call_args_list = llm.invoke.call_args_list
+        first_call = call_args_list[0]
+        prompt = first_call.args[0]
         assert "GROUND TRUTH" in prompt
         assert "Scanner Context" in prompt
         assert "Do NOT introduce statistics" in prompt
@@ -391,7 +419,10 @@ class TestRiskSynthesisGroundTruth:
 
         node(state)
 
-        prompt = llm.invoke.call_args.args[0]
+        # Get the first LLM call (risk synthesis main prompt)
+        call_args_list = llm.invoke.call_args_list
+        first_call = call_args_list[0]
+        prompt = first_call.args[0]
         assert "Research Packet" in prompt
 
 

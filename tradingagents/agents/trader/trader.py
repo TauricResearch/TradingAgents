@@ -129,6 +129,7 @@ Apply lessons from past decisions:
         if not str(investment_plan or "").strip() or plan_status in {
             "empty",
             "timeout_fallback",
+            "extraction_failed",
             "aborted",
         }:
             raise RuntimeError(
@@ -198,6 +199,7 @@ Apply lessons from past decisions:
             as_of_date=state.get("trade_date", ""),
             trader_plan=output_content,
             is_timeout_fallback=False,
+            llm=llm,
         )
 
         return {

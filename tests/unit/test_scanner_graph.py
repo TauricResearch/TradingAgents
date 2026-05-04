@@ -293,11 +293,3 @@ def test_scanner_summarizer_receives_scanner_state_fields_in_graph(tmp_path, mon
 
     assert result["gatekeeper_summary"] == "- NVDA | Technology | summary"
     assert llm.invoke.call_count >= 1
-
-
-if __name__ == "__main__":
-    test_scanner_graph_import()
-    test_scanner_graph_instantiates()
-    test_scanner_setup_compiles_graph()
-    test_scanner_states_import()
-    print("All scanner graph tests passed.")

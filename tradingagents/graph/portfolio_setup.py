@@ -2,8 +2,8 @@
 
 Fan-out/fan-in workflow:
   START → load_portfolio → compute_risk → portfolio_integrity_guard → review_holdings
-        → prioritize_candidates → macro_summary (parallel)
-                                → micro_summary  (parallel)
+        → prioritize_candidates → candidate_handoff_guard → macro_summary (parallel)
+                                                           → micro_summary  (parallel)
         → make_pm_decision → rescale_buys → cash_sweep → pm_decision_postcheck
         → execute_trades → record_pm_decisions → END
 
@@ -631,6 +631,122 @@ class PortfolioGraphSetup:
 
         return prioritize_candidates_node
 
+    def _make_candidate_handoff_guard_node(
+        self,
+    ) -> Callable[[PortfolioManagerState], dict[str, Any]]:
+        """Validates candidate flow from prioritize_candidates to summary agents.
+
+        Raises CandidateHandoffError when:
+        - All candidates have extraction_failed status and n_out == 0
+        - Candidate drop count is unaccountable (n_in - n_out != accounted drops)
+
+        Accounted drops include: extraction_failed, analysis_failed,
+        completed HOLD/SELL, empty/timeout_fallback, no deep-dive.
+        """
+
+        def candidate_handoff_guard_node(state: PortfolioManagerState) -> dict[str, Any]:
+            from tradingagents.agents.utils.output_validation import CandidateHandoffError
+
+            scan_summary = state.get("scan_summary") or {}
+            ticker_analyses = state.get("ticker_analyses") or {}
+            prioritized_raw = state.get("prioritized_candidates") or "[]"
+            try:
+                prioritized = (
+                    json.loads(prioritized_raw)
+                    if isinstance(prioritized_raw, str)
+                    else prioritized_raw
+                )
+            except (json.JSONDecodeError, TypeError):
+                prioritized = []
+
+            equity_candidates = (
+                scan_summary.get("equity_candidates")
+                or scan_summary.get("stocks_to_investigate")
+                or []
+            )
+            n_in = len(equity_candidates)
+            n_out = len(prioritized) if isinstance(prioritized, list) else 0
+
+            if n_in == 0:
+                return {"sender": "candidate_handoff_guard"}
+
+            # Count each category of drop
+            n_extr_fail = 0
+            n_other_fail = 0
+            n_not_buy = 0
+            n_no_entry = 0
+            per_ticker_status: dict[str, str] = {}
+
+            for raw_candidate in equity_candidates:
+                instrument_key = ""
+                if isinstance(raw_candidate, dict):
+                    ticker = (
+                        raw_candidate.get("ticker") or raw_candidate.get("symbol") or ""
+                    ).upper()
+                    instrument_key = str(raw_candidate.get("instrument_key") or "")
+                else:
+                    ticker = str(raw_candidate).upper()
+                if not ticker:
+                    n_no_entry += 1
+                    continue
+
+                analysis = {}
+                if isinstance(ticker_analyses, dict):
+                    analysis = ticker_analyses.get(ticker, {})
+                    if not analysis and instrument_key:
+                        analysis = ticker_analyses.get(instrument_key, {})
+                structured = analysis.get("final_trade_decision_structured") or {}
+                analysis_status = str(analysis.get("analysis_status") or "").lower()
+                status = str(structured.get("status") or "").lower()
+                action = str(structured.get("action") or "").upper()
+
+                if status == "extraction_failed":
+                    n_extr_fail += 1
+                    per_ticker_status[ticker] = "extraction_failed"
+                elif analysis_status == "failed" and status != "extraction_failed":
+                    n_other_fail += 1
+                    per_ticker_status[ticker] = "analysis_failed"
+                elif status in {"empty", "timeout_fallback"}:
+                    n_not_buy += 1
+                    per_ticker_status[ticker] = status
+                elif status == "completed" and action in {"HOLD", "SELL"}:
+                    n_not_buy += 1
+                    per_ticker_status[ticker] = f"completed:{action}"
+                elif not analysis and not structured:
+                    n_no_entry += 1
+                    per_ticker_status[ticker] = "no_deep_dive"
+                else:
+                    per_ticker_status[ticker] = f"completed:{action}"
+
+            accounted_drop = n_extr_fail + n_other_fail + n_not_buy + n_no_entry
+
+            if n_in > 0 and n_out == 0 and n_extr_fail == n_in:
+                raise CandidateHandoffError(
+                    kind="all_extraction_failed",
+                    n_in=n_in,
+                    n_out=n_out,
+                    per_ticker_status=per_ticker_status,
+                )
+
+            if n_in - n_out != accounted_drop:
+                raise CandidateHandoffError(
+                    kind="unaccountable_drop",
+                    n_in=n_in,
+                    n_out=n_out,
+                    per_ticker_status=per_ticker_status,
+                )
+
+            logger.info(
+                "candidate_handoff_guard: ok n_in=%d n_out=%d n_extraction_failed=%d n_not_buy=%d",
+                n_in,
+                n_out,
+                n_extr_fail,
+                n_not_buy,
+            )
+            return {"sender": "candidate_handoff_guard"}
+
+        return candidate_handoff_guard_node
+
     def _make_rescale_buys_node(self) -> Callable[[PortfolioManagerState], dict[str, Any]]:
         """Deterministic guard that scales buy notional to fit within the cash ceiling.
 
@@ -987,6 +1103,7 @@ class PortfolioGraphSetup:
         workflow.add_node("compute_risk", self._make_compute_risk_node())
         workflow.add_node("portfolio_integrity_guard", self._make_portfolio_integrity_guard_node())
         workflow.add_node("prioritize_candidates", self._make_prioritize_candidates_node())
+        workflow.add_node("candidate_handoff_guard", self._make_candidate_handoff_guard_node())
         workflow.add_node("rescale_buys", self._make_rescale_buys_node())
         workflow.add_node("cash_sweep", self._make_cash_sweep_node())
         workflow.add_node("pm_decision_postcheck", self._make_pm_decision_postcheck_node())
@@ -1006,10 +1123,11 @@ class PortfolioGraphSetup:
         workflow.add_edge("compute_risk", "portfolio_integrity_guard")
         workflow.add_edge("portfolio_integrity_guard", "review_holdings")
         workflow.add_edge("review_holdings", "prioritize_candidates")
+        workflow.add_edge("prioritize_candidates", "candidate_handoff_guard")
 
-        # Fan-out: prioritize_candidates → both summary nodes (parallel)
-        workflow.add_edge("prioritize_candidates", "macro_summary")
-        workflow.add_edge("prioritize_candidates", "micro_summary")
+        # Fan-out: candidate_handoff_guard → both summary nodes (parallel)
+        workflow.add_edge("candidate_handoff_guard", "macro_summary")
+        workflow.add_edge("candidate_handoff_guard", "micro_summary")
 
         # Fan-in: both summary nodes → make_pm_decision
         workflow.add_edge("macro_summary", "make_pm_decision")

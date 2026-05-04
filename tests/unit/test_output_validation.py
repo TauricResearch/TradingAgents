@@ -708,6 +708,21 @@ class TestInvestmentPlanStructuredContract:
         )
         assert structured["status"] == "empty"
 
+    def test_build_investment_plan_extraction_failed_status(self):
+        """Test that ambiguous non-empty input returns extraction_failed status."""
+        from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+
+        ambiguous = "The committee considered the matter. Bears say caution. Bulls say proceed. Outcome: deferred."
+        structured = build_investment_plan_structured(
+            ticker="XYZ",
+            as_of_date="2026-05-03",
+            investment_plan=ambiguous,
+            llm=None,  # no LLM → hard fail → extraction_failed
+        )
+        assert structured["status"] == "extraction_failed"
+        assert structured["recommendation"] is None
+        assert "action_extraction_failed" in structured["abort_reason"]
+
 
 class TestTraderPlanStructuredContract:
     def test_build_completed_with_entry_and_stop(self):
@@ -742,6 +757,23 @@ class TestTraderPlanStructuredContract:
         )
         assert structured["status"] == "empty"
         assert structured["final_action"] == "HOLD"
+
+    def test_build_trader_plan_extraction_failed_status(self):
+        """Test that ambiguous non-empty input returns extraction_failed status."""
+        from tradingagents.agents.utils.output_validation import build_trader_plan_structured
+
+        ambiguous = (
+            "The committee saw mixed signals. Technical indicators are unclear. Outcome: uncertain."
+        )
+        structured = build_trader_plan_structured(
+            ticker="XYZ",
+            as_of_date="2026-05-03",
+            trader_plan=ambiguous,
+            llm=None,
+        )
+        assert structured["status"] == "extraction_failed"
+        assert structured["final_action"] is None
+        assert "action_extraction_failed" in structured["abort_reason"]
 
 
 class TestRiskSynthesisStructuredContract:
@@ -793,6 +825,21 @@ class TestRiskSynthesisStructuredContract:
         )
         assert structured["status"] == "empty"
 
+    def test_build_risk_synthesis_extraction_failed_status(self):
+        """Test that ambiguous non-empty input returns extraction_failed status."""
+        from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
+
+        ambiguous = "The committee debated extensively. Multiple viewpoints were presented. No consensus reached."
+        structured = build_risk_synthesis_structured(
+            ticker="XYZ",
+            as_of_date="2026-05-03",
+            risk_synthesis=ambiguous,
+            llm=None,
+        )
+        assert structured["status"] == "extraction_failed"
+        assert structured["consensus_direction"] is None
+        assert "action_extraction_failed" in structured["abort_reason"]
+
 
 class TestFinalDecisionStructuredContract:
     def test_build_completed_buy(self):
@@ -827,10 +874,25 @@ class TestFinalDecisionStructuredContract:
         assert structured["status"] == "empty"
         assert structured["action"] == "HOLD"
 
+    def test_build_final_decision_extraction_failed_status(self):
+        """Test that ambiguous non-empty input returns extraction_failed status."""
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+
+        ambiguous = "The portfolio manager reviewed all data. Various factors were considered. Decision pending further analysis."
+        structured = build_final_decision_structured(
+            ticker="XYZ",
+            as_of_date="2026-05-03",
+            final_decision=ambiguous,
+            llm=None,
+        )
+        assert structured["status"] == "extraction_failed"
+        assert structured["action"] is None
+        assert "action_extraction_failed" in structured["abort_reason"]
+
     def test_decision_excerpt_truncated(self):
         from tradingagents.agents.utils.output_validation import build_final_decision_structured
 
-        long_text = "BUY " + "A" * 500
+        long_text = "ACTION: BUY\n" + "A" * 500
         structured = build_final_decision_structured(
             ticker="XYZ",
             as_of_date="2026-04-03",

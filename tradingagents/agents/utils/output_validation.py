@@ -8,10 +8,13 @@ import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
+
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,49 @@ class ValidationResult:
     is_valid: bool
     reason: str
     code: str = "ok"
+
+
+@dataclass(frozen=True)
+class ExtractionResult:
+    """Result of action extraction from text."""
+
+    action: Literal["BUY", "SELL", "HOLD"]
+    confidence: Literal["high", "med", "low"]
+    source: Literal["regex", "llm"]
+    evidence_quote: str | None
+
+
+class ActionExtractionError(Exception):
+    """Raised when action extraction fails for all methods."""
+
+    def __init__(self, text_excerpt: str, last_attempt: "ExtractionResult | None" = None):
+        self.text_excerpt = text_excerpt
+        self.last_attempt = last_attempt
+        excerpt_display = text_excerpt[:300] if len(text_excerpt) > 300 else text_excerpt
+        super().__init__(
+            f"action_extraction_failed: could not determine BUY/SELL/HOLD from text "
+            f"(first 300 chars): {excerpt_display!r}"
+        )
+
+
+class CandidateHandoffError(Exception):
+    """Raised when candidate handoff validation fails."""
+
+    def __init__(
+        self,
+        kind: Literal["unaccountable_drop", "all_extraction_failed"],
+        n_in: int,
+        n_out: int,
+        per_ticker_status: dict[str, str],
+    ):
+        self.kind = kind
+        self.n_in = n_in
+        self.n_out = n_out
+        self.per_ticker_status = per_ticker_status
+        super().__init__(
+            f"candidate_handoff_error kind={kind} n_in={n_in} n_out={n_out} "
+            f"per_ticker={per_ticker_status}"
+        )
 
 
 CANONICAL_SOURCE_REGISTRY = {
@@ -553,23 +599,135 @@ def build_trader_plan_fallback(
     return "\n".join(lines).strip()
 
 
-def _infer_recommendation(text: str) -> str:
-    """Return BUY/SELL/HOLD from explicit decision fields, not incidental prose."""
-    raw = str(text or "")
-    patterns = [
-        r"FINAL\s+TRANSACTION\s+PROPOSAL\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"FINAL\s+RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"RECOMMENDATION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"BALANCED\s+ASSESSMENT\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"RATING\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-        r"ACTION\s*:\s*\**\s*(BUY|SELL|HOLD)\b",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, raw, re.IGNORECASE)
-        if match:
-            return match.group(1).upper()
+def _extract_action_regex(text: str) -> ExtractionResult | None:
+    """Return ExtractionResult via regex on known-format labels, or None on miss.
 
-    return "HOLD"
+    Never returns a default — None means "no pattern matched".
+    """
+    raw = str(text or "")
+    single_line_patterns = [
+        # explicit proposal/recommendation labels (original six)
+        r"FINAL\s+TRANSACTION\s+PROPOSAL\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"FINAL\s+RECOMMENDATION\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"RECOMMENDATION\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"BALANCED\s+ASSESSMENT\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"RATING\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        r"ACTION\s*:\s*[*_]*\s*(BUY|SELL|HOLD)\b",
+        # numbered-prefix variants: "1. Rating: Buy" / "1) Rating — Sell"
+        r"^\s*\d+[.)]\s+(?:Final\s+)?Rating\s*[:\-—]\s*[*_]*(BUY|SELL|HOLD)\b",
+    ]
+    for pattern in single_line_patterns:
+        m = re.search(pattern, raw, re.IGNORECASE | re.MULTILINE)
+        if m:
+            return ExtractionResult(
+                action=m.group(1).upper(),
+                confidence="high",
+                source="regex",
+                evidence_quote=None,
+            )
+
+    # Multi-line header patterns: bold/ATX header followed by action on next line
+    # Covers: **1. Rating**\n**Buy**, **Rating**\n**Buy**, ### Rating\nBuy, etc.
+    multi_line_pattern = re.compile(
+        r"(?:#{1,3}\s*|[*_]{1,2})\d*[.)\s]*(?:Final\s+)?Rating[*_]*\s*\n\s*[*_]*(BUY|SELL|HOLD)\b",
+        re.IGNORECASE,
+    )
+    m = multi_line_pattern.search(raw)
+    if m:
+        return ExtractionResult(
+            action=m.group(1).upper(),
+            confidence="high",
+            source="regex",
+            evidence_quote=None,
+        )
+
+    return None
+
+
+_EXTRACTION_SYSTEM_PROMPT = """\
+You extract the final trading action from a portfolio manager's report.
+The action must be one of BUY, SELL, or HOLD.
+Return strict JSON — no prose, no markdown fences:
+{"action": "BUY"|"SELL"|"HOLD", "confidence": "high"|"med"|"low", "evidence_quote": "<verbatim ≤200 chars>"}
+Set confidence to "low" if the text is ambiguous or the action is not clearly stated.
+The evidence_quote must be a direct verbatim excerpt from the text that shows the action."""
+
+
+def _extract_action_llm(text: str, llm: Any) -> ExtractionResult:
+    """Call LLM to extract action. Never raises — returns low-confidence sentinel on any failure.
+
+    The sentinel has confidence="low" so the caller's hard-fail path triggers uniformly.
+    """
+    _sentinel = ExtractionResult(action="HOLD", confidence="low", source="llm", evidence_quote=None)
+    try:
+        messages = [
+            SystemMessage(content=_EXTRACTION_SYSTEM_PROMPT),
+            HumanMessage(content=f"TEXT:\n<<<{text}>>>"),
+        ]
+        timeout = resolve_timeout("quick")
+        response, invoke_error = invoke_with_timeout(llm, messages, timeout_seconds=timeout)
+        if invoke_error is not None or response is None:
+            return _sentinel
+        raw = response.content if hasattr(response, "content") else str(response)
+        try:
+            parsed = extract_json(raw)
+        except Exception:
+            return _sentinel
+        if not isinstance(parsed, dict):
+            return _sentinel
+        action = str(parsed.get("action") or "").upper()
+        if action not in {"BUY", "SELL", "HOLD"}:
+            return _sentinel
+        confidence = str(parsed.get("confidence") or "").lower()
+        if confidence not in {"high", "med", "low"}:
+            return _sentinel
+        evidence_quote = parsed.get("evidence_quote")
+        if isinstance(evidence_quote, str):
+            evidence_quote = evidence_quote[:200] or None
+        else:
+            evidence_quote = None
+        return ExtractionResult(
+            action=action,  # type: ignore[arg-type]
+            confidence=confidence,  # type: ignore[arg-type]
+            source="llm",
+            evidence_quote=evidence_quote,
+        )
+    except Exception:
+        return _sentinel
+
+
+def extract_action(text: str, llm: Any = None) -> ExtractionResult:
+    """Two-stage action extractor. Raises ActionExtractionError on hard fail.
+
+    Stage 1: regex (fast, deterministic, no LLM call).
+    Stage 2: LLM fallback if regex misses (requires llm argument).
+
+    Raises ActionExtractionError when:
+    - regex misses AND llm is None (caller must provide llm for fallback)
+    - regex misses AND LLM returns confidence=="low"
+    - regex misses AND LLM errors (timeout, parse fail, etc.)
+    """
+    regex_result = _extract_action_regex(text)
+    if regex_result is not None:
+        return regex_result
+    if llm is None:
+        raise ActionExtractionError(text_excerpt=text[:300], last_attempt=None)
+    llm_result = _extract_action_llm(text, llm=llm)
+    if llm_result.confidence == "low":
+        raise ActionExtractionError(text_excerpt=text[:300], last_attempt=llm_result)
+    return llm_result
+
+
+def _infer_recommendation(text: str, llm: Any = None) -> str:
+    """Back-compat shim. Raises ActionExtractionError on hard fail (no HOLD default).
+
+    Empty input returns HOLD without calling extraction (preserves existing tests).
+    Non-empty input delegates to extract_action which raises ActionExtractionError
+    if no pattern matches and either no LLM is provided or LLM returns low confidence.
+    """
+    if not str(text or "").strip():
+        return "HOLD"
+    return extract_action(text, llm=llm).action
 
 
 def _infer_sentiment_direction(text: str) -> str:
@@ -921,21 +1079,34 @@ def build_investment_plan_structured(
     investment_plan: str,
     contract_version: str = "investment_plan_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for research-manager output."""
     plan = str(investment_plan or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    recommendation: str | None
     if not plan:
         status = "empty"
         abort_reason = ""
+        recommendation = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        recommendation = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    recommendation = _infer_recommendation(plan)
+        try:
+            recommendation = _infer_recommendation(plan, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            recommendation = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_investment_plan_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", plan))
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
@@ -969,21 +1140,34 @@ def build_trader_plan_structured(
     trader_plan: str,
     contract_version: str = "trader_plan_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for trader node output."""
     plan = str(trader_plan or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    final_action: str | None
     if not plan:
         status = "empty"
         abort_reason = ""
+        final_action = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        final_action = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    final_action = _infer_recommendation(plan)
+        try:
+            final_action = _infer_recommendation(plan, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            final_action = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_trader_plan_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     has_entry = bool(re.search(r"entry\s*(price|setup|point)", plan, re.IGNORECASE))
     has_stop = bool(re.search(r"stop[.\- ]?loss", plan, re.IGNORECASE))
     has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", plan, re.IGNORECASE))
@@ -1019,21 +1203,34 @@ def build_risk_synthesis_structured(
     risk_synthesis: str,
     contract_version: str = "risk_synthesis_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for risk synthesis node output."""
     text = str(risk_synthesis or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    consensus_direction: str | None
     if not text:
         status = "empty"
         abort_reason = ""
+        consensus_direction = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        consensus_direction = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    consensus_direction = _infer_recommendation(text)
+        try:
+            consensus_direction = _infer_recommendation(text, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            consensus_direction = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_risk_synthesis_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     agreements = len(
         re.findall(
             r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)",
@@ -1074,21 +1271,34 @@ def build_final_decision_structured(
     final_decision: str,
     contract_version: str = "final_decision_v1",
     is_timeout_fallback: bool = False,
+    llm: Any = None,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for portfolio-manager final decision."""
     text = str(final_decision or "").strip()
     timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    action: str | None
     if not text:
         status = "empty"
         abort_reason = ""
+        action = "HOLD"
     elif timeout_detected:
         status = "timeout_fallback"
         abort_reason = ""
+        action = "HOLD"
     else:
-        status = "completed"
-        abort_reason = ""
-
-    action = _infer_recommendation(text)
+        try:
+            action = _infer_recommendation(text, llm=llm)
+            status = "completed"
+            abort_reason = ""
+        except ActionExtractionError as exc:
+            action = None
+            status = "extraction_failed"
+            abort_reason = f"action_extraction_failed: {exc.text_excerpt}"
+            logger.warning(
+                "build_final_decision_structured: action extraction failed for ticker=%s excerpt=%r",
+                ticker,
+                exc.text_excerpt,
+            )
     numeric_mentions = len(
         re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
     )
