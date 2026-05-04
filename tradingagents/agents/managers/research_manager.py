@@ -73,6 +73,16 @@ STRICT CONSTRAINTS:
 - **GROUND TRUTH**: The compressed research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values when citing oil, gold, bitcoin prices, FX levels, or event dates. Do NOT invent, estimate, or contradict these ground-truth figures. If an analyst report contradicts the Scanner Context numbers, flag the discrepancy and use the Scanner Context value.
 {correction_block}
 
+## MANDATORY CONFLICT RESOLUTION
+
+Before writing your final recommendation, you MUST complete this checklist:
+
+1. List every bearish or risk point from the Fundamentals Analyst report (FCF, debt, margins, working capital, peer rank).
+2. For each point, provide a data-backed counter-argument explaining why it is NOT a deal-breaker given current conditions.
+3. If you cannot provide a data-backed counter-argument for ANY fundamental deterioration flag (e.g. negative working capital, FCF decline >50%, operating margin <0%), you MUST downgrade your rating by at least one level.
+4. Scanner Context signals ("Golden Overlap", "Smart Money Drift", institutional accumulation) are SUPPORTING evidence — they cannot override actual financial deterioration without a specific catalyst that explains why the deterioration is temporary.
+5. Your final rating must be consistent with the weakest un-rebutted fundamental risk you identified.
+
 YOUR TASK:
 1. **Strongest Bull Evidence**: List the top 3 data-backed bull arguments with confidence tags.
 2. **Strongest Bear Evidence**: List the top 3 data-backed bear arguments with confidence tags.
