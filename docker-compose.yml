@@ -14,6 +14,12 @@ services:
       - ollama_data:/root/.ollama
     profiles:
       - ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   tradingagents-ollama:
     build: .
@@ -21,10 +27,12 @@ services:
       - .env
     environment:
       - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     tty: true
     stdin_open: true
     profiles:

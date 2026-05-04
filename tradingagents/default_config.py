@@ -20,7 +20,7 @@ DEFAULT_CONFIG = {
     # The CLI overrides this per provider when the user picks one. Keeping a
     # provider-specific URL here would leak (e.g. OpenAI's /v1 was previously
     # being forwarded to Gemini, producing malformed request URLs).
-    "backend_url": None,
+    "backend_url": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
