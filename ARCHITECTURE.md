@@ -168,7 +168,7 @@ server/
 
 ## SSE Event Schema
 
-Events flow from `scripts/analyze_stream.py` stdout → Bun SSE → browser.
+Events flow from `scripts/py/analyze_stream.py` stdout → Bun SSE → browser.
 
 ```typescript
 // Line format: {"event": string, "data": {...}}
@@ -261,7 +261,7 @@ in `~/.tradingagents/logs/<TICKER>/<DATE>/`.
 | `ALPHA_VANTAGE_API_KEY` | — | Data vendor (optional) |
 
 LLM provider keys are loaded via `dotenv` in both the CLI (`cli/main.py`) and
-the analysis script (`scripts/analyze_stream.py`). The Bun server loads `.env`
+the analysis script (`scripts/py/analyze_stream.py`). The Bun server loads `.env`
 for the summarisation endpoint (`server/routes/analyses.ts`).
 
 ---

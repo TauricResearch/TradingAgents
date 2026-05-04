@@ -153,10 +153,18 @@ TradingAgents/
 │   │   └── intelligence.tsx   │   Portfolio Intelligence view
 │   └── static/                │   CSS, fonts, favicon
 │
-├── scripts/                   ← Utility scripts
-│   ├── analyze_stream.py      │   Python→SSE bridge (JSON lines)
-│   ├── analyze.py             │   CLI analysis helper
-│   └── summarize_analyses.py  │   Batch LLM summarisation
+├── scripts/                   ← TypeScript utilities (Bun native)
+│   ├── seed_database.ts       │   Seed SQLite + exit plans + post-mortems
+│   ├── summarize_analyses.ts  │   LLM summarisation via OpenRouter
+│   ├── get_price.ts           │   Yahoo Finance price + history
+│   ├── portfolio-intel.ts     │   Portfolio summary via HTTP
+│   ├── render_diagrams.ts     │   DOT/MMD → SVG (graphviz + mmdc)
+│   └── extract_mermaid.ts     │   Strip YAML front matter from MMD
+│   ├── py/                    │   Python scripts (tradingagents dep)
+│   │   ├── analyze_stream.py  │   Bun→Python bridge (TradingAgentsGraph)
+│   │   ├── analyze.py         │   CLI wrapper for analyze_stream
+│   │   └── smoke_structured_output.py  │   Agent output smoke tests
+│   └── README.md              │   Scripts documentation
 │
 ├── briefs/                    ← Work proposals (historical reference)
 ├── debriefs/                  ← Post-work retrospectives (historical reference)
