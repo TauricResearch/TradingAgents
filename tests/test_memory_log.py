@@ -2,6 +2,8 @@
 
 import pytest
 import pandas as pd
+import json
+import threading
 from unittest.mock import MagicMock, patch
 
 from tradingagents.agents.utils.memory import TradingMemoryLog
@@ -50,7 +52,16 @@ def _seed_completed(tmp_path, ticker, date, decision_text, reflection_text, file
 def _resolve_entry(log, ticker, date, decision, reflection="Good call."):
     """Store a decision then immediately resolve it via the API."""
     log.store_decision(ticker, date, decision)
-    log.update_with_outcome(ticker, date, 0.05, 0.02, 5, reflection)
+    log.batch_update_with_outcomes([
+        {
+            "ticker": ticker,
+            "trade_date": date,
+            "raw_return": 0.05,
+            "alpha_return": 0.02,
+            "holding_days": 5,
+            "reflection": reflection,
+        }
+    ])
 
 
 def _price_df(prices):
@@ -111,6 +122,9 @@ def _structured_pm_llm(captured: dict, decision: PortfolioDecision | None = None
 
 class TestTradingMemoryLogCore:
 
+    def test_single_outcome_update_api_removed(self):
+        assert not hasattr(TradingMemoryLog, "update_with_outcome")
+
     def test_store_creates_file(self, tmp_path):
         log = make_log(tmp_path)
         assert not (tmp_path / "trading_memory.md").exists()
@@ -133,6 +147,49 @@ class TestTradingMemoryLogCore:
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         assert len(log.load_entries()) == 1
 
+    def test_store_decision_uses_atomic_replace(self, tmp_path, monkeypatch):
+        """store_decision should write via temp file + replace, not direct append."""
+        replace_calls = []
+        original_replace = type(tmp_path).replace
+
+        def spy_replace(self, target):
+            replace_calls.append((self, target))
+            return original_replace(self, target)
+
+        monkeypatch.setattr(type(tmp_path), "replace", spy_replace)
+        log = make_log(tmp_path)
+
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+
+        assert replace_calls
+        assert len(log.load_entries()) == 1
+
+    def test_store_decision_concurrent_writes_preserve_both_entries(self, tmp_path):
+        """Concurrent in-process writers should not lose distinct pending entries."""
+        tickers = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOG"]
+        start = threading.Barrier(len(tickers))
+        threads = []
+
+        def store(ticker, index):
+            start.wait(timeout=5)
+            make_log(tmp_path).store_decision(
+                ticker,
+                f"2026-01-{index + 10:02d}",
+                DECISION_BUY,
+            )
+
+        for index, ticker in enumerate(tickers):
+            thread = threading.Thread(target=store, args=(ticker, index))
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join(timeout=5)
+
+        assert all(not thread.is_alive() for thread in threads)
+        entries = make_log(tmp_path).load_entries()
+        assert {entry["ticker"] for entry in entries} == set(tickers)
+
     def test_batch_update_resolves_multiple_entries(self, tmp_path):
         """batch_update_with_outcomes resolves multiple pending entries in one write."""
         log = make_log(tmp_path)
@@ -154,6 +211,58 @@ class TestTradingMemoryLogCore:
         assert all(not e["pending"] for e in entries)
         assert entries[0]["reflection"] == "First correct."
         assert entries[1]["reflection"] == "Second correct."
+
+    def test_batch_update_matches_exact_parsed_tag_key(self, tmp_path):
+        """Ticker/date lookup should match parsed tag fields, not string prefixes."""
+        log = make_log(tmp_path)
+        log.store_decision("A", "2026-01-10", DECISION_BUY)
+        log.store_decision("AA", "2026-01-10", DECISION_SELL)
+
+        log.batch_update_with_outcomes([
+            {
+                "ticker": "A",
+                "trade_date": "2026-01-10",
+                "raw_return": 0.05,
+                "alpha_return": 0.02,
+                "holding_days": 5,
+                "reflection": "Only A resolved.",
+            }
+        ])
+
+        entries = log.load_entries()
+        a_entry = next(e for e in entries if e["ticker"] == "A")
+        aa_entry = next(e for e in entries if e["ticker"] == "AA")
+        assert a_entry["pending"] is False
+        assert aa_entry["pending"] is True
+
+    def test_batch_update_rejects_duplicate_update_keys(self, tmp_path):
+        """Duplicate updates for one pending tag should be explicit, not last-writer-wins."""
+        log = make_log(tmp_path)
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
+
+        updates = [
+            {
+                "ticker": "NVDA",
+                "trade_date": "2026-01-10",
+                "raw_return": 0.05,
+                "alpha_return": 0.02,
+                "holding_days": 5,
+                "reflection": "First update.",
+            },
+            {
+                "ticker": "NVDA",
+                "trade_date": "2026-01-10",
+                "raw_return": -0.03,
+                "alpha_return": -0.01,
+                "holding_days": 5,
+                "reflection": "Second update.",
+            },
+        ]
+
+        with pytest.raises(ValueError, match="duplicate outcome update"):
+            log.batch_update_with_outcomes(updates)
+
+        assert log.load_entries()[0]["pending"] is True
 
     def test_pending_tag_format(self, tmp_path):
         log = make_log(tmp_path)
@@ -267,6 +376,23 @@ class TestTradingMemoryLogCore:
         ctx = log.get_past_context("NVDA")
         assert "Recent cross-ticker lessons" in ctx
         assert "Past analyses of NVDA" not in ctx
+
+    def test_get_past_context_reuses_entries_cache_when_file_unchanged(self, tmp_path, monkeypatch):
+        log = make_log(tmp_path)
+        _seed_completed(tmp_path, "NVDA", "2026-01-05", "Buy NVDA.", "Correct.")
+        read_calls = []
+        original_read_text = type(tmp_path).read_text
+
+        def spy_read_text(self, *args, **kwargs):
+            read_calls.append(self)
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(type(tmp_path), "read_text", spy_read_text)
+
+        assert "Buy NVDA." in log.get_past_context("NVDA")
+        assert "Buy NVDA." in log.get_past_context("NVDA")
+
+        assert read_calls == [tmp_path / "trading_memory.md"]
 
     def test_n_same_limit_respected(self, tmp_path):
         """Only the n_same most recent same-ticker entries are included."""
@@ -383,27 +509,41 @@ class TestTradingMemoryLogCore:
 
 
 # ---------------------------------------------------------------------------
-# Deferred reflection: update_with_outcome, Reflector, _fetch_returns
+# Deferred reflection: batch_update_with_outcomes, Reflector, _fetch_returns
 # ---------------------------------------------------------------------------
 
 class TestDeferredReflection:
 
-    # update_with_outcome
+    # batch_update_with_outcomes
 
-    def test_update_replaces_pending_tag(self, tmp_path):
+    def test_batch_update_replaces_pending_tag(self, tmp_path):
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
-        log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Momentum confirmed.")
+        log.batch_update_with_outcomes([{
+            "ticker": "NVDA",
+            "trade_date": "2026-01-10",
+            "raw_return": 0.042,
+            "alpha_return": 0.021,
+            "holding_days": 5,
+            "reflection": "Momentum confirmed.",
+        }])
         text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
         assert "[2026-01-10 | NVDA | Buy | pending]" not in text
         assert "+4.2%" in text
         assert "+2.1%" in text
         assert "5d" in text
 
-    def test_update_appends_reflection(self, tmp_path):
+    def test_batch_update_appends_reflection(self, tmp_path):
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
-        log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Momentum confirmed.")
+        log.batch_update_with_outcomes([{
+            "ticker": "NVDA",
+            "trade_date": "2026-01-10",
+            "raw_return": 0.042,
+            "alpha_return": 0.021,
+            "holding_days": 5,
+            "reflection": "Momentum confirmed.",
+        }])
         entries = log.load_entries()
         assert len(entries) == 1
         e = entries[0]
@@ -411,13 +551,20 @@ class TestDeferredReflection:
         assert e["reflection"] == "Momentum confirmed."
         assert e["decision"] == DECISION_BUY.strip()
 
-    def test_update_preserves_other_entries(self, tmp_path):
+    def test_batch_update_preserves_other_entries(self, tmp_path):
         """Only the matching entry is modified; all other entries remain unchanged."""
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         log.store_decision("AAPL", "2026-01-11", "Rating: Hold\nHold AAPL.")
         log.store_decision("MSFT", "2026-01-12", DECISION_SELL)
-        log.update_with_outcome("AAPL", "2026-01-11", 0.01, -0.01, 5, "Neutral result.")
+        log.batch_update_with_outcomes([{
+            "ticker": "AAPL",
+            "trade_date": "2026-01-11",
+            "raw_return": 0.01,
+            "alpha_return": -0.01,
+            "holding_days": 5,
+            "reflection": "Neutral result.",
+        }])
         entries = log.load_entries()
         assert len(entries) == 3
         nvda, aapl, msft = entries
@@ -426,28 +573,56 @@ class TestDeferredReflection:
         assert aapl["reflection"] == "Neutral result."
         assert msft["ticker"] == "MSFT" and msft["pending"] is True
 
-    def test_update_atomic_write(self, tmp_path):
-        """A pre-existing .tmp file is overwritten; the log is correctly updated."""
+    def test_batch_update_atomic_write(self, tmp_path, monkeypatch):
+        """Batch updates should write via temp file + replace."""
+        replace_calls = []
+        original_replace = type(tmp_path).replace
+
+        def spy_replace(self, target):
+            replace_calls.append((self, target))
+            return original_replace(self, target)
+
+        monkeypatch.setattr(type(tmp_path), "replace", spy_replace)
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
-        stale_tmp = tmp_path / "trading_memory.tmp"
-        stale_tmp.write_text("GARBAGE CONTENT — should be overwritten", encoding="utf-8")
-        log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Correct.")
-        assert not stale_tmp.exists()
+        replace_calls.clear()
+        log.batch_update_with_outcomes([{
+            "ticker": "NVDA",
+            "trade_date": "2026-01-10",
+            "raw_return": 0.042,
+            "alpha_return": 0.021,
+            "holding_days": 5,
+            "reflection": "Correct.",
+        }])
+        assert replace_calls
         entries = log.load_entries()
         assert len(entries) == 1
         assert entries[0]["reflection"] == "Correct."
         assert entries[0]["pending"] is False
 
-    def test_update_noop_when_no_log_path(self):
+    def test_batch_update_noop_when_no_log_path(self):
         log = TradingMemoryLog(config=None)
-        log.update_with_outcome("NVDA", "2026-01-10", 0.05, 0.02, 5, "Reflection")
+        log.batch_update_with_outcomes([{
+            "ticker": "NVDA",
+            "trade_date": "2026-01-10",
+            "raw_return": 0.05,
+            "alpha_return": 0.02,
+            "holding_days": 5,
+            "reflection": "Reflection",
+        }])
 
-    def test_formatting_roundtrip_after_update(self, tmp_path):
+    def test_formatting_roundtrip_after_batch_update(self, tmp_path):
         """All fields intact and blank line between tag and DECISION preserved after update."""
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
-        log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Momentum confirmed.")
+        log.batch_update_with_outcomes([{
+            "ticker": "NVDA",
+            "trade_date": "2026-01-10",
+            "raw_return": 0.042,
+            "alpha_return": 0.021,
+            "holding_days": 5,
+            "reflection": "Momentum confirmed.",
+        }])
         entries = log.load_entries()
         assert len(entries) == 1
         e = entries[0]
@@ -511,6 +686,42 @@ class TestDeferredReflection:
             m.history.return_value = _price_df([100.0])
             mock_ticker_cls.return_value = m
             raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-04-19")
+        assert raw is None and alpha is None and days is None
+
+    def test_fetch_returns_stock_history_too_short(self):
+        """A stock history with fewer than 2 rows returns no outcome."""
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        with patch("yfinance.Ticker") as mock_ticker_cls:
+            def _make_ticker(sym):
+                m = MagicMock()
+                m.history.return_value = (
+                    _price_df([400.0, 402.0, 404.0])
+                    if sym == "SPY"
+                    else _price_df([100.0])
+                )
+                return m
+
+            mock_ticker_cls.side_effect = _make_ticker
+            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-01-05")
+
+        assert raw is None and alpha is None and days is None
+
+    def test_fetch_returns_spy_history_too_short(self):
+        """A benchmark history with fewer than 2 rows returns no outcome."""
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        with patch("yfinance.Ticker") as mock_ticker_cls:
+            def _make_ticker(sym):
+                m = MagicMock()
+                m.history.return_value = (
+                    _price_df([400.0])
+                    if sym == "SPY"
+                    else _price_df([100.0, 102.0, 104.0])
+                )
+                return m
+
+            mock_ticker_cls.side_effect = _make_ticker
+            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-01-05")
+
         assert raw is None and alpha is None and days is None
 
     def test_fetch_returns_delisted(self):
@@ -693,7 +904,14 @@ class TestPortfolioManagerInjection:
         log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
         assert len(log.get_pending_entries()) == 1
         assert log.get_past_context("NVDA") == ""
-        log.update_with_outcome("NVDA", "2026-01-05", 0.05, 0.02, 5, "Correct call.")
+        log.batch_update_with_outcomes([{
+            "ticker": "NVDA",
+            "trade_date": "2026-01-05",
+            "raw_return": 0.05,
+            "alpha_return": 0.02,
+            "holding_days": 5,
+            "reflection": "Correct call.",
+        }])
         assert log.get_pending_entries() == []
         past_ctx = log.get_past_context("NVDA")
         assert past_ctx != ""
@@ -774,3 +992,118 @@ class TestLegacyRemoval:
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
         assert entries[0]["pending"] is True
+
+    def test_debug_stream_with_empty_messages_still_uses_latest_state(self, tmp_path):
+        """Debug mode should not index an empty trace when stream chunks have no messages."""
+        fake_state = {
+            "messages": [],
+            "final_trade_decision": "Rating: Buy\nBuy NVDA.",
+            "company_of_interest": "NVDA",
+            "trade_date": "2026-01-10",
+            "market_report": "",
+            "sentiment_report": "",
+            "news_report": "",
+            "fundamentals_report": "",
+            "investment_debate_state": {
+                "bull_history": "", "bear_history": "", "history": "",
+                "current_response": "", "judge_decision": "",
+            },
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "risk_debate_state": {
+                "aggressive_history": "", "conservative_history": "",
+                "neutral_history": "", "history": "", "judge_decision": "",
+                "current_aggressive_response": "", "current_conservative_response": "",
+                "current_neutral_response": "", "count": 1, "latest_speaker": "",
+            },
+        }
+        mock_graph = MagicMock()
+        mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        mock_graph.log_states_dict = {}
+        mock_graph.debug = True
+        mock_graph.config = {"results_dir": str(tmp_path)}
+        mock_graph.graph.stream.return_value = [fake_state]
+        mock_graph.propagator.create_initial_state.return_value = fake_state
+        mock_graph.propagator.get_graph_args.return_value = {}
+        mock_graph.process_signal.return_value = "Buy"
+
+        state, decision = TradingAgentsGraph._run_graph(mock_graph, "NVDA", "2026-01-10")
+
+        assert state == fake_state
+        assert decision == "Buy"
+
+    def test_debug_stream_pretty_prints_non_empty_messages(self, tmp_path):
+        """Debug mode should stream chunks, pretty-print messages, and use the latest state."""
+        message = MagicMock()
+        fake_state = {
+            "messages": [message],
+            "final_trade_decision": "Rating: Sell\nSell NVDA.",
+            "company_of_interest": "NVDA",
+            "trade_date": "2026-01-10",
+            "market_report": "",
+            "sentiment_report": "",
+            "news_report": "",
+            "fundamentals_report": "",
+            "investment_debate_state": {
+                "bull_history": "", "bear_history": "", "history": "",
+                "current_response": "", "judge_decision": "",
+            },
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "risk_debate_state": {
+                "aggressive_history": "", "conservative_history": "",
+                "neutral_history": "", "history": "", "judge_decision": "",
+                "current_aggressive_response": "", "current_conservative_response": "",
+                "current_neutral_response": "", "count": 1, "latest_speaker": "",
+            },
+        }
+        mock_graph = MagicMock()
+        mock_graph.memory_log = TradingMemoryLog({"memory_log_path": str(tmp_path / "mem.md")})
+        mock_graph.log_states_dict = {}
+        mock_graph.debug = True
+        mock_graph.config = {"results_dir": str(tmp_path)}
+        mock_graph.graph.stream.return_value = [fake_state]
+        mock_graph.propagator.create_initial_state.return_value = fake_state
+        mock_graph.propagator.get_graph_args.return_value = {}
+        mock_graph.process_signal.return_value = "Sell"
+
+        state, decision = TradingAgentsGraph._run_graph(mock_graph, "NVDA", "2026-01-10")
+
+        assert state == fake_state
+        assert decision == "Sell"
+        message.pretty_print.assert_called_once_with()
+
+    def test_log_state_preserves_new_serializable_fields_and_excludes_messages(self, tmp_path):
+        """_log_state should copy AgentState fields instead of manually whitelisting old keys."""
+        fake_state = {
+            "messages": [MagicMock()],
+            "final_trade_decision": "Rating: Buy\nBuy NVDA.",
+            "company_of_interest": "NVDA",
+            "trade_date": "2026-01-10",
+            "market_report": "",
+            "sentiment_report": "",
+            "news_report": "",
+            "fundamentals_report": "",
+            "investment_debate_state": {
+                "bull_history": "", "bear_history": "", "history": "",
+                "current_response": "", "judge_decision": "",
+            },
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "risk_debate_state": {
+                "aggressive_history": "", "conservative_history": "",
+                "neutral_history": "", "history": "", "judge_decision": "",
+            },
+            "new_serializable_field": {"source": "future-agent-state"},
+        }
+        mock_graph = MagicMock()
+        mock_graph.ticker = "NVDA"
+        mock_graph.config = {"results_dir": str(tmp_path)}
+        mock_graph.log_states_dict = {}
+
+        TradingAgentsGraph._log_state(mock_graph, "2026-01-10", fake_state)
+
+        log_path = tmp_path / "NVDA" / "TradingAgentsStrategy_logs" / "full_states_log_2026-01-10.json"
+        logged = json.loads(log_path.read_text(encoding="utf-8"))
+        assert logged["new_serializable_field"] == {"source": "future-agent-state"}
+        assert "messages" not in logged

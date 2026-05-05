@@ -48,9 +48,15 @@ class ConditionalLogic:
             state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
         ):  # 3 rounds of back-and-forth between 2 agents
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
+        current_response = state["investment_debate_state"]["current_response"]
+        if current_response.startswith("Bull"):
             return "Bear Researcher"
-        return "Bull Researcher"
+        if current_response.startswith("Bear"):
+            return "Bull Researcher"
+        raise ValueError(
+            "Unexpected investment debate state: current_response must start "
+            f"with 'Bull' or 'Bear', got {current_response!r}"
+        )
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""

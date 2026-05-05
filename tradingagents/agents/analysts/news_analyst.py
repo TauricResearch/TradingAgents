@@ -6,7 +6,6 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
 )
 from tradingagents.agents.utils.prompts import load_prompt_template, render_prompt_template
-from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm):

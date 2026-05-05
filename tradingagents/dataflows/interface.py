@@ -1,6 +1,9 @@
 from collections.abc import Callable
 from typing import Any
 
+import requests
+from yfinance.exceptions import YFRateLimitError
+
 # Import from vendor-specific modules
 from .y_finance import (
     get_YFin_data_online,
@@ -68,6 +71,16 @@ VENDOR_LIST: list[str] = [
 
 # Mapping of methods to their vendor-specific implementations
 VendorFunction = Callable[..., Any]
+
+TRANSIENT_VENDOR_ERRORS = (
+    AlphaVantageRateLimitError,
+    AlphaVantageTemporaryError,
+    YFRateLimitError,
+    requests.Timeout,
+    requests.ConnectionError,
+    requests.HTTPError,
+    TimeoutError,
+)
 
 VENDOR_METHODS: dict[str, dict[str, VendorFunction]] = {
     # core_stock_apis
@@ -147,9 +160,6 @@ def route_to_vendor(method: str, *args, **kwargs):
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
-    if method not in VENDOR_METHODS:
-        raise ValueError(f"Method '{method}' not supported")
-
     # Build fallback chain: primary vendors first, then remaining available vendors
     all_available_vendors = list(VENDOR_METHODS[method].keys())
     fallback_vendors = primary_vendors.copy()
@@ -166,7 +176,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except (AlphaVantageRateLimitError, AlphaVantageTemporaryError):
-            continue  # Only rate limits and temporary request failures trigger fallback
+        except TRANSIENT_VENDOR_ERRORS:
+            continue  # Rate limits and temporary request failures trigger fallback
 
     raise RuntimeError(f"No available vendor for '{method}'")

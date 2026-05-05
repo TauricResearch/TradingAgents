@@ -173,6 +173,7 @@ auth.json
 tradingagents/Lib/
 tradingagents/Scripts/
 tradingagents/Include/
+tradingagents/share/
 tradingagents/pyvenv.cfg
 
 # Spyder project settings
