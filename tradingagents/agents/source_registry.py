@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from typing import Any
 
 
@@ -9,6 +10,7 @@ REPORT_SOURCE_SPECS = (
     ("news_report", "news", "News analyst report"),
     ("sentiment_report", "sentiment", "Sentiment analyst report"),
     ("fundamentals_report", "fundamentals", "Fundamentals analyst report"),
+    ("macro_report", "macro", "Macro analyst report"),
 )
 
 _COMMON_FIELDS = ("source_id", "source_type", "label", "summary", "state_key", "skill")
@@ -35,6 +37,27 @@ def _dedupe_sources(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
+def _merge_unique_str_lists(*values: Any) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if not isinstance(value, list):
+            continue
+        for item in value:
+            if not isinstance(item, str) or not item.strip() or item in seen:
+                continue
+            seen.add(item)
+            merged.append(item)
+    return merged
+
+
+def _summary_from_value(value: Any, limit: int = 260) -> str:
+    if value is None:
+        return ""
+    text = value if isinstance(value, str) else repr(value)
+    return _summary(text, limit=limit)
+
+
 def normalize_source_object(source: dict[str, Any]) -> dict[str, Any]:
     source_id = source.get("source_id")
     if not isinstance(source_id, str) or not source_id.strip():
@@ -50,15 +73,15 @@ def normalize_source_object(source: dict[str, Any]) -> dict[str, Any]:
         "label": label,
         "summary": summary,
         "citeable": bool(source.get("citeable", True)),
+        "citable_id": source_id if bool(source.get("citeable", True)) else None,
     }
     for key in _COMMON_FIELDS:
         value = source.get(key)
         if value is not None and key not in normalized:
             normalized[key] = value
-    if isinstance(source.get("claim_ids"), list):
-        normalized["claim_ids"] = [item for item in source["claim_ids"] if isinstance(item, str) and item.strip()]
-    if isinstance(source.get("source_ids"), list):
-        normalized["source_ids"] = [item for item in source["source_ids"] if isinstance(item, str) and item.strip()]
+    normalized["claim_ids"] = _merge_unique_str_lists(source.get("claim_ids"))
+    normalized["source_ids"] = _merge_unique_str_lists(source.get("source_ids"))
+    normalized["claim_source_ids"] = _merge_unique_str_lists(source.get("claim_source_ids"))
     if isinstance(source.get("bytes"), int):
         normalized["bytes"] = source["bytes"]
     elif "summary" in normalized:
@@ -94,13 +117,102 @@ def build_report_source_objects(final_state: dict[str, Any]) -> list[dict[str, A
     return sources
 
 
+def build_raw_tool_source_objects(final_state: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_outputs = final_state.get("raw_tool_outputs")
+    if not isinstance(raw_outputs, list):
+        return []
+    sources: list[dict[str, Any]] = []
+    for item in raw_outputs:
+        if not isinstance(item, dict):
+            continue
+        source_id = item.get("source_id")
+        if not isinstance(source_id, str) or not source_id.strip():
+            continue
+        sources.append(
+            {
+                "source_id": source_id,
+                "source_type": "raw_tool_output",
+                "label": f"Raw tool output: {item.get('tool_name', 'unknown')}",
+                "summary": _summary_from_value(item.get("output", item.get("content", ""))),
+                "tool_name": item.get("tool_name", "unknown"),
+                "output_sha256": item.get("output_sha256"),
+                "bytes": item.get("bytes")
+                or len(_summary_from_value(item.get("output", item.get("content", "")), limit=4000).encode("utf-8")),
+                "citeable": True,
+            }
+        )
+    return sources
+
+
+def enrich_source_registry_with_claims(
+    source_registry: dict[str, Any] | None,
+    claim_objects: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    registry = deepcopy(source_registry) if isinstance(source_registry, dict) else {}
+    sources = normalize_source_objects(registry.get("source_objects"))
+    source_index = {
+        source["source_id"]: dict(source)
+        for source in sources
+        if isinstance(source, dict) and isinstance(source.get("source_id"), str)
+    }
+    claims = claim_objects if isinstance(claim_objects, list) else []
+
+    claim_ids: list[str] = []
+    claim_source_ids: list[str] = []
+    source_claim_index: dict[str, list[str]] = {source_id: [] for source_id in source_index}
+    seen_claim_source_ids: set[str] = set()
+
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        claim_id = claim.get("claim_id")
+        if isinstance(claim_id, str) and claim_id.strip():
+            claim_ids.append(claim_id)
+        for source_id in claim.get("source_ids", []):
+            if not isinstance(source_id, str) or not source_id.strip():
+                continue
+            if source_id not in seen_claim_source_ids:
+                seen_claim_source_ids.add(source_id)
+                claim_source_ids.append(source_id)
+            source_claim_index.setdefault(source_id, [])
+            if isinstance(claim_id, str) and claim_id.strip() and claim_id not in source_claim_index[source_id]:
+                source_claim_index[source_id].append(claim_id)
+            if source_id in source_index:
+                source_index[source_id]["claim_ids"] = _merge_unique_str_lists(
+                    source_index[source_id].get("claim_ids"),
+                    [claim_id] if isinstance(claim_id, str) else [],
+                )
+                source_index[source_id]["claim_source_ids"] = _merge_unique_str_lists(
+                    source_index[source_id].get("claim_source_ids"),
+                    claim.get("source_ids"),
+                )
+
+    registry["source_index"] = source_index
+    registry["source_objects"] = [source_index[source["source_id"]] for source in sources if source["source_id"] in source_index]
+    registry["source_ids"] = list(source_index)
+    registry["citable_source_ids"] = [
+        source_id for source_id, source in source_index.items() if source.get("citeable", True)
+    ]
+    registry["claim_ids"] = claim_ids
+    registry["claim_source_ids"] = claim_source_ids
+    registry["source_claim_index"] = {key: value for key, value in source_claim_index.items() if value}
+    registry["source_summary"] = {
+        **(registry.get("source_summary") if isinstance(registry.get("source_summary"), dict) else {}),
+        "source_count": len(registry["source_objects"]),
+        "citable_source_count": sum(1 for source in registry["source_objects"] if source.get("citeable", True)),
+        "claim_count": len(claim_ids),
+        "claim_source_count": len(claim_source_ids),
+    }
+    return registry
+
+
 def build_source_registry(
     final_state: dict[str, Any],
     extra_sources: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     sources = normalize_source_objects(final_state.get("source_objects"))
-    if not sources:
-        sources = build_report_source_objects(final_state)
+    sources.extend(build_report_source_objects(final_state))
+    sources.extend(build_raw_tool_source_objects(final_state))
     if extra_sources:
         sources.extend(normalize_source_objects(extra_sources))
 
@@ -110,7 +222,7 @@ def build_source_registry(
 
     deduped = _dedupe_sources(sources)
     source_index = {source["source_id"]: source for source in deduped}
-    return {
+    registry = {
         "source_objects": deduped,
         "source_index": source_index,
         "source_ids": list(source_index),
@@ -130,6 +242,10 @@ def build_source_registry(
             "citable_source_count": sum(1 for source in deduped if source.get("citeable", True)),
         },
     }
+    claim_graph = final_state.get("claim_graph")
+    if isinstance(claim_graph, dict):
+        return enrich_source_registry_with_claims(registry, claim_graph.get("claim_objects"))
+    return registry
 
 
 def validate_source_citations(source_registry: dict[str, Any], cited_ids: list[str]) -> list[str]:
@@ -141,4 +257,3 @@ def validate_source_citations(source_registry: dict[str, Any], cited_ids: list[s
         if source_id not in source_index:
             invalid.append(source_id)
     return invalid
-

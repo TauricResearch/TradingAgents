@@ -246,6 +246,9 @@ def _build_recommendation_audit(
         scorecard=scorecard,
         decision=decision,
     )
+    claim_graph = _claim_graph(state)
+    claim_objects = claim_graph.get("claim_objects") if isinstance(claim_graph.get("claim_objects"), list) else []
+    claim_objects = [claim for claim in claim_objects if isinstance(claim, dict)]
     target_profile = _target_profile(state)
     target_profile_text = " ".join(str(value) for value in target_profile.values() if value is not None).strip().lower()
     decision_text = decision.lower()
@@ -297,12 +300,22 @@ def _build_recommendation_audit(
         "scorecard_alignment_status": scorecard_reconciliation["status"],
         "rating_vs_scorecard": scorecard_reconciliation["status"],
         "scorecard_reconciliation": scorecard_reconciliation,
+        "claim_graph_summary": {
+            "claim_count": len(claim_objects),
+            "claim_source_ids": sorted({
+                source_id
+                for claim in claim_objects
+                for source_id in (claim.get("source_ids") or [])
+                if isinstance(source_id, str) and source_id.strip()
+            }),
+            "claim_backed_factor_count": int(scorecard.get("claim_backed_factor_count") or 0),
+        },
         "target_profile": target_profile,
         "target_profile_status": target_profile_status,
         "methodology": (
             "LLM synthesis over analyst reports and debates; deterministic audit checks "
             "rating/action alignment, report availability, source IDs, claim graph coverage, "
-            "scorecard reconciliation, target profile alignment, and ticker/entity scope."
+            "claim-backed scorecard evidence, target profile alignment, and ticker/entity scope."
         ),
         "source_registry": source_registry,
         "claim_graph": {
@@ -484,6 +497,37 @@ def assess_shadow_run_quality(
             )
         )
 
+    claim_graph_summary = recommendation_audit.get("claim_graph_summary") or {}
+    has_claim_graph = isinstance(_claim_graph(state), dict) and bool(_claim_graph(state))
+    claim_count = int(claim_graph_summary.get("claim_count") or 0)
+    claim_source_ids = claim_graph_summary.get("claim_source_ids") or []
+    claim_backed_factor_count = int(claim_graph_summary.get("claim_backed_factor_count") or 0)
+    if has_claim_graph and (sources or raw_tool_outputs) and claim_count == 0:
+        findings.append(
+            QualityFinding(
+                code="missing_claim_graph_evidence",
+                severity="error",
+                message="Structured source objects were produced, but no claim graph evidence was extracted for synthesis.",
+            )
+        )
+    if has_claim_graph and claim_count and not claim_source_ids:
+        findings.append(
+            QualityFinding(
+                code="unlinked_claim_evidence",
+                severity="error",
+                message="Claim graph was produced, but no claim in the graph is linked back to a source ID.",
+            )
+        )
+    if has_claim_graph and claim_count and claim_backed_factor_count == 0:
+        findings.append(
+            QualityFinding(
+                code="scorecard_claim_backing_missing",
+                severity="error",
+                message="Deterministic scorecard was produced without any claim-backed factors.",
+                evidence="claim_graph present but scorecard factors lack claim ids",
+            )
+        )
+
     target_profile = recommendation_audit.get("target_profile") if isinstance(recommendation_audit.get("target_profile"), dict) else {}
     target_profile_status = recommendation_audit.get("target_profile_status")
     if target_profile and target_profile_status == "not_addressed":
@@ -507,6 +551,8 @@ def assess_shadow_run_quality(
             "source_object_count": len(sources),
             "source_registry_count": len(source_registry.get("source_objects") or []),
             "claim_count": len(claim_graph.get("claim_objects") or []),
+            "claim_source_ids": recommendation_audit.get("claim_graph_summary", {}).get("claim_source_ids", []),
+            "claim_backed_factor_count": recommendation_audit.get("claim_graph_summary", {}).get("claim_backed_factor_count", 0),
             "valid_source_ids": sorted(valid_source_ids),
             "cited_source_ids": sorted(cited_source_ids),
             "invalid_source_ids": sorted(invalid_source_ids),

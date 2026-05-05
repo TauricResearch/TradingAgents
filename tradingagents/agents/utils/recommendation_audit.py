@@ -5,8 +5,6 @@ from typing import Any
 
 from tradingagents.agents.utils.factor_model import build_factor_model
 
-from tradingagents.agents.utils.factor_model import build_factor_model
-
 
 REPORT_SPECS = (
     ("market_report", "market", "Market analyst report"),
@@ -259,12 +257,14 @@ def render_scorecard_for_prompt(scorecard: dict[str, Any]) -> str:
     ]
     for factor in scorecard["factors"]:
         source_keys = factor.get("inputs", {}).get("source_keys") if isinstance(factor.get("inputs"), dict) else []
+        claim_ids = factor.get("inputs", {}).get("bullish_claim_ids", []) + factor.get("inputs", {}).get("bearish_claim_ids", []) + factor.get("inputs", {}).get("neutral_claim_ids", []) if isinstance(factor.get("inputs"), dict) else []
         if isinstance(source_keys, list):
             source_text = ", ".join(str(source) for source in source_keys if source)
         else:
             source_text = "none"
+        claim_text = ", ".join(str(claim_id) for claim_id in claim_ids if claim_id) or "none"
         lines.append(
-            f"- {factor['factor']}: score={factor['score']} source={source_text or 'none'}"
+            f"- {factor['factor']}: score={factor['score']} source={source_text or 'none'} claims={claim_text}"
         )
     return "\n".join(lines)
 

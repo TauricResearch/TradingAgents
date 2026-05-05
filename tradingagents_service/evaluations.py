@@ -37,6 +37,12 @@ DEFAULT_RUBRIC_DEFINITION: dict[str, Any] = {
             "min_pass_score": 80,
             "checks": ["quality status", "critical findings", "overall evidentiary posture"],
         },
+        {
+            "key": "claim_traceability",
+            "label": "Claim traceability",
+            "min_pass_score": 80,
+            "checks": ["claim graph coverage", "claim-to-source linkage", "claim-backed factor evidence"],
+        },
     ],
     "labels": ["accept", "accept_with_notes", "needs_revision", "insufficient_evidence", "reject"],
     "frontier_model_contract": {
@@ -117,6 +123,9 @@ def compute_shadow_run_evaluation(
     cited_source_ids = source_summary.get("cited_source_ids") or []
     raw_tool_ids = source_summary.get("raw_tool_output_ids") or []
     cited_raw_ids = [source_id for source_id in cited_source_ids if source_id in set(raw_tool_ids)]
+    claim_count = int(source_summary.get("claim_count") or 0)
+    claim_source_ids = source_summary.get("claim_source_ids") or []
+    claim_backed_factor_count = int(source_summary.get("claim_backed_factor_count") or 0)
 
     evidence_score = 100.0
     if valid_source_ids and not cited_source_ids:
@@ -161,7 +170,21 @@ def compute_shadow_run_evaluation(
         if "target_profile_not_addressed" in warning_codes:
             target_profile_score = 35.0
 
-    decision_readiness_score = min(evidence_score, ticker_scope_score, scorecard_score, target_profile_score)
+    claim_traceability_score = 100.0
+    if claim_count == 0 and (valid_source_ids or raw_tool_ids):
+        claim_traceability_score = 10.0
+    elif claim_count and not claim_source_ids:
+        claim_traceability_score = 0.0
+    elif claim_count and claim_backed_factor_count == 0:
+        claim_traceability_score = 35.0
+
+    decision_readiness_score = min(
+        evidence_score,
+        ticker_scope_score,
+        scorecard_score,
+        target_profile_score,
+        claim_traceability_score,
+    )
     if quality_status == "failed":
         decision_readiness_score = min(decision_readiness_score, 20.0)
     elif quality_status == "warning":
@@ -211,6 +234,17 @@ def compute_shadow_run_evaluation(
                 "target_profile": target_profile,
             },
         ),
+        _score(
+            "claim_traceability",
+            claim_traceability_score,
+            "heuristic",
+            "Checks whether extracted claims are linked to source IDs and backed by the deterministic scorecard.",
+            {
+                "claim_count": claim_count,
+                "claim_source_ids": claim_source_ids,
+                "claim_backed_factor_count": claim_backed_factor_count,
+            },
+        ),
     ]
     overall = round(sum(row.score for row in score_rows) / len(score_rows), 2)
     label = _label_for(overall=overall, error_codes=error_codes)
@@ -226,6 +260,9 @@ def compute_shadow_run_evaluation(
             "no_explicit_source_reference",
             "pre_synthesis_scope_contamination",
             "scorecard_reconciliation_missing",
+            "missing_claim_graph_evidence",
+            "unlinked_claim_evidence",
+            "scorecard_claim_backing_missing",
             "target_profile_not_addressed",
         }
     )

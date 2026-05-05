@@ -127,6 +127,7 @@ This scorecard is an audit scaffold, not an instruction to trade. Reconcile your
 
 Be decisive and ground every conclusion in specific evidence from the analysts.
 Every material claim must cite at least one structured source ID.
+When you rely on a specific claim from the claim graph, cite its claim ID inline as well, for example [CLAIM-MARKET-001].
 When raw tool output sources are available, cite at least one RAW-TOOL source ID in the final decision.
 If your final rating or directional posture differs from the deterministic audit scorecard, explicitly explain why using the word "scorecard" in that reconciliation.
 If the target profile is present, explain why this recommendation fits that investor, horizon, benchmark, and risk appetite.

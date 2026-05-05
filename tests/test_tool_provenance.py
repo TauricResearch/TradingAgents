@@ -162,17 +162,20 @@ def test_quality_fails_when_raw_tool_sources_are_uncited() -> None:
 
 
 def test_quality_warns_when_expected_raw_tool_provenance_missing() -> None:
+    final_state = {
+        "market_report": "Market analyst report shows mixed momentum.",
+        "source_objects": [{"source_id": "SRC-MARKET-1", "source_type": "market"}],
+        "raw_tool_provenance_expected": True,
+    }
+    registry = build_source_registry(final_state)
+    final_state["claim_graph"] = build_claim_graph(final_state, registry)
     assessment = assess_shadow_run_quality(
         ticker="NVDA",
         final_trade_decision="Rating: Hold. Momentum is mixed [SRC-MARKET-1].",
-        final_state={
-            "market_report": "Market analyst report shows mixed momentum.",
-            "source_objects": [{"source_id": "SRC-MARKET-1", "source_type": "market"}],
-            "raw_tool_provenance_expected": True,
-        },
+        final_state=final_state,
     )
 
-    assert assessment.status == "warning"
+    assert assessment.status == "failed"
     assert "missing_raw_tool_provenance" in {finding.code for finding in assessment.findings}
 
 
@@ -197,7 +200,7 @@ def test_recommendation_scorecard_uses_six_named_factors() -> None:
         "risk_posture",
         "macro_regime",
     ]
-    assert scorecard["method"].startswith("seven-factor")
+    assert scorecard["method"].startswith("claim-backed deterministic audit model")
     assert scorecard["factors"][0]["inputs"]["matched_positive_terms"] == [
         "uptrend",
         "breakout",
@@ -219,12 +222,16 @@ def test_pre_synthesis_scope_audit_detects_unrelated_report_entity() -> None:
 
 def test_source_registry_and_claim_graph_build_structured_evidence() -> None:
     final_state = {
-        "market_report": "Uptrend breakout above resistance with strong momentum.",
-        "news_report": "Positive news beat expectations.",
+        "market_report": "Momentum remains strong [SRC-MARKET-1]. Momentum is weak and bearish [RAW-TOOL-0001].",
+        "news_report": "Positive news beat expectations [SRC-NEWS-1].",
         "sentiment_report": "Analyst sentiment remains constructive.",
         "fundamentals_report": "Revenue growth and cash flow are improving.",
+        "source_objects": [
+            {"source_id": "SRC-MARKET-1", "source_type": "market", "state_key": "market_report", "label": "Market analyst report"},
+            {"source_id": "SRC-NEWS-1", "source_type": "news", "state_key": "news_report", "label": "News analyst report"},
+        ],
         "raw_tool_outputs": [
-            {"source_id": "RAW-TOOL-0001", "tool_name": "get_stock_data", "output": "close data"}
+            {"source_id": "RAW-TOOL-0001", "tool_name": "get_stock_data", "output": "volatility is elevated"}
         ],
     }
     registry = build_source_registry(final_state)
@@ -232,9 +239,24 @@ def test_source_registry_and_claim_graph_build_structured_evidence() -> None:
     skills = build_skill_registry(final_state, registry, claims)
 
     assert "SRC-MARKET-1" in registry["source_index"]
-    assert registry["source_summary"]["source_count"] >= 4
-    assert claims["claim_count"] >= 1
-    assert claims["claim_source_ids"]
+    assert "RAW-TOOL-0001" in registry["source_index"]
+    assert registry["source_summary"]["source_count"] >= 3
+    assert claims["claim_count"] >= 4
+    assert set(claims["claim_source_ids"]) >= {"RAW-TOOL-0001", "SRC-MARKET-1", "SRC-NEWS-1"}
+    assert claims["claim_summary"]["claim_count"] == claims["claim_count"]
+    assert claims["claim_summary"]["claim_source_count"] == len(claims["claim_source_ids"])
+    assert claims["claim_summary"]["counterevidence_claim_count"] >= 1
+    assert claims["claim_summary"]["source_backed_claim_count"] == claims["claim_count"]
+    market_claim = next(claim for claim in claims["claim_objects"] if claim["text"].startswith("Momentum remains strong"))
+    bearish_claim = next(claim for claim in claims["claim_objects"] if claim["text"].startswith("Momentum is weak"))
+    assert market_claim["source_ids"] == ["SRC-MARKET-1"]
+    assert market_claim["evidence_type"] == "inline_citation"
+    assert bearish_claim["source_ids"] == ["RAW-TOOL-0001"]
+    assert bearish_claim["counterevidence_claim_ids"]
+    assert "RAW-TOOL-0001" in claims["source_registry"]["source_claim_index"]
+    assert bearish_claim["claim_id"] in claims["source_registry"]["source_claim_index"]["RAW-TOOL-0001"]
+    assert bearish_claim["claim_id"] in claims["source_registry"]["source_index"]["RAW-TOOL-0001"]["claim_ids"]
+    assert set(claims["source_registry"]["claim_source_ids"]) == set(claims["claim_source_ids"])
     assert len(skills["skills"]) == 7
     assert validate_source_citations(registry, ["SRC-MARKET-1"]) == []
     assert validate_source_citations(registry, ["SRC-UNKNOWN-1"]) == ["SRC-UNKNOWN-1"]
