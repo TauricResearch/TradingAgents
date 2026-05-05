@@ -138,8 +138,9 @@ app.route("/api/workflow", workflowRouter);
 app.route("/api/portfolio/intelligence", intelligenceRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
-import { handlePortfolioSummary } from "./routes/portfolio.ts";
+import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.ts";
 app.get("/api/portfolio/summary", handlePortfolioSummary);
+app.get("/api/portfolio/summary/html", handlePortfolioSummaryHtml);
 
 // ── Start ──────────────────────────────────────────────────
 
