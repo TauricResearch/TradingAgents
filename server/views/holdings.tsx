@@ -110,16 +110,15 @@ function holdingsScript(): string {
     var pts = values.map(function(v, i) {
       var x = (i / (n - 1)) * W;
       var y = H - ((v - min) / range) * H;
-      return x.toFixed(1) + "," + y.toFixed(1);
-    }).join(" ");
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
     var last = values[n - 1];
     var first = values[0];
-    var color = last >= first ? "#22c55e" : "#ef4444";
-    return "<svg width=\"" + W + "\" height=\"" + H + "\" viewBox=\"" + W + " " + H + "\"" +
-           " style=\"overflow:visible; display:block;\">" +
-           "<polyline points=\"" + pts + "\" fill=\"none\" stroke=\"" + color + "\"" +
-           " stroke-width=\"1.5\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/>" +
-           "</svg>";
+    var color = last >= first ? '#22c55e' : '#ef4444';
+    var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible;display:block">' +
+               '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+               '</svg>';
+    return svg;
   }
 
   function renderPositions(result) {
