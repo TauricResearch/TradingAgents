@@ -10,7 +10,7 @@ import { portfolioRouter } from "./routes/portfolio.ts";
 import { analysisRouter } from "./routes/analysis.ts";
 import { signalsRouter } from "./routes/signals.ts";
 import { pricesRouter } from "./routes/prices.ts";
-import { analysesRouter } from "./routes/analyses.ts";
+import { analysesRouter } from "./routes/analyses/index.ts";
 import { holdingsRouter } from "./routes/holdings.tsx";
 import { exitsRouter } from "./routes/exits.ts";
 import { prospectsRouter } from "./routes/prospects.ts";
