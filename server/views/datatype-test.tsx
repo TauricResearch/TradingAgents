@@ -50,13 +50,13 @@ export function DatatypeTestView() {
         <pre id="font-info">Loading…</pre>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: testScript() }} />
+      <TestScript />
     </>
   );
 }
 
-function testScript(): string {
-  return `
+function TestScript() {
+  return <script>{`
 // Check if the font loaded and has the right features
 document.fonts.ready.then(function() {
   var info = document.getElementById('font-info');
@@ -73,6 +73,6 @@ document.fonts.ready.then(function() {
     entries.push('font-variation-settings: ' + cs.fontVariationSettings);
   }
 
-  info.textContent = entries.join('\\n');
-});`;
+  info.textContent = entries.join('\n');
+});`}</script>;
 }
