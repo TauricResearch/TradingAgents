@@ -5,24 +5,23 @@ export function HistoryView() {
     <>
       <section class="panel">
         <h3>Past Analyses</h3>
-        <table id="analyses-table">
-          <thead>
-            <tr><th class="date-col">Date</th><th>Ticker</th><th></th></tr>
-          </thead>
-          <tbody id="analyses-body">
-            <tr><td colspan={5} class="muted">Loading…</td></tr>
-          </tbody>
-        </table>
+        <div id="history-content">
+          <table id="analyses-table">
+            <thead>
+              <tr><th class="date-col">Date</th><th>Ticker</th><th>Decision</th><th>Platform</th><th></th></tr>
+            </thead>
+            <tbody
+              id="analyses-body"
+              hx-get="/api/analyses/list/html"
+              hx-target="this"
+              hx-trigger="load"
+            >
+              <tr><td colspan={5} class="muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
-
-      <section class="panel" id="analysis-detail" style="display:none">
-        <button class="btn-sm" data-action="closeAnalysisDetail">← Back to list</button>
-        <div id="analysis-card"></div>
-        <div id="analysis-full" style="display:none"><div id="analysis-content"></div></div>
-      </section>
-
-      <script src="/static/scripts/history.js" />
     </>
-  );
+  )
 }
 
