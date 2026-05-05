@@ -99,16 +99,27 @@ function holdingsScript(): string {
     return '<span class="freshness fresh-old" title="No recent data (\\u003e' + Math.floor(diffDays) + ' days)">\\u{1F534}</span>';
   }
 
+  // SVG sparklines — no font dependency, renders identically everywhere
   function renderSparkline(values) {
-    if (!values || values.length === 0) return '<span class="sparkline-muted">\\u2014</span>';
+    if (!values || values.length === 0) return '<span class="sparkline-muted">\u2014</span>';
+    var W = 80, H = 24;
     var min = Math.min.apply(null, values);
     var max = Math.max.apply(null, values);
     var range = max - min || 1;
-    var encoded = values.map(function(v) {
-      return Math.round(((v - min) / range) * 100);
-    }).join(',');
-    return '<span class="datatype" style="font-feature-settings:\\'calt\\' 1,\\'liga\\' 1">' +
-           '{l:' + encoded + '}</span>';
+    var n = values.length;
+    var pts = values.map(function(v, i) {
+      var x = (i / (n - 1)) * W;
+      var y = H - ((v - min) / range) * H;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    var last = values[n - 1];
+    var first = values[0];
+    var color = last >= first ? "#22c55e" : "#ef4444";
+    return "<svg width=\"" + W + "\" height=\"" + H + "\" viewBox=\"" + W + " " + H + "\"" +
+           " style=\"overflow:visible; display:block;\">" +
+           "<polyline points=\"" + pts + "\" fill=\"none\" stroke=\"" + color + "\"" +
+           " stroke-width=\"1.5\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/>" +
+           "</svg>";
   }
 
   function renderPositions(result) {
