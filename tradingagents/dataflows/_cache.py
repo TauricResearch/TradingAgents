@@ -26,7 +26,7 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+import time
 from pathlib import Path
 from threading import Lock
 from typing import Callable
@@ -61,7 +61,7 @@ def _make_key(func_name: str, args: tuple, kwargs: dict) -> str:
 def _is_fresh(path: Path, ttl_seconds: int) -> bool:
     if ttl_seconds <= 0:
         return False
-    age = datetime.now().timestamp() - path.stat().st_mtime
+    age = time.time() - path.stat().st_mtime
     return age < ttl_seconds
 
 
@@ -73,6 +73,10 @@ def simple_parquet_cache(kind: str) -> Callable:
         def wrapper(*args, **kwargs) -> pd.DataFrame:
             from .config import get_config
 
+            path: Path | None = None
+            lock: Lock | None = None
+
+            # Phase 1: try to serve from cache (fail-open on any cache infra error)
             try:
                 config = get_config()
                 ttl = int(config.get("cache_ttl", {}).get(kind, 0))
@@ -91,23 +95,32 @@ def simple_parquet_cache(kind: str) -> Callable:
                             return pd.read_parquet(path)
                         except Exception as e:
                             logger.warning("cache read failed for %s: %s", path, e)
-
-                result = func(*args, **kwargs)
-
-                if isinstance(result, pd.DataFrame) and not result.empty:
-                    tmp = path.with_suffix(".parquet.tmp")
-                    try:
-                        with lock:
-                            result.to_parquet(tmp, compression="snappy")
-                            os.replace(tmp, path)
-                    except Exception as e:
-                        logger.warning("cache write failed for %s: %s", path, e)
-                        if tmp.exists():
-                            tmp.unlink(missing_ok=True)
-                return result
             except Exception as e:
-                logger.warning("simple_parquet_cache bypass: %s", e)
-                return func(*args, **kwargs)
+                logger.warning("simple_parquet_cache read bypass: %s", e)
+                path = None  # disable write-back if read path itself failed
+
+            # Phase 2: call the wrapped function — exceptions propagate naturally
+            result = func(*args, **kwargs)
+
+            # Phase 3: try to persist non-empty DataFrame results (fail-open)
+            if (
+                path is not None
+                and lock is not None
+                and isinstance(result, pd.DataFrame)
+                and not result.empty
+            ):
+                tmp = path.with_suffix(".parquet.tmp")
+                try:
+                    with lock:
+                        result.to_parquet(tmp, compression="snappy")
+                        os.replace(tmp, path)
+                except Exception as e:
+                    logger.warning("cache write failed for %s: %s", path, e)
+                    try:
+                        tmp.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+            return result
 
         return wrapper
 

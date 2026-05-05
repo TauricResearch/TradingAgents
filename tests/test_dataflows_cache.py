@@ -1,4 +1,11 @@
 # Copyright 2026 herald.k, HongSoo Kim
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+
 """Unit tests for tradingagents.dataflows._cache.simple_parquet_cache."""
 
 import time
@@ -109,3 +116,19 @@ def test_corrupt_file_falls_open(temp_cache_dir):
 
     out = fetch("X")
     assert len(out) == 3
+
+
+def test_func_exception_is_not_swallowed_or_retried(temp_cache_dir):
+    """If the wrapped function raises, the exception must propagate immediately
+    without a silent retry — earlier bug doubled API calls when cache was active."""
+    calls = {"n": 0}
+
+    @simple_parquet_cache(kind="ohlcv")
+    def fetch(x):
+        calls["n"] += 1
+        raise RuntimeError("network down")
+
+    with pytest.raises(RuntimeError, match="network down"):
+        fetch("X")
+
+    assert calls["n"] == 1, "function should be called exactly once"
