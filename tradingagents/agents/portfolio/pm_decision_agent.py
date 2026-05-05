@@ -158,7 +158,7 @@ class _PMBaseModel(BaseModel):
 class ForensicReport(_PMBaseModel):
     """Audit trail for the PM's decision confidence and risk posture."""
 
-    regime_alignment: str
+    regime_alignment: Literal["macro-aligned", "sector-aligned", "regime-divergent", "uncorrelated"]
     key_risks: list[str]
     decision_confidence: Literal["high", "medium", "low"]
     position_sizing_rationale: str
@@ -276,6 +276,11 @@ def create_pm_decision_agent(
             "Sum of (shares*entry_price) across BUYs MUST NOT EXCEED "
             "max_total_buy_notional shown in Portfolio Constraints. "
             "Do not buy a ticker absent from Input B (candidate summaries). "
+            "IMPORTANT OUTPUT CONSTRAINTS: "
+            "The forensic_report.regime_alignment field MUST use exactly one of: "
+            "[\"macro-aligned\", \"sector-aligned\", \"regime-divergent\", \"uncorrelated\"]. "
+            "Do NOT generate descriptive phrases, portmanteau terms, or compound strings for this field. "
+            "If the alignment is unclear, use \"uncorrelated\". "
             "Output JSON only.\n\n"
             f"{context}"
         )

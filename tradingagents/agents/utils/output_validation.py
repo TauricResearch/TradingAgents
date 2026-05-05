@@ -794,6 +794,46 @@ def build_sentiment_report_structured(
     }
 
 
+def _compute_insider_net_balance(claims: list[dict]) -> dict | None:
+    """Compute net insider buy/sell balance from a list of news claims.
+    
+    Scans claim text for insider transaction keywords and attempts to extract
+    share counts via regex. Falls back to counting mentions (1 per event)
+    if no numeric share count is found.
+    
+    Returns None if no insider activity detected.
+    """
+    buy_shares = 0
+    sell_shares = 0
+    for claim in (claims or []):
+        text = str(claim.get("claim") or "").lower()
+        if not any(kw in text for kw in ("insider", "director", "executive", "officer", "ceo", "cfo", "coo")):
+            continue
+        # Try to extract share count from text: "10,000 shares" or "10000 shares"
+        share_match = re.search(r"([\d,]+)\s*shares?", text)
+        if share_match:
+            try:
+                shares = abs(int(share_match.group(1).replace(",", "")))
+            except (ValueError, TypeError):
+                shares = 1
+        else:
+            shares = 1  # count as 1 mention if no explicit count
+        
+        if any(w in text for w in ("buy", "bought", "purchase", "purchas", "acquir")):
+            buy_shares += shares
+        elif any(w in text for w in ("sell", "sold", "liquidat", "divest")):
+            sell_shares += shares
+    
+    if buy_shares == 0 and sell_shares == 0:
+        return None
+    return {
+        "buy_shares": buy_shares,
+        "sell_shares": sell_shares,
+        "net_shares": buy_shares - sell_shares,
+        "bias": "bullish" if buy_shares > sell_shares else "bearish" if sell_shares > buy_shares else "neutral",
+    }
+
+
 def build_news_report_structured(
     *,
     ticker: str,
@@ -906,6 +946,7 @@ def build_news_report_structured(
                 evidence_id = str(claim.get("evidence_id") or "").strip()
                 if evidence_id:
                     output_claim["evidence_id"] = evidence_id
+                output_claim["verified"] = "scan_sourced"
             else:
                 # Article claims: require non-empty evidence_id, include published_at, strip scan_date
                 published_at = str(claim.get("published_at") or "").strip()
@@ -932,6 +973,7 @@ def build_news_report_structured(
                 output_claim["published_at"] = published_at
                 output_claim["evidence_id"] = evidence_id
                 # scan_date is stripped for non-scanner claims
+                output_claim["verified"] = True
 
             output_claims.append(output_claim)
 
@@ -1048,6 +1090,7 @@ def build_news_report_structured(
                 "removed_claims": removed_count,
                 "below_min_claims": below_min_claims,
             },
+            "insider_activity": _compute_insider_net_balance(output_claims),
         }
 
     except Exception as e:

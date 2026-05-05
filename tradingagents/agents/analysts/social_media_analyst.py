@@ -75,7 +75,12 @@ def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"
             '- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.\n'
             "- Focus on sentiment polarity shifts and volume-weighted signal strength.\n"
-            "- Separate verified corporate actions from speculative social chatter.\n\n"
+            "- Separate verified corporate actions from speculative social chatter.\n"
+            "- **OUTPUT COMPLETENESS**: Your output MUST include at minimum 3 sentences describing the current sentiment signal — even if signals are weak or neutral. \"No data available\" is not acceptable. State: (1) the directional bias (bullish/bearish/neutral), (2) the primary evidence, (3) the confidence level and key risk to your assessment.\n"
+            "- **REQUIRED SENTIMENT FORMAT**: You MUST include exactly one of the following declaration lines near the top of your report — this is parsed downstream:\n"
+            "  - `Sentiment direction: BULLISH`\n"
+            "  - `Sentiment direction: BEARISH`\n"
+            "  - `Sentiment direction: NEUTRAL`\n\n"
             "Using the pre-loaded sentiment signals, write a comprehensive report covering:\n"
             "- **Sentiment momentum**: is the tone improving, deteriorating, or stable over the "
             "period? What is the direction of travel heading into the trade date?\n"
@@ -142,6 +147,12 @@ def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
                 raise invoke_error
 
         report = result.content or ""
+        if not report.strip():
+            report = (
+                f"{ticker} Sentiment: No strong social sentiment signals detected for this period. "
+                f"Directional bias: neutral. Primary evidence: insufficient headline coverage or neutral polarity scores. "
+                f"Confidence: LOW — treat sentiment dimension as uninformative for this instrument."
+            )
         is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         structured = build_sentiment_report_structured(
             ticker=ticker,

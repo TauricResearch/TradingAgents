@@ -57,7 +57,7 @@ class _StructuredLLM:
                 portfolio_thesis="No execution in test.",
                 risk_summary="No risk in test.",
                 forensic_report={
-                    "regime_alignment": "risk-on",
+                    "regime_alignment": "macro-aligned",
                     "key_risks": [],
                     "decision_confidence": "high",
                     "position_sizing_rationale": "test",
@@ -67,7 +67,7 @@ class _StructuredLLM:
         return RunnableLambda(_invoke)
 
 
-def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents():
+def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents(tmp_path):
     capture: dict[str, str] = {}
 
     def _macro_llm(prompt_value):
@@ -84,7 +84,10 @@ def test_portfolio_graph_preserves_portfolio_state_fields_for_summary_agents():
         "review_holdings": lambda _state: {"holding_reviews": "{}", "sender": "review_holdings"},
         "macro_summary": create_macro_summary_agent(RunnableLambda(_macro_llm)),
         "micro_summary": create_micro_summary_agent(RunnableLambda(_micro_llm)),
-        "pm_decision": create_pm_decision_agent(_StructuredLLM(capture)),
+        "pm_decision": create_pm_decision_agent(
+            _StructuredLLM(capture),
+            config={"circuit_breaker_state_path": str(tmp_path / "cb.json")},
+        ),
     }
 
     graph = PortfolioGraphSetup(

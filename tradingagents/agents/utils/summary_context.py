@@ -113,6 +113,89 @@ def _format_news_structured(structured: object) -> str:
     return "\n".join(line for line in lines if _has_value_after_colon(line))
 
 
+def _fundamentals_risk_block(state: dict) -> str:
+    """Extract mandated metrics from fundamentals_report text for RM/Trader/risk debaters.
+
+    The fundamentals analyst prompt requires these exact lines:
+      "P/E ratio: <val>x", "D/E ratio: <val>", "Free cash flow: <pct> YoY",
+      "Operating margin: <pct>", "Current ratio: <val>", "Working capital: <$val>"
+
+    Patterns also cover minor deviations (no colon, "price-to-earnings", etc.)
+    """
+    import re as _re
+
+    fund_text = str(state.get("fundamentals_report") or "").lower()
+    if not fund_text:
+        return ""
+
+    lines = []
+
+    # P/E ratio — mandated: "P/E ratio: 83.2x"
+    # Also catches: "price-to-earnings: 83", "pe ratio of 83", "p/e: 83"
+    pe = _re.search(
+        r"(?:p/?e|price.to.earnings)\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?",
+        fund_text,
+    )
+    if pe:
+        lines.append(f"- P/E: {pe.group(1)}x")
+
+    # D/E ratio — mandated: "D/E ratio: 15.63"
+    # Also catches: "debt-to-equity: 15.6", "d/e: 15", "debt/equity ratio 15"
+    de = _re.search(
+        r"(?:d/?e|debt.to.equity|debt/equity)\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)",
+        fund_text,
+    )
+    if de:
+        lines.append(f"- D/E: {de.group(1)}")
+
+    # FCF — mandated: "Free cash flow: -73% YoY"
+    # Also catches: "free cash flow fell -73%", "fcf: -73%", "fcf margin -73"
+    fcf = _re.search(
+        r"(?:free\s+cash\s+flow|fcf)[^.\n]{0,40}?([+-]?[0-9]+(?:\.[0-9]+)?%)",
+        fund_text,
+    )
+    if fcf:
+        lines.append(f"- FCF: {fcf.group(1)}")
+
+    # Operating margin — mandated: "Operating margin: -3.0%"
+    # Also catches: "operating margin of -3%", "op margin: -3"
+    op = _re.search(
+        r"op(?:erating)?\s+margin[:\s]+([+-]?[0-9]+(?:\.[0-9]+)?%?)",
+        fund_text,
+    )
+    if op:
+        lines.append(f"- Operating Margin: {op.group(1)}")
+
+    # Current ratio — mandated: "Current ratio: 0.70"
+    # Also catches: "current ratio of 0.7", "current ratio 0.70"
+    cr = _re.search(
+        r"current\s+ratio[:\s]+([0-9]+(?:\.[0-9]+)?)",
+        fund_text,
+    )
+    if cr:
+        lines.append(f"- Current Ratio: {cr.group(1)}")
+
+    # Working capital — mandated: "Working capital: $2.3B (negative)"
+    # Also catches: "working capital of -$2.3b", "working capital: negative $2.3b"
+    wc = _re.search(
+        r"working\s+capital[:\s]+([^.\n]{1,50}?)(?:\s*\(|\s*$|\.|,)",
+        fund_text,
+    )
+    if wc:
+        val = wc.group(1).strip()
+        if val and any(c.isdigit() for c in val):
+            lines.append(f"- Working Capital: {val}")
+
+    if not lines:
+        return ""
+    return (
+        "### Fundamentals Risk Metrics (extracted)\n"
+        + "\n".join(lines)
+        + "\n\nNOTE: If any metric above is severely negative or deteriorating, "
+        "it MUST be addressed explicitly before issuing a BUY recommendation."
+    )
+
+
 def build_debate_evidence_brief(state: AgentState) -> str:
     """Build a compact evidence brief for debaters from structured contracts.
 
@@ -148,13 +231,30 @@ def build_debate_evidence_brief(state: AgentState) -> str:
         if lines:
             sections.append("## Market\n" + "\n".join(lines))
 
-    # Fundamentals structured: excerpt + section availability
+    # Fundamentals structured: excerpt + key valuation metrics + section availability
     fund_s = state.get("fundamentals_report_structured")
     if isinstance(fund_s, dict):
         lines = []
         excerpt = str(fund_s.get("report_excerpt") or "").strip()
         if excerpt:
             lines.append(excerpt)
+        # Extract worst-case valuation metrics from the full fundamentals report text
+        # so debaters see hard numbers (PE, D/E, FCF) rather than just section availability
+        fund_report_text = str(state.get("fundamentals_report") or "").lower()
+        if fund_report_text:
+            import re as _re
+            # PE ratio (e.g. "P/E: 83.2x" or "pe ratio of 83")
+            pe_match = _re.search(r"p/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?", fund_report_text)
+            # Debt-to-equity (e.g. "D/E: 15.6" or "debt.to.equity.*15")
+            de_match = _re.search(r"d/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)", fund_report_text)
+            # Free cash flow margin (e.g. "FCF: -73%" or "free cash flow.*-73")
+            fcf_match = _re.search(r"free\s+cash\s+flow[^.\n]{0,30}?(-?[0-9]+(?:\.[0-9]+)?%)", fund_report_text)
+            if pe_match:
+                lines.append(f"- P/E: {pe_match.group(1)}x")
+            if de_match:
+                lines.append(f"- D/E: {de_match.group(1)}")
+            if fcf_match:
+                lines.append(f"- FCF margin: {fcf_match.group(1)}")
         prefetch = fund_s.get("prefetch") or {}
         if isinstance(prefetch, dict):
             present = prefetch.get("present_sections") or []
@@ -274,6 +374,11 @@ def build_research_packet(state: AgentState) -> str:
         compact = _compact_lines(str(raw_value or ""), max_lines=max_lines, max_chars=max_chars)
         if compact:
             sections.append(f"{header}\n{compact}")
+
+    # Add fundamentals risk metrics block if present
+    fundamentals_risk = _fundamentals_risk_block(state)
+    if fundamentals_risk:
+        sections.append(fundamentals_risk)
 
     return "\n\n".join(sections).strip()
 

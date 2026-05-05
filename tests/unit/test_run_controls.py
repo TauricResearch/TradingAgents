@@ -244,11 +244,12 @@ def test_submit_phase3_decision_retries_selected_tickers(monkeypatch):
         coro.close()
 
     def _fake_run_auto_phase3_decision(
-        execution_run_id: str, params: dict, retry_tickers: list[str]
+        execution_run_id: str, params: dict, retry_tickers: list[str], pending_decision: dict
     ):
         captured["execution_run_id"] = execution_run_id
         captured["params"] = params
         captured["retry_tickers"] = retry_tickers
+        captured["pending_decision"] = pending_decision
         return _gen()
 
     monkeypatch.setattr(runs_route, "_set_run_task", _fake_set_run_task)

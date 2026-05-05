@@ -2526,6 +2526,7 @@ class LangGraphEngine:
         run_id: str,
         params: dict[str, Any],
         retry_tickers: list[str],
+        pending_decision: dict[str, Any],
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Resolve an auto-run Phase 2 pause by retrying selected tickers or continuing."""
         root_run_id = _root_run_id(run_id, params)
@@ -2533,12 +2534,9 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = bool(params.get("force", False))
         store = create_report_store(run_id=root_run_id)
-        from agent_os.backend.store import runs as live_runs
 
-        run_record = live_runs.get(root_run_id) or {}
-        pending = run_record.get("pending_phase3_decision") or {}
-        incomplete = pending.get("incomplete_tickers") or []
-        portfolio_id = pending.get("portfolio_id") or params.get("portfolio_id", "main_portfolio")
+        incomplete = pending_decision.get("incomplete_tickers") or []
+        portfolio_id = pending_decision.get("portfolio_id") or params.get("portfolio_id", "main_portfolio")
         self._start_run_logger(root_run_id, logger_key=execution_key)
 
         try:
@@ -2564,6 +2562,8 @@ class LangGraphEngine:
                     "Phase 2/3: retrying selected incomplete ticker(s): "
                     + ", ".join(sorted(retry_tickers))
                 )
+                scan_data = store.load_scan(date)
+                macro_brief = json.dumps(scan_data) if scan_data else ""
                 for ticker in retry_tickers:
                     if run_should_stop(root_run_id):
                         logger.info(
@@ -2573,15 +2573,24 @@ class LangGraphEngine:
                         yield system_log("Aborting retry due to graceful stop request.")
                         raise asyncio.CancelledError()
                     item = incomplete_map[ticker]
+
+                    # Load analyst reports from first run to skip re-analyzing
+                    analysts_ckpt = store.load_analysts_checkpoint(date, ticker)
+                    retry_params = {
+                        "ticker": ticker,
+                        "date": date,
+                        "run_id": root_run_id,
+                        "macro_brief": macro_brief,
+                        "portfolio_context": item.get("portfolio_context", "candidate"),
+                        "_execution_key": f"{root_run_id}:decision-retry:{ticker}",
+                    }
+                    if analysts_ckpt:
+                        # Inject all prior analyst reports to resume from market_regime_check_node
+                        retry_params.update(analysts_ckpt)
+
                     async for evt in self.run_pipeline(
                         f"{root_run_id}:decision-retry:{ticker}",
-                        {
-                            "ticker": ticker,
-                            "date": date,
-                            "run_id": root_run_id,
-                            "portfolio_context": item.get("portfolio_context", "candidate"),
-                            "_execution_key": f"{root_run_id}:decision-retry:{ticker}",
-                        },
+                        retry_params,
                     ):
                         yield evt
 
@@ -2620,10 +2629,10 @@ class LangGraphEngine:
                             "portfolio_id": portfolio_id,
                             "incomplete_tickers": remaining_incomplete,
                             "completed_tickers": sorted(
-                                set((pending.get("completed_tickers") or []) + completed_tickers)
+                                set((pending_decision.get("completed_tickers") or []) + completed_tickers)
                             ),
                             "aborted_tickers": sorted(
-                                set((pending.get("aborted_tickers") or []) + aborted_tickers)
+                                set((pending_decision.get("aborted_tickers") or []) + aborted_tickers)
                             ),
                             "scheduler_error": None,
                         }
