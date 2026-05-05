@@ -184,6 +184,57 @@ benchmarkRouter.get("/", async (c) => {
   }
 })
 
+/** GET /api/benchmark/table — portfolio vs. benchmark as HTML for HTMX */
+benchmarkRouter.get("/table", async (c) => {
+  try {
+    const benchmark = c.req.query("ticker") || process.env.BENCHMARK || "VWCE.DE"
+    const { total: portfolioValue } = await getLivePortfolioValue()
+    const prices = await fetchBenchmarkPrices(benchmark)
+    const periodReturns = computePeriodReturns(prices, portfolioValue)
+    return c.html(buildBenchmarkHtml(benchmark, portfolioValue, periodReturns))
+  } catch (e: unknown) {
+    return c.html(
+      `<div class="error-card"><strong>Benchmark error</strong><br>${(e as Error).message}</div>`,
+      500,
+    )
+  }
+})
+
+function buildBenchmarkHtml(
+  ticker: string,
+  currentValue: number,
+  periodReturns: PeriodReturn[],
+): string {
+  let html = '<div class="benchmark-summary">'
+  html += `<div>Portfolio value: \u00a3${currentValue.toFixed(2)} <span class="muted">(base: GBP, live prices)</span></div>`
+  html += `<div>Benchmark: ${ticker}</div>`
+  html += "</div>"
+
+  if (periodReturns.length > 0) {
+    html += '<table class="data-table"><thead><tr>'
+    html += "<th>Period</th><th>Portfolio</th><th>Benchmark</th><th>Alpha</th>"
+    html += "</tr></thead><tbody>"
+
+    for (const r of periodReturns) {
+      const pClass = r.portfolioPct >= 0 ? "positive" : "negative"
+      const bClass = r.benchmarkPct >= 0 ? "positive" : "negative"
+      const aClass = r.alpha >= 0 ? "positive" : "negative"
+
+      html += "<tr>"
+      html += `<td>${r.period}</td>`
+      html += `<td class="${pClass}">${r.portfolioPct >= 0 ? "+" : ""}${r.portfolioPct.toFixed(1)}%</td>`
+      html += `<td class="${bClass}">${r.benchmarkPct >= 0 ? "+" : ""}${r.benchmarkPct.toFixed(1)}%</td>`
+      html += `<td class="${aClass}">${r.alpha >= 0 ? "+" : ""}${r.alpha.toFixed(1)}%</td>`
+      html += "</tr>"
+    }
+    html += "</tbody></table>"
+  } else {
+    html += '<div class="muted">Insufficient benchmark data (need at least 3 months)</div>'
+  }
+
+  return html
+}
+
 function computePeriodReturns(
   benchmarkPrices: BenchmarkPrice[],
   _currentPortfolioValue: number,
