@@ -19,13 +19,28 @@
 
 ---
 
+## Architecture Invariants (Non-Negotiable)
+
+These rules are enforced by `scripts/check-view-scripts.ts`. `just check` will fail if any are violated.
+
+| Invariant | Enforcement |
+|---|---|
+| **No inline scripts in views** | `check-view-scripts.ts` scans `server/views/*.tsx` for `<script>` without `src`, `dangerouslySetInnerHTML`, and `function xxxScript()` |
+| **serveStatic locked to `./server/static`** | `check-view-scripts.ts` verifies `server/index.tsx` contains `root: "./server/static"` |
+| **HTML partials over JSON for display views** | Any view that just shows data must use `hx-get` to an `/api/.../html` route |
+| **Client JS only in `server/static/scripts/*.js`** | Interactivity that HTMX cannot handle goes in external files, loaded via `<script src>` |
+
+**If `just check` fails, you cannot commit. Fix the view first.**
+
+---
+
 ## Rule 0: Always start with JSX
 
 **If you need to render HTML, start with a JSX component. Always.**
 
 Do not reach for string concatenation, template literals, or `dangerouslySetInnerHTML`. JSX is the first tool, not the last resort.
 
-**Correct pattern:**
+**Correct pattern — server-rendered HTML:**
 ```typescript
 // Route returns JSX component as HTML
 holdingsRouter.get("/positions/html", async (c) => {
@@ -42,13 +57,29 @@ export function PositionsTable({ positions }: { positions: PositionRow[] }) {
 }
 ```
 
-**Wrong pattern:**
+**Correct pattern — client-side JS (when HTMX can't handle it):**
+```typescript
+// Put the JS in server/static/scripts/xxx.js, reference with <script src>
+export function AnalysisView() {
+  return (
+    <>
+      <section class="panel">...</section>
+      <script src="/static/scripts/analysis.js" />
+    </>
+  );
+}
+```
+
+**Wrong pattern — banned:**
 ```typescript
 // ❌ Building HTML strings with innerHTML
 el.innerHTML = '<table>' + rows.map(...).join('') + '</table>';
+
+// ❌ Inline script via dangerouslySetInnerHTML — non-cacheable, duplicated
+<script dangerouslySetInnerHTML={{ __html: someScript() }} />
 ```
 
-The only exception: very small inline scripts with no user input (e.g. `onclick` handlers for a single button). Even then, prefer a separate JSX component.
+**No exceptions for `<script>` blocks.** If a view needs client-side behaviour, use an external `.js` file. See `playbooks/htmx-playbook.md` → "Client-Side JS: External Files, Not Inline".
 
 ---
 
