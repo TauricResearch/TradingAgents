@@ -223,6 +223,7 @@ logs/
 # Local configuration and secrets
 .env.*
 !.env.example
+tradingagents.local.json
 *.local
 *.local.*
 
