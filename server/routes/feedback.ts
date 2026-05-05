@@ -1,9 +1,9 @@
-import { Hono } from "hono"
-import { computeSignalAccuracy, loadPostMortems } from "../lib/feedback.ts"
-import { DatabaseFactory } from "../lib/db.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
-import { dirname, join } from "node:path"
 import { spawn } from "node:child_process"
+import { dirname, join } from "node:path"
+import { Hono } from "hono"
+import { endOfToday, priceCache } from "../lib/cache.ts"
+import { DatabaseFactory } from "../lib/db.ts"
+import { computeSignalAccuracy, loadPostMortems } from "../lib/feedback.ts"
 
 export const feedbackRouter = new Hono()
 
@@ -73,7 +73,13 @@ interface TickerCorrelation {
     pnl_gbp: number | null
     pnl_pct: number | null
   } | null
-  signalOutcome: "buy_success" | "buy_failure" | "sell_success" | "sell_failure" | "hold" | "no_position"
+  signalOutcome:
+    | "buy_success"
+    | "buy_failure"
+    | "sell_success"
+    | "sell_failure"
+    | "hold"
+    | "no_position"
   latestSignal: string
   outcomePct: number | null
 }
@@ -85,7 +91,10 @@ function findProjectRoot(): string {
   return projectRoot
 }
 
-interface PriceResult { price: number | null; currency: string }
+interface PriceResult {
+  price: number | null
+  currency: string
+}
 
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   const now = Date.now()
@@ -101,7 +110,9 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
       timeout: 12_000,
     })
     let stdout = ""
-    child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+    child.stdout.on("data", (d: Buffer) => {
+      stdout += d.toString()
+    })
     child.on("close", () => {
       try {
         const data = JSON.parse(stdout.trim())
@@ -122,13 +133,17 @@ feedbackRouter.get("/with-positions", async (c) => {
   const db = DatabaseFactory.get()
 
   // Fetch all open positions and signals
-  const positions = db.query(
-    "SELECT id, ticker, platform, quantity, avg_cost, entry_date, thesis, status FROM positions WHERE status = 'open'",
-  ).all() as DbPosition[]
+  const positions = db
+    .query(
+      "SELECT id, ticker, platform, quantity, avg_cost, entry_date, thesis, status FROM positions WHERE status = 'open'",
+    )
+    .all() as DbPosition[]
 
-  const signals = db.query(
-    "SELECT id, ticker, platform, date, signal, reasoning, confidence, created_at FROM signals ORDER BY date DESC",
-  ).all() as DbSignal[]
+  const signals = db
+    .query(
+      "SELECT id, ticker, platform, date, signal, reasoning, confidence, created_at FROM signals ORDER BY date DESC",
+    )
+    .all() as DbSignal[]
 
   if (signals.length === 0 && positions.length === 0) {
     return c.json({ correlations: [], summary: { total: 0, accurate: 0, accuracy: 0 } })
@@ -154,11 +169,10 @@ feedbackRouter.get("/with-positions", async (c) => {
   const allTickers = [...new Set([...signalsByTicker.keys(), ...positions.map((p) => p.ticker)])]
   const priceData = new Map<string, PriceResult>()
   await Promise.all(
-    allTickers.map(
-      (t) =>
-        fetchPriceForTicker(t).then((r) => {
-          priceData.set(t, r)
-        }),
+    allTickers.map((t) =>
+      fetchPriceForTicker(t).then((r) => {
+        priceData.set(t, r)
+      }),
     ),
   )
 
@@ -221,8 +235,10 @@ feedbackRouter.get("/with-positions", async (c) => {
             entry_date: pos.entry_date,
             thesis: pos.thesis,
             avg_cost: pos.avg_cost,
-            current_price_gbp: currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
-            current_value_gbp: currentValueGbp != null ? Math.round(currentValueGbp * 100) / 100 : null,
+            current_price_gbp:
+              currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
+            current_value_gbp:
+              currentValueGbp != null ? Math.round(currentValueGbp * 100) / 100 : null,
             pnl_gbp: pnlGbp != null ? Math.round(pnlGbp * 100) / 100 : null,
             pnl_pct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
           }

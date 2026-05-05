@@ -79,15 +79,27 @@ holdingsRouter.get("/positions", async (c) => {
          ORDER BY platform, ticker`,
       )
       .all() as Array<{
-        id: number; ticker: string; exchange: string; platform: string;
-        quantity: number; avg_cost: number; entry_date: string; thesis: string; status: string;
-      }>
+      id: number
+      ticker: string
+      exchange: string
+      platform: string
+      quantity: number
+      avg_cost: number
+      entry_date: string
+      thesis: string
+      status: string
+    }>
 
     // Batch-load exit plans
-    const exitPlans = new Map<string, {
-      price: number; thesis: string; time_stop: string;
-      targets: Array<{ price: number }>;
-    }>()
+    const exitPlans = new Map<
+      string,
+      {
+        price: number
+        thesis: string
+        time_stop: string
+        targets: Array<{ price: number }>
+      }
+    >()
     for (const p of positions) {
       const plan = loadPlan(p.ticker, p.platform)
       if (plan) {
@@ -120,11 +132,11 @@ holdingsRouter.get("/positions", async (c) => {
         .all(p.ticker) as Array<{ date: string; close: number }>
 
       const SPARK_POINTS = 20
-      let sparkline: number[] = []
+      const sparkline: number[] = []
       if (allBars.length > 0) {
         const step = Math.max(1, Math.floor(allBars.length / SPARK_POINTS))
-        for (let i = 0; i < Math.min(SPARK_POINTS, allBars.length); i++) {
-          sparkline.push(allBars[Math.min(i * step, allBars.length - 1)]!.close)
+        for (let i = 0; i < SPARK_POINTS && i * step < allBars.length; i++) {
+          sparkline.push(allBars[i * step]?.close ?? 0)
         }
       }
 
@@ -132,9 +144,10 @@ holdingsRouter.get("/positions", async (c) => {
       const costBasis = p.avg_cost * p.quantity
       const currentValue = currentPrice !== null ? currentPrice * p.quantity : null
       const pnl = currentValue !== null ? currentValue - costBasis : null
-      const pnlPct = costBasis > 0 && currentValue !== null
-        ? ((currentValue - costBasis) / costBasis) * 100
-        : null
+      const pnlPct =
+        costBasis > 0 && currentValue !== null
+          ? ((currentValue - costBasis) / costBasis) * 100
+          : null
 
       // Stop status
       const exitPlan = exitPlans.get(`${p.ticker}:${p.platform}`)

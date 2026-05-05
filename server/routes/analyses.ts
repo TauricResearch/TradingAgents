@@ -67,7 +67,9 @@ interface DbAnalysis {
 analysesRouter.get("/list", (c) => {
   const db = DatabaseFactory.get()
   const rows = db
-    .query("SELECT id, ticker, date, decision, platform, raw_state, created_at FROM analyses ORDER BY date DESC, id DESC")
+    .query(
+      "SELECT id, ticker, date, decision, platform, raw_state, created_at FROM analyses ORDER BY date DESC, id DESC",
+    )
     .all() as DbAnalysis[]
 
   const result = rows.map((r) => ({
@@ -91,7 +93,9 @@ analysesRouter.get("/:id", (c) => {
   const id = c.req.param("id")
   const db = DatabaseFactory.get()
   const row = db
-    .query("SELECT id, ticker, date, decision, platform, raw_state, created_at FROM analyses WHERE id = ?")
+    .query(
+      "SELECT id, ticker, date, decision, platform, raw_state, created_at FROM analyses WHERE id = ?",
+    )
     .get(parseInt(id, 10)) as DbAnalysis | undefined
 
   if (!row) {
@@ -117,7 +121,10 @@ analysesRouter.get("/:id", (c) => {
   // Raw state sections
   if (row.raw_state && row.raw_state !== "[]" && row.raw_state !== "") {
     try {
-      const events = JSON.parse(row.raw_state) as Array<{ type: string; data: Record<string, unknown> }>
+      const events = JSON.parse(row.raw_state) as Array<{
+        type: string
+        data: Record<string, unknown>
+      }>
       for (const event of events) {
         html += renderEventSection(event)
       }
@@ -143,8 +150,6 @@ function signalClass(signal: string): string {
   if (s.includes("sell") || s.includes("underweight")) return "status-sell"
   return "status-hold"
 }
-
-
 
 function renderEventSection(event: { type: string; data: Record<string, unknown> }): string {
   const t = event.type

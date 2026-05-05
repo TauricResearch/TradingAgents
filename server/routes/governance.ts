@@ -12,11 +12,10 @@
 import { Hono } from "hono"
 import {
   checkRules,
-  suggestRebalance,
+  getConfigPath,
   loadRules,
   loadRulesForPlatform,
-  getConfigPath,
-  DEFAULT_RULES,
+  suggestRebalance,
 } from "../lib/governance.ts"
 import { getHoldings } from "../lib/hledger.ts"
 
@@ -48,7 +47,16 @@ governanceRouter.get("/", async (c) => {
     const violations = checkRules(allocations, cashPct, portfolioValue, portfolioValue, rules)
     const suggestions = suggestRebalance(allocations, cashPct, rules)
 
-    return c.json({ rules, portfolioValue, cashPct, violations, suggestions, platforms: result.platforms, note: "hledger values are in native currencies (EUR/USD). Use /api/portfolio/intelligence for GBP-consistent totals.", baseCurrency: "mixed (EUR+USD)" })
+    return c.json({
+      rules,
+      portfolioValue,
+      cashPct,
+      violations,
+      suggestions,
+      platforms: result.platforms,
+      note: "hledger values are in native currencies (EUR/USD). Use /api/portfolio/intelligence for GBP-consistent totals.",
+      baseCurrency: "mixed (EUR+USD)",
+    })
   } catch (e: unknown) {
     return c.json({ error: "Governance check failed", detail: (e as Error).message }, 500)
   }
@@ -68,17 +76,19 @@ governanceRouter.get("/check", async (c) => {
     const { holdings, cash } = await getHoldings()
 
     // Filter holdings by platform if specified
-    const platformHoldings = platform === "default"
-      ? holdings
-      : holdings.filter((h) => h.platform === platform)
+    const platformHoldings =
+      platform === "default" ? holdings : holdings.filter((h) => h.platform === platform)
 
-    const platformCash = platform === "default"
-      ? cash
-      : cash.filter((c) => c.platform === platform)
+    const platformCash = platform === "default" ? cash : cash.filter((c) => c.platform === platform)
 
     if (platformHoldings.length === 0) {
       const rules = platform === "default" ? loadRules() : loadRulesForPlatform(platform)
-      return c.json({ violations: [], suggestions: [], note: `No holdings for platform: ${platform}`, rules })
+      return c.json({
+        violations: [],
+        suggestions: [],
+        note: `No holdings for platform: ${platform}`,
+        rules,
+      })
     }
 
     const totalCost = platformHoldings.reduce((s, h) => s + h.costBasis, 0)
@@ -97,7 +107,16 @@ governanceRouter.get("/check", async (c) => {
     const violations = checkRules(allocations, cashPct, portfolioValue, portfolioValue, rules)
     const suggestions = suggestRebalance(allocations, cashPct, rules)
 
-    return c.json({ platform, portfolioValue, cashPct, violations, suggestions, rules, note: "hledger values are in native currencies (EUR/USD). Use /api/portfolio/intelligence for GBP-consistent totals.", baseCurrency: "mixed (EUR+USD)" })
+    return c.json({
+      platform,
+      portfolioValue,
+      cashPct,
+      violations,
+      suggestions,
+      rules,
+      note: "hledger values are in native currencies (EUR/USD). Use /api/portfolio/intelligence for GBP-consistent totals.",
+      baseCurrency: "mixed (EUR+USD)",
+    })
   } catch (e: unknown) {
     return c.json({ error: "Governance check failed", detail: (e as Error).message }, 500)
   }

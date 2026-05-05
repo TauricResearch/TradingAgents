@@ -1,9 +1,9 @@
-import { Hono, Context } from "hono"
+import { spawn } from "node:child_process"
+import { dirname, join } from "node:path"
+import { type Context, Hono } from "hono"
+import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
 import { sanitizeForDb } from "../lib/sanitize.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
-import { join, dirname } from "node:path"
-import { spawn } from "node:child_process"
 
 export const portfolioRouter = new Hono()
 
@@ -122,7 +122,9 @@ interface PortfolioSummary {
  */
 export async function handlePortfolioSummary(c: Context): Promise<Response> {
   const db = DatabaseFactory.get()
-  const rows = db.query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker").all() as Array<{
+  const rows = db
+    .query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker")
+    .all() as Array<{
     id: number
     ticker: string
     exchange: string
@@ -134,7 +136,17 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
   }>
 
   if (rows.length === 0) {
-    return c.json({ positions: [], totals: { portfolio_value_gbp: 0, total_cost_gbp: 0, total_pnl_gbp: 0, total_pnl_pct: null, positions_count: 0 }, fx_rates: {} })
+    return c.json({
+      positions: [],
+      totals: {
+        portfolio_value_gbp: 0,
+        total_cost_gbp: 0,
+        total_pnl_gbp: 0,
+        total_pnl_pct: null,
+        positions_count: 0,
+      },
+      fx_rates: {},
+    })
   }
 
   // Unique tickers + FX pairs needed
@@ -158,11 +170,11 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
   }
 
   // Default rates if FX lookups failed (rough estimates)
-  if (!fxRates["GBPEUR"]) fxRates["GBPEUR"] = 1.18
-  if (!fxRates["GBPUSD"]) fxRates["GBPUSD"] = 1.27
+  if (!fxRates.GBPEUR) fxRates.GBPEUR = 1.18
+  if (!fxRates.GBPUSD) fxRates.GBPUSD = 1.27
 
-  const gbpPerEur = 1 / fxRates["GBPEUR"] // 1 EUR = X GBP
-  const gbpPerUsd = 1 / fxRates["GBPUSD"] // 1 USD = X GBP
+  const gbpPerEur = 1 / fxRates.GBPEUR // 1 EUR = X GBP
+  const gbpPerUsd = 1 / fxRates.GBPUSD // 1 USD = X GBP
 
   // Enrich each position
   let totalValue = 0
@@ -190,12 +202,12 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
     // Default: treat as GBP (no conversion).
     const quantity = p.quantity
     let costValueGbp = p.avg_cost * quantity
-    if (p.exchange === "US" && fxRates["GBPUSD"]) {
+    if (p.exchange === "US" && fxRates.GBPUSD) {
       // USD cost basis — convert to GBP
-      costValueGbp = (p.avg_cost * quantity) / fxRates["GBPUSD"]
-    } else if ((p.exchange === "XETRA" || p.exchange === "EUR") && fxRates["GBPEUR"]) {
+      costValueGbp = (p.avg_cost * quantity) / fxRates.GBPUSD
+    } else if ((p.exchange === "XETRA" || p.exchange === "EUR") && fxRates.GBPEUR) {
       // EUR cost basis — convert to GBP
-      costValueGbp = (p.avg_cost * quantity) / fxRates["GBPEUR"]
+      costValueGbp = (p.avg_cost * quantity) / fxRates.GBPEUR
     }
 
     const currentValueGbp = currentPriceGbp != null ? currentPriceGbp * quantity : null
@@ -245,9 +257,7 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
 
 // ── Batch price helper (inline to avoid circular imports) ─────────────────────
 
-async function batchFetchPrices(
-  tickers: string[],
-): Promise<Map<string, PriceData>> {
+async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceData>> {
   const results = new Map<string, PriceData>()
   const root = findProjectRoot()
   const script = join(root, "scripts", "get_price.py")
@@ -270,7 +280,9 @@ async function batchFetchPrices(
         })
 
         let stdout = ""
-        child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+        child.stdout.on("data", (d: Buffer) => {
+          stdout += d.toString()
+        })
         child.on("close", (_code) => {
           try {
             const data = JSON.parse(stdout.trim())
@@ -280,7 +292,7 @@ async function batchFetchPrices(
               priceCache.set(ticker, { price, expires: endOfToday() })
             }
             const history: { date: string; close: number }[] = (data.history ?? []).slice(-20)
-          resolve([ticker, { price, currency, history }])
+            resolve([ticker, { price, currency, history }])
           } catch {
             resolve([ticker, { price: null, currency: "USD", history: [] }])
           }

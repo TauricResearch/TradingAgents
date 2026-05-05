@@ -3,7 +3,6 @@
  */
 
 import { spawn } from "node:child_process"
-import { dirname, join } from "node:path"
 
 /**
  * Returns milliseconds until midnight UTC.
@@ -31,7 +30,7 @@ export const priceCache = new Map<string, { price: number | null; expires: numbe
 export function fetchPrice(
   ticker: string,
   getPriceScript: string,
-  root: string,
+  _root: string,
 ): Promise<number | null> {
   return new Promise((resolve) => {
     const now = Date.now()
@@ -53,12 +52,21 @@ export function fetchPrice(
       resolve(price)
     }
     let stdout = ""
-    child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+    child.stdout.on("data", (d: Buffer) => {
+      stdout += d.toString()
+    })
     setTimeout(() => finish(null), 8_000)
     child.on("close", (code) => {
-      if (code !== 0) { finish(null); return }
-      try { const data = JSON.parse(stdout.trim()); finish(data.price ?? null) }
-      catch { finish(null) }
+      if (code !== 0) {
+        finish(null)
+        return
+      }
+      try {
+        const data = JSON.parse(stdout.trim())
+        finish(data.price ?? null)
+      } catch {
+        finish(null)
+      }
     })
     child.on("error", () => finish(null))
   })

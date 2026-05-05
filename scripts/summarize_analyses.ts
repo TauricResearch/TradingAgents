@@ -14,16 +14,14 @@
  *   4. Write summary_*.json alongside the log file
  */
 
-import { readdirSync, readFileSync, writeFileSync, existsSync } from "fs";
-import { join, basename } from "path";
-import { homedir } from "os";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
-const LOGS_DIR =
-  process.env.TRADINGAGENTS_RESULTS_DIR ??
-  join(homedir(), ".tradingagents", "logs");
+const LOGS_DIR = process.env.TRADINGAGENTS_RESULTS_DIR ?? join(homedir(), ".tradingagents", "logs")
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = process.env.SUMMARY_MODEL ?? "openai/gpt-4.4-mini";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+const MODEL = process.env.SUMMARY_MODEL ?? "openai/gpt-4.4-mini"
 
 const SYSTEM_PROMPT = `You are a financial analyst explaining trading decisions in plain English.
 Given an analysis decision, extract these fields as JSON:
@@ -37,61 +35,59 @@ Given an analysis decision, extract these fields as JSON:
 - risks: key risk factors
 - plain_english: a 2-3 sentence explanation of what this means for an investor
 
-Respond with ONLY valid JSON. No markdown, no explanation.`;
+Respond with ONLY valid JSON. No markdown, no explanation.`
 
 // ─── File scanning ───────────────────────────────────────────────────────────
 
 interface AnalysisFile {
-  logFile: string;
-  summaryFile: string;
-  ticker: string;
-  date: string;
+  logFile: string
+  summaryFile: string
+  ticker: string
+  date: string
 }
 
 function findAnalyses(tickerFilter?: string): AnalysisFile[] {
   if (!existsSync(LOGS_DIR)) {
-    console.error(`Logs directory not found: ${LOGS_DIR}`);
-    return [];
+    console.error(`Logs directory not found: ${LOGS_DIR}`)
+    return []
   }
 
-  const results: AnalysisFile[] = [];
+  const results: AnalysisFile[] = []
   for (const tickerDir of readdirSync(LOGS_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .sort((a, b) => a.name.localeCompare(b.name))) {
-    if (tickerFilter && tickerDir.name !== tickerFilter) continue;
+    if (tickerFilter && tickerDir.name !== tickerFilter) continue
 
-    const logDir = join(LOGS_DIR, tickerDir.name, "TradingAgentsStrategy_logs");
-    if (!existsSync(logDir)) continue;
+    const logDir = join(LOGS_DIR, tickerDir.name, "TradingAgentsStrategy_logs")
+    if (!existsSync(logDir)) continue
 
     for (const logFile of readdirSync(logDir).sort()) {
-      if (!logFile.startsWith("full_states_log_") || !logFile.endsWith(".json")) continue;
-      const stem = logFile
-        .replace("full_states_log_", "")
-        .replace(".json", "");
-      const summaryFile = join(logDir, `summary_${stem}.json`);
+      if (!logFile.startsWith("full_states_log_") || !logFile.endsWith(".json")) continue
+      const stem = logFile.replace("full_states_log_", "").replace(".json", "")
+      const summaryFile = join(logDir, `summary_${stem}.json`)
       results.push({
         logFile: join(logDir, logFile),
         summaryFile,
         ticker: tickerDir.name,
         date: stem,
-      });
+      })
     }
   }
-  return results;
+  return results
 }
 
 // ─── LLM call ────────────────────────────────────────────────────────────────
 
 interface SummaryResult {
-  signal?: string;
-  confidence?: number;
-  position_size?: string;
-  entry_strategy?: string;
-  risk_management?: string;
-  time_horizon?: string;
-  catalysts?: string;
-  risks?: string;
-  plain_english?: string;
+  signal?: string
+  confidence?: number
+  position_size?: string
+  entry_strategy?: string
+  risk_management?: string
+  time_horizon?: string
+  catalysts?: string
+  risks?: string
+  plain_english?: string
 }
 
 async function generateSummary(
@@ -100,13 +96,13 @@ async function generateSummary(
   ticker: string,
   date: string,
 ): Promise<SummaryResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in .env");
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in .env")
 
   const userPrompt =
     `Analyse this trading decision for ${ticker} on ${date}.\n\n` +
     `Decision:\n${decision.slice(0, 2000)}\n\n` +
-    `Agent reports:\n${JSON.stringify(reports, null, 2).slice(0, 2000)}`;
+    `Agent reports:\n${JSON.stringify(reports, null, 2).slice(0, 2000)}`
 
   const payload = {
     model: MODEL,
@@ -116,7 +112,7 @@ async function generateSummary(
     ],
     temperature: 0.3,
     max_tokens: 800,
-  };
+  }
 
   const res = await fetch(OPENROUTER_URL, {
     method: "POST",
@@ -125,85 +121,79 @@ async function generateSummary(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
-  });
+  })
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body.slice(0, 200)}`);
+    const body = await res.text()
+    throw new Error(`API error ${res.status}: ${body.slice(0, 200)}`)
   }
 
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content ?? "";
+  const data = await res.json()
+  const content = data?.choices?.[0]?.message?.content ?? ""
 
-  if (!content) throw new Error("Empty response from LLM");
+  if (!content) throw new Error("Empty response from LLM")
 
   try {
-    return JSON.parse(content);
+    return JSON.parse(content)
   } catch {
-    return { plain_english: content };
+    return { plain_english: content }
   }
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
-const args = Bun.argv.slice(3); // skip bun, script path
-const tickerFilter = args.includes("--ticker")
-  ? args[args.indexOf("--ticker") + 1]
-  : undefined;
-const regenerateAll = args.includes("--all");
+const args = Bun.argv.slice(3) // skip bun, script path
+const tickerFilter = args.includes("--ticker") ? args[args.indexOf("--ticker") + 1] : undefined
+const regenerateAll = args.includes("--all")
 
 async function main() {
-  const analyses = findAnalyses(tickerFilter);
+  const analyses = findAnalyses(tickerFilter)
   if (analyses.length === 0) {
-    console.log("No analyses found.");
-    return;
+    console.log("No analyses found.")
+    return
   }
 
-  console.log(`Found ${analyses.length} analyses\n`);
-  let done = 0, skipped = 0, errors = 0;
+  console.log(`Found ${analyses.length} analyses\n`)
+  let done = 0,
+    skipped = 0,
+    errors = 0
 
   for (const { logFile, summaryFile, ticker, date } of analyses) {
     if (!regenerateAll && existsSync(summaryFile)) {
-      console.log(`  SKIP ${ticker} ${date} (cached)`);
-      skipped++;
-      continue;
+      console.log(`  SKIP ${ticker} ${date} (cached)`)
+      skipped++
+      continue
     }
 
-    process.stdout.write(`  PROCESS ${ticker} ${date} ... `);
+    process.stdout.write(`  PROCESS ${ticker} ${date} ... `)
 
     try {
-      const state = JSON.parse(readFileSync(logFile, "utf8")) as Record<string, unknown>;
+      const state = JSON.parse(readFileSync(logFile, "utf8")) as Record<string, unknown>
 
-      const decision = String(state.final_trade_decision ?? "");
+      const decision = String(state.final_trade_decision ?? "")
 
-      const reports: Record<string, string> = {};
+      const reports: Record<string, string> = {}
       for (const [key, value] of Object.entries(state)) {
-        if (
-          typeof value === "string" &&
-          key.endsWith("_report") &&
-          value.length > 0
-        ) {
-          reports[key.replace("_report", "")] = value.slice(0, 1000);
+        if (typeof value === "string" && key.endsWith("_report") && value.length > 0) {
+          reports[key.replace("_report", "")] = value.slice(0, 1000)
         }
       }
 
-      const summary = await generateSummary(decision, reports, ticker, date);
-      writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
+      const summary = await generateSummary(decision, reports, ticker, date)
+      writeFileSync(summaryFile, JSON.stringify(summary, null, 2))
 
-      console.log(
-        `OK (${summary.signal ?? "?"}, conf ${summary.confidence ?? "?"})`,
-      );
-      done++;
+      console.log(`OK (${summary.signal ?? "?"}, conf ${summary.confidence ?? "?"})`)
+      done++
 
       // Rate limit: sleep 1s between calls
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000))
     } catch (e) {
-      console.error(`ERROR: ${e}`);
-      errors++;
+      console.error(`ERROR: ${e}`)
+      errors++
     }
   }
 
-  console.log(`\nDone: ${done} generated, ${skipped} cached, ${errors} errors`);
+  console.log(`\nDone: ${done} generated, ${skipped} cached, ${errors} errors`)
 }
 
-main();
+main()

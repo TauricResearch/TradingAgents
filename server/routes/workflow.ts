@@ -14,10 +14,10 @@
  */
 import { dirname, join } from "node:path"
 import { Hono } from "hono"
+import { fetchPrice } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
-import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
-import { priceCache, fetchPrice } from "../lib/cache.ts"
 import { getHoldings } from "../lib/hledger.ts"
+import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
 
 export const workflowRouter = new Hono()
 
@@ -44,8 +44,14 @@ workflowRouter.get("/", async (c) => {
       "SELECT id, ticker, exchange, platform, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open' ORDER BY ticker",
     )
     .all() as Array<{
-    id: number; ticker: string; exchange: string; platform: string;
-    quantity: number; avg_cost: number; entry_date: string; thesis: string;
+    id: number
+    ticker: string
+    exchange: string
+    platform: string
+    quantity: number
+    avg_cost: number
+    entry_date: string
+    thesis: string
   }>
 
   const openPositions = rawPositions.filter((p) => hledgerPlatforms.has(p.platform))
@@ -76,21 +82,36 @@ workflowRouter.get("/", async (c) => {
   const approved = openPositions
     .filter((p) => !planSet.has(`${p.ticker}::${p.platform}`))
     .map((p) => ({
-      id: p.id, ticker: p.ticker, exchange: p.exchange,
-      platform: p.platform, quantity: p.quantity, avgCost: p.avg_cost,
-      entryDate: p.entry_date, thesis: p.thesis,
+      id: p.id,
+      ticker: p.ticker,
+      exchange: p.exchange,
+      platform: p.platform,
+      quantity: p.quantity,
+      avgCost: p.avg_cost,
+      entryDate: p.entry_date,
+      thesis: p.thesis,
     }))
 
   // HOLDINGS vs PENDING EXIT — split by urgency signal
   type ExitPlanData = {
-    entryPrice: number; invalidationPrice: number; invalidationThesis: string;
-    targets: unknown[]; timeStop: string | null;
-    timeStopDaysLeft?: number; targetsHit: number; distanceToStopPct: number;
+    entryPrice: number
+    invalidationPrice: number
+    invalidationThesis: string
+    targets: unknown[]
+    timeStop: string | null
+    timeStopDaysLeft?: number
+    targetsHit: number
+    distanceToStopPct: number
   }
   type PositionItem = {
-    id: number; ticker: string; platform: string; quantity: number;
-    avgCost: number; entryDate: string; thesis: string;
-    exitPlan: ExitPlanData;
+    id: number
+    ticker: string
+    platform: string
+    quantity: number
+    avgCost: number
+    entryDate: string
+    thesis: string
+    exitPlan: ExitPlanData
   }
   const holdings: PositionItem[] = []
   const pendingExit: PositionItem[] = []
@@ -99,15 +120,19 @@ workflowRouter.get("/", async (c) => {
     if (!planSet.has(`${p.ticker}::${p.platform}`)) continue
     const key = `${p.ticker}::${p.platform}`
     const status = exitStatuses.get(key)
-    const isUrgent = !!status && (
-      status.distanceToStopPct < 15 ||
-      (status.targetsHit ?? 0) > 0 ||
-      (status.timeStopDaysLeft ?? 999) < 30
-    )
+    const isUrgent =
+      !!status &&
+      (status.distanceToStopPct < 15 ||
+        (status.targetsHit ?? 0) > 0 ||
+        (status.timeStopDaysLeft ?? 999) < 30)
     const item: PositionItem = {
-      id: p.id, ticker: p.ticker, platform: p.platform,
-      quantity: p.quantity, avgCost: p.avg_cost,
-      entryDate: p.entry_date, thesis: p.thesis,
+      id: p.id,
+      ticker: p.ticker,
+      platform: p.platform,
+      quantity: p.quantity,
+      avgCost: p.avg_cost,
+      entryDate: p.entry_date,
+      thesis: p.thesis,
       exitPlan: {
         entryPrice: status?.plan.entry_price ?? p.avg_cost,
         invalidationPrice: status?.plan.invalidation?.price ?? 0,
@@ -129,8 +154,8 @@ workflowRouter.get("/", async (c) => {
       ? "Portfolio appears empty — hledger has no real holdings. " +
         "Add positions to hledger to see them in the workflow."
       : openPositions.length === 0
-      ? "No holdings in hledger. Portfolio is empty."
-      : undefined
+        ? "No holdings in hledger. Portfolio is empty."
+        : undefined
 
   return c.json({
     approved,

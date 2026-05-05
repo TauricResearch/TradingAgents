@@ -1,9 +1,9 @@
-import { Hono } from "hono"
-import { fetchBenchmarkPrices } from "../lib/benchmark.ts"
-import { DatabaseFactory } from "../lib/db.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
 import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
+import { Hono } from "hono"
+import { fetchBenchmarkPrices } from "../lib/benchmark.ts"
+import { endOfToday, priceCache } from "../lib/cache.ts"
+import { DatabaseFactory } from "../lib/db.ts"
 
 export const benchmarkRouter = new Hono()
 
@@ -29,9 +29,15 @@ interface PositionWithPrice extends PortfolioPosition {
   costValueGbp: number
 }
 
-async function getLivePortfolioValue(): Promise<{ total: number; positions: PositionWithPrice[]; fxRates: Record<string, number> }> {
+async function getLivePortfolioValue(): Promise<{
+  total: number
+  positions: PositionWithPrice[]
+  fxRates: Record<string, number>
+}> {
   const db = DatabaseFactory.get()
-  const rows = db.query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker").all() as PortfolioPosition[]
+  const rows = db
+    .query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker")
+    .all() as PortfolioPosition[]
 
   if (rows.length === 0) return { total: 0, positions: [], fxRates: {} }
 
@@ -49,11 +55,11 @@ async function getLivePortfolioValue(): Promise<{ total: number; positions: Posi
       fxRates[key] = data.price
     }
   }
-  if (!fxRates["GBPEUR"]) fxRates["GBPEUR"] = 1.18
-  if (!fxRates["GBPUSD"]) fxRates["GBPUSD"] = 1.27
+  if (!fxRates.GBPEUR) fxRates.GBPEUR = 1.18
+  if (!fxRates.GBPUSD) fxRates.GBPUSD = 1.27
 
-  const gbpPerEur = 1 / fxRates["GBPEUR"]
-  const gbpPerUsd = 1 / fxRates["GBPUSD"]
+  const gbpPerEur = 1 / fxRates.GBPEUR
+  const gbpPerUsd = 1 / fxRates.GBPUSD
 
   let total = 0
   const positions: PositionWithPrice[] = rows.map((p) => {
@@ -73,10 +79,10 @@ async function getLivePortfolioValue(): Promise<{ total: number; positions: Posi
 
     // Convert cost basis to GBP using entry-time FX
     let costValueGbp = p.avg_cost * p.quantity
-    if (p.exchange === "US" && fxRates["GBPUSD"]) {
-      costValueGbp = (p.avg_cost * p.quantity) / fxRates["GBPUSD"]
-    } else if ((p.exchange === "XETRA" || p.exchange === "EUR") && fxRates["GBPEUR"]) {
-      costValueGbp = (p.avg_cost * p.quantity) / fxRates["GBPEUR"]
+    if (p.exchange === "US" && fxRates.GBPUSD) {
+      costValueGbp = (p.avg_cost * p.quantity) / fxRates.GBPUSD
+    } else if ((p.exchange === "XETRA" || p.exchange === "EUR") && fxRates.GBPEUR) {
+      costValueGbp = (p.avg_cost * p.quantity) / fxRates.GBPEUR
     }
 
     const currentValueGbp = currentPriceGbp != null ? currentPriceGbp * p.quantity : null
@@ -93,7 +99,10 @@ async function getLivePortfolioValue(): Promise<{ total: number; positions: Posi
   return { total: Math.round(total * 100) / 100, positions, fxRates }
 }
 
-interface PriceResult { price: number | null; currency: string }
+interface PriceResult {
+  price: number | null
+  currency: string
+}
 
 async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceResult>> {
   const results = new Map<string, PriceResult>()
@@ -120,7 +129,9 @@ async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceRes
               timeout: 12_000,
             })
             let stdout = ""
-            child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+            child.stdout.on("data", (d: Buffer) => {
+              stdout += d.toString()
+            })
             child.on("close", () => {
               try {
                 const data = JSON.parse(stdout.trim())
@@ -177,10 +188,21 @@ benchmarkRouter.get("/", async (c) => {
   }
 })
 
-interface BenchmarkPrice { date: string; price: number }
-interface PeriodReturn { period: "3m" | "6m" | "1y"; portfolioPct: number; benchmarkPct: number; alpha: number }
+interface BenchmarkPrice {
+  date: string
+  price: number
+}
+interface PeriodReturn {
+  period: "3m" | "6m" | "1y"
+  portfolioPct: number
+  benchmarkPct: number
+  alpha: number
+}
 
-function computePeriodReturns(benchmarkPrices: BenchmarkPrice[], currentPortfolioValue: number): PeriodReturn[] {
+function computePeriodReturns(
+  benchmarkPrices: BenchmarkPrice[],
+  _currentPortfolioValue: number,
+): PeriodReturn[] {
   if (benchmarkPrices.length < 60) return []
 
   const latest = benchmarkPrices[benchmarkPrices.length - 1]

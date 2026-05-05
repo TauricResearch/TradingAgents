@@ -1,4 +1,4 @@
-import { Hono, Context } from "hono"
+import { Hono } from "hono"
 
 interface Signal {
   id?: number
@@ -10,11 +10,12 @@ interface Signal {
   confidence: number | null
   [key: string]: unknown
 }
+
+import { spawn } from "node:child_process"
+import { dirname, join } from "node:path"
+import { priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
 import { sanitizeForDb } from "../lib/sanitize.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
-import { dirname, join } from "node:path"
-import { spawn } from "node:child_process"
 
 export const signalsRouter = new Hono()
 
@@ -55,7 +56,7 @@ signalsRouter.get("/table", async (c) => {
   const ticker = c.req.query("ticker")
   const platform = c.req.query("platform")
 
-  let rows
+  let rows: unknown[]
   if (ticker && platform) {
     rows = db
       .query("SELECT * FROM signals WHERE ticker = ? AND platform = ? ORDER BY date DESC, id DESC")
@@ -128,7 +129,13 @@ signalsRouter.post("/", async (c) => {
   )
 
   return c.json(
-    { id: result.lastInsertRowid, ticker, platform: platform ?? "unknown", date: date ?? new Date().toISOString().slice(0, 10), signal: normalised },
+    {
+      id: result.lastInsertRowid,
+      ticker,
+      platform: platform ?? "unknown",
+      date: date ?? new Date().toISOString().slice(0, 10),
+      signal: normalised,
+    },
     201,
   )
 })
@@ -148,7 +155,9 @@ function findProjectRoot(): string {
   return projectRoot
 }
 
-async function batchFetchPricesWithHistory(tickers: string[]): Promise<Map<string, PriceWithHistory>> {
+async function batchFetchPricesWithHistory(
+  tickers: string[],
+): Promise<Map<string, PriceWithHistory>> {
   const results = new Map<string, PriceWithHistory>()
   if (tickers.length === 0) return results
 
@@ -176,7 +185,9 @@ async function batchFetchPricesWithHistory(tickers: string[]): Promise<Map<strin
               timeout: 12_000,
             })
             let stdout = ""
-            child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+            child.stdout.on("data", (d: Buffer) => {
+              stdout += d.toString()
+            })
             child.on("close", (code) => {
               if (code !== 0) {
                 resolve([ticker, { price: null, currency: "USD", history: [] }])
@@ -197,7 +208,9 @@ async function batchFetchPricesWithHistory(tickers: string[]): Promise<Map<strin
                 resolve([ticker, { price: null, currency: "USD", history: [] }])
               }
             })
-            child.on("error", () => resolve([ticker, { price: null, currency: "USD", history: [] }]))
+            child.on("error", () =>
+              resolve([ticker, { price: null, currency: "USD", history: [] }]),
+            )
           }),
       ),
     )

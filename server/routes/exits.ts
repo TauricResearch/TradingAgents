@@ -9,8 +9,8 @@
  */
 import { dirname, join } from "node:path"
 import { Hono } from "hono"
+import { fetchPrice } from "../lib/cache.ts"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
-import { priceCache, fetchPrice, endOfToday } from "../lib/cache.ts"
 
 export const exitsRouter = new Hono()
 

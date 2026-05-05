@@ -14,13 +14,14 @@
  *   - governance violations
  *   - cash % of portfolio
  */
-import { Hono } from "hono"
-import { getHoldings } from "../lib/hledger.ts"
-import { DatabaseFactory } from "../lib/db.ts"
-import { checkRules, suggestRebalance, loadRules } from "../lib/governance.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
+
 import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
+import { Hono } from "hono"
+import { endOfToday, priceCache } from "../lib/cache.ts"
+import { DatabaseFactory } from "../lib/db.ts"
+import { checkRules, loadRules, suggestRebalance } from "../lib/governance.ts"
+import { getHoldings } from "../lib/hledger.ts"
 
 export const intelligenceRouter = new Hono()
 
@@ -66,7 +67,10 @@ interface CashBalance {
   amount_gbp: number
 }
 
-interface PriceResult { price: number | null; currency: string }
+interface PriceResult {
+  price: number | null
+  currency: string
+}
 
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   const now = Date.now()
@@ -82,7 +86,9 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
       timeout: 12_000,
     })
     let stdout = ""
-    child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+    child.stdout.on("data", (d: Buffer) => {
+      stdout += d.toString()
+    })
     child.on("close", () => {
       try {
         const data = JSON.parse(stdout.trim())
@@ -131,13 +137,15 @@ function classifyTicker(ticker: string, exchange: string): string {
 intelligenceRouter.get("/", async (c) => {
   try {
     // 1. Fetch hledger cash (authoritative per-platform cash balances)
-    const { holdings: hlHoldings, cash: hlCash } = await getHoldings()
+    const { cash: hlCash } = await getHoldings()
 
     // 2. Fetch SQLite positions
     const db = DatabaseFactory.get()
-    const dbPositions = db.query(
-      "SELECT id, ticker, exchange, platform, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open'",
-    ).all() as DbPosition[]
+    const dbPositions = db
+      .query(
+        "SELECT id, ticker, exchange, platform, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open'",
+      )
+      .all() as DbPosition[]
 
     // 3. Compute live prices for all tickers + FX pairs
     const tickers = [...new Set(dbPositions.map((p) => p.ticker))]
@@ -158,7 +166,12 @@ intelligenceRouter.get("/", async (c) => {
       if (c.currency === "EUR") amountGbp = c.amount * gbpPerEur
       else if (c.currency === "USD") amountGbp = c.amount * gbpPerUsd
       // GBP stays as-is
-      list.push({ platform: c.platform, currency: c.currency, amount: c.amount, amount_gbp: amountGbp })
+      list.push({
+        platform: c.platform,
+        currency: c.currency,
+        amount: c.amount,
+        amount_gbp: amountGbp,
+      })
       cashByPlatform.set(c.platform, list)
     }
 
@@ -177,7 +190,8 @@ intelligenceRouter.get("/", async (c) => {
       // Cost basis in GBP
       let costValueGbp = p.avg_cost * p.quantity
       if (p.exchange === "US") costValueGbp = (p.avg_cost * p.quantity) / gbpUSD
-      else if (p.exchange === "XETRA" || p.exchange === "EUR") costValueGbp = (p.avg_cost * p.quantity) / gbpeur
+      else if (p.exchange === "XETRA" || p.exchange === "EUR")
+        costValueGbp = (p.avg_cost * p.quantity) / gbpeur
 
       const currentValueGbp = currentPriceGbp != null ? currentPriceGbp * p.quantity : null
       const pnlGbp = currentValueGbp != null ? currentValueGbp - costValueGbp : null
@@ -217,13 +231,14 @@ intelligenceRouter.get("/", async (c) => {
 
     const cashByPlatformGbp = new Map<string, number>()
     for (const [platform, balances] of cashByPlatform) {
-      cashByPlatformGbp.set(platform, balances.reduce((s, c) => s + c.amount_gbp, 0))
+      cashByPlatformGbp.set(
+        platform,
+        balances.reduce((s, c) => s + c.amount_gbp, 0),
+      )
     }
 
     // Group by platform
-    const allPlatforms = [
-      ...new Set([...positionsByPlatform.keys(), ...cashByPlatformGbp.keys()]),
-    ]
+    const allPlatforms = [...new Set([...positionsByPlatform.keys(), ...cashByPlatformGbp.keys()])]
 
     const platformAllocations = allPlatforms.map((platform) => {
       const pos = positionsByPlatform.get(platform) ?? []
@@ -237,7 +252,8 @@ intelligenceRouter.get("/", async (c) => {
         cash_gbp: Math.round(cashGbp * 100) / 100,
         position_value_gbp: Math.round(posValueGbp * 100) / 100,
         total_value_gbp: Math.round(totalGbp * 100) / 100,
-        weight_pct: absPortfolioGbp > 0 ? Math.round((totalGbp / absPortfolioGbp) * 10000) / 100 : 0,
+        weight_pct:
+          absPortfolioGbp > 0 ? Math.round((totalGbp / absPortfolioGbp) * 10000) / 100 : 0,
         cash_pct: totalGbp > 0 ? Math.round((cashGbp / totalGbp) * 10000) / 100 : 0,
       }
     })
@@ -254,10 +270,29 @@ intelligenceRouter.get("/", async (c) => {
       .reduce((s, p) => s + (p.current_value_gbp ?? p.cost_value_gbp), 0)
 
     const assetClassAllocation = [
-      { assetClass: "cash", value_gbp: Math.round(Math.abs(totalCashGbp) * 100) / 100, weight_pct: Math.abs(cashPct) },
-      { assetClass: "equity", value_gbp: Math.round(equityValueGbp * 100) / 100, weight_pct: absPortfolioGbp > 0 ? Math.round((equityValueGbp / absPortfolioGbp) * 10000) / 100 : 0 },
-      { assetClass: "etf", value_gbp: Math.round(etfValueGbp * 100) / 100, weight_pct: absPortfolioGbp > 0 ? Math.round((etfValueGbp / absPortfolioGbp) * 10000) / 100 : 0 },
-      { assetClass: "crypto", value_gbp: Math.round(cryptoValueGbp * 100) / 100, weight_pct: absPortfolioGbp > 0 ? Math.round((cryptoValueGbp / absPortfolioGbp) * 10000) / 100 : 0 },
+      {
+        assetClass: "cash",
+        value_gbp: Math.round(Math.abs(totalCashGbp) * 100) / 100,
+        weight_pct: Math.abs(cashPct),
+      },
+      {
+        assetClass: "equity",
+        value_gbp: Math.round(equityValueGbp * 100) / 100,
+        weight_pct:
+          absPortfolioGbp > 0 ? Math.round((equityValueGbp / absPortfolioGbp) * 10000) / 100 : 0,
+      },
+      {
+        assetClass: "etf",
+        value_gbp: Math.round(etfValueGbp * 100) / 100,
+        weight_pct:
+          absPortfolioGbp > 0 ? Math.round((etfValueGbp / absPortfolioGbp) * 10000) / 100 : 0,
+      },
+      {
+        assetClass: "crypto",
+        value_gbp: Math.round(cryptoValueGbp * 100) / 100,
+        weight_pct:
+          absPortfolioGbp > 0 ? Math.round((cryptoValueGbp / absPortfolioGbp) * 10000) / 100 : 0,
+      },
     ].filter((a) => a.value_gbp > 0)
 
     // 10. Governance check (per-platform)
@@ -281,9 +316,18 @@ intelligenceRouter.get("/", async (c) => {
     const overallAllocations = positionsWithValue.map((p) => ({
       ticker: p.ticker,
       value: p.current_value_gbp ?? p.cost_value_gbp,
-      weight: absPortfolioGbp > 0 ? ((p.current_value_gbp ?? p.cost_value_gbp) / absPortfolioGbp) * 100 : 0,
+      weight:
+        absPortfolioGbp > 0
+          ? ((p.current_value_gbp ?? p.cost_value_gbp) / absPortfolioGbp) * 100
+          : 0,
     }))
-    const overallViolations = checkRules(overallAllocations, cashPct, totalPortfolioGbp, totalPortfolioGbp, rules)
+    const overallViolations = checkRules(
+      overallAllocations,
+      cashPct,
+      totalPortfolioGbp,
+      totalPortfolioGbp,
+      rules,
+    )
     const overallSuggestions = suggestRebalance(overallAllocations, cashPct, rules)
 
     return c.json({
@@ -309,9 +353,6 @@ intelligenceRouter.get("/", async (c) => {
       governance_by_platform: governanceByPlatform,
     })
   } catch (e: unknown) {
-    return c.json(
-      { error: "Portfolio intelligence failed", detail: (e as Error).message },
-      500,
-    )
+    return c.json({ error: "Portfolio intelligence failed", detail: (e as Error).message }, 500)
   }
 })
