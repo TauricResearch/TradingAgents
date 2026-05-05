@@ -24,7 +24,9 @@ RUN addgroup --system --gid 1001 nextjs && adduser --system --uid 1001 nextjs
 # Standalone output bundles everything the runtime needs:
 COPY --from=builder --chown=nextjs:nextjs /build/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /build/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nextjs /build/public* ./public 2>/dev/null || true
+# We don't ship any static assets in /public yet, so no COPY for that.
+# Add it back as ``COPY --from=builder /build/public ./public`` if/when
+# /public has files (favicon, og-image, etc.).
 
 USER nextjs
 EXPOSE 3000
