@@ -2,35 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS variables are space-separated RGB integers (Tailwind alpha-slot form).
+   Hex/rgb() forms don't work because Tailwind plugs <alpha-value> directly
+   into the rgb() function in tailwind.config.ts. */
 :root {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --border: #30363d;
-  --muted: #8b949e;
-  --fg: #e6edf3;
-  --accent: #2f81f7;
-  --success: #3fb950;
-  --warning: #d29922;
-  --danger: #f85149;
+  --bg:      13  17  23;
+  --surface: 22  27  34;
+  --border:  48  54  61;
+  --muted:   139 148 158;
+  --fg:      230 237 243;
+  --accent:  47  129 247;
+  --success: 63  185  80;
+  --warning: 210 153  34;
+  --danger:  248  81  73;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #ffffff;
-    --surface: #f6f8fa;
-    --border: #d0d7de;
-    --muted: #57606a;
-    --fg: #1f2328;
-    --accent: #0969da;
-    --success: #2da44e;
-    --warning: #9a6700;
-    --danger: #cf222e;
+    --bg:      255 255 255;
+    --surface: 246 248 250;
+    --border:  208 215 222;
+    --muted:    87  96 106;
+    --fg:       31  35  40;
+    --accent:    9 105 218;
+    --success:  45 164  78;
+    --warning: 154 103   0;
+    --danger:  207  34  46;
   }
 }
 
 html, body {
-  background: var(--bg);
-  color: var(--fg);
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -44,14 +47,14 @@ html, body {
   }
   .btn-primary {
     @apply text-white border-transparent;
-    background: var(--accent);
+    background: rgb(var(--accent));
   }
   .btn-primary:hover {
     filter: brightness(1.1);
   }
   .btn-danger {
     @apply text-white border-transparent;
-    background: var(--danger);
+    background: rgb(var(--danger));
   }
   .input {
     @apply bg-bg border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none

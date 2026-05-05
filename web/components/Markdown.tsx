@@ -21,9 +21,9 @@ export function Markdown({ children }: { children: string | null | undefined }) 
         .prose-tight :global(li) { margin: 0.125rem 0; }
         .prose-tight :global(code) { background: rgba(127,127,127,0.18); padding: 0 0.25rem; border-radius: 3px; font-size: 0.875em; }
         .prose-tight :global(pre) { background: rgba(127,127,127,0.12); padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
-        .prose-tight :global(blockquote) { border-left: 3px solid var(--accent); padding-left: 0.75rem; color: var(--muted); margin: 0.5rem 0; }
+        .prose-tight :global(blockquote) { border-left: 3px solid rgb(var(--accent)); padding-left: 0.75rem; color: rgb(var(--muted)); margin: 0.5rem 0; }
         .prose-tight :global(table) { border-collapse: collapse; }
-        .prose-tight :global(th), .prose-tight :global(td) { border: 1px solid var(--border); padding: 0.25rem 0.5rem; }
+        .prose-tight :global(th), .prose-tight :global(td) { border: 1px solid rgb(var(--border)); padding: 0.25rem 0.5rem; }
         .prose-tight :global(strong) { font-weight: 600; }
       `}</style>
     </div>

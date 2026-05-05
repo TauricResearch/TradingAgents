@@ -111,18 +111,18 @@ export function ChartComparison({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+              <CartesianGrid stroke="rgb(var(--border))" strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
-                stroke="var(--muted)"
+                stroke="rgb(var(--muted))"
                 tick={{ fontSize: 11 }}
                 minTickGap={32}
               />
-              <YAxis stroke="var(--muted)" tick={{ fontSize: 11 }} domain={["auto", "auto"]} />
+              <YAxis stroke="rgb(var(--muted))" tick={{ fontSize: 11 }} domain={["auto", "auto"]} />
               <Tooltip
                 contentStyle={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
+                  background: "rgb(var(--surface))",
+                  border: "1px solid rgb(var(--border))",
                   borderRadius: 6,
                   fontSize: 12,
                 }}
@@ -130,9 +130,9 @@ export function ChartComparison({
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <ReferenceLine
                 x={tradeDate}
-                stroke="var(--accent)"
+                stroke="rgb(var(--accent))"
                 strokeDasharray="4 4"
-                label={{ value: "trade date", fontSize: 10, fill: "var(--muted)", position: "top" }}
+                label={{ value: "trade date", fontSize: 10, fill: "rgb(var(--muted))", position: "top" }}
               />
               {seriesNames.map((s, i) => (
                 <Line
@@ -141,7 +141,7 @@ export function ChartComparison({
                   dataKey={s}
                   stroke={colorForSeries(
                     s,
-                    s === ticker ? "var(--accent)" : `hsl(${i * 67}, 70%, 55%)`,
+                    s === ticker ? "rgb(var(--accent))" : `hsl(${i * 67}, 70%, 55%)`,
                   )}
                   dot={false}
                   strokeWidth={s === ticker ? 2 : 1.25}
