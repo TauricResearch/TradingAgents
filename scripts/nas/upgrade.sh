@@ -35,13 +35,16 @@ fi
 echo \"[upgrade] \$PRE -> \$POST\"
 git --no-pager log --oneline \$PRE..\$POST
 echo
-echo '[upgrade] rebuilding gui image…'
-docker compose build gui
-echo '[upgrade] restarting gui service…'
-docker compose up -d gui
+echo '[upgrade] rebuilding api + web images…'
+docker compose build api web
+echo '[upgrade] restarting api + web services…'
+docker compose up -d api web
 echo
-echo '[upgrade] last 30 log lines:'
-docker compose logs --tail=30 gui
+echo '[upgrade] api logs (last 20):'
+docker compose logs --tail=20 api
+echo
+echo '[upgrade] web logs (last 20):'
+docker compose logs --tail=20 web
 "
 
 echo

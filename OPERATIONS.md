@@ -7,6 +7,18 @@ to deploy, upgrade, or troubleshoot the NAS deployment.
 **Upstream:** https://github.com/TauricResearch/TradingAgents
 **NAS deployment target:** `/volume1/docker/tradingagents/` on `192.168.2.34`
 
+## Architecture (current)
+
+Three services in one Docker compose stack:
+
+| Service | Port | Purpose |
+|---|---|---|
+| `web` | 3000 | **Next.js frontend** — React UI, primary user interface |
+| `api` | 8000 | **FastAPI backend** — REST + WebSockets; powers the web UI |
+| `gui` | 8501 | **Streamlit (legacy)** — gated behind the `legacy` compose profile, only run when wanted as a fallback |
+
+Browser → `http://192.168.2.34:3000/` (web) → talks to `api:8000` over the Docker bridge network. Persistent data (SQLite, archives, exports, memory log) bind-mounted from `/volume1/docker/tradingagents/data/` into all three. CLI runs from the `tradingagents` service still work and share the same data dir.
+
 ---
 
 ## Layout on the NAS
@@ -278,3 +290,8 @@ which coexists with the persistent `data/` subdir without overwriting it.
   resolved: DSM 7 missing Authorized-Keys UI, non-interactive SSH PATH,
   Docker socket group ownership, pycairo native-build deps,
   `git clone` into non-empty directory.
+- **2026-05-05** — Migrated from Streamlit-only to Next.js + FastAPI
+  stack. New compose services `api` (8000) and `web` (3000); legacy
+  Streamlit `gui` service moved to a `legacy` profile. Same persistent
+  data dir, same SQLite schema, same archive format — UI is the only
+  thing that changed.

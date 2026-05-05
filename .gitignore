@@ -226,3 +226,9 @@ scripts/nas/credentials.local
 
 # Synology bind-mount target if developer mirrors it locally.
 data/
+
+# Next.js / web build artifacts.
+web/.next/
+web/node_modules/
+web/out/
+web/next-env.d.ts.bak

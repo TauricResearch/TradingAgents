@@ -1,7 +1,6 @@
 services:
   # ---- Original CLI service --------------------------------------------
-  # Run a one-shot analysis from the terminal:
-  #   docker compose run --rm tradingagents
+  # One-shot analysis from terminal: docker compose run --rm tradingagents
   tradingagents:
     build: .
     env_file:
@@ -11,14 +10,61 @@ services:
     tty: true
     stdin_open: true
 
-  # ---- Streamlit GUI service ------------------------------------------
-  # Long-running web UI on port 8501. Bind-mounts ./data so config,
-  # SQLite, run archives, and exports live on the host filesystem and
-  # survive container rebuilds.
-  #
-  # On Synology: clone this repo into /volume1/docker/tradingagents/ and
-  # ./data resolves to /volume1/docker/tradingagents/data/. See
-  # gui/DEPLOY.md for the full walkthrough including the permission step.
+  # ---- FastAPI backend (NEW primary service) --------------------------
+  # REST + WebSocket API. Powers the Next.js web UI and is also usable
+  # directly as the integration surface for any custom client.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: tradingagents-api
+    env_file:
+      - .env
+    environment:
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://192.168.2.34:3000,http://192.168.2.34}
+    ports:
+      - "${TRADINGAGENTS_API_PORT:-8000}:8000"
+    volumes:
+      - ./data:/home/appuser/.tradingagents
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # ---- Next.js web frontend (NEW primary UI) --------------------------
+  # Connects to the api service. ``API_URL`` is the *server-side* address
+  # the Next dev/standalone server uses for SSR; the browser hits the
+  # public address through the rewrite proxy.
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: tradingagents-web
+    environment:
+      - API_URL=http://api:8000
+      - NEXT_PUBLIC_WS_BASE=${NEXT_PUBLIC_WS_BASE:-ws://192.168.2.34:8000}
+    ports:
+      - "${TRADINGAGENTS_WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---- Streamlit GUI (LEGACY — kept as fallback during transition) ----
+  # Stays running so we have a known-good fallback while the new UI
+  # matures. Remove this block once you no longer need it.
   gui:
     build: .
     container_name: tradingagents-gui
@@ -36,10 +82,9 @@ services:
     volumes:
       - ./data:/home/appuser/.tradingagents
     restart: unless-stopped
+    profiles:
+      - legacy
     healthcheck:
-      # Streamlit exposes a /_stcore/health endpoint that returns "ok"
-      # once the server is fully booted. Python urllib avoids needing
-      # curl in the slim image.
       test:
         - CMD
         - python

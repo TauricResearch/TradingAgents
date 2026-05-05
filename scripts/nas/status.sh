@@ -24,7 +24,9 @@ echo '== compose ps =='
 docker compose ps
 echo
 echo '== container health =='
-docker inspect --format='State: {{.State.Status}} / Health: {{.State.Health.Status}} / Started: {{.State.StartedAt}}' tradingagents-gui 2>/dev/null || echo '(container not found)'
+for c in tradingagents-api tradingagents-web tradingagents-gui; do
+    docker inspect --format='{{.Name}}: {{.State.Status}} / Health: {{.State.Health.Status}} / Started: {{.State.StartedAt}}' \"\$c\" 2>/dev/null || echo \"\$c: (not running)\"
+done
 echo
 echo '== image =='
 docker image ls --format 'table {{.Repository}}\t{{.Tag}}\t{{.CreatedSince}}\t{{.Size}}' | head -3

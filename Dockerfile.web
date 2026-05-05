@@ -1,0 +1,32 @@
+# Next.js production image — multi-stage with `output: standalone`
+# to keep the final image small (~250MB instead of ~1GB).
+
+FROM node:20-alpine AS deps
+WORKDIR /build
+COPY web/package.json web/package-lock.json* ./
+# Use --no-audit --no-fund to keep build noise down; --omit=dev is
+# applied via npm ci's behavior with NODE_ENV=production at run time
+# but here we want devDeps because next CLI lives in there.
+RUN npm install --no-audit --no-fund --legacy-peer-deps
+
+FROM node:20-alpine AS builder
+WORKDIR /build
+COPY --from=deps /build/node_modules ./node_modules
+COPY web ./
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nextjs && adduser --system --uid 1001 nextjs
+
+# Standalone output bundles everything the runtime needs:
+COPY --from=builder --chown=nextjs:nextjs /build/.next/standalone ./
+COPY --from=builder --chown=nextjs:nextjs /build/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nextjs /build/public* ./public 2>/dev/null || true
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000 HOSTNAME=0.0.0.0
+CMD ["node", "server.js"]

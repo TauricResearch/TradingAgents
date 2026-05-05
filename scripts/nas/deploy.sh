@@ -102,44 +102,61 @@ chmod 600 .env || true
 echo '[deploy] .env present.'
 "
 
-# Step 3 — build the gui image
+# Step 3 — build the api + web images (the new stack)
 echo
-echo "[deploy] ----- step 3: build gui image -----"
-"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose build gui"
+echo "[deploy] ----- step 3: build api + web images -----"
+"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose build api web"
 
-# Step 4 — start the gui service
+# Step 4 — start the services
 echo
-echo "[deploy] ----- step 4: start gui -----"
-"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose up -d gui"
+echo "[deploy] ----- step 4: start api + web -----"
+"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose up -d api web"
 
-# Step 5 — wait for healthcheck + dump first 50 log lines
+# Step 5 — wait for healthchecks + dump logs
 echo
 echo "[deploy] ----- step 5: health + first logs -----"
 "$NAS_CMD" "set -e
 cd '$NAS_REPO_PATH'
-echo '[deploy] waiting up to 90s for healthcheck…'
-for i in \$(seq 1 30); do
-    status=\$(docker inspect --format='{{.State.Health.Status}}' tradingagents-gui 2>/dev/null || echo missing)
+echo '[deploy] waiting up to 120s for api healthcheck…'
+for i in \$(seq 1 40); do
+    status=\$(docker inspect --format='{{.State.Health.Status}}' tradingagents-api 2>/dev/null || echo missing)
     if [ \"\$status\" = healthy ]; then
-        echo '[deploy] healthy after ~'\$((i * 3))'s'
+        echo '[deploy] api healthy after ~'\$((i * 3))'s'
+        break
+    fi
+    sleep 3
+done
+echo '[deploy] waiting up to 60s for web healthcheck…'
+for i in \$(seq 1 20); do
+    status=\$(docker inspect --format='{{.State.Health.Status}}' tradingagents-web 2>/dev/null || echo missing)
+    if [ \"\$status\" = healthy ]; then
+        echo '[deploy] web healthy after ~'\$((i * 3))'s'
         break
     fi
     sleep 3
 done
 echo
-echo '[deploy] last 50 log lines:'
-docker compose logs --tail=50 gui
+echo '[deploy] last 30 log lines (api):'
+docker compose logs --tail=30 api
+echo
+echo '[deploy] last 30 log lines (web):'
+docker compose logs --tail=30 web
 "
 
 cat <<EOF
 
 [deploy] ----- done -----
-Web UI: http://${NAS_HOST}:${TRADINGAGENTS_GUI_PORT:-8501}/
+Web UI:   http://${NAS_HOST}:${TRADINGAGENTS_WEB_PORT:-3000}/
+API:      http://${NAS_HOST}:${TRADINGAGENTS_API_PORT:-8000}/docs
 
 Next:
-  1. Open the URL, go to **Settings**, paste at least one provider API key
-     (it's stored in $NAS_REPO_PATH/data/gui_config.json with mode 0600).
+  1. Open the Web UI, go to **Settings**, confirm provider API keys are
+     read from \$NAS_REPO_PATH/.env (env-set keys show as "env").
   2. Run a test analysis from the **Run** page.
-  3. For routine updates later, run: scripts/nas/upgrade.sh
+  3. For routine updates: scripts/nas/upgrade.sh
+
+The legacy Streamlit GUI on :8501 is gated behind the "legacy" compose
+profile and is no longer started by default. To bring it back as a
+fallback during transition: docker compose --profile legacy up -d gui
 
 EOF

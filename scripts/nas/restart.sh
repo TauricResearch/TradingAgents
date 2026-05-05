@@ -12,4 +12,5 @@ NAS_CMD="$DIR/nas-cmd.sh"
 source "$DIR/credentials.local" 2>/dev/null || true
 NAS_REPO_PATH="${NAS_REPO_PATH:-/volume1/docker/tradingagents}"
 
-"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose restart gui && docker compose logs --tail=20 gui"
+SERVICES="${SERVICES:-api web}"   # override with SERVICES="api" or SERVICES="web"
+"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose restart $SERVICES && docker compose logs --tail=20 $SERVICES"

@@ -13,4 +13,5 @@ source "$DIR/credentials.local" 2>/dev/null || true
 NAS_REPO_PATH="${NAS_REPO_PATH:-/volume1/docker/tradingagents}"
 
 ARGS="${*:---tail=100 --follow}"
-"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose logs $ARGS gui"
+SERVICE="${SERVICE:-api}"   # override with SERVICE=web ./logs.sh
+"$NAS_CMD" "cd '$NAS_REPO_PATH' && docker compose logs $ARGS $SERVICE"
