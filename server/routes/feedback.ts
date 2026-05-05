@@ -92,7 +92,6 @@ function findProjectRoot(): string {
   return projectRoot
 }
 
-
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   const now = Date.now()
   const cached = priceCache.get(ticker)

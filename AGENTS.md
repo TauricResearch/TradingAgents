@@ -153,7 +153,8 @@ TradingAgents/
 │   │   └── portfolio-intelligence.ts  │   Unified portfolio view (hledger cash + SQLite positions)
 │   ├── views/                 │   (12 .tsx views + partials/)
 │   │   └── intelligence.tsx   │   Portfolio Intelligence view
-│   └── static/                │   CSS, fonts, favicon
+│   └── static/                │   CSS, fonts, favicon, client-side JS
+│       └── scripts/           │   External client-side scripts (canonical runtime JS)
 │
 ├── scripts/                   ← TypeScript utilities (Bun native)
 │   ├── seed_database.ts       │   Seed SQLite + exit plans + post-mortems
@@ -201,7 +202,7 @@ TradingAgents/
 ### Known Failure Modes
 
 **Static JS copies of TypeScript = maintenance trap.**
-Do not copy `.ts` client-side scripts to `.js` files for serving. Biome lints `.js` files as JavaScript; TypeScript syntax causes parse errors. Two copies drift. Instead: keep scripts as `.ts` inline in views (typed, linted, colocated).
+The canonical client-side runtime lives in `server/static/scripts/*.js`. These are the single source of truth for browser behaviour — not copies of some TypeScript original. Views reference them via `<script src="/static/scripts/xxx.js" />`. Biome linting for this directory is disabled in `biome.json` (client-side JS has different constraints than server TS). Do not maintain a second inline TypeScript copy in views.
 
 **Biome config changes must be validated immediately.**
 `biome.json` is validated by biome itself. If you add a key that doesn't exist (`files.ignore` is not valid at v2.4.14), biome fails with a parse error before running any checks. Always run `just lint` after any `biome.json` change.

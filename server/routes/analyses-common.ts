@@ -86,7 +86,8 @@ export function buildConfidenceSparkline(ticker: string, current: string): numbe
       const raw = readFileSync(join(logDir, file), "utf-8")
       const state = JSON.parse(raw) as Record<string, unknown>
       const decision = String(state.final_trade_decision ?? "")
-      const conf = extractConfidence(decision) ?? estimateConfidence(decision, extractSignal(decision))
+      const conf =
+        extractConfidence(decision) ?? estimateConfidence(decision, extractSignal(decision))
       values.push({ date, conf })
     } catch {
       /* skip */

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Epic ID:** STATIC-001
-**Status:** Open
+**Status:** Done
 
 ---
 
@@ -156,15 +156,15 @@ We will extract all client-side behaviour into real `.js` files served staticall
 
 | Story | Status |
 |---|---|
-| STATIC-001-S01 | 🔲 |
-| STATIC-001-S02 | 🔲 |
-| STATIC-001-S03 | 🔲 |
-| STATIC-001-S04 | 🔲 |
-| STATIC-001-S05 | 🔲 |
-| STATIC-001-S06 | 🔲 |
-| STATIC-001-S07 | 🔲 |
-| STATIC-001-S08 | 🔲 |
-| STATIC-001-S09 | 🔲 |
+| STATIC-001-S01 | ✅ |
+| STATIC-001-S02 | ✅ |
+| STATIC-001-S03 | ✅ |
+| STATIC-001-S04 | ✅ |
+| STATIC-001-S05 | ✅ |
+| STATIC-001-S06 | ✅ |
+| STATIC-001-S07 | ✅ |
+| STATIC-001-S08 | ✅ |
+| STATIC-001-S09 | ✅ |
 
 ## Exit Criteria
 

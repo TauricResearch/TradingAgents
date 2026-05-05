@@ -7,10 +7,8 @@ import type { ContentfulStatusCode } from "hono/utils/http-status"
 import { renderAnalysisReport } from "../lib/markdown.ts"
 import {
   buildConfidenceSparkline,
-  escapeHtml,
   estimateConfidence,
   extractActions,
-  extractConfidence,
   extractSignal,
   resultsDir,
 } from "./analyses-common.ts"
@@ -198,7 +196,12 @@ ${customPrompt ? `\n\nAdditional question: ${customPrompt}` : ""}`
       {
         error: `LLM API returned ${resp.status}`,
         detail: errorBody.slice(0, 500),
-        hint: resp.status === 401 ? "Invalid API key" : resp.status === 429 ? "Rate limited" : "Check API status",
+        hint:
+          resp.status === 401
+            ? "Invalid API key"
+            : resp.status === 429
+              ? "Rate limited"
+              : "Check API status",
       },
       resp.status as ContentfulStatusCode,
     )
@@ -256,7 +259,9 @@ analysesFsRouter.get("/:ticker/:date/summary", (c) => {
   const signal = signalMatch?.[1] ?? extractSignal(decision)
 
   const confMatch = decision.match(/[Cc]onfidence[:\s]*([0-9.]+)/)
-  const confidence = confMatch?.[1] ? parseFloat(confMatch[1]) : estimateConfidence(decision, signal)
+  const confidence = confMatch?.[1]
+    ? parseFloat(confMatch[1])
+    : estimateConfidence(decision, signal)
 
   const summaryMatch = decision.match(/\*\*Executive Summary\*\*[:\s]*([\s\S]*?)(?=\n\*\*|$)/)
   const summary = summaryMatch?.[1]?.trim().slice(0, 500) ?? decision.slice(0, 500)
@@ -275,5 +280,15 @@ analysesFsRouter.get("/:ticker/:date/summary", (c) => {
 
   const sparkline = buildConfidenceSparkline(ticker, date)
 
-  return c.json({ ticker, date, signal, confidence, summary, keyPoints: actions, agents, sparkline, decision: decision.slice(0, 2000) })
+  return c.json({
+    ticker,
+    date,
+    signal,
+    confidence,
+    summary,
+    keyPoints: actions,
+    agents,
+    sparkline,
+    decision: decision.slice(0, 2000),
+  })
 })

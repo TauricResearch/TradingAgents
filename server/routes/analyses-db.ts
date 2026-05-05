@@ -2,11 +2,7 @@
 import { Hono } from "hono"
 import { DatabaseFactory } from "../lib/db.ts"
 import { renderMarkdown } from "../lib/markdown.ts"
-import {
-  escapeHtml,
-  signalClass,
-  type extractConfidence,
-} from "./analyses-common.ts"
+import { escapeHtml, signalClass } from "./analyses-common.ts"
 
 export const analysesDbRouter = new Hono()
 

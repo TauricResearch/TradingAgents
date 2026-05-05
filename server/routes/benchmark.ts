@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
 import { Hono } from "hono"
-import { fetchBenchmarkPrices, type BenchmarkPrice, type PeriodReturn } from "../lib/benchmark.ts"
-import type { PriceResult } from "../lib/types.ts"
+import { type BenchmarkPrice, fetchBenchmarkPrices, type PeriodReturn } from "../lib/benchmark.ts"
 import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
+import type { PriceResult } from "../lib/types.ts"
 
 export const benchmarkRouter = new Hono()
 
@@ -183,7 +183,6 @@ benchmarkRouter.get("/", async (c) => {
     )
   }
 })
-
 
 function computePeriodReturns(
   benchmarkPrices: BenchmarkPrice[],
