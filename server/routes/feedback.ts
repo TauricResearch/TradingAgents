@@ -3,7 +3,12 @@ import { dirname, join } from "node:path"
 import { Hono } from "hono"
 import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
-import { computeSignalAccuracy, loadPostMortems } from "../lib/feedback.ts"
+import {
+  computeSignalAccuracy,
+  loadPostMortems,
+  type PostMortem,
+  type SignalAccuracy,
+} from "../lib/feedback.ts"
 import type { PriceResult } from "../lib/types.ts"
 
 export const feedbackRouter = new Hono()
@@ -124,11 +129,12 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   })
 }
 
-/** GET /api/feedback/with-positions — signals correlated with position outcomes */
-feedbackRouter.get("/with-positions", async (c) => {
+async function computeCorrelations(): Promise<{
+  correlations: TickerCorrelation[]
+  summary: { totalSignalsWithPositions: number; total: number; accurate: number; accuracy: number }
+}> {
   const db = DatabaseFactory.get()
 
-  // Fetch all open positions and signals
   const positions = db
     .query(
       "SELECT id, ticker, platform, quantity, avg_cost, entry_date, thesis, status FROM positions WHERE status = 'open'",
@@ -142,10 +148,12 @@ feedbackRouter.get("/with-positions", async (c) => {
     .all() as DbSignal[]
 
   if (signals.length === 0 && positions.length === 0) {
-    return c.json({ correlations: [], summary: { total: 0, accurate: 0, accuracy: 0 } })
+    return {
+      correlations: [],
+      summary: { totalSignalsWithPositions: 0, total: 0, accurate: 0, accuracy: 0 },
+    }
   }
 
-  // Group signals by ticker (most recent first per ticker)
   const signalsByTicker = new Map<string, DbSignal[]>()
   for (const s of signals) {
     const list = signalsByTicker.get(s.ticker) ?? []
@@ -153,7 +161,6 @@ feedbackRouter.get("/with-positions", async (c) => {
     signalsByTicker.set(s.ticker, list)
   }
 
-  // FX rates for GBP conversion
   const fxPairs = ["GBPEUR=X", "GBPUSD=X"]
   const fxResults = await Promise.all(fxPairs.map(fetchPriceForTicker))
   const gbpeur = fxResults[0]?.price ?? 1.18
@@ -161,7 +168,6 @@ feedbackRouter.get("/with-positions", async (c) => {
   const gbpPerEur = 1 / gbpeur
   const gbpPerUsd = 1 / gbpUSD
 
-  // All tickers needing price data
   const allTickers = [...new Set([...signalsByTicker.keys(), ...positions.map((p) => p.ticker)])]
   const priceData = new Map<string, PriceResult>()
   await Promise.all(
@@ -173,8 +179,6 @@ feedbackRouter.get("/with-positions", async (c) => {
   )
 
   const correlations: TickerCorrelation[] = []
-
-  // Build correlations for tickers that have signals
   for (const [ticker, tickerSignals] of signalsByTicker) {
     const pos = positions.find((p) => p.ticker === ticker) ?? null
     const pd = priceData.get(ticker)
@@ -189,7 +193,7 @@ feedbackRouter.get("/with-positions", async (c) => {
     let currentValueGbp: number | null = null
     let pnlGbp: number | null = null
     let pnlPct: number | null = null
-    let costValueGbp: number = 0
+    let costValueGbp = 0
 
     if (pos) {
       const avgCostNum = parseFloat(String(pos.avg_cost))
@@ -247,7 +251,6 @@ feedbackRouter.get("/with-positions", async (c) => {
     })
   }
 
-  // Compute accuracy: only tickers with positions and buy/sell signals
   let accurate = 0
   let total = 0
   for (const c of correlations) {
@@ -263,5 +266,146 @@ feedbackRouter.get("/with-positions", async (c) => {
     accuracy: total > 0 ? Math.round((accurate / total) * 100) : 0,
   }
 
-  return c.json({ correlations, summary })
+  return { correlations, summary }
+}
+
+function buildAccuracyHtml(acc: SignalAccuracy): string {
+  if (!acc || acc.totalSignals === 0) {
+    return '<div class="muted">No post-mortems yet. Exit a position to generate one.</div>'
+  }
+
+  let html = '<div class="accuracy-summary">'
+  html += `<div class="accuracy-score ${acc.accuracyPct >= 60 ? "positive" : "negative"}">${acc.accuracyPct}% accuracy (${acc.correctSignals}/${acc.totalSignals})</div>`
+  html += "</div>"
+
+  if (acc.bySignalType && Object.keys(acc.bySignalType).length > 0) {
+    html += '<table class="data-table"><thead><tr>'
+    html += "<th>Exit Trigger</th><th>Signals</th><th>Correct</th><th>Accuracy</th>"
+    html += "</tr></thead><tbody>"
+    for (const [type, d] of Object.entries(acc.bySignalType)) {
+      html += "<tr>"
+      html += `<td>${type}</td>`
+      html += `<td>${d.total}</td>`
+      html += `<td>${d.correct}</td>`
+      html += `<td class="${d.pct >= 60 ? "positive" : "negative"}">${d.pct}%</td>`
+      html += "</tr>"
+    }
+    html += "</tbody></table>"
+  }
+  return html
+}
+
+function buildPostMortemsHtml(mortems: PostMortem[]): string {
+  if (!mortems || mortems.length === 0) {
+    return '<div class="muted">No post-mortems yet.</div>'
+  }
+
+  let html = ""
+  for (const pm of mortems) {
+    const signalClass = pm.aiSignalCorrect ? "positive" : "negative"
+    const signalIcon = pm.aiSignalCorrect ? "\u2705" : "\u274c"
+    html += '<div class="post-mortem-card">'
+    html += '<div class="pm-header">'
+    html += `<span class="ticker">${pm.ticker}</span>`
+    html += `<span class="pm-date">${pm.exitDate}</span>`
+    html += "</div>"
+    html += `<div class="pm-thesis">${pm.thesis.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`
+    html += '<div class="pm-outcome">'
+    html += `<span>Thesis: ${pm.thesisPlayedOut ? "\u2705" : "\u274c"}</span>`
+    html += `<span>AI signal: <span class="${signalClass}">${signalIcon}</span></span>`
+    html += `<span>Exit: ${pm.exitTrigger}</span>`
+    html += "</div>"
+    if (pm.lesson) {
+      html += `<div class="pm-lesson">${pm.lesson.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`
+    }
+    html += "</div>"
+  }
+  return html
+}
+
+function buildCorrelationsHtml(data: {
+  correlations: TickerCorrelation[]
+  summary: { total: number; accurate: number; accuracy: number }
+}): string {
+  if (!data.correlations || data.correlations.length === 0) {
+    return '<div class="muted">No signals recorded yet.</div>'
+  }
+
+  const summary = data.summary
+  const accCls = summary.accuracy >= 60 ? "positive" : "negative"
+  let html = '<div class="accuracy-summary" style="margin-bottom:1rem">'
+  html += "<span>Signal accuracy: </span>"
+  html += `<span class="accuracy-score ${accCls}">${summary.accuracy}%</span>`
+  html += `<span class="muted"> (${summary.accurate}/${summary.total} buy/sell signals with positions)</span>`
+  html += "</div>"
+
+  html += '<table class="data-table" style="font-size:0.85em"><thead><tr>'
+  html +=
+    "<th>Ticker</th><th>Latest Signal</th><th>Platform</th><th>Position</th><th>Entry</th><th>P&amp;L</th><th>Signal Outcome</th>"
+  html += "</tr></thead><tbody>"
+
+  for (const c of data.correlations) {
+    const plat = c.signals[0]?.platform ?? "unknown"
+    const sCls = c.signalOutcome.includes("success")
+      ? "positive"
+      : c.signalOutcome.includes("failure")
+        ? "negative"
+        : c.signalOutcome === "hold"
+          ? "status-hold"
+          : "muted"
+    const pnlCls = c.outcomePct != null ? (c.outcomePct >= 0 ? "positive" : "negative") : "muted"
+    const pnlStr =
+      c.outcomePct != null
+        ? `${(c.outcomePct >= 0 ? "+" : "") + c.outcomePct.toFixed(1)}%`
+        : "\u2014"
+
+    html += "<tr>"
+    html += `<td class="ticker">${c.ticker}</td>`
+    html += `<td class="status-${c.latestSignal.includes("buy") ? "buy" : c.latestSignal.includes("sell") ? "sell" : "hold"}">${c.latestSignal}</td>`
+    html += `<td><span class="platform-tag">${plat}</span></td>`
+    if (c.position) {
+      html += `<td>${c.position.quantity} shares @ \u00a3${c.position.avg_cost.toFixed(2)} <span class="muted">(GBP)</span></td>`
+      html += `<td>${c.position.entry_date}</td>`
+      html += `<td class="pnl-cell ${pnlCls}" style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">${pnlStr}</td>`
+    } else {
+      html +=
+        '<td class="muted">\u2014</td><td class="muted">\u2014</td><td class="muted">\u2014</td>'
+    }
+    html += `<td class="${sCls}">${c.signalOutcome}</td>`
+    html += "</tr>"
+  }
+  html += "</tbody></table>"
+  return html
+}
+
+/** GET /api/feedback/with-positions — signals correlated with position outcomes */
+feedbackRouter.get("/with-positions", async (c) => {
+  const data = await computeCorrelations()
+  return c.json(data)
+})
+
+/** GET /api/feedback/accuracy/html — accuracy as HTML for HTMX */
+feedbackRouter.get("/accuracy/html", (c) => {
+  const mortems = loadPostMortems()
+  const accuracy = computeSignalAccuracy(mortems)
+  return c.html(buildAccuracyHtml(accuracy))
+})
+
+/** GET /api/feedback/post-mortems/html — post-mortems as HTML for HTMX */
+feedbackRouter.get("/post-mortems/html", (c) => {
+  const mortems = loadPostMortems()
+  return c.html(buildPostMortemsHtml(mortems))
+})
+
+/** GET /api/feedback/with-positions/html — correlations as HTML for HTMX */
+feedbackRouter.get("/with-positions/html", async (c) => {
+  try {
+    const data = await computeCorrelations()
+    return c.html(buildCorrelationsHtml(data))
+  } catch (e: unknown) {
+    return c.html(
+      `<div class="error-card"><strong>Feedback error</strong><br>${(e as Error).message}</div>`,
+      500,
+    )
+  }
 })
