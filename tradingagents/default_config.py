@@ -36,11 +36,12 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, pykrx
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
         "dart_data": "opendart",             # Options: opendart
+        "kr_market_data": "pykrx",           # Options: pykrx
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
@@ -53,12 +54,19 @@ DEFAULT_CONFIG = {
         "max_delay": 60.0,        # Maximum backoff delay cap in seconds
         "backoff_factor": 2.0,    # Exponential backoff multiplier (2s → 4s → 8s)
     },
-    # Data cache TTL in seconds (0 to disable caching for a category)
+    # Data cache TTL in seconds (0 to disable caching for that kind)
     "cache_ttl": {
+        # existing
         "fundamentals": 3600,          # 1 hour
         "financial_statements": 3600,  # 1 hour
         "news": 900,                   # 15 minutes
         "insider_transactions": 3600,  # 1 hour
+        # new — disk parquet cache
+        "ohlcv": 12 * 3600,            # 12h (covers same-day refresh post close)
+        "universe": 7 * 86400,         # 7d (listing changes infrequent)
+        "investor_trading": 12 * 3600, # 12h (T+1 after market close)
+        "value_factors": 12 * 3600,    # 12h (PER/PBR daily)
+        "macro": 24 * 3600,            # 24h (FRED/ECOS/WB monthly-quarterly)
     },
     # Investment persona configuration
     # Options: None, "warren_buffett", "ray_dalio", "peter_lynch"
