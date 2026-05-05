@@ -114,7 +114,12 @@ app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
 
-app.get("/static/*", serveStatic({ root: "./server" }));
+app.use("/static/*", serveStatic({
+  root: "./server/static",
+  onFound: (_path, c) => {
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+  },
+}));
 
 // ── API routes ─────────────────────────────────────────────
 
