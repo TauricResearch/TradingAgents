@@ -1,12 +1,33 @@
-## MANDATORY: Use td for Task Management
+## MANDATORY: Use td for Task Management (Multi-Agent)
 
-Run td usage --new-session at conversation start (or after /clear). This tells you what to work on next.
+This codebase is collaborative. Multiple agents and the user share the same branch. **Every agent session is a distinct identity.**
 
-Sessions are automatic (based on terminal/agent context). Optional:
-- td session "name" to label the current session
-- td session --new to force a new session in the same context
+### Startup (do this first)
 
-Use td usage -q after first read.
+```bash
+td usage --new-session     # new identity
+td ws current              # any active work session to resume?
+td list                    # what's open / in_progress
+td reviewable              # what can I review?
+```
+
+### Core Rule: Always Use a Work Session
+
+If a task belongs to an epic, or you are doing more than one thing, use a work session (`td ws`). Never juggle individual tasks for epic work.
+
+```bash
+# Correct — work session for epic work
+td ws start "Epic: Description"
+td ws tag <id1> <id2> ...
+td ws log "progress"
+td ws handoff               # hand off all tagged tasks at once
+
+# Wrong — don't do this for epic work
+td start <id1>
+td handoff <id1>
+```
+
+**Read `playbooks/td-playbook.md` for the full multi-agent protocol.**
 
 **Before starting any work:** read `debriefs/plans/current.md`. It contains the current work plan, priority order, mandatory protocol, and known failure modes. Always start there.
 
