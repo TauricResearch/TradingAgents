@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from typing import Annotated, Any
 from io import StringIO
@@ -48,6 +49,7 @@ from yfinance.exceptions import YFRateLimitError
 
 # Configuration and routing logic
 from .config import get_config
+from .progress import emit_progress
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
@@ -191,7 +193,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     recoverable_errors = []
     incomplete_primary: tuple[str, Any, str] | None = None
 
-    for vendor in fallback_vendors:
+    for index, vendor in enumerate(fallback_vendors):
         if vendor not in VENDOR_METHODS[method]:
             continue
         if _should_skip_vendor_for_symbol(vendor, args):
@@ -200,25 +202,33 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
+        _emit_data_progress("start", method, vendor, args)
         try:
             result = impl_func(*args, **kwargs)
         except Exception as exc:
             if _is_recoverable_vendor_error(vendor, exc):
+                _emit_data_progress("failure", method, vendor, args, _summarize_vendor_error(exc))
                 recoverable_errors.append((vendor, exc))
                 continue
             raise
 
         if _is_missing_required_data_result(result):
-            recoverable_errors.append((vendor, ChinaDataUnavailableError(str(result).strip()[:300])))
+            summary = str(result).strip()[:300]
+            _emit_data_progress("failure", method, vendor, args, summary)
+            recoverable_errors.append((vendor, ChinaDataUnavailableError(summary)))
             continue
 
         if _should_supplement_yfinance_result(method, vendor, args, result):
             reason = _summarize_yfinance_incompleteness(method, args, result)
             incomplete_primary = (vendor, result, reason)
             recoverable_errors.append((vendor, ChinaDataUnavailableError(reason)))
+            next_vendor = _next_china_supplemental_vendor(fallback_vendors[index + 1 :])
+            if next_vendor:
+                _emit_supplement_progress(method, vendor, next_vendor)
             continue
 
         if incomplete_primary and _is_china_supplemental_vendor(vendor):
+            _emit_data_progress("success", method, vendor, args, _summarize_data_result(method, result))
             return _format_supplemental_result(
                 method=method,
                 primary_vendor=incomplete_primary[0],
@@ -228,6 +238,7 @@ def route_to_vendor(method: str, *args, **kwargs):
                 supplemental_result=result,
             )
 
+        _emit_data_progress("success", method, vendor, args, _summarize_data_result(method, result))
         return result
 
     if incomplete_primary:
@@ -258,22 +269,31 @@ def _route_news_to_vendors(method: str, vendors: list[str], *args, **kwargs) -> 
 
     for vendor in configured_vendors:
         if vendor not in VENDOR_METHODS[method]:
-            errors.append((vendor, f"vendor does not support {method}"))
+            message = f"vendor does not support {method}"
+            _emit_data_progress("failure", method, vendor, args, message)
+            errors.append((vendor, message))
             continue
 
+        _emit_data_progress("start", method, vendor, args)
         try:
             result = VENDOR_METHODS[method][vendor](*args, **kwargs)
         except Exception as exc:
+            _emit_data_progress("failure", method, vendor, args, _summarize_vendor_error_for_news(exc))
             errors.append((vendor, exc))
             continue
 
         if _is_error_news_result(result):
-            errors.append((vendor, _summarize_error_news_result(result)))
+            message = _summarize_error_news_result(result)
+            _emit_data_progress("failure", method, vendor, args, message)
+            errors.append((vendor, message))
             continue
 
         if _is_empty_news_result(result):
-            errors.append((vendor, _summarize_empty_news_result(result)))
+            message = _summarize_empty_news_result(result)
+            _emit_data_progress("failure", method, vendor, args, message)
+            errors.append((vendor, message))
             continue
+        _emit_data_progress("success", method, vendor, args, _summarize_news_result(result))
         successes.append((vendor, result))
 
     if successes:
@@ -293,6 +313,83 @@ def _is_empty_news_result(result: Any) -> bool:
         return True
     lowered = text.lower()
     return lowered.startswith("no news found") or lowered.startswith("no global news found")
+
+
+def _emit_data_progress(
+    stage: str,
+    method: str,
+    vendor: str,
+    args: tuple[Any, ...],
+    detail: str | None = None,
+) -> None:
+    labels = {
+        "start": "数据调用开始",
+        "success": "数据调用成功",
+        "failure": "数据调用失败",
+    }
+    context = _format_progress_context(method, args)
+    parts = [f"{labels.get(stage, stage)}：{method}", vendor]
+    if context and stage == "start":
+        parts.append(context)
+    if detail:
+        parts.append(_sanitize_progress_text(detail))
+    emit_progress(stage, method, vendor, " | ".join(parts))
+
+
+def _emit_supplement_progress(method: str, primary_vendor: str, next_vendor: str) -> None:
+    emit_progress(
+        "supplement",
+        method,
+        next_vendor,
+        f"数据源补充：{method} | {primary_vendor} 覆盖不足，继续尝试 {next_vendor}",
+    )
+
+
+def _format_progress_context(method: str, args: tuple[Any, ...]) -> str:
+    if not args:
+        return ""
+    if method in {"get_news", "get_stock_data"} and len(args) >= 3:
+        return f"{args[0]} | {args[1]}~{args[2]}"
+    if method == "get_global_news" and args:
+        return str(args[0])
+    if method in {"get_fundamentals", "get_balance_sheet", "get_cashflow", "get_income_statement"}:
+        parts = [str(args[0])]
+        if len(args) >= 2 and args[-1]:
+            parts.append(str(args[-1]))
+        return " | ".join(parts)
+    return " | ".join(str(value) for value in args[:3])
+
+
+def _summarize_news_result(result: Any) -> str:
+    count = len(_extract_news_items("unknown", result))
+    return f"返回 {count} 条新闻"
+
+
+def _summarize_data_result(method: str, result: Any) -> str:
+    if method in {"get_stock_data", "get_balance_sheet", "get_cashflow", "get_income_statement"}:
+        df = _parse_csv_from_report(result)
+        if df is not None:
+            return f"返回 {len(df)} 行数据"
+    if method == "get_fundamentals":
+        return "返回基本面数据"
+    return "调用完成"
+
+
+def _next_china_supplemental_vendor(vendors: list[str]) -> str | None:
+    for vendor in vendors:
+        if _is_china_supplemental_vendor(vendor):
+            return vendor
+    return None
+
+
+def _sanitize_progress_text(text: str) -> str:
+    sanitized = str(text).replace("\n", " ").strip()
+    for env_name, env_value in os.environ.items():
+        if not env_value or len(env_value) < 8:
+            continue
+        if any(token in env_name.upper() for token in ("KEY", "TOKEN", "SECRET")):
+            sanitized = sanitized.replace(env_value, "***")
+    return sanitized[:220]
 
 
 def _is_error_news_result(result: Any) -> bool:
