@@ -1063,7 +1063,7 @@ async function seedPrices(): Promise<void> {
 
   const insertStmt = db.prepare(`
     INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'GBP')
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   for (const { ticker } of rows) {
@@ -1079,7 +1079,7 @@ async function seedPrices(): Promise<void> {
       continue
     }
 
-    let data: { history: PriceBar[] }
+    let data: { history: PriceBar[]; currency?: string }
     try {
       data = JSON.parse(new TextDecoder().decode(proc.stdout))
     } catch {
@@ -1087,9 +1087,10 @@ async function seedPrices(): Promise<void> {
       continue
     }
 
+    const currency = data.currency ?? "USD"
     const history = data.history ?? []
     for (const bar of history) {
-      insertStmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume)
+      insertStmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume, currency)
     }
 
     console.log(`    ${ticker}: ${history.length} bars seeded`)
@@ -1130,4 +1131,7 @@ async function main() {
   console.log("Done.")
 }
 
-main()
+main().catch((err) => {
+  console.error("seed_database failed:", err)
+  process.exit(1)
+})

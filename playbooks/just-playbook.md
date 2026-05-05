@@ -194,7 +194,7 @@ help:
 | Dependency | `build: setup` |
 | Group | `[group("name")]` above recipe |
 | Alias | `alias x := recipe` |
-| Default param | `param "default"` |
+| Default param | `param="default"` |
 | Env var | `env("VAR", "default")` |
 | Private (hidden) | `_recipe:` |
 | Working dir | `invocation_directory()` |

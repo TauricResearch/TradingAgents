@@ -54,7 +54,7 @@ interface PriceBar {
   volume: number | null
 }
 
-function fetchHistory(ticker: string): PriceBar[] {
+function fetchHistory(ticker: string): { bars: PriceBar[]; currency: string } {
   const proc = Bun.spawnSync({
     cmd: ["bun", "run", join(__dirname, "get_price.ts"), ticker],
     stdout: "pipe",
@@ -66,8 +66,11 @@ function fetchHistory(ticker: string): PriceBar[] {
     throw new Error(`get_price.ts failed for ${ticker}: ${err}`)
   }
 
-  const data = JSON.parse(new TextDecoder().decode(proc.stdout)) as { history?: PriceBar[] }
-  return data.history ?? []
+  const data = JSON.parse(new TextDecoder().decode(proc.stdout)) as {
+    history?: PriceBar[]
+    currency?: string
+  }
+  return { bars: data.history ?? [], currency: data.currency ?? "USD" }
 }
 
 // ─── Core sync logic ─────────────────────────────────────────────────────────
@@ -84,13 +87,14 @@ function upsertPrices(
   db: Database,
   ticker: string,
   bars: PriceBar[],
+  currency: string,
   dryRun = false,
 ): { upserted: number; skipped: number } {
   if (bars.length === 0) return { upserted: 0, skipped: 0 }
 
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'GBP')
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   let upserted = 0
@@ -101,7 +105,7 @@ function upsertPrices(
       console.log(`    [dry-run] upsert ${ticker} ${bar.date} close=${bar.close}`)
       upserted++
     } else {
-      stmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume)
+      stmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume, currency)
       upserted++
     }
   }
@@ -115,12 +119,12 @@ function catchUpTicker(
   options: { dryRun?: boolean } = {},
 ): SyncResult {
   try {
-    const bars = fetchHistory(ticker)
+    const { bars, currency } = fetchHistory(ticker)
     if (bars.length === 0) {
       return { ticker, action: "catch-up", upserted: 0, skipped: 0, error: "no data returned" }
     }
 
-    const { upserted, skipped } = upsertPrices(db, ticker, bars, options.dryRun)
+    const { upserted, skipped } = upsertPrices(db, ticker, bars, currency, options.dryRun)
     return { ticker, action: "catch-up", upserted, skipped }
   } catch (e: unknown) {
     return { ticker, action: "catch-up", upserted: 0, skipped: 0, error: (e as Error).message }
@@ -134,7 +138,7 @@ function _backfillTicker(
   options: { dryRun?: boolean } = {},
 ): SyncResult {
   try {
-    const bars = fetchHistory(ticker)
+    const { bars, currency } = fetchHistory(ticker)
     if (bars.length === 0) {
       return { ticker, action: "backfill", upserted: 0, skipped: 0, error: "no data returned" }
     }
@@ -152,7 +156,7 @@ function _backfillTicker(
       }
     }
 
-    const { upserted } = upsertPrices(db, ticker, filtered, options.dryRun)
+    const { upserted } = upsertPrices(db, ticker, filtered, currency, options.dryRun)
     return { ticker, action: "backfill", upserted, skipped: bars.length - filtered.length }
   } catch (e: unknown) {
     return { ticker, action: "backfill", upserted: 0, skipped: 0, error: (e as Error).message }
@@ -212,7 +216,7 @@ function fillGap(
   // the ticker and selectively upsert only bars within the gap window.
   // For large gaps (>30 days) we may miss data — warn about it.
   try {
-    const bars = fetchHistory(ticker)
+    const { bars, currency } = fetchHistory(ticker)
     const filtered = bars.filter((b) => b.date >= fromDate && b.date <= toDate)
 
     if (filtered.length === 0) {
@@ -225,7 +229,7 @@ function fillGap(
       }
     }
 
-    const { upserted } = upsertPrices(db, ticker, filtered, options.dryRun)
+    const { upserted } = upsertPrices(db, ticker, filtered, currency, options.dryRun)
     return { ticker, action: "fill-gap", upserted, skipped: 0 }
   } catch (e: unknown) {
     return { ticker, action: "fill-gap", upserted: 0, skipped: 0, error: (e as Error).message }
@@ -343,4 +347,7 @@ async function main() {
   )
 }
 
-main()
+main().catch((err) => {
+  console.error("sync-prices failed:", err)
+  process.exit(1)
+})

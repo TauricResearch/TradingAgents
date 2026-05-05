@@ -14,7 +14,12 @@ help:
 # State: current branch, env, DB counts, active tasks
 [group("meta")]
 info:
-    @python scripts/gen-info-md.py | glow - 2>/dev/null || cat -
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp)
+    python scripts/gen-info-md.py > "$tmp"
+    glow - "$tmp" 2>/dev/null || cat "$tmp"
+    rm -f "$tmp"
 
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments := true

@@ -196,13 +196,15 @@ feedbackRouter.get("/with-positions", async (c) => {
     let costValueGbp: number = 0
 
     if (pos) {
-      costValueGbp = pos.avg_cost * pos.quantity
+      const avgCostNum = parseFloat(String(pos.avg_cost))
+      const quantityNum = parseFloat(String(pos.quantity))
+      costValueGbp = avgCostNum * quantityNum
       if (pos.platform === "degiero" || pos.exchange === "XETRA") {
-        costValueGbp = (pos.avg_cost * pos.quantity) / gbpeur
+        costValueGbp = (avgCostNum * quantityNum) / gbpeur
       } else if (pos.platform === "ibkr" || pos.exchange === "US") {
-        costValueGbp = (pos.avg_cost * pos.quantity) / gbpUSD
+        costValueGbp = (avgCostNum * quantityNum) / gbpUSD
       }
-      currentValueGbp = currentPriceGbp != null ? currentPriceGbp * pos.quantity : null
+      currentValueGbp = currentPriceGbp != null ? currentPriceGbp * quantityNum : null
       pnlGbp = currentValueGbp != null ? currentValueGbp - costValueGbp : null
       pnlPct = costValueGbp > 0 && pnlGbp != null ? (pnlGbp / costValueGbp) * 100 : null
     }

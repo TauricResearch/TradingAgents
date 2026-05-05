@@ -87,7 +87,7 @@ workflowRouter.get("/", async (c) => {
       exchange: p.exchange,
       platform: p.platform,
       quantity: p.quantity,
-      avgCost: p.avg_cost,
+      avgCost: parseFloat(String(p.avg_cost)),
       entryDate: p.entry_date,
       thesis: p.thesis,
     }))
@@ -130,7 +130,7 @@ workflowRouter.get("/", async (c) => {
       ticker: p.ticker,
       platform: p.platform,
       quantity: p.quantity,
-      avgCost: p.avg_cost,
+      avgCost: parseFloat(String(p.avg_cost)),
       entryDate: p.entry_date,
       thesis: p.thesis,
       exitPlan: {
