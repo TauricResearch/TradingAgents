@@ -37,6 +37,10 @@ from cli.utils import (
     select_research_depth,
     select_shallow_thinking_agent,
 )
+from tradingagents.batch import (
+    load_batch_inputs,
+    run_batch_analysis,
+)
 from tradingagents.charts import ChartArtifact, generate_report_charts
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -64,6 +68,14 @@ class SelectionOverrides:
     save_report: bool | None = None
     save_path: Path | None = None
     display_report: bool | None = None
+
+
+@dataclass(frozen=True)
+class AnalysisRunResult:
+    ticker: str
+    final_state: dict[str, Any]
+    report_path: Path | None = None
+    save_path: Path | None = None
 
 
 # Create a deque to store recent messages with a maximum length
@@ -1276,7 +1288,7 @@ def run_analysis(
     checkpoint: bool = False,
     llm_overrides: LLMConfigOverrides | None = None,
     selection_overrides: SelectionOverrides | None = None,
-):
+) -> AnalysisRunResult:
     # First get all user selections
     resolved_llm = resolve_llm_config(llm_overrides)
     selection_overrides = selection_overrides or SelectionOverrides()
@@ -1492,6 +1504,8 @@ def run_analysis(
 
     # Prompt to save report unless configured by CLI.
     save_report = selection_overrides.save_report
+    saved_report_path: Path | None = None
+    resolved_save_path: Path | None = None
     if save_report is None:
         save_choice = typer.prompt("Save report?", default="Y").strip().upper()
         save_report = save_choice in ("Y", "YES", "")
@@ -1518,6 +1532,8 @@ def run_analysis(
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
             console.print(f"  [dim]HTML report:[/dim] {report_file.with_suffix('.html').name}")
+            saved_report_path = report_file
+            resolved_save_path = save_path
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
@@ -1528,6 +1544,13 @@ def run_analysis(
         display_report = display_choice in ("Y", "YES", "")
     if display_report:
         display_complete_report(final_state)
+
+    return AnalysisRunResult(
+        ticker=selections["ticker"],
+        final_state=final_state,
+        report_path=saved_report_path,
+        save_path=resolved_save_path,
+    )
 
 
 @app.command()
@@ -1643,6 +1666,247 @@ def analyze(
             save_path=save_path,
             display_report=display_report,
         ),
+    )
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    checkpoint: bool = typer.Option(
+        False,
+        "--checkpoint",
+        help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before running (force fresh start).",
+    ),
+    ticker: str | None = typer.Option(
+        None,
+        "--ticker",
+        help="Ticker symbol to analyze, e.g. SPY or CNC.TO.",
+    ),
+    analysis_date: str | None = typer.Option(
+        None,
+        "--analysis-date",
+        help="Analysis date in YYYY-MM-DD format, or 'today'.",
+    ),
+    output_language: str | None = typer.Option(
+        None,
+        "--output-language",
+        help="Language for analyst reports and final decision.",
+    ),
+    analysts: str | None = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys: market,social,news,fundamentals; or 'all'.",
+    ),
+    research_depth: int | None = typer.Option(
+        None,
+        "--research-depth",
+        help="Research depth, e.g. 1=shallow, 3=medium, 5=deep.",
+    ),
+    llm_provider: str | None = typer.Option(
+        None,
+        "--llm-provider",
+        help="LLM provider key, e.g. openai.",
+    ),
+    quick_model: str | None = typer.Option(
+        None,
+        "--quick-model",
+        help="Model for quick-thinking agents.",
+    ),
+    deep_model: str | None = typer.Option(
+        None,
+        "--deep-model",
+        help="Model for deep-thinking agents.",
+    ),
+    backend_url: str | None = typer.Option(
+        None,
+        "--backend-url",
+        help="OpenAI-compatible base URL.",
+    ),
+    openai_reasoning_effort: str | None = typer.Option(
+        None,
+        "--openai-reasoning-effort",
+        help="OpenAI reasoning effort.",
+    ),
+    google_thinking_level: str | None = typer.Option(
+        None,
+        "--google-thinking-level",
+        help="Gemini thinking level.",
+    ),
+    anthropic_effort: str | None = typer.Option(
+        None,
+        "--anthropic-effort",
+        help="Anthropic effort level.",
+    ),
+    save_report: bool | None = typer.Option(
+        None,
+        "--save-report/--no-save-report",
+        help="Save the final report after analysis.",
+    ),
+    save_path: Path | None = typer.Option(
+        None,
+        "--save-path",
+        help="Directory where the report should be saved.",
+    ),
+    display_report: bool | None = typer.Option(
+        None,
+        "--display-report/--no-display-report",
+        help="Display the full report on screen after analysis.",
+    ),
+):
+    if ctx.invoked_subcommand is not None:
+        return
+    analyze(
+        checkpoint=checkpoint,
+        clear_checkpoints=clear_checkpoints,
+        ticker=ticker,
+        analysis_date=analysis_date,
+        output_language=output_language,
+        analysts=analysts,
+        research_depth=research_depth,
+        llm_provider=llm_provider,
+        quick_model=quick_model,
+        deep_model=deep_model,
+        backend_url=backend_url,
+        openai_reasoning_effort=openai_reasoning_effort,
+        google_thinking_level=google_thinking_level,
+        anthropic_effort=anthropic_effort,
+        save_report=save_report,
+        save_path=save_path,
+        display_report=display_report,
+    )
+
+
+@app.command("batch")
+def batch_command(
+    input_path: Path | None = typer.Option(
+        None,
+        "--input",
+        help="CSV or JSON portfolio/watchlist file. CSV/JSON must include ticker.",
+    ),
+    tickers: str | None = typer.Option(
+        None,
+        "--tickers",
+        help="Comma-separated tickers, e.g. AAPL,MSFT,NVDA.",
+    ),
+    checkpoint: bool = typer.Option(
+        False,
+        "--checkpoint",
+        help="Enable checkpoint/resume for each ticker.",
+    ),
+    analysis_date: str | None = typer.Option(
+        None,
+        "--analysis-date",
+        help="Analysis date in YYYY-MM-DD format, or 'today'.",
+    ),
+    output_language: str = typer.Option(
+        "English",
+        "--output-language",
+        help="Language for analyst reports and final decision.",
+    ),
+    analysts: str = typer.Option(
+        "all",
+        "--analysts",
+        help="Comma-separated analyst keys: market,social,news,fundamentals; or 'all'.",
+    ),
+    research_depth: int = typer.Option(
+        1,
+        "--research-depth",
+        help="Research depth: 1, 3, or 5.",
+    ),
+    llm_provider: str | None = typer.Option(
+        None,
+        "--llm-provider",
+        help="LLM provider key, e.g. openai.",
+    ),
+    quick_model: str | None = typer.Option(
+        None,
+        "--quick-model",
+        help="Model for quick-thinking agents.",
+    ),
+    deep_model: str | None = typer.Option(
+        None,
+        "--deep-model",
+        help="Model for deep-thinking agents.",
+    ),
+    backend_url: str | None = typer.Option(
+        None,
+        "--backend-url",
+        help="OpenAI-compatible base URL.",
+    ),
+    openai_reasoning_effort: str | None = typer.Option(
+        None,
+        "--openai-reasoning-effort",
+        help="OpenAI reasoning effort.",
+    ),
+    google_thinking_level: str | None = typer.Option(
+        None,
+        "--google-thinking-level",
+        help="Gemini thinking level.",
+    ),
+    anthropic_effort: str | None = typer.Option(
+        None,
+        "--anthropic-effort",
+        help="Anthropic effort level.",
+    ),
+    save_path: Path | None = typer.Option(
+        None,
+        "--save-path",
+        help="Batch output directory.",
+    ),
+    display_report: bool = typer.Option(
+        False,
+        "--display-report/--no-display-report",
+        help="Display each full per-ticker report after analysis.",
+    ),
+    continue_on_error: bool = typer.Option(
+        True,
+        "--continue-on-error/--fail-fast",
+        help="Continue after a per-ticker failure, or stop at the first failure.",
+    ),
+):
+    try:
+        holdings = load_batch_inputs(input_path=input_path, tickers=tickers)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    if analysis_date:
+        validated_batch_date = _validate_analysis_date_option(analysis_date)
+        assert validated_batch_date is not None
+        batch_date = validated_batch_date
+    else:
+        batch_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    parsed_analysts = _parse_analysts_option(analysts) or list(AnalystType)
+    parsed_depth = _validate_research_depth(research_depth)
+    if parsed_depth is None:
+        parsed_depth = 1
+    if save_path is None:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = Path.cwd() / "reports" / f"batch_{timestamp}"
+
+    run_batch_analysis(
+        holdings=holdings,
+        analysis_date=batch_date,
+        output_language=output_language,
+        analysts=parsed_analysts,
+        research_depth=parsed_depth,
+        checkpoint=checkpoint,
+        llm_overrides=LLMConfigOverrides(
+            provider=llm_provider,
+            quick_model=quick_model,
+            deep_model=deep_model,
+            backend_url=backend_url,
+            openai_reasoning_effort=openai_reasoning_effort,
+            google_thinking_level=google_thinking_level,
+            anthropic_effort=anthropic_effort,
+        ),
+        save_path=save_path,
+        display_report=display_report,
+        continue_on_error=continue_on_error,
     )
 
 

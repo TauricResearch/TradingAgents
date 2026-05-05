@@ -183,6 +183,24 @@ tradingagents \
 When all pre-analysis options are supplied, the CLI skips the setup prompts and starts the analysis directly.
 Use `--analysis-date today` to resolve the date at runtime, or pass an explicit `YYYY-MM-DD` value for reproducible historical runs.
 
+Run a holdings-aware batch analysis from a portfolio CSV or JSON file:
+
+```bash
+tradingagents batch \
+  --input portfolio.csv \
+  --analysis-date today \
+  --output-language English \
+  --analysts market,news,fundamentals \
+  --research-depth 1 \
+  --llm-provider openai \
+  --quick-model gpt-5.4-mini \
+  --deep-model gpt-5.4 \
+  --save-path reports/batch_tech \
+  --no-display-report
+```
+
+Batch CSV and JSON inputs must include `ticker` and may include `quantity`, `average_cost`, `market_value`, `target_weight`, and `notes`. Each ticker gets its own report bundle, and the batch directory also includes `batch_summary.md`, `batch_summary.html`, and `batch_results.json`.
+
 The same setup can live in the `.env` file instead - this example uses groq:
 
 ```bash
