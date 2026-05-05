@@ -78,6 +78,10 @@ class OpenAIClient(BaseLLMClient):
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_CONFIG:
             base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
+            if self.provider == "ollama":
+                # Support container/network deployments where "localhost"
+                # is not the Ollama host (e.g., docker-compose service name).
+                base_url = os.environ.get("OLLAMA_BASE_URL", base_url)
             llm_kwargs["base_url"] = base_url
             if api_key_env:
                 api_key = os.environ.get(api_key_env)

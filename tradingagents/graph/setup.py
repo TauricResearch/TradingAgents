@@ -6,6 +6,7 @@ from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.tool_provenance import create_tool_provenance_capture_node
 
 from .conditional_logic import ConditionalLogic
 
@@ -96,6 +97,10 @@ class GraphSetup:
                 f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
             )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+            workflow.add_node(
+                f"Capture Tools {analyst_type.capitalize()}",
+                create_tool_provenance_capture_node(analyst_type),
+            )
 
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
@@ -124,7 +129,9 @@ class GraphSetup:
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
                 [current_tools, current_clear],
             )
-            workflow.add_edge(current_tools, current_analyst)
+            current_capture = f"Capture Tools {analyst_type.capitalize()}"
+            workflow.add_edge(current_tools, current_capture)
+            workflow.add_edge(current_capture, current_analyst)
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:

@@ -149,6 +149,7 @@ activemq-data/
 
 # Environments
 .env
+.env.flint-shadow
 .envrc
 .venv
 env/
@@ -177,6 +178,9 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+
+# Flint shadow-run state
+output/
 
 # Cython debug symbols
 cython_debug/
@@ -217,3 +221,5 @@ __marimo__/
 
 # Cache
 **/data_cache/
+.DS_Store
+tmp/

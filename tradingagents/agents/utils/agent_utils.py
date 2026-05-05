@@ -42,6 +42,17 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
+
+def build_scope_guard(ticker: str) -> str:
+    """Instruction that keeps reports scoped to the requested instrument."""
+    return (
+        f"Scope guard: the requested instrument is `{ticker}`. Do not treat news, "
+        "prices, fundamentals, or recommendations for another ticker or issuer "
+        "as evidence for this instrument. If a retrieved source appears to refer "
+        "to a different company or ticker, label it as out-of-scope and exclude "
+        "it from the recommendation."
+    )
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""

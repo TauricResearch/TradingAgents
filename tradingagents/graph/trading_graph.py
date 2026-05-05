@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Callable, Dict, Any, Tuple, List, Optional
 
 import yfinance as yf
 
@@ -261,7 +261,13 @@ class TradingAgentsGraph:
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
 
-    def propagate(self, company_name, trade_date):
+    def propagate(
+        self,
+        company_name,
+        trade_date,
+        progress_callback: Callable[[Dict[str, Any]], None] | None = None,
+        target_profile: Dict[str, Any] | None = None,
+    ):
         """Run the trading agents graph for a company on a specific date.
 
         When ``checkpoint_enabled`` is set in config, the graph is recompiled
@@ -292,28 +298,42 @@ class TradingAgentsGraph:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
         try:
-            return self._run_graph(company_name, trade_date)
+            return self._run_graph(company_name, trade_date, progress_callback=progress_callback)
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def _run_graph(self, company_name, trade_date):
+    def _run_graph(self, company_name, trade_date, progress_callback: Callable[[Dict[str, Any]], None] | None = None):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date, past_context=past_context
+            company_name,
+            trade_date,
+            past_context=past_context,
+            target_profile=target_profile,
         )
-        args = self.propagator.get_graph_args()
+        args = self.propagator.get_graph_args(callbacks=self.callbacks)
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
         if self.config.get("checkpoint_enabled"):
             tid = thread_id(company_name, str(trade_date))
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
-        if self.debug:
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "stage": "graph_started",
+                    "status": "running",
+                    "ticker": company_name,
+                    "trade_date": str(trade_date),
+                    "selected_analysts": self.config.get("selected_analysts", []),
+                }
+            )
+            final_state = self._stream_graph_with_progress(init_agent_state, args, progress_callback)
+        elif self.debug:
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
                 if len(chunk["messages"]) == 0:
@@ -346,6 +366,103 @@ class TradingAgentsGraph:
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
+    def _stream_graph_with_progress(
+        self,
+        init_agent_state: Dict[str, Any],
+        args: Dict[str, Any],
+        progress_callback: Callable[[Dict[str, Any]], None],
+    ) -> Dict[str, Any]:
+        final_state = init_agent_state
+        emitted: set[str] = set()
+        last_raw_tool_count = 0
+
+        for step, chunk in enumerate(self.graph.stream(init_agent_state, **args), start=1):
+            final_state = chunk
+            payload_base = {"step": step}
+
+            raw_tool_count = len(chunk.get("raw_tool_outputs") or [])
+            if raw_tool_count > last_raw_tool_count:
+                last_raw_tool_count = raw_tool_count
+                progress_callback(
+                    {
+                        **payload_base,
+                        "stage": "raw_tools",
+                        "status": "captured",
+                        "raw_tool_count": raw_tool_count,
+                    }
+                )
+
+            for report_key, stage in (
+                ("market_report", "market_analyst"),
+                ("sentiment_report", "social_analyst"),
+                ("news_report", "news_analyst"),
+                ("fundamentals_report", "fundamentals_analyst"),
+            ):
+                marker = f"{stage}:complete"
+                content = chunk.get(report_key) or ""
+                if marker not in emitted and content:
+                    emitted.add(marker)
+                    progress_callback(
+                        {
+                            **payload_base,
+                            "stage": stage,
+                            "status": "completed",
+                            "chars": len(content),
+                        }
+                    )
+
+            if "research_manager:complete" not in emitted and chunk.get("investment_plan"):
+                emitted.add("research_manager:complete")
+                progress_callback(
+                    {
+                        **payload_base,
+                        "stage": "research_manager",
+                        "status": "completed",
+                        "chars": len(chunk.get("investment_plan") or ""),
+                    }
+                )
+
+            if "trader:complete" not in emitted and chunk.get("trader_investment_plan"):
+                emitted.add("trader:complete")
+                progress_callback(
+                    {
+                        **payload_base,
+                        "stage": "trader",
+                        "status": "completed",
+                        "chars": len(chunk.get("trader_investment_plan") or ""),
+                    }
+                )
+
+            risk_debate = chunk.get("risk_debate_state") or {}
+            risk_count = risk_debate.get("count") if isinstance(risk_debate, dict) else None
+            if isinstance(risk_count, int):
+                marker = f"risk_debate:{risk_count}"
+                if risk_count > 0 and marker not in emitted:
+                    emitted.add(marker)
+                    progress_callback(
+                        {
+                            **payload_base,
+                            "stage": "risk_debate",
+                            "status": "round_completed",
+                            "round": risk_count,
+                            "latest_speaker": risk_debate.get("latest_speaker"),
+                        }
+                    )
+
+            if "portfolio_manager:complete" not in emitted and chunk.get("final_trade_decision"):
+                emitted.add("portfolio_manager:complete")
+                progress_callback(
+                    {
+                        **payload_base,
+                        "stage": "portfolio_manager",
+                        "status": "completed",
+                        "chars": len(chunk.get("final_trade_decision") or ""),
+                    }
+                )
+
+        progress_callback({"stage": "graph_completed", "status": "completed"})
+        return final_state
+
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
@@ -376,6 +493,10 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "source_objects": final_state.get("source_objects", []),
+            "recommendation_scorecard": final_state.get("recommendation_scorecard", {}),
+            "pre_synthesis_scope_audit": final_state.get("pre_synthesis_scope_audit", {}),
+            "raw_tool_outputs": final_state.get("raw_tool_outputs", []),
         }
 
         # Save to file

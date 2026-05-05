@@ -16,7 +16,11 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str, past_context: str = ""
+        self,
+        company_name: str,
+        trade_date: str,
+        past_context: str = "",
+        target_profile: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
         return {
@@ -52,6 +56,16 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "macro_report": "",
+            "source_objects": [],
+            "source_registry": {},
+            "claim_graph": {},
+            "skill_registry": {},
+            "recommendation_scorecard": {},
+            "pre_synthesis_scope_audit": {},
+            "raw_tool_outputs": [],
+            "raw_tool_seen_ids": [],
+            "target_profile": target_profile or {},
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:

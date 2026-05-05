@@ -1,5 +1,8 @@
 
 
+from tradingagents.agents.utils.agent_utils import build_scope_guard
+
+
 def create_bear_researcher(llm):
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
@@ -11,8 +14,10 @@ def create_bear_researcher(llm):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        scope_guard = build_scope_guard(state["company_of_interest"])
 
         prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+{scope_guard}
 
 Key points to focus on:
 

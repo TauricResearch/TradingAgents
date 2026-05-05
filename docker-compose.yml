@@ -30,6 +30,58 @@ services:
     profiles:
       - ollama
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tradingagents
+      POSTGRES_USER: tradingagents
+      POSTGRES_PASSWORD: tradingagents
+    ports:
+      - "5432:5432"
+    volumes:
+      - tradingagents_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradingagents -d tradingagents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://tradingagents:tradingagents@postgres:5432/tradingagents
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+    entrypoint: ["tradingagents-api"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./output:/home/appuser/app/output
+    ports:
+      - "8000:8000"
+    profiles:
+      - service
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://tradingagents:tradingagents@postgres:5432/tradingagents
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+      WORKER_STALE_RUNNING_SECONDS: "300"
+    entrypoint: ["tradingagents-worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./output:/home/appuser/app/output
+    profiles:
+      - service
+
 volumes:
   tradingagents_data:
   ollama_data:
+  tradingagents_postgres_data:

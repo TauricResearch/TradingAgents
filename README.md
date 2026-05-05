@@ -148,7 +148,7 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
-For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
+For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), add the required provider-specific variables to your `.env` file.
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
 
@@ -247,6 +247,37 @@ config["checkpoint_enabled"] = True
 ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
+
+## Flint Shadow Service
+
+This repository also includes an async shadow-analysis service used as a Flint-side comparator. It keeps state in this repo under `output/` and treats TradingAgents output as advisory evidence, not execution.
+
+### What it adds
+
+- `POST /v1/shadow-runs` creates an async run and returns `202 Accepted`
+- `GET /v1/shadow-runs/{run_id}` returns run state and metadata
+- `GET /v1/shadow-runs/{run_id}/events` returns the event log
+- `GET /v1/shadow-runs/{run_id}/artifacts` returns persisted outputs
+- `GET /v1/shadow-runs/{run_id}/decision` returns the normalized recommendation
+- `GET /v1/shadow-runs/{run_id}/precedents` returns nearest prior runs
+- `GET /v1/precedents` searches the precedent store
+- `GET /v1/shadow-runs/{run_id}/report.md` returns a markdown report
+
+### What gets stored
+
+- run state and transition history
+- raw tool provenance and telemetry
+- artifact manifests and hashes
+- evaluation records and quality gates
+- precedent embeddings for retrieval against prior runs
+
+### Local run shape
+
+```bash
+docker compose up postgres api worker
+```
+
+The service is designed for Flint ingestion workflows where the important output is a traceable evidence bundle, not an order.
 
 ## Contributing
 

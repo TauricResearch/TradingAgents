@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shadow Run Operator Console</title>
+    <link rel="stylesheet" href="/static/styles.css?v=prior-run-clear-1" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel">
+        <h1>Shadow Run Operator Console</h1>
+        <p class="muted">Flint sidecar advisory run control and receipts.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Run Composer</h2>
+        <form id="composer-form" class="grid-form">
+          <label>Ticker <input id="ticker-input" required name="ticker" placeholder="NVDA" /></label>
+          <label>Trade Date <input id="trade-date-input" required type="date" name="trade_date" /></label>
+          <fieldset>
+            <legend>Analysts</legend>
+            <label><input type="checkbox" name="selected_analysts" value="market" checked /> market</label>
+            <label><input type="checkbox" name="selected_analysts" value="social" /> social</label>
+            <label><input type="checkbox" name="selected_analysts" value="news" checked /> news</label>
+            <label><input type="checkbox" name="selected_analysts" value="fundamentals" /> fundamentals</label>
+          </fieldset>
+          <label>Provider (optional) <input name="provider" placeholder="openai" /></label>
+          <label>Model (optional) <input name="model" placeholder="gpt-5-mini" /></label>
+          <button id="submit-run" type="submit">Queue Run</button>
+        </form>
+        <div id="composer-state" class="status-line muted">Ready.</div>
+        <div id="prior-run-card" class="box muted">Enter ticker and trade date to check for a prior run.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Status Poll</h2>
+        <div class="row">
+          <label class="grow">Run ID <input id="run-id-input" placeholder="Paste run UUID" /></label>
+          <button id="load-run-btn" type="button">Load</button>
+          <button id="poll-toggle-btn" type="button">Start Poll</button>
+        </div>
+        <div id="status-card" class="box muted">No run loaded.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Timeline Events</h2>
+        <div id="events-card" class="box muted">No events yet.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Decision</h2>
+        <div id="decision-card" class="box muted">No decision loaded.</div>
+      </section>
+
+      <section class="panel" id="trace-dashboard">
+        <h2>Trace Dashboard</h2>
+        <div id="trace-runtime" class="trace-runtime muted">
+          <span id="trace-spinner" class="trace-spinner" aria-hidden="true"></span>
+          <span id="trace-runtime-text">No active run.</span>
+        </div>
+        <div id="trace-card" class="trace-shell">
+          <div id="trace-flow" class="trace-flow muted">No trace loaded.</div>
+          <div class="trace-detail">
+            <div id="trace-detail-title" class="trace-detail-title">Select a trace stage</div>
+            <pre id="trace-detail-payload" class="trace-detail-payload"></pre>
+          </div>
+        </div>
+        <div class="trace-mini-log">
+          <div class="trace-mini-log-title">Mini Log</div>
+          <div id="trace-mini-log" class="trace-mini-log-body muted">No events.</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Evaluation</h2>
+        <div class="row">
+          <label class="grow">Judge Model <input id="eval-model-input" placeholder="heuristic-v1 or frontier model id" /></label>
+          <button id="run-evaluation-btn" type="button">Run Evaluation</button>
+        </div>
+        <div id="evaluation-state" class="status-line muted">No evaluation run yet.</div>
+        <div id="evaluation-card" class="box muted">No evaluation loaded.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Artifacts</h2>
+        <div id="artifacts-card" class="box muted">No artifacts loaded.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Generated Reports</h2>
+        <div class="row">
+          <button id="refresh-reports-btn" type="button">Refresh Reports</button>
+        </div>
+        <div id="reports-card" class="box muted">No generated reports loaded.</div>
+      </section>
+
+      <section class="panel">
+        <h2>History List</h2>
+        <div id="history-card" class="box muted">No local history yet.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Handoff Payload</h2>
+        <textarea id="handoff-preview" class="payload" readonly></textarea>
+        <div class="row">
+          <button id="copy-handoff-btn" type="button">Copy Payload</button>
+          <div id="copy-state" class="status-line muted"></div>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js?v=prior-run-clear-1" defer></script>
+  </body>
+</html>

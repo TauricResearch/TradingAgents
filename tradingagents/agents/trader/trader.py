@@ -7,7 +7,7 @@ import functools
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import build_instrument_context, build_scope_guard
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -20,6 +20,7 @@ def create_trader(llm):
     def trader_node(state, name):
         company_name = state["company_of_interest"]
         instrument_context = build_instrument_context(company_name)
+        scope_guard = build_scope_guard(company_name)
         investment_plan = state["investment_plan"]
 
         messages = [
@@ -35,7 +36,7 @@ def create_trader(llm):
                 "role": "user",
                 "content": (
                     f"Based on a comprehensive analysis by a team of analysts, here is an investment "
-                    f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
+                    f"plan tailored for {company_name}. {instrument_context} {scope_guard} This plan incorporates "
                     f"insights from current technical market trends, macroeconomic indicators, and "
                     f"social media sentiment. Use this plan as a foundation for evaluating your next "
                     f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"

@@ -1,5 +1,8 @@
 
 
+from tradingagents.agents.utils.agent_utils import build_scope_guard
+
+
 def create_bull_researcher(llm):
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
@@ -11,8 +14,10 @@ def create_bull_researcher(llm):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        scope_guard = build_scope_guard(state["company_of_interest"])
 
         prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+{scope_guard}
 
 Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.

@@ -46,6 +46,7 @@ class RiskDebateState(TypedDict):
 class AgentState(MessagesState):
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
+    target_profile: Annotated[dict, "Target investor profile, horizon, benchmark, and risk appetite"]
 
     sender: Annotated[str, "Agent that sent this message"]
 
@@ -70,4 +71,12 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+    source_objects: Annotated[list, "Structured source objects available to the Portfolio Manager"]
+    recommendation_scorecard: Annotated[dict, "Deterministic audit scorecard used for recommendation reconciliation"]
+    pre_synthesis_scope_audit: Annotated[dict, "Deterministic ticker/entity scope audit created before final synthesis"]
+    raw_tool_outputs: Annotated[list, "Raw tool output source objects captured from graph tool messages"]
+    raw_tool_seen_ids: Annotated[list, "Tool call IDs already captured as raw evidence"]
+    source_registry: Annotated[dict, "Normalized source registry used for citation validation"]
+    claim_graph: Annotated[dict, "Structured claim graph extracted from reports and source objects"]
+    skill_registry: Annotated[dict, "Structured skill registry spanning QA, claims, regime, and judge"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]

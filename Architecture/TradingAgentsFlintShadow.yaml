@@ -1,0 +1,452 @@
+TradingAgentsFlintShadow:
+  SoftwareSystems:
+    TradingAgentsShadow:
+      Label: TradingAgents Flint Shadow
+      Boundary: Internal
+      Description: Repo-local advisory sidecar that runs TradingAgents as a Flint shadow-analysis comparator and writes evidence artifacts under output.
+      Containers:
+        FlintShadowRunner:
+          Label: Flint Shadow Runner
+          Description: Non-interactive Python wrapper that loads local environment values, forces repo-local output paths, runs the graph, and prints a normalized JSON summary.
+          ContainerType: Cli
+          Boundary: Internal
+          Technology: Python argparse
+          Components:
+            EnvLoader:
+              Label: Env Loader
+              Description: Reads .env.flint-shadow without printing secrets.
+              ComponentType: Utility
+              Technology: Python
+              Interfaces:
+                LoadShadowEnv:
+                  Label: Load Shadow Env
+                  Description: Loads provider and model defaults for the shadow run.
+                  Path: scripts/flint/run_shadow_analysis.py::_load_env_file
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows: []
+            ConfigBuilder:
+              Label: Config Builder
+              Description: Copies DEFAULT_CONFIG and pins results, cache, memory, provider, model, checkpoint, and round settings.
+              ComponentType: Utility
+              Technology: Python
+              Interfaces:
+                BuildShadowConfig:
+                  Label: Build Shadow Config
+                  Description: Builds the config passed into TradingAgentsGraph.
+                  Path: scripts/flint/run_shadow_analysis.py::_build_config
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows: []
+          Interfaces:
+            RunShadowAnalysis:
+              Label: Run Shadow Analysis
+              Description: Runs advisory analysis for ticker, date, selected analysts, and model/provider overrides.
+              Path: scripts/flint/run_shadow_analysis.py
+              IsPrivate: false
+              Protocol: Shell
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.FlintShadowRunner.Components.EnvLoader.Interfaces.LoadShadowEnv
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.FlintShadowRunner.Components.ConfigBuilder.Interfaces.BuildShadowConfig
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.TradingAgentsGraph.Interfaces.PropagateAnalysis
+          Entities: {}
+        UpstreamInteractiveCli:
+          Label: Upstream Interactive CLI
+          Description: Optional terminal UI for manual TradingAgents exploration. For Flint shadow work it must be launched with repo-local output environment variables.
+          ContainerType: Cli
+          Boundary: Internal
+          Technology: Typer, Rich, questionary
+          Components: {}
+          Interfaces:
+            AnalyzeInteractively:
+              Label: Analyze Interactively
+              Description: Prompts for ticker, date, language, analysts, provider, models, depth, and report-saving choices.
+              Path: cli/main.py
+              IsPrivate: false
+              Protocol: Shell
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.TradingAgentsGraph.Interfaces.PropagateAnalysis
+          Entities: {}
+        TradingAgentsGraph:
+          Label: TradingAgentsGraph
+          Description: Main Python orchestrator that wires config, LLMs, tools, graph setup, memory, checkpointing, persistence, and rating extraction.
+          ContainerType: Application
+          Boundary: Internal
+          Technology: Python
+          Components:
+            GraphInitializer:
+              Label: Graph Initializer
+              Description: Sets dataflow config, creates dirs, creates quick/deep LLM clients, creates tool nodes, and compiles the workflow.
+              ComponentType: Service
+              Technology: Python
+              Interfaces:
+                InitializeGraph:
+                  Label: Initialize Graph
+                  Description: Initializes a TradingAgentsGraph instance for selected analysts.
+                  Path: tradingagents/graph/trading_graph.py::__init__
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.CreateLlmClients
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.DataToolLayer.Interfaces.CreateToolNodes
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Interfaces.CompileWorkflow
+            MemoryResolver:
+              Label: Memory Resolver
+              Description: Resolves prior pending same-ticker decisions, computes returns, generates reflections, and injects past context into the run.
+              ComponentType: Service
+              Technology: Python
+              Interfaces:
+                ResolvePriorMemory:
+                  Label: Resolve Prior Memory
+                  Description: Reads pending memory entries and updates resolvable outcomes before a new run.
+                  Path: tradingagents/graph/trading_graph.py::_resolve_pending_entries
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.OutputStore.Interfaces.ReadMemoryLog
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.MarketDataVendors.Interfaces.FetchMarketData
+            StateLogger:
+              Label: State Logger
+              Description: Writes the final AgentState subset to full_states_log_<date>.json.
+              ComponentType: Service
+              Technology: Python
+              Interfaces:
+                LogFinalState:
+                  Label: Log Final State
+                  Description: Persists run state for downstream evidence ingestion.
+                  Path: tradingagents/graph/trading_graph.py::_log_state
+                  IsPrivate: true
+                  Protocol: Filesystem
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.OutputStore.Interfaces.WriteStateLog
+            SignalProcessor:
+              Label: Signal Processor
+              Description: Deterministically parses the final portfolio rating from Portfolio Manager markdown.
+              ComponentType: Service
+              Technology: Python
+              Interfaces:
+                ParseFinalRating:
+                  Label: Parse Final Rating
+                  Description: Returns Buy, Overweight, Hold, Underweight, or Sell.
+                  Path: tradingagents/graph/signal_processing.py::process_signal
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows: []
+          Interfaces:
+            PropagateAnalysis:
+              Label: Propagate Analysis
+              Description: Runs memory resolution, optional checkpoint setup, graph invocation, artifact writes, memory append, checkpoint cleanup, and rating parsing.
+              Path: tradingagents/graph/trading_graph.py::propagate
+              IsPrivate: true
+              Protocol: InProcess
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.TradingAgentsGraph.Components.MemoryResolver.Interfaces.ResolvePriorMemory
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.OutputStore.Interfaces.ReadPastContext
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.OutputStore.Interfaces.ManageCheckpoint
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Interfaces.ExecuteWorkflow
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.TradingAgentsGraph.Components.StateLogger.Interfaces.LogFinalState
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.OutputStore.Interfaces.AppendMemoryDecision
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.TradingAgentsGraph.Components.SignalProcessor.Interfaces.ParseFinalRating
+          Entities: {}
+        AgentWorkflow:
+          Label: LangGraph Agent Workflow
+          Description: StateGraph that executes selected analysts, research debate, trader proposal, risk debate, and portfolio decision.
+          ContainerType: Workflow
+          Boundary: Internal
+          Technology: LangGraph StateGraph
+          Components:
+            AnalystTeam:
+              Label: Selected Analyst Tool Loops
+              Description: Market, social, news, and fundamentals analysts run in selected order and call data tools until no tool calls remain.
+              ComponentType: AgentGroup
+              Technology: LangGraph nodes, quick LLM
+              Interfaces:
+                GenerateReports:
+                  Label: Generate Analyst Reports
+                  Description: Produces market_report, sentiment_report, news_report, and/or fundamentals_report.
+                  Path: tradingagents/agents/analysts
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.DataToolLayer.Interfaces.ExecuteAnalystTools
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.GenerateCompletion
+            ResearchDebate:
+              Label: Bull/Bear Research Debate
+              Description: Bull and Bear researchers debate analyst reports until max_debate_rounds is reached.
+              ComponentType: AgentGroup
+              Technology: quick LLM
+              Interfaces:
+                DebateInvestmentCase:
+                  Label: Debate Investment Case
+                  Description: Updates investment_debate_state.
+                  Path: tradingagents/agents/researchers
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.GenerateCompletion
+            ResearchManager:
+              Label: Research Manager
+              Description: Converts the investment debate into a rendered ResearchPlan markdown investment plan.
+              ComponentType: Agent
+              Technology: deep LLM structured output
+              Interfaces:
+                BuildInvestmentPlan:
+                  Label: Build Investment Plan
+                  Description: Produces investment_plan with structured-output fallback to free text.
+                  Path: tradingagents/agents/managers/research_manager.py
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.GenerateStructuredOutput
+            Trader:
+              Label: Trader
+              Description: Converts the investment plan into a rendered TraderProposal markdown transaction proposal.
+              ComponentType: Agent
+              Technology: quick LLM structured output
+              Interfaces:
+                BuildTradeProposal:
+                  Label: Build Trade Proposal
+                  Description: Produces trader_investment_plan with structured-output fallback to free text.
+                  Path: tradingagents/agents/trader/trader.py
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.GenerateStructuredOutput
+            RiskDebate:
+              Label: Risk Debate
+              Description: Aggressive, Conservative, and Neutral analysts debate the trader plan until max_risk_discuss_rounds is reached.
+              ComponentType: AgentGroup
+              Technology: quick LLM
+              Interfaces:
+                DebateRiskCase:
+                  Label: Debate Risk Case
+                  Description: Updates risk_debate_state.
+                  Path: tradingagents/agents/risk_mgmt
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.GenerateCompletion
+            PortfolioManager:
+              Label: Portfolio Manager
+              Description: Synthesizes risk debate, research plan, trader plan, and memory context into final decision markdown.
+              ComponentType: Agent
+              Technology: deep LLM structured output
+              Interfaces:
+                BuildFinalDecision:
+                  Label: Build Final Decision
+                  Description: Produces final_trade_decision with structured-output fallback to free text.
+                  Path: tradingagents/agents/managers/portfolio_manager.py
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.LlmClientLayer.Interfaces.GenerateStructuredOutput
+          Interfaces:
+            CompileWorkflow:
+              Label: Compile Workflow
+              Description: Creates graph nodes, conditional edges, and END routing for selected analysts and fixed debate/decision nodes.
+              Path: tradingagents/graph/setup.py::setup_graph
+              IsPrivate: true
+              Protocol: InProcess
+              Flows: []
+            ExecuteWorkflow:
+              Label: Execute Workflow
+              Description: Runs the AgentState through analyst reports, research debate, trader proposal, risk debate, and portfolio decision.
+              Path: tradingagents/graph/trading_graph.py::_run_graph
+              IsPrivate: true
+              Protocol: InProcess
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Components.AnalystTeam.Interfaces.GenerateReports
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Components.ResearchDebate.Interfaces.DebateInvestmentCase
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Components.ResearchManager.Interfaces.BuildInvestmentPlan
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Components.Trader.Interfaces.BuildTradeProposal
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Components.RiskDebate.Interfaces.DebateRiskCase
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.AgentWorkflow.Components.PortfolioManager.Interfaces.BuildFinalDecision
+          Entities: {}
+        DataToolLayer:
+          Label: Data Tool Layer
+          Description: LangChain tool layer and vendor router for market, technical, news, insider, and fundamental data.
+          ContainerType: Library
+          Boundary: Internal
+          Technology: LangChain tools, Python
+          Components:
+            ToolRouter:
+              Label: Tool Router
+              Description: Applies category-level and method-level vendor configuration and falls back across available vendors on Alpha Vantage rate limits.
+              ComponentType: Service
+              Technology: Python
+              Interfaces:
+                RouteToVendor:
+                  Label: Route To Vendor
+                  Description: Dispatches a tool method to the configured vendor implementation.
+                  Path: tradingagents/dataflows/interface.py::route_to_vendor
+                  IsPrivate: true
+                  Protocol: InProcess
+                  Flows:
+                    - Type: Use
+                      Expression: TradingAgentsFlintShadow.SoftwareSystems.MarketDataVendors.Interfaces.FetchMarketData
+          Interfaces:
+            CreateToolNodes:
+              Label: Create Tool Nodes
+              Description: Builds ToolNode groups for market, social, news, and fundamentals analysts.
+              Path: tradingagents/graph/trading_graph.py::_create_tool_nodes
+              IsPrivate: true
+              Protocol: InProcess
+              Flows: []
+            ExecuteAnalystTools:
+              Label: Execute Analyst Tools
+              Description: Executes requested analyst tools and returns formatted text to the analyst loop.
+              Path: tradingagents/agents/utils/*_tools.py
+              IsPrivate: true
+              Protocol: InProcess
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.TradingAgentsShadow.Containers.DataToolLayer.Components.ToolRouter.Interfaces.RouteToVendor
+          Entities: {}
+        LlmClientLayer:
+          Label: LLM Client Layer
+          Description: Provider-specific factory layer that returns LangChain-compatible quick and deep thinking chat clients.
+          ContainerType: Library
+          Boundary: Internal
+          Technology: LangChain chat clients
+          Components: {}
+          Interfaces:
+            CreateLlmClients:
+              Label: Create LLM Clients
+              Description: Creates quick_thinking_llm and deep_thinking_llm for the configured provider/model pair.
+              Path: tradingagents/llm_clients
+              IsPrivate: true
+              Protocol: InProcess
+              Flows: []
+            GenerateCompletion:
+              Label: Generate Completion
+              Description: Invokes unstructured analyst and debate prompts.
+              Path: tradingagents/llm_clients
+              IsPrivate: true
+              Protocol: ProviderAPI
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.LlmProvider.Interfaces.ChatCompletion
+            GenerateStructuredOutput:
+              Label: Generate Structured Output
+              Description: Invokes structured ResearchPlan, TraderProposal, or PortfolioDecision output with free-text fallback.
+              Path: tradingagents/agents/utils/structured.py
+              IsPrivate: true
+              Protocol: ProviderAPI
+              Flows:
+                - Type: Use
+                  Expression: TradingAgentsFlintShadow.SoftwareSystems.LlmProvider.Interfaces.ChatCompletion
+          Entities: {}
+        OutputStore:
+          Label: Repo-local Output Store
+          Description: Filesystem state for Flint shadow runs.
+          ContainerType: Database
+          Boundary: Internal
+          Technology: JSON, Markdown, CSV, SQLite
+          Components: {}
+          Interfaces:
+            ReadPastContext:
+              Label: Read Past Context
+              Description: Reads resolved memory entries for same-ticker and cross-ticker context injection.
+              Path: output/memory/trading_memory.md
+              IsPrivate: true
+              Protocol: Filesystem
+              Flows: []
+            ReadMemoryLog:
+              Label: Read Memory Log
+              Description: Reads append-only decision log entries.
+              Path: output/memory/trading_memory.md
+              IsPrivate: true
+              Protocol: Filesystem
+              Flows: []
+            AppendMemoryDecision:
+              Label: Append Memory Decision
+              Description: Appends a pending final decision entry after each successful run.
+              Path: output/memory/trading_memory.md
+              IsPrivate: true
+              Protocol: Filesystem
+              Flows: []
+            WriteStateLog:
+              Label: Write State Log
+              Description: Writes full_states_log_<date>.json for the run.
+              Path: output/logs/<ticker>/TradingAgentsStrategy_logs
+              IsPrivate: true
+              Protocol: Filesystem
+              Flows: []
+            ManageCheckpoint:
+              Label: Manage Checkpoint
+              Description: Optionally stores and clears per-ticker LangGraph checkpoint state.
+              Path: output/cache/checkpoints/<TICKER>.db
+              IsPrivate: true
+              Protocol: SQLite
+              Flows: []
+          Entities: {}
+      Interfaces: {}
+    LlmProvider:
+      Label: LLM Provider
+      Boundary: External
+      Description: Local or remote provider serving chat completions and provider-native structured output where supported.
+      Containers: {}
+      Interfaces:
+        ChatCompletion:
+          Label: Chat Completion
+          Description: Generates model responses for analyst, debate, trader, and manager prompts.
+          Path: /v1/chat/completions
+          IsPrivate: false
+          Protocol: HTTPS/OpenAI-compatible
+          Flows: []
+    MarketDataVendors:
+      Label: Market Data Vendors
+      Boundary: External
+      Description: External market, indicator, news, insider, and fundamentals providers.
+      Containers: {}
+      Interfaces:
+        FetchMarketData:
+          Label: Fetch Market Data
+          Description: Returns prices, technical indicators, news, insider transactions, fundamentals, balance sheet, cash flow, and income statements.
+          Path: yfinance / Alpha Vantage APIs
+          IsPrivate: false
+          Protocol: HTTPS/API
+          Flows: []
+    Flint:
+      Label: Flint
+      Boundary: External
+      Description: Downstream execution and governance system. This repo does not write into Flint; Flint can ingest advisory artifacts later.
+      Containers: {}
+      Interfaces:
+        IngestAdvisoryEvidence:
+          Label: Ingest Advisory Evidence
+          Description: Consumes normalized advisory artifacts after human review on the Flint side.
+          Path: external to this repo
+          IsPrivate: false
+          Protocol: FileHandoff
+          Flows: []
