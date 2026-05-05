@@ -180,16 +180,18 @@ def test_quality_warns_when_expected_raw_tool_provenance_missing() -> None:
 
 
 def test_recommendation_scorecard_uses_six_named_factors() -> None:
-    scorecard = build_recommendation_scorecard(
-        {
-            "market_report": "Uptrend breakout above resistance with strong momentum and controlled volatility.",
-            "news_report": "Positive news beat expectations.",
-            "sentiment_report": "Analyst sentiment remains constructive.",
-            "fundamentals_report": "Revenue growth and cash flow are improving.",
-            "risk_debate_state": {"history": "Risk-controlled and balanced with disciplined hedging."},
-            "macro_report": "Stable rates and easing inflation keep the macro backdrop favorable.",
-        }
-    )
+    final_state = {
+        "market_report": "Uptrend breakout above resistance. Momentum remains strong. Volatility is controlled.",
+        "news_report": "Positive news beat expectations.",
+        "sentiment_report": "Analyst sentiment remains constructive.",
+        "fundamentals_report": "Revenue growth and cash flow are improving.",
+        "risk_debate_state": {"history": "Risk-controlled and balanced with disciplined hedging."},
+        "macro_report": "Stable rates and easing inflation keep the macro backdrop favorable.",
+    }
+    registry = build_source_registry(final_state)
+    final_state["claim_graph"] = build_claim_graph(final_state, registry)
+    final_state["source_registry"] = registry
+    scorecard = build_recommendation_scorecard(final_state)
 
     assert [factor["factor"] for factor in scorecard["factors"]] == [
         "technical_trend",
@@ -201,11 +203,10 @@ def test_recommendation_scorecard_uses_six_named_factors() -> None:
         "macro_regime",
     ]
     assert scorecard["method"].startswith("claim-backed deterministic audit model")
-    assert scorecard["factors"][0]["inputs"]["matched_positive_terms"] == [
-        "uptrend",
-        "breakout",
-        "above resistance",
-    ]
+    assert scorecard["claim_backed_factor_count"] >= 5
+    assert scorecard["factors"][0]["inputs"]["claim_count"] == 1
+    assert scorecard["factors"][1]["inputs"]["claim_count"] == 1
+    assert scorecard["factors"][0]["inputs"]["bullish_claim_ids"] != scorecard["factors"][1]["inputs"]["bullish_claim_ids"]
     assert scorecard["factors"][0]["rationale"].startswith("Technical trend: score=")
     assert scorecard["suggested_rating"] in {"Buy", "Overweight", "Hold", "Underweight", "Sell"}
 

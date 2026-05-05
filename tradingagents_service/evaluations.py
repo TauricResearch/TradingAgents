@@ -332,7 +332,7 @@ def _score(
 def _label_for(*, overall: float, error_codes: set[str]) -> str:
     if "pre_synthesis_scope_contamination" in error_codes:
         return "insufficient_evidence"
-    if {"missing_source_object_citation", "missing_raw_tool_citation"} & error_codes:
+    if {"missing_source_object_citation", "missing_raw_tool_citation", "missing_claim_graph_evidence", "unlinked_claim_evidence", "scorecard_claim_backing_missing"} & error_codes:
         return "insufficient_evidence"
     if overall >= 90:
         return "accept"

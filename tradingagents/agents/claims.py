@@ -39,14 +39,13 @@ _SHORT_SENTENCE_RE = re.compile(r"^[\W_]*$")
 _INLINE_SOURCE_ID_RE = re.compile(r"\[(SRC-[A-Z]+-\d+|RAW-TOOL-\d+)\]")
 _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{2,}")
 _TOPIC_HINTS = (
-    ("momentum", ("momentum", "breakout", "uptrend", "downgrade", "upgrade")),
-    ("volatility", ("volatility",)),
-    ("revenue_growth", ("revenue growth", "growth", "sales")),
-    ("cash_flow", ("cash flow", "liquidity")),
-    ("earnings", ("earnings", "eps", "beat", "miss")),
-    ("margin", ("margin",)),
-    ("macro", ("macro", "inflation", "rates")),
-    ("risk", ("risk", "cautious", "drawdown")),
+    ("technical_trend", ("uptrend", "breakout", "higher high", "above resistance", "downtrend", "breakdown", "lower low", "below support", "bullish trend", "bearish trend")),
+    ("momentum", ("momentum", "strength", "acceleration", "outperform", "gaining", "weak momentum", "deceleration", "overbought", "underperform")),
+    ("volatility", ("volatility", "atr", "tight range", "wide range", "calm", "elevated volatility", "drawdown")),
+    ("news_sentiment", ("upgrade", "downgrade", "beat", "miss", "positive", "negative", "strong", "warning", "approval", "partnership", "probe", "lawsuit", "headwind")),
+    ("fundamentals", ("revenue growth", "cash flow", "earnings", "margin", "profit", "debt", "loss", "cash burn", "healthy balance sheet", "weak fundamentals", "impairment")),
+    ("risk_posture", ("risk", "balanced", "hedge", "risk-controlled", "diversified", "disciplined", "uncertain", "conservative", "downside", "fragile", "risk-off")),
+    ("macro_regime", ("macro", "inflation", "rates", "liquidity", "recession", "soft landing", "tightening", "risk-on", "favorable macro", "credit stress")),
 )
 
 

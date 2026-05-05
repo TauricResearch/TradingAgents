@@ -498,16 +498,18 @@ def assess_shadow_run_quality(
         )
 
     claim_graph_summary = recommendation_audit.get("claim_graph_summary") or {}
-    has_claim_graph = isinstance(_claim_graph(state), dict) and bool(_claim_graph(state))
+    claim_graph = _claim_graph(state)
+    has_claim_graph = isinstance(claim_graph, dict) and bool(claim_graph)
+    evidence_present = bool(sources or raw_tool_outputs)
     claim_count = int(claim_graph_summary.get("claim_count") or 0)
     claim_source_ids = claim_graph_summary.get("claim_source_ids") or []
     claim_backed_factor_count = int(claim_graph_summary.get("claim_backed_factor_count") or 0)
-    if has_claim_graph and (sources or raw_tool_outputs) and claim_count == 0:
+    if evidence_present and claim_count == 0:
         findings.append(
             QualityFinding(
                 code="missing_claim_graph_evidence",
                 severity="error",
-                message="Structured source objects were produced, but no claim graph evidence was extracted for synthesis.",
+                message="Evidence was produced, but no claim graph evidence was extracted for synthesis.",
             )
         )
     if has_claim_graph and claim_count and not claim_source_ids:

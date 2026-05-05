@@ -25,6 +25,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "technical_trend",
         "label": "Technical trend",
         "source_keys": ["market_report"],
+        "claim_topics": {"technical_trend"},
         "claim_types": {"market", "macro"},
         "positive_terms": TECHNICAL_TREND_POSITIVE_TERMS,
         "negative_terms": TECHNICAL_TREND_NEGATIVE_TERMS,
@@ -33,6 +34,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "momentum",
         "label": "Momentum",
         "source_keys": ["market_report"],
+        "claim_topics": {"momentum"},
         "claim_types": {"market", "macro"},
         "positive_terms": MOMENTUM_POSITIVE_TERMS,
         "negative_terms": MOMENTUM_NEGATIVE_TERMS,
@@ -41,6 +43,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "volatility",
         "label": "Volatility",
         "source_keys": ["market_report"],
+        "claim_topics": {"volatility"},
         "claim_types": {"market", "raw_tool_output"},
         "positive_terms": VOLATILITY_POSITIVE_TERMS,
         "negative_terms": VOLATILITY_NEGATIVE_TERMS,
@@ -49,6 +52,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "news_sentiment",
         "label": "News sentiment",
         "source_keys": ["news_report", "sentiment_report"],
+        "claim_topics": {"news_sentiment"},
         "claim_types": {"news", "sentiment"},
         "positive_terms": NEWS_SENTIMENT_POSITIVE_TERMS,
         "negative_terms": NEWS_SENTIMENT_NEGATIVE_TERMS,
@@ -57,6 +61,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "fundamentals",
         "label": "Fundamentals",
         "source_keys": ["fundamentals_report"],
+        "claim_topics": {"fundamentals"},
         "claim_types": {"fundamentals"},
         "positive_terms": FUNDAMENTALS_POSITIVE_TERMS,
         "negative_terms": FUNDAMENTALS_NEGATIVE_TERMS,
@@ -65,6 +70,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "risk_posture",
         "label": "Risk posture",
         "source_keys": ["risk_debate_state.history"],
+        "claim_topics": {"risk_posture"},
         "claim_types": set(),
         "positive_terms": RISK_POSTURE_POSITIVE_TERMS,
         "negative_terms": RISK_POSTURE_NEGATIVE_TERMS,
@@ -73,6 +79,7 @@ CLAIM_FACTOR_SPECS = (
         "factor": "macro_regime",
         "label": "Macro regime",
         "source_keys": ["market_report", "news_report", "macro_report"],
+        "claim_topics": {"macro_regime"},
         "claim_types": {"macro", "market", "news"},
         "positive_terms": MACRO_REGIME_POSITIVE_TERMS,
         "negative_terms": MACRO_REGIME_NEGATIVE_TERMS,
@@ -125,6 +132,14 @@ def _claims_for_factor(final_state: dict[str, Any], claim_types: set[str]) -> li
         or str(claim.get("evidence_type")) in claim_types
         or str(claim.get("state_key")) in claim_types
     ]
+    return matched
+
+
+def _claims_for_factor_topics(final_state: dict[str, Any], claim_topics: set[str]) -> list[dict[str, Any]]:
+    claims = _claim_objects(final_state)
+    if not claim_topics:
+        return []
+    matched = [claim for claim in claims if str(claim.get("topic")) in claim_topics]
     return matched
 
 
@@ -213,6 +228,7 @@ def _factor(
     text: str,
     positive_terms: tuple[str, ...],
     negative_terms: tuple[str, ...],
+    claim_topics: set[str] | None = None,
     claims: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     claims = claims or []
@@ -285,8 +301,11 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
     source_registry = _source_registry(final_state)
     claims = _claim_objects(final_state)
 
-    def _claims_for(*claim_types: str) -> list[dict[str, Any]]:
-        return _claims_for_factor(final_state, set(claim_types))
+    def _claims_for(*, topics: set[str], types: set[str]) -> list[dict[str, Any]]:
+        topic_matches = _claims_for_factor_topics(final_state, topics)
+        if topic_matches:
+            return topic_matches
+        return _claims_for_factor(final_state, types)
 
     factors = [
         _factor(
@@ -296,7 +315,8 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text=market_report,
             positive_terms=TECHNICAL_TREND_POSITIVE_TERMS,
             negative_terms=TECHNICAL_TREND_NEGATIVE_TERMS,
-            claims=_claims_for("market", "macro"),
+            claim_topics={"technical_trend"},
+            claims=_claims_for(topics={"technical_trend"}, types={"market", "macro"}),
         ),
         _factor(
             factor="momentum",
@@ -305,7 +325,8 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text=market_report,
             positive_terms=MOMENTUM_POSITIVE_TERMS,
             negative_terms=MOMENTUM_NEGATIVE_TERMS,
-            claims=_claims_for("market", "macro"),
+            claim_topics={"momentum"},
+            claims=_claims_for(topics={"momentum"}, types={"market", "macro"}),
         ),
         _factor(
             factor="volatility",
@@ -314,7 +335,8 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text=market_report,
             positive_terms=VOLATILITY_POSITIVE_TERMS,
             negative_terms=VOLATILITY_NEGATIVE_TERMS,
-            claims=_claims_for("market", "raw_tool_output"),
+            claim_topics={"volatility"},
+            claims=_claims_for(topics={"volatility"}, types={"market", "raw_tool_output"}),
         ),
         _factor(
             factor="news_sentiment",
@@ -323,7 +345,8 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text="\n".join(part for part in (news_report, sentiment_report) if part).strip(),
             positive_terms=NEWS_SENTIMENT_POSITIVE_TERMS,
             negative_terms=NEWS_SENTIMENT_NEGATIVE_TERMS,
-            claims=_claims_for("news", "sentiment"),
+            claim_topics={"news_sentiment"},
+            claims=_claims_for(topics={"news_sentiment"}, types={"news", "sentiment"}),
         ),
         _factor(
             factor="fundamentals",
@@ -332,7 +355,8 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text=fundamentals_report,
             positive_terms=FUNDAMENTALS_POSITIVE_TERMS,
             negative_terms=FUNDAMENTALS_NEGATIVE_TERMS,
-            claims=_claims_for("fundamentals"),
+            claim_topics={"fundamentals"},
+            claims=_claims_for(topics={"fundamentals"}, types={"fundamentals"}),
         ),
         _factor(
             factor="risk_posture",
@@ -341,6 +365,7 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text=risk_text,
             positive_terms=RISK_POSTURE_POSITIVE_TERMS,
             negative_terms=RISK_POSTURE_NEGATIVE_TERMS,
+            claim_topics={"risk_posture"},
             claims=[],
         ),
         _factor(
@@ -350,7 +375,8 @@ def build_factor_model(final_state: dict[str, Any]) -> dict[str, Any]:
             text=macro_text,
             positive_terms=MACRO_REGIME_POSITIVE_TERMS,
             negative_terms=MACRO_REGIME_NEGATIVE_TERMS,
-            claims=_claims_for("macro", "market", "news"),
+            claim_topics={"macro_regime"},
+            claims=_claims_for(topics={"macro_regime"}, types={"macro", "market", "news"}),
         ),
     ]
 

@@ -92,9 +92,69 @@ def test_compute_shadow_run_evaluation_flags_insufficient_evidence():
     scores = {score.dimension: score for score in result.scores}
     assert scores["ticker_scope"].score == 0
     assert scores["evidence_traceability"].pass_fail is False
+    assert "claim_traceability" in scores
     assert result.input_json["target_profile"]["investor_type"] == "growth"
     assert result.result_json["dimensions"][3]["evidence"]["target_profile_status"] == "not_addressed"
     assert "pre_synthesis_scope_contamination" in result.result_json["unsupported_claim_markers"]
+
+
+@pytest.mark.unit
+def test_compute_shadow_run_evaluation_treats_missing_claim_graph_as_insufficient_evidence():
+    payload = {
+        "target_type": "shadow_run",
+        "shadow_run": {
+            "run_id": str(uuid4()),
+            "ticker": "NVDA",
+            "trade_date": "2026-01-15",
+            "selected_analysts": ["market"],
+            "status": "succeeded",
+            "provider": "ollama",
+            "model": "llama3.2:latest",
+            "target_profile": {},
+        },
+        "decision": {
+            "final_rating": "Hold",
+            "decision_markdown": "Rating: Hold. Market momentum is mixed [SRC-MARKET-1].",
+            "state_log_dir": "output/logs/NVDA/TradingAgentsStrategy_logs",
+            "memory_log_path": "output/memory/trading_memory.md",
+        },
+        "quality": {
+            "status": "failed",
+            "findings": [
+                {
+                    "code": "missing_claim_graph_evidence",
+                    "severity": "error",
+                    "message": "Evidence was produced, but no claim graph evidence was extracted for synthesis.",
+                }
+            ],
+            "source_summary": {
+                "valid_source_ids": ["SRC-MARKET-1"],
+                "cited_source_ids": ["SRC-MARKET-1"],
+                "raw_tool_output_ids": [],
+                "claim_count": 0,
+                "claim_source_ids": [],
+                "claim_backed_factor_count": 0,
+            },
+            "recommendation_audit": {
+                "scorecard_reconciliation": {
+                    "status": "aligned",
+                    "requires_reconciliation": False,
+                    "reconciled": True,
+                }
+            },
+        },
+        "target_profile": {},
+        "artifacts": [],
+    }
+
+    result = compute_shadow_run_evaluation(evaluation_input=payload)
+
+    assert result.result_json["label"] == "insufficient_evidence"
+    assert result.result_json["needs_human_review"] is True
+    assert "missing_claim_graph_evidence" in result.result_json["unsupported_claim_markers"]
+    scores = {score.dimension: score for score in result.scores}
+    assert scores["claim_traceability"].score == 10.0
+    assert scores["claim_traceability"].pass_fail is False
 
 
 class _EvalStubRepo:

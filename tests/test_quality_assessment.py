@@ -31,6 +31,22 @@ def _scorecard(suggested_rating: str, suggested_direction: str) -> dict[str, obj
         "suggested_rating": suggested_rating,
         "suggested_direction": suggested_direction,
         "method": "keyword-balance audit scaffold over analyst reports and risk debate",
+        "claim_backed_factor_count": 1,
+    }
+
+
+def _claim_graph(source_ids: list[str] | None = None) -> dict[str, object]:
+    source_ids = source_ids or ["SRC-MARKET-1"]
+    return {
+        "claim_objects": [
+            {
+                "claim_id": "CLM-0001",
+                "text": "Market momentum is mixed.",
+                "source_ids": source_ids,
+            }
+        ],
+        "claim_ids": ["CLM-0001"],
+        "claim_source_ids": source_ids,
     }
 
 
@@ -99,6 +115,7 @@ def test_quality_passes_with_valid_structured_source_object_citations() -> None:
                 _source("SRC-NEWS-1", "news"),
             ],
             "recommendation_scorecard": _scorecard("Hold", "neutral"),
+            "claim_graph": _claim_graph(["SRC-MARKET-1", "SRC-NEWS-1"]),
         },
     )
 
@@ -106,6 +123,66 @@ def test_quality_passes_with_valid_structured_source_object_citations() -> None:
     assert assessment.findings == []
     assert assessment.recommendation_audit["cited_source_ids"] == ["SRC-MARKET-1", "SRC-NEWS-1"]
     assert assessment.recommendation_audit["available_source_ids"] == ["SRC-MARKET-1", "SRC-NEWS-1"]
+
+
+def test_quality_fails_when_source_evidence_exists_without_claim_graph() -> None:
+    assessment = assess_shadow_run_quality(
+        ticker="NVDA",
+        final_trade_decision="Rating: Hold. Market momentum is mixed [SRC-MARKET-1].",
+        final_state={
+            "market_report": "Market analyst report shows mixed momentum.",
+            "source_objects": [_source("SRC-MARKET-1", "market")],
+            "recommendation_scorecard": _scorecard("Hold", "neutral"),
+        },
+    )
+
+    assert assessment.status == "failed"
+    findings = {finding.code: finding for finding in assessment.findings}
+    assert findings["missing_claim_graph_evidence"].severity == "error"
+    assert assessment.source_summary["source_object_count"] == 1
+    assert assessment.source_summary["claim_count"] == 0
+
+
+def test_quality_does_not_require_claim_graph_without_structured_evidence() -> None:
+    assessment = assess_shadow_run_quality(
+        ticker="NVDA",
+        final_trade_decision="Rating: Hold. According to Yahoo Finance data, NVDA momentum is mixed.",
+        final_state={
+            "market_report": "Market analyst report shows mixed momentum.",
+            "news_report": "News analyst report shows balanced risk.",
+            "investment_plan": "**Recommendation**: Hold",
+            "trader_investment_plan": "**Action**: Hold",
+        },
+    )
+
+    assert "missing_claim_graph_evidence" not in {finding.code for finding in assessment.findings}
+    assert assessment.source_summary["source_object_count"] == 0
+    assert assessment.source_summary["raw_tool_output_count"] == 0
+    assert assessment.source_summary["claim_count"] == 0
+
+
+def test_quality_fails_when_raw_tool_sources_exist_without_claim_graph() -> None:
+    assessment = assess_shadow_run_quality(
+        ticker="NVDA",
+        final_trade_decision="Rating: Hold. Market momentum is mixed [RAW-TOOL-0001].",
+        final_state={
+            "market_report": "Market analyst report shows mixed momentum.",
+            "raw_tool_outputs": [
+                {
+                    "source_id": "RAW-TOOL-0001",
+                    "source_type": "raw_tool_output",
+                    "tool_name": "get_stock_data",
+                    "output_sha256": "a" * 64,
+                }
+            ],
+            "recommendation_scorecard": _scorecard("Hold", "neutral"),
+        },
+    )
+
+    assert assessment.status == "failed"
+    codes = {finding.code for finding in assessment.findings}
+    assert "missing_claim_graph_evidence" in codes
+    assert assessment.source_summary["raw_tool_output_count"] == 1
 
 
 def test_quality_fails_when_structured_source_objects_are_not_cited() -> None:
@@ -214,6 +291,7 @@ def test_quality_warns_when_target_profile_is_not_addressed() -> None:
             ],
             "target_profile": {"investor_type": "growth", "horizon": "12m", "benchmark": "SPY", "risk_appetite": "moderate"},
             "recommendation_scorecard": _scorecard("Hold", "neutral"),
+            "claim_graph": _claim_graph(["SRC-MARKET-1", "SRC-NEWS-1"]),
         },
     )
 
