@@ -164,13 +164,12 @@ function PositionsTableRow({ pos }: { pos: PositionRow }) {
         <StopBadge level={pos.stopLevel} />
       </td>
       <td>
-        <button
+        <a
+          href={`/analyze?ticker=${pos.ticker}`}
           class="btn-sm"
-          data-action="analyzeTicker"
-          data-ticker={pos.ticker}
         >
           Analyze
-        </button>
+        </a>
       </td>
     </tr>
   );
@@ -352,13 +351,12 @@ export function HoldingsPage({ holdingsData, positionsData }: {
                             {fmt(costGbp)}
                           </td>
                           <td>
-                            <button
+                            <a
+                              href={`/analyze?ticker=${h2.ticker}`}
                               class="btn-sm"
-                              data-action="analyzeTicker"
-                              data-ticker={h2.ticker}
                             >
                               Analyze
-                            </button>
+                            </a>
                           </td>
                         </tr>
                       );
@@ -452,9 +450,8 @@ export function HoldingsPage({ holdingsData, positionsData }: {
         </div>
       </section>
 
-      <script src="/static/scripts/holdings.js" />
     </>
-  );
+  )
 }
 
 // Alias for backwards compat with index.tsx
