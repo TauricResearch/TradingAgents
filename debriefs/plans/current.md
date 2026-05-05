@@ -1,28 +1,29 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-05 (after fc39811)
-**State:** All checks green. 30+ commits this session. td-b86d5a DONE. td-41713c DONE.
+**Last updated:** 2026-05-05 (after 1c3afdc)
+**State:** All checks green. tsc ✓ lint ✓ 15 smoke tests pass (was 5).
 
 ---
 
 ## Where We Are
 
 **Completed this session:**
-- `td-b86d5a` DONE ✓ — all 12 views refactored from `dangerouslySetInnerHTML` + template literal strings to JSX `<XxxScript />` components. Pattern: `function XxxScript() { return <script>{`...`}</script>; }`.
+- `td-b86d5a` DONE ✓ — all 12 views refactored from `dangerouslySetInnerHTML` + template literal strings to JSX `<XxxScript />` components.
 - `td-41713c` DONE ✓ — `analyses.ts` (598 lines) split into 4 files
-- `settings.ts` + `settings.json` — central config module, committed
+- `td-984925` DONE ✓ — `server/lib/types.ts` with `PriceResult`, re-exports from benchmark.ts
+- `td-9dbbac` DONE ✓ — `tests/test_server_lib.py` (10 smoke tests, 11 pass, 2 skip gracefully)
+- `td-c79726` DONE ✓ — standardized error shapes (c.text(404) → c.json, hint on 500)
+- `settings.ts` + `settings.json` — central config module
 - `AGENTS.md` — Working Principles + Known Failure Modes + pointer to current.md
 - `debriefs/plans/current.md` — restart orientation doc
 
-**Key lesson:** Inline `XXXScript()` in views is fine. The script extraction to static files approach was over-engineering. The `dangerouslySetInnerHTML` pattern was replaced with JSX `<script>` components — cleaner, no HTML string escaping, same behavior.
-
 **Commit history (recent):**
 ```
-fc39811 fix(views): restore governance and benchmark refactored JSX components
-b4aacb8 fix(views): restore refactored workflow, exits, prospects, governance
-b34a12f refactor(datatype-test.tsx): testScript() → TestScript JSX component
-1d16f80 refactor(feedback.tsx): inline FeedbackScript JSX component, drop broken external js
-b8a047e refactor(governance.tsx): governanceScript() → GovernanceScript JSX component
+1c3afdc fix(errors): standardize error response shape
+c104252 test(server): add test_server_lib.py — smoke tests for routes and lib
+c276941 refactor(types): create server/lib/types.ts with shared interfaces
+fc39811 fix(views): restore refactored workflow, exits, prospects, governance
+```
 391f6e6 refactor(benchmark.tsx): benchmarkScript() → BenchmarkScript JSX component
 f341943 refactor(exits.tsx): exitsScript() → ExitsScript JSX component
 020f1ce refactor(workflow.tsx): workflowScript() → WorkflowScript JSX component
@@ -96,11 +97,13 @@ function XxxScript() {
 
 ## What's Next: `td-56fd1b` Hygiene (remaining)
 
-- `td-984925` — `server/lib/types.ts`: move 20+ inline route interfaces to shared module
-- `td-9dbbac` — server tests: route health checks, positions query, hledger output parsing
-- `td-c79726` — standardize error responses: `{ error, detail?, hint? }` everywhere
-- `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router
-- `td-02ccec` — clean up `portfolio-intelligence.ts`: standardize interfaces, remove duplication
+- `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router (309 lines)
+- `td-02ccec` — clean up `portfolio-intelligence.ts`: standardize interfaces, remove duplication (376 lines)
+
+**Done this session:**
+- `td-984925` DONE ✓ — `server/lib/types.ts` created with `PriceResult`, `BenchmarkPrice`, `PeriodReturn`
+- `td-9dbbac` DONE ✓ — `tests/test_server_lib.py` (10 smoke tests, 11 pass)
+- `td-c79726` DONE ✓ — standardized error shapes in analyses-fs and analysis routes
 
 ---
 
