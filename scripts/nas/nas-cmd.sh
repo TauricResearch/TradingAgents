@@ -47,6 +47,14 @@ ssh_opts=(
     -tt   # request a TTY; some Synology shells need it for docker output
 )
 
+# Synology's non-interactive SSH PATH is just ``/usr/bin:/bin:/usr/sbin:/sbin``
+# — no /usr/local/bin where Docker / Container Manager binaries live. We
+# wrap every remote command in ``bash -lc`` so the user's login profile runs
+# and PATH picks up Synology-package additions automatically. ``printf %q``
+# handles all quoting safely so the user's command can contain quotes,
+# pipes, redirects, anything.
+WRAPPED_CMD="bash -lc $(printf %q "$REMOTE_CMD")"
+
 if [[ -n "${NAS_SSH_KEY:-}" ]]; then
     # Expand ~ if the user typed a tilde-prefixed path.
     NAS_SSH_KEY_EXPANDED="${NAS_SSH_KEY/#\~/$HOME}"
@@ -55,7 +63,7 @@ if [[ -n "${NAS_SSH_KEY:-}" ]]; then
         exit 3
     }
     exec ssh -i "$NAS_SSH_KEY_EXPANDED" "${ssh_opts[@]}" \
-        "$NAS_USER@$NAS_HOST" "$REMOTE_CMD"
+        "$NAS_USER@$NAS_HOST" "$WRAPPED_CMD"
 elif [[ -n "${NAS_PASSWORD:-}" ]]; then
     if ! command -v sshpass >/dev/null 2>&1; then
         cat >&2 <<EOF
@@ -69,7 +77,7 @@ EOF
         exit 4
     fi
     exec sshpass -p "$NAS_PASSWORD" ssh "${ssh_opts[@]}" \
-        "$NAS_USER@$NAS_HOST" "$REMOTE_CMD"
+        "$NAS_USER@$NAS_HOST" "$WRAPPED_CMD"
 else
     echo "[nas-cmd] Set either NAS_SSH_KEY or NAS_PASSWORD in credentials.local" >&2
     exit 5
