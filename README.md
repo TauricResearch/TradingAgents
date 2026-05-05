@@ -8,7 +8,9 @@ The fork keeps the original multi-agent trading analysis foundation, but its dir
 
 Selective upstream sync means upstream bug fixes, security fixes, and useful infrastructure improvements may be pulled in when they fit this fork. This project does not aim to mirror upstream feature direction or preserve strict drop-in compatibility.
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+A detailed explainer on [how it works](TICKER_REPORT_ANALYST_GUIDE.md) is available.
+
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Install & Run](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 ## TradingAgents Framework
 
