@@ -7,7 +7,6 @@ phrases. Tests cover: mandated format, common deviation, missing data, empty rep
 
 from tradingagents.agents.utils.summary_context import build_research_packet
 
-
 # ---------------------------------------------------------------------------
 # Mandated phrase format (must always match)
 # ---------------------------------------------------------------------------

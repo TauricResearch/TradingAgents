@@ -1,4 +1,5 @@
 import inspect
+
 import tradingagents.agents.risk_mgmt.aggressive_debator as agg
 import tradingagents.agents.risk_mgmt.conservative_debator as con
 import tradingagents.agents.risk_mgmt.neutral_debator as neu

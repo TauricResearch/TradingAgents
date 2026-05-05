@@ -24,8 +24,9 @@ def test_pm_forensic_report_regime_alignment_is_literal():
     assert valid.regime_alignment == "macro-aligned"
 
     import pytest
+    from pydantic import ValidationError
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ForensicReport(
             regime_alignment="nostalgic-interference: US CDS -6.08",
             key_risks=[],

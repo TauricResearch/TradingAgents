@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_payload(claims: list[dict]) -> dict:
     return {"claims": claims, "summary": "test", "ticker": "AAPL", "date": "2026-05-05"}
