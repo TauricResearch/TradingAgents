@@ -45,9 +45,17 @@ def test_yyyymmdd_rejects_garbage():
 
 NETWORK = os.getenv("RUN_NETWORK_TESTS") == "1"
 HAS_PYKRX = importlib.util.find_spec("pykrx") is not None
+HAS_KRX_CREDS = bool(os.getenv("KRX_ID")) and bool(os.getenv("KRX_PW"))
 smoke_gate = pytest.mark.skipif(
     not (NETWORK and HAS_PYKRX),
     reason="set RUN_NETWORK_TESTS=1 and install pykrx to enable",
+)
+# pykrx 1.2.8 requires KRX_ID / KRX_PW for ticker-list, investor-trading, and
+# fundamental endpoints (KRX server-side change). OHLCV uses a different
+# unauthenticated endpoint and remains usable without creds.
+krx_login_gate = pytest.mark.skipif(
+    not (NETWORK and HAS_PYKRX and HAS_KRX_CREDS),
+    reason="set RUN_NETWORK_TESTS=1, install pykrx, and provide KRX_ID/KRX_PW to enable",
 )
 
 
@@ -60,3 +68,32 @@ def test_get_stock_data_pykrx_samsung():
     assert "Stock data for 005930" in out
     assert "Open,High,Low,Close,Volume" in out
     assert out.count("\n") >= 7
+
+
+@krx_login_gate
+def test_get_kr_universe_kospi_snapshot():
+    from tradingagents.dataflows.pykrx_vendor import get_kr_universe
+
+    out = get_kr_universe("2024-01-02", market="KOSPI")
+    assert "ticker" in out
+    # KOSPI has hundreds of names — header + many rows
+    assert out.count("\n") > 100
+
+
+@krx_login_gate
+def test_get_kr_investor_trading_samsung():
+    from tradingagents.dataflows.pykrx_vendor import get_kr_investor_trading
+
+    out = get_kr_investor_trading("005930", "2024-01-02", "2024-01-10")
+    assert "외국인" in out or "Foreign" in out
+    assert out.count("\n") >= 5
+
+
+@krx_login_gate
+def test_get_kr_value_factors_samsung():
+    from tradingagents.dataflows.pykrx_vendor import get_kr_value_factors
+
+    out = get_kr_value_factors("005930", "2024-01-02", "2024-01-10")
+    assert "PER" in out
+    assert "PBR" in out
+    assert out.count("\n") >= 5

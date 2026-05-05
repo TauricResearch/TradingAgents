@@ -82,3 +82,102 @@ def get_stock_data_pykrx(symbol: str, start_date: str, end_date: str) -> str:
         f"# Retrieved: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     )
     return header + df.to_csv(index=False)
+
+
+# ---------------------------------------------------------------------------
+# Universe (point-in-time ticker list)
+# ---------------------------------------------------------------------------
+
+
+@simple_parquet_cache(kind="universe")
+def _fetch_pykrx_universe(date_str: str, market: str) -> pd.DataFrame:
+    from pykrx import stock
+
+    tickers = stock.get_market_ticker_list(_yyyymmdd(date_str), market=market)
+    if not tickers:
+        return pd.DataFrame()
+    rows = []
+    for t in tickers:
+        try:
+            name = stock.get_market_ticker_name(t)
+        except Exception:
+            name = ""
+        rows.append({"ticker": t, "name": name, "market": market, "as_of": date_str})
+    return pd.DataFrame(rows)
+
+
+def get_kr_universe(date_str: str, market: str = "KOSPI") -> str:
+    """Point-in-time ticker snapshot for KOSPI / KOSDAQ / KONEX / ALL."""
+    df = _fetch_pykrx_universe(date_str, market.upper())
+    if df.empty:
+        return f"No tickers found for market '{market}' on {date_str}"
+    header = (
+        f"# KR universe snapshot — market={market}, as_of={date_str}\n"
+        f"# Total tickers: {len(df)}\n"
+        f"# Source: pykrx (KRX)\n\n"
+    )
+    return header + df.to_csv(index=False)
+
+
+# ---------------------------------------------------------------------------
+# Investor trading (foreign / institutional / retail net buy)
+# ---------------------------------------------------------------------------
+
+
+@simple_parquet_cache(kind="investor_trading")
+def _fetch_pykrx_investor_trading(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    from pykrx import stock
+
+    df = stock.get_market_trading_value_by_date(
+        _yyyymmdd(start_date), _yyyymmdd(end_date), symbol
+    )
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.reset_index().rename(columns={"날짜": "Date"})
+    df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+    return df
+
+
+def get_kr_investor_trading(symbol: str, start_date: str, end_date: str) -> str:
+    """Daily net trading value by investor type (KRW)."""
+    df = _fetch_pykrx_investor_trading(symbol, start_date, end_date)
+    if df.empty:
+        return f"No investor trading data for '{symbol}' between {start_date} and {end_date}"
+    header = (
+        f"# KR investor trading for {symbol} from {start_date} to {end_date}\n"
+        f"# Total records: {len(df)}\n"
+        f"# Source: pykrx (KRX)\n\n"
+    )
+    return header + df.to_csv(index=False)
+
+
+# ---------------------------------------------------------------------------
+# Value factors (PER / PBR / dividend yield)
+# ---------------------------------------------------------------------------
+
+
+@simple_parquet_cache(kind="value_factors")
+def _fetch_pykrx_value_factors(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    from pykrx import stock
+
+    df = stock.get_market_fundamental_by_date(
+        _yyyymmdd(start_date), _yyyymmdd(end_date), symbol
+    )
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.reset_index().rename(columns={"날짜": "Date"})
+    df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+    return df
+
+
+def get_kr_value_factors(symbol: str, start_date: str, end_date: str) -> str:
+    """Daily PER / PBR / EPS / BPS / DIV / DPS for a KRX symbol."""
+    df = _fetch_pykrx_value_factors(symbol, start_date, end_date)
+    if df.empty:
+        return f"No value factors for '{symbol}' between {start_date} and {end_date}"
+    header = (
+        f"# KR value factors for {symbol} from {start_date} to {end_date}\n"
+        f"# Total records: {len(df)}\n"
+        f"# Source: pykrx (KRX)\n\n"
+    )
+    return header + df.to_csv(index=False)
