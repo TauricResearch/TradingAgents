@@ -2,6 +2,10 @@
 __pycache__/
 *.py[codz]
 *$py.class
+.yfinance_cache/
+reports/
+results/
+automation/config.json
 
 # C extensions
 *.so
