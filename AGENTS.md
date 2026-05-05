@@ -176,6 +176,44 @@ TradingAgents/
 
 ---
 
+## Working Principles
+
+### Refactor Heuristic
+
+**Commit cadence:** One logical change per commit. "Logical" means: all files that must change together to achieve one goal, no more.
+
+**Fail-fast protocol:**
+1. Make small change → check → commit or revert.
+2. If checks fail after a change: revert first, diagnose second. Never pile fixes on a broken state.
+3. If stuck for >15 min on the same check failure: stop, revert, ask.
+
+**When starting a TD:**
+1. Run `just check` — must be clean before starting.
+2. Make the change to one file (or a small set of related files).
+3. Run `just check` again — must pass.
+4. Commit with message: `type(scope): what changed`.
+5. Repeat.
+
+**Batch vs. single:** Multiple small tasks that each require the same check run can be done in parallel if they don't touch the same files. If they share files (e.g. updating `biome.json` for multiple changes), do them one at a time — shared config changes are high-friction and high-revert-cost.
+
+### Known Failure Modes
+
+**Static JS copies of TypeScript = maintenance trap.**
+Do not copy `.ts` client-side scripts to `.js` files for serving. Biome lints `.js` files as JavaScript; TypeScript syntax causes parse errors. Two copies drift. Instead: keep scripts as `.ts` inline in views (typed, linted, colocated).
+
+**Biome config changes must be validated immediately.**
+`biome.json` is validated by biome itself. If you add a key that doesn't exist (`files.ignore` is not valid at v2.4.14), biome fails with a parse error before running any checks. Always run `just lint` after any `biome.json` change.
+
+**Template literals inside template literals break silently.**
+Backtick-quoted strings inside template literals are a syntax error. The JSX compiler won't catch it. Runtime behavior is undefined. Fix: use `String.fromCharCode(34)` for embedded quotes or restructure the string.
+
+**Revert is faster than forward-fix.**
+If a change breaks checks and the fix isn't obvious, revert to the last known-good commit. Three failed forward-attempts burned 45 minutes. One revert took 5. Trust the revert.
+
+**No test coverage for views.** `pytest -m smoke` only covers Python. TypeScript views have no automated test. Until we have route-level tests (`td-9dbbac`), the only guard is: check `tsc` + `lint` + manual browser verification.
+
+---
+
 ## Quick Reference: How Things Flow
 
 
