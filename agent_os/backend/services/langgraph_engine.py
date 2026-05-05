@@ -2526,6 +2526,7 @@ class LangGraphEngine:
         run_id: str,
         params: dict[str, Any],
         retry_tickers: list[str],
+        pending_decision: dict[str, Any],
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Resolve an auto-run Phase 2 pause by retrying selected tickers or continuing."""
         root_run_id = _root_run_id(run_id, params)
@@ -2533,12 +2534,9 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = bool(params.get("force", False))
         store = create_report_store(run_id=root_run_id)
-        from agent_os.backend.store import runs as live_runs
 
-        run_record = live_runs.get(root_run_id) or {}
-        pending = run_record.get("pending_phase3_decision") or {}
-        incomplete = pending.get("incomplete_tickers") or []
-        portfolio_id = pending.get("portfolio_id") or params.get("portfolio_id", "main_portfolio")
+        incomplete = pending_decision.get("incomplete_tickers") or []
+        portfolio_id = pending_decision.get("portfolio_id") or params.get("portfolio_id", "main_portfolio")
         self._start_run_logger(root_run_id, logger_key=execution_key)
 
         try:

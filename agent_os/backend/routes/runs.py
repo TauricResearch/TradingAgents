@@ -889,7 +889,7 @@ async def submit_phase3_decision(
         _resume_and_store(
             run_id,
             engine.run_auto_phase3_decision(
-                f"{run_id}:phase3-decision", decision_params, retry_tickers
+                f"{run_id}:phase3-decision", decision_params, retry_tickers, pending
             ),
         ),
     )
