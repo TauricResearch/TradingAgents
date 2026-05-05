@@ -64,14 +64,13 @@ def _daily_returns(nav_series: list[float]) -> list[float]:
     ``(nav[t] - nav[t-1]) / nav[t-1]``.  Periods where the previous NAV
     is zero are skipped (appended as 0.0 to avoid division by zero).
     """
-    returns: list[float] = []
-    for i in range(1, len(nav_series)):
-        prev = nav_series[i - 1]
-        if prev == 0.0:
-            returns.append(0.0)
-        else:
-            returns.append((nav_series[i] - prev) / prev)
-    return returns
+    # ⚡ BOLT OPTIMIZATION: Replaced index-based loop with zip list comprehension
+    # and simplified formula to (curr/prev)-1.0, eliminating list.append method call
+    # overhead and one arithmetic operation per element.
+    return [
+        0.0 if prev == 0.0 else (curr / prev) - 1.0
+        for prev, curr in zip(nav_series[:-1], nav_series[1:], strict=False)
+    ]
 
 
 def _mean(values: list[float]) -> float:
