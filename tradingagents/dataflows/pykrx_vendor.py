@@ -21,13 +21,21 @@ Internal _fetch_* functions return DataFrame and are wrapped with @simple_parque
 from datetime import datetime
 
 import pandas as pd
-from pykrx import stock
 
 from ._cache import simple_parquet_cache
 
 
 def _yyyymmdd(date_str: str) -> str:
-    return date_str.replace("-", "")
+    """Convert 'YYYY-MM-DD' to 'YYYYMMDD'. Validates input format.
+
+    Strict: requires exact zero-padded YYYY-MM-DD (10 chars). Python's
+    strptime alone accepts non-zero-padded inputs like '2024-1-2', so we
+    enforce the canonical form before delegating to strptime for value
+    validation (e.g. month/day ranges).
+    """
+    if not isinstance(date_str, str) or len(date_str) != 10 or date_str[4] != "-" or date_str[7] != "-":
+        raise ValueError(f"Expected date in canonical YYYY-MM-DD form, got {date_str!r}")
+    return datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y%m%d")
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +45,8 @@ def _yyyymmdd(date_str: str) -> str:
 
 @simple_parquet_cache(kind="ohlcv")
 def _fetch_pykrx_ohlcv(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    from pykrx import stock
+
     df = stock.get_market_ohlcv(_yyyymmdd(start_date), _yyyymmdd(end_date), symbol)
     if df is None or df.empty:
         return pd.DataFrame()
