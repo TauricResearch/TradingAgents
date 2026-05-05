@@ -133,6 +133,7 @@ export function Layout(props: LayoutProps) {
           </nav>
         </header>
         <main id="content">{props.children}</main>
+        <script src="/static/scripts/common.js" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
