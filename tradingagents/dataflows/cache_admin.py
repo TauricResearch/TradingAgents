@@ -1,4 +1,11 @@
 # Copyright 2026 herald.k, HongSoo Kim
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+
 """Cache administration CLI.
 
 Examples:
@@ -61,6 +68,18 @@ def cmd_clear(kind: str | None, func: str | None, all_: bool) -> int:
     target = root / kind
     if func:
         target = target / func
+
+    # Guard against path traversal (e.g., --kind ../../etc)
+    try:
+        resolved_target = target.resolve()
+        resolved_root = root.resolve()
+    except OSError as e:
+        print(f"error: cannot resolve path {target}: {e}")
+        return 2
+    if not resolved_target.is_relative_to(resolved_root):
+        print(f"error: path {resolved_target} escapes cache root {resolved_root}")
+        return 2
+
     if target.exists():
         shutil.rmtree(target)
         print(f"cleared {target}")
