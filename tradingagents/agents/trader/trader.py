@@ -7,7 +7,10 @@ import functools
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    get_evidence_discipline_instruction,
+)
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -28,7 +31,9 @@ def create_trader(llm):
                 "content": (
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
+                    "Anchor your reasoning in the analysts' reports and the research plan. "
+                    "A Buy is allowed when strong evidence justifies it; do not downgrade a strong setup merely to appear cautious. "
+                    "Before choosing an action, audit unsupported assumptions and calculate whether the risk/reward is attractive."
                 ),
             },
             {
@@ -39,6 +44,12 @@ def create_trader(llm):
                     f"insights from current technical market trends, macroeconomic indicators, and "
                     f"social media sentiment. Use this plan as a foundation for evaluating your next "
                     f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
+                    f"{get_evidence_discipline_instruction('Trader')}\n"
+                    f"Trader-specific requirements:\n"
+                    f"- Include an Evidence Check before the final action.\n"
+                    f"- Estimate risk/reward from the stated entry, stop, and nearest reasonable target when levels are available.\n"
+                    f"- If upside/downside is unattractive, reduce sizing or wait for a better trigger rather than copying the plan.\n"
+                    f"- If evidence is strong and risk/reward is acceptable, you may recommend Buy or Sell decisively.\n"
                     f"Leverage these insights to make an informed and strategic decision."
                 ),
             },

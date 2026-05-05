@@ -13,6 +13,7 @@ from __future__ import annotations
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    get_evidence_discipline_instruction,
     get_language_instruction,
 )
 from tradingagents.agents.utils.structured import (
@@ -60,6 +61,15 @@ def create_portfolio_manager(llm):
 {history}
 
 ---
+
+{get_evidence_discipline_instruction("Portfolio Manager")}
+
+Final decision requirements:
+- Evidence Used: summarize the decisive bullish, bearish, and mixed evidence with confidence levels.
+- Conditions To Upgrade: name the concrete data or price action that would justify a stronger rating.
+- Conditions To Downgrade: name the concrete data or price action that would weaken the rating.
+- Evidence strength, not tone, determines whether the final rating is Buy, Overweight, Hold, Underweight, or Sell.
+- Strong, directly supported evidence may justify an assertive rating; weak inferred evidence should lower conviction.
 
 Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
 

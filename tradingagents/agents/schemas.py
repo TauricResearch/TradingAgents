@@ -79,13 +79,16 @@ class ResearchPlan(BaseModel):
         description=(
             "Conversational summary of the key points from both sides of the "
             "debate, ending with which arguments led to the recommendation. "
-            "Speak naturally, as if to a teammate."
+            "Include an Evidence Check table in markdown, call out unsupported "
+            "assumptions, and explain how the evidence strength justifies the "
+            "rating. Speak naturally, as if to a teammate."
         ),
     )
     strategic_actions: str = Field(
         description=(
             "Concrete steps for the trader to implement the recommendation, "
-            "including position sizing guidance consistent with the rating."
+            "including position sizing guidance consistent with the rating, "
+            "risk triggers, and conditions that would upgrade or downgrade the view."
         ),
     )
 
@@ -121,7 +124,8 @@ class TraderProposal(BaseModel):
     reasoning: str = Field(
         description=(
             "The case for this action, anchored in the analysts' reports and "
-            "the research plan. Two to four sentences."
+            "the research plan. Include an Evidence Check, unsupported assumptions, "
+            "and a risk/reward assessment when entry, stop, and target levels are available."
         ),
     )
     entry_price: Optional[float] = Field(
@@ -186,14 +190,16 @@ class PortfolioDecision(BaseModel):
     executive_summary: str = Field(
         description=(
             "A concise action plan covering entry strategy, position sizing, "
-            "key risk levels, and time horizon. Two to four sentences."
+            "key risk levels, time horizon, and the most important evidence that drives the rating."
         ),
     )
     investment_thesis: str = Field(
         description=(
             "Detailed reasoning anchored in specific evidence from the analysts' "
             "debate. If prior lessons are referenced in the prompt context, "
-            "incorporate them; otherwise rely solely on the current analysis."
+            "incorporate them; otherwise rely solely on the current analysis. "
+            "Include Evidence Used, Conditions To Upgrade, Conditions To Downgrade, "
+            "and any unsupported assumptions that should not dominate the final decision."
         ),
     )
     price_target: Optional[float] = Field(

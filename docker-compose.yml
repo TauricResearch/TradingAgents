@@ -6,6 +6,7 @@ services:
     environment:
       - TRADINGAGENTS_RESULTS_DIR=/home/appuser/app/reports
     volumes:
+      - .:/home/appuser/app
       - tradingagents_data:/home/appuser/.tradingagents
       - ./reports:/home/appuser/app/reports
     tty: true
@@ -26,6 +27,7 @@ services:
       - LLM_PROVIDER=ollama
       - TRADINGAGENTS_RESULTS_DIR=/home/appuser/app/reports
     volumes:
+      - .:/home/appuser/app
       - tradingagents_data:/home/appuser/.tradingagents
       - ./reports:/home/appuser/app/reports
     depends_on:

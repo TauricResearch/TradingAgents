@@ -42,6 +42,28 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
+
+def get_evidence_discipline_instruction(role: str) -> str:
+    """Shared prompt guardrails that keep recommendations evidence-bound.
+
+    This is intentionally text-only so it can be appended to both chat-tool
+    analyst prompts and direct debate prompts without changing their call
+    interfaces.
+    """
+    return f"""
+
+Evidence discipline for the {role}:
+- Be objective: Do not force a conservative conclusion, and do not force a bullish conclusion. Evidence strength, not tone or role bias, determines the recommendation.
+- Separate Facts, Inferences, and Assumptions. A claim based on a competitor, sector theme, or social-media guess is an inference unless the data directly names the instrument.
+- Include an **Evidence Check** table with these columns when producing a report or decision: Claim | Supporting Data | Source/Report | Confidence | Missing Evidence.
+- Include **Unsupported Assumptions** for important claims that lack direct data. Do not use unsupported assumptions as the sole basis for Buy, Sell, Overweight, or Underweight.
+- For fundamentals, distinguish headline net profit from recurring/core profit when data allows; call out investment income, fair-value changes, cash flow quality, inventory growth, and one-off items separately.
+- For news and sentiment, lower confidence when there is no direct company news or no real social-media sample. Do not present inferred market mood as measured sentiment.
+- For technical analysis, connect entries and stops to explicit price levels and calculate whether the risk/reward is attractive.
+- End with **Decision Impact**: explain how the evidence changes the action, what would upgrade the view, and what would downgrade the view.
+"""
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""

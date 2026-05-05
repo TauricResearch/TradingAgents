@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    get_evidence_discipline_instruction,
+)
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -33,6 +36,16 @@ def create_research_manager(llm):
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
 Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
+
+---
+
+{get_evidence_discipline_instruction("Research Manager")}
+
+Required decision structure:
+- Start with the selected rating.
+- Provide an Evidence Check table that audits the bull and bear claims.
+- List Unsupported Assumptions before turning them into risk monitors.
+- Explain why the rating follows from the evidence strength; strong evidence may justify Buy/Sell, while weak or missing evidence should reduce conviction rather than automatically force Hold.
 
 ---
 

@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from tradingagents.agents.managers.research_manager import create_research_manager
+from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.schemas import (
     PortfolioRating,
     ResearchPlan,
@@ -147,6 +148,17 @@ class TestTraderAgent:
         prompt = captured["prompt"]
         assert any("Proposed Investment Plan" in m["content"] for m in prompt)
 
+    def test_prompt_requires_risk_reward_and_evidence_bound_action(self):
+        captured = {}
+        llm = _structured_trader_llm(captured)
+        trader = create_trader(llm)
+        trader(_make_trader_state())
+        prompt_text = "\n".join(m["content"] for m in captured["prompt"])
+        assert "risk/reward" in prompt_text
+        assert "Evidence Check" in prompt_text
+        assert "unsupported assumptions" in prompt_text
+        assert "A Buy is allowed when strong evidence justifies it" in prompt_text
+
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
             "**Action**: Sell\n\nGuidance cut hits margins.\n\n"
@@ -179,6 +191,25 @@ def _make_rm_state():
     }
 
 
+def _make_pm_state():
+    return {
+        "company_of_interest": "NVDA",
+        "investment_plan": "**Recommendation**: Overweight\n**Rationale**: ...",
+        "trader_investment_plan": "**Action**: Buy\n**Reasoning**: ...",
+        "past_context": "",
+        "risk_debate_state": {
+            "history": "Aggressive, conservative, and neutral risk debate.",
+            "aggressive_history": "Aggressive says...",
+            "conservative_history": "Conservative says...",
+            "neutral_history": "Neutral says...",
+            "current_aggressive_response": "",
+            "current_conservative_response": "",
+            "current_neutral_response": "",
+            "count": 1,
+        },
+    }
+
+
 def _structured_rm_llm(captured: dict, plan: ResearchPlan | None = None):
     if plan is None:
         plan = ResearchPlan(
@@ -189,6 +220,23 @@ def _structured_rm_llm(captured: dict, plan: ResearchPlan | None = None):
     structured = MagicMock()
     structured.invoke.side_effect = lambda prompt: (
         captured.__setitem__("prompt", prompt) or plan
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = structured
+    return llm
+
+
+def _structured_pm_llm(captured: dict):
+    from tradingagents.agents.schemas import PortfolioDecision
+
+    decision = PortfolioDecision(
+        rating=PortfolioRating.HOLD,
+        executive_summary="Evidence is mixed; wait for confirmation.",
+        investment_thesis="Balanced setup.",
+    )
+    structured = MagicMock()
+    structured.invoke.side_effect = lambda prompt: (
+        captured.__setitem__("prompt", prompt) or decision
     )
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
@@ -222,6 +270,18 @@ class TestResearchManagerAgent:
         for tier in ("Buy", "Overweight", "Hold", "Underweight", "Sell"):
             assert f"**{tier}**" in prompt, f"missing {tier} in prompt"
 
+    def test_prompt_requires_evidence_discipline(self):
+        captured = {}
+        llm = _structured_rm_llm(captured)
+        rm = create_research_manager(llm)
+        rm(_make_rm_state())
+        prompt = captured["prompt"]
+        assert "Evidence Check" in prompt
+        assert "Unsupported Assumptions" in prompt
+        assert "Missing Evidence" in prompt
+        assert "Confidence" in prompt
+        assert "Do not force a conservative conclusion" in prompt
+
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = "**Recommendation**: Sell\n\n**Rationale**: ...\n\n**Strategic Actions**: ..."
         llm = MagicMock()
@@ -230,3 +290,18 @@ class TestResearchManagerAgent:
         rm = create_research_manager(llm)
         result = rm(_make_rm_state())
         assert result["investment_plan"] == plain_response
+
+
+@pytest.mark.unit
+class TestPortfolioManagerAgent:
+    def test_prompt_requires_final_decision_evidence_audit(self):
+        captured = {}
+        llm = _structured_pm_llm(captured)
+        pm = create_portfolio_manager(llm)
+        pm(_make_pm_state())
+        prompt = captured["prompt"]
+        assert "Evidence Used" in prompt
+        assert "Conditions To Upgrade" in prompt
+        assert "Conditions To Downgrade" in prompt
+        assert "Evidence strength, not tone" in prompt
+        assert "Do not force a conservative conclusion" in prompt
