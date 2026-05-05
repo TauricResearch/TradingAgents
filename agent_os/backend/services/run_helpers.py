@@ -231,8 +231,13 @@ def repair_checkpoint_messages(messages: list[Any]) -> list[Any]:
     """Repair common message-serialization issues from old checkpoints.
 
     Specifically, LangGraph's RemoveMessage requires a valid 'id'. If a
-    checkpoint contains a dictionary with type="remove" but no 'id', it
-    will trigger a TypeError on resume. We filter those out here.
+    checkpoint contains a dictionary with type="remove", replaying it into
+    a fresh graph instance during a seeded resume will trigger an error
+    ("Attempting to delete a message with an ID that doesn't exist")
+    because the target message is not in the new graph's volatile history.
+
+    We filter out ALL RemoveMessage objects here. This is safe for seeded
+    resumes because the checkpoint already represents the pruned state.
     """
     if not isinstance(messages, list):
         return []
@@ -242,10 +247,20 @@ def repair_checkpoint_messages(messages: list[Any]) -> list[Any]:
         # If it's a dict (serialized message)
         if isinstance(m, dict):
             m_type = str(m.get("type") or "").lower()
-            # RemoveMessage MUST have an ID
-            if m_type == "remove" and not m.get("id"):
-                logger.warning("Filtering out corrupted RemoveMessage (missing ID) from checkpoint")
+            if m_type == "remove":
+                logger.warning(
+                    "Filtering out RemoveMessage (id=%s) from checkpoint to prevent resume crash",
+                    m.get("id"),
+                )
                 continue
+        # If it's a class instance
+        elif hasattr(m, "type") and str(m.type).lower() == "remove":
+            logger.warning(
+                "Filtering out RemoveMessage instance (id=%s) from checkpoint to prevent resume crash",
+                getattr(m, "id", "unknown"),
+            )
+            continue
+
         repaired.append(m)
     return repaired
 
