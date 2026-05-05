@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process"
 import { dirname, join } from "node:path"
 import { Hono } from "hono"
-import { fetchBenchmarkPrices } from "../lib/benchmark.ts"
+import { fetchBenchmarkPrices, type BenchmarkPrice, type PeriodReturn } from "../lib/benchmark.ts"
+import type { PriceResult } from "../lib/types.ts"
 import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
 
@@ -99,11 +100,6 @@ async function getLivePortfolioValue(): Promise<{
   return { total: Math.round(total * 100) / 100, positions, fxRates }
 }
 
-interface PriceResult {
-  price: number | null
-  currency: string
-}
-
 async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceResult>> {
   const results = new Map<string, PriceResult>()
   if (tickers.length === 0) return results
@@ -188,16 +184,6 @@ benchmarkRouter.get("/", async (c) => {
   }
 })
 
-interface BenchmarkPrice {
-  date: string
-  price: number
-}
-interface PeriodReturn {
-  period: "3m" | "6m" | "1y"
-  portfolioPct: number
-  benchmarkPct: number
-  alpha: number
-}
 
 function computePeriodReturns(
   benchmarkPrices: BenchmarkPrice[],

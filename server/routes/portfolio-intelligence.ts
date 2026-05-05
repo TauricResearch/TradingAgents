@@ -22,6 +22,7 @@ import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
 import { checkRules, loadRules, suggestRebalance } from "../lib/governance.ts"
 import { getHoldings } from "../lib/hledger.ts"
+import type { PriceResult } from "../lib/types.ts"
 
 export const intelligenceRouter = new Hono()
 
@@ -65,11 +66,6 @@ interface CashBalance {
   currency: string
   amount: number
   amount_gbp: number
-}
-
-interface PriceResult {
-  price: number | null
-  currency: string
 }
 
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {

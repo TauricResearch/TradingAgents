@@ -4,6 +4,7 @@ import { Hono } from "hono"
 import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
 import { computeSignalAccuracy, loadPostMortems } from "../lib/feedback.ts"
+import type { PriceResult } from "../lib/types.ts"
 
 export const feedbackRouter = new Hono()
 
@@ -91,10 +92,6 @@ function findProjectRoot(): string {
   return projectRoot
 }
 
-interface PriceResult {
-  price: number | null
-  currency: string
-}
 
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   const now = Date.now()
