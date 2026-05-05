@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.agents.utils.tool_errors import tool_error_text
 
 @tool
 def get_news(
@@ -18,7 +19,10 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    return route_to_vendor("get_news", ticker, start_date, end_date)
+    try:
+        return route_to_vendor("get_news", ticker, start_date, end_date)
+    except Exception as exc:
+        return tool_error_text(tool="get_news", error=exc)
 
 @tool
 def get_global_news(
@@ -36,7 +40,10 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
-    return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    try:
+        return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    except Exception as exc:
+        return tool_error_text(tool="get_global_news", error=exc)
 
 @tool
 def get_insider_transactions(
@@ -50,4 +57,7 @@ def get_insider_transactions(
     Returns:
         str: A report of insider transaction data
     """
-    return route_to_vendor("get_insider_transactions", ticker)
+    try:
+        return route_to_vendor("get_insider_transactions", ticker)
+    except Exception as exc:
+        return tool_error_text(tool="get_insider_transactions", error=exc)

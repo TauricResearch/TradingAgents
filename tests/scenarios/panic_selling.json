@@ -1,0 +1,29 @@
+{
+  "name": "panic_selling",
+  "ticker": "TSLA",
+  "trade_date": "2026-03-12",
+  "market": {
+    "trend": "selloff",
+    "price_change_pct_intraday": -10.2,
+    "volume": "very_high"
+  },
+  "indicators": {
+    "rsi_14": 28,
+    "notes": "Oversold intraday; knife-catching risk high."
+  },
+  "news": [
+    {
+      "title": "Unexpected recall announcement triggers sharp selloff",
+      "sentiment": "negative"
+    }
+  ],
+  "social": {
+    "sentiment": "negative"
+  },
+  "fundamentals": {
+    "summary": "Margins under pressure; volatility elevated."
+  },
+  "expected": {
+    "rating": "Underweight"
+  }
+}

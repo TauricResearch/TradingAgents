@@ -1,0 +1,27 @@
+{
+  "name": "irrelevant_news",
+  "ticker": "AAPL",
+  "trade_date": "2026-05-02",
+  "market": {
+    "trend": "sideways",
+    "range_pct_14d": 2.2
+  },
+  "indicators": {
+    "rsi_14": 49
+  },
+  "news": [
+    {
+      "title": "Wheat prices surge after weather disruption",
+      "sentiment": "neutral"
+    }
+  ],
+  "social": {
+    "sentiment": "neutral"
+  },
+  "fundamentals": {
+    "summary": "Irrelevant headline noise; do not overweight unrelated news."
+  },
+  "expected": {
+    "rating": "Hold"
+  }
+}

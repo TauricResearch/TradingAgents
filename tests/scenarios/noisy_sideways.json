@@ -1,0 +1,24 @@
+{
+  "name": "noisy_sideways",
+  "ticker": "MSFT",
+  "trade_date": "2026-04-08",
+  "market": {
+    "trend": "sideways",
+    "range_pct_14d": 3.1,
+    "volume": "normal"
+  },
+  "indicators": {
+    "rsi_14": 51,
+    "macd": "flat"
+  },
+  "news": [],
+  "social": {
+    "sentiment": "neutral"
+  },
+  "fundamentals": {
+    "summary": "No material change; steady fundamentals."
+  },
+  "expected": {
+    "rating": "Hold"
+  }
+}

@@ -12,9 +12,12 @@ This module exists for backwards compatibility with callers that expect a
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.agents.utils.rating import extract_rating, parse_rating
+
+logger = logging.getLogger(__name__)
 
 
 class SignalProcessor:
@@ -28,4 +31,7 @@ class SignalProcessor:
 
     def process_signal(self, full_signal: str) -> str:
         """Return one of Buy / Overweight / Hold / Underweight / Sell."""
+        rating = extract_rating(full_signal)
+        if rating is None:
+            logger.warning("SignalProcessor: could not extract rating; falling back to Hold")
         return parse_rating(full_signal)

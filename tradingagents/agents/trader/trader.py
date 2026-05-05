@@ -10,7 +10,7 @@ from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.structured import (
     bind_structured,
-    invoke_structured_or_freetext,
+    invoke_structured_or_freetext_with_meta,
 )
 
 
@@ -28,7 +28,11 @@ def create_trader(llm):
                 "content": (
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
+                    "Anchor your reasoning in the analysts' reports and the research plan. "
+                    "When you provide entry/stop/take-profit levels, explain the technical anchors "
+                    "you used (e.g., recent swing low/high, ATR-based distance, moving averages, "
+                    "support/resistance) and state whether the levels are based on the latest available "
+                    "close for the chosen analysis date."
                 ),
             },
             {
@@ -44,7 +48,7 @@ def create_trader(llm):
             },
         ]
 
-        trader_plan = invoke_structured_or_freetext(
+        trader_plan, structured_valid = invoke_structured_or_freetext_with_meta(
             structured_llm,
             llm,
             messages,
@@ -56,6 +60,7 @@ def create_trader(llm):
             "messages": [AIMessage(content=trader_plan)],
             "trader_investment_plan": trader_plan,
             "sender": name,
+            "trader_structured_valid": structured_valid,
         }
 
     return functools.partial(trader_node, name="Trader")

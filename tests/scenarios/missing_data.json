@@ -1,0 +1,23 @@
+{
+  "name": "missing_data",
+  "ticker": "NVDA",
+  "trade_date": "2026-05-01",
+  "market": {
+    "trend": "uptrend",
+    "price_change_pct_7d": 6.8
+  },
+  "indicators": {
+    "rsi_14": null,
+    "macd": null
+  },
+  "news": [],
+  "social": {
+    "sentiment": "unknown"
+  },
+  "fundamentals": {
+    "summary": "Data incomplete; defer conviction."
+  },
+  "expected": {
+    "rating": "Hold"
+  }
+}

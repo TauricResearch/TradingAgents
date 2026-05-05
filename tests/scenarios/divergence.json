@@ -1,0 +1,33 @@
+{
+  "name": "divergence",
+  "ticker": "AAPL",
+  "trade_date": "2026-01-15",
+  "market": {
+    "trend": "uptrend",
+    "price_change_pct_7d": 12.5,
+    "volume": "high"
+  },
+  "indicators": {
+    "rsi_14": 78,
+    "macd": "bullish but weakening"
+  },
+  "news": [
+    {
+      "title": "CEO under investigation; governance risk increases",
+      "sentiment": "negative"
+    },
+    {
+      "title": "Regulator expands probe into leadership conduct",
+      "sentiment": "negative"
+    }
+  ],
+  "social": {
+    "sentiment": "mixed"
+  },
+  "fundamentals": {
+    "summary": "Fundamentals stable; valuation stretched versus recent history."
+  },
+  "expected": {
+    "rating": "Hold"
+  }
+}

@@ -63,6 +63,11 @@ def _make_pm_state(past_context=""):
     return {
         "company_of_interest": "NVDA",
         "past_context": past_context,
+        "tool_errors": [],
+        "tool_call_count": 0,
+        "error_count": 0,
+        "research_manager_structured_valid": True,
+        "trader_structured_valid": True,
         "risk_debate_state": {
             "history": "Risk debate history.",
             "aggressive_history": "",
@@ -173,7 +178,7 @@ class TestTradingMemoryLogCore:
     def test_rating_fallback_hold(self, tmp_path):
         log = make_log(tmp_path)
         log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)
-        assert log.load_entries()[0]["rating"] == "Hold"
+        assert log.load_entries()[0]["rating"] == "Unknown"
 
     def test_rating_priority_over_prose(self, tmp_path):
         """'Rating: X' label wins even when an opposing rating word appears earlier in prose."""
@@ -196,6 +201,29 @@ class TestTradingMemoryLogCore:
         entries = log.load_entries()
         assert len(entries) == 1
         assert "Risk: elevated volatility" in entries[0]["decision"]
+
+    def test_meta_and_outcome_json_roundtrip(self, tmp_path):
+        log = make_log(tmp_path)
+        meta = {
+            "data_quality": "high",
+            "error_count": 0,
+            "trade_levels": {"entry_price": 100.0, "stop_loss": 95.0, "bias": "long"},
+            "trade_filter": {"score": 0.8, "filtered_out": False},
+        }
+        log.store_decision("NVDA", "2026-01-10", DECISION_BUY, meta=meta)
+        log.update_with_outcome(
+            "NVDA",
+            "2026-01-10",
+            0.05,
+            0.02,
+            5,
+            "OK",
+            outcome={"approx_r_multiple": 1.0, "trade_filter_score": 0.8},
+        )
+        e = log.load_entries()[0]
+        assert e["pending"] is False
+        assert e["meta"]["data_quality"] == "high"
+        assert e["outcome"]["trade_filter_score"] == 0.8
 
     # load_entries
 
@@ -639,7 +667,7 @@ class TestPortfolioManagerInjection:
         llm.invoke.return_value = MagicMock(content=plain_response)
         pm_node = create_portfolio_manager(llm)
         result = pm_node(_make_pm_state())
-        assert result["final_trade_decision"] == plain_response
+        assert result["final_trade_decision"].startswith(plain_response)
 
     # get_past_context ordering and limits
 

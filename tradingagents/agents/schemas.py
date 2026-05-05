@@ -132,9 +132,22 @@ class TraderProposal(BaseModel):
         default=None,
         description="Optional stop-loss price in the instrument's quote currency.",
     )
+    take_profit: Optional[float] = Field(
+        default=None,
+        description="Optional take-profit price in the instrument's quote currency.",
+    )
     position_sizing: Optional[str] = Field(
         default=None,
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
+    )
+    levels_rationale: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional explanation for why entry/stop-loss/take-profit levels were chosen. "
+            "Reference concrete technical anchors (e.g., recent swing high/low, ATR, "
+            "moving averages, support/resistance) and state whether levels are based on "
+            "the latest available close for the analysis date."
+        ),
     )
 
 
@@ -154,8 +167,12 @@ def render_trader_proposal(proposal: TraderProposal) -> str:
         parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
     if proposal.stop_loss is not None:
         parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
+    if proposal.take_profit is not None:
+        parts.extend(["", f"**Take Profit**: {proposal.take_profit}"])
     if proposal.position_sizing:
         parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
+    if proposal.levels_rationale:
+        parts.extend(["", f"**Levels Rationale**: {proposal.levels_rationale}"])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",

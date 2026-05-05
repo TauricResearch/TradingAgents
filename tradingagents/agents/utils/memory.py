@@ -1,10 +1,14 @@
 """Append-only markdown decision log for TradingAgents."""
 
-from typing import List, Optional
+import json
+import logging
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 import re
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.agents.utils.rating import extract_rating, parse_rating
+
+logger = logging.getLogger(__name__)
 
 
 class TradingMemoryLog:
@@ -13,7 +17,9 @@ class TradingMemoryLog:
     # HTML comment: cannot appear in LLM prose output, safe as a hard delimiter
     _SEPARATOR = "\n\n<!-- ENTRY_END -->\n\n"
     # Precompiled patterns — avoids re-compilation on every load_entries() call
-    _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nREFLECTION:|\Z)", re.DOTALL)
+    _DECISION_RE = re.compile(r"DECISION:\n(.*?)(?=\nMETA_JSON:|\nOUTCOME_JSON:|\nREFLECTION:|\Z)", re.DOTALL)
+    _META_RE = re.compile(r"META_JSON:\n```json\n(.*?)\n```\n?", re.DOTALL)
+    _OUTCOME_RE = re.compile(r"OUTCOME_JSON:\n```json\n(.*?)\n```\n?", re.DOTALL)
     _REFLECTION_RE = re.compile(r"REFLECTION:\n(.*?)$", re.DOTALL)
 
     def __init__(self, config: dict = None):
@@ -33,6 +39,7 @@ class TradingMemoryLog:
         ticker: str,
         trade_date: str,
         final_trade_decision: str,
+        meta: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Append pending entry at end of propagate(). No LLM call."""
         if not self._log_path:
@@ -43,9 +50,19 @@ class TradingMemoryLog:
             for line in raw.splitlines():
                 if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("| pending]"):
                     return
-        rating = parse_rating(final_trade_decision)
+        rating = extract_rating(final_trade_decision)
+        if rating is None:
+            logger.warning("TradingMemoryLog: could not extract rating for %s on %s", ticker, trade_date)
+            rating = "Unknown"
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+        meta_block = ""
+        if meta:
+            try:
+                meta_json = json.dumps(meta, ensure_ascii=False, sort_keys=True)
+            except Exception:
+                meta_json = json.dumps({"error": "meta_serialization_failed"}, ensure_ascii=False)
+            meta_block = f"\n\nMETA_JSON:\n```json\n{meta_json}\n```"
+        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{meta_block}{self._SEPARATOR}"
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(entry)
 
@@ -105,6 +122,7 @@ class TradingMemoryLog:
         alpha_return: float,
         holding_days: int,
         reflection: str,
+        outcome: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Replace pending tag and append REFLECTION section using atomic write.
 
@@ -121,6 +139,13 @@ class TradingMemoryLog:
         pending_prefix = f"[{trade_date} | {ticker} |"
         raw_pct = f"{raw_return:+.1%}"
         alpha_pct = f"{alpha_return:+.1%}"
+        outcome_block = ""
+        if outcome:
+            try:
+                outcome_json = json.dumps(outcome, ensure_ascii=False, sort_keys=True)
+            except Exception:
+                outcome_json = json.dumps({"error": "outcome_serialization_failed"}, ensure_ascii=False)
+            outcome_block = f"\n\nOUTCOME_JSON:\n```json\n{outcome_json}\n```"
 
         updated = False
         new_blocks = []
@@ -147,7 +172,7 @@ class TradingMemoryLog:
                 )
                 rest = "\n".join(lines[1:])
                 new_blocks.append(
-                    f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}"
+                    f"{new_tag}\n\n{rest.lstrip()}{outcome_block}\n\nREFLECTION:\n{reflection}"
                 )
                 updated = True
             else:
@@ -200,8 +225,16 @@ class TradingMemoryLog:
                         f" | {raw_pct} | {alpha_pct} | {upd['holding_days']}d]"
                     )
                     rest = "\n".join(lines[1:])
+                    outcome_block = ""
+                    outcome = upd.get("outcome")
+                    if isinstance(outcome, dict) and outcome:
+                        try:
+                            outcome_json = json.dumps(outcome, ensure_ascii=False, sort_keys=True)
+                        except Exception:
+                            outcome_json = json.dumps({"error": "outcome_serialization_failed"}, ensure_ascii=False)
+                        outcome_block = f"\n\nOUTCOME_JSON:\n```json\n{outcome_json}\n```"
                     new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
+                        f"{new_tag}\n\n{rest.lstrip()}{outcome_block}\n\nREFLECTION:\n{upd['reflection']}"
                     )
                     del update_map[(trade_date, ticker)]
                     matched = True
@@ -276,8 +309,22 @@ class TradingMemoryLog:
         }
         body = "\n".join(lines[1:]).strip()
         decision_match = self._DECISION_RE.search(body)
+        meta_match = self._META_RE.search(body)
+        outcome_match = self._OUTCOME_RE.search(body)
         reflection_match = self._REFLECTION_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
+        entry["meta"] = {}
+        if meta_match:
+            try:
+                entry["meta"] = json.loads(meta_match.group(1).strip())
+            except Exception:
+                entry["meta"] = {}
+        entry["outcome"] = {}
+        if outcome_match:
+            try:
+                entry["outcome"] = json.loads(outcome_match.group(1).strip())
+            except Exception:
+                entry["outcome"] = {}
         entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
         return entry
 

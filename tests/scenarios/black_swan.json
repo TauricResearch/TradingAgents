@@ -1,0 +1,33 @@
+{
+  "name": "black_swan",
+  "ticker": "JPM",
+  "trade_date": "2026-02-03",
+  "market": {
+    "trend": "gap_down",
+    "price_change_pct_1d": -18.0,
+    "volatility": "extreme"
+  },
+  "indicators": {
+    "rsi_14": 22,
+    "notes": "Oversold but regime uncertainty dominates."
+  },
+  "news": [
+    {
+      "title": "Major bank collapses overnight; liquidity stress spreads",
+      "sentiment": "very_negative"
+    },
+    {
+      "title": "Emergency central bank meeting announced amid funding panic",
+      "sentiment": "very_negative"
+    }
+  ],
+  "social": {
+    "sentiment": "panic"
+  },
+  "fundamentals": {
+    "summary": "Balance sheet quality uncertain under contagion; capital risk elevated."
+  },
+  "expected": {
+    "rating": "Sell"
+  }
+}

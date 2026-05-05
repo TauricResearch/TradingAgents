@@ -245,6 +245,32 @@ class TradingAgentsGraph:
             raw, alpha, days = self._fetch_returns(ticker, entry["date"])
             if raw is None:
                 continue  # price not available yet — try again next run
+            outcome = {
+                "raw_return": raw,
+                "alpha_return": alpha,
+                "holding_days": days,
+            }
+            meta = entry.get("meta") or {}
+            trade_levels = meta.get("trade_levels") if isinstance(meta, dict) else None
+            if isinstance(trade_levels, dict):
+                try:
+                    entry_price = float(trade_levels.get("entry_price"))
+                    stop_loss = float(trade_levels.get("stop_loss"))
+                    bias = str(trade_levels.get("bias", "")).lower()
+                    r = abs(entry_price - stop_loss)
+                    if r > 0:
+                        exit_price = entry_price * (1.0 + float(raw))
+                        if bias == "short":
+                            r_mult = (entry_price - exit_price) / r
+                        else:
+                            r_mult = (exit_price - entry_price) / r
+                        outcome["approx_r_multiple"] = float(r_mult)
+                except Exception:
+                    pass
+            trade_filter = meta.get("trade_filter") if isinstance(meta, dict) else None
+            if isinstance(trade_filter, dict):
+                outcome["trade_filtered_out"] = trade_filter.get("filtered_out")
+                outcome["trade_filter_score"] = trade_filter.get("score")
             reflection = self.reflector.reflect_on_final_decision(
                 final_decision=entry.get("decision", ""),
                 raw_return=raw,
@@ -257,6 +283,7 @@ class TradingAgentsGraph:
                 "alpha_return": alpha,
                 "holding_days": days,
                 "reflection": reflection,
+                "outcome": outcome,
             })
 
         if updates:
@@ -333,10 +360,25 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Store decision for deferred reflection on the next same-ticker run.
+        meta = {
+            "data_quality": final_state.get("data_quality"),
+            "error_count": final_state.get("error_count"),
+            "structured_valid": final_state.get("structured_valid"),
+            "confidence_score": final_state.get("confidence_score"),
+            "trade_levels": final_state.get("trade_levels"),
+            "trade_filter": {
+                "score": final_state.get("trade_filter_score"),
+                "pass": final_state.get("trade_filter_pass"),
+                "filtered_out": final_state.get("trade_filtered_out"),
+                "reasons": final_state.get("trade_filter_reasons"),
+            },
+            "trade_filter_details": final_state.get("trade_filter_details"),
+        }
         self.memory_log.store_decision(
             ticker=company_name,
             trade_date=trade_date,
             final_trade_decision=final_state["final_trade_decision"],
+            meta=meta,
         )
 
         # Clear checkpoint on successful completion to avoid stale state.

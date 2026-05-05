@@ -6,7 +6,7 @@ from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.structured import (
     bind_structured,
-    invoke_structured_or_freetext,
+    invoke_structured_or_freetext_with_meta,
 )
 
 
@@ -39,7 +39,7 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
 **Debate History:**
 {history}"""
 
-        investment_plan = invoke_structured_or_freetext(
+        investment_plan, structured_valid = invoke_structured_or_freetext_with_meta(
             structured_llm,
             llm,
             prompt,
@@ -59,6 +59,7 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": investment_plan,
+            "research_manager_structured_valid": structured_valid,
         }
 
     return research_manager_node

@@ -47,4 +47,6 @@ DEFAULT_CONFIG = {
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    "trade_filter_enabled": False,
+    "trade_filter_threshold": 0.65,
 }

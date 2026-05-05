@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.agents.utils.tool_errors import tool_error_text
 
 
 @tool
@@ -17,7 +18,10 @@ def get_fundamentals(
     Returns:
         str: A formatted report containing comprehensive fundamental data
     """
-    return route_to_vendor("get_fundamentals", ticker, curr_date)
+    try:
+        return route_to_vendor("get_fundamentals", ticker, curr_date)
+    except Exception as exc:
+        return tool_error_text(tool="get_fundamentals", error=exc)
 
 
 @tool
@@ -36,7 +40,10 @@ def get_balance_sheet(
     Returns:
         str: A formatted report containing balance sheet data
     """
-    return route_to_vendor("get_balance_sheet", ticker, freq, curr_date)
+    try:
+        return route_to_vendor("get_balance_sheet", ticker, freq, curr_date)
+    except Exception as exc:
+        return tool_error_text(tool="get_balance_sheet", error=exc)
 
 
 @tool
@@ -55,7 +62,10 @@ def get_cashflow(
     Returns:
         str: A formatted report containing cash flow statement data
     """
-    return route_to_vendor("get_cashflow", ticker, freq, curr_date)
+    try:
+        return route_to_vendor("get_cashflow", ticker, freq, curr_date)
+    except Exception as exc:
+        return tool_error_text(tool="get_cashflow", error=exc)
 
 
 @tool
@@ -74,4 +84,7 @@ def get_income_statement(
     Returns:
         str: A formatted report containing income statement data
     """
-    return route_to_vendor("get_income_statement", ticker, freq, curr_date)
+    try:
+        return route_to_vendor("get_income_statement", ticker, freq, curr_date)
+    except Exception as exc:
+        return tool_error_text(tool="get_income_statement", error=exc)
