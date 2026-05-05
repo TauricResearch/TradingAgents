@@ -42,6 +42,12 @@ from .opendart import (
     get_dart_financials as get_opendart_financials,
     get_dart_disclosures as get_opendart_disclosures,
 )
+from .pykrx_vendor import (
+    get_stock_data_pykrx,
+    get_kr_universe,
+    get_kr_investor_trading,
+    get_kr_value_factors,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -83,6 +89,14 @@ TOOLS_CATEGORIES = {
             "get_dart_financials",
             "get_dart_disclosures",
         ]
+    },
+    "kr_market_data": {
+        "description": "Korea-specific market data (universe, investor trading, value factors)",
+        "tools": [
+            "get_kr_universe",
+            "get_kr_investor_trading",
+            "get_kr_value_factors",
+        ]
     }
 }
 
@@ -90,6 +104,7 @@ VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
     "opendart",
+    "pykrx",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -98,6 +113,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "pykrx": get_stock_data_pykrx,
     },
     # technical_indicators
     "get_indicators": {
@@ -140,6 +156,16 @@ VENDOR_METHODS = {
     },
     "get_dart_disclosures": {
         "opendart": get_opendart_disclosures,
+    },
+    # kr_market_data
+    "get_kr_universe": {
+        "pykrx": get_kr_universe,
+    },
+    "get_kr_investor_trading": {
+        "pykrx": get_kr_investor_trading,
+    },
+    "get_kr_value_factors": {
+        "pykrx": get_kr_value_factors,
     },
 }
 
