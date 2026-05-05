@@ -209,8 +209,72 @@ already framework-independent.
 
 ---
 
+## Synology / DSM 7 specifics learned during the first deploy
+
+These are the gotchas that bit us once and shouldn't again. Folded in
+here so future-me (or future-Claude) doesn't re-derive them.
+
+**1. There is no "Authorized Keys" GUI in DSM 7.**
+The earlier step that referenced "Terminal & SNMP → Advanced → Authorized
+Keys" doesn't exist on DSM 7.2+. Add SSH keys via SSH instead:
+
+```bash
+# from the local machine, with password auth still enabled:
+ssh <USER>@192.168.2.34
+# on the NAS:
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+chmod 755 ~              # SSH refuses key auth if home is group-writable
+nano ~/.ssh/authorized_keys     # paste your .pub line
+chmod 600 ~/.ssh/authorized_keys
+```
+
+User Home service must also be enabled in **Control Panel → User &
+Group → Advanced → User Home**.
+
+**2. Non-interactive SSH sessions get a minimal PATH.**
+The shell our scripts hit doesn't include `/usr/local/bin` where Docker
+lives (`PATH=/usr/bin:/bin:/usr/sbin:/sbin`). The `nas-cmd.sh` wrapper
+already handles this by re-running every remote command in `bash -lc`,
+which sources login-profile fragments and gets the right PATH.
+
+**3. Docker socket needs `chgrp docker` on every reboot.**
+`/var/run/docker.sock` defaults to `root:root mode 660`. The user is in
+the `docker` group (GID 65536) but the socket isn't. Manual fix:
+
+```bash
+sudo chgrp docker /var/run/docker.sock
+sudo chmod 660 /var/run/docker.sock
+```
+
+For persistence across reboots, set up a Task Scheduler boot task
+(see §"Persistence note" earlier in this doc).
+
+**4. Build deps for native Python wheels.**
+The slim Python image needs cairo system libraries to build `pycairo`
+(transitive dep of `xhtml2pdf`). Already in the Dockerfile:
+- builder stage: `gcc + libcairo2-dev + pkg-config`
+- runtime stage: `libcairo2`
+
+If the build fails on a future "Unknown compiler(s)" or "missing
+header" error for some other native dep, the fix is the same shape —
+add the compile-time deps to the builder stage and the runtime `.so`s
+to the runtime stage.
+
+**5. First-deploy can land into a non-empty directory.**
+DSM (or you) may pre-create `/volume1/docker/tradingagents/` before the
+deploy. `git clone` refuses to clone into a non-empty target, so
+`deploy.sh` falls back to `git init + remote add + fetch + checkout`,
+which coexists with the persistent `data/` subdir without overwriting it.
+
+---
+
 ## Change log
 
 - **2026-05-04** — Initial Docker deployment to Synology
   (`Dockerfile` with `[gui]` extras, `gui` compose service, deploy
   scripts, `OPERATIONS.md`).
+- **2026-05-05** — First successful deploy to `192.168.2.34`. Hit and
+  resolved: DSM 7 missing Authorized-Keys UI, non-interactive SSH PATH,
+  Docker socket group ownership, pycairo native-build deps,
+  `git clone` into non-empty directory.
