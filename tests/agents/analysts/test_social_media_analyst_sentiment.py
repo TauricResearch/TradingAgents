@@ -1,6 +1,6 @@
 """Regression tests for social media analyst sentiment report completeness."""
 
-import pytest
+import inspect
 from unittest.mock import MagicMock, patch
 from langchain_core.messages import AIMessage
 
@@ -53,3 +53,14 @@ def test_sentiment_report_is_non_empty_when_llm_returns_blank():
                             assert "Sentiment" in report or "sentiment" in report.lower(), "Report should reference sentiment"
                             assert "neutral" in report or "Directional bias" in report, "Report should state directional bias"
                             assert "confidence" in report.lower(), "Report should mention confidence level"
+
+
+def test_social_analyst_prompt_mandates_sentiment_direction_format():
+    """Social analyst prompt must mandate 'Sentiment direction: BULLISH|BEARISH|NEUTRAL'."""
+    import tradingagents.agents.analysts.social_media_analyst as module
+
+    src = inspect.getsource(module)
+    assert "REQUIRED SENTIMENT FORMAT" in src
+    assert "Sentiment direction: BULLISH" in src
+    assert "Sentiment direction: BEARISH" in src
+    assert "Sentiment direction: NEUTRAL" in src
