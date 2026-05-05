@@ -55,7 +55,7 @@ analysesFsRouter.get("/:ticker/:date", (c) => {
   )
 
   if (!existsSync(logPath)) {
-    return c.text("Analysis not found", 404)
+    return c.json({ error: "Analysis not found" }, 404)
   }
 
   const raw = readFileSync(logPath, "utf-8")
