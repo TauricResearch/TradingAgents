@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import copy
 import os
 import typer
 from pathlib import Path
@@ -28,8 +29,14 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.progress import progress_sink
 from cli.models import AnalystType
 from cli.utils import *
+from cli.config import (
+    DEFAULT_LOCAL_CONFIG_PATH,
+    build_configured_selections,
+    load_cli_config,
+)
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 
@@ -67,7 +74,7 @@ def validate_provider_api_key(provider: str) -> None:
         return
     joined = " or ".join(env_names)
     raise typer.BadParameter(
-        f"No API key loaded for provider '{provider}'. Set {joined} in {PROJECT_ROOT / '.env'}."
+        f"未加载 provider '{provider}' 的 API key。请在 {PROJECT_ROOT / '.env'} 或本地 JSON 配置中设置 {joined}。"
     )
 
 
@@ -87,6 +94,28 @@ class MessageBuffer:
         "social": "Social Analyst",
         "news": "News Analyst",
         "fundamentals": "Fundamentals Analyst",
+    }
+
+    DISPLAY_NAMES = {
+        "Market Analyst": "市场分析师",
+        "Social Analyst": "社交情绪分析师",
+        "News Analyst": "新闻分析师",
+        "Fundamentals Analyst": "基本面分析师",
+        "Bull Researcher": "多方研究员",
+        "Bear Researcher": "空方研究员",
+        "Research Manager": "研究经理",
+        "Trader": "交易员",
+        "Aggressive Analyst": "激进风险分析师",
+        "Neutral Analyst": "中性风险分析师",
+        "Conservative Analyst": "保守风险分析师",
+        "Portfolio Manager": "组合经理",
+        "System": "系统",
+        "User": "用户",
+        "Agent": "智能体",
+        "Data": "数据",
+        "Control": "控制",
+        "Tool": "工具",
+        "Progress": "进度",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -201,13 +230,13 @@ class MessageBuffer:
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
-                "market_report": "Market Analysis",
-                "sentiment_report": "Social Sentiment",
-                "news_report": "News Analysis",
-                "fundamentals_report": "Fundamentals Analysis",
-                "investment_plan": "Research Team Decision",
-                "trader_investment_plan": "Trading Team Plan",
-                "final_trade_decision": "Portfolio Management Decision",
+                "market_report": "市场分析",
+                "sentiment_report": "社交情绪",
+                "news_report": "新闻分析",
+                "fundamentals_report": "基本面分析",
+                "investment_plan": "研究团队决策",
+                "trader_investment_plan": "交易团队计划",
+                "final_trade_decision": "组合管理决策",
             }
             self.current_report = (
                 f"### {section_titles[latest_section]}\n{latest_content}"
@@ -222,37 +251,37 @@ class MessageBuffer:
         # Analyst Team Reports - use .get() to handle missing sections
         analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
         if any(self.report_sections.get(section) for section in analyst_sections):
-            report_parts.append("## Analyst Team Reports")
+            report_parts.append("## 分析师团队报告")
             if self.report_sections.get("market_report"):
                 report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
+                    f"### 市场分析\n{self.report_sections['market_report']}"
                 )
             if self.report_sections.get("sentiment_report"):
                 report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
+                    f"### 社交情绪\n{self.report_sections['sentiment_report']}"
                 )
             if self.report_sections.get("news_report"):
                 report_parts.append(
-                    f"### News Analysis\n{self.report_sections['news_report']}"
+                    f"### 新闻分析\n{self.report_sections['news_report']}"
                 )
             if self.report_sections.get("fundamentals_report"):
                 report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
+                    f"### 基本面分析\n{self.report_sections['fundamentals_report']}"
                 )
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
-            report_parts.append("## Research Team Decision")
+            report_parts.append("## 研究团队决策")
             report_parts.append(f"{self.report_sections['investment_plan']}")
 
         # Trading Team Reports
         if self.report_sections.get("trader_investment_plan"):
-            report_parts.append("## Trading Team Plan")
+            report_parts.append("## 交易团队计划")
             report_parts.append(f"{self.report_sections['trader_investment_plan']}")
 
         # Portfolio Management Decision
         if self.report_sections.get("final_trade_decision"):
-            report_parts.append("## Portfolio Management Decision")
+            report_parts.append("## 组合管理决策")
             report_parts.append(f"{self.report_sections['final_trade_decision']}")
 
         self.final_report = "\n\n".join(report_parts) if report_parts else None
@@ -284,13 +313,26 @@ def format_tokens(n):
     return str(n)
 
 
+def _display_name(name: str) -> str:
+    return MessageBuffer.DISPLAY_NAMES.get(name, name)
+
+
+def _display_status(status: str) -> str:
+    return {
+        "pending": "等待中",
+        "in_progress": "进行中",
+        "completed": "已完成",
+        "error": "错误",
+    }.get(status, status)
+
+
 def update_display(layout, spinner_text=None, stats_handler=None, start_time=None):
     # Header with welcome message
     layout["header"].update(
         Panel(
-            "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
+            "[bold green]TradingAgents 中文 CLI[/bold green]\n"
             "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
-            title="Welcome to TradingAgents",
+            title="TradingAgents",
             border_style="green",
             padding=(1, 2),
             expand=True,
@@ -308,21 +350,21 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         expand=True,  # Make table expand to fill available space
     )
     progress_table.add_column("Team", style="cyan", justify="center", width=20)
-    progress_table.add_column("Agent", style="green", justify="center", width=20)
-    progress_table.add_column("Status", style="yellow", justify="center", width=20)
+    progress_table.add_column("智能体", style="green", justify="center", width=20)
+    progress_table.add_column("状态", style="yellow", justify="center", width=20)
 
     # Group agents by team - filter to only include agents in agent_status
     all_teams = {
-        "Analyst Team": [
+        "分析师团队": [
             "Market Analyst",
             "Social Analyst",
             "News Analyst",
             "Fundamentals Analyst",
         ],
-        "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
-        "Trading Team": ["Trader"],
-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
-        "Portfolio Management": ["Portfolio Manager"],
+        "研究团队": ["Bull Researcher", "Bear Researcher", "Research Manager"],
+        "交易团队": ["Trader"],
+        "风险管理": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
+        "组合管理": ["Portfolio Manager"],
     }
 
     # Filter teams to only include agents that are in agent_status
@@ -338,7 +380,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         status = message_buffer.agent_status.get(first_agent, "pending")
         if status == "in_progress":
             spinner = Spinner(
-                "dots", text="[blue]in_progress[/blue]", style="bold cyan"
+                "dots", text="[blue]进行中[/blue]", style="bold cyan"
             )
             status_cell = spinner
         else:
@@ -347,15 +389,15 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
                 "completed": "green",
                 "error": "red",
             }.get(status, "white")
-            status_cell = f"[{status_color}]{status}[/{status_color}]"
-        progress_table.add_row(team, first_agent, status_cell)
+            status_cell = f"[{status_color}]{_display_status(status)}[/{status_color}]"
+        progress_table.add_row(team, _display_name(first_agent), status_cell)
 
         # Add remaining agents in team
         for agent in agents[1:]:
             status = message_buffer.agent_status.get(agent, "pending")
             if status == "in_progress":
                 spinner = Spinner(
-                    "dots", text="[blue]in_progress[/blue]", style="bold cyan"
+                    "dots", text="[blue]进行中[/blue]", style="bold cyan"
                 )
                 status_cell = spinner
             else:
@@ -364,14 +406,14 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
                     "completed": "green",
                     "error": "red",
                 }.get(status, "white")
-                status_cell = f"[{status_color}]{status}[/{status_color}]"
-            progress_table.add_row("", agent, status_cell)
+                status_cell = f"[{status_color}]{_display_status(status)}[/{status_color}]"
+            progress_table.add_row("", _display_name(agent), status_cell)
 
         # Add horizontal line after each team
         progress_table.add_row("─" * 20, "─" * 20, "─" * 20, style="dim")
 
     layout["progress"].update(
-        Panel(progress_table, title="Progress", border_style="cyan", padding=(1, 2))
+        Panel(progress_table, title="进度", border_style="cyan", padding=(1, 2))
     )
 
     # Messages panel showing recent messages and tool calls
@@ -384,10 +426,10 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         show_lines=True,  # Keep horizontal lines
         padding=(0, 1),  # Add some padding between columns
     )
-    messages_table.add_column("Time", style="cyan", width=8, justify="center")
-    messages_table.add_column("Type", style="green", width=10, justify="center")
+    messages_table.add_column("时间", style="cyan", width=8, justify="center")
+    messages_table.add_column("类型", style="green", width=10, justify="center")
     messages_table.add_column(
-        "Content", style="white", no_wrap=False, ratio=1
+        "内容", style="white", no_wrap=False, ratio=1
     )  # Make content column expand
 
     # Combine tool calls and messages
@@ -396,14 +438,14 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     # Add tool calls
     for timestamp, tool_name, args in message_buffer.tool_calls:
         formatted_args = format_tool_args(args)
-        all_messages.append((timestamp, "Tool", f"{tool_name}: {formatted_args}"))
+        all_messages.append((timestamp, "工具", f"{tool_name}: {formatted_args}"))
 
     # Add regular messages
     for timestamp, msg_type, content in message_buffer.messages:
         content_str = str(content) if content else ""
         if len(content_str) > 200:
             content_str = content_str[:197] + "..."
-        all_messages.append((timestamp, msg_type, content_str))
+        all_messages.append((timestamp, _display_name(msg_type), content_str))
 
     # Sort by timestamp descending (newest first)
     all_messages.sort(key=lambda x: x[0], reverse=True)
@@ -423,7 +465,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["messages"].update(
         Panel(
             messages_table,
-            title="Messages & Tools",
+            title="消息与工具",
             border_style="blue",
             padding=(1, 2),
         )
@@ -434,7 +476,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         layout["analysis"].update(
             Panel(
                 Markdown(message_buffer.current_report),
-                title="Current Report",
+                title="当前报告",
                 border_style="green",
                 padding=(1, 2),
             )
@@ -442,8 +484,8 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     else:
         layout["analysis"].update(
             Panel(
-                "[italic]Waiting for analysis report...[/italic]",
-                title="Current Report",
+                "[italic]等待分析报告生成...[/italic]",
+                title="当前报告",
                 border_style="green",
                 padding=(1, 2),
             )
@@ -461,22 +503,22 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     reports_total = len(message_buffer.report_sections)
 
     # Build stats parts
-    stats_parts = [f"Agents: {agents_completed}/{agents_total}"]
+    stats_parts = [f"智能体: {agents_completed}/{agents_total}"]
 
     # LLM and tool stats from callback handler
     if stats_handler:
         stats = stats_handler.get_stats()
         stats_parts.append(f"LLM: {stats['llm_calls']}")
-        stats_parts.append(f"Tools: {stats['tool_calls']}")
+        stats_parts.append(f"工具: {stats['tool_calls']}")
 
         # Token display with graceful fallback
         if stats["tokens_in"] > 0 or stats["tokens_out"] > 0:
-            tokens_str = f"Tokens: {format_tokens(stats['tokens_in'])}\u2191 {format_tokens(stats['tokens_out'])}\u2193"
+            tokens_str = f"Token: {format_tokens(stats['tokens_in'])}\u2191 {format_tokens(stats['tokens_out'])}\u2193"
         else:
-            tokens_str = "Tokens: --"
+            tokens_str = "Token: --"
         stats_parts.append(tokens_str)
 
-    stats_parts.append(f"Reports: {reports_completed}/{reports_total}")
+    stats_parts.append(f"报告: {reports_completed}/{reports_total}")
 
     # Elapsed time
     if start_time:
@@ -491,7 +533,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
+def get_user_selections(cli_config: dict | None = None):
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
@@ -499,9 +541,9 @@ def get_user_selections():
 
     # Create welcome box content
     welcome_content = f"{welcome_ascii}\n"
-    welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
-    welcome_content += "[bold]Workflow Steps:[/bold]\n"
-    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
+    welcome_content += "[bold green]TradingAgents 多智能体交易分析框架 - 中文 CLI[/bold green]\n\n"
+    welcome_content += "[bold]工作流：[/bold]\n"
+    welcome_content += "I. 分析师团队 → II. 研究团队 → III. 交易员 → IV. 风险管理 → V. 组合管理\n\n"
     welcome_content += (
         "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
     )
@@ -511,8 +553,8 @@ def get_user_selections():
         welcome_content,
         border_style="green",
         padding=(1, 2),
-        title="Welcome to TradingAgents",
-        subtitle="Multi-Agents LLM Financial Trading Framework",
+        title="欢迎使用 TradingAgents",
+        subtitle="多智能体交易分析框架",
     )
     console.print(Align.center(welcome_box))
     console.print()
@@ -527,35 +569,49 @@ def get_user_selections():
         box_content = f"[bold]{title}[/bold]\n"
         box_content += f"[dim]{prompt}[/dim]"
         if default:
-            box_content += f"\n[dim]Default: {default}[/dim]"
+            box_content += f"\n[dim]默认：{default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
+
+    cli_config = cli_config or {}
 
     # Step 1: Ticker symbol
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the ticker symbol to analyze (examples: SPY, 002636, 600519.SS, CNC.TO, 7203.T, 0700.HK)",
+            "步骤 1：股票代码",
+            "请输入要分析的股票代码（示例：SPY、002636、600519.SS、CNC.TO、7203.T、0700.HK）",
             "SPY",
         )
     )
-    selected_ticker = get_ticker()
+    selected_ticker = (cli_config.get("run") or {}).get("ticker") or get_ticker()
 
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
-            "Step 2: Analysis Date",
-            "Enter the analysis date (YYYY-MM-DD)",
+            "步骤 2：分析日期",
+            "请输入分析日期（YYYY-MM-DD）",
             default_date,
         )
     )
-    analysis_date = get_analysis_date()
+    analysis_date = (cli_config.get("run") or {}).get("analysis_date") or get_analysis_date()
+
+    if cli_config:
+        selections = build_configured_selections(
+            cli_config,
+            ticker=selected_ticker,
+            analysis_date=analysis_date,
+        )
+        console.print("[green]已读取本地 JSON 配置，跳过已配置的 LLM、分析师和运行参数选择。[/green]")
+        console.print(
+            f"[green]分析师：[/green] {', '.join(analyst.value for analyst in selections['analysts'])}"
+        )
+        return selections
 
     # Step 3: Output language
     console.print(
         create_question_box(
-            "Step 3: Output Language",
-            "Select the language for analyst reports and final decision"
+            "步骤 3：输出语言",
+            "请选择分析报告和最终决策的输出语言"
         )
     )
     output_language = ask_output_language()
@@ -563,18 +619,18 @@ def get_user_selections():
     # Step 4: Select analysts
     console.print(
         create_question_box(
-            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+            "步骤 4：分析师团队", "请选择参与本次分析的 LLM 智能体"
         )
     )
     selected_analysts = select_analysts()
     console.print(
-        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
+        f"[green]已选择分析师：[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
     # Step 5: Research depth
     console.print(
         create_question_box(
-            "Step 5: Research Depth", "Select your research depth level"
+            "步骤 5：研究深度", "请选择研究深度"
         )
     )
     selected_research_depth = select_research_depth()
@@ -582,7 +638,7 @@ def get_user_selections():
     # Step 6: LLM Provider
     console.print(
         create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+            "步骤 6：LLM Provider", "请选择 LLM Provider"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
@@ -590,7 +646,7 @@ def get_user_selections():
     # Step 7: Thinking agents
     console.print(
         create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            "步骤 7：Thinking 模型", "请选择用于分析的 Thinking 模型"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
@@ -605,24 +661,24 @@ def get_user_selections():
     if provider_lower == "google":
         console.print(
             create_question_box(
-                "Step 8: Thinking Mode",
-                "Configure Gemini thinking mode"
+                "步骤 8：Thinking Mode",
+                "配置 Gemini thinking mode"
             )
         )
         thinking_level = ask_gemini_thinking_config()
     elif provider_lower == "openai":
         console.print(
             create_question_box(
-                "Step 8: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
+                "步骤 8：Reasoning Effort",
+                "配置 OpenAI reasoning effort"
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
     elif provider_lower == "anthropic":
         console.print(
             create_question_box(
-                "Step 8: Effort Level",
-                "Configure Claude effort level"
+                "步骤 8：Effort Level",
+                "配置 Claude effort level"
             )
         )
         anthropic_effort = ask_anthropic_effort()
@@ -640,6 +696,10 @@ def get_user_selections():
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        "checkpoint_enabled": False,
+        "save_report": True,
+        "display_report": True,
+        "data_vendors": {},
     }
 
 
@@ -658,12 +718,12 @@ def get_analysis_date():
             # Validate date format and ensure it's not in the future
             analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
             if analysis_date.date() > datetime.datetime.now().date():
-                console.print("[red]Error: Analysis date cannot be in the future[/red]")
+                console.print("[red]错误：分析日期不能晚于今天。[/red]")
                 continue
             return date_str
         except ValueError:
             console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
+                "[red]错误：日期格式无效，请使用 YYYY-MM-DD。[/red]"
             )
 
 
@@ -678,22 +738,22 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     if final_state.get("market_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "market.md").write_text(final_state["market_report"], encoding="utf-8")
-        analyst_parts.append(("Market Analyst", final_state["market_report"]))
+        analyst_parts.append(("市场分析师", final_state["market_report"]))
     if final_state.get("sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
-        analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
+        analyst_parts.append(("社交情绪分析师", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
-        analyst_parts.append(("News Analyst", final_state["news_report"]))
+        analyst_parts.append(("新闻分析师", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+        analyst_parts.append(("基本面分析师", final_state["fundamentals_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
-        sections.append(f"## I. Analyst Team Reports\n\n{content}")
+        sections.append(f"## I. 分析师团队报告\n\n{content}")
 
     # 2. Research
     if final_state.get("investment_debate_state"):
@@ -703,25 +763,25 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         if debate.get("bull_history"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "bull.md").write_text(debate["bull_history"], encoding="utf-8")
-            research_parts.append(("Bull Researcher", debate["bull_history"]))
+            research_parts.append(("多方研究员", debate["bull_history"]))
         if debate.get("bear_history"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
-            research_parts.append(("Bear Researcher", debate["bear_history"]))
+            research_parts.append(("空方研究员", debate["bear_history"]))
         if debate.get("judge_decision"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
-            research_parts.append(("Research Manager", debate["judge_decision"]))
+            research_parts.append(("研究经理", debate["judge_decision"]))
         if research_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
-            sections.append(f"## II. Research Team Decision\n\n{content}")
+            sections.append(f"## II. 研究团队决策\n\n{content}")
 
     # 3. Trading
     if final_state.get("trader_investment_plan"):
         trading_dir = save_path / "3_trading"
         trading_dir.mkdir(exist_ok=True)
         (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"], encoding="utf-8")
-        sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
+        sections.append(f"## III. 交易团队计划\n\n### 交易员\n{final_state['trader_investment_plan']}")
 
     # 4. Risk Management
     if final_state.get("risk_debate_state"):
@@ -731,28 +791,28 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         if risk.get("aggressive_history"):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "aggressive.md").write_text(risk["aggressive_history"], encoding="utf-8")
-            risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
+            risk_parts.append(("激进风险分析师", risk["aggressive_history"]))
         if risk.get("conservative_history"):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "conservative.md").write_text(risk["conservative_history"], encoding="utf-8")
-            risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
+            risk_parts.append(("保守风险分析师", risk["conservative_history"]))
         if risk.get("neutral_history"):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "neutral.md").write_text(risk["neutral_history"], encoding="utf-8")
-            risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
+            risk_parts.append(("中性风险分析师", risk["neutral_history"]))
         if risk_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
-            sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
+            sections.append(f"## IV. 风险管理团队决策\n\n{content}")
 
         # 5. Portfolio Manager
         if risk.get("judge_decision"):
             portfolio_dir = save_path / "5_portfolio"
             portfolio_dir.mkdir(exist_ok=True)
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+            sections.append(f"## V. 组合经理决策\n\n### 组合经理\n{risk['judge_decision']}")
 
     # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    header = f"# 交易分析报告：{ticker}\n\n生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"
 
@@ -760,20 +820,20 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
 def display_complete_report(final_state):
     """Display the complete analysis report sequentially (avoids truncation)."""
     console.print()
-    console.print(Rule("Complete Analysis Report", style="bold green"))
+    console.print(Rule("完整分析报告", style="bold green"))
 
     # I. Analyst Team Reports
     analysts = []
     if final_state.get("market_report"):
-        analysts.append(("Market Analyst", final_state["market_report"]))
+        analysts.append(("市场分析师", final_state["market_report"]))
     if final_state.get("sentiment_report"):
-        analysts.append(("Social Analyst", final_state["sentiment_report"]))
+        analysts.append(("社交情绪分析师", final_state["sentiment_report"]))
     if final_state.get("news_report"):
-        analysts.append(("News Analyst", final_state["news_report"]))
+        analysts.append(("新闻分析师", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
-        analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+        analysts.append(("基本面分析师", final_state["fundamentals_report"]))
     if analysts:
-        console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
+        console.print(Panel("[bold]I. 分析师团队报告[/bold]", border_style="cyan"))
         for title, content in analysts:
             console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
@@ -782,40 +842,40 @@ def display_complete_report(final_state):
         debate = final_state["investment_debate_state"]
         research = []
         if debate.get("bull_history"):
-            research.append(("Bull Researcher", debate["bull_history"]))
+            research.append(("多方研究员", debate["bull_history"]))
         if debate.get("bear_history"):
-            research.append(("Bear Researcher", debate["bear_history"]))
+            research.append(("空方研究员", debate["bear_history"]))
         if debate.get("judge_decision"):
-            research.append(("Research Manager", debate["judge_decision"]))
+            research.append(("研究经理", debate["judge_decision"]))
         if research:
-            console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
+            console.print(Panel("[bold]II. 研究团队决策[/bold]", border_style="magenta"))
             for title, content in research:
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
     # III. Trading Team
     if final_state.get("trader_investment_plan"):
-        console.print(Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow"))
-        console.print(Panel(Markdown(final_state["trader_investment_plan"]), title="Trader", border_style="blue", padding=(1, 2)))
+        console.print(Panel("[bold]III. 交易团队计划[/bold]", border_style="yellow"))
+        console.print(Panel(Markdown(final_state["trader_investment_plan"]), title="交易员", border_style="blue", padding=(1, 2)))
 
     # IV. Risk Management Team
     if final_state.get("risk_debate_state"):
         risk = final_state["risk_debate_state"]
         risk_reports = []
         if risk.get("aggressive_history"):
-            risk_reports.append(("Aggressive Analyst", risk["aggressive_history"]))
+            risk_reports.append(("激进风险分析师", risk["aggressive_history"]))
         if risk.get("conservative_history"):
-            risk_reports.append(("Conservative Analyst", risk["conservative_history"]))
+            risk_reports.append(("保守风险分析师", risk["conservative_history"]))
         if risk.get("neutral_history"):
-            risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
+            risk_reports.append(("中性风险分析师", risk["neutral_history"]))
         if risk_reports:
-            console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
+            console.print(Panel("[bold]IV. 风险管理团队决策[/bold]", border_style="red"))
             for title, content in risk_reports:
                 console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
         # V. Portfolio Manager Decision
         if risk.get("judge_decision"):
-            console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
-            console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+            console.print(Panel("[bold]V. 组合经理决策[/bold]", border_style="green"))
+            console.print(Panel(Markdown(risk["judge_decision"]), title="组合经理", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):
@@ -957,12 +1017,17 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False):
+def run_analysis(checkpoint: bool = False, config_path: Path | None = None):
     # First get all user selections
-    selections = get_user_selections()
+    try:
+        cli_config = load_cli_config(config_path)
+    except Exception as exc:
+        raise typer.BadParameter(f"读取配置文件失败：{exc}") from exc
+
+    selections = get_user_selections(cli_config)
 
     # Create config with selected research depth
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
@@ -975,7 +1040,9 @@ def run_analysis(checkpoint: bool = False):
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
-    config["checkpoint_enabled"] = checkpoint
+    if selections.get("data_vendors"):
+        config["data_vendors"].update(selections["data_vendors"])
+    config["checkpoint_enabled"] = bool(checkpoint or selections.get("checkpoint_enabled", False))
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1046,21 +1113,24 @@ def run_analysis(checkpoint: bool = False):
     message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
     message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
 
+    def add_data_progress(event):
+        message_buffer.add_message("Progress", event.message)
+
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with progress_sink(add_data_progress), Live(layout, refresh_per_second=4) as live:
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Add initial messages
-        message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
+        message_buffer.add_message("System", f"已选择股票代码：{selections['ticker']}")
         message_buffer.add_message(
-            "System", f"Analysis date: {selections['analysis_date']}"
+            "System", f"分析日期：{selections['analysis_date']}"
         )
         message_buffer.add_message(
             "System",
-            f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
+            f"分析师：{', '.join(analyst.value for analyst in selections['analysts'])}",
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1071,7 +1141,7 @@ def run_analysis(checkpoint: bool = False):
 
         # Create spinner text
         spinner_text = (
-            f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
+            f"正在分析 {selections['ticker']}，日期 {selections['analysis_date']}..."
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
@@ -1120,15 +1190,15 @@ def run_analysis(checkpoint: bool = False):
                     update_research_team_status("in_progress")
                 if bull_hist:
                     message_buffer.update_report_section(
-                        "investment_plan", f"### Bull Researcher Analysis\n{bull_hist}"
+                        "investment_plan", f"### 多方研究员分析\n{bull_hist}"
                     )
                 if bear_hist:
                     message_buffer.update_report_section(
-                        "investment_plan", f"### Bear Researcher Analysis\n{bear_hist}"
+                        "investment_plan", f"### 空方研究员分析\n{bear_hist}"
                     )
                 if judge:
                     message_buffer.update_report_section(
-                        "investment_plan", f"### Research Manager Decision\n{judge}"
+                        "investment_plan", f"### 研究经理决策\n{judge}"
                     )
                     update_research_team_status("completed")
                     message_buffer.update_agent_status("Trader", "in_progress")
@@ -1154,25 +1224,25 @@ def run_analysis(checkpoint: bool = False):
                     if message_buffer.agent_status.get("Aggressive Analyst") != "completed":
                         message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Aggressive Analyst Analysis\n{agg_hist}"
+                        "final_trade_decision", f"### 激进风险分析师分析\n{agg_hist}"
                     )
                 if con_hist:
                     if message_buffer.agent_status.get("Conservative Analyst") != "completed":
                         message_buffer.update_agent_status("Conservative Analyst", "in_progress")
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Conservative Analyst Analysis\n{con_hist}"
+                        "final_trade_decision", f"### 保守风险分析师分析\n{con_hist}"
                     )
                 if neu_hist:
                     if message_buffer.agent_status.get("Neutral Analyst") != "completed":
                         message_buffer.update_agent_status("Neutral Analyst", "in_progress")
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Neutral Analyst Analysis\n{neu_hist}"
+                        "final_trade_decision", f"### 中性风险分析师分析\n{neu_hist}"
                     )
                 if judge:
                     if message_buffer.agent_status.get("Portfolio Manager") != "completed":
                         message_buffer.update_agent_status("Portfolio Manager", "in_progress")
                         message_buffer.update_report_section(
-                            "final_trade_decision", f"### Portfolio Manager Decision\n{judge}"
+                            "final_trade_decision", f"### 组合经理决策\n{judge}"
                         )
                         message_buffer.update_agent_status("Aggressive Analyst", "completed")
                         message_buffer.update_agent_status("Conservative Analyst", "completed")
@@ -1193,7 +1263,7 @@ def run_analysis(checkpoint: bool = False):
             message_buffer.update_agent_status(agent, "completed")
 
         message_buffer.add_message(
-            "System", f"Completed analysis for {selections['analysis_date']}"
+            "System", f"已完成 {selections['analysis_date']} 的分析"
         )
 
         # Update final report sections
@@ -1204,28 +1274,37 @@ def run_analysis(checkpoint: bool = False):
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
     # Post-analysis prompts (outside Live context for clean interaction)
-    console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
+    console.print("\n[bold cyan]分析完成。[/bold cyan]\n")
 
     # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
-    if save_choice in ("Y", "YES", ""):
+    should_save = bool(selections.get("save_report", True))
+    if not cli_config:
+        save_choice = typer.prompt("是否保存报告？", default="Y").strip().upper()
+        should_save = save_choice in ("Y", "YES", "")
+    if should_save:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
+        if cli_config:
+            save_path_str = str(default_path)
+        else:
+            save_path_str = typer.prompt(
+                "保存路径（直接回车使用默认路径）",
+                default=str(default_path)
+            ).strip()
         save_path = Path(save_path_str)
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
-            console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
-            console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            console.print(f"\n[green]报告已保存到：[/green] {save_path.resolve()}")
+            console.print(f"  [dim]完整报告：[/dim] {report_file.name}")
         except Exception as e:
-            console.print(f"[red]Error saving report: {e}[/red]")
+            console.print(f"[red]保存报告失败：{e}[/red]")
 
     # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
-    if display_choice in ("Y", "YES", ""):
+    should_display = bool(selections.get("display_report", True))
+    if not cli_config:
+        display_choice = typer.prompt("\n是否在终端展示完整报告？", default="Y").strip().upper()
+        should_display = display_choice in ("Y", "YES", "")
+    if should_display:
         display_complete_report(final_state)
 
 
@@ -1234,19 +1313,24 @@ def analyze(
     checkpoint: bool = typer.Option(
         False,
         "--checkpoint",
-        help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
+        help="启用 checkpoint/resume：每个节点后保存状态，便于崩溃后恢复。",
+    ),
+    config: Optional[Path] = typer.Option(
+        DEFAULT_LOCAL_CONFIG_PATH,
+        "--config",
+        help="本地 JSON 配置文件路径；默认尝试 tradingagents.local.json。",
     ),
     clear_checkpoints: bool = typer.Option(
         False,
         "--clear-checkpoints",
-        help="Delete all saved checkpoints before running (force fresh start).",
+        help="运行前删除所有 checkpoint，强制重新开始。",
     ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
-        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+        console.print(f"[yellow]已清除 {n} 个 checkpoint。[/yellow]")
+    run_analysis(checkpoint=checkpoint, config_path=config)
 
 
 if __name__ == "__main__":

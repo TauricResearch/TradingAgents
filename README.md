@@ -32,7 +32,7 @@ pip install -e .
 pip install -e ".[china]"
 ```
 
-## API Key 配置
+## API Key 与 JSON 配置
 
 推荐复制示例文件后填写本地密钥：
 
@@ -61,6 +61,33 @@ TUSHARE_API_KEY=
 
 `.env`、`.env.*`、日志、运行报告和缓存默认不会提交到 Git。
 
+如果希望减少每次启动时的交互，也可以使用本地 JSON 配置：
+
+```bash
+cp tradingagents.config.example.json tradingagents.local.json
+```
+
+`tradingagents.local.json` 会被 Git 忽略，可以写入真实的 MiMo、Tavily、Tushare 等 key。启动时默认会尝试读取它：
+
+```bash
+tradingagents analyze --config tradingagents.local.json
+```
+
+当 JSON 中已经配置 LLM、模型、分析师、研究深度、输出语言和报告保存选项时，CLI 会跳过对应选择；股票代码和分析日期仍会用中文提示输入。当前示例默认使用 Xiaomi MiMo：
+
+```json
+{
+  "llm": {
+    "provider": "mimo",
+    "quick_think_llm": "mimo-v2.5",
+    "deep_think_llm": "mimo-v2.5-pro"
+  },
+  "run": {
+    "output_language": "Chinese"
+  }
+}
+```
+
 ## CLI 使用
 
 启动交互式 CLI：
@@ -75,7 +102,9 @@ tradingagents
 python -m cli.main
 ```
 
-CLI 会引导选择 ticker、分析日期、LLM provider、模型、研究深度、输出语言、是否启用 checkpoint 等参数。
+CLI 会使用中文引导输入 ticker、分析日期等缺失参数；如果提供了 `tradingagents.local.json`，则优先使用配置文件中的 LLM provider、模型、研究深度、输出语言等设置。
+
+运行过程中，终端会在消息面板中展示摘要级数据调用进度，例如新闻搜索、OHLCV、基本面和财报数据的 vendor、开始/成功/失败以及 fallback 状态。
 
 ![CLI research and trader output](assets/cli/cli_research_trader.png)
 

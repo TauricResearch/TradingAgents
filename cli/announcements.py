@@ -41,11 +41,11 @@ def display_announcements(console: Console, data: dict) -> None:
         content,
         border_style="cyan",
         padding=(1, 2),
-        title="Announcements",
+        title="公告",
     )
     console.print(panel)
 
     if require_attention:
-        getpass.getpass("Press Enter to continue...")
+        getpass.getpass("按回车继续...")
     else:
         console.print()
