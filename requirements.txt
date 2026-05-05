@@ -21,3 +21,6 @@ questionary
 langchain_anthropic
 langchain-google-genai
 opendartreader
+pykrx
+pyarrow
+filelock
