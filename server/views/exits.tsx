@@ -10,13 +10,13 @@ export function ExitsView() {
         </div>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: exitsScript() }} />
+      <ExitsScript />
     </>
   );
 }
 
-function exitsScript(): string {
-  return `
+function ExitsScript() {
+  return <script>{`
   (function() {
     function renderExits(statuses) {
       const el = document.getElementById('exits-body');
@@ -97,5 +97,5 @@ function exitsScript(): string {
           '<div class="error-card"><strong>Error loading exits</strong><br>' + err.message + '</div>';
       });
   })();
-  `;
+  `}</script>;
 }
