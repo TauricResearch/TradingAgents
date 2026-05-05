@@ -114,37 +114,44 @@ def _format_news_structured(structured: object) -> str:
 
 
 def _fundamentals_risk_block(state: dict) -> str:
-    """Extract critical fundamentals metrics from structured contract for debate context.
-    
-    Returns a formatted risk metrics block if key_metrics are present,
-    otherwise returns empty string.
+    """Extract critical fundamentals metrics from the raw report text for RM/Trader/risk debaters.
+
+    Reads the full fundamentals_report text (not the structured contract's key_metrics,
+    which only tracks numeric_mentions/summary_table_rows) and regex-extracts the worst-case
+    valuation signals so they reach nodes that use build_research_packet.
     """
-    structured = (state.get("fundamentals_report_structured") or {})
-    key_metrics = structured.get("key_metrics") or {}
-    if not key_metrics:
+    import re as _re
+
+    fund_text = str(state.get("fundamentals_report") or "").lower()
+    if not fund_text:
         return ""
-    lines = ["### Fundamentals Risk Metrics (structured)"]
-    fields = [
-        ("pe_ratio", "P/E Ratio"),
-        ("debt_equity_ratio", "D/E Ratio"),
-        ("fcf_trend", "FCF Trend"),
-        ("operating_margin", "Operating Margin"),
-        ("current_ratio", "Current Ratio"),
-        ("working_capital", "Working Capital"),
-    ]
-    found = False
-    for key, label in fields:
-        val = key_metrics.get(key)
-        if val:
-            lines.append(f"- {label}: {val}")
-            found = True
-    if not found:
+    lines = []
+    pe_match = _re.search(r"p/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?", fund_text)
+    de_match = _re.search(r"d/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)", fund_text)
+    fcf_match = _re.search(r"free\s+cash\s+flow[^.\n]{0,30}?(-?[0-9]+(?:\.[0-9]+)?%)", fund_text)
+    op_margin_match = _re.search(r"operating\s+margin[:\s]+(-?[0-9]+(?:\.[0-9]+)?%)", fund_text)
+    curr_ratio_match = _re.search(r"current\s+ratio[:\s]+([0-9]+(?:\.[0-9]+)?)", fund_text)
+    wc_match = _re.search(r"working\s+capital[^.\n]{0,40}?(\$?-?[0-9]+(?:\.[0-9]+)?[bBmM]?)", fund_text)
+    if pe_match:
+        lines.append(f"- P/E: {pe_match.group(1)}x")
+    if de_match:
+        lines.append(f"- D/E: {de_match.group(1)}")
+    if fcf_match:
+        lines.append(f"- FCF: {fcf_match.group(1)}")
+    if op_margin_match:
+        lines.append(f"- Operating Margin: {op_margin_match.group(1)}")
+    if curr_ratio_match:
+        lines.append(f"- Current Ratio: {curr_ratio_match.group(1)}")
+    if wc_match:
+        lines.append(f"- Working Capital: {wc_match.group(1)}")
+    if not lines:
         return ""
-    lines.append(
-        "\nNOTE: If any metric above is severely negative or deteriorating, "
-        "both researchers MUST address it explicitly in their arguments."
+    return (
+        "### Fundamentals Risk Metrics (extracted)\n"
+        + "\n".join(lines)
+        + "\n\nNOTE: If any metric above is severely negative or deteriorating, "
+        "it MUST be addressed explicitly before issuing a BUY recommendation."
     )
-    return "\n".join(lines)
 
 
 def build_debate_evidence_brief(state: AgentState) -> str:

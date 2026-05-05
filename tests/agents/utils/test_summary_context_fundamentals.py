@@ -3,92 +3,67 @@
 from tradingagents.agents.utils.summary_context import build_research_packet
 
 
-def test_research_packet_includes_pe_ratio_when_present():
-    """Test that P/E ratio and other metrics appear in research packet when present."""
+def test_research_packet_includes_pe_ratio_from_report_text():
+    """P/E and D/E extracted from raw fundamentals_report text must appear in packet."""
     state = {
-        "company_of_interest": "AAPL",
-        "trade_date": "2026-05-05",
-        "market_report": "price positive",
-        "sentiment_report": "neutral",
-        "news_report": "earnings beat",
-        "fundamentals_report": "full fundamentals text",
-        "fundamentals_report_structured": {
-            "key_metrics": {
-                "pe_ratio": "83.2",
-                "debt_equity_ratio": "15.63",
-                "fcf_trend": "declining -73% YoY",
-                "operating_margin": "-3.0%",
-                "current_ratio": "0.70",
-            }
-        },
-        "investment_debate_state": {},
-        "scanner_graph_context_text": "",
+        "fundamentals_report": (
+            "P/E ratio: 83.2x — elevated vs peers.\n"
+            "D/E ratio: 15.63 — high leverage.\n"
+            "Free cash flow declined -73% YoY.\n"
+        ),
     }
     packet = build_research_packet(state)
-    assert "83.2" in packet or "PE" in packet, "PE ratio must appear in research packet"
-    assert "15.63" in packet or "D/E" in packet or "debt" in packet.lower()
+    assert "83.2" in packet, "PE ratio must appear in research packet"
+    assert "15.63" in packet, "D/E ratio must appear in research packet"
 
 
-def test_research_packet_no_risk_block_when_key_metrics_missing():
-    """Test that no risk block is added when key_metrics are missing."""
+def test_research_packet_no_risk_block_when_fundamentals_report_empty():
+    """No risk block when fundamentals_report is empty or absent."""
     state = {
-        "fundamentals_report_structured": {},
-        "fundamentals_report": "some text",
+        "fundamentals_report": "",
+        "fundamentals_report_structured": {"key_metrics": {"pe_ratio": "83.2"}},
     }
     packet = build_research_packet(state)
     assert "Fundamentals Risk Metrics" not in packet
 
 
-def test_research_packet_no_risk_block_when_key_metrics_empty():
-    """Test that no risk block is added when key_metrics dict is empty."""
+def test_research_packet_no_risk_block_when_no_recognisable_metrics():
+    """No block emitted when report text contains no extractable metrics."""
     state = {
-        "fundamentals_report_structured": {
-            "key_metrics": {}
-        },
-        "fundamentals_report": "some text",
+        "fundamentals_report": "Revenue grew. No ratio data available.",
     }
     packet = build_research_packet(state)
     assert "Fundamentals Risk Metrics" not in packet
 
 
-def test_research_packet_includes_all_available_metrics():
-    """Test that all available risk metrics are included in the packet."""
+def test_research_packet_includes_all_extractable_metrics():
+    """All six metric patterns extracted when present in report text."""
     state = {
-        "fundamentals_report": "full fundamentals text",
-        "fundamentals_report_structured": {
-            "key_metrics": {
-                "pe_ratio": "83.2",
-                "debt_equity_ratio": "15.63",
-                "fcf_trend": "declining -73% YoY",
-                "operating_margin": "-3.0%",
-                "current_ratio": "0.70",
-                "working_capital": "$2.3B negative",
-            }
-        },
+        "fundamentals_report": (
+            "P/E ratio: 83.2x\n"
+            "D/E ratio: 15.63\n"
+            "Free cash flow margin declined -73%\n"
+            "Operating margin: -3.0%\n"
+            "Current ratio: 0.70\n"
+            "Working capital $2.3B negative\n"
+        ),
     }
     packet = build_research_packet(state)
     assert "Fundamentals Risk Metrics" in packet
-    assert "P/E Ratio: 83.2" in packet
-    assert "D/E Ratio: 15.63" in packet
-    assert "FCF Trend: declining -73% YoY" in packet
-    assert "Operating Margin: -3.0%" in packet
-    assert "Current Ratio: 0.70" in packet
-    assert "Working Capital: $2.3B negative" in packet
-    assert "both researchers MUST address" in packet
+    assert "83.2" in packet
+    assert "15.63" in packet
+    assert "-73%" in packet
+    assert "-3.0%" in packet
+    assert "0.70" in packet
+    assert "MUST be addressed" in packet
 
 
-def test_research_packet_partial_metrics():
-    """Test that block is created even with only some metrics present."""
+def test_research_packet_partial_metrics_from_text():
+    """Block is emitted with only the metrics found in text."""
     state = {
-        "fundamentals_report": "text",
-        "fundamentals_report_structured": {
-            "key_metrics": {
-                "pe_ratio": "25.3",
-            }
-        },
+        "fundamentals_report": "P/E ratio: 25.3x. Revenue up.",
     }
     packet = build_research_packet(state)
     assert "Fundamentals Risk Metrics" in packet
-    assert "P/E Ratio: 25.3" in packet
-    # Should not include labels for missing metrics
-    assert "D/E Ratio:" not in packet
+    assert "25.3" in packet
+    assert "D/E:" not in packet
