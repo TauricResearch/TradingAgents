@@ -1,12 +1,386 @@
 /** @jsxImportSource hono/jsx */
 
-export function HoldingsView() {
+// ── Shared UI components ────────────────────────────────────────────────────
+
+export function StopBadge({ level }: { level: string }) {
+  if (level === "danger")
+    return (
+      <span class="stop-badge stop-danger" title="Stop triggered or within 5%">
+        🔴 stop
+      </span>
+    );
+  if (level === "watch")
+    return (
+      <span class="stop-badge stop-watch" title="Stop within 5—20%">
+        🟡 watch
+      </span>
+    );
+  if (level === "safe")
+    return (
+      <span class="stop-badge stop-safe" title="Stop &gt;20% above current price">
+        🟢 ok
+      </span>
+    );
+  return <span class="stop-badge stop-none" title="No exit plan">—</span>;
+}
+
+export function FreshnessBadge({ dateStr }: { dateStr: string | null }) {
+  if (!dateStr) return <span class="freshness-none">—</span>;
+  const diffMs = Date.now() - new Date(dateStr + "T12:00:00Z").getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  if (diffDays < 1)
+    return (
+      <span class="freshness fresh-ok" title="Updated today">
+        🟢
+      </span>
+    );
+  if (diffDays < 2)
+    return (
+      <span class="freshness fresh-stale" title="Updated yesterday">
+        🟡
+      </span>
+    );
+  return (
+    <span
+      class="freshness fresh-old"
+      title={`No recent data (>${Math.floor(diffDays)} days)`}
+    >
+      🔴
+    </span>
+  );
+}
+
+export function Sparkline({ values }: { values: number[] | null }) {
+  if (!values || values.length === 0)
+    return <span class="sparkline-muted">—</span>;
+  const W = 80;
+  const H = 24;
+  const min = Math.min.apply(null, values);
+  const max = Math.max.apply(null, values);
+  const range = max - min || 1;
+  const n = values.length;
+  const pts = values
+    .map((v, i) => {
+      const x = (i / (n - 1)) * W;
+      const y = H - ((v - min) / range) * H;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    })
+    .join(" ");
+  const color =
+    (values[n - 1] ?? 0) >= (values[0] ?? 0) ? "#22c55e" : "#ef4444";
+  return (
+    <svg
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      style="overflow:visible;display:block"
+    >
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={color}
+        stroke-width="1.5"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}
+
+// ── Row and table components ────────────────────────────────────────────────
+
+function esc(s: string) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function fmt(n: number | null): string {
+  return n !== null ? "\u00a3" + n.toFixed(2) : "\u2014";
+}
+
+function fmtPct(n: number | null): string {
+  return n !== null ? (n >= 0 ? "+" : "") + n.toFixed(1) + "%" : "\u2014";
+}
+
+function fmtNum(n: number, decimals: number): string {
+  return n.toFixed(decimals);
+}
+
+function isCrypto(ticker: string): boolean {
+  return (
+    ticker === "ETH" ||
+    ticker === "BTC" ||
+    ticker === "SOL" ||
+    ticker === "XRP" ||
+    ticker === "ADA" ||
+    ticker === "DOT"
+  );
+}
+
+interface PositionRow {
+  ticker: string;
+  platform: string | null;
+  quantity: number;
+  avgCost: number;
+  currentPrice: number | null;
+  currentValue: number | null;
+  pnlPct: number | null;
+  sparkline: number[] | null;
+  stopLevel: string;
+  lastPriceDate: string | null;
+  invalidationPrice: number | null;
+}
+
+function PositionsTableRow({ pos }: { pos: PositionRow }) {
+  const pnlClass =
+    pos.pnlPct !== null && pos.pnlPct >= 0 ? "pnl-pos" : "pnl-neg";
+  const invStr =
+    pos.invalidationPrice !== null ? fmt(pos.invalidationPrice) : "\u2014";
+  return (
+    <tr class={`position-row position-${esc(pos.stopLevel)}`}>
+      <td>
+        <FreshnessBadge dateStr={pos.lastPriceDate} />
+      </td>
+      <td class="ticker-cell">
+        <span class="ticker">{esc(pos.ticker)}</span>
+        {pos.platform ? (
+          <span class="platform-tag">{esc(pos.platform)}</span>
+        ) : null}
+      </td>
+      <td>
+        <Sparkline values={pos.sparkline} />
+      </td>
+      <td>{fmtNum(pos.quantity, isCrypto(pos.ticker) ? 4 : 0)}</td>
+      <td class="mono">{fmt(pos.avgCost)}</td>
+      <td class="mono" title={`Inv: ${invStr}`}>
+        {fmt(pos.currentPrice)}
+      </td>
+      <td class="mono">{fmt(pos.currentValue)}</td>
+      <td class={`mono ${pnlClass}`}>{fmtPct(pos.pnlPct)}</td>
+      <td>
+        <StopBadge level={pos.stopLevel} />
+      </td>
+      <td>
+        <button
+          class="btn-sm"
+          data-action="analyzeTicker"
+          data-ticker={pos.ticker}
+        >
+          Analyze
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+interface PositionsTableProps {
+  positions: PositionRow[];
+}
+
+export function PositionsTable({ positions }: PositionsTableProps) {
+  if (positions.length === 0) {
+    return <div class="muted">No open positions.</div>;
+  }
+
+  // Group by platform
+  const groups: Record<string, PositionRow[]> = {};
+  for (const pos of positions) {
+    const key = pos.platform || "unknown";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(pos);
+  }
+
+  const platformNames = Object.keys(groups).sort();
+
   return (
     <>
+      {platformNames.map((platName) => {
+        const items = groups[platName]!;
+        return (
+          <div class="positions-platform">
+            <div class="positions-platform-header">
+              {platName} ({items.length})
+            </div>
+            <table class="data-table positions-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Ticker</th>
+                  <th>Sparkline</th>
+                  <th>Qty</th>
+                  <th>Avg Cost</th>
+                  <th>Current</th>
+                  <th>Value</th>
+                  <th>P&amp;L</th>
+                  <th>Stop</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((pos) => (
+                  <PositionsTableRow pos={pos} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ── HoldingsPage — full page wrapper ────────────────────────────────────────
+
+interface HoldingsData {
+  holdings: Array<{
+    ticker: string;
+    platform: string | null;
+    quantity: number | string;
+    costBasis: number | string;
+    costPerShare: number | string;
+    currency: string;
+  }>;
+  platforms: Array<{
+    name: string;
+    totalValue: number | string;
+    holdingCount: number | string;
+    cash: number | string;
+  }>;
+  cash: Array<{
+    platform: string | null;
+    currency: string;
+    amount: number | string;
+  }>;
+}
+
+interface PositionsData {
+  positions: Array<{
+    ticker: string;
+    platform: string | null;
+    quantity: number;
+    avgCost: number;
+    currentPrice: number | null;
+    currentValue: number | null;
+    pnlPct: number | null;
+    sparkline: number[] | null;
+    stopLevel: string;
+    lastPriceDate: string | null;
+    invalidationPrice: number | null;
+  }>;
+}
+
+export function HoldingsPage({ holdingsData, positionsData }: {
+  holdingsData?: HoldingsData;
+  positionsData?: PositionsData;
+}) {
+
+  // Guard: default to empty data (client will fetch or HTMX will refresh)
+  holdingsData = holdingsData ?? ({ holdings: [], platforms: [], cash: [] } as HoldingsData);
+  positionsData = positionsData ?? ({ positions: [] } as PositionsData);
+
+  // Group holdings by platform
+  const holdingsGroups: Record<string, typeof holdingsData.holdings> = {};
+  for (const h of holdingsData!.holdings) {
+    const key = h.platform || "unknown";
+    if (!holdingsGroups[key]) holdingsGroups[key] = [];
+    holdingsGroups[key].push(h);
+  }
+
+  // Group cash by platform
+  const cashGroups: Record<string, typeof holdingsData.cash> = {};
+  for (const c of holdingsData!.cash) {
+    const key = c.platform || "unknown";
+    if (!cashGroups[key]) cashGroups[key] = [];
+    cashGroups[key].push(c);
+  }
+
+  return (
+    <>
+      {/* ── Holdings (hLedger) ── */}
       <section class="panel" id="holdings-panel">
-        <h3>Holdings <span class="muted" style="font-size:0.8em">(base: GBP)</span></h3>
+        <h3>
+          Holdings <span class="muted" style="font-size:0.8em">(base: GBP)</span>
+        </h3>
         <div id="holdings-body">
-          <div class="muted">Loading…</div>
+          {holdingsData!.holdings.length === 0 ? (
+            <div class="muted">No holdings found. Add transactions to your hLedger journal.</div>
+          ) : (
+            <div>
+              {holdingsData!.platforms && holdingsData!.platforms.length > 0 ? (
+                <div class="platform-cards">
+                  {holdingsData.platforms.map((p) => (
+                    <div class="platform-card">
+                      <div class="platform-name">{p.name}</div>
+                      <div class="platform-total">{fmt(Number(p.totalValue))}</div>
+                      <div class="platform-detail">
+                        {Number(p.holdingCount)} holdings \u00b7 {fmt(Number(p.cash))} cash
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Platform</th>
+                    <th>Ticker</th>
+                    <th>Qty</th>
+                    <th>Cost/Share (GBP)</th>
+                    <th>Cost Basis (GBP)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.keys(holdingsGroups).sort().map((platName) => {
+                    const items = holdingsGroups[platName]!;
+                    let total: number = 0;
+                    const rows = items.map((h2) => {
+                      const costGbp = Number(h2.costBasis);
+                      total = total + Number(h2.costBasis);
+                      return (
+                        <tr>
+                          <td></td>
+                          <td class="ticker">{h2.ticker}</td>
+                          <td>{h2.quantity}</td>
+                          <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
+                            {fmt(Number(h2.costPerShare))}
+                          </td>
+                          <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
+                            {fmt(costGbp)}
+                          </td>
+                          <td>
+                            <button
+                              class="btn-sm"
+                              data-action="analyzeTicker"
+                              data-ticker={h2.ticker}
+                            >
+                              Analyze
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+                    return [
+                      <tr class="platform-group-header">
+                        <td colspan={2}>
+                          <strong>{platName}</strong>
+                        </td>
+                        <td colspan={2} class="muted">{items.length} position(s)</td>
+                        <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
+                          <strong>{fmt(total as number)}</strong>
+                        </td>
+                        <td></td>
+                      </tr>,
+                      ...rows,
+                    ];
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
 
@@ -16,329 +390,87 @@ export function HoldingsView() {
           Positions
           <span class="muted" style="font-size:0.8em"> — live prices from Yahoo Finance</span>
         </h3>
-        <div id="positions-body">
-          <div class="muted">Loading…</div>
+        <div
+          id="positions-body"
+          hx-get="/api/holdings/positions/html"
+          hx-trigger="load,every 60s"
+          hx-swap="innerHTML"
+        >
+          <PositionsTable positions={positionsData!.positions} />
         </div>
       </section>
 
+      {/* ── Cash ── */}
       <section class="panel" id="cash-panel">
-        <h3>Cash <span class="muted" style="font-size:0.8em">(base: GBP)</span></h3>
+        <h3>
+          Cash <span class="muted" style="font-size:0.8em">(base: GBP)</span>
+        </h3>
         <div id="cash-body">
-          <div class="muted">Loading…</div>
+          {holdingsData.cash.length === 0 ? (
+            <div class="muted">No cash balances.</div>
+          ) : (
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Platform</th>
+                  <th>Currency</th>
+                  <th>Amount (GBP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(cashGroups).sort().map((platName) => {
+                  const items = cashGroups[platName]!;
+                  let totalGbp: number = 0;
+                  const rows = items.map((c2) => {
+                    totalGbp += Number(c2.amount);
+                    return (
+                      <tr>
+                        <td></td>
+                        <td>{c2.currency}</td>
+                        <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
+                          {fmt(Number(c2.amount))}
+                        </td>
+                      </tr>
+                    );
+                  });
+                  return [
+                    <tr class="platform-group-header">
+                      <td>
+                        <strong>{platName}</strong>
+                      </td>
+                      <td class="muted">{items.length} currency</td>
+                      <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
+                        <strong>{fmt(totalGbp as number)}</strong>
+                      </td>
+                    </tr>,
+                    ...rows,
+                  ];
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: holdingsScript() }} />
+      <script dangerouslySetInnerHTML={{
+        __html: `(function() {
+          document.querySelectorAll('[data-action]').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+              var action = e.currentTarget.dataset.action;
+              if (action === 'analyzeTicker') {
+                htmx.ajax('GET', '/analyze', { target: 'body', swap: 'innerHTML' });
+                setTimeout(function() {
+                  var input = document.querySelector('#analyze-form input[name="ticker"]');
+                  if (input) input.value = e.currentTarget.dataset.ticker;
+                }, 100);
+              }
+            });
+          });
+        })();`
+      }} />
     </>
   );
 }
 
-function holdingsScript(): string {
-  return `
-(function() {
-
-  // ── FX helpers ─────────────────────────────────────────────────
-  var GBPEUR = 1.18, GBPUSD = 1.27;
-  var gbpPerEur = 1 / GBPEUR, gbpPerUsd = 1 / GBPUSD;
-  var ratesLoaded = false;
-
-  function loadRates(cb) {
-    if (ratesLoaded) { cb(); return; }
-    fetch('/api/portfolio/intelligence')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var fx = data.fx_rates || {};
-        if (fx.GBPEUR) { GBPEUR = fx.GBPEUR; gbpPerEur = 1 / GBPEUR; }
-        if (fx.GBPUSD) { GBPUSD = fx.GBPUSD; gbpPerUsd = 1 / GBPUSD; }
-        ratesLoaded = true;
-        cb();
-      })
-      .catch(function() { cb(); });
-  }
-
-  function toGbp(amount, currency) {
-    if (currency === 'EUR') return amount * gbpPerEur;
-    if (currency === 'USD') return amount * gbpPerUsd;
-    return amount;
-  }
-
-  function fmt(n) {
-    return '\\u00a3' + n.toFixed(2);
-  }
-
-  function fmtPct(n) {
-    return (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
-  }
-
-  function fmtNum(n, decimals) {
-    return n.toFixed(decimals != null ? decimals : 2);
-  }
-
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  function isCrypto(ticker) {
-    return ticker === 'ETH' || ticker === 'BTC' || ticker === 'SOL' ||
-           ticker === 'XRP' || ticker === 'ADA' || ticker === 'DOT';
-  }
-
-  function renderStopBadge(level) {
-    if (level === 'danger') return '<span class="stop-badge stop-danger" title="Stop triggered or within 5%">\\u{1F534} stop</span>';
-    if (level === 'watch') return '<span class="stop-badge stop-watch" title="Stop within 5\\u201320%">\\u{1F7E1} watch</span>';
-    if (level === 'safe') return '<span class="stop-badge stop-safe" title="Stop >20% above current price">\\u{1F7E2} ok</span>';
-    return '<span class="stop-badge stop-none" title="No exit plan">\\u2014</span>';
-  }
-
-  function renderFreshnessBadge(dateStr) {
-    if (!dateStr) return '<span class="freshness-none">\\u2014</span>';
-    var diffMs = Date.now() - new Date(dateStr + 'T12:00:00Z').getTime();
-    var diffDays = diffMs / (1000 * 60 * 60 * 24);
-    if (diffDays < 1) return '<span class="freshness fresh-ok" title="Updated today">\\u{1F7E2}</span>';
-    if (diffDays < 2) return '<span class="freshness fresh-stale" title="Updated yesterday">\\u{1F7E1}</span>';
-    return '<span class="freshness fresh-old" title="No recent data (\\u003e' + Math.floor(diffDays) + ' days)">\\u{1F534}</span>';
-  }
-
-  // SVG sparklines — no font dependency, renders identically everywhere
-  function renderSparkline(values) {
-    if (!values || values.length === 0) return '<span class="sparkline-muted">\u2014</span>';
-    var W = 80, H = 24;
-    var min = Math.min.apply(null, values);
-    var max = Math.max.apply(null, values);
-    var range = max - min || 1;
-    var n = values.length;
-    var pts = values.map(function(v, i) {
-      var x = (i / (n - 1)) * W;
-      var y = H - ((v - min) / range) * H;
-      return x.toFixed(1) + ',' + y.toFixed(1);
-    }).join(' ');
-    var color = values[n - 1] >= values[0] ? '#22c55e' : '#ef4444';
-    var q = String.fromCharCode(34);
-    var svg = '<svg width=' + q + W + q + ' height=' + q + H + q + ' viewBox=' + q + '0 0 ' + W + ' ' + H + q + ' style="overflow:visible;display:block">' +
-              '<polyline points=' + q + pts + q + ' fill="none" stroke=' + q + color + q + ' stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
-              '</svg>';
-    return svg;
-  }
-  function renderPositions(result) {
-    var el = document.getElementById('positions-body');
-    if (!result.positions || result.positions.length === 0) {
-      el.innerHTML = '<div class="muted">No open positions.</div>';
-      return;
-    }
-
-    var html = '';
-    var groups = {};
-    for (var i = 0; i < result.positions.length; i++) {
-      var p = result.positions[i];
-      var key = p.platform || 'unknown';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(p);
-    }
-
-    var platformNames = Object.keys(groups).sort();
-    for (var gi = 0; gi < platformNames.length; gi++) {
-      var platName = platformNames[gi];
-      var items = groups[platName];
-
-      html += '<div class="positions-platform">';
-      html += '<div class="positions-platform-header">' + platName + ' (' + items.length + ')</div>';
-
-      html += '<table class="data-table positions-table"><thead><tr>';
-      html += '<th></th>';
-      html += '<th>Ticker</th>';
-      html += '<th>Sparkline</th>';
-      html += '<th>Qty</th>';
-      html += '<th>Avg Cost</th>';
-      html += '<th>Current</th>';
-      html += '<th>Value</th>';
-      html += '<th>P\\u0026L</th>';
-      html += '<th>Stop</th>';
-      html += '<th></th>';
-      html += '</tr></thead><tbody>';
-
-      for (var j = 0; j < items.length; j++) {
-        var pos = items[j];
-        // Route returns all values pre-converted to GBP via stored gbp_rate
-        var avgCostGbp = pos.avgCost || 0;
-        var currStr = pos.currentPrice !== null ? fmt(pos.currentPrice) : '\u2014';
-        var valueStr = pos.currentValue !== null ? fmt(pos.currentValue) : '\u2014';
-        var pnlPct = pos.pnlPct;
-        var pnlClass = pnlPct !== null && pnlPct >= 0 ? 'pnl-pos' : 'pnl-neg';
-        var pnlStr = pnlPct !== null ? fmtPct(pnlPct) : '\u2014';
-        var invStr = pos.invalidationPrice !== null ? fmt(pos.invalidationPrice) : '\u2014';
-
-        html += '<tr class="position-row position-' + esc(pos.stopLevel) + '">';
-        html += '<td>' + renderFreshnessBadge(pos.lastPriceDate) + '</td>';
-        html += '<td class="ticker-cell"><span class="ticker">' + esc(pos.ticker) + '</span>';
-        if (pos.platform) html += '<span class="platform-tag">' + esc(pos.platform) + '</span>';
-        html += '</td>';
-        html += '<td>' + renderSparkline(pos.sparkline) + '</td>';
-        html += '<td>' + fmtNum(pos.quantity, isCrypto(pos.ticker) ? 4 : 0) + '</td>';
-        html += '<td class="mono">' + fmt(avgCostGbp) + '</td>';
-        html += '<td class="mono" title="Inv: ' + invStr + '">' + currStr + '</td>';
-        html += '<td class="mono">' + valueStr + '</td>';
-        html += '<td class="mono ' + pnlClass + '">' + pnlStr + '</td>';
-        html += '<td>' + renderStopBadge(pos.stopLevel) + '</td>';
-        html += '<td><button class="btn-sm" data-action="analyzeTicker" data-ticker="' + pos.ticker + '">Analyze</button></td>';
-        html += '</tr>';
-      }
-
-      html += '</tbody></table>';
-      html += '</div>';
-    }
-
-    el.innerHTML = html;
-    wireActions();
-  }
-
-  function wireActions() {
-    document.querySelectorAll('[data-action]').forEach(function(el) {
-      el.addEventListener('click', function(e) {
-        var action = e.currentTarget.dataset.action;
-        if (action === 'analyzeTicker') analyzeTicker(e.currentTarget.dataset.ticker);
-      });
-    });
-  }
-
-  function renderHoldings(result) {
-    var el = document.getElementById('holdings-body');
-    if (!result.holdings || result.holdings.length === 0) {
-      el.innerHTML = '<div class="muted">No holdings found. Add transactions to your hLedger journal.</div>';
-      return;
-    }
-
-    var html = '';
-    if (result.platforms && result.platforms.length > 0) {
-      html += '<div class="platform-cards">';
-      for (var pi = 0; pi < result.platforms.length; pi++) {
-        var p = result.platforms[pi];
-        html += '<div class="platform-card">';
-        html += '<div class="platform-name">' + p.name + '</div>';
-        html += '<div class="platform-total">' + fmt(p.totalValue) + '</div>';
-        html += '<div class="platform-detail">' + p.holdingCount + ' holdings \\u00b7 ' + fmt(p.cash) + ' cash</div>';
-        html += '</div>';
-      }
-      html += '</div>';
-    }
-
-    html += '<table class="data-table"><thead><tr>';
-    html += '<th>Platform</th><th>Ticker</th><th>Qty</th><th>Cost/Share (GBP)</th><th>Cost Basis (GBP)</th><th></th>';
-    html += '</tr></thead><tbody>';
-
-    var groups = {};
-    for (var hi = 0; hi < result.holdings.length; hi++) {
-      var h = result.holdings[hi];
-      var p = h.platform || 'unknown';
-      if (!groups[p]) groups[p] = [];
-      groups[p].push(h);
-    }
-
-    var platformNames = Object.keys(groups).sort();
-    for (var gi = 0; gi < platformNames.length; gi++) {
-      var platName = platformNames[gi];
-      var groupItems = groups[platName];
-      var groupHtml = '';
-      var total = 0;
-      for (var hj = 0; hj < groupItems.length; hj++) {
-        var h2 = groupItems[hj];
-        var costGbp = toGbp(h2.costBasis, h2.currency || 'EUR');
-        var costPerShareGbp = toGbp(h2.costPerShare || 0, h2.currency || 'EUR');
-        total += costGbp;
-        groupHtml += '<tr>';
-        groupHtml += '<td></td>';
-        groupHtml += '<td class="ticker">' + h2.ticker + '</td>';
-        groupHtml += '<td>' + h2.quantity + '</td>';
-        groupHtml += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1">' + fmt(costPerShareGbp) + '</td>';
-        groupHtml += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1">' + fmt(costGbp) + '</td>';
-        groupHtml += '<td><button class="btn-sm" data-action="analyzeTicker" data-ticker="' + h2.ticker + '">Analyze</button></td>';
-        groupHtml += '</tr>';
-      }
-      html += '<tr class="platform-group-header">';
-      html += '<td colspan="2"><strong>' + platName + '</strong></td>';
-      html += '<td colspan="2" class="muted">' + groupItems.length + ' position(s)</td>';
-      html += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1"><strong>' + fmt(total) + '</strong></td>';
-      html += '<td></td>';
-      html += '</tr>';
-      html += groupHtml;
-    }
-
-    html += '</tbody></table>';
-    el.innerHTML = html;
-    wireActions();
-  }
-
-  function renderCash(result) {
-    var el = document.getElementById('cash-body');
-    if (!result.cash || result.cash.length === 0) {
-      el.innerHTML = '<div class="muted">No cash balances.</div>';
-      return;
-    }
-
-    var groups = {};
-    for (var ci = 0; ci < result.cash.length; ci++) {
-      var c = result.cash[ci];
-      var p = c.platform || 'unknown';
-      if (!groups[p]) groups[p] = [];
-      groups[p].push(c);
-    }
-
-    var html = '<table class="data-table"><thead><tr>';
-    html += '<th>Platform</th><th>Currency</th><th>Amount (GBP)</th>';
-    html += '</tr></thead><tbody>';
-
-    var platformNames = Object.keys(groups).sort();
-    for (var gi = 0; gi < platformNames.length; gi++) {
-      var platName = platformNames[gi];
-      var groupItems = groups[platName];
-      var totalGbp = 0;
-      for (var cj = 0; cj < groupItems.length; cj++) {
-        var c2 = groupItems[cj];
-        var amtGbp = toGbp(c2.amount, c2.currency);
-        totalGbp += amtGbp;
-        html += '<tr><td></td><td>' + c2.currency + '</td><td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1">' + fmt(amtGbp) + '</td></tr>';
-      }
-      html += '<tr class="platform-group-header">';
-      html += '<td><strong>' + platName + '</strong></td>';
-      html += '<td class="muted">' + groupItems.length + ' currency</td>';
-      html += '<td style="font-family:Datatype,monospace;font-feature-settings:\\'calt\\'1,\\'liga\\'1"><strong>' + fmt(totalGbp) + '</strong></td>';
-      html += '</tr>';
-    }
-
-    html += '</tbody></table>';
-    el.innerHTML = html;
-  }
-
-  function refresh() {
-    loadRates(function() {
-      Promise.all([
-        fetch('/api/holdings').then(function(r) { return r.json(); }),
-        fetch('/api/holdings/positions').then(function(r) { return r.json(); }),
-      ])
-        .then(function(results) {
-          renderHoldings(results[0]);
-          renderPositions(results[1]);
-          renderCash(results[0]);
-        })
-        .catch(function(err) {
-          document.getElementById('holdings-body').innerHTML =
-            '<div class="error-card"><strong>hLedger error</strong><br>' + err.message + '</div>';
-          document.getElementById('positions-body').innerHTML =
-            '<div class="error-card"><strong>Positions error</strong><br>' + err.message + '</div>';
-        });
-    });
-  }
-
-  refresh();
-  setInterval(refresh, 60000);
-
-  window.analyzeTicker = function(ticker) {
-    htmx.ajax('GET', '/analyze', { target: 'body', swap: 'innerHTML' });
-    setTimeout(function() {
-      var input = document.querySelector('#analyze-form input[name="ticker"]');
-      if (input) input.value = ticker;
-    }, 100);
-  };
-
-})();
-`;
-}
+// Alias for backwards compat with index.tsx
+export { HoldingsPage as HoldingsView };
