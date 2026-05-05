@@ -8,6 +8,8 @@ Sessions are automatic (based on terminal/agent context). Optional:
 
 Use td usage -q after first read.
 
+**Before starting any work:** read `debriefs/plans/current.md`. It contains the current work plan, priority order, mandatory protocol, and known failure modes. Always start there.
+
 ---
 
 ## MANDATORY: Project Identity
