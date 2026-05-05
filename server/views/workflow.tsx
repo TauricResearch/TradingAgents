@@ -1,7 +1,7 @@
 /** @jsxImportSource hono/jsx */
 
-function workflowScript(): string {
-  return `
+function WorkflowScript() {
+  return <script>{`
 (function() {
 
   var stages = [
@@ -169,7 +169,7 @@ function workflowScript(): string {
     });
 
 })();
-`;
+`}</script>;
 }
 
 export function WorkflowView() {
@@ -179,7 +179,7 @@ export function WorkflowView() {
       <div id="workflow-container">
         <div class="workflow-loading">Loading…</div>
       </div>
-      <script dangerouslySetInnerHTML={{ __html: workflowScript() }} />
+      <WorkflowScript />
     </>
   );
 }
