@@ -55,13 +55,13 @@ export function ProspectsView() {
         </form>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: prospectsScript() }} />
+      <ProspectsScript />
     </>
   )
 }
 
-function prospectsScript(): string {
-  return `
+function ProspectsScript() {
+  return <script>{`
 (function() {
 
   var currentPlatform = '';
@@ -193,5 +193,5 @@ function prospectsScript(): string {
   loadProspects();
 
 })();
-`;
+`}</script>;
 }
