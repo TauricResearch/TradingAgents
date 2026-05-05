@@ -150,18 +150,14 @@ function holdingsScript(): string {
 
       for (var j = 0; j < items.length; j++) {
         var pos = items[j];
-        var posCurrency = pos.currency || 'USD';
-        var costPerShareGbp = toGbp(pos.avgCost || 0, posCurrency);
-        var currGbp = pos.currentPrice !== null ? toGbp(pos.currentPrice, posCurrency) : null;
-        var valueGbp = pos.currentValue !== null ? toGbp(pos.currentValue, posCurrency) : null;
-        var pnlGbp = (valueGbp !== null && costPerShareGbp > 0) ? valueGbp - costPerShareGbp : null;
-        var pnlPctGbp = (pnlGbp !== null && costPerShareGbp > 0) ? (pnlGbp / costPerShareGbp) * 100 : null;
-        var pnlClass = pnlPctGbp !== null && pnlPctGbp >= 0 ? 'pnl-pos' : 'pnl-neg';
-        var pnlStr = pnlPctGbp !== null ? fmtPct(pnlPctGbp) : '\u2014';
-        var valueStr = valueGbp !== null ? fmt(valueGbp) : '\u2014';
-        var currStr = currGbp !== null ? fmt(currGbp) : '\u2014';
-        var invGbp = pos.invalidationPrice !== null ? toGbp(pos.invalidationPrice, posCurrency) : null;
-        var invStr = invGbp !== null ? fmt(invGbp) : '\u2014';
+        // Route returns all values pre-converted to GBP via stored gbp_rate
+        var avgCostGbp = pos.avgCost || 0;
+        var currStr = pos.currentPrice !== null ? fmt(pos.currentPrice) : '\u2014';
+        var valueStr = pos.currentValue !== null ? fmt(pos.currentValue) : '\u2014';
+        var pnlPct = pos.pnlPct;
+        var pnlClass = pnlPct !== null && pnlPct >= 0 ? 'pnl-pos' : 'pnl-neg';
+        var pnlStr = pnlPct !== null ? fmtPct(pnlPct) : '\u2014';
+        var invStr = pos.invalidationPrice !== null ? fmt(pos.invalidationPrice) : '\u2014';
 
         html += '<tr class="position-row position-' + esc(pos.stopLevel) + '">';
         html += '<td>' + renderFreshnessBadge(pos.lastPriceDate) + '</td>';
@@ -170,7 +166,7 @@ function holdingsScript(): string {
         html += '</td>';
         html += '<td>' + renderSparkline(pos.sparkline) + '</td>';
         html += '<td>' + fmtNum(pos.quantity, isCrypto(pos.ticker) ? 4 : 0) + '</td>';
-        html += '<td class="mono">' + fmt(toGbp(costPerShareGbp, 'GBP')) + '</td>';
+        html += '<td class="mono">' + fmt(avgCostGbp) + '</td>';
         html += '<td class="mono" title="Inv: ' + invStr + '">' + currStr + '</td>';
         html += '<td class="mono">' + valueStr + '</td>';
         html += '<td class="mono ' + pnlClass + '">' + pnlStr + '</td>';

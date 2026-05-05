@@ -356,3 +356,21 @@ intelligenceRouter.get("/", async (c) => {
     return c.json({ error: "Portfolio intelligence failed", detail: (e as Error).message }, 500)
   }
 })
+
+// ── FX rates only ────────────────────────────────────────────────────────────
+
+/** GET /api/portfolio/fx-rates — current GBP exchange rates (lightweight) */
+intelligenceRouter.get("/fx-rates", async (c) => {
+  try {
+    const prices = await fetchPrices(["GBPEUR=X", "GBPUSD=X"])
+    const gbpeur = prices.get("GBPEUR=X")?.price ?? 1.18
+    const gbpUSD = prices.get("GBPUSD=X")?.price ?? 1.27
+    return c.json({
+      GBPEUR: Math.round(gbpeur * 10000) / 10000,
+      GBPUSD: Math.round(gbpUSD * 10000) / 10000,
+      fetched_at: new Date().toISOString(),
+    })
+  } catch (e: unknown) {
+    return c.json({ error: "Failed to fetch FX rates", detail: (e as Error).message }, 500)
+  }
+})

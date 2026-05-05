@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS prices (
     close     REAL    NOT NULL,
     volume    INTEGER,
     currency  TEXT    DEFAULT 'GBP',
+    gbp_rate  REAL,              -- GBP per unit of native currency (e.g. 0.79 for USD)
     PRIMARY KEY (ticker, date)
 );
 

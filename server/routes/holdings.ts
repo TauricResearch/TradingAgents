@@ -118,15 +118,18 @@ holdingsRouter.get("/positions", async (c) => {
     const STOP_ORDER: Record<StopLevel, number> = { danger: 0, watch: 1, safe: 2, "no-price": 3 }
 
     const enriched = positions.map((p) => {
-      // Latest price + currency
+      // Latest price + currency + gbp_rate (stored at sync time)
       const latestRow = db
         .query(
-          `SELECT close, date, currency FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1`,
+          `SELECT close, date, currency, gbp_rate FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1`,
         )
-        .get(p.ticker) as { close: number; date: string; currency: string } | undefined
+        .get(p.ticker) as
+        | { close: number; date: string; currency: string; gbp_rate: number | null }
+        | undefined
 
       const currentPrice = latestRow?.close ?? null
       const currency = latestRow?.currency ?? "USD"
+      const gbpRate = latestRow?.gbp_rate ?? 1 // default to 1 (no conversion)
       const lastPriceDate = latestRow?.date ?? null
 
       // Sparkline: sample up to 20 points evenly across available bars
@@ -143,15 +146,16 @@ holdingsRouter.get("/positions", async (c) => {
         }
       }
 
-      // P&L in native currency
+      // All financial values pre-converted to GBP using stored gbp_rate
       const avgCostNum = parseFloat(String(p.avg_cost))
       const quantityNum = parseFloat(String(p.quantity))
-      const costBasis = avgCostNum * quantityNum
-      const currentValue = currentPrice !== null ? currentPrice * quantityNum : null
-      const pnl = currentValue !== null ? currentValue - costBasis : null
-      const pnlPct =
-        costBasis > 0 && currentValue !== null
-          ? ((currentValue - costBasis) / costBasis) * 100
+      const costBasisGbp = avgCostNum * quantityNum * gbpRate
+      const currentPriceGbp = currentPrice !== null ? currentPrice * gbpRate : null
+      const currentValueGbp = currentPriceGbp !== null ? currentPriceGbp * quantityNum : null
+      const pnlGbp = currentValueGbp !== null ? currentValueGbp - costBasisGbp : null
+      const pnlPctGbp =
+        costBasisGbp > 0 && currentValueGbp !== null
+          ? ((currentValueGbp - costBasisGbp) / costBasisGbp) * 100
           : null
 
       // Stop status
@@ -173,15 +177,17 @@ holdingsRouter.get("/positions", async (c) => {
         platform: p.platform,
         quantity: quantityNum,
         avgCost: avgCostNum,
-        costBasis,
+        avgCostGbp: Math.round(costBasisGbp * 100) / 100,
+        costBasisGbp: Math.round(costBasisGbp * 100) / 100,
         entryDate: p.entry_date,
-        currentPrice,
+        currentPrice: currentPriceGbp, // GBP
         currency,
-        currentValue,
-        pnl,
-        pnlPct,
+        gbpRate, // conversion factor (for reference)
+        currentValue: currentValueGbp !== null ? Math.round(currentValueGbp * 100) / 100 : null, // GBP
+        pnlGbp: pnlGbp !== null ? Math.round(pnlGbp * 100) / 100 : null, // GBP
+        pnlPct: pnlPctGbp, // percentage in GBP terms
         sparkline: sparkline.length > 0 ? sparkline : null,
-        invalidationPrice,
+        invalidationPrice: Math.round((invalidationPrice ?? 0) * gbpRate * 100) / 100 || null, // GBP
         stopLevel,
         lastPriceDate,
         timeStop: exitPlan?.time_stop ?? null,

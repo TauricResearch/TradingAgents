@@ -73,6 +73,32 @@ function fetchHistory(ticker: string): { bars: PriceBar[]; currency: string } {
   return { bars: data.history ?? [], currency: data.currency ?? "USD" }
 }
 
+interface FxRates {
+  GBPUSD: number
+  GBPEUR: number
+}
+
+function fetchFxRates(): FxRates {
+  const port = process.env.TA_DASHBOARD_PORT ?? "3000"
+  const proc = Bun.spawnSync({
+    cmd: ["curl", "-sf", `http://localhost:${port}/api/portfolio/fx-rates`],
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+
+  if (proc.exitCode !== 0) {
+    // Fallback: hardcoded rates (approx May 2026)
+    return { GBPUSD: 1.27, GBPEUR: 1.18 }
+  }
+
+  try {
+    const data = JSON.parse(new TextDecoder().decode(proc.stdout)) as FxRates
+    return { GBPUSD: data.GBPUSD ?? 1.27, GBPEUR: data.GBPEUR ?? 1.18 }
+  } catch {
+    return { GBPUSD: 1.27, GBPEUR: 1.18 }
+  }
+}
+
 // ─── Core sync logic ─────────────────────────────────────────────────────────
 
 interface SyncResult {
@@ -88,13 +114,14 @@ function upsertPrices(
   ticker: string,
   bars: PriceBar[],
   currency: string,
+  gbpRate: number | null,
   dryRun = false,
 ): { upserted: number; skipped: number } {
   if (bars.length === 0) return { upserted: 0, skipped: 0 }
 
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency, gbp_rate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   let upserted = 0
@@ -105,7 +132,17 @@ function upsertPrices(
       console.log(`    [dry-run] upsert ${ticker} ${bar.date} close=${bar.close}`)
       upserted++
     } else {
-      stmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume, currency)
+      stmt.run(
+        ticker,
+        bar.date,
+        bar.open,
+        bar.high,
+        bar.low,
+        bar.close,
+        bar.volume,
+        currency,
+        gbpRate,
+      )
       upserted++
     }
   }
@@ -113,10 +150,12 @@ function upsertPrices(
   return { upserted, skipped }
 }
 
+type GbpRateMap = Record<string, number>
+
 function catchUpTicker(
   db: Database,
   ticker: string,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; gbpRateMap?: GbpRateMap } = {},
 ): SyncResult {
   try {
     const { bars, currency } = fetchHistory(ticker)
@@ -124,7 +163,8 @@ function catchUpTicker(
       return { ticker, action: "catch-up", upserted: 0, skipped: 0, error: "no data returned" }
     }
 
-    const { upserted, skipped } = upsertPrices(db, ticker, bars, currency, options.dryRun)
+    const gbpRate = options.gbpRateMap?.[currency] ?? null
+    const { upserted, skipped } = upsertPrices(db, ticker, bars, currency, gbpRate, options.dryRun)
     return { ticker, action: "catch-up", upserted, skipped }
   } catch (e: unknown) {
     return { ticker, action: "catch-up", upserted: 0, skipped: 0, error: (e as Error).message }
@@ -135,7 +175,7 @@ function _backfillTicker(
   db: Database,
   ticker: string,
   fromDate: string,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; gbpRateMap?: GbpRateMap } = {},
 ): SyncResult {
   try {
     const { bars, currency } = fetchHistory(ticker)
@@ -156,7 +196,8 @@ function _backfillTicker(
       }
     }
 
-    const { upserted } = upsertPrices(db, ticker, filtered, currency, options.dryRun)
+    const gbpRate = options.gbpRateMap?.[currency] ?? null
+    const { upserted } = upsertPrices(db, ticker, filtered, currency, gbpRate, options.dryRun)
     return { ticker, action: "backfill", upserted, skipped: bars.length - filtered.length }
   } catch (e: unknown) {
     return { ticker, action: "backfill", upserted: 0, skipped: 0, error: (e as Error).message }
@@ -210,7 +251,7 @@ function fillGap(
   ticker: string,
   fromDate: string,
   toDate: string,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; gbpRateMap?: GbpRateMap } = {},
 ): SyncResult {
   // Yahoo Finance returns up to 1mo of history. For gap fill, we'll re-fetch
   // the ticker and selectively upsert only bars within the gap window.
@@ -229,7 +270,8 @@ function fillGap(
       }
     }
 
-    const { upserted } = upsertPrices(db, ticker, filtered, currency, options.dryRun)
+    const gbpRate = options.gbpRateMap?.[currency] ?? null
+    const { upserted } = upsertPrices(db, ticker, filtered, currency, gbpRate, options.dryRun)
     return { ticker, action: "fill-gap", upserted, skipped: 0 }
   } catch (e: unknown) {
     return { ticker, action: "fill-gap", upserted: 0, skipped: 0, error: (e as Error).message }
@@ -275,10 +317,23 @@ async function main() {
 
   const results: SyncResult[] = []
 
+  // Fetch FX rates once and build gbp_rate map (GBP per unit of native currency)
+  const fx = fetchFxRates()
+  const gbpRateMap: GbpRateMap = {
+    USD: 1 / fx.GBPUSD, // e.g. 0.787 — GBP per USD
+    EUR: 1 / fx.GBPEUR, // e.g. 0.847 — GBP per EUR
+    GBP: 1, // no conversion needed
+  }
+  if (flags.verbose) {
+    console.log(
+      `  FX: GBPUSD=${fx.GBPUSD} GBPEUR=${fx.GBPEUR} -> gbp_rate map: USD=${gbpRateMap.USD.toFixed(4)} EUR=${gbpRateMap.EUR.toFixed(4)}`,
+    )
+  }
+
   if (flags.ticker) {
     // ── Single ticker: catch up
     if (flags.verbose) console.log(`  Mode: catch-up single ticker`)
-    const result = catchUpTicker(db, flags.ticker, { dryRun: flags.dryRun })
+    const result = catchUpTicker(db, flags.ticker, { dryRun: flags.dryRun, gbpRateMap })
     results.push(result)
   } else if (flags.all) {
     // ── Full sync: gap fill + catch-up for all open positions
@@ -299,13 +354,13 @@ async function main() {
       if (gaps.length > 0) {
         if (flags.verbose) console.log(`  ${ticker}: ${gaps.length} gap(s) detected`)
         for (const gap of gaps) {
-          const r = fillGap(db, ticker, gap.from, gap.to, { dryRun: flags.dryRun })
+          const r = fillGap(db, ticker, gap.from, gap.to, { dryRun: flags.dryRun, gbpRateMap })
           results.push(r)
         }
       }
 
       // 2. Catch up to today (upsert latest bar if not already there)
-      const r = catchUpTicker(db, ticker, { dryRun: flags.dryRun })
+      const r = catchUpTicker(db, ticker, { dryRun: flags.dryRun, gbpRateMap })
       results.push(r)
     }
   } else {
@@ -322,7 +377,7 @@ async function main() {
     }
 
     for (const { ticker } of tickers) {
-      const r = catchUpTicker(db, ticker, { dryRun: flags.dryRun })
+      const r = catchUpTicker(db, ticker, { dryRun: flags.dryRun, gbpRateMap })
       results.push(r)
     }
   }

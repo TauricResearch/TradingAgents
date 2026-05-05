@@ -1061,9 +1061,33 @@ async function seedPrices(): Promise<void> {
 
   console.log(`  Fetching prices for ${rows.length} tickers...`)
 
+  // Fetch FX rates once and build gbp_rate map
+  let gbpRateMap: Record<string, number> = { USD: 1, EUR: 1, GBP: 1 }
+  try {
+    const port = process.env.TA_DASHBOARD_PORT ?? "3000"
+    const fxProc = Bun.spawnSync({
+      cmd: ["curl", "-sf", `http://localhost:${port}/api/portfolio/fx-rates`],
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+    if (fxProc.exitCode === 0) {
+      const fx = JSON.parse(new TextDecoder().decode(fxProc.stdout)) as {
+        GBPUSD?: number
+        GBPEUR?: number
+      }
+      gbpRateMap = {
+        USD: fx.GBPUSD ? 1 / fx.GBPUSD : 1,
+        EUR: fx.GBPEUR ? 1 / fx.GBPEUR : 1,
+        GBP: 1,
+      }
+    }
+  } catch {
+    // Use fallback rates
+  }
+
   const insertStmt = db.prepare(`
-    INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO prices (ticker, date, open, high, low, close, volume, currency, gbp_rate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   for (const { ticker } of rows) {
@@ -1088,9 +1112,20 @@ async function seedPrices(): Promise<void> {
     }
 
     const currency = data.currency ?? "USD"
+    const gbpRate = gbpRateMap[currency] ?? null
     const history = data.history ?? []
     for (const bar of history) {
-      insertStmt.run(ticker, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume, currency)
+      insertStmt.run(
+        ticker,
+        bar.date,
+        bar.open,
+        bar.high,
+        bar.low,
+        bar.close,
+        bar.volume,
+        currency,
+        gbpRate,
+      )
     }
 
     console.log(`    ${ticker}: ${history.length} bars seeded`)
