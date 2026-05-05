@@ -5,6 +5,11 @@ from typing import Any
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.historical_context import (
+    find_latest_prior_analysis,
+    find_latest_prior_pm_decision,
+    format_prior_context_block,
+)
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_trader_plan_structured,
@@ -82,6 +87,25 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
 
+        prior_analysis = find_latest_prior_analysis(
+            ticker=ticker,
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        prior_pm_decision = find_latest_prior_pm_decision(
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        prior_context_block = format_prior_context_block(
+            ticker=ticker,
+            prior_analysis=prior_analysis,
+            prior_pm_decision=prior_pm_decision,
+            max_chars=1200,
+        )
+        anon_prior_context = (
+            truncate_text(anonymize_ticker(prior_context_block, ticker), max_chars=1200)
+            if prior_context_block else ""
+        )
+
         scanner_section = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context to preserve catalysts, exposure edges, and risk factors when translating research into a trade plan."
@@ -99,6 +123,7 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for the stock. {instrument_context} This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {anon_investment_plan}\n\nLeverage these insights to make an informed and strategic decision.{scanner_section}",
         }
 
+        _prior_suffix = f"\n\n{anon_prior_context}" if anon_prior_context else ""
         messages = [
             {
                 "role": "system",
@@ -127,7 +152,7 @@ YOUR TASK:
 5. **FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL****
 
 Apply lessons from past decisions:
-{anon_past_memory_str}""",
+{anon_past_memory_str}{_prior_suffix}""",
             },
             context,
         ]
