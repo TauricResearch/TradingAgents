@@ -10,13 +10,13 @@ export function BenchmarkView() {
         </div>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: benchmarkScript() }} />
+      <BenchmarkScript />
     </>
   );
 }
 
-function benchmarkScript(): string {
-  return `
+function BenchmarkScript() {
+  return <script>{`
   (function() {
     function renderBenchmark(result) {
       const el = document.getElementById('benchmark-body');
@@ -64,5 +64,5 @@ function benchmarkScript(): string {
           '<div class="error-card"><strong>Benchmark error</strong><br>' + err.message + '</div>';
       });
   })();
-  `;
+  `}</script>;
 }
