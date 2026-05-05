@@ -44,13 +44,38 @@ echo
 # Step 1 — clone or pull, set up data dir, check for .env
 echo "[deploy] ----- step 1: clone + set up paths -----"
 "$NAS_CMD" "set -e
-sudo -n mkdir -p '$NAS_REPO_PATH' '$NAS_DATA_PATH' || { echo 'sudo without password not configured; run mkdir as your DSM user instead'; mkdir -p '$NAS_REPO_PATH' '$NAS_DATA_PATH'; }
-if [ ! -d '$NAS_REPO_PATH/.git' ]; then
-    git clone --branch '$NAS_GIT_BRANCH' '$FORK_URL' '$NAS_REPO_PATH'
+mkdir -p '$NAS_REPO_PATH' '$NAS_DATA_PATH'
+
+if [ -d '$NAS_REPO_PATH/.git' ]; then
+    # Already a git clone — pull.
+    cd '$NAS_REPO_PATH'
+    git fetch --all --prune
+    git checkout '$NAS_GIT_BRANCH'
+    git pull --ff-only
+elif [ -d '$NAS_REPO_PATH' ]; then
+    # Directory exists (probably containing only data/) but no .git yet.
+    # Use init+fetch+checkout instead of clone — clone refuses non-empty
+    # targets, but this pattern coexists with the persistent data/ dir.
+    cd '$NAS_REPO_PATH'
+    if [ ! -d .git ]; then
+        git init -q
+    fi
+    if git remote get-url origin >/dev/null 2>&1; then
+        git remote set-url origin '$FORK_URL'
+    else
+        git remote add origin '$FORK_URL'
+    fi
+    git fetch origin '$NAS_GIT_BRANCH'
+    git checkout -B '$NAS_GIT_BRANCH' origin/'$NAS_GIT_BRANCH'
 else
-    cd '$NAS_REPO_PATH' && git fetch --all --prune && git checkout '$NAS_GIT_BRANCH' && git pull --ff-only
+    git clone --branch '$NAS_GIT_BRANCH' '$FORK_URL' '$NAS_REPO_PATH'
 fi
-sudo -n chown -R 1000:1000 '$NAS_DATA_PATH' || chown -R 1000:1000 '$NAS_DATA_PATH' 2>/dev/null || echo '[deploy] note: could not chown data dir — run sudo chown -R 1000:1000 $NAS_DATA_PATH manually if the container fails to write'
+
+# Try to chown data dir to UID 1000 (matches the container's appuser).
+# Synology's default user typically can't sudo without a password, so we
+# attempt the chown directly and only warn if it fails.
+chown -R 1000:1000 '$NAS_DATA_PATH' 2>/dev/null \\
+    || echo '[deploy] note: could not chown $NAS_DATA_PATH to 1000:1000 — if the container fails to write, run: sudo chown -R 1000:1000 $NAS_DATA_PATH'
 "
 
 # Step 2 — make sure .env exists; if not, create from .example with a clear marker.
