@@ -54,6 +54,9 @@ TradingAgents/
 │   │   ├── y_finance.py          # yfinance data provider
 │   │   ├── alpha_vantage*.py     # Alpha Vantage data providers
 │   │   ├── opendart.py           # Korean DART financials/disclosures
+│   │   ├── pykrx_vendor.py       # pykrx (KRX direct) — KR OHLCV, universe, investor trading, value factors
+│   │   ├── _cache.py             # @simple_parquet_cache decorator (disk-persisted Parquet cache)
+│   │   ├── cache_admin.py        # CLI: stats / clear cache
 │   │   └── stockstats_utils.py   # Technical indicator calculations
 │   ├── graph/
 │   │   ├── trading_graph.py      # TradingAgentsGraph — main orchestrator class
@@ -109,6 +112,15 @@ Key config sections:
 - `VENDOR_METHODS` maps (tool, vendor) → implementation function
 - `route_to_vendor(tool_name)` reads config to pick the right implementation
 - Category-level defaults in `data_vendors`, tool-level overrides in `tool_vendors`
+
+### Disk Cache (`_cache.py`)
+Disk-persisted Parquet cache for vendor functions returning DataFrames:
+- Decorator: `@simple_parquet_cache(kind="ohlcv")`
+- Path: `{data_cache_dir}/{kind}/{func_name}/{key16}.parquet`
+- Key: sha256(func_name, args, kwargs)[:16]
+- TTL: read from `config["cache_ttl"][kind]` (0 disables)
+- Behavior: cache hit → read; miss/stale/corrupt → call function and store; empty DF not cached; fail-open
+- Admin: `python -m tradingagents.dataflows.cache_admin stats|clear`
 
 ### Agent Creation Pattern
 All agents follow a factory pattern:
