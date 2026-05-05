@@ -1,30 +1,32 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-05 (after 5304dce)
-**State:** All checks green. 5 commits this session. td-41713c DONE.
+**Last updated:** 2026-05-05 (after fc39811)
+**State:** All checks green. 30+ commits this session. td-b86d5a DONE. td-41713c DONE.
 
 ---
 
 ## Where We Are
 
 **Completed this session:**
-- `td-41713c` DONE ✓ — `analyses.ts` (598 lines) split into 4 files:
-  - `analyses-common.ts` (111 lines) — 8 shared helpers
-  - `analyses-db.ts` (175 lines) — DB routes + renderEventSection
-  - `analyses-fs.ts` (278 lines) — filesystem routes + LLM summary
-  - `analyses/index.ts` (9 lines) — thin mount point
-- `AGENTS.md` updated with `debriefs/plans/current.md` pointer
+- `td-b86d5a` DONE ✓ — all 12 views refactored from `dangerouslySetInnerHTML` + template literal strings to JSX `<XxxScript />` components. Pattern: `function XxxScript() { return <script>{`...`}</script>; }`.
+- `td-41713c` DONE ✓ — `analyses.ts` (598 lines) split into 4 files
+- `settings.ts` + `settings.json` — central config module, committed
+- `AGENTS.md` — Working Principles + Known Failure Modes + pointer to current.md
+- `debriefs/plans/current.md` — restart orientation doc
+
+**Key lesson:** Inline `XXXScript()` in views is fine. The script extraction to static files approach was over-engineering. The `dangerouslySetInnerHTML` pattern was replaced with JSX `<script>` components — cleaner, no HTML string escaping, same behavior.
 
 **Commit history (recent):**
 ```
-5304dce refactor(analyses): split into analyses/ sub-router
-c846e8b refactor(analyses): extract analyses-common.ts — shared helpers
-b915667 refactor(analyses): extract analyses-db.ts — DB routes + renderEventSection
-260a04b refactor(analyses): extract analyses-fs.ts — filesystem routes + LLM summary
-b4efab7 docs(debriefs): add debrief for settings + script extraction session
-7d339e8 docs(AGENTS): add Working Principles + Known Failure Modes
-fdcf985 feat(settings): central config module + script extraction foundation
-3cf1821 feat(holdings): JSX refactor foundation — components, HTMX partial
+fc39811 fix(views): restore governance and benchmark refactored JSX components
+b4aacb8 fix(views): restore refactored workflow, exits, prospects, governance
+b34a12f refactor(datatype-test.tsx): testScript() → TestScript JSX component
+1d16f80 refactor(feedback.tsx): inline FeedbackScript JSX component, drop broken external js
+b8a047e refactor(governance.tsx): governanceScript() → GovernanceScript JSX component
+391f6e6 refactor(benchmark.tsx): benchmarkScript() → BenchmarkScript JSX component
+f341943 refactor(exits.tsx): exitsScript() → ExitsScript JSX component
+020f1ce refactor(workflow.tsx): workflowScript() → WorkflowScript JSX component
+9498c55 docs(plans): update current.md — td-41713c DONE
 ```
 
 ---
@@ -92,14 +94,13 @@ function XxxScript() {
 
 ---
 
-### 3. After: `td-56fd1b` - Remaining Hygiene (21pt)
+## What's Next: `td-56fd1b` Hygiene (remaining)
 
-Children (not ordered yet - plan which to do first):
-- `td-984925` - `server/lib/types.ts`: move 20+ inline route interfaces to shared module
-- `td-9dbbac` - server tests: route health checks, positions query, hledger output parsing
-- `td-c79726` - standardize error responses: `{ error, detail?, hint? }` everywhere
-- `td-200cbd` - split `portfolio.ts` into `portfolio/` sub-router
-- `td-02ccec` - clean up `portfolio-intelligence.ts`: standardize interfaces, remove duplication
+- `td-984925` — `server/lib/types.ts`: move 20+ inline route interfaces to shared module
+- `td-9dbbac` — server tests: route health checks, positions query, hledger output parsing
+- `td-c79726` — standardize error responses: `{ error, detail?, hint? }` everywhere
+- `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router
+- `td-02ccec` — clean up `portfolio-intelligence.ts`: standardize interfaces, remove duplication
 
 ---
 
@@ -109,8 +110,9 @@ Children (not ordered yet - plan which to do first):
 |---------|--------------|-----|
 | Copy `.ts` scripts to `.js` for serving | Biome lints `.js` as JS; TS syntax causes parse errors | Keep scripts inline in views (typed, linted, colocated) |
 | Modify `biome.json` without running `just lint` immediately | Invalid keys cause total biome failure before any linting | Always validate after config changes |
-| Template literal inside template literal | `` `\`calt\` `` inside `\`.map(\`...\`) \`` is a syntax error, runtime silent | Use `String.fromCharCode(34)` for embedded quotes, or restructure |
+| Template literal inside template literal | Backtick-quoted strings inside template literals are syntax errors | Use `String.fromCharCode(34)` for embedded quotes, or restructure |
 | Forward-fix on a broken state | 45 min wasted vs 5 min revert | Revert first |
+| Run `git checkout <old-commit> -- .` after refactor commits | Reverts committed refactors | Never run checkout-to-old-commit after making new commits
 
 ---
 
