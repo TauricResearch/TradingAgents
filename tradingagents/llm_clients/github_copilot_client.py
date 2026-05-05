@@ -42,22 +42,26 @@ class GitHubCopilotClient(OpenAIClient):
     """
 
     def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
+        # Pre-bake the ``X-GitHub-Api-Version`` header into kwargs at
+        # construction time so ``get_llm()`` stays a pure read of
+        # ``self.kwargs`` and is safe to call repeatedly. Caller-supplied
+        # entries win over the provider default, which lets users pin a
+        # different API version when they need to.
+        user_headers = kwargs.pop("default_headers", None) or {}
+        kwargs["default_headers"] = {
+            "X-GitHub-Api-Version": _API_VERSION,
+            **user_headers,
+        }
         super().__init__(model, base_url, provider="github_copilot", **kwargs)
 
     def get_llm(self) -> Any:
         # Fail fast with a useful message if the user has no token. The
         # OpenAI SDK's own validator otherwise complains about
         # ``OPENAI_API_KEY``, which is the wrong env var for this provider.
+        # The check stays here (not in ``__init__``) because the parent
+        # ``OpenAIClient.get_llm`` reads ``os.environ`` lazily, so users
+        # can set ``GITHUB_TOKEN`` after construction but before invocation.
         token = self.kwargs.get("api_key") or os.environ.get("GITHUB_TOKEN")
         if not token:
             raise ValueError(_MISSING_TOKEN_MSG)
-
-        # Merge into self.kwargs so the parent's existing default_headers
-        # passthrough picks the value up. Caller-supplied entries win, which
-        # lets users pin a different API version when they need to.
-        user_headers = self.kwargs.get("default_headers") or {}
-        self.kwargs["default_headers"] = {
-            "X-GitHub-Api-Version": _API_VERSION,
-            **user_headers,
-        }
         return super().get_llm()
