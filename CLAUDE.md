@@ -9,8 +9,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv pip install -e .
 pip install -e .
 
-# Run the CLI
-tradingagents run --ticker AAPL --date 2024-01-15
+# Run the CLI (interactive: prompts for ticker, date, provider, analysts)
+tradingagents analyze
+
+# Run with checkpoint/resume support
+tradingagents analyze --checkpoint
+
+# Clear saved checkpoints before running
+tradingagents analyze --clear-checkpoints
 
 # Run all tests
 pytest tests/
@@ -30,14 +36,14 @@ python scripts/smoke_structured_output.py
 
 TradingAgents is a LangGraph-based multi-agent framework where specialized LLM agents collaborate on a trading decision. The pipeline flows:
 
-**Analysts (parallel)** → **Researchers (Bull/Bear debate)** → **Research Manager** → **Trader** → **Risk Mgmt (3-way debate)** → **Portfolio Manager** → final BUY/SELL/HOLD signal
+**Analysts (sequential)** → **Researchers (Bull/Bear debate)** → **Research Manager** → **Trader** → **Risk Mgmt (3-way debate)** → **Portfolio Manager** → final 5-tier rating signal
 
-The main entry point is `TradingAgentsGraph` in `tradingagents/graph/trading_graph.py`. Call `.propagate(ticker, date)` to run a full analysis. The graph is assembled dynamically in `graph/setup.py` based on which analyst types are enabled in config.
+The main entry point is `TradingAgentsGraph` in `tradingagents/graph/trading_graph.py`. Call `.propagate(company_name, trade_date)` to run a full analysis; use `.process_signal(full_signal)` to extract the rating from the output. The graph is assembled dynamically in `graph/setup.py` based on which analyst types are enabled in config.
 
 ### Key subsystems
 
 **`tradingagents/graph/`** — LangGraph orchestration
-- `trading_graph.py`: `TradingAgentsGraph` class (init, propagate, reflect_and_remember)
+- `trading_graph.py`: `TradingAgentsGraph` class — key public methods: `propagate(company_name, trade_date)` and `process_signal(full_signal)`
 - `setup.py`: Constructs the StateGraph with nodes/edges per analyst selection
 - `conditional_logic.py`: Routing between debate rounds (configurable rounds per debate)
 - `checkpointer.py`: SQLite-backed resume via `langgraph-checkpoint-sqlite`; checkpoints stored at `~/.tradingagents/cache/checkpoints/<TICKER>.db`
@@ -74,7 +80,12 @@ The main entry point is `TradingAgentsGraph` in `tradingagents/graph/trading_gra
 
 ### Structured output pattern
 
-Decision agents (Research Manager, Trader, Portfolio Manager) use `with_structured_output(Schema)` on the LangChain model. Schemas are Pydantic models in `tradingagents/agents/schemas.py` (`ResearchPlan`, `TraderProposal`, `TraderAction`, `PortfolioRating`). The `utils/agent_utils.py` helpers handle provider-specific quirks (e.g., DeepSeek reasoning stripping).
+Decision agents (Research Manager, Trader, Portfolio Manager) use `with_structured_output(Schema)` on the LangChain model. Schemas are Pydantic models in `tradingagents/agents/schemas.py`:
+- `PortfolioRating` (5-tier): Buy / Overweight / Hold / Underweight / Sell — used by Research Manager and Portfolio Manager
+- `TraderAction` (3-tier): Buy / Hold / Sell — used by the Trader
+- `ResearchPlan`, `TraderProposal` — wrapping types that include the rating/action plus reasoning
+
+The `utils/agent_utils.py` helpers handle provider-specific quirks (e.g., DeepSeek reasoning stripping).
 
 ### Adding a new LLM provider
 
