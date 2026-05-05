@@ -3,6 +3,16 @@ FROM python:3.12-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# Build deps for native Python wheels that don't ship binaries for our
+# platform. ``pycairo`` is pulled in transitively by xhtml2pdf →
+# svglib → rlpycairo and needs gcc + libcairo2-dev to compile from source.
+# The runtime image only needs the cairo runtime library (no -dev, no gcc).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libcairo2-dev \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
@@ -17,6 +27,12 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
+
+# Runtime needs libcairo2 (the .so) so pycairo can ``import _cairo``;
+# the -dev headers and gcc don't need to leak into the final image.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libcairo2 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
