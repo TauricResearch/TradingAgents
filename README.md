@@ -74,13 +74,13 @@ Create a project-local virtual environment with Python 3.13:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\activate
-python -m pip install -e ".[dev]"
+./.venv/Scripts/activate
 ```
 
 Install the package and its dependencies:
 
 ```bash
-pip install .
+python -m pip install -e ".[dev]"
 ```
 
 Run it interactively (you will be prompted for everything)
