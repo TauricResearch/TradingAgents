@@ -97,3 +97,32 @@ def test_get_kr_value_factors_samsung():
     assert "PER" in out
     assert "PBR" in out
     assert out.count("\n") >= 5
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — route_to_vendor dispatch
+# ---------------------------------------------------------------------------
+
+
+@smoke_gate
+def test_route_to_vendor_dispatches_to_pykrx(monkeypatch):
+    """tool_vendors override get_stock_data → pykrx must reach pykrx impl."""
+    from tradingagents.dataflows import config as df_config
+    from tradingagents.dataflows.interface import route_to_vendor
+
+    monkeypatch.setitem(
+        df_config._config,
+        "tool_vendors",
+        {"get_stock_data": "pykrx"},
+    )
+
+    out = route_to_vendor("get_stock_data", "005930", "2024-01-02", "2024-01-10")
+    assert "Source: pykrx" in out
+
+
+@krx_login_gate
+def test_route_to_vendor_kr_universe():
+    from tradingagents.dataflows.interface import route_to_vendor
+
+    out = route_to_vendor("get_kr_universe", "2024-01-02", "KOSPI")
+    assert "KR universe snapshot" in out
