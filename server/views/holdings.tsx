@@ -113,9 +113,10 @@ function holdingsScript(): string {
       return x.toFixed(1) + ',' + y.toFixed(1);
     }).join(' ');
     var color = values[n - 1] >= values[0] ? '#22c55e' : '#ef4444';
-    var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible;display:block">' +
-               '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
-               '</svg>';
+    var q = String.fromCharCode(34);
+    var svg = '<svg width=' + q + W + q + ' height=' + q + H + q + ' viewBox=' + q + '0 0 ' + W + ' ' + H + q + ' style="overflow:visible;display:block">' +
+              '<polyline points=' + q + pts + q + ' fill="none" stroke=' + q + color + q + ' stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+              '</svg>';
     return svg;
   }
   function renderPositions(result) {
