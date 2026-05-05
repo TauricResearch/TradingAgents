@@ -74,6 +74,10 @@ function holdingsScript(): string {
     return n.toFixed(decimals != null ? decimals : 2);
   }
 
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   function isCrypto(ticker) {
     return ticker === 'ETH' || ticker === 'BTC' || ticker === 'SOL' ||
            ticker === 'XRP' || ticker === 'ADA' || ticker === 'DOT';
@@ -146,17 +150,23 @@ function holdingsScript(): string {
 
       for (var j = 0; j < items.length; j++) {
         var pos = items[j];
-        var costPerShareGbp = toGbp(pos.avgCost || 0, pos.exchange === 'XETRA' ? 'EUR' : pos.exchange === 'CRYPTO' ? 'USD' : 'USD');
-        var pnlClass = pos.pnlPct >= 0 ? 'pnl-pos' : 'pnl-neg';
-        var pnlStr = pos.pnlPct !== null ? fmtPct(pos.pnlPct) : '\\u2014';
-        var valueStr = pos.currentValue !== null ? fmt(toGbp(pos.currentValue, 'GBP')) : '\\u2014';
-        var currStr = pos.currentPrice !== null ? '\\u00a3' + fmtNum(pos.currentPrice, 2) : '\\u2014';
-        var invStr = pos.invalidationPrice !== null ? '\\u00a3' + fmtNum(pos.invalidationPrice, 2) : '\\u2014';
+        var posCurrency = pos.currency || 'USD';
+        var costPerShareGbp = toGbp(pos.avgCost || 0, posCurrency);
+        var currGbp = pos.currentPrice !== null ? toGbp(pos.currentPrice, posCurrency) : null;
+        var valueGbp = pos.currentValue !== null ? toGbp(pos.currentValue, posCurrency) : null;
+        var pnlGbp = (valueGbp !== null && costPerShareGbp > 0) ? valueGbp - costPerShareGbp : null;
+        var pnlPctGbp = (pnlGbp !== null && costPerShareGbp > 0) ? (pnlGbp / costPerShareGbp) * 100 : null;
+        var pnlClass = pnlPctGbp !== null && pnlPctGbp >= 0 ? 'pnl-pos' : 'pnl-neg';
+        var pnlStr = pnlPctGbp !== null ? fmtPct(pnlPctGbp) : '\u2014';
+        var valueStr = valueGbp !== null ? fmt(valueGbp) : '\u2014';
+        var currStr = currGbp !== null ? fmt(currGbp) : '\u2014';
+        var invGbp = pos.invalidationPrice !== null ? toGbp(pos.invalidationPrice, posCurrency) : null;
+        var invStr = invGbp !== null ? fmt(invGbp) : '\u2014';
 
-        html += '<tr class="position-row position-' + pos.stopLevel + '">';
+        html += '<tr class="position-row position-' + esc(pos.stopLevel) + '">';
         html += '<td>' + renderFreshnessBadge(pos.lastPriceDate) + '</td>';
-        html += '<td class="ticker-cell"><span class="ticker">' + pos.ticker + '</span>';
-        if (pos.platform) html += '<span class="platform-tag">' + pos.platform + '</span>';
+        html += '<td class="ticker-cell"><span class="ticker">' + esc(pos.ticker) + '</span>';
+        if (pos.platform) html += '<span class="platform-tag">' + esc(pos.platform) + '</span>';
         html += '</td>';
         html += '<td>' + renderSparkline(pos.sparkline) + '</td>';
         html += '<td>' + fmtNum(pos.quantity, isCrypto(pos.ticker) ? 4 : 0) + '</td>';

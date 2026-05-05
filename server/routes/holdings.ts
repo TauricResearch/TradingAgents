@@ -118,12 +118,15 @@ holdingsRouter.get("/positions", async (c) => {
     const STOP_ORDER: Record<StopLevel, number> = { danger: 0, watch: 1, safe: 2, "no-price": 3 }
 
     const enriched = positions.map((p) => {
-      // Latest price
+      // Latest price + currency
       const latestRow = db
-        .query(`SELECT close, date FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1`)
-        .get(p.ticker) as { close: number; date: string } | undefined
+        .query(
+          `SELECT close, date, currency FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1`,
+        )
+        .get(p.ticker) as { close: number; date: string; currency: string } | undefined
 
       const currentPrice = latestRow?.close ?? null
+      const currency = latestRow?.currency ?? "USD"
       const lastPriceDate = latestRow?.date ?? null
 
       // Sparkline: sample up to 20 points evenly across available bars
@@ -140,9 +143,11 @@ holdingsRouter.get("/positions", async (c) => {
         }
       }
 
-      // P&L
-      const costBasis = p.avg_cost * p.quantity
-      const currentValue = currentPrice !== null ? currentPrice * p.quantity : null
+      // P&L in native currency
+      const avgCostNum = parseFloat(String(p.avg_cost))
+      const quantityNum = parseFloat(String(p.quantity))
+      const costBasis = avgCostNum * quantityNum
+      const currentValue = currentPrice !== null ? currentPrice * quantityNum : null
       const pnl = currentValue !== null ? currentValue - costBasis : null
       const pnlPct =
         costBasis > 0 && currentValue !== null
@@ -166,11 +171,12 @@ holdingsRouter.get("/positions", async (c) => {
         ticker: p.ticker,
         exchange: p.exchange,
         platform: p.platform,
-        quantity: p.quantity,
-        avgCost: p.avg_cost,
+        quantity: quantityNum,
+        avgCost: avgCostNum,
         costBasis,
         entryDate: p.entry_date,
         currentPrice,
+        currency,
         currentValue,
         pnl,
         pnlPct,
