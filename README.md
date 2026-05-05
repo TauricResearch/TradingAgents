@@ -89,12 +89,6 @@ Run it interactively (you will be prompted for everything)
 python -m cli.main
 ```
 
-Run tests from the active environment with:
-
-```powershell
-python -m pytest
-```
-
 Common development checks:
 
 ```powershell
