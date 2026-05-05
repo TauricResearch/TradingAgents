@@ -17,13 +17,13 @@ export function GovernanceView() {
         </div>
       </section>
 
-      <script dangerouslySetInnerHTML={{ __html: governanceScript() }} />
+      <GovernanceScript />
     </>
   );
 }
 
-function governanceScript(): string {
-  return `
+function GovernanceScript() {
+  return <script>{`
   (function() {
     function renderRules(rules) {
       const el = document.getElementById('rules-body');
@@ -143,5 +143,5 @@ function governanceScript(): string {
         document.getElementById('violations-body').innerHTML = '<div class="muted">Failed to load governance data</div>';
       });
   })();
-  `;
+  `}</script>;
 }
