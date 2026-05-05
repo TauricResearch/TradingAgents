@@ -114,36 +114,78 @@ def _format_news_structured(structured: object) -> str:
 
 
 def _fundamentals_risk_block(state: dict) -> str:
-    """Extract critical fundamentals metrics from the raw report text for RM/Trader/risk debaters.
+    """Extract mandated metrics from fundamentals_report text for RM/Trader/risk debaters.
 
-    Reads the full fundamentals_report text (not the structured contract's key_metrics,
-    which only tracks numeric_mentions/summary_table_rows) and regex-extracts the worst-case
-    valuation signals so they reach nodes that use build_research_packet.
+    The fundamentals analyst prompt requires these exact lines:
+      "P/E ratio: <val>x", "D/E ratio: <val>", "Free cash flow: <pct> YoY",
+      "Operating margin: <pct>", "Current ratio: <val>", "Working capital: <$val>"
+
+    Patterns also cover minor deviations (no colon, "price-to-earnings", etc.)
     """
     import re as _re
 
     fund_text = str(state.get("fundamentals_report") or "").lower()
     if not fund_text:
         return ""
+
     lines = []
-    pe_match = _re.search(r"p/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?", fund_text)
-    de_match = _re.search(r"d/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)", fund_text)
-    fcf_match = _re.search(r"free\s+cash\s+flow[^.\n]{0,30}?(-?[0-9]+(?:\.[0-9]+)?%)", fund_text)
-    op_margin_match = _re.search(r"operating\s+margin[:\s]+(-?[0-9]+(?:\.[0-9]+)?%)", fund_text)
-    curr_ratio_match = _re.search(r"current\s+ratio[:\s]+([0-9]+(?:\.[0-9]+)?)", fund_text)
-    wc_match = _re.search(r"working\s+capital[^.\n]{0,40}?(\$?-?[0-9]+(?:\.[0-9]+)?[bBmM]?)", fund_text)
-    if pe_match:
-        lines.append(f"- P/E: {pe_match.group(1)}x")
-    if de_match:
-        lines.append(f"- D/E: {de_match.group(1)}")
-    if fcf_match:
-        lines.append(f"- FCF: {fcf_match.group(1)}")
-    if op_margin_match:
-        lines.append(f"- Operating Margin: {op_margin_match.group(1)}")
-    if curr_ratio_match:
-        lines.append(f"- Current Ratio: {curr_ratio_match.group(1)}")
-    if wc_match:
-        lines.append(f"- Working Capital: {wc_match.group(1)}")
+
+    # P/E ratio — mandated: "P/E ratio: 83.2x"
+    # Also catches: "price-to-earnings: 83", "pe ratio of 83", "p/e: 83"
+    pe = _re.search(
+        r"(?:p/?e|price.to.earnings)\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?",
+        fund_text,
+    )
+    if pe:
+        lines.append(f"- P/E: {pe.group(1)}x")
+
+    # D/E ratio — mandated: "D/E ratio: 15.63"
+    # Also catches: "debt-to-equity: 15.6", "d/e: 15", "debt/equity ratio 15"
+    de = _re.search(
+        r"(?:d/?e|debt.to.equity|debt/equity)\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)",
+        fund_text,
+    )
+    if de:
+        lines.append(f"- D/E: {de.group(1)}")
+
+    # FCF — mandated: "Free cash flow: -73% YoY"
+    # Also catches: "free cash flow fell -73%", "fcf: -73%", "fcf margin -73"
+    fcf = _re.search(
+        r"(?:free\s+cash\s+flow|fcf)[^.\n]{0,40}?([+-]?[0-9]+(?:\.[0-9]+)?%)",
+        fund_text,
+    )
+    if fcf:
+        lines.append(f"- FCF: {fcf.group(1)}")
+
+    # Operating margin — mandated: "Operating margin: -3.0%"
+    # Also catches: "operating margin of -3%", "op margin: -3"
+    op = _re.search(
+        r"op(?:erating)?\s+margin[:\s]+([+-]?[0-9]+(?:\.[0-9]+)?%?)",
+        fund_text,
+    )
+    if op:
+        lines.append(f"- Operating Margin: {op.group(1)}")
+
+    # Current ratio — mandated: "Current ratio: 0.70"
+    # Also catches: "current ratio of 0.7", "current ratio 0.70"
+    cr = _re.search(
+        r"current\s+ratio[:\s]+([0-9]+(?:\.[0-9]+)?)",
+        fund_text,
+    )
+    if cr:
+        lines.append(f"- Current Ratio: {cr.group(1)}")
+
+    # Working capital — mandated: "Working capital: $2.3B (negative)"
+    # Also catches: "working capital of -$2.3b", "working capital: negative $2.3b"
+    wc = _re.search(
+        r"working\s+capital[:\s]+([^.\n]{1,50}?)(?:\s*\(|\s*$|\.|,)",
+        fund_text,
+    )
+    if wc:
+        val = wc.group(1).strip()
+        if val and any(c.isdigit() for c in val):
+            lines.append(f"- Working Capital: {val}")
+
     if not lines:
         return ""
     return (
