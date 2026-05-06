@@ -16,6 +16,13 @@ export function fmt(n: number | null | undefined, dec = 2): string {
   return n.toFixed(dec)
 }
 
+/** Format a number with comma separators and fixed decimals. Returns "—" for null/NaN. */
+export function fmtCommas(n: number | null | undefined, dec = 2): string {
+  if (n == null || Number.isNaN(n)) return "\u2014"
+  const s = n.toFixed(dec)
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}
+
 /** Format a GBP currency value. Returns "—" for null/NaN. */
 export function fmtGBP(n: number | null | undefined, dec = 2): string {
   if (n == null || Number.isNaN(n)) return "\u2014"
