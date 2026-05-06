@@ -26,7 +26,12 @@ export function StopBadge({ level }: { level: string }) {
 
 export function FreshnessBadge({ dateStr }: { dateStr: string | null }) {
   if (!dateStr) return <span class="freshness-none">—</span>;
-  const diffMs = Date.now() - new Date(dateStr + "T12:00:00Z").getTime();
+  // Timezone-safe calendar-day diff
+  const [y, m, d] = dateStr.split("-").map(Number) as [number, number, number];
+  const priceDate = new Date(Date.UTC(y, m - 1, d));
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const diffMs = today.getTime() - priceDate.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
   if (diffDays < 1)
     return (
@@ -43,7 +48,7 @@ export function FreshnessBadge({ dateStr }: { dateStr: string | null }) {
   return (
     <span
       class="freshness fresh-old"
-      title={`No recent data (>${Math.floor(diffDays)} days)`}
+      title={`No recent data (${Math.floor(diffDays)} days)`}
     >
       🔴
     </span>
