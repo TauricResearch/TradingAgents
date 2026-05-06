@@ -54,11 +54,16 @@ c:  # convenience group
 d:  # diagrams group
     @just --list --group diagrams
 
-# Type-check + lint the TypeScript server
+[group("nav")]
+pr:  # pr group
+    @just --list --group pr
+
+# Type-check + lint + custom gates
 [group("bun")]
 check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
+    bun scripts/check-database-usage.ts
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]
@@ -336,6 +341,36 @@ hl-register TICKER:
 [group("hledger")]
 hl-net-worth:
     hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --equity --monthly
+
+# ── PR review cache ─────────────────────────────────────────
+# Persist PR reviews as markdown in debriefs/reviews/ for offline review.
+# Run `just prs` to list open PRs, `just pr-fetch N` to save one,
+# `just pr-fetch-all` to snapshot everything. Clear down merged PRs
+# by deleting their files; the next `just pr-fetch-all` will skip them.
+
+[group("pr")]
+prs:  # list open PRs
+    gh pr list --repo pjsvis/TradingAgents \
+      --json number,title,updatedAt,reviewDecision,mergeStateStatus \
+      --state open --limit 20
+
+[group("pr")]
+pr-fetch NUM:  # fetch PR #NUM as markdown via defuddle
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p debriefs/reviews
+    url="https://github.com/pjsvis/TradingAgents/pull/{{NUM}}"
+    file="debriefs/reviews/pr-{{NUM}}.md"
+    defuddle parse --markdown "$url" > "$file"
+    echo "Saved: $file"
+
+[group("pr")]
+pr-fetch-all:  # fetch all open PRs as markdown
+    bash scripts/pr-fetch-all.sh
+
+[group("pr")]
+pr-summarize NUM:  # summarize cached PR #NUM via LLM, prepend to file
+    bun scripts/pr-summarize.ts {{NUM}} --write
 
 alias a := analyze
 alias l := lint

@@ -1,18 +1,9 @@
 /** @jsxImportSource hono/jsx */
 
 import type { PortfolioSummary } from "../lib/portfolio-data.ts"
+import { esc, fmt } from "../lib/markup.ts"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function esc(s: string | null | undefined): string {
-  if (s == null) return ""
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-}
-
-function fmt(n: number | null | undefined, dec = 2): string {
-  if (n == null || Number.isNaN(n)) return "\u2014"
-  return n.toFixed(dec)
-}
 
 function cls(pnl: number | null | undefined): string {
   if (pnl == null) return ""

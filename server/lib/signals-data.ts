@@ -1,8 +1,9 @@
 /** Signals data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { DatabaseFactory } from "./db.ts"
 import { sanitizeForDb } from "./sanitize.ts"
+import { findProjectRoot } from "./utils.ts"
 
 export interface Signal {
   id?: number
@@ -74,15 +75,6 @@ export function sparkline(history: Array<{ close: number }> | null): string | nu
     .reverse()
   const n = norm(closes)
   return n.length > 0 ? `{l:${n.join(",")}}` : null
-}
-
-// ── Project root ──────────────────────────────────────────────────────────────
-
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-  const projectRoot = dirname(dirname(import.meta.dir))
-  if (projectRoot.includes("TradingAgents")) return projectRoot
-  return projectRoot
 }
 
 // ── Batch price fetch with history (for sparklines) ─────────────────────────

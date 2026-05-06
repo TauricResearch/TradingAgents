@@ -1,5 +1,7 @@
 /** @jsxImportSource hono/jsx */
 
+import { esc, fmt, fmtGBP } from "../lib/markup.ts"
+
 // ── Shared UI components ────────────────────────────────────────────────────
 
 export function StopBadge({ level }: { level: string }) {
@@ -26,7 +28,12 @@ export function StopBadge({ level }: { level: string }) {
 
 export function FreshnessBadge({ dateStr }: { dateStr: string | null }) {
   if (!dateStr) return <span class="freshness-none">—</span>;
-  const diffMs = Date.now() - new Date(dateStr + "T12:00:00Z").getTime();
+  // Timezone-safe calendar-day diff
+  const [y, m, d] = dateStr.split("-").map(Number) as [number, number, number];
+  const priceDate = new Date(Date.UTC(y, m - 1, d));
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const diffMs = today.getTime() - priceDate.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
   if (diffDays < 1)
     return (
@@ -43,7 +50,7 @@ export function FreshnessBadge({ dateStr }: { dateStr: string | null }) {
   return (
     <span
       class="freshness fresh-old"
-      title={`No recent data (>${Math.floor(diffDays)} days)`}
+      title={`No recent data (${Math.floor(diffDays)} days)`}
     >
       🔴
     </span>
@@ -89,24 +96,8 @@ export function Sparkline({ values }: { values: number[] | null }) {
 
 // ── Row and table components ────────────────────────────────────────────────
 
-function esc(s: string) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function fmt(n: number | null): string {
-  return n !== null ? "\u00a3" + n.toFixed(2) : "\u2014";
-}
-
 function fmtPct(n: number | null): string {
   return n !== null ? (n >= 0 ? "+" : "") + n.toFixed(1) + "%" : "\u2014";
-}
-
-function fmtNum(n: number, decimals: number): string {
-  return n.toFixed(decimals);
 }
 
 function isCrypto(ticker: string): boolean {
@@ -138,7 +129,7 @@ function PositionsTableRow({ pos }: { pos: PositionRow }) {
   const pnlClass =
     pos.pnlPct !== null && pos.pnlPct >= 0 ? "pnl-pos" : "pnl-neg";
   const invStr =
-    pos.invalidationPrice !== null ? fmt(pos.invalidationPrice) : "\u2014";
+    pos.invalidationPrice !== null ? fmtGBP(pos.invalidationPrice) : "\u2014";
   return (
     <tr class={`position-row position-${esc(pos.stopLevel)}`}>
       <td>
@@ -153,12 +144,12 @@ function PositionsTableRow({ pos }: { pos: PositionRow }) {
       <td>
         <Sparkline values={pos.sparkline} />
       </td>
-      <td>{fmtNum(pos.quantity, isCrypto(pos.ticker) ? 4 : 0)}</td>
-      <td class="mono">{fmt(pos.avgCost)}</td>
+      <td>{fmt(pos.quantity, isCrypto(pos.ticker) ? 4 : 0)}</td>
+      <td class="mono">{fmtGBP(pos.avgCost)}</td>
       <td class="mono" title={`Inv: ${invStr}`}>
-        {fmt(pos.currentPrice)}
+        {fmtGBP(pos.currentPrice)}
       </td>
-      <td class="mono">{fmt(pos.currentValue)}</td>
+      <td class="mono">{fmtGBP(pos.currentValue)}</td>
       <td class={`mono ${pnlClass}`}>{fmtPct(pos.pnlPct)}</td>
       <td>
         <StopBadge level={pos.stopLevel} />
@@ -313,9 +304,9 @@ export function HoldingsPage({ holdingsData, positionsData }: {
                   {holdingsData.platforms.map((p) => (
                     <div class="platform-card">
                       <div class="platform-name">{p.name}</div>
-                      <div class="platform-total">{fmt(Number(p.totalValue))}</div>
+                      <div class="platform-total">{fmtGBP(Number(p.totalValue))}</div>
                       <div class="platform-detail">
-                        {Number(p.holdingCount)} holdings \u00b7 {fmt(Number(p.cash))} cash
+                        {Number(p.holdingCount)} holdings \u00b7 {fmtGBP(Number(p.cash))} cash
                       </div>
                     </div>
                   ))}
@@ -345,10 +336,10 @@ export function HoldingsPage({ holdingsData, positionsData }: {
                           <td class="ticker">{h2.ticker}</td>
                           <td>{h2.quantity}</td>
                           <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
-                            {fmt(Number(h2.costPerShare))}
+                            {fmtGBP(Number(h2.costPerShare))}
                           </td>
                           <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
-                            {fmt(costGbp)}
+                            {fmtGBP(costGbp)}
                           </td>
                           <td>
                             <a
@@ -368,7 +359,7 @@ export function HoldingsPage({ holdingsData, positionsData }: {
                         </td>
                         <td colspan={2} class="muted">{items.length} position(s)</td>
                         <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
-                          <strong>{fmt(total as number)}</strong>
+                          <strong>{fmtGBP(total as number)}</strong>
                         </td>
                         <td></td>
                       </tr>,
@@ -426,7 +417,7 @@ export function HoldingsPage({ holdingsData, positionsData }: {
                         <td></td>
                         <td>{c2.currency}</td>
                         <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
-                          {fmt(Number(c2.amount))}
+                          {fmtGBP(Number(c2.amount))}
                         </td>
                       </tr>
                     );
@@ -438,7 +429,7 @@ export function HoldingsPage({ holdingsData, positionsData }: {
                       </td>
                       <td class="muted">{items.length} currency</td>
                       <td style="font-family:Datatype,monospace;font-feature-settings:\'calt\'1,\'liga\'1">
-                        <strong>{fmt(totalGbp as number)}</strong>
+                        <strong>{fmtGBP(totalGbp as number)}</strong>
                       </td>
                     </tr>,
                     ...rows,

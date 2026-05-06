@@ -13,9 +13,10 @@
  *   default         ./portfolio.db
  */
 
-import { Database } from "bun:sqlite"
+import type { Database } from "bun:sqlite"
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { DatabaseFactory } from "../server/lib/db.ts"
 
 const DEFAULT_DB = join(process.cwd(), "portfolio.db")
 
@@ -27,20 +28,6 @@ function resolveDbPath(explicitPath?: string): string {
   if (process.env.PORTFOLIO_DB) return process.env.PORTFOLIO_DB
   if (process.env.TEST_MODE === "1") return process.env.TEST_PORTFOLIO_DB ?? "./test_portfolio.db"
   return DEFAULT_DB
-}
-
-// ─── DB setup ────────────────────────────────────────────────────────────────
-
-function connectDb(path: string): Database {
-  const db = new Database(path)
-  db.exec("PRAGMA journal_mode = WAL")
-  db.exec("PRAGMA busy_timeout = 5000")
-
-  // Auto-apply schema
-  const schemaPath = join(__dirname, "..", "server", "lib", "schema.sql")
-  if (existsSync(schemaPath)) db.exec(readFileSync(schemaPath, "utf-8"))
-
-  return db
 }
 
 // ─── Price fetching (reuse get_price.ts) ────────────────────────────────────
@@ -309,7 +296,11 @@ function parseArgs(): CliArgs {
 async function main() {
   const flags = parseArgs()
   const dbPath = resolveDbPath(flags.db)
-  const db = connectDb(dbPath)
+  const db = DatabaseFactory.connect(dbPath)
+
+  // Auto-apply schema
+  const schemaPath = join(__dirname, "..", "server", "lib", "schema.sql")
+  if (existsSync(schemaPath)) db.exec(readFileSync(schemaPath, "utf-8"))
   const isTest = dbPath.includes("test")
 
   console.log(`sync-prices${isTest ? " [TEST MODE]" : ""}`)

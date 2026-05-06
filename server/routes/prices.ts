@@ -1,18 +1,9 @@
 import { spawn } from "node:child_process"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { Hono } from "hono"
+import { findProjectRoot } from "../lib/utils.ts"
 
 export const pricesRouter = new Hono()
-
-/**
- * Resolve the project root (same logic as analysis.ts).
- */
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-  const projectRoot = dirname(dirname(import.meta.dir))
-  if (projectRoot.includes("TradingAgents")) return projectRoot
-  return projectRoot
-}
 
 /**
  * GET /api/prices/:ticker — current price via yfinance subprocess

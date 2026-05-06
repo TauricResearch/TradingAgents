@@ -10,17 +10,11 @@
  */
 
 import { spawn } from "node:child_process"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { getHoldings } from "./hledger.ts"
+import { findProjectRoot } from "./utils.ts"
 
 const DEFAULT_BENCHMARK = process.env.BENCHMARK ?? "VWCE.DE"
-
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-  const projectRoot = dirname(dirname(import.meta.dir))
-  if (projectRoot.includes("TradingAgents")) return projectRoot
-  return projectRoot
-}
 
 function venvPython(): string {
   return join(findProjectRoot(), ".venv", "bin", "python3")

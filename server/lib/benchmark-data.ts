@@ -1,7 +1,8 @@
 /** Benchmark data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import type { BenchmarkPrice, PeriodReturn } from "./benchmark.ts"
+import { findProjectRoot } from "./utils.ts"
 
 export { type BenchmarkPrice, fetchBenchmarkPrices, type PeriodReturn } from "./benchmark.ts"
 
@@ -24,15 +25,6 @@ export interface PositionWithPrice extends PortfolioPosition {
   currentPriceGbp: number | null
   currentValueGbp: number | null
   costValueGbp: number
-}
-
-// ── Project root ──────────────────────────────────────────────────────────────
-
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-  const projectRoot = dirname(dirname(import.meta.dir))
-  if (projectRoot.includes("TradingAgents")) return projectRoot
-  return projectRoot
 }
 
 // ── Batch price fetch ─────────────────────────────────────────────────────────

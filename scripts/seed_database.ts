@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Seed the TradingAgents database with realistic simulation data.
  *
@@ -15,7 +16,6 @@
  *   default           ./portfolio.db
  */
 
-import { Database } from "bun:sqlite"
 import {
   existsSync,
   mkdirSync,
@@ -27,6 +27,7 @@ import {
 import { homedir } from "node:os"
 import { join } from "node:path"
 import * as yaml from "js-yaml"
+import { DatabaseFactory } from "../server/lib/db.ts"
 
 const DEFAULT_DB = join(process.cwd(), "portfolio.db")
 const POSITIONS_BASE = join(homedir(), ".tradingagents", "positions")
@@ -47,52 +48,6 @@ function resolveDbPath(explicitPath?: string): string {
 }
 
 // ─── SQLite helpers ──────────────────────────────────────────────────────────
-
-let _db: Database
-
-function getDb(): Database {
-  if (!_db) throw new Error("DB not initialized — call main() first")
-  return _db
-}
-
-function connectDb(path: string): Database {
-  const db = new Database(path)
-  db.exec("PRAGMA journal_mode = WAL")
-  db.exec("PRAGMA busy_timeout = 5000")
-  db.exec("PRAGMA foreign_keys = ON")
-
-  // Auto-apply schema (CREATE TABLE IF NOT EXISTS is idempotent)
-  const schemaPath = join(__dirname, "..", "server", "lib", "schema.sql")
-  if (existsSync(schemaPath)) {
-    db.exec(readFileSync(schemaPath, "utf-8"))
-  }
-
-  // Migration: add stage column to watchlist if missing
-  try {
-    db.exec(
-      "ALTER TABLE watchlist ADD COLUMN stage TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired'))",
-    )
-  } catch {
-    // Column already exists — safe to ignore
-  }
-
-  // Migration: add account_id column to positions if missing
-  try {
-    db.exec("ALTER TABLE positions ADD COLUMN account_id TEXT REFERENCES accounts(id)")
-  } catch {
-    // Column already exists — safe to ignore
-  }
-
-  // Migration: add positions account index if missing
-  try {
-    db.exec("CREATE INDEX idx_positions_account ON positions(account_id)")
-  } catch {
-    // Index already exists — safe to ignore
-  }
-
-  _db = db
-  return db
-}
 
 // ─── Secret sanitization ─────────────────────────────────────────────────────
 
@@ -129,7 +84,7 @@ function d(weeks = 0, days = 0): string {
 // ─── Table clearing ──────────────────────────────────────────────────────────
 
 function clearTable(table: string): void {
-  const db = getDb()
+  const db = DatabaseFactory.get()
   if (table === "positions") {
     db.exec("DELETE FROM positions")
   } else if (table === "signals") {
@@ -287,7 +242,7 @@ function seedPositions(): void {
     },
   ]
 
-  const db = getDb()
+  const db = DatabaseFactory.get()
   for (const p of positions) {
     db.run(
       `INSERT INTO positions (ticker, exchange, platform, quantity, avg_cost, entry_date, thesis, status, notes)
@@ -538,7 +493,7 @@ function seedSignals(): void {
     },
   ]
 
-  const db = getDb()
+  const db = DatabaseFactory.get()
   for (const s of signals) {
     db.run(
       `INSERT INTO signals (ticker, platform, date, signal, reasoning, confidence)
@@ -619,7 +574,7 @@ function seedWatchlist(): void {
     },
   ]
 
-  const db = getDb()
+  const db = DatabaseFactory.get()
   for (const w of watchlist) {
     db.run(
       `INSERT INTO watchlist (ticker, exchange, platform, thesis, priority, stage, added_date)
@@ -684,7 +639,7 @@ function seedAnalyses(): void {
     },
   ]
 
-  const db = getDb()
+  const db = DatabaseFactory.get()
   for (const a of analyses) {
     db.run(`INSERT INTO analyses (ticker, platform, date, decision) VALUES (?, ?, ?, ?)`, [
       a.ticker,
@@ -1079,7 +1034,7 @@ interface PriceBar {
 }
 
 async function seedPrices(): Promise<void> {
-  const db = getDb()
+  const db = DatabaseFactory.get()
 
   // Get unique tickers from open positions
   const rows = db.query("SELECT DISTINCT ticker FROM positions WHERE status = 'open'").all() as {
@@ -1169,7 +1124,7 @@ async function seedPrices(): Promise<void> {
 // ─── Account seeding ───────────────────────────────────────────────────────
 
 function seedAccounts(): void {
-  const db = getDb()
+  const db = DatabaseFactory.get()
   db.exec(
     "DELETE FROM spreadbet_positions WHERE account_id LIKE 'ig-%' OR account_id = 'aviva' OR account_id = 'ajbell'",
   )
@@ -1262,7 +1217,7 @@ function seedAccounts(): void {
 // ─── Spread bet seeding ──────────────────────────────────────────────────────
 
 function seedSpreadBets(): void {
-  const db = getDb()
+  const db = DatabaseFactory.get()
   db.exec("DELETE FROM spreadbet_positions WHERE account_id = 'ig-spreadbet'")
 
   const bets = [
@@ -1316,7 +1271,7 @@ function seedSpreadBets(): void {
 // ─── Account balance history seeding ─────────────────────────────────────────
 
 function seedAccountBalances(): void {
-  const db = getDb()
+  const db = DatabaseFactory.get()
   db.exec("DELETE FROM account_balances WHERE account_id IN ('nsandi','cash-other')")
 
   const balances = [
@@ -1341,7 +1296,36 @@ async function main() {
   const flags = parseArgs()
   const dbPath = resolveDbPath(flags.db)
 
-  connectDb(dbPath)
+  const db = DatabaseFactory.connect(dbPath)
+
+  // Auto-apply schema (CREATE TABLE IF NOT EXISTS is idempotent)
+  const schemaPath = join(__dirname, "..", "server", "lib", "schema.sql")
+  if (existsSync(schemaPath)) {
+    db.exec(readFileSync(schemaPath, "utf-8"))
+  }
+
+  // Migration: add stage column to watchlist if missing
+  try {
+    db.exec(
+      "ALTER TABLE watchlist ADD COLUMN stage TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired'))",
+    )
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
+  // Migration: add account_id column to positions if missing
+  try {
+    db.exec("ALTER TABLE positions ADD COLUMN account_id TEXT REFERENCES accounts(id)")
+  } catch {
+    // Column already exists — safe to ignore
+  }
+
+  // Migration: add positions account index if missing
+  try {
+    db.exec("CREATE INDEX idx_positions_account ON positions(account_id)")
+  } catch {
+    // Index already exists — safe to ignore
+  }
 
   const seedAll =
     !flags.accounts &&

@@ -6,6 +6,7 @@ import { serveStatic } from "hono/bun";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { DatabaseFactory } from "./lib/db.ts";
+import { cfg } from "./lib/settings.ts";
 import { portfolioRouter } from "./routes/portfolio.tsx";
 import { analysisRouter } from "./routes/analysis.ts";
 import { signalsRouter } from "./routes/signals.tsx";
@@ -42,16 +43,11 @@ const app = new Hono();
 
 // TEST_MODE=1 → use test_portfolio.db instead of portfolio.db
 // TEST_PORTFOLIO_DB env var overrides the test DB path
-const isTestMode = process.env.TEST_MODE === "1"
-const DB_PATH = isTestMode
-  ? (process.env.TEST_PORTFOLIO_DB ?? "./test_portfolio.db")
-  : (process.env.PORTFOLIO_DB ?? "./portfolio.db")
-
-if (isTestMode) {
-  console.log("[TEST MODE] Using DB: " + DB_PATH)
+if (cfg.isTestMode) {
+  console.log("[TEST MODE] Using DB: " + cfg.portfolio.db)
 }
 
-DatabaseFactory.connect(DB_PATH);
+DatabaseFactory.connect(cfg.portfolio.db);
 
 // Load schema on first start (CREATE TABLE IF NOT EXISTS is safe)
 const schemaPath = join(import.meta.dir, "lib", "schema.sql");
@@ -88,7 +84,7 @@ app.get("/health", (c) => {
     status: "ok",
     db: DatabaseFactory.isConnected(),
     path: DatabaseFactory.path,
-    testMode: isTestMode,
+    testMode: cfg.isTestMode,
   });
 });
 
@@ -106,12 +102,12 @@ function pageOrPartial(c: Context, view: any): Response | Promise<Response> {
   if (isHtmx) return c.html(view);
   // Hono c.html() doesn't emit <!DOCTYPE html> — causes Quirks Mode.
   // Render the Layout through JSX, then prepend DOCTYPE manually.
-  const layout = String(<Layout testMode={isTestMode}>{view}</Layout>);
+  const layout = String(<Layout testMode={cfg.isTestMode}>{view}</Layout>);
   return renderHtml(layout);
 }
 
 app.get("/", (c) => {
-  const layout = String(<Layout testMode={isTestMode}><PortfolioView /></Layout>);
+  const layout = String(<Layout testMode={cfg.isTestMode}><PortfolioView /></Layout>);
   return renderHtml(layout);
 });
 app.get("/portfolio", (c) => pageOrPartial(c, <PortfolioView />));
@@ -165,7 +161,7 @@ app.get("/api/portfolio/summary/html", handlePortfolioSummaryHtml);
 
 // ── Start ──────────────────────────────────────────────────
 
-const port = parseInt(process.env.PORT ?? "3000", 10);
+const port = cfg.app.dashboardPort;
 console.log(`DB connected: ${DatabaseFactory.path}`);
 console.log(`Listening on :${port}`);
 

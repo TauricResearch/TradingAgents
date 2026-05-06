@@ -1,9 +1,10 @@
 /** Feedback data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { endOfToday, priceCache } from "./cache.ts"
 import { DatabaseFactory } from "./db.ts"
 import type { PriceResult } from "./types.ts"
+import { findProjectRoot } from "./utils.ts"
 
 export {
   computeSignalAccuracy,
@@ -67,15 +68,6 @@ export interface TickerCorrelation {
     | "no_position"
   latestSignal: string
   outcomePct: number | null
-}
-
-// ── Project root ──────────────────────────────────────────────────────────────
-
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-  const projectRoot = dirname(dirname(import.meta.dir))
-  if (projectRoot.includes("TradingAgents")) return projectRoot
-  return projectRoot
 }
 
 // ── Price fetch ───────────────────────────────────────────────────────────────

@@ -1,16 +1,10 @@
 /** Data builder for workflow kanban — extracted from route for reuse. */
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { fetchPrice } from "./cache.ts"
 import { DatabaseFactory } from "./db.ts"
 import { getHoldings } from "./hledger.ts"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "./positions.ts"
-
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-  const projectRoot = dirname(dirname(import.meta.dir))
-  if (projectRoot.includes("TradingAgents")) return projectRoot
-  return projectRoot
-}
+import { findProjectRoot } from "./utils.ts"
 
 export interface ExitPlanData {
   entryPrice: number

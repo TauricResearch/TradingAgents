@@ -1,10 +1,10 @@
 /** Filesystem-based analysis routes: listing, report rendering, LLM summary. */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { config } from "dotenv"
 import { Hono } from "hono"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
 import { renderAnalysisReport } from "../lib/markdown.ts"
+import { cfg } from "../lib/settings.ts"
 import {
   buildConfidenceSparkline,
   estimateConfidence,
@@ -12,8 +12,6 @@ import {
   extractSignal,
   resultsDir,
 } from "./analyses-common.ts"
-
-config() // Load .env for OPENROUTER_API_KEY
 
 export const analysesFsRouter = new Hono()
 
@@ -114,7 +112,7 @@ analysesFsRouter.post("/:ticker/:date/explain", async (c) => {
     }
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY
+  const apiKey = cfg.app.openRouterApiKey
   if (!apiKey) {
     return c.json(
       {
