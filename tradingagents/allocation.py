@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, Sequence
 
 from tradingagents.batch import BatchTickerResult
@@ -90,7 +90,6 @@ def build_allocation_plan(
     target_weights = _target_weights(ranked_results, current_weights, policy)
     target_cash_weight = max(0.0, 1.0 - sum(target_weights.values()))
     total_projected_value = total_current_value
-    leftover_cash = target_cash_weight * total_projected_value
 
     rows = [
         _row_for_result(
@@ -104,6 +103,7 @@ def build_allocation_plan(
         )
         for index, result in enumerate(ranked_results, start=1)
     ]
+    rows, leftover_cash = _apply_whole_share_order_sizing(rows, available_cash)
     return AllocationPlan(
         rows=rows,
         leftover_cash=leftover_cash,
@@ -111,6 +111,49 @@ def build_allocation_plan(
         total_current_value=total_current_value,
         total_projected_value=total_projected_value,
     )
+
+
+def _apply_whole_share_order_sizing(
+    rows: list[AllocationRow],
+    available_cash: float,
+) -> tuple[list[AllocationRow], float]:
+    sized_rows = list(rows)
+    deployable_cash = max(0.0, available_cash)
+
+    for index, row in enumerate(sized_rows):
+        if row.delta_value >= 0 or row.price is None or row.price <= 0:
+            continue
+        quantity = -int(abs(row.delta_value) / row.price)
+        if quantity == 0:
+            sized_rows[index] = replace(row, quantity_delta=0)
+            continue
+        deployable_cash += abs(quantity) * row.price
+        sized_rows[index] = replace(row, quantity_delta=quantity)
+
+    buy_candidates = [
+        (index, row)
+        for index, row in enumerate(sized_rows)
+        if row.delta_value > 0 and row.price is not None and row.price > 0
+    ]
+    total_buy_delta = sum(row.delta_value for _, row in buy_candidates)
+    actual_buy_cost = 0.0
+
+    for index, row in buy_candidates:
+        budget = (
+            deployable_cash * (row.delta_value / total_buy_delta)
+            if total_buy_delta > 0
+            else 0.0
+        )
+        quantity = int(budget / row.price)
+        actual_buy_cost += quantity * row.price
+        sized_rows[index] = replace(row, quantity_delta=quantity)
+
+    for index, row in enumerate(sized_rows):
+        if row.price is None or row.price <= 0:
+            sized_rows[index] = replace(row, quantity_delta=None)
+
+    leftover_cash = max(0.0, deployable_cash - actual_buy_cost)
+    return sized_rows, leftover_cash
 
 
 def _validate_inputs(results: Sequence[BatchTickerResult], available_cash: float) -> None:
