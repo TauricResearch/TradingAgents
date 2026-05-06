@@ -1,67 +1,58 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-06 (mid-session pause)
-**State:** All checks green. tsc ✓ lint ✓ PR #5 closed as redundant.
+**Last updated:** 2026-05-06 (session complete, on main)
+**State:** PR #7 merged. All HTML string builders eliminated. `just check` green.
 
 ---
 
 ## Where We Are
 
-### Epic td-0a1897 DONE ✓ — Route HTML Builders → JSX Components (8 routes)
-- workflow → `workflow-data.ts` + `workflow-kanban.tsx` (390 → 45 lines)
-- exits → `exits-data.ts` + `exit-list.tsx` (120 → 30 lines)
-- signals → `signals-data.ts` + `signals-view.tsx` (460 → 70 lines)
-- portfolio-intelligence → `portfolio-intel-data.ts` + `portfolio-intel.tsx` (520 → 70 lines)
-- governance → `governance-data.ts` + `governance-view.tsx` (227 → 85 lines)
-- prospects → `prospects-data.ts` + `prospects-view.tsx` (226 → 85 lines)
-- feedback → `feedback-data.ts` + `feedback-view.tsx` (411 → 60 lines)
-- benchmark → `benchmark-data.ts` + `benchmark-view.tsx` (275 → 55 lines)
+### Epic td-0a1897 DONE ✓ — Route HTML Builders → JSX Components (10 routes)
+- workflow → `workflow-data.ts` + `workflow-kanban.tsx`
+- exits → `exits-data.ts` + `exit-list.tsx`
+- signals → `signals-data.ts` + `signals-view.tsx`
+- portfolio-intelligence → `portfolio-intel-data.ts` + `portfolio-intel.tsx`
+- governance → `governance-data.ts` + `governance-view.tsx`
+- prospects → `prospects-data.ts` + `prospects-view.tsx`
+- feedback → `feedback-data.ts` + `feedback-view.tsx`
+- benchmark → `benchmark-data.ts` + `benchmark-view.tsx`
+- portfolio → `portfolio-data.ts` + `portfolio-summary.tsx`
+- analyses-db → `analysis-data.ts` + `analysis-report.tsx`
 
-### PR #5 forward-port DONE ✓ (commit 61c6e33)
-- Aborted the 3-way merge; cherry-picked/rewrote all features instead
+### PR #5 Forward-Port DONE ✓ (merged via PR #7)
 - Accounts table, allocation bar, spread bets, cash breakdown, manual balance
-- `portfolio-balance.ts` route, schema migrations, seed data, `scripts/py/get_price.py`
-- All `get_price.py` references unified to `scripts/py/get_price.py`
-- PR #5 set to draft → closed as redundant
+- `portfolio-balance.ts` route, schema migrations, seed data
+- `scripts/py/get_price.py`, all references unified
 
-### Previous session fixes also done:
-- Static assets 404 fixed — `serveStatic` with absolute path + `rewriteRequestPath`
-- `/api/analyses/list/html` 404 fixed — DB router mount order before FS router
-- Exits platform badge contrast fixed
-- `:root` hex palette → oklch with original hex in trailing comments
-- Language preference directive added to `AGENTS.md`
-- `tsconfig.json` + `tsconfig.server.json` fixed — `"types": ["bun"]`
-- Last 2 Biome `!` assertion warnings cleaned
-- New tool: `scripts/color-tools/`
+### Infrastructure DONE ✓
+- Static assets 404 fixed
+- Analyses route 404 fixed
+- CSS badge contrast fixed
+- `:root` hex → oklch palette
+- `tsconfig` bun types fixed
+- All DB migrations in place
 
 ---
 
-## Residual HTML String Builders (not yet JSX)
+## Zero Residual HTML String Builders
 
-**NONE** — all route HTML string builders converted to JSX components.
-
-No inline JS scripts remain in views. All runtime JS is external `<script src="...">`.
-
-Completed extractions:
-- `portfolio.ts` → `portfolio-data.ts` + `portfolio-summary.tsx` (commit 0210257)
-- `analyses-db.ts` → `analysis-data.ts` + `analysis-report.tsx` (commit 5de84b0)
+All route HTML string concatenation has been eliminated. All client-side JS is external.
 
 ---
 
 ## Priority Order
 
-### 1. Next Up: `td-56fd1b` Hygiene (remaining)
+### 1. Next: `td-56fd1b` Hygiene (remaining)
 
-- `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router (309 lines)
-  - Extract `computePortfolioSummary` + types → `server/lib/portfolio-data.ts`
-  - Convert `buildPortfolioHtml` → `server/views/portfolio-summary.tsx` JSX component
-  - Keep thin route in `server/routes/portfolio.ts`
 - `td-18e84e` — price freshness badge per ticker in holdings
-- `td-02ccec` — portfolio-intelligence was cleaned in this epic, but `portfolio.ts` still large
+- `td-02ccec` — clean up `portfolio-intel-data.ts` interfaces (16-field `PortfolioIntel` is too large)
+- Types consolidation: inline route interfaces → `server/lib/types.ts`
 
 ### 2. After hygiene
 
-- `td-200cbd` depends on `td-0a1897` pattern — follow the same data-first, view-second approach.
+- `td-9dbbac` — server tests: route health checks, positions query, hledger output parsing
+- Seed script split: `scripts/seed/` directory, one file per domain
+- Migration tooling: extract ad-hoc ALTER TABLE blocks from `server/index.tsx`
 
 ---
 
@@ -102,12 +93,14 @@ git commit -m "type(scope): what"
 | **React-style `style={{...}}` in Hono JSX** | Hono JSX expects `style` as string, not object | Use `style="background:#fff3cd"` (CSS string) |
 | **Extracting JSX before data layer** | Half-extracted state, can't test components | Always extract `lib/{route}-data.ts` first |
 | **`colspan` instead of `colSpan`** | JSX attribute case sensitivity | Use camelCase: `colSpan`, `fontFeatureSettings` |
+| **Forward-porting a PR written against old architecture** | Resolving string-concat vs JSX conflicts is impossible | Abort merge, cherry-pick ideas, rewrite into new architecture |
+| **Script path updates done piecemeal** | Runtime "file not found" errors only in production | Update ALL references in a single commit |
 
 ---
 
 ## Reference
 
-- Latest debrief: `debriefs/debrief-epic-route-html-to-jsx-2026-05-06.md`
+- Latest debrief: `debriefs/debrief-session-2026-05-06-pr5-merge.md`
 - All TDs: `td list`
 - Architecture: `ARCHITECTURE.md`
 - Code rules: `AGENTS.md` → Working Principles + Language Preference sections

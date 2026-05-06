@@ -172,19 +172,24 @@ TradingAgents/
 │   ├── index.tsx              │   Entry: routes, lifecycle, graceful shutdown
 │   ├── lib/                   │
 │   │   ├── db.ts              │   DatabaseFactory (WAL, singleton)
-│   │   ├── schema.sql         │   5-table schema (signals, analyses, watchlist; positions deprecated — hledger owns real data)
+│   │   ├── schema.sql         │   Schema: positions, trades, signals, watchlist, analyses, prices, accounts, spreadbet_positions, account_balances
 │   │   ├── hledger.ts         │   hLedger subprocess wrapper
 │   │   ├── markdown.ts        │   Server-side markdown renderer
 │   │   ├── positions.ts       │   Exit plan helpers (load, compute status)
 │   │   ├── governance.ts      │   Risk rules engine
 │   │   ├── benchmark.ts       │   Portfolio vs. benchmark (SQLite live prices)
 │   │   ├── feedback.ts        │   Signal accuracy + post-mortems
-│   │   ├── benchmark.ts       │   Portfolio vs. benchmark comparison
-│   │   └── feedback.ts        │   Signal accuracy tracking
+│   │   ├── portfolio-data.ts  │   Portfolio summary computation + price fetching
+│   │   ├── portfolio-intel-data.ts │   Intelligence: accounts, allocation, spread bets
+│   │   ├── analysis-data.ts   │   Analysis types + fmtDate helper
+│   │   └── types.ts           │   Shared type definitions
 │   ├── routes/                │   (12 route modules — see ARCHITECTURE.md)
-│   │   └── portfolio-intelligence.ts  │   Unified portfolio view (hledger cash + SQLite positions)
+│   │   ├── portfolio-intelligence.tsx  │   Unified portfolio view (hledger cash + SQLite positions)
+│   │   └── portfolio-balance.ts      │   POST manual account balance update
 │   ├── views/                 │   (12 .tsx views + partials/)
-│   │   └── intelligence.tsx   │   Portfolio Intelligence view
+│   │   ├── intelligence.tsx   │   Portfolio Intelligence view
+│   │   ├── portfolio-summary.tsx │   Portfolio P&L summary + positions table
+│   │   └── analysis-report.tsx  │   Analysis report + event sections + list/card views
 │   └── static/                │   CSS, fonts, favicon, client-side JS
 │       └── scripts/           │   External client-side scripts (canonical runtime JS)
 │
@@ -246,6 +251,15 @@ Backtick-quoted strings inside template literals are a syntax error. The JSX com
 If a change breaks checks and the fix isn't obvious, revert to the last known-good commit. Three failed forward-attempts burned 45 minutes. One revert took 5. Trust the revert.
 
 **No test coverage for views.** `pytest -m smoke` only covers Python. TypeScript views have no automated test. Until we have route-level tests (`td-9dbbac`), the only guard is: check `tsc` + `lint` + manual browser verification.
+
+**Route file with JSX retaining `.ts` extension.**
+Biome will produce cryptic parse errors: "expected `>` but instead found `data"`. The parser treats JSX as TypeScript class syntax. Fix: rename to `.tsx` and update all imports in `server/index.tsx`.
+
+**Forward-porting vs merging.**
+When a PR was written against old architecture that you've since refactored, evaluate conflict count × semantic distance. String-concat vs JSX is a chasm, not a gap. If >15 conflict regions: abort merge, cherry-pick ideas, rewrite into new architecture.
+
+**Script path unification.**
+When a script moves (e.g. `scripts/` → `scripts/py/`), update ALL references in a single commit. Piecemeal updates create runtime "file not found" errors that only surface in production.
 
 ---
 
