@@ -195,20 +195,20 @@ class TestRouteHandlerPatterns:
                 problem_files.append(tsx.name)
         assert len(problem_files) == 0, f"Old pattern found in: {', '.join(problem_files)}"
 
-    def test_no_script_src_in_refactored_views(self):
-        """Refactored views should not reference /static/scripts/ (use inline JSX instead)."""
-        # After refactor, the 12 views should not have <script src="/static/scripts/...">
-        problem_files = []
-        refactored = [
+    def test_external_scripts_are_canonical(self):
+        """Refactored views should reference external /static/scripts/ (not inline JSX scripts)."""
+        # AGENTS.md: canonical client-side runtime lives in server/static/scripts/*.js
+        # Views should reference them via <script src="/static/scripts/xxx.js" />
+        for name in [
             "workflow.tsx", "exits.tsx", "benchmark.tsx", "governance.tsx",
             "feedback.tsx", "datatype-test.tsx", "history.tsx", "prospects.tsx",
             "signals.tsx", "intelligence.tsx", "portfolio.tsx", "analysis.tsx",
-        ]
-        for name in refactored:
+        ]:
             tsx = ROOT / "server/views" / name
             if not tsx.exists():
                 continue
             content = tsx.read_text()
-            if '<script src="/static/scripts/' in content:
-                problem_files.append(name)
-        assert len(problem_files) == 0, f"External script refs found in: {', '.join(problem_files)}"
+            # Ensure no dangerouslySetInnerHTML script injection (covered by other test)
+            # and that if scripts are present, they use external src
+            if "<script" in content and '<script src="/static/scripts/' not in content:
+                pytest.fail(f"{name}: inline script without external src reference")
