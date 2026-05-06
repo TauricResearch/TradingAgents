@@ -1,0 +1,14 @@
+# Synology deploy template — paste into your project's .gitignore.
+
+# Local credentials for NAS / deploy automation. NEVER COMMITTED.
+scripts/nas/credentials.local
+*.local
+*.local.sh
+
+# Synology bind-mount target if the developer mirrors it locally.
+data/
+
+# Project-level .env (secrets). Use .env.example for the committed template.
+.env
+.env.*
+!.env.example

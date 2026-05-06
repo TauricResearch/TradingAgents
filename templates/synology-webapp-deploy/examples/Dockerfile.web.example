@@ -1,0 +1,31 @@
+# Next.js production image (multi-stage with output: standalone for
+# small final image). Adapt for Vite/Astro/etc — the standalone bit is
+# Next-specific, the rest of the pattern works for any Node frontend.
+
+FROM node:20-alpine AS deps
+WORKDIR /build
+COPY web/package.json web/package-lock.json* ./
+RUN npm install --no-audit --no-fund --legacy-peer-deps
+
+FROM node:20-alpine AS builder
+WORKDIR /build
+COPY --from=deps /build/node_modules ./node_modules
+COPY web ./
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nextjs && adduser --system --uid 1001 nextjs
+
+# Standalone output — bundles only what's needed at runtime.
+COPY --from=builder --chown=nextjs:nextjs /build/.next/standalone ./
+COPY --from=builder --chown=nextjs:nextjs /build/.next/static ./.next/static
+# Add this back if your project has /public assets:
+# COPY --from=builder --chown=nextjs:nextjs /build/public ./public
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000 HOSTNAME=0.0.0.0
+CMD ["node", "server.js"]

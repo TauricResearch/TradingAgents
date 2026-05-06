@@ -1,0 +1,46 @@
+# FastAPI / generic Python web service Dockerfile (multi-stage).
+# Adapt to your project — the structure stays the same.
+
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Build deps for any native Python wheels that don't ship binaries
+# (cairo for pycairo / xhtml2pdf, libpq for psycopg2-binary alternative,
+# ssl-dev for cryptography, etc.). Trim to what your project needs.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libcairo2-dev \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /build
+COPY pyproject.toml README.md ./
+COPY <YOUR_PACKAGES> ./
+RUN pip install --no-cache-dir '.[<YOUR_EXTRAS>]'
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Runtime equivalents of the build deps. Cairo for pycairo, etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libcairo2 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# UID/GID 1000 matches the default Synology bind-mount permission flow.
+RUN groupadd --gid 1000 appuser && useradd --uid 1000 --gid 1000 --create-home appuser
+USER appuser
+WORKDIR /home/appuser/app
+COPY --from=builder --chown=appuser:appuser /build .
+
+EXPOSE 8000
+CMD ["uvicorn", "myproject.app:app", "--host", "0.0.0.0", "--port", "8000"]

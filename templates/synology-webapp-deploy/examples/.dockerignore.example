@@ -1,0 +1,25 @@
+.git
+.venv
+.env
+.env.*
+.claude
+.idea
+.vscode
+.DS_Store
+__pycache__
+*.egg-info
+build
+dist
+results
+eval_results
+Dockerfile
+docker-compose.yml
+# Host-side persistent data — must not be baked into the image.
+data
+# Local-disk runtime state.
+.tradingagents
+*.local
+# Frontend build artifacts (adjust to your project).
+web/.next
+web/node_modules
+web/out

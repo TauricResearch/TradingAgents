@@ -1,0 +1,180 @@
+# {{PROJECT_NAME}} — Operations Reference
+
+Living document. Paste relevant sections back to Claude when asking it
+to deploy, upgrade, or troubleshoot the NAS deployment.
+
+**Repo:** {{GITHUB_REPO_URL}}
+**NAS deployment target:** `{{NAS_REPO_PATH}}` on `{{NAS_HOST}}`
+
+## Architecture
+
+| Service | Port | Purpose |
+|---|---|---|
+| `{{SERVICE_1}}` | {{PORT_1}} | {{DESC_1}} |
+| `{{SERVICE_2}}` | {{PORT_2}} | {{DESC_2}} |
+
+Persistent data bind-mounted from `{{NAS_DATA_PATH}}` into all services.
+
+---
+
+## Layout on the NAS
+
+```
+{{NAS_REPO_PATH}}/
+├── docker-compose.yml
+├── Dockerfile(.api / .web)
+├── .env                              ← API keys, chmod 600 (NEVER committed)
+├── data/                             ← bind-mounted into containers
+│   └── {{describe what lives here}}
+└── (everything else — committed source)
+```
+
+Everything that survives a container rebuild lives under `data/`.
+Everything else is pulled fresh from git on each upgrade.
+
+---
+
+## Credential pattern
+
+Claude operates the NAS via scripts that source
+`scripts/nas/credentials.local`. That file is git-ignored and Claude is
+instructed never to read its contents. The scripts read it themselves
+and pass connection info through SSH.
+
+**One-time setup:**
+
+```bash
+cp scripts/nas/credentials.local.example scripts/nas/credentials.local
+chmod 600 scripts/nas/credentials.local
+# edit and fill in NAS_HOST, NAS_USER, plus EITHER NAS_SSH_KEY or NAS_PASSWORD
+```
+
+SSH-key auth recommended:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/nas_{{PROJECT_NAME}} -N ""
+# Paste ~/.ssh/nas_{{PROJECT_NAME}}.pub into ~/.ssh/authorized_keys on
+# the NAS (DSM 7+ has no GUI for this).
+```
+
+**Verify:**
+
+```bash
+scripts/nas/nas-cmd.sh 'echo hello from $HOSTNAME'
+```
+
+---
+
+## Scripts at a glance
+
+| Script | When to use |
+|---|---|
+| `scripts/nas/deploy.sh` | First-time deploy on a fresh NAS |
+| `scripts/nas/upgrade.sh` | Pull latest, rebuild, restart (the routine) |
+| `scripts/nas/restart.sh` | Kick the container without rebuilding (for `.env` changes) |
+| `scripts/nas/status.sh` | Check what's running, what version, how much data |
+| `scripts/nas/logs.sh` | Tail container logs |
+| `scripts/nas/rollback.sh <sha>` | Roll back to a prior commit if an upgrade goes sideways |
+| `scripts/nas/nas-cmd.sh "<cmd>"` | Run any ad-hoc command on the NAS |
+
+---
+
+## How to ask Claude
+
+Sample prompts that map directly to a script:
+
+> "Deploy the latest version to the NAS."
+→ `scripts/nas/deploy.sh` (first time) or `scripts/nas/upgrade.sh` (subsequent).
+
+> "Pull the latest and restart on the NAS."
+→ `scripts/nas/upgrade.sh`.
+
+> "Show me the gui status / health."
+→ `scripts/nas/status.sh`.
+
+> "Tail the logs."
+→ `scripts/nas/logs.sh --tail=100`.
+
+> "I just edited `.env` on the NAS — apply the change."
+→ `scripts/nas/restart.sh`.
+
+> "The last upgrade broke things. Roll back."
+→ `scripts/nas/rollback.sh previous`.
+
+If you need something the scripts don't cover:
+
+> "Run `<some-command>` on the NAS and show me the output."
+→ `scripts/nas/nas-cmd.sh "<some-command>"`.
+
+---
+
+## First deploy
+
+1. Fill in `scripts/nas/credentials.local` (see above).
+2. Tell Claude: *"Deploy to the NAS."*
+3. When `deploy.sh` aborts on the first run with a "fill in .env" message,
+   `nano {{NAS_REPO_PATH}}/.env` on the NAS and add API keys.
+4. Re-run `deploy.sh`. Confirm the URL responds.
+
+---
+
+## Routine maintenance
+
+After Claude makes code changes and pushes to `origin/main`:
+
+> *"Pull and rebuild on the NAS."*
+
+Runs `upgrade.sh`, which:
+- Pulls the latest from `origin/main`
+- Skips the rebuild if there are no new commits
+- Otherwise rebuilds the listed services and restarts them
+- Shows the last 20 log lines per service for sanity-check
+
+---
+
+## Troubleshooting recipes
+
+**Container won't start / unhealthy** → `scripts/nas/logs.sh --tail=200`.
+Look for missing API key, port conflict, or a Python import error from
+a recent commit.
+
+**Permission errors writing to `data/`** → container runs as UID 1000.
+Bind mount must be 1000:1000:
+
+```
+sudo chown -R 1000:1000 {{NAS_DATA_PATH}}
+```
+
+**Disk filling up** → `nas-cmd.sh 'du -sh {{NAS_DATA_PATH}}/*'`.
+Common culprits: caches, long-running logs, archived data.
+
+---
+
+## Backups
+
+Hyper Backup or Snapshot Replication on `{{NAS_REPO_PATH}}/`. The two
+important pieces:
+
+- `data/` — runtime state, archives, anything user-written
+- `.env` — API keys / secrets
+
+---
+
+## Reverse proxy + HTTPS (optional)
+
+DSM's built-in reverse proxy. **Control Panel → Login Portal →
+Advanced → Reverse Proxy → Create**:
+
+- Source: HTTPS, hostname `{{PROJECT_NAME}}.<your-domain>`, port 443
+- Destination: HTTP, `localhost`, port {{WEB_PORT}}
+- Custom Headers (for WebSockets): `Upgrade $http_upgrade`,
+  `Connection $connection_upgrade`
+
+Then issue a Let's Encrypt cert for `{{PROJECT_NAME}}.<your-domain>`
+in Control Panel → Security → Certificate.
+
+---
+
+## Change log
+
+- **YYYY-MM-DD** — {{description of significant deployment changes}}

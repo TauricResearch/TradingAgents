@@ -1,0 +1,56 @@
+# Multi-service compose example for a Synology deploy.
+# Replace the service names and image specifics with your project's.
+# Port substitution: ${VAR:-default} lets you override via .env if a
+# default port is taken on the NAS.
+
+services:
+  # ---- API service ---------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: ${PROJECT_NAME:-myproject}-api
+    env_file:
+      - .env
+    environment:
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./data:/home/appuser/.myproject
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # ---- Web frontend --------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: ${PROJECT_NAME:-myproject}-web
+    environment:
+      # Server-side address the web container uses for SSR (Docker DNS).
+      - API_URL=http://api:8000
+      # Client-side WebSocket base address (browser-visible URL).
+      - NEXT_PUBLIC_WS_BASE=${NEXT_PUBLIC_WS_BASE:-ws://localhost:8000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---- Add more services as needed (worker, db, redis, ...) ----------
