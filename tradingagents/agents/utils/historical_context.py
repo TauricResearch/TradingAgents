@@ -136,6 +136,70 @@ def _truncate(text: str, limit: int) -> str:
     return text[: max(0, limit - 1)].rstrip() + "…"
 
 
+def find_latest_execution_failures(
+    portfolio_id: str,
+    as_of_date: str,
+    reports_root: Path | None = None,
+    lookback_days: int | None = None,
+) -> dict[str, Any] | None:
+    """Return the most recent execution result with non-empty failed_trades.
+
+    Scans reports/daily/{date}/{run_id}/portfolio/report/*_execution_result.json
+    for the latest file strictly before as_of_date that contains a non-empty
+    'failed_trades' list.
+
+    Returns {"date": "YYYY-MM-DD", "failed_trades": [...]} or None.
+    """
+    root = Path(reports_root) if reports_root is not None else Path(REPORTS_ROOT) / "daily"
+    lookback = (
+        lookback_days
+        if lookback_days is not None
+        else int(DEFAULT_CONFIG.get("historical_context_lookback_days", 60))
+    )
+    for d in _candidate_dates(root, as_of_date, lookback):
+        data = _load_latest_in_date(
+            root / d,
+            "portfolio/report",
+            f"{portfolio_id}_execution_result.json",
+        )
+        if data is not None:
+            failed = data.get("failed_trades")
+            if isinstance(failed, list) and len(failed) > 0:
+                return {"date": d, "failed_trades": failed}
+    return None
+
+
+def format_execution_failure_block(
+    failures: dict[str, Any] | None,
+    max_chars: int = 600,
+) -> str:
+    """Format execution failures into a compact prompt block.
+
+    Returns empty string if failures is None or failed_trades is empty.
+    Each failure line: "- {action} {ticker} x{shares}: {reason}"
+    Header: "## Prior Execution Failures ({date})"
+    Instruction: "These trades were REJECTED. Do not repeat them."
+    Total output capped at max_chars.
+    """
+    if not failures:
+        return ""
+    failed_trades = failures.get("failed_trades")
+    if not failed_trades:
+        return ""
+    date_str = failures.get("date", "?")
+    header = f"## Prior Execution Failures ({date_str})"
+    instruction = "These trades were REJECTED. Do not repeat them."
+    lines: list[str] = [header, instruction]
+    for trade in failed_trades:
+        action = trade.get("action", "?")
+        ticker = trade.get("ticker", "?")
+        shares = trade.get("shares", "?")
+        reason = trade.get("reason", "unknown")
+        lines.append(f"- {action} {ticker} x{shares}: {reason}")
+    out = "\n".join(lines)
+    return _truncate(out, max_chars)
+
+
 def format_prior_context_block(
     ticker: str,
     prior_analysis: dict[str, Any] | None,

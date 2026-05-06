@@ -4,6 +4,10 @@ from typing import Any
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.historical_context import (
+    find_latest_execution_failures,
+    format_execution_failure_block,
+)
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
@@ -62,6 +66,22 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
 
+        # Execution failure injection — uses DEFAULT_CONFIG portfolio_id because
+        # the trading graph state does not carry portfolio_id (it's per-ticker).
+        # NOTE: failure data may not match the active portfolio if run outside
+        # the default portfolio context (e.g. from the portfolio graph that
+        # carries its own portfolio_id in state). See caching plan Option A.
+        execution_failures = find_latest_execution_failures(
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        execution_failure_block = format_execution_failure_block(execution_failures)
+        # Anonymize ticker references in failure block to prevent training-data bias
+        if execution_failure_block:
+            execution_failure_block = anonymize_ticker(execution_failure_block, ticker)
+
+        _failure_suffix = f"\n\n{execution_failure_block}" if execution_failure_block else ""
+
         prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and make a definitive decision: Buy, Sell, or Hold.
 {macro_context}
 
@@ -103,7 +123,7 @@ Rolling debate summary:
 
 Here is the debate:
 Debate History:
-{anon_history}"""
+{anon_history}{_failure_suffix}"""
         timeout_seconds = resolve_timeout("deep")
         response, invoke_error = invoke_with_timeout(
             llm,

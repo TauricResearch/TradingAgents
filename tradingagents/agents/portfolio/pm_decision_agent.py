@@ -21,6 +21,11 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from tradingagents.agents.utils.circuit_breaker import circuit_breaker_from_config
+from tradingagents.agents.utils.historical_context import (
+    find_latest_execution_failures,
+    format_execution_failure_block,
+)
+from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 
 logger = logging.getLogger(__name__)
@@ -266,6 +271,14 @@ def create_pm_decision_agent(
     def pm_decision_node(state: PortfolioManagerState) -> dict[str, Any]:
         analysis_date = state.get("analysis_date") or ""
         context = _build_pm_context(state, cfg)
+
+        execution_failures = find_latest_execution_failures(
+            portfolio_id=str(state.get("portfolio_id") or DEFAULT_CONFIG.get("default_portfolio_id") or "default"),
+            as_of_date=analysis_date,
+        )
+        execution_failure_block = format_execution_failure_block(execution_failures)
+        if execution_failure_block:
+            context = f"{context}\n\n{execution_failure_block}\n"
 
         system_message = (
             "You are a portfolio manager. Synthesize the inputs below into a JSON-only "
