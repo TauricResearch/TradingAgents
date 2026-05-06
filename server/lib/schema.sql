@@ -2,12 +2,27 @@
 -- See: playbooks/sqlite-playbook.md for connection protocol
 -- All connections MUST use DatabaseFactory (enforces WAL, pragmas)
 
--- What you currently own
+-- Accounts (delivery mechanisms — tax wrappers and platforms)
+-- Balance is tracked via hledger for most accounts; manual for legacy/savings.
+CREATE TABLE IF NOT EXISTS accounts (
+    id          TEXT PRIMARY KEY,
+    provider    TEXT NOT NULL,
+    account_type TEXT NOT NULL CHECK(account_type IN ('isa','shares','sipp','spreadbet','savings','cash')),
+    name        TEXT,
+    balance     REAL DEFAULT 0,
+    currency    TEXT DEFAULT 'GBP',
+    notes       TEXT,
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now'))
+);
+
+-- What you currently own (linked to accounts)
 CREATE TABLE IF NOT EXISTS positions (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker     TEXT NOT NULL,
     exchange   TEXT DEFAULT 'US',
     platform   TEXT DEFAULT 'unknown',
+    account_id TEXT REFERENCES accounts(id),
     quantity   INTEGER NOT NULL,
     avg_cost   REAL NOT NULL,
     entry_date TEXT NOT NULL,
@@ -16,6 +31,35 @@ CREATE TABLE IF NOT EXISTS positions (
     notes      TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Spread bet positions (separate P&L bucket — not mixed with delivery positions)
+CREATE TABLE IF NOT EXISTS spreadbet_positions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id     TEXT NOT NULL REFERENCES accounts(id),
+    ticker         TEXT NOT NULL,
+    direction      TEXT NOT NULL CHECK(direction IN ('long','short')),
+    stake_per_point REAL NOT NULL,
+    entry_price    REAL NOT NULL,
+    entry_date     TEXT NOT NULL,
+    stop_price     REAL,
+    target_price   REAL,
+    current_price  REAL,
+    pnl_gbp        REAL,
+    notes          TEXT,
+    status         TEXT DEFAULT 'open' CHECK(status IN ('open','closed')),
+    created_at     TEXT DEFAULT (datetime('now')),
+    updated_at     TEXT DEFAULT (datetime('now'))
+);
+
+-- Account balance history (for manual/savings accounts tracked outside hledger)
+CREATE TABLE IF NOT EXISTS account_balances (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id  TEXT NOT NULL REFERENCES accounts(id),
+    balance     REAL NOT NULL,
+    date        TEXT NOT NULL,
+    note        TEXT,
+    created_at  TEXT DEFAULT (datetime('now'))
 );
 
 -- Trade log (buy/sell actions)
@@ -95,3 +139,6 @@ CREATE INDEX IF NOT EXISTS idx_signals_date ON signals(date);
 CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status);
 CREATE INDEX IF NOT EXISTS idx_analyses_ticker_date ON analyses(ticker, date);
 CREATE INDEX IF NOT EXISTS idx_trades_position ON trades(position_id);
+CREATE INDEX IF NOT EXISTS idx_sb_account ON spreadbet_positions(account_id);
+CREATE INDEX IF NOT EXISTS idx_sb_status ON spreadbet_positions(status);
+CREATE INDEX IF NOT EXISTS idx_ab_account ON account_balances(account_id);

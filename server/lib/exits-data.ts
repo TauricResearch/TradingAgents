@@ -23,7 +23,7 @@ export async function buildExitStatuses(): Promise<ExitStatus[]> {
 
   const plans = loadAllPlans()
   const unique = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
-  const script = join(findProjectRoot(), "scripts", "get_price.py")
+  const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
 
   // Fetch in parallel batches (4 at a time)
   const BATCH_SIZE = 4

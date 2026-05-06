@@ -88,7 +88,7 @@ export async function fetchPriceForTicker(ticker: string): Promise<PriceResult> 
   }
 
   return new Promise((resolve) => {
-    const script = join(findProjectRoot(), "scripts", "get_price.py")
+    const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
     const child = spawn("python3", [script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
       timeout: 12_000,

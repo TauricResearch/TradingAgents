@@ -28,7 +28,7 @@ pricesRouter.get("/:ticker", async (c) => {
   const ticker = c.req.param("ticker")
 
   const root = findProjectRoot()
-  const script = join(root, "scripts", "get_price.py")
+  const script = join(root, "scripts", "py", "get_price.py")
 
   const result = await runPython(script, ticker)
 
@@ -69,7 +69,7 @@ pricesRouter.post("/batch", async (c) => {
   const results = await Promise.all(
     tickers.map(async (t) => {
       const root = findProjectRoot()
-      const script = join(root, "scripts", "get_price.py")
+      const script = join(root, "scripts", "py", "get_price.py")
       return (await runPython(script, t)) ?? { ticker: t, price: null, error: "lookup failed" }
     }),
   )

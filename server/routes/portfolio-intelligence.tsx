@@ -21,8 +21,13 @@ intelligenceRouter.get("/", async (c) => {
         positions_count: data.positions_count,
       },
       fx_rates: data.fx_rates,
+      allocation_bar: data.allocation_bar,
+      cash_breakdown: data.cash_breakdown,
+      accounts: data.accounts,
       platforms: data.platforms,
       asset_classes: data.asset_classes,
+      spreadbets: data.spreadbets,
+      research_queue: data.research_queue,
       governance: data.governance,
     })
   } catch (e: unknown) {

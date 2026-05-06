@@ -19,6 +19,7 @@ import { benchmarkRouter } from "./routes/benchmark.tsx";
 import { feedbackRouter } from "./routes/feedback.tsx";
 import { workflowRouter } from "./routes/workflow.tsx";
 import { intelligenceRouter } from "./routes/portfolio-intelligence.tsx";
+import { portfolioBalanceRouter } from "./routes/portfolio-balance.ts";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -64,6 +65,22 @@ try {
   );
 } catch {
   // Column already exists — safe to ignore
+}
+
+// Migration: add account_id column to positions if missing
+try {
+  DatabaseFactory.get().exec(
+    "ALTER TABLE positions ADD COLUMN account_id TEXT REFERENCES accounts(id)",
+  );
+} catch {
+  // Column already exists — safe to ignore
+}
+
+// Migration: add positions account index if missing
+try {
+  DatabaseFactory.get().exec("CREATE INDEX idx_positions_account ON positions(account_id)");
+} catch {
+  // Index already exists — safe to ignore
 }
 
 app.get("/health", (c) => {
@@ -139,6 +156,7 @@ app.route("/api/benchmark", benchmarkRouter);
 app.route("/api/feedback", feedbackRouter);
 app.route("/api/workflow", workflowRouter);
 app.route("/api/portfolio/intelligence", intelligenceRouter);
+app.route("/api/portfolio/balance", portfolioBalanceRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
 import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.ts";

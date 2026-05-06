@@ -341,7 +341,7 @@ export async function handlePortfolioSummaryHtml(c: Context): Promise<Response> 
 async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceData>> {
   const results = new Map<string, PriceData>()
   const root = findProjectRoot()
-  const script = join(root, "scripts", "get_price.py")
+  const script = join(root, "scripts", "py", "get_price.py")
 
   // Fetch in parallel, one at a time (yfinance is the bottleneck)
   const fetches = tickers.map(
