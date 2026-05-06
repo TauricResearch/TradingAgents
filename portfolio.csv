@@ -1,0 +1,5 @@
+ticker,quantity,average_cost,market_value,target_weight,notes
+AAPL,10,150,2000,0.25,core holding
+MSFT,8,300,3200,0.25,core holding
+NVDA,2,900,2200,0.20,growth candidate
+AMAT,,,0,0.10,watchlist candidate

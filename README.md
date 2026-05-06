@@ -201,6 +201,18 @@ tradingagents batch \
 
 Batch CSV and JSON inputs must include `ticker` and may include `quantity`, `average_cost`, `market_value`, `target_weight`, and `notes`. Each ticker gets its own report bundle, and the batch directory also includes `batch_summary.md`, `batch_summary.html`, and `batch_results.json`.
 
+Generate a portfolio allocation plan from the batch results:
+
+```bash
+tradingagents batch --input portfolio.csv --cash 2500 --allocate
+tradingagents batch --tickers AAPL,MSFT,NVDA --cash 5000 --allocate --dry-run
+tradingagents batch --input portfolio.csv --cash 5000 --allocate --max-position-weight 0.20 --min-cash-weight 0.05
+```
+
+Allocation mode ranks successful ticker analyses, computes current and target portfolio weights, sizes whole-share buy/sell deltas when prices can be derived from `market_value / quantity`, and keeps uninvestable remainder as leftover cash. `--dry-run` prints planned paper orders only; it does not submit broker orders. Allocation outputs are generated research tooling, not financial advice.
+
+When `--allocate` is enabled, the batch output directory also includes `allocation_plan.md`, `allocation_plan.html`, and `allocation_plan.json`.
+
 The same setup can live in the `.env` file instead - this example uses groq:
 
 ```bash
