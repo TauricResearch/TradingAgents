@@ -12,9 +12,8 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
+import { llm } from "./lib/llm.ts"
 
-const API_KEY = process.env.OPENROUTER_API_KEY ?? ""
-const API_URL = "https://openrouter.ai/api/v1/chat/completions"
 const MODEL = "google/gemini-2.5-flash-lite-preview-09-2025"
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -46,39 +45,19 @@ Output ONLY a valid JSON array. No markdown, no prose, no code blocks. Example:
 // ── API call ────────────────────────────────────────────────────────────────
 
 async function callLlm(prompt: string): Promise<string> {
-  if (!API_KEY) {
-    throw new Error("OPENROUTER_API_KEY not set")
-  }
-
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://github.com/pjsvis/TradingAgents",
-      "X-Title": "TradingAgents PR Summarizer",
-    },
-    body: JSON.stringify({
+  return llm(
+    [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+    {
       model: MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ],
       temperature: 0.2,
-      max_tokens: 4000,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`OpenRouter ${res.status}: ${err}`)
-  }
-
-  const data = (await res.json()) as {
-    choices: Array<{ message: { content: string } }>
-  }
-
-  return data.choices[0]?.message?.content ?? ""
+      maxTokens: 4000,
+      title: "TradingAgents PR Summarizer",
+      referer: "https://github.com/pjsvis/TradingAgents",
+    },
+  )
 }
 
 // ── Markdown generation ───────────────────────────────────────────────────

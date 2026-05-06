@@ -17,10 +17,10 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { llm } from "./lib/llm.ts"
 
 const LOGS_DIR = process.env.TRADINGAGENTS_RESULTS_DIR ?? join(homedir(), ".tradingagents", "logs")
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 const MODEL = process.env.SUMMARY_MODEL ?? "openai/gpt-4.4-mini"
 
 const SYSTEM_PROMPT = `You are a financial analyst explaining trading decisions in plain English.
@@ -96,42 +96,18 @@ async function generateSummary(
   ticker: string,
   date: string,
 ): Promise<SummaryResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in .env")
-
   const userPrompt =
     `Analyse this trading decision for ${ticker} on ${date}.\n\n` +
     `Decision:\n${decision.slice(0, 2000)}\n\n` +
     `Agent reports:\n${JSON.stringify(reports, null, 2).slice(0, 2000)}`
 
-  const payload = {
-    model: MODEL,
-    messages: [
+  const content = await llm(
+    [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    temperature: 0.3,
-    max_tokens: 800,
-  }
-
-  const res = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  })
-
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`API error ${res.status}: ${body.slice(0, 200)}`)
-  }
-
-  const data = await res.json()
-  const content = data?.choices?.[0]?.message?.content ?? ""
-
-  if (!content) throw new Error("Empty response from LLM")
+    { model: MODEL, temperature: 0.3, maxTokens: 800 },
+  )
 
   try {
     return JSON.parse(content)
