@@ -40,10 +40,11 @@
 
 | File | Function | Lines | Priority |
 |------|----------|-------|----------|
-| `server/routes/portfolio.ts` | `buildPortfolioHtml` | ~90 | P2 — blocks `td-200cbd` |
 | `server/routes/analyses-db.ts` | `buildAnalysisReportHtml` | ~50 | P3 |
 
 No inline JS scripts remain in views. All runtime JS is external `<script src="...">`.
+
+`portfolio.ts` → `portfolio-data.ts` + `portfolio-summary.tsx` extraction DONE (commit 0210257).
 
 ---
 
