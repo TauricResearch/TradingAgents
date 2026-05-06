@@ -233,6 +233,7 @@ def select_llm_provider() -> tuple[str, str | None]:
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("Claude Code (subscription, no API key)", "claude_code", None),
+        ("Gemini CLI (subscription, no API key)", "gemini_cli", None),
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),

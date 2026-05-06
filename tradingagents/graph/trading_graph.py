@@ -160,6 +160,12 @@ class TradingAgentsGraph:
             if self.config.get("claude_code_force_subscription"):
                 kwargs["force_subscription"] = True
 
+        elif provider == "gemini_cli":
+            if self.config.get("gemini_cli_yolo"):
+                kwargs["yolo"] = True
+            if self.config.get("gemini_cli_force_subscription"):
+                kwargs["force_subscription"] = True
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
