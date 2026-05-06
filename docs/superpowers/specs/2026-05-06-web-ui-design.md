@@ -105,8 +105,9 @@ All agent status events use `"in_progress"` (not `"active"`) to match the existi
 {"type": "stats", "llm_calls": 14, "tool_calls": 31, "tokens_in": 48000, "tokens_out": 12000, "elapsed_seconds": 222}
 
 // Analysis complete — decision is the result of graph.process_signal(final_state["final_trade_decision"])
-// which returns a normalised string e.g. "BUY", "SELL", or "HOLD"
-{"type": "complete", "decision": "BUY"}
+// which returns a Title-cased string from the 5-tier scale defined in tradingagents/agents/utils/rating.py:
+// "Buy", "Overweight", "Hold", "Underweight", "Sell"
+{"type": "complete", "decision": "Buy"}
 
 // Error
 {"type": "error", "message": "API key not found for provider 'anthropic'"}
@@ -230,7 +231,12 @@ Teams are separated by a `›` divider. Right side: live stats (LLM calls, tool 
 - Section headers: section title + "Completed" badge
 - Content rendered as Markdown (react-markdown)
 - While a section has not yet arrived, no placeholder is shown — the feed simply grows as events come in
-- After the `complete` event, a decision banner appears at the bottom: `BUY` (green) / `HOLD` (amber) / `SELL` (red)
+- After the `complete` event, a decision banner appears at the bottom showing the 5-tier rating from `rating.py`:
+  - `Buy` → green
+  - `Overweight` → teal
+  - `Hold` → amber
+  - `Underweight` → orange
+  - `Sell` → red
 
 ### Tab 2 — Settings
 
