@@ -1,6 +1,7 @@
 /** @jsxImportSource hono/jsx */
 
 import { Hono } from "hono"
+import { cfg } from "../lib/settings.ts"
 import {
   computePeriodReturns,
   fetchBenchmarkPrices,
@@ -13,7 +14,7 @@ export const benchmarkRouter = new Hono()
 /** GET /api/benchmark — portfolio vs. benchmark returns */
 benchmarkRouter.get("/", async (c) => {
   try {
-    const benchmark = c.req.query("ticker") || process.env.BENCHMARK || "VWCE.DE"
+    const benchmark = c.req.query("ticker") || cfg.app.benchmarkTicker
     const { total: portfolioValue } = await getLivePortfolioValue()
     const prices = await fetchBenchmarkPrices(benchmark)
     const periodReturns = computePeriodReturns(prices, portfolioValue)
@@ -42,7 +43,7 @@ benchmarkRouter.get("/", async (c) => {
 /** GET /api/benchmark/table — portfolio vs. benchmark as HTML for HTMX */
 benchmarkRouter.get("/table", async (c) => {
   try {
-    const benchmark = c.req.query("ticker") || process.env.BENCHMARK || "VWCE.DE"
+    const benchmark = c.req.query("ticker") || cfg.app.benchmarkTicker
     const { total: portfolioValue } = await getLivePortfolioValue()
     const prices = await fetchBenchmarkPrices(benchmark)
     const periodReturns = computePeriodReturns(prices, portfolioValue)
