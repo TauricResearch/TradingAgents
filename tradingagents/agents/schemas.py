@@ -14,14 +14,20 @@ so that:
 - A render helper turns the parsed Pydantic instance back into the same
   markdown shape the rest of the system already consumes, so display,
   memory log, and saved reports keep working unchanged
+
+Phase-2 (Kalshi pivot) adds ``MarketDecision`` for the Portfolio Manager —
+the canonical shape for prediction-market bets (probability + edge +
+Kelly stake). The legacy ``PortfolioDecision`` / ``ResearchPlan`` /
+``TraderProposal`` schemas remain available for the non-PM agents and
+for tests that still reference them.
 """
 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, confloat
 
 
 # ---------------------------------------------------------------------------
@@ -225,4 +231,142 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
         parts.extend(["", f"**Price Target**: {decision.price_target}"])
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Portfolio Manager — Kalshi prediction-market decision
+# ---------------------------------------------------------------------------
+
+
+class MarketSide(str, Enum):
+    """Which side of a binary Kalshi contract to take."""
+
+    YES = "YES"
+    NO = "NO"
+    PASS = "PASS"
+
+
+class Confidence(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class MarketDecision(BaseModel):
+    """Portfolio Manager's final call on a Kalshi prediction-market contract.
+
+    The decision pins (a) the agent committee's probability estimate for YES,
+    (b) the venue's currently-implied probability, (c) the edge between them
+    in basis points, (d) which side to take (or PASS), (e) confidence band,
+    and (f) the recommended Kelly fraction of bankroll for the stake.
+    Prose fields capture the institutional-grade reasoning that the
+    Sophistication-arbitrage thesis depends on.
+    """
+
+    p_yes: confloat(ge=0.0, le=1.0) = Field(
+        description=(
+            "Agent committee's probability estimate that the YES side resolves true. "
+            "Range [0, 1]. Anchor in the analysts' debate; do not round to a "
+            "comfortable round number — explicit probabilities sharpen edge "
+            "estimation and Kelly sizing."
+        ),
+    )
+    market_p_yes: confloat(ge=0.0, le=1.0) = Field(
+        description=(
+            "Kalshi-implied probability for YES at decision time, sourced from "
+            "the get_kalshi_market tool (typically the YES bid/ask midpoint)."
+        ),
+    )
+    edge_bps: float = Field(
+        description=(
+            "Signed edge against the market in basis points: "
+            "(p_yes - market_p_yes) * 10000. Positive favors YES, negative favors NO."
+        ),
+    )
+    recommended_side: MarketSide = Field(
+        description=(
+            "Which side to take. Use PASS when the |edge| is too small to justify "
+            "the risk given confidence — explicit no-trade is a valid output."
+        ),
+    )
+    confidence: Confidence = Field(
+        description=(
+            "Confidence band on the p_yes estimate. Reserve 'high' for cases where "
+            "the analyst committee converged tightly with multiple corroborating "
+            "signals; default to 'medium' on contested debates."
+        ),
+    )
+    kelly_fraction: confloat(ge=0.0, le=1.0) = Field(
+        description=(
+            "Fractional Kelly stake size as a share of bankroll, in [0, 1]. "
+            "Use a fractional-Kelly multiplier (typically 0.25x full Kelly) so "
+            "stake variance stays manageable. PASS decisions emit 0.0."
+        ),
+    )
+    executive_summary: str = Field(
+        description=(
+            "Two- to four-sentence punch-line: the call, the edge, the "
+            "stake size, and the single biggest reason this is right."
+        ),
+    )
+    investment_thesis: str = Field(
+        description=(
+            "Detailed reasoning anchored in specific evidence from the "
+            "analyst committee. Cite the technical, news, sentiment, and "
+            "on-chain reports by name where they support the conclusion. "
+            "If past-context lessons are present in the prompt, weave them in."
+        ),
+    )
+    key_risks: str = Field(
+        description=(
+            "What would invalidate this thesis: the specific event, level, "
+            "or signal that, if it materializes, should make us close the "
+            "position or wish we hadn't taken it."
+        ),
+    )
+
+
+def render_market_decision(decision: MarketDecision) -> str:
+    """Render a MarketDecision to the markdown shape the rest of the system consumes.
+
+    The PM previously produced ``**Rating**: ...`` lines that signal_processor
+    and the memory log parsed; this rendering preserves that contract while
+    surfacing the prediction-market-specific fields (p_yes, edge, side,
+    Kelly stake) prominently. The leading "Rating" line maps the binary
+    side into the existing 5-tier rating vocabulary so downstream parsers
+    keep working without modification:
+
+    - ``YES`` with confidence high      -> Buy
+    - ``YES`` with confidence medium    -> Overweight
+    - ``NO``  with confidence high      -> Sell
+    - ``NO``  with confidence medium    -> Underweight
+    - ``PASS`` or low confidence         -> Hold
+    """
+    side = decision.recommended_side
+    conf = decision.confidence
+
+    if side == MarketSide.PASS or conf == Confidence.LOW:
+        rating_label = "Hold"
+    elif side == MarketSide.YES:
+        rating_label = "Buy" if conf == Confidence.HIGH else "Overweight"
+    else:
+        rating_label = "Sell" if conf == Confidence.HIGH else "Underweight"
+
+    parts = [
+        f"**Rating**: {rating_label}",
+        "",
+        f"**Recommended Side**: {side.value}",
+        f"**Confidence**: {conf.value}",
+        f"**p_yes (committee)**: {decision.p_yes:.4f}",
+        f"**market_p_yes (Kalshi)**: {decision.market_p_yes:.4f}",
+        f"**edge_bps**: {decision.edge_bps:+.1f}",
+        f"**Kelly fraction**: {decision.kelly_fraction:.4f}",
+        "",
+        f"**Executive Summary**: {decision.executive_summary}",
+        "",
+        f"**Investment Thesis**: {decision.investment_thesis}",
+        "",
+        f"**Key Risks**: {decision.key_risks}",
+    ]
     return "\n".join(parts)

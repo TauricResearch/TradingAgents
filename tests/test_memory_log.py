@@ -5,7 +5,13 @@ import pandas as pd
 from unittest.mock import MagicMock, patch
 
 from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
+from tradingagents.agents.schemas import (
+    Confidence,
+    MarketDecision,
+    MarketSide,
+    PortfolioDecision,
+    PortfolioRating,
+)
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.propagation import Propagator
@@ -77,21 +83,27 @@ def _make_pm_state(past_context=""):
         "market_report": "Market report.",
         "sentiment_report": "Sentiment report.",
         "news_report": "News report.",
-        "fundamentals_report": "Fundamentals report.",
+        "on_chain_report": "On-chain report.",
         "investment_plan": "Research plan.",
         "trader_investment_plan": "Trader plan.",
     }
 
 
-def _structured_pm_llm(captured: dict, decision: PortfolioDecision | None = None):
+def _structured_pm_llm(captured: dict, decision: MarketDecision | None = None):
     """Build a MagicMock LLM whose with_structured_output binding captures the
-    prompt and returns a real PortfolioDecision (so render_pm_decision works).
+    prompt and returns a real MarketDecision (so render_market_decision works).
     """
     if decision is None:
-        decision = PortfolioDecision(
-            rating=PortfolioRating.HOLD,
-            executive_summary="Hold the position; await catalyst.",
+        decision = MarketDecision(
+            p_yes=0.50,
+            market_p_yes=0.50,
+            edge_bps=0.0,
+            recommended_side=MarketSide.PASS,
+            confidence=Confidence.LOW,
+            kelly_fraction=0.0,
+            executive_summary="No edge; stand down.",
             investment_thesis="Balanced view; neither side carried the debate.",
+            key_risks="Edge could appear if regulatory catalyst lands intraday.",
         )
     structured = MagicMock()
     structured.invoke.side_effect = lambda prompt: (
@@ -529,26 +541,39 @@ class TestPortfolioManagerInjection:
         assert "Lessons from prior decisions" not in captured["prompt"]
 
     def test_pm_returns_rendered_markdown_with_rating(self):
-        """The structured PortfolioDecision is rendered to markdown that
+        """The structured MarketDecision is rendered to markdown that
         downstream consumers (memory log, signal processor, CLI display)
-        can parse without any extra LLM call."""
+        can parse without any extra LLM call.
+
+        The render helper maps the binary side+confidence into the
+        existing 5-tier rating vocabulary so the leading ``**Rating**:`` line
+        keeps working with downstream parsers without modification.
+        """
         captured = {}
-        decision = PortfolioDecision(
-            rating=PortfolioRating.OVERWEIGHT,
-            executive_summary="Build position gradually over the next two weeks.",
-            investment_thesis="AI capex cycle remains intact; institutional flows constructive.",
-            price_target=215.0,
-            time_horizon="3-6 months",
+        decision = MarketDecision(
+            p_yes=0.62,
+            market_p_yes=0.55,
+            edge_bps=700.0,
+            recommended_side=MarketSide.YES,
+            confidence=Confidence.MEDIUM,
+            kelly_fraction=0.04,
+            executive_summary="Build YES exposure gradually; 7% edge with medium confidence.",
+            investment_thesis="On-chain accumulation + bullish technicals + sentiment momentum favor YES.",
+            key_risks="A surprise SEC enforcement action could collapse the YES side.",
         )
         llm = _structured_pm_llm(captured, decision)
         pm_node = create_portfolio_manager(llm)
         result = pm_node(_make_pm_state())
         md = result["final_trade_decision"]
+        # Side=YES + confidence=medium maps to the legacy rating "Overweight"
+        # so signal_processor / memory log parsers keep working unchanged.
         assert "**Rating**: Overweight" in md
-        assert "**Executive Summary**: Build position gradually" in md
-        assert "**Investment Thesis**: AI capex cycle" in md
-        assert "**Price Target**: 215.0" in md
-        assert "**Time Horizon**: 3-6 months" in md
+        assert "**Recommended Side**: YES" in md
+        assert "**Confidence**: medium" in md
+        assert "**p_yes (committee)**: 0.6200" in md
+        assert "**edge_bps**: +700.0" in md
+        assert "**Kelly fraction**: 0.0400" in md
+        assert "**Executive Summary**: Build YES exposure" in md
 
     def test_pm_falls_back_to_freetext_when_structured_unavailable(self):
         """If a provider does not support with_structured_output, the agent
@@ -659,7 +684,7 @@ class TestLegacyRemoval:
             "market_report": "",
             "sentiment_report": "",
             "news_report": "",
-            "fundamentals_report": "",
+            "on_chain_report": "",
             "investment_debate_state": {
                 "bull_history": "", "bear_history": "", "history": "",
                 "current_response": "", "judge_decision": "",

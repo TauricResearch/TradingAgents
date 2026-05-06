@@ -1,3 +1,11 @@
+"""NO-side researcher for Kalshi prediction-market contracts.
+
+Re-framed from the equity-era "Bear" researcher: argues that the **NO
+side of the Kalshi contract is mispriced cheap** — i.e., the true
+probability of YES resolving is meaningfully *lower* than the market
+currently implies, so taking NO at the implied price has positive
+expected value.
+"""
 
 
 def create_bear_researcher(llm):
@@ -7,30 +15,31 @@ def create_bear_researcher(llm):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state.get("market_report", "")
+        sentiment_report = state.get("sentiment_report", "")
+        news_report = state.get("news_report", "")
+        on_chain_report = state.get("on_chain_report", "")
+        contract_id = state.get("company_of_interest", "")
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        prompt = f"""You are the NO-side analyst for a Kalshi prediction-market contract: contract `{contract_id}`. Your job is to build a strong, evidence-based case that the **NO side is mispriced cheap** — i.e., the true probability of YES resolving is meaningfully *lower* than the Kalshi market currently implies, so taking NO at the implied price has positive expected value.
 
-Key points to focus on:
+Frame your argument as a probability case, not a market-doom call:
+- What is the strongest evidence the resolution event will not occur?
+- Where is the market overestimating YES probability, and why?
+- What signals — technical, news, sentiment, on-chain — converge on NO?
+- Where is the YES analyst's case weakest? Engage their argument directly.
 
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
-- Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
-- Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
+Your edge over retail traders is institutional-grade synthesis: cite specific data points from the analyst reports, do not hand-wave. If a contrary signal appears in the data, acknowledge it and explain why it does not invalidate the NO case.
 
 Resources available:
-
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
+Market technicals report: {market_research_report}
+Sentiment report (Reddit + CMC): {sentiment_report}
+News report (crypto headlines): {news_report}
+On-chain report (chain flows / mempool): {on_chain_report}
 Conversation history of the debate: {history}
-Last bull argument: {current_response}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock.
+Last YES-side argument: {current_response}
+
+Deliver a compelling NO-side argument, refute the YES analyst's claims, and engage in dynamic debate. Output conversationally, no special formatting.
 """
 
         response = llm.invoke(prompt)

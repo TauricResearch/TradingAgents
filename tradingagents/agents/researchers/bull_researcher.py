@@ -1,3 +1,11 @@
+"""YES-side researcher for Kalshi prediction-market contracts.
+
+Re-framed from the equity-era "Bull" researcher: instead of arguing for
+"the stock will go up", this analyst argues that the **YES side of the
+Kalshi contract is mispriced cheap** — i.e., the market's implied
+probability is below the agent committee's true probability. Symmetric
+counterpart: ``bear_researcher`` argues NO is mispriced cheap.
+"""
 
 
 def create_bull_researcher(llm):
@@ -7,28 +15,31 @@ def create_bull_researcher(llm):
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state.get("market_report", "")
+        sentiment_report = state.get("sentiment_report", "")
+        news_report = state.get("news_report", "")
+        on_chain_report = state.get("on_chain_report", "")
+        contract_id = state.get("company_of_interest", "")
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        prompt = f"""You are the YES-side analyst for a Kalshi prediction-market contract: contract `{contract_id}`. Your job is to build a strong, evidence-based case that the **YES side is mispriced cheap** — i.e., the true probability of YES resolving is meaningfully higher than the Kalshi market currently implies.
 
-Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
-- Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
+Frame your argument as a probability case, not an asset-direction call:
+- What is the strongest evidence that the resolution event will occur?
+- Where is the market underestimating that probability, and why?
+- What signals — technical, news, sentiment, on-chain — converge on YES?
+- Where is the NO analyst's case weakest? Engage their argument directly.
+
+Your edge over retail traders is institutional-grade synthesis: cite specific data points from the analyst reports, do not hand-wave. If a contrary signal appears in the data, acknowledge it and explain why it does not invalidate the YES case.
 
 Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
+Market technicals report: {market_research_report}
+Sentiment report (Reddit + CMC): {sentiment_report}
+News report (crypto headlines): {news_report}
+On-chain report (chain flows / mempool): {on_chain_report}
 Conversation history of the debate: {history}
-Last bear argument: {current_response}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
+Last NO-side argument: {current_response}
+
+Deliver a compelling YES-side argument, refute the NO analyst's concerns, and engage in dynamic debate. Output conversationally, no special formatting.
 """
 
         response = llm.invoke(prompt)

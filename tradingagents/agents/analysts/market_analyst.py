@@ -1,51 +1,58 @@
+"""Market Analyst — BTC technical analysis on Coinbase candles.
+
+Coinbase BTC-USD is the settlement reference for Kalshi BTC daily
+contracts, so the price feed here aligns with how the contract resolves.
+The analyst picks 5–8 complementary indicators across moving averages,
+MACD, RSI, Bollinger, ATR, and VWMA to characterize the daily-horizon
+setup heading into the contract close.
+"""
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_indicators,
     get_language_instruction,
     get_stock_data,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_market_analyst(llm):
-
     def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
-        tools = [
-            get_stock_data,
-            get_indicators,
-        ]
+        tools = [get_stock_data, get_indicators]
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+            """You are the Market Analyst on a Kalshi prediction-market research desk. The contract under analysis settles against the underlying asset (BTC for v1) on the Coinbase BTC-USD index. Your job is to characterize the **daily-horizon technical setup** so the bull/bear researchers can debate whether YES or NO is mispriced.
+
+Select up to **8 complementary indicators** from the following list — avoid redundancy (e.g. don't pick both rsi and stochrsi). Use `get_stock_data` first to load Coinbase OHLCV, then call `get_indicators` once per indicator name.
 
 Moving Averages:
-- close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
-- close_200_sma: 200 SMA: A long-term trend benchmark. Usage: Confirm overall market trend and identify golden/death cross setups. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.
-- close_10_ema: 10 EMA: A responsive short-term average. Usage: Capture quick shifts in momentum and potential entry points. Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals.
+- close_50_sma — medium-term trend; dynamic support/resistance.
+- close_200_sma — long-term benchmark; golden/death-cross signals.
+- close_10_ema — responsive short-term momentum.
 
-MACD Related:
-- macd: MACD: Computes momentum via differences of EMAs. Usage: Look for crossovers and divergence as signals of trend changes. Tips: Confirm with other indicators in low-volatility or sideways markets.
-- macds: MACD Signal: An EMA smoothing of the MACD line. Usage: Use crossovers with the MACD line to trigger trades. Tips: Should be part of a broader strategy to avoid false positives.
-- macdh: MACD Histogram: Shows the gap between the MACD line and its signal. Usage: Visualize momentum strength and spot divergence early. Tips: Can be volatile; complement with additional filters in fast-moving markets.
+MACD family:
+- macd — momentum from EMA differences; crossovers + divergence.
+- macds — signal line; trade triggers vs the macd line.
+- macdh — histogram; visualize momentum strength.
 
-Momentum Indicators:
-- rsi: RSI: Measures momentum to flag overbought/oversold conditions. Usage: Apply 70/30 thresholds and watch for divergence to signal reversals. Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis.
+Momentum:
+- rsi — overbought (>70) / oversold (<30) and divergence.
 
-Volatility Indicators:
-- boll: Bollinger Middle: A 20 SMA serving as the basis for Bollinger Bands. Usage: Acts as a dynamic benchmark for price movement. Tips: Combine with the upper and lower bands to effectively spot breakouts or reversals.
-- boll_ub: Bollinger Upper Band: Typically 2 standard deviations above the middle line. Usage: Signals potential overbought conditions and breakout zones. Tips: Confirm signals with other tools; prices may ride the band in strong trends.
-- boll_lb: Bollinger Lower Band: Typically 2 standard deviations below the middle line. Usage: Indicates potential oversold conditions. Tips: Use additional analysis to avoid false reversal signals.
-- atr: ATR: Averages true range to measure volatility. Usage: Set stop-loss levels and adjust position sizes based on current market volatility. Tips: It's a reactive measure, so use it as part of a broader risk management strategy.
+Volatility:
+- boll — Bollinger middle (20 SMA).
+- boll_ub — upper band (overbought / breakout zones).
+- boll_lb — lower band (oversold / capitulation zones).
+- atr — Average True Range for stop placement and stake risk math.
 
-Volume-Based Indicators:
-- vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
+Volume:
+- vwma — volume-weighted moving average; trend-confirmation with flow.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+Use the exact indicator names above when calling `get_indicators`. Write a detailed, nuanced report tying each indicator's reading to a directional implication for the contract under analysis. Highlight conflicting signals where they exist — institutional-grade analysis is honest about ambiguity."""
+            + " Append a Markdown table at the end summarizing the indicators, their latest values, and the implied directional bias."
             + get_language_instruction()
         )
 
@@ -53,13 +60,12 @@ Volume-Based Indicators:
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    "You are a helpful AI assistant collaborating with other analysts on a Kalshi "
+                    "prediction-market research desk. Use the provided tools to progress towards "
+                    "answering the question. If you or any other assistant has the FINAL TRANSACTION "
+                    "PROPOSAL: **YES/NO/PASS** or deliverable, prefix your response with FINAL "
+                    "TRANSACTION PROPOSAL: **YES/NO/PASS** so the team knows to stop. "
+                    "You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
@@ -76,7 +82,6 @@ Volume-Based Indicators:
         result = chain.invoke(state["messages"])
 
         report = ""
-
         if len(result.tool_calls) == 0:
             report = result.content
 

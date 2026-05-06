@@ -23,15 +23,18 @@ from tradingagents.agents.utils.agent_states import (
 )
 from tradingagents.dataflows.config import set_config
 
-# Placeholder analyst tools — Phase 1 replaces these with crypto/Kalshi
-# implementations (Coinbase OHLCV, Kalshi market data, crypto news, Reddit
-# + CMC sentiment, on-chain). The names are kept stable so the analyst
-# factories continue to import them while data layer work is in flight.
+# Analyst tool surface (Phase 1 implementations on Coinbase / RSS /
+# Reddit / CMC / on-chain free sources). Kept centralized here so the
+# tool nodes stay in lockstep with what the analyst factories import.
 from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
-    get_news,
+    get_cmc_sentiment,
     get_global_news,
+    get_indicators,
+    get_kalshi_market,
+    get_news,
+    get_onchain_metrics,
+    get_reddit_sentiment,
+    get_stock_data,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -154,10 +157,9 @@ class TradingAgentsGraph:
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for analyst slots.
 
-        Phase 1 replaces the placeholder tool functions with the real
-        crypto/Kalshi implementations and adds the on-chain slot. Until
-        then, ``onchain`` is intentionally absent here so the graph
-        setup quietly skips it.
+        Each analyst node has a dedicated ToolNode that exposes only the
+        tools that analyst is supposed to call. Keeping the surfaces narrow
+        prevents the model from drifting into tools owned by another role.
         """
         return {
             "market": ToolNode(
@@ -168,13 +170,20 @@ class TradingAgentsGraph:
             ),
             "social": ToolNode(
                 [
-                    get_news,
+                    get_reddit_sentiment,
+                    get_cmc_sentiment,
                 ]
             ),
             "news": ToolNode(
                 [
                     get_news,
                     get_global_news,
+                ]
+            ),
+            "onchain": ToolNode(
+                [
+                    get_onchain_metrics,
+                    get_kalshi_market,
                 ]
             ),
         }
