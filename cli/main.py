@@ -4,7 +4,8 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypedDict, cast
+import textwrap
 
 import typer
 from dotenv import load_dotenv
@@ -998,6 +999,98 @@ def format_chart_section(artifacts: list[ChartArtifact], save_path: Path) -> str
     return "\n".join(lines)
 
 
+def write_pdf_report(
+    markdown_text: str,
+    pdf_path: Path,
+    *,
+    title: str,
+    report_metadata: dict[str, str] | None = None,
+    chart_artifacts: list[ChartArtifact] | None = None,
+) -> Path:
+    """Write a lightweight PDF report with text, metadata, and chart pages."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.image as mpimg
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    chart_artifacts = chart_artifacts or []
+
+    with PdfPages(pdf_path) as pdf:
+        info = pdf.infodict()
+        info["Title"] = title
+        info["Subject"] = "TradingAgents analysis report"
+        info["Creator"] = "TradingAgents"
+        if report_metadata:
+            info["Keywords"] = "; ".join(f"{key}: {value}" for key, value in report_metadata.items())
+
+        for page in _pdf_text_pages(markdown_text, title):
+            fig = plt.figure(figsize=(8.5, 11))
+            fig.patch.set_facecolor("white")
+            fig.text(0.07, 0.95, page["header"], fontsize=14, fontweight="bold", va="top")
+            fig.text(
+                0.07,
+                0.90,
+                page["body"],
+                fontsize=9,
+                family="monospace",
+                va="top",
+                linespacing=1.25,
+            )
+            fig.text(0.5, 0.03, f"Page {page['number']}", fontsize=8, ha="center", color="#666666")
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+        for artifact in chart_artifacts:
+            if not artifact.path.exists():
+                continue
+            try:
+                image = mpimg.imread(artifact.path)
+            except Exception:
+                continue
+            fig, ax = plt.subplots(figsize=(11, 8.5))
+            fig.patch.set_facecolor("white")
+            ax.imshow(image)
+            ax.axis("off")
+            fig.suptitle(artifact.title, fontsize=14, fontweight="bold")
+            fig.text(0.5, 0.04, artifact.description, ha="center", va="bottom", fontsize=9, wrap=True)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+    return pdf_path
+
+
+class PdfTextPage(TypedDict):
+    number: int
+    header: str
+    body: str
+
+
+def _pdf_text_pages(markdown_text: str, title: str) -> list[PdfTextPage]:
+    wrapped_lines: list[str] = []
+    for raw_line in markdown_text.splitlines():
+        if not raw_line:
+            wrapped_lines.append("")
+            continue
+        wrapped = textwrap.wrap(raw_line, width=96, replace_whitespace=False) or [raw_line]
+        wrapped_lines.extend(wrapped)
+
+    lines_per_page = 58
+    pages: list[PdfTextPage] = []
+    for start in range(0, len(wrapped_lines), lines_per_page):
+        body = "\n".join(wrapped_lines[start:start + lines_per_page])
+        pages.append({
+            "number": len(pages) + 1,
+            "header": title,
+            "body": body,
+        })
+    if not pages:
+        pages.append({"number": 1, "header": title, "body": ""})
+    return pages
+
+
 def save_report_to_disk(
     final_state,
     ticker: str,
@@ -1007,6 +1100,7 @@ def save_report_to_disk(
     """Save complete analysis report to disk with organized subfolders."""
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
+    chart_artifacts: list[ChartArtifact] = []
 
     symbol = final_state.get("company_of_interest") or ticker
     trade_date = final_state.get("trade_date")
@@ -1104,6 +1198,13 @@ def save_report_to_disk(
     markdown_path.write_text(complete_report, encoding="utf-8")
     html = render_markdown_report_html(complete_report, f"Trading Analysis Report: {ticker}")
     (save_path / "complete_report.html").write_text(html, encoding="utf-8")
+    write_pdf_report(
+        complete_report,
+        save_path / "complete_report.pdf",
+        title=f"Trading Analysis Report: {ticker}",
+        report_metadata=report_metadata,
+        chart_artifacts=chart_artifacts,
+    )
     return markdown_path
 
 

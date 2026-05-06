@@ -422,6 +422,26 @@ def test_save_report_to_disk_includes_llm_metadata_in_markdown_and_html(tmp_path
     assert "<strong>Deep Model</strong>: mercury-pro" in html
 
 
+def test_save_report_to_disk_writes_complete_pdf(tmp_path):
+    final_state = {
+        "market_report": "market **details**",
+        "sentiment_report": "",
+        "news_report": "",
+        "fundamentals_report": "",
+    }
+
+    cli.main.save_report_to_disk(
+        final_state,
+        "SPY",
+        tmp_path,
+        report_metadata={"LLM Provider": "openai"},
+    )
+
+    pdf_path = tmp_path / "complete_report.pdf"
+    assert pdf_path.exists()
+    assert pdf_path.read_bytes().startswith(b"%PDF")
+
+
 def test_save_report_to_disk_embeds_technical_charts(monkeypatch, tmp_path):
     final_state = {
         "company_of_interest": "SPY",
@@ -462,6 +482,53 @@ def test_save_report_to_disk_embeds_technical_charts(monkeypatch, tmp_path):
     assert "img {" in html
     assert "max-width: 100%;" in html
     assert "height: auto;" in html
+
+
+def test_save_report_to_disk_passes_charts_and_metadata_to_pdf_writer(monkeypatch, tmp_path):
+    final_state = {
+        "company_of_interest": "SPY",
+        "trade_date": "2026-05-01",
+        "market_report": "market",
+        "sentiment_report": "",
+        "news_report": "",
+        "fundamentals_report": "",
+    }
+    captured = {}
+
+    def fake_generate_report_charts(symbol, trade_date, save_path):
+        chart_path = save_path / "charts" / "technical-analysis.png"
+        return [
+            cli.main.ChartArtifact(
+                title="SPY Technical Analysis",
+                path=chart_path,
+                description="Price, volume, MACD, Bollinger Bands, and RSI.",
+            )
+        ]
+
+    def fake_write_pdf_report(markdown_text, pdf_path, *, title, report_metadata, chart_artifacts):
+        captured["markdown_text"] = markdown_text
+        captured["pdf_path"] = pdf_path
+        captured["title"] = title
+        captured["report_metadata"] = report_metadata
+        captured["chart_artifacts"] = chart_artifacts
+        pdf_path.write_bytes(b"%PDF fake")
+        return pdf_path
+
+    monkeypatch.setattr(cli.main, "generate_report_charts", fake_generate_report_charts)
+    monkeypatch.setattr(cli.main, "write_pdf_report", fake_write_pdf_report)
+
+    cli.main.save_report_to_disk(
+        final_state,
+        "SPY",
+        tmp_path,
+        report_metadata={"LLM Provider": "openai", "Deep Model": "gpt-5.4"},
+    )
+
+    assert captured["pdf_path"] == tmp_path / "complete_report.pdf"
+    assert captured["title"] == "Trading Analysis Report: SPY"
+    assert captured["report_metadata"] == {"LLM Provider": "openai", "Deep Model": "gpt-5.4"}
+    assert [artifact.title for artifact in captured["chart_artifacts"]] == ["SPY Technical Analysis"]
+    assert "## Technical Charts" in captured["markdown_text"]
 
 
 def test_save_report_flag_uses_default_path_without_prompt(monkeypatch, tmp_path):
