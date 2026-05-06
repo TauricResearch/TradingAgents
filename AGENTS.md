@@ -33,6 +33,17 @@ td handoff <id1>
 
 ---
 
+## MANDATORY: Language Preference
+
+This codebase is **primarily a Bun/TypeScript house.**
+
+- **Dashboard/server work** (routes, views, scripts, tooling): **TypeScript with Bun only.**
+- **Python is reserved for:** the `tradingagents/` core package, the CLI entry point (`cli/main.py`), and the bridge script (`scripts/py/analyze_stream.py`).
+- **No Python for auxiliary tasks.** Do not reach for Python for one-off conversions, data transforms, or code-generation scripts. Use `bun -e "..."`, a `.ts` script in `scripts/`, or a throwaway `.ts` file instead.
+- **Never add a Python dependency** to solve a problem that a 20-line TypeScript snippet or an npm package can handle.
+
+---
+
 ## MANDATORY: Project Identity
 
 This repo contains **two distinct systems** sharing one codebase:

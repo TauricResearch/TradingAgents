@@ -22,7 +22,7 @@ Not all TypeScript needs the same rigor. Different tiers have different:
 
 ### Tier 2: `tsconfig.json` (Production)
 
-Full strict mode for `src/`:
+Full strict mode for `server/` (or `src/` if your project uses that convention):
 
 ```json
 {
@@ -39,12 +39,15 @@ Full strict mode for `src/`:
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "types": ["bun"]  // ← Bun runtime: import.meta.dir, bun:sqlite, etc.
   }
 }
 ```
 
-**When to use:** `src/**/*.ts` — production code that ships.
+**When to use:** `server/**/*.ts` (or `src/**/*.ts`) — production code that ships.
+
+**Bun types:** `"types": ["bun"]` loads `@types/bun`, which extends `ImportMeta` with Bun-specific properties (`dir`, `file`, `path`, etc.) and declares modules like `bun:sqlite`. Without this, `tsc` will error on `import.meta.dir` and `import { Database } from "bun:sqlite"`.
 
 ---
 

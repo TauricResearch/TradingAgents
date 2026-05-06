@@ -60,6 +60,11 @@ check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
 
+# Convert :root hex palette to oklch() (preserves original hex in comments)
+[group("bun")]
+convert-hex-oklch:
+    bun scripts/color-tools/convert-hex-to-oklch.ts
+
 # Format all files with Biome
 [group("bun")]
 format:

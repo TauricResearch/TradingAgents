@@ -4,21 +4,21 @@ import type { Context } from "hono";
 import type { JSX } from "hono/jsx";
 import { serveStatic } from "hono/bun";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { DatabaseFactory } from "./lib/db.ts";
 import { portfolioRouter } from "./routes/portfolio.ts";
 import { analysisRouter } from "./routes/analysis.ts";
-import { signalsRouter } from "./routes/signals.ts";
+import { signalsRouter } from "./routes/signals.tsx";
 import { pricesRouter } from "./routes/prices.ts";
 import { analysesRouter } from "./routes/analyses/index.ts";
 import { holdingsRouter } from "./routes/holdings.tsx";
-import { exitsRouter } from "./routes/exits.ts";
-import { prospectsRouter } from "./routes/prospects.ts";
-import { governanceRouter } from "./routes/governance.ts";
-import { benchmarkRouter } from "./routes/benchmark.ts";
-import { feedbackRouter } from "./routes/feedback.ts";
-import { workflowRouter } from "./routes/workflow.ts";
-import { intelligenceRouter } from "./routes/portfolio-intelligence.ts";
+import { exitsRouter } from "./routes/exits.tsx";
+import { prospectsRouter } from "./routes/prospects.tsx";
+import { governanceRouter } from "./routes/governance.tsx";
+import { benchmarkRouter } from "./routes/benchmark.tsx";
+import { feedbackRouter } from "./routes/feedback.tsx";
+import { workflowRouter } from "./routes/workflow.tsx";
+import { intelligenceRouter } from "./routes/portfolio-intelligence.tsx";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -114,8 +114,11 @@ app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
 
+const staticDir = resolve(import.meta.dir, "static");
+
 app.use("/static/*", serveStatic({
-  root: "./server/static",
+  root: staticDir,
+  rewriteRequestPath: (path) => path.replace(/^\/static/, ""),
   onFound: (_path, c) => {
     c.header("Cache-Control", "public, max-age=31536000, immutable");
   },

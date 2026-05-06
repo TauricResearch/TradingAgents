@@ -1,34 +1,33 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-05 (end of session)
+**Last updated:** 2026-05-06 (end of session)
 **State:** All checks green. tsc ✓ lint ✓ 15 smoke tests pass.
 
 ---
 
 ## Where We Are
 
-**Completed this session:**
-- `td-b86d5a` DONE ✓ — all 12 views refactored from `dangerouslySetInnerHTML` + template literal strings to JSX `<XxxScript />` components.
-- `td-41713c` DONE ✓ — `analyses.ts` (598 lines) split into 4 files
-- `td-984925` DONE ✓ — `server/lib/types.ts` with `PriceResult`, re-exports from benchmark.ts
-- `td-9dbbac` DONE ✓ — `tests/test_server_lib.py` (10 smoke tests, 11 pass, 2 skip gracefully)
-- `td-c79726` DONE ✓ — standardized error shapes (c.text(404) → c.json, hint on 500)
-- `settings.ts` + `settings.json` — central config module
-- `AGENTS.md` — Working Principles + Known Failure Modes + pointer to current.md
-- `debriefs/plans/current.md` — restart orientation doc
+**Completed this session (2026-05-06):**
 
-**Commit history (recent):**
-```
-1c3afdc fix(errors): standardize error response shape
-c104252 test(server): add test_server_lib.py — smoke tests for routes and lib
-c276941 refactor(types): create server/lib/types.ts with shared interfaces
-fc39811 fix(views): restore refactored workflow, exits, prospects, governance
-```
-391f6e6 refactor(benchmark.tsx): benchmarkScript() → BenchmarkScript JSX component
-f341943 refactor(exits.tsx): exitsScript() → ExitsScript JSX component
-020f1ce refactor(workflow.tsx): workflowScript() → WorkflowScript JSX component
-9498c55 docs(plans): update current.md — td-41713c DONE
-```
+### Epic td-0a1897 DONE ✓ — Route HTML Builders → JSX Components (8 routes)
+- workflow → `workflow-data.ts` + `workflow-kanban.tsx` (390 → 45 lines)
+- exits → `exits-data.ts` + `exit-list.tsx` (120 → 30 lines)
+- signals → `signals-data.ts` + `signals-view.tsx` (460 → 70 lines)
+- portfolio-intelligence → `portfolio-intel-data.ts` + `portfolio-intel.tsx` (520 → 70 lines)
+- governance → `governance-data.ts` + `governance-view.tsx` (227 → 85 lines)
+- prospects → `prospects-data.ts` + `prospects-view.tsx` (226 → 85 lines)
+- feedback → `feedback-data.ts` + `feedback-view.tsx` (411 → 60 lines)
+- benchmark → `benchmark-data.ts` + `benchmark-view.tsx` (275 → 55 lines)
+
+### Previous session fixes also done:
+- Static assets 404 fixed — `serveStatic` with absolute path + `rewriteRequestPath`
+- `/api/analyses/list/html` 404 fixed — DB router mount order before FS router
+- Exits platform badge contrast fixed
+- `:root` hex palette → oklch with original hex in trailing comments
+- Language preference directive added to `AGENTS.md`
+- `tsconfig.json` + `tsconfig.server.json` fixed — `"types": ["bun"]`
+- Last 2 Biome `!` assertion warnings cleaned
+- New tool: `scripts/color-tools/`
 
 ---
 
@@ -36,7 +35,7 @@ f341943 refactor(exits.tsx): exitsScript() → ExitsScript JSX component
 
 **Every session starts:**
 ```bash
-just check          # tsc + lint + (if configured) file-lines
+just check          # tsc + lint
 ```
 
 **Every TD starts:**
@@ -53,57 +52,11 @@ git commit -m "type(scope): what"
 
 ## Priority Order
 
-### 1. Next Up: `td-b86d5a` - JSX View Refactor (13pt, 12 children) ✅ [was: analyses split]
-
-**Why:** 12 views have inline `XXXScript()` template literals. The goal is clean JSX components instead of HTML-in-template-literals. Start with the smallest ones to establish the pattern.
-
-**Children (priority order by size):**
-
-| Order | TD | File | Points | Notes |
-|-------|-----|------|--------|-------|
-| 1 | `td-08850c` | `workflow.tsx` | 1 | 3-line script, no state, pattern baseline |
-| 2 | `td-14e078` | `exits.tsx` | 1 | simple script, no state |
-| 3 | `td-4c401c` | `benchmark.tsx` | 1 | simple script |
-| 4 | `td-8691e1` | `governance.tsx` | 1 | simple script |
-| 5 | `td-281296` | `feedback.tsx` | 1 | small, no state |
-| 6 | `td-ee5419` | `datatype-test.tsx` | 1 | small |
-| 7 | `td-5c015d` | `history.tsx` | 1 | medium - has HTMX, watchlist |
-| 8 | `td-2376f3` | `prospects.tsx` | 1 | medium - stages array |
-| 9 | `td-bd65e0` | `signals.tsx` | 1 | medium |
-| 10 | `td-c4f672` | `intelligence.tsx` | 1 | had the `font-feature-settings` bug - watch carefully |
-| 11 | `td-34a955` | `portfolio.tsx` | 2 | large - had the template-in-template bug |
-| 12 | `td-3dddc1` | `analysis.tsx` | 2 | large - SSE streaming |
-
-**Pattern:** Each refactor replaces:
-```tsx
-function XxxScript(): string {
-  return `<script>...<\/script>`;
-}
-// ...
-<div dangerouslySetInnerHTML={{ __html: XxxScript() }} />
-```
-with a JSX component:
-```tsx
-function XxxScript() {
-  return <script>{`...`}</script>;
-}
-// ...
-<XxxScript />
-```
-
-**One TD per view, one commit per TD, checks green before next.**
-
----
-
-## What's Next: `td-56fd1b` Hygiene (remaining)
+### 1. Next Up: `td-56fd1b` Hygiene (remaining)
 
 - `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router (309 lines)
-- `td-02ccec` — clean up `portfolio-intelligence.ts`: standardize interfaces, remove duplication (376 lines)
-
-**Done this session:**
-- `td-984925` DONE ✓ — `server/lib/types.ts` created with `PriceResult`, `BenchmarkPrice`, `PeriodReturn`
-- `td-9dbbac` DONE ✓ — `tests/test_server_lib.py` (10 smoke tests, 11 pass)
-- `td-c79726` DONE ✓ — standardized error shapes in analyses-fs and analysis routes
+- `td-18e84e` — price freshness badge per ticker in holdings
+- `td-02ccec` — portfolio-intelligence was cleaned in this epic, but `portfolio.ts` still large
 
 ---
 
@@ -115,13 +68,22 @@ function XxxScript() {
 | Modify `biome.json` without running `just lint` immediately | Invalid keys cause total biome failure before any linting | Always validate after config changes |
 | Template literal inside template literal | Backtick-quoted strings inside template literals are syntax errors | Use `String.fromCharCode(34)` for embedded quotes, or restructure |
 | Forward-fix on a broken state | 45 min wasted vs 5 min revert | Revert first |
-| Run `git checkout <old-commit> -- .` after refactor commits | Reverts committed refactors | Never run checkout-to-old-commit after making new commits
+| Run `git checkout <old-commit> -- .` after refactor commits | Reverts committed refactors | Never run checkout-to-old-commit after making new commits |
+| `serveStatic` with relative path + no `rewriteRequestPath` | Double-counts `/static` prefix → 404 | Absolute path + `rewriteRequestPath: (p) => p.replace(/^\/static/, "")` |
+| Mount parameterized router before exact-match router | Greedy `/:ticker/:date` swallows `/list/html` | Exact routes first, parameterized routes last |
+| Duplicate CSS class definitions | Later definition silently overrides earlier | Search before defining; use specific selectors (`.exit-card .platform-tag`) |
+| `tsconfig.json` pointing to non-existent `src/` | TS18003 "No inputs were found" | Match `include` to actual source directory |
+| Missing `"types": ["bun"]` in tsconfig | `import.meta.dir` and `bun:sqlite` unknown to tsc | Add to both `tsconfig.json` and `tsconfig.server.json` |
+| **Route file with JSX retaining `.ts` extension** | Biome parse errors: "expected `>` but instead found `data`" | Rename to `.tsx` before running `just check` |
+| **React-style `style={{...}}` in Hono JSX** | Hono JSX expects `style` as string, not object | Use `style="background:#fff3cd"` (CSS string) |
+| **Extracting JSX before data layer** | Half-extracted state, can't test components | Always extract `lib/{route}-data.ts` first |
+| **`colspan` instead of `colSpan`** | JSX attribute case sensitivity | Use camelCase: `colSpan`, `fontFeatureSettings` |
 
 ---
 
 ## Reference
 
-- Latest debrief: `debriefs/debrief-settings-and-script-extraction-2026-05-05.md`
+- Latest debrief: `debriefs/debrief-epic-route-html-to-jsx-2026-05-06.md`
 - All TDs: `td list`
 - Architecture: `ARCHITECTURE.md`
-- Code rules: `AGENTS.md` → Working Principles section
+- Code rules: `AGENTS.md` → Working Principles + Language Preference sections

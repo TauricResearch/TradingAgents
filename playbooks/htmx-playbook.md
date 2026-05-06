@@ -20,6 +20,110 @@ These patterns are **banned** in `server/views/*.tsx`. The `check-view-scripts.t
 
 ---
 
+## Route HTML Builders → JSX Components
+
+**The rule:** Routes that return HTML via `c.html()` must use JSX components, not string concatenation. No exceptions.
+
+### The three-layer pattern
+
+Every HTML-returning route follows this structure:
+
+```
+server/lib/{route}-data.ts     ← data layer (fetch, transform, cache)
+server/views/{component}.tsx   ← JSX components (presentation only)
+server/routes/{route}.tsx      ← thin route handler (wire data → JSX → response)
+```
+
+### Why JSX over string concat?
+
+| String concat | JSX |
+|--------------|-----|
+| `html += '<div class="' + cls + '">'` | `<div class={cls}>` |
+| Manual `esc()` on every dynamic value | Auto-escaped by compiler |
+| Flat structure — parent/child hidden | Hierarchical — DOM structure visible |
+| Typos in class names caught at runtime | Typos caught by TypeScript |
+| XSS risk on every new field | Zero XSS risk |
+
+### Extract data first
+
+**Always** extract the data-fetching logic before writing the JSX. The data layer is reusable; the JSX is specific to one rendering.
+
+```ts
+// server/lib/signals-data.ts
+export async function fetchSignalsWithHistory(
+  ticker: string | undefined,
+  platform: string | undefined,
+): Promise<{ signals: Signal[]; priceData: Map<string, PriceWithHistory> }> {
+  // ... DB queries, price fetches, caching ...
+}
+```
+
+### Write JSX views
+
+```tsx
+// server/views/signals-view.tsx
+export function SignalsViewHtml({ signals, priceData }: Props) {
+  return (
+    <table id="signals-table">
+      <tbody>
+        {signals.map((s) => (
+          <SignalRow signal={s} priceData={priceData} />
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+### Thin route handler
+
+```tsx
+// server/routes/signals.tsx  ← note .tsx extension
+import { SignalsViewHtml } from "../views/signals-view.tsx";
+
+signalsRouter.get("/view/html", async (c) => {
+  const { signals, priceData } = await fetchSignalsWithHistory(...);
+  return c.html(<SignalsViewHtml signals={signals} priceData={priceData} />);
+});
+```
+
+### Critical: file extension
+
+Route files containing JSX **must** use `.tsx`, not `.ts`. Biome will produce misleading parse errors if you forget:
+
+```
+× expected `>` but instead found `data`
+× Invalid assignment to `<SignalsViewHtml data`
+```
+
+**Fix:** Rename the file to `.tsx` and update the import in `server/index.tsx`.
+
+### Critical: JSX style attribute
+
+Hono JSX uses string values for `style`, not React objects:
+
+```tsx
+// ✅ Correct for Hono JSX
+<div style="background:#fff3cd;color:#1a1a2e">
+
+// ❌ React-style object (breaks in Hono)
+<div style={{ background: "#fff3cd" }}>
+```
+
+### Critical: camelCase attributes
+
+JSX uses camelCase for hyphenated/lowercase HTML attributes:
+
+```tsx
+// ✅ JSX camelCase
+<td colSpan={7}>
+
+// ❌ Standard HTML lowercase
+<td colspan="7">
+```
+
+---
+
 ## Core Rule: HTMX and JSON APIs Don't Mix
 
 HTMX expects HTML responses. JSON endpoints (`c.json(...)`) return `Content-Type: application/json`. When you use `hx-swap="innerHTML"` on a JSON endpoint, the browser dumps raw JSON into the DOM — useless.
@@ -463,16 +567,32 @@ export function PortfolioView() {
 }
 ```
 
-**serveStatic is locked to the exact directory:**
+**serveStatic — absolute path + rewriteRequestPath:**
+
+Hono's `serveStatic` joins `root` with the full request path. For a route `/static/*` and a request to `/static/style.css`, it resolves to `root + "/static/style.css"` — double-counting the `/static` prefix. Two fixes are required:
+
 ```tsx
 import { serveStatic } from "hono/bun";
+import { resolve } from "node:path";
+
+const staticDir = resolve(import.meta.dir, "static");
 
 app.use("/static/*", serveStatic({
-  root: "./server/static",
+  root: staticDir,
+  rewriteRequestPath: (path) => path.replace(/^\/static/, ""),
   onFound: (_path, c) => {
     c.header("Cache-Control", "public, max-age=31536000, immutable");
   },
 }));
+```
+
+1. **Absolute `root`** via `resolve(import.meta.dir, "static")` — eliminates cwd sensitivity (Bun's cwd may differ from where the process starts).
+2. **`rewriteRequestPath`** strips the `/static` prefix so the middleware resolves `staticDir + "/style.css"` instead of `staticDir + "/static/style.css"`.
+
+**Verification:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/static/style.css
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/static/scripts/layout.js
 ```
 
 **What goes in common.js:**

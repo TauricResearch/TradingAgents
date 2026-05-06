@@ -4,9 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
 
-    /* Tier 2: Full Strict Mode */
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitReturns": true,
@@ -18,29 +17,22 @@
     "noImplicitAny": true,
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
 
-    /* Emit */
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "noEmit": false,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
 
-    /* Interop */
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+
     "esModuleInterop": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
 
-    /* Performance */
-    "skipLibCheck": true,
-    "incremental": true,
-    "tsBuildInfoFile": "./.tsbuildinfo"
+    "types": ["bun"],
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["server/**/*.ts", "server/**/*.tsx"],
   "exclude": ["node_modules", "dist", "scripts", ".venv"]
 }

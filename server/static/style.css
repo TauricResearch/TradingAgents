@@ -1,13 +1,14 @@
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --border: #2a2d3a;
-  --text: #e4e4e7;
-  --text-dim: #71717a;
-  --green: #22c55e;
-  --red: #ef4444;
-  --yellow: #eab308;
-  --blue: #3b82f6;
+  --bg: oklch(17.833% 0.01281 270.6); /* #0f1117 */
+  --surface: oklch(23.23% 0.01988 271.76); /* #1a1d27 */
+  --border: oklch(29.984% 0.02394 274.71); /* #2a2d3a */
+  --text: oklch(91.973% 0.00403 286.32); /* #e4e4e7 */
+  --text-dim: oklch(55.166% 0.01381 285.94); /* #71717a */
+  --green: oklch(72.275% 0.19201 149.58); /* #22c55e */
+  --red: oklch(63.683% 0.20785 25.331); /* #ef4444 */
+  --yellow: oklch(79.524% 0.16167 86.047); /* #eab308 */
+  --blue: oklch(62.308% 0.18801 259.81); /* #3b82f6 */
+
 }
 
 @font-face {
@@ -328,6 +329,10 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
   font-size: 0.9em;
   color: var(--text-dim);
 }
+.exit-card .platform-tag {
+  background: var(--border);
+  color: var(--text);
+}
 .exit-details .notes {
   font-style: italic;
   margin-top: 8px;
@@ -631,13 +636,6 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .positions-table .ticker-cell .ticker {
   font-family: 'Datatype', monospace;
   font-weight: 600;
-}
-.platform-tag {
-  font-size: 0.75em;
-  background: var(--bg);
-  color: var(--text-muted);
-  border-radius: 3px;
-  padding: 1px 5px;
 }
 .sparkline-muted {
   color: var(--text-muted);
