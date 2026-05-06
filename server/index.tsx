@@ -6,7 +6,7 @@ import { serveStatic } from "hono/bun";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { DatabaseFactory } from "./lib/db.ts";
-import { portfolioRouter } from "./routes/portfolio.ts";
+import { portfolioRouter } from "./routes/portfolio.tsx";
 import { analysisRouter } from "./routes/analysis.ts";
 import { signalsRouter } from "./routes/signals.tsx";
 import { pricesRouter } from "./routes/prices.ts";
@@ -159,7 +159,7 @@ app.route("/api/portfolio/intelligence", intelligenceRouter);
 app.route("/api/portfolio/balance", portfolioBalanceRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
-import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.ts";
+import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.tsx";
 app.get("/api/portfolio/summary", handlePortfolioSummary);
 app.get("/api/portfolio/summary/html", handlePortfolioSummaryHtml);
 
