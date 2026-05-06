@@ -343,6 +343,61 @@ def test_run_batch_analysis_allocates_successes_when_failures_have_no_market_val
     assert captured["tickers"] == ["AAPL"]
 
 
+def test_run_batch_analysis_skips_allocation_when_fail_fast_stops_before_valued_holding(monkeypatch, tmp_path):
+    builder_called = False
+
+    def fake_run_analysis(*, checkpoint, llm_overrides, selection_overrides):
+        if selection_overrides.ticker == "BAD":
+            raise RuntimeError("provider timeout")
+        return SimpleNamespace(
+            final_state={
+                "final_trade_decision": "**Rating**: Buy\n\n**Executive Summary**: Buy setup.",
+                "trader_investment_plan": "FINAL TRANSACTION PROPOSAL: BUY",
+            },
+            report_path=tmp_path / selection_overrides.ticker / "complete_report.md",
+        )
+
+    def fake_build_allocation_plan(results, *, available_cash, prices, policy=None):
+        nonlocal builder_called
+        builder_called = True
+        return None
+
+    messages = []
+
+    def fake_print(message):
+        messages.append(str(message))
+
+    monkeypatch.setattr("cli.main.run_analysis", fake_run_analysis)
+    monkeypatch.setattr("cli.main.console.print", fake_print)
+    monkeypatch.setattr("tradingagents.batch.build_llm_narrative", lambda results, llm_overrides: None)
+    monkeypatch.setattr("tradingagents.allocation.build_allocation_plan", fake_build_allocation_plan)
+
+    run_batch_analysis(
+        holdings=[
+            PortfolioHolding(ticker="AAPL", quantity=10, market_value=1000),
+            PortfolioHolding(ticker="BAD"),
+            PortfolioHolding(ticker="MSFT", quantity=5, market_value=500),
+        ],
+        analysis_date="2026-05-05",
+        output_language="English",
+        analysts=[AnalystType.MARKET],
+        research_depth=1,
+        checkpoint=False,
+        llm_overrides=None,
+        save_path=tmp_path / "batch",
+        display_report=False,
+        continue_on_error=False,
+        available_cash=0,
+        allocate=True,
+        dry_run=False,
+        allocation_policy=None,
+    )
+
+    assert builder_called is False
+    assert any("Skipping allocation" in message and "incomplete batch" in message for message in messages)
+    assert not (tmp_path / "batch" / "allocation_plan.md").exists()
+
+
 def test_run_batch_analysis_skips_allocation_when_all_results_fail(monkeypatch, tmp_path):
     builder_called = False
 

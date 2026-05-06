@@ -367,7 +367,13 @@ def run_batch_analysis(
 
         successful_results = [result for result in results if result.status == "success"]
         valued_failures = _failed_results_with_market_value(results)
-        if valued_failures:
+        if len(results) < len(holdings):
+            console.print(
+                "[yellow]Skipping allocation because incomplete batch results would "
+                "distort portfolio weights; "
+                f"processed {len(results)} of {len(holdings)} holdings.[/yellow]"
+            )
+        elif valued_failures:
             failed_tickers = ", ".join(result.ticker for result in valued_failures)
             console.print(
                 "[yellow]Skipping allocation because failed holdings have market value "
