@@ -1,3 +1,54 @@
+# PR Review Checklist (LLM-generated)
+
+## rule Issue 1: Python tests outside designated Python area
+
+**Severity:** rule
+**Files:** tests/test_server_lib.py:155-170
+
+Pytest tests were added in the `tests/` directory, which might violate project conventions regarding where Python tests should reside.
+
+**Actions:**
+- [ ] Move tests to the TypeScript test suite, OR
+- [ ] Relocate tests to an explicitly allowed Python testing area, OR
+- [ ] Document this exception in AGENTS.md
+
+## bug Issue 2: SQLite REAL values not parsed as numbers
+
+**Severity:** bug
+**Files:** server/lib/intel-compute.ts:78-85, server/lib/intel-compute.ts:111-113, server/lib/intel-compute.ts:165-169
+
+Arithmetic operations are performed on SQLite REAL columns (`avg_cost`, `balance`, etc.) without ensuring they are parsed from strings to floating-point numbers, leading to potential string concatenation instead of correct calculations.
+
+**Actions:**
+- [ ] Add parseFloat() wrapper before all numeric operations on REAL columns in the specified locations.
+- [ ] Verify that schema.sql REAL columns correspond to the fields being parsed.
+
+## bug Issue 3: Duplicated path segments in resultsDir
+
+**Severity:** bug
+**Files:** server/lib/settings.ts:52-59, server/lib/settings.ts:74-93, server/lib/settings.json:4-13, server/routes/analyses-common.ts:6-9
+
+The configuration for `cfg.paths.resultsDir` results in duplicated path segments (e.g., `~/.tradingagents/.tradingagents/logs`) because `taRoot()` appends `.tradingagents` to HOME, while defaults already contain this segment.
+
+**Actions:**
+- [ ] Fix path resolution by either basing `taRoot()` only on `HOME` and keeping defaults as `.tradingagents/logs`, OR basing `taRoot()` on `$HOME/.tradingagents` and changing defaults to relative paths like `logs`.
+- [ ] Add a smoke assertion to verify that `cfg.paths.resultsDir` resolves to the expected, correct path.
+
+## bug Issue 4: FreshnessBadge uses local time for UTC calculation
+
+**Severity:** bug
+**Files:** server/views/holdings.tsx:29-57
+
+The FreshnessBadge logic uses local time getters (`getFullYear`, `getMonth`, `getDate`) inside `Date.UTC()`, reintroducing timezone dependence and potentially causing off-by-one day errors depending on the server's timezone.
+
+**Actions:**
+- [ ] Update the code to use UTC getters: `now.getUTCFullYear()`, `now.getUTCMonth()`, and `now.getUTCDate()`.
+- [ ] Implement validation for `dateStr` using the regex `^\d{4}-\d{2}-\d{2}$` and return a neutral badge ('—') if the input format is invalid.
+
+---
+_Generated 2026-05-06T17:47:33.221Z via google/gemini-2.5-flash-lite-preview-09-2025_
+
+
 # PR #8 Review Checklist
 
 Generated from Qodo + CodeRabbit review comments.

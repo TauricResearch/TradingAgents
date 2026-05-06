@@ -367,5 +367,9 @@ pr-fetch NUM:  # fetch PR #NUM as markdown via defuddle
 pr-fetch-all:  # fetch all open PRs as markdown
     bash scripts/pr-fetch-all.sh
 
+[group("pr")]
+pr-summarize NUM:  # summarize cached PR #NUM via LLM, prepend to file
+    bun scripts/pr-summarize.ts {{NUM}} --write
+
 alias a := analyze
 alias l := lint
