@@ -127,10 +127,14 @@ def test_property_length_cap(failures: dict) -> None:
     if "…" in result:
         assert result.endswith("…"), "Truncated output must end with ellipsis, not mid-line"
     else:
-        # All trades should be fully present
+        # All trades should be fully present (accounting for _truncate stripping trailing whitespace)
         for trade in failures["failed_trades"]:
-            line_fragment = f"- {trade['action']} {trade['ticker']} x{trade['shares']}: {trade['reason']}"
-            assert line_fragment in result, f"Non-truncated output missing trade: {line_fragment}"
+            action = trade["action"]
+            ticker = trade["ticker"]
+            shares_str = str(trade["shares"])
+            reason = trade["reason"].strip()  # _truncate strips trailing whitespace
+            line_fragment = f"- {action} {ticker} x{shares_str}: {reason}"
+            assert line_fragment in result, f"Non-truncated output missing trade: {line_fragment!r}"
 
 
 @settings(max_examples=100)

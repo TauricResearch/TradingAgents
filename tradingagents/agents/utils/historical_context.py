@@ -194,7 +194,7 @@ def format_execution_failure_block(
         action = trade.get("action", "?")
         ticker = trade.get("ticker", "?")
         shares = trade.get("shares", "?")
-        reason = trade.get("reason", "unknown")
+        reason = str(trade.get("reason", "unknown")).strip()
         lines.append(f"- {action} {ticker} x{shares}: {reason}")
     out = "\n".join(lines)
     return _truncate(out, max_chars)
