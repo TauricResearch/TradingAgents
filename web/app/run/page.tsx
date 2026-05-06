@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Runs, SettingsApi } from "@/lib/api";
 import { runStreamUrl } from "@/lib/ws";
 import type { RunCreateRequest, RunEvent } from "@/lib/types";
@@ -254,24 +254,18 @@ export default function RunPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className="label">Deep-think model</label>
-          <input
-            className="input w-full"
-            value={form.deep_think_llm}
-            onChange={(e) => setForm({ ...form, deep_think_llm: e.target.value })}
-            required
-          />
-        </div>
-        <div>
-          <label className="label">Quick-think model</label>
-          <input
-            className="input w-full"
-            value={form.quick_think_llm}
-            onChange={(e) => setForm({ ...form, quick_think_llm: e.target.value })}
-            required
-          />
-        </div>
+        <ModelField
+          label="Deep-think model"
+          value={form.deep_think_llm}
+          onChange={(v) => setForm({ ...form, deep_think_llm: v })}
+          provider={form.llm_provider}
+        />
+        <ModelField
+          label="Quick-think model"
+          value={form.quick_think_llm}
+          onChange={(v) => setForm({ ...form, quick_think_llm: v })}
+          provider={form.llm_provider}
+        />
         <div>
           <label className="label">Bull/Bear rounds</label>
           <input
@@ -436,6 +430,76 @@ export default function RunPage() {
     </div>
   );
 }
+
+/**
+ * Model field. For ollama provider we fetch the live model list from the
+ * server so the user picks from what's actually installed; for everyone
+ * else we just show a free text input (the framework's catalog has dozens
+ * of named models per provider — not worth maintaining a UI list).
+ */
+function ModelField({
+  label,
+  value,
+  onChange,
+  provider,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  provider: string;
+}) {
+  const isOllama = provider === "ollama";
+  const ollamaModels = useQuery({
+    queryKey: ["ollama-models"],
+    queryFn: () => SettingsApi.ollamaModels(),
+    enabled: isOllama,
+    retry: false,
+  });
+
+  if (isOllama) {
+    const list = ollamaModels.data?.models ?? [];
+    return (
+      <div>
+        <label className="label">{label}</label>
+        {ollamaModels.isError && (
+          <div className="text-xs text-danger mb-1">
+            Couldn't reach Ollama. Configure URL on the Settings page.
+          </div>
+        )}
+        <select
+          className="input w-full"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {value && !list.find((m) => m.name === value) && (
+            <option value={value}>{value} (not installed)</option>
+          )}
+          {list.length === 0 && !ollamaModels.isLoading && (
+            <option value="">{ollamaModels.isError ? "Set URL in Settings" : "No models found"}</option>
+          )}
+          {list.map((m) => (
+            <option key={m.name} value={m.name}>
+              {m.name}
+              {m.parameter_size ? ` (${m.parameter_size})` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <input
+        className="input w-full"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+      />
+    </div>
+  );
+}
+
 
 function TabBtn({
   active,

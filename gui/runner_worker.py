@@ -227,8 +227,22 @@ def run(job: Dict[str, Any]) -> None:
             config[k] = job[k]
     if job.get("data_vendors"):
         config["data_vendors"] = dict(job["data_vendors"])
+
+    # Provider URL routing:
+    # - explicit ``backend_url`` in the job wins (most flexible);
+    # - otherwise, when provider is ollama, fall back to the GUI config's
+    #   stored ``ollama_base_url`` (set on the Settings page) so users
+    #   don't have to specify the URL on every run.
     if job.get("backend_url"):
         config["backend_url"] = job["backend_url"]
+    elif (config.get("llm_provider") or "").lower() == "ollama":
+        try:
+            from gui.config import load as _load_cfg
+            ollama_url = (_load_cfg().get("defaults", {}) or {}).get("ollama_base_url")
+            if ollama_url:
+                config["backend_url"] = ollama_url
+        except Exception:
+            pass
 
     handler = GuiCallbackHandler()
     ta = TradingAgentsGraph(debug=False, config=config, callbacks=[handler])

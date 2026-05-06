@@ -26,6 +26,12 @@ services:
       - "${TRADINGAGENTS_API_PORT:-8000}:8000"
     volumes:
       - ./data:/home/appuser/.tradingagents
+    # Map host.docker.internal → the host running this container, so a
+    # configured Ollama URL of http://host.docker.internal:11434/v1 reaches
+    # an Ollama instance running directly on the NAS. For Ollama on a
+    # different machine, just set the explicit IP/hostname in Settings.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test:

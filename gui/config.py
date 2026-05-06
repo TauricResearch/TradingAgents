@@ -67,6 +67,13 @@ def _empty_config() -> Dict[str, Any]:
         "data_vendors": dict(DEFAULT_CONFIG["data_vendors"]),
         "output_language": DEFAULT_CONFIG["output_language"],
         "checkpoint_enabled": DEFAULT_CONFIG["checkpoint_enabled"],
+        # Ollama base URL — empty means "use the framework default" which is
+        # http://localhost:11434/v1 from inside the container (i.e. talking
+        # to the container itself, which is wrong for most setups). Set to
+        # http://host.docker.internal:11434/v1 to reach a host-side Ollama
+        # on the same machine, or http://<other-server>:11434/v1 for an
+        # Ollama running elsewhere on your LAN.
+        "ollama_base_url": "",
     }
     return {"api_keys": {}, "defaults": defaults, "ui": {}}
 

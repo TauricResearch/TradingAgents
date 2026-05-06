@@ -113,6 +113,20 @@ export const SettingsApi = {
   get: () => request<Settings>("/settings"),
   update: (req: { api_keys?: Record<string, string>; defaults?: Record<string, any> }) =>
     request<Settings>("/settings", { method: "PUT", body: JSON.stringify(req) }),
+  ollamaModels: (url?: string) => {
+    const qs = url ? `?url=${encodeURIComponent(url)}` : "";
+    return request<{
+      url: string;
+      models: Array<{
+        name: string;
+        size?: number;
+        modified_at?: string;
+        parameter_size?: string;
+        family?: string;
+      }>;
+      count: number;
+    }>(`/settings/ollama/models${qs}`);
+  },
 };
 
 // ---- Memory -------------------------------------------------------------

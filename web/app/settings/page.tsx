@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SettingsApi } from "@/lib/api";
+import { OllamaConfig } from "@/components/OllamaConfig";
 
 export default function SettingsPage() {
   const qc = useQueryClient();
@@ -94,6 +95,23 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Defaults ---- */}
+      {/* ---- Ollama (local models) ---- */}
+      <section>
+        <h2 className="text-lg font-semibold mb-2">Ollama (local models)</h2>
+        <p className="text-xs text-muted mb-3">
+          Point at an Ollama server on your LAN to run analyses entirely
+          locally. The API container reaches the host via{" "}
+          <code>host.docker.internal</code> if Ollama runs on the same NAS;
+          otherwise put the explicit IP/hostname.
+        </p>
+        <div className="card">
+          <OllamaConfig
+            currentUrl={(defaults.ollama_base_url as string) || ""}
+            onSaved={() => qc.invalidateQueries({ queryKey: ["settings"] })}
+          />
+        </div>
+      </section>
+
       <section>
         <h2 className="text-lg font-semibold mb-2">Default run configuration</h2>
         <p className="text-xs text-muted mb-3">
