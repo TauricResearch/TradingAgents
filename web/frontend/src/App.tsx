@@ -1,122 +1,71 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react';
+import type { Settings } from './types';
+import AnalysisTab from './components/AnalysisTab';
+import SettingsTab from './components/SettingsTab';
+import './index.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+const DEFAULT_SETTINGS: Settings = {
+  llm_provider: 'openai',
+  backend_url: 'https://api.openai.com/v1',
+  quick_think_llm: 'gpt-4.1-mini',
+  deep_think_llm: 'gpt-4.1',
+  anthropic_effort: null,
+  google_thinking_level: null,
+  openai_reasoning_effort: null,
+  research_depth: 1,
+  analysts: ['market', 'news', 'fundamentals'],
+  output_language: 'English',
+  data_vendors: {
+    core_stock_apis: 'yfinance',
+    technical_indicators: 'yfinance',
+    fundamental_data: 'yfinance',
+    news_data: 'yfinance',
+  },
+};
+
+type Tab = 'analysis' | 'settings';
+
+export default function App() {
+  const [tab, setTab] = useState<Tab>('analysis');
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then((s: Settings) => setSettings(s))
+      .catch(() => { /* use defaults */ });
+  }, []);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700 }}>TradingAgents</h1>
+        <span style={{ background: 'var(--accent)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
+          Web UI
+        </span>
+      </div>
 
-      <div className="ticks"></div>
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
+        {(['analysis', 'settings'] as Tab[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: '10px 20px', fontSize: 14, fontWeight: 500, background: 'none',
+              color: tab === t ? 'var(--accent)' : 'var(--text-muted)',
+              borderBottom: `2px solid ${tab === t ? 'var(--accent)' : 'transparent'}`,
+              marginBottom: -1, textTransform: 'capitalize',
+            }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {tab === 'analysis' && <AnalysisTab settings={settings} />}
+      {tab === 'settings' && <SettingsTab settings={settings} onSave={setSettings} />}
+    </div>
+  );
 }
-
-export default App
