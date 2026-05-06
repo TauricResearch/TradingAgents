@@ -1,9 +1,9 @@
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+import type { CashBreakdown } from "../../lib/portfolio-intel-data.ts"
 import { fmtCommas } from "../../lib/markup.ts"
 
-export function CashBreakdownPanel({ breakdown }: { breakdown: PortfolioIntel["cash_breakdown"] }) {
+export function CashBreakdownPanel({ breakdown }: { breakdown: CashBreakdown | null }) {
   if (!breakdown) return null
   return (
     <div class="cash-breakdown" style="margin:1.5rem 0">

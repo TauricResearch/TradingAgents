@@ -1,9 +1,9 @@
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+import type { DbWatchlistItem } from "../../lib/portfolio-intel-data.ts"
 import { esc } from "../../lib/markup.ts"
 
-export function ResearchQueue({ items }: { items: PortfolioIntel["research_queue"] }) {
+export function ResearchQueue({ items }: { items: DbWatchlistItem[] }) {
   if (!items || items.length === 0) {
     return <div class="muted">No approved research items</div>
   }

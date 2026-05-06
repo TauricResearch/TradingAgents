@@ -1,9 +1,9 @@
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+import type { AccountSummary } from "../../lib/portfolio-intel-data.ts"
 import { esc, fmtCommas } from "../../lib/markup.ts"
 
-export function AccountsTable({ accounts }: { accounts: PortfolioIntel["accounts"] }) {
+export function AccountsTable({ accounts }: { accounts: AccountSummary[] }) {
   if (!accounts || accounts.length === 0) {
     return <div class="muted">No accounts configured</div>
   }

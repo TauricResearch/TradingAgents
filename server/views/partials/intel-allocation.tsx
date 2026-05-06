@@ -1,8 +1,8 @@
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+import type { AllocationBar } from "../../lib/portfolio-intel-data.ts"
 
-export function AllocationBarSection({ bar }: { bar: PortfolioIntel["allocation_bar"] }) {
+export function AllocationBarSection({ bar }: { bar: AllocationBar | null }) {
   if (!bar) return null
   const { buckets, actual, targets } = bar
   return (

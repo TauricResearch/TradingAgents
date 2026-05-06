@@ -1,9 +1,9 @@
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+import type { SpreadBetWithPnl } from "../../lib/portfolio-intel-data.ts"
 import { esc, fmtCommas } from "../../lib/markup.ts"
 
-export function SpreadBetTable({ bets }: { bets: PortfolioIntel["spreadbets"] }) {
+export function SpreadBetTable({ bets }: { bets: SpreadBetWithPnl[] }) {
   if (!bets || bets.length === 0) {
     return <div class="muted">No open spread bets</div>
   }
