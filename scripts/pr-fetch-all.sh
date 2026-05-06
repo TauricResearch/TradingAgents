@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Fetch all open PRs as markdown via defuddle.
+# Overwrites existing files — always fetches fresh state.
 # Usage: bash scripts/pr-fetch-all.sh [REPO]
 # Default repo: pjsvis/TradingAgents
 
@@ -17,14 +18,7 @@ gh pr list --repo "$REPO" \
 jq -r '.[] | "\(.number)"' | \
 while read -r num; do
   url="https://github.com/$REPO/pull/$num"
-  date="$(date +%Y-%m-%d)"
-  file="$OUTDIR/pr-${num}-${date}.md"
-
-  # Skip if already fetched today
-  if [[ -f "$file" ]]; then
-    echo "  PR #$num already cached today — skipping"
-    continue
-  fi
+  file="$OUTDIR/pr-${num}.md"
 
   echo "  PR #$num → $file"
   defuddle parse --markdown "$url" > "$file" || {
@@ -33,4 +27,4 @@ while read -r num; do
   }
 done
 
-echo "Done. Reviews saved to $OUTDIR"
+echo "Done. Reviews in $OUTDIR"
