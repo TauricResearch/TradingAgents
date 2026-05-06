@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Portfolio } from "@/lib/api";
 import { priceStreamUrl } from "@/lib/ws";
 import type { PortfolioSummary, PriceTick } from "@/lib/types";
+import { PlannerSync } from "@/components/PlannerSync";
 
 export default function PortfolioPage() {
   const qc = useQueryClient();
@@ -53,6 +54,8 @@ export default function PortfolioPage() {
       </header>
 
       {showForm && <NewPositionForm onDone={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ["portfolio-summary"] }); }} />}
+
+      <PlannerSync onApplied={() => qc.invalidateQueries({ queryKey: ["portfolio-summary"] })} />
 
       <SummaryCards summary={summary.data} />
 

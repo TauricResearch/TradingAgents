@@ -206,6 +206,41 @@ export const Portfolio = {
   summary: () => request<PortfolioSummary>("/portfolio/summary"),
 };
 
+// ---- Planner integration ----------------------------------------------
+
+export type PlannerStatus = {
+  configured: boolean;
+  url: string | null;
+  reachable: boolean;
+  error?: string | null;
+};
+
+export type SyncDiffEntry = {
+  ticker: string;
+  account: string;
+  action: "create" | "update" | "unchanged";
+  planner_shares: number;
+  planner_cost_basis: number | null;
+  existing_shares: number | null;
+  existing_cost_basis: number | null;
+};
+
+export type SyncResult = {
+  dry_run: boolean;
+  fetched_holdings: number;
+  accounts: number;
+  diff: SyncDiffEntry[];
+  applied: number;
+  skipped: number;
+  errors: string[];
+};
+
+export const Planner = {
+  status: () => request<PlannerStatus>("/planner/status"),
+  sync: (dryRun: boolean) =>
+    request<SyncResult>(`/planner/sync?dry_run=${dryRun}`, { method: "POST" }),
+};
+
 // ---- Calendar ----------------------------------------------------------
 
 export const Calendar = {

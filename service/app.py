@@ -30,6 +30,7 @@ from service.routers import (
     memory,
     news_feed,
     notes,
+    planner,
     portfolio,
     runs,
     settings,
@@ -115,6 +116,7 @@ app.include_router(portfolio.router)
 app.include_router(calendar_router.router)
 app.include_router(news_feed.router)
 app.include_router(simulation.router)
+app.include_router(planner.router)
 
 
 def main() -> int:
