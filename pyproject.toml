@@ -27,6 +27,8 @@ dependencies = [
     "setuptools>=80.9.0",
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
+    "cryptography>=45.0.7",
+    "feedparser>=6.0.12",
 ]
 
 [project.scripts]
