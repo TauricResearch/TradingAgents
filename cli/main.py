@@ -44,7 +44,7 @@ from tradingagents.batch import (
 from tradingagents.allocation import AllocationPolicy
 from tradingagents.charts import ChartArtifact, generate_report_charts
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.execution import DryRunExecutor, ExecutionOrder
+from tradingagents.execution import DryRunExecutor, ExecutionAction, ExecutionOrder
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # Load environment variables
@@ -85,7 +85,7 @@ def _execution_orders_from_allocation_plan(allocation_plan: Any) -> list[Executi
     for row in allocation_plan.rows:
         if row.quantity_delta is None or row.quantity_delta == 0:
             continue
-        action = "buy" if row.quantity_delta > 0 else "sell"
+        action: ExecutionAction = "buy" if row.quantity_delta > 0 else "sell"
         orders.append(
             ExecutionOrder(
                 ticker=row.ticker,
@@ -96,7 +96,7 @@ def _execution_orders_from_allocation_plan(allocation_plan: Any) -> list[Executi
     return orders
 
 
-def _print_execution_dry_run_table(console: Console, allocation_plan: Any) -> None:
+def _print_execution_dry_run_table(console: Any, allocation_plan: Any) -> None:
     executor = DryRunExecutor()
     results_by_ticker = {
         result.order.ticker: result

@@ -202,22 +202,22 @@ def _apply_whole_share_order_sizing(
         deployable_cash += abs(quantity) * row.price
         sized_rows[index] = replace(row, quantity_delta=quantity)
 
-    buy_candidates = [
-        (index, row)
-        for index, row in enumerate(sized_rows)
-        if row.delta_value > 0 and row.price is not None and row.price > 0
-    ]
-    total_buy_delta = sum(row.delta_value for _, row in buy_candidates)
+    buy_candidates: list[tuple[int, AllocationRow, float]] = []
+    for index, row in enumerate(sized_rows):
+        price = row.price
+        if row.delta_value > 0 and price is not None and price > 0:
+            buy_candidates.append((index, row, price))
+    total_buy_delta = sum(row.delta_value for _, row, _ in buy_candidates)
     actual_buy_cost = 0.0
 
-    for index, row in buy_candidates:
+    for index, row, price in buy_candidates:
         budget = (
             deployable_cash * (row.delta_value / total_buy_delta)
             if total_buy_delta > 0
             else 0.0
         )
-        quantity = int(budget / row.price)
-        actual_buy_cost += quantity * row.price
+        quantity = int(budget / price)
+        actual_buy_cost += quantity * price
         sized_rows[index] = replace(row, quantity_delta=quantity)
 
     for index, row in enumerate(sized_rows):

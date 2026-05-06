@@ -13,7 +13,7 @@ import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol, Sequence
 
 from markdown_it import MarkdownIt
 
@@ -33,6 +33,10 @@ RATING_RANK = {
     "Underweight": 2,
     "Sell": 1,
 }
+
+
+class ConsoleLike(Protocol):
+    def print(self, *objects: Any, **kwargs: Any) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -436,7 +440,7 @@ def _derive_prices_from_holdings(results: Sequence[BatchTickerResult]) -> dict[s
     return derived
 
 
-def _print_dry_run_table(console: object, allocation_plan: "AllocationPlan") -> None:
+def _print_dry_run_table(console: ConsoleLike, allocation_plan: "AllocationPlan") -> None:
     from rich.table import Table
 
     table = Table(title="Allocation Dry Run")
@@ -564,6 +568,14 @@ def _format_number(value: float | None) -> str:
 
 def _format_percent(value: float | None) -> str:
     return "" if value is None else f"{value * 100:.2f}%"
+
+
+def _format_quantity(value: float | None) -> str:
+    if value is None:
+        return ""
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.4f}"
 
 
 def _relative_report_link(path: Path | None, base_path: Path | None = None) -> str:
