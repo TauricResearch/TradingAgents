@@ -38,13 +38,13 @@
 
 ## Residual HTML String Builders (not yet JSX)
 
-| File | Function | Lines | Priority |
-|------|----------|-------|----------|
-| `server/routes/analyses-db.ts` | `buildAnalysisReportHtml` | ~50 | P3 |
+**NONE** — all route HTML string builders converted to JSX components.
 
 No inline JS scripts remain in views. All runtime JS is external `<script src="...">`.
 
-`portfolio.ts` → `portfolio-data.ts` + `portfolio-summary.tsx` extraction DONE (commit 0210257).
+Completed extractions:
+- `portfolio.ts` → `portfolio-data.ts` + `portfolio-summary.tsx` (commit 0210257)
+- `analyses-db.ts` → `analysis-data.ts` + `analysis-report.tsx` (commit 5de84b0)
 
 ---
 
