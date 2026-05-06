@@ -1,6 +1,6 @@
 import pytest
 
-from tradingagents.allocation import build_allocation_plan
+from tradingagents.allocation import build_allocation_markdown, build_allocation_plan
 from tradingagents.batch import BatchTickerResult, PortfolioHolding
 
 
@@ -241,3 +241,33 @@ def test_non_positive_price_is_ignored_when_deriving_current_value():
     assert row.current_value == 0
     assert plan.total_current_value == 0
     assert row.quantity_delta is None
+
+
+def test_allocation_markdown_renders_ranked_plan_metrics():
+    plan = build_allocation_plan(
+        [
+            BatchTickerResult(
+                ticker="MSFT",
+                status="success",
+                rating="Buy",
+                holding=PortfolioHolding(ticker="MSFT", quantity=0, market_value=0),
+            ),
+            BatchTickerResult(
+                ticker="AAPL",
+                status="success",
+                rating="Buy",
+                holding=PortfolioHolding(ticker="AAPL", quantity=0, market_value=0),
+            ),
+        ],
+        available_cash=250,
+        prices={"AAPL": 90, "MSFT": 80},
+    )
+
+    markdown = build_allocation_markdown(plan, "2026-05-05")
+
+    assert "## Portfolio Allocation Plan" in markdown
+    assert "| Rank | Ticker | Rating | Action | Current Value | Current Weight | Target Weight | Delta Value | Price | Quantity Delta |" in markdown
+    assert "| 1 | AAPL | Buy | buy | 0.00 | 0.00% | 25.00% | 62.50 | 90.00 | 1 |" in markdown
+    assert "| 2 | MSFT | Buy | buy | 0.00 | 0.00% | 25.00% | 62.50 | 80.00 | 1 |" in markdown
+    assert "| Leftover Cash | 80.00 |" in markdown
+    assert "| Projected Cash Weight | 32.00% |" in markdown

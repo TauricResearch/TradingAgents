@@ -13,6 +13,7 @@ from tradingagents.batch import (
     parse_ticker_list,
     write_batch_outputs,
 )
+from tradingagents.allocation import build_allocation_plan
 
 
 def test_load_batch_inputs_accepts_holdings_csv(tmp_path):
@@ -142,6 +143,38 @@ def test_write_batch_outputs_writes_markdown_html_and_json(tmp_path):
     data = json.loads((tmp_path / "batch_results.json").read_text(encoding="utf-8"))
     assert data[0]["ticker"] == "AAPL"
     assert data[0]["rating"] == "Buy"
+
+
+def test_write_batch_outputs_writes_allocation_report_files(tmp_path):
+    results = [
+        BatchTickerResult(
+            ticker="AAPL",
+            status="success",
+            rating="Buy",
+            trader_action="Buy",
+            holding=PortfolioHolding(ticker="AAPL", quantity=0, market_value=0),
+        )
+    ]
+    allocation_plan = build_allocation_plan(
+        results,
+        available_cash=250,
+        prices={"AAPL": 90},
+    )
+
+    write_batch_outputs(
+        tmp_path,
+        results,
+        "2026-05-05",
+        allocation_plan=allocation_plan,
+    )
+
+    assert (tmp_path / "allocation_plan.md").exists()
+    assert (tmp_path / "allocation_plan.html").exists()
+    assert (tmp_path / "allocation_plan.json").exists()
+    assert "## Portfolio Allocation Plan" in (tmp_path / "allocation_plan.md").read_text(encoding="utf-8")
+    data = json.loads((tmp_path / "allocation_plan.json").read_text(encoding="utf-8"))
+    assert data["rows"][0]["ticker"] == "AAPL"
+    assert data["leftover_cash"] == 70
 
 
 def test_write_batch_outputs_uses_relative_report_links_in_markdown(tmp_path):

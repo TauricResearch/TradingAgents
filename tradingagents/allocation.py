@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from typing import Literal, Sequence
 
 from tradingagents.batch import BatchTickerResult
@@ -120,6 +120,64 @@ def build_allocation_plan(
         total_current_value=total_current_value,
         total_projected_value=total_projected_value,
     )
+
+
+def build_allocation_markdown(plan: AllocationPlan, analysis_date: str) -> str:
+    projected_cash_weight = (
+        plan.leftover_cash / plan.total_projected_value
+        if plan.total_projected_value > 0
+        else 0.0
+    )
+    lines = [
+        "# Portfolio Allocation Report",
+        "",
+        f"Analysis Date: {analysis_date}",
+        "",
+        "## Portfolio Allocation Plan",
+        "",
+        "| Rank | Ticker | Rating | Action | Current Value | Current Weight | Target Weight | Delta Value | Price | Quantity Delta |",
+        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for row in sorted(plan.rows, key=lambda candidate: candidate.rank):
+        lines.append(
+            "| {rank} | {ticker} | {rating} | {action} | {current_value} | {current_weight} | {target_weight} | {delta_value} | {price} | {quantity_delta} |".format(
+                rank=row.rank,
+                ticker=row.ticker,
+                rating=row.rating,
+                action=row.recommended_action,
+                current_value=_format_number(row.current_value),
+                current_weight=_format_percent(row.current_weight),
+                target_weight=_format_percent(row.target_weight),
+                delta_value=_format_number(row.delta_value),
+                price=_format_number(row.price),
+                quantity_delta=_format_quantity(row.quantity_delta),
+            )
+        )
+
+    lines.extend([
+        "",
+        "## Cash Projection",
+        "",
+        "| Metric | Value |",
+        "| --- | ---: |",
+        f"| Leftover Cash | {_format_number(plan.leftover_cash)} |",
+        f"| Target Cash Weight | {_format_percent(plan.target_cash_weight)} |",
+        f"| Projected Cash Weight | {_format_percent(projected_cash_weight)} |",
+        f"| Total Current Value | {_format_number(plan.total_current_value)} |",
+        f"| Total Projected Value | {_format_number(plan.total_projected_value)} |",
+    ])
+    return "\n".join(lines) + "\n"
+
+
+def allocation_plan_to_json(plan: AllocationPlan) -> dict:
+    projected_cash_weight = (
+        plan.leftover_cash / plan.total_projected_value
+        if plan.total_projected_value > 0
+        else 0.0
+    )
+    data = asdict(plan)
+    data["projected_cash_weight"] = projected_cash_weight
+    return data
 
 
 def _apply_whole_share_order_sizing(
@@ -307,3 +365,19 @@ def _recommended_action(delta_value: float, total_value: float) -> RecommendedAc
     if delta_value < -threshold:
         return "sell"
     return "hold"
+
+
+def _format_number(value: float | None) -> str:
+    return "" if value is None else f"{value:.2f}"
+
+
+def _format_percent(value: float | None) -> str:
+    return "" if value is None else f"{value * 100:.2f}%"
+
+
+def _format_quantity(value: float | None) -> str:
+    if value is None:
+        return ""
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.4f}"

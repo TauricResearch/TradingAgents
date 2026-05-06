@@ -13,7 +13,7 @@ import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Callable, Literal, Sequence
 
 from markdown_it import MarkdownIt
 
@@ -21,6 +21,9 @@ from cli.llm_config import LLMConfigOverrides
 from cli.models import AnalystType
 from cli.utils import normalize_ticker_symbol
 from tradingagents.agents.utils.rating import parse_rating
+
+if TYPE_CHECKING:
+    from tradingagents.allocation import AllocationPlan
 
 
 RATING_RANK = {
@@ -256,6 +259,7 @@ def write_batch_outputs(
     analysis_date: str,
     *,
     narrative: str | None = None,
+    allocation_plan: "AllocationPlan | None" = None,
 ) -> Path:
     save_path.mkdir(parents=True, exist_ok=True)
     markdown = build_batch_summary_markdown(
@@ -273,6 +277,26 @@ def write_batch_outputs(
         json.dumps(json_data, indent=2),
         encoding="utf-8",
     )
+    if allocation_plan is not None:
+        from tradingagents.allocation import allocation_plan_to_json, build_allocation_markdown
+
+        allocation_markdown = build_allocation_markdown(allocation_plan, analysis_date)
+        (save_path / "allocation_plan.md").write_text(
+            allocation_markdown,
+            encoding="utf-8",
+        )
+        allocation_html = _render_markdown_html(
+            allocation_markdown,
+            "Portfolio Allocation Plan",
+        )
+        (save_path / "allocation_plan.html").write_text(
+            allocation_html,
+            encoding="utf-8",
+        )
+        (save_path / "allocation_plan.json").write_text(
+            json.dumps(allocation_plan_to_json(allocation_plan), indent=2),
+            encoding="utf-8",
+        )
     return markdown_path
 
 
