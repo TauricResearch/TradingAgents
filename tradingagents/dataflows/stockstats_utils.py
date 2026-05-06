@@ -122,6 +122,46 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def filter_ohlcv_by_date(data: pd.DataFrame, curr_date: str | None) -> pd.DataFrame:
+    """Filter OHLCV DataFrame to exclude rows after curr_date.
+
+    Applied AFTER _load_or_fetch_ohlcv() validation and _clean_dataframe(),
+    but BEFORE indicator calculation (stockstats wrap).
+
+    Args:
+        data: Cleaned OHLCV DataFrame with DatetimeIndex (lowercase 'date' column
+              set as index by stockstats wrap, or still as a column).
+        curr_date: Trading date in YYYY-MM-DD format. If None, returns data unchanged.
+
+    Returns:
+        DataFrame with only rows where date <= curr_date.
+
+    Raises:
+        ValueError: If curr_date is provided but not parseable as a date.
+    """
+    if curr_date is None:
+        return data
+
+    try:
+        cutoff = pd.Timestamp(curr_date)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            f"filter_ohlcv_by_date: cannot parse curr_date={curr_date!r} as a date"
+        ) from exc
+
+    # Handle both cases: DatetimeIndex (after wrap) or 'date' column (after _clean_dataframe)
+    if isinstance(data.index, pd.DatetimeIndex) and data.index.name == "date":
+        return data[data.index <= cutoff]
+    elif "date" in data.columns:
+        return data[data["date"] <= cutoff]
+    else:
+        # No date information available — return unchanged with a warning
+        logger.warning(
+            "filter_ohlcv_by_date: no 'date' column or DatetimeIndex found; returning unfiltered"
+        )
+        return data
+
+
 def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
     """Single authority for loading OHLCV data: cache → yfinance download → normalize.
 
@@ -296,6 +336,8 @@ class StockstatsUtils:
 
         data = _load_or_fetch_ohlcv(symbol)
         data = _clean_dataframe(data)
+        # Filter to prevent look-ahead bias: only data on or before curr_date
+        data = filter_ohlcv_by_date(data, curr_date)
         df = wrap(data)
         # After wrap(), the date column becomes the datetime index (named 'date').
         # Access via df.index, not df["Date"] which stockstats would try to parse as an indicator.
