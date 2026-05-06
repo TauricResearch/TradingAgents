@@ -81,6 +81,63 @@ def test_codex_oauth_tokens_round_trip_shape():
     assert restored.id_token == "id"
 
 
+def test_cli_codex_login_is_skipped_when_tokens_are_valid():
+    from cli.utils import ensure_codex_oauth_login
+
+    with (
+        patch("tradingagents.llm_clients.codex_oauth.get_valid_tokens") as get_valid_tokens_mock,
+        patch("cli.utils.questionary.select") as select_mock,
+    ):
+        ensure_codex_oauth_login()
+
+    get_valid_tokens_mock.assert_called_once()
+    select_mock.assert_not_called()
+
+
+def test_cli_codex_login_starts_browser_flow_when_tokens_are_missing():
+    from cli.utils import ensure_codex_oauth_login
+
+    tokens = CodexOAuthTokens("access", "refresh", time.time() + 100, "acct_123")
+
+    with (
+        patch(
+            "tradingagents.llm_clients.codex_oauth.get_valid_tokens",
+            side_effect=RuntimeError("missing"),
+        ),
+        patch(
+            "cli.utils.questionary.select",
+            return_value=SimpleNamespace(ask=lambda: "browser"),
+        ),
+        patch("tradingagents.llm_clients.codex_oauth.run_login_flow", return_value=tokens) as login_mock,
+        patch("tradingagents.llm_clients.codex_oauth.run_device_login_flow") as device_login_mock,
+    ):
+        ensure_codex_oauth_login()
+
+    login_mock.assert_called_once()
+    device_login_mock.assert_not_called()
+
+
+def test_cli_codex_login_cancel_exits():
+    from cli.utils import ensure_codex_oauth_login
+
+    with (
+        patch(
+            "tradingagents.llm_clients.codex_oauth.get_valid_tokens",
+            side_effect=RuntimeError("missing"),
+        ),
+        patch(
+            "cli.utils.questionary.select",
+            return_value=SimpleNamespace(ask=lambda: "cancel"),
+        ),
+    ):
+        try:
+            ensure_codex_oauth_login()
+        except SystemExit as exc:
+            assert exc.code == 1
+        else:
+            raise AssertionError("ensure_codex_oauth_login should exit when login is cancelled")
+
+
 def test_codex_models_to_options_uses_live_payload_shape():
     options = codex_models_to_options({
         "models": [

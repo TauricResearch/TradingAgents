@@ -213,6 +213,54 @@ def select_codex_model(mode: str) -> str:
     return choice
 
 
+def ensure_codex_oauth_login() -> None:
+    """Ensure Codex OAuth is configured when the provider is selected."""
+    from tradingagents.llm_clients.codex_oauth import (
+        CodexOAuthStore,
+        get_valid_tokens,
+        run_device_login_flow,
+        run_login_flow,
+    )
+
+    store = CodexOAuthStore()
+    try:
+        get_valid_tokens(store)
+        return
+    except RuntimeError as e:
+        console.print(f"\n[yellow]{e}[/yellow]")
+
+    choice = questionary.select(
+        "Codex OAuth login required:",
+        choices=[
+            questionary.Choice("Open browser login", value="browser"),
+            questionary.Choice("Use device code", value="device"),
+            questionary.Choice("Cancel", value="cancel"),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:magenta noinherit"),
+            ("highlighted", "fg:magenta noinherit"),
+            ("pointer", "fg:magenta noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None or choice == "cancel":
+        console.print("\n[red]Codex OAuth login cancelled. Exiting...[/red]")
+        exit(1)
+
+    try:
+        if choice == "device":
+            tokens = run_device_login_flow(store)
+        else:
+            tokens = run_login_flow(store)
+    except RuntimeError as e:
+        console.print(f"\n[red]Codex OAuth login failed: {e}[/red]")
+        exit(1)
+
+    account = tokens.account_id or "unknown account"
+    console.print(f"\n[green]Codex OAuth login saved for {account}.[/green]")
+
+
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
     return questionary.text(
@@ -308,6 +356,8 @@ def select_llm_provider() -> tuple[str, str | None]:
         exit(1)
 
     provider, url = choice
+    if provider == "codex":
+        ensure_codex_oauth_login()
     return provider, url
 
 
