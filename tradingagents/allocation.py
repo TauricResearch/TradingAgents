@@ -119,11 +119,9 @@ def _validate_inputs(results: Sequence[BatchTickerResult], available_cash: float
 
     seen_tickers: set[str] = set()
     for result in results:
-        if result.status != "success":
-            continue
         ticker = result.ticker.upper()
         if ticker in seen_tickers:
-            raise ValueError(f"Duplicate successful ticker in allocation results: {result.ticker}")
+            raise ValueError(f"Duplicate ticker in allocation results: {result.ticker}")
         seen_tickers.add(ticker)
 
 

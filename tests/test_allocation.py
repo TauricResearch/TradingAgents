@@ -13,6 +13,14 @@ def _result(ticker, rating, market_value):
     )
 
 
+def _failed_result(ticker):
+    return BatchTickerResult(
+        ticker=ticker,
+        status="failed",
+        error="provider timeout",
+    )
+
+
 def test_current_portfolio_value_includes_holdings_and_available_cash():
     plan = build_allocation_plan(
         [
@@ -97,6 +105,20 @@ def test_duplicate_success_tickers_are_rejected_before_allocation():
     results = [
         _result("AAPL", "Buy", 1000),
         _result("AAPL", "Hold", 2000),
+    ]
+
+    with pytest.raises(ValueError, match="(?i)duplicate.*ticker"):
+        build_allocation_plan(
+            results,
+            available_cash=1000,
+            prices={"AAPL": 100},
+        )
+
+
+def test_mixed_status_duplicate_tickers_are_rejected_before_allocation():
+    results = [
+        _result("AAPL", "Buy", 1000),
+        _failed_result("aapl"),
     ]
 
     with pytest.raises(ValueError, match="(?i)duplicate.*ticker"):
