@@ -23,9 +23,9 @@ from tradingagents.agents.utils.historical_context import (
 # ---------------------------------------------------------------------------
 
 _actions = st.sampled_from(["BUY", "SELL"])
-_tickers = st.text(
-    alphabet=string.ascii_uppercase, min_size=1, max_size=5
-).filter(lambda s: s.strip() != "")
+_tickers = st.text(alphabet=string.ascii_uppercase, min_size=1, max_size=5).filter(
+    lambda s: s.strip() != ""
+)
 _shares = st.integers(min_value=1, max_value=100_000)
 _reasons = st.text(
     alphabet=string.ascii_letters + string.digits + " :$,.-",
@@ -127,10 +127,14 @@ def test_property_length_cap(failures: dict) -> None:
     if "…" in result:
         assert result.endswith("…"), "Truncated output must end with ellipsis, not mid-line"
     else:
-        # All trades should be fully present
+        # All trades should be fully present (accounting for _truncate stripping trailing whitespace)
         for trade in failures["failed_trades"]:
-            line_fragment = f"- {trade['action']} {trade['ticker']} x{trade['shares']}: {trade['reason']}"
-            assert line_fragment in result, f"Non-truncated output missing trade: {line_fragment}"
+            action = trade["action"]
+            ticker = trade["ticker"]
+            shares_str = str(trade["shares"])
+            reason = trade["reason"].strip()  # _truncate strips trailing whitespace
+            line_fragment = f"- {action} {ticker} x{shares_str}: {reason}"
+            assert line_fragment in result, f"Non-truncated output missing trade: {line_fragment!r}"
 
 
 @settings(max_examples=100)
@@ -295,9 +299,7 @@ def test_find_latest_execution_failures_respects_lookback_window(tmp_path):
     old_dir = tmp_path / "2026-04-23" / "run_001" / "portfolio" / "report"
     old_dir.mkdir(parents=True)
     data = {
-        "failed_trades": [
-            {"action": "BUY", "ticker": "TSLA", "shares": 10, "reason": "Too old"}
-        ]
+        "failed_trades": [{"action": "BUY", "ticker": "TSLA", "shares": 10, "reason": "Too old"}]
     }
     (old_dir / "main_portfolio_execution_result.json").write_text(
         json.dumps(data), encoding="utf-8"
@@ -318,9 +320,7 @@ def test_find_latest_execution_failures_excludes_as_of_date_itself(tmp_path):
     same_day_dir = tmp_path / "2026-05-01" / "run_001" / "portfolio" / "report"
     same_day_dir.mkdir(parents=True)
     data = {
-        "failed_trades": [
-            {"action": "BUY", "ticker": "NVDA", "shares": 200, "reason": "Same day"}
-        ]
+        "failed_trades": [{"action": "BUY", "ticker": "NVDA", "shares": 200, "reason": "Same day"}]
     }
     (same_day_dir / "main_portfolio_execution_result.json").write_text(
         json.dumps(data), encoding="utf-8"

@@ -273,7 +273,9 @@ def create_pm_decision_agent(
         context = _build_pm_context(state, cfg)
 
         execution_failures = find_latest_execution_failures(
-            portfolio_id=str(state.get("portfolio_id") or DEFAULT_CONFIG.get("default_portfolio_id") or "default"),
+            portfolio_id=str(
+                state.get("portfolio_id") or DEFAULT_CONFIG.get("default_portfolio_id") or "default"
+            ),
             as_of_date=analysis_date,
         )
         execution_failure_block = format_execution_failure_block(execution_failures)
@@ -291,9 +293,9 @@ def create_pm_decision_agent(
             "Do not buy a ticker absent from Input B (candidate summaries). "
             "IMPORTANT OUTPUT CONSTRAINTS: "
             "The forensic_report.regime_alignment field MUST use exactly one of: "
-            "[\"macro-aligned\", \"sector-aligned\", \"regime-divergent\", \"uncorrelated\"]. "
+            '["macro-aligned", "sector-aligned", "regime-divergent", "uncorrelated"]. '
             "Do NOT generate descriptive phrases, portmanteau terms, or compound strings for this field. "
-            "If the alignment is unclear, use \"uncorrelated\". "
+            'If the alignment is unclear, use "uncorrelated". '
             "Output JSON only.\n\n"
             f"{context}"
         )

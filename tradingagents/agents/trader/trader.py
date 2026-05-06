@@ -105,7 +105,8 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
         )
         anon_prior_context = (
             truncate_text(anonymize_ticker(prior_context_block, ticker), max_chars=1200)
-            if prior_context_block else ""
+            if prior_context_block
+            else ""
         )
 
         execution_failures = find_latest_execution_failures(

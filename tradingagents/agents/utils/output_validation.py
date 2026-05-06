@@ -796,18 +796,21 @@ def build_sentiment_report_structured(
 
 def _compute_insider_net_balance(claims: list[dict]) -> dict | None:
     """Compute net insider buy/sell balance from a list of news claims.
-    
+
     Scans claim text for insider transaction keywords and attempts to extract
     share counts via regex. Falls back to counting mentions (1 per event)
     if no numeric share count is found.
-    
+
     Returns None if no insider activity detected.
     """
     buy_shares = 0
     sell_shares = 0
-    for claim in (claims or []):
+    for claim in claims or []:
         text = str(claim.get("claim") or "").lower()
-        if not any(kw in text for kw in ("insider", "director", "executive", "officer", "ceo", "cfo", "coo")):
+        if not any(
+            kw in text
+            for kw in ("insider", "director", "executive", "officer", "ceo", "cfo", "coo")
+        ):
             continue
         # Try to extract share count from text: "10,000 shares" or "10000 shares"
         share_match = re.search(r"([\d,]+)\s*shares?", text)
@@ -818,19 +821,23 @@ def _compute_insider_net_balance(claims: list[dict]) -> dict | None:
                 shares = 1
         else:
             shares = 1  # count as 1 mention if no explicit count
-        
+
         if any(w in text for w in ("buy", "bought", "purchase", "purchas", "acquir")):
             buy_shares += shares
         elif any(w in text for w in ("sell", "sold", "liquidat", "divest")):
             sell_shares += shares
-    
+
     if buy_shares == 0 and sell_shares == 0:
         return None
     return {
         "buy_shares": buy_shares,
         "sell_shares": sell_shares,
         "net_shares": buy_shares - sell_shares,
-        "bias": "bullish" if buy_shares > sell_shares else "bearish" if sell_shares > buy_shares else "neutral",
+        "bias": "bullish"
+        if buy_shares > sell_shares
+        else "bearish"
+        if sell_shares > buy_shares
+        else "neutral",
     }
 
 

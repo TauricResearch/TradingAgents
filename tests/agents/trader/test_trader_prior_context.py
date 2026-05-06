@@ -41,9 +41,13 @@ def test_trader_includes_prior_context_when_available(tmp_path: Path) -> None:
 
     with (
         patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
-        patch("tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")),
-        patch("tradingagents.agents.trader.trader.build_trader_plan_structured",
-              return_value={"status": "completed"}),
+        patch(
+            "tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")
+        ),
+        patch(
+            "tradingagents.agents.trader.trader.build_trader_plan_structured",
+            return_value={"status": "completed"},
+        ),
     ):
         node = create_trader(fake_llm, memory)
         node(state)
@@ -79,9 +83,13 @@ def test_trader_system_msg_has_no_prior_context_when_absent(tmp_path: Path) -> N
 
     with (
         patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
-        patch("tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")),
-        patch("tradingagents.agents.trader.trader.build_trader_plan_structured",
-              return_value={"status": "completed"}),
+        patch(
+            "tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")
+        ),
+        patch(
+            "tradingagents.agents.trader.trader.build_trader_plan_structured",
+            return_value={"status": "completed"},
+        ),
     ):
         node = create_trader(fake_llm, memory)
         node(state)
@@ -116,9 +124,13 @@ def test_trader_no_crash_when_trade_date_missing(tmp_path: Path) -> None:
 
     with (
         patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
-        patch("tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")),
-        patch("tradingagents.agents.trader.trader.build_trader_plan_structured",
-              return_value={"status": "completed"}),
+        patch(
+            "tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")
+        ),
+        patch(
+            "tradingagents.agents.trader.trader.build_trader_plan_structured",
+            return_value={"status": "completed"},
+        ),
     ):
         node = create_trader(fake_llm, memory)
         result = node(state)

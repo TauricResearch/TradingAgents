@@ -2536,7 +2536,9 @@ class LangGraphEngine:
         store = create_report_store(run_id=root_run_id)
 
         incomplete = pending_decision.get("incomplete_tickers") or []
-        portfolio_id = pending_decision.get("portfolio_id") or params.get("portfolio_id", "main_portfolio")
+        portfolio_id = pending_decision.get("portfolio_id") or params.get(
+            "portfolio_id", "main_portfolio"
+        )
         self._start_run_logger(root_run_id, logger_key=execution_key)
 
         try:
@@ -2629,10 +2631,16 @@ class LangGraphEngine:
                             "portfolio_id": portfolio_id,
                             "incomplete_tickers": remaining_incomplete,
                             "completed_tickers": sorted(
-                                set((pending_decision.get("completed_tickers") or []) + completed_tickers)
+                                set(
+                                    (pending_decision.get("completed_tickers") or [])
+                                    + completed_tickers
+                                )
                             ),
                             "aborted_tickers": sorted(
-                                set((pending_decision.get("aborted_tickers") or []) + aborted_tickers)
+                                set(
+                                    (pending_decision.get("aborted_tickers") or [])
+                                    + aborted_tickers
+                                )
                             ),
                             "scheduler_error": None,
                         }

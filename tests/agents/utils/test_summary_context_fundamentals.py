@@ -49,6 +49,7 @@ def test_mandated_phrases_pe_and_de_only():
 # Common deviation formats (LLM didn't follow the template exactly)
 # ---------------------------------------------------------------------------
 
+
 def test_price_to_earnings_variant():
     """price-to-earnings phrasing is captured."""
     state = {"fundamentals_report": "price-to-earnings: 40.5x"}
@@ -80,6 +81,7 @@ def test_operating_margin_short_form():
 # ---------------------------------------------------------------------------
 # No-match cases
 # ---------------------------------------------------------------------------
+
 
 def test_no_block_when_fundamentals_report_empty():
     """Empty fundamentals_report produces no risk block."""
