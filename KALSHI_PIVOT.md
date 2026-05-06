@@ -106,14 +106,49 @@ Ported from kalshi-trader (read-only reference) into `tradingagents/execution/`:
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Strip equity path | pending |
-| 1 | Crypto + Kalshi data layer | pending |
-| 2 | `MarketDecision` schema + analyst rewires | pending |
-| 3 | Execution layer (paper + live) | pending |
-| 4 | Run loop + CLI (`tradingagents kalshi run`) | pending |
-| 5 | Backtest harness scaffolding | pending |
+| 0 | Strip equity path | done |
+| 1 | Crypto + Kalshi data layer | done |
+| 2 | `MarketDecision` schema + analyst rewires | done |
+| 3 | Execution layer (paper + live) | done |
+| 4 | Run loop + CLI (`tradingagents kalshi-run`) | done |
+| 5 | Backtest harness scaffolding | done |
 
-Phase 5 ships scaffolding only — running a real backtest sweep (30+ historical contracts × full agent pipeline = hundreds of LLM calls) is intentional, not a side-effect. We'll fire it off later.
+Phase 5 ships scaffolding only — running a real backtest sweep (30+ historical contracts × full agent pipeline = hundreds of LLM calls) is intentional, not a side-effect. Use `tradingagents.backtest.sweep.run_sweep(contracts=..., grid=...)` when you've allocated budget.
+
+## How to use it (quick reference)
+
+**Paper mode (default — safe to run anytime, real LLM cost only):**
+
+```bash
+tradingagents kalshi-run KXBTCD-26MAY05-T100000 --date 2026-05-05
+```
+
+**Live mode (real money — requires three concurrent unlocks):**
+
+1. `paper_mode=False` in your config (e.g. via env var or a custom config file).
+2. `TRADINGAGENTS_LIVE_DISABLED` env var unset.
+3. `--live` flag on the CLI.
+
+```bash
+TRADINGAGENTS_LIVE_DISABLED=  tradingagents kalshi-run KXBTCD-26MAY05-T100000 --live
+```
+
+Any one of those missing → run downgrades to paper automatically (with a clear log message).
+
+**Settlement reflection (run after the contract resolves):**
+
+```bash
+tradingagents kalshi-settle
+```
+
+Walks open ledger rows, fetches Kalshi settlement state, computes realized P&L, marks rows `settled` in the ledger.
+
+## Required env vars
+
+- `OPENAI_API_KEY` (or your provider's key)
+- `KALSHI_API_KEY_ID` + `KALSHI_PRIVATE_KEY_PATH` — for Kalshi market reads + live order placement (missing creds yield a clear "missing-creds" message and the pipeline degrades gracefully)
+- `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` (optional — sentiment analyst falls back if missing)
+- `CMC_API_KEY` (optional — sentiment analyst falls back if missing)
 
 ---
 
