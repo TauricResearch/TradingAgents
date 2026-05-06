@@ -43,11 +43,18 @@ DEFAULT_WEB_SETTINGS: dict[str, Any] = {
 
 
 def load_settings(path: Path = _SETTINGS_PATH) -> dict[str, Any]:
-    """Load web settings from disk; return defaults if the file doesn't exist."""
+    """Load web settings from disk, deep-merged over defaults so all keys are always present."""
     if not path.exists():
         return dict(DEFAULT_WEB_SETTINGS)
     with path.open(encoding="utf-8") as f:
-        return json.load(f)
+        saved = json.load(f)
+    merged = dict(DEFAULT_WEB_SETTINGS)
+    for key, value in saved.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = {**merged[key], **value}
+        else:
+            merged[key] = value
+    return merged
 
 
 def save_settings(settings: dict[str, Any], path: Path = _SETTINGS_PATH) -> None:
