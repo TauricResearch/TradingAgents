@@ -66,11 +66,21 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
 
+        # Execution failure injection — uses DEFAULT_CONFIG portfolio_id because
+        # the trading graph state does not carry portfolio_id (it's per-ticker).
+        # NOTE: failure data may not match the active portfolio if run outside
+        # the default portfolio context (e.g. from the portfolio graph that
+        # carries its own portfolio_id in state). See caching plan Option A.
         execution_failures = find_latest_execution_failures(
             portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
             as_of_date=str(state.get("trade_date") or ""),
         )
         execution_failure_block = format_execution_failure_block(execution_failures)
+        # Anonymize ticker references in failure block to prevent training-data bias
+        if execution_failure_block:
+            execution_failure_block = anonymize_ticker(execution_failure_block, ticker)
+
+        _failure_suffix = f"\n\n{execution_failure_block}" if execution_failure_block else ""
 
         prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and make a definitive decision: Buy, Sell, or Hold.
 {macro_context}
@@ -113,7 +123,7 @@ Rolling debate summary:
 
 Here is the debate:
 Debate History:
-{anon_history}{"" if not execution_failure_block else chr(10) + chr(10) + execution_failure_block}"""
+{anon_history}{_failure_suffix}"""
         timeout_seconds = resolve_timeout("deep")
         response, invoke_error = invoke_with_timeout(
             llm,

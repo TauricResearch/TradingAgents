@@ -28,11 +28,17 @@ def create_aggressive_debator(
 
         # Execution failure injection — uses DEFAULT_CONFIG portfolio_id because
         # the trading graph state does not carry portfolio_id (it's per-ticker).
+        # NOTE: failure data may not match the active portfolio if run outside
+        # the default portfolio context (e.g. from the portfolio graph that
+        # carries its own portfolio_id in state). See caching plan Option A.
         execution_failures = find_latest_execution_failures(
             portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
             as_of_date=str(state.get("trade_date") or ""),
         )
         execution_failure_block = format_execution_failure_block(execution_failures)
+        # Anonymize ticker references in failure block to prevent training-data bias
+        if execution_failure_block:
+            execution_failure_block = anonymize_ticker(execution_failure_block, ticker)
 
         # Anonymize data variables to prevent training-data bias
         anon_research_packet = anonymize_ticker(
@@ -42,6 +48,8 @@ def create_aggressive_debator(
         anon_trader_decision = anonymize_ticker(
             truncate_text(trader_decision, max_chars=1800), ticker
         )
+        _failure_suffix = f"\n\n{execution_failure_block}" if execution_failure_block else ""
+
         _cap = float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
         timeout_seconds = min(
             float(
@@ -84,7 +92,7 @@ Present your initial clinical position on the risk/reward profile. Build a data-
 Output in two sections:
 1. THE DEBATE: Your initial clinical argument.
 2. SUMMARY POINTS: 3 most critical risk/reward points.
-{"" if not execution_failure_block else chr(10) + execution_failure_block}"""
+{_failure_suffix}"""
             response, invoke_error = invoke_with_timeout(
                 llm,
                 prompt,
@@ -151,7 +159,7 @@ Engage directly with their points. Refute weaknesses in their logic and assert w
 Output in two sections:
 1. THE DEBATE: Your clinical rebuttal.
 2. SUMMARY POINTS: 3 most critical risk/reward points.
-{"" if not execution_failure_block else chr(10) + execution_failure_block}"""
+{_failure_suffix}"""
             response, invoke_error = invoke_with_timeout(
                 llm,
                 prompt,

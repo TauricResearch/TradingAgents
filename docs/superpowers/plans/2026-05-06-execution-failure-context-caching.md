@@ -40,7 +40,7 @@ execution_failure_context: Annotated[str, "Pre-computed execution failure block 
 
 - [ ] **Step 2: Compute at graph entry**
 
-In `tradingagents/graph/setup.py`, inside `_build_trading_graph_initial_state()` (or equivalent entry point):
+In `tradingagents/graph/setup.py`, inside `setup_graph()` (or a dedicated pre-node):
 ```python
 from tradingagents.agents.utils.historical_context import (
     find_latest_execution_failures,

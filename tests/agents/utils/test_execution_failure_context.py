@@ -1,18 +1,20 @@
 """Property-based and unit tests for execution failure context formatting.
 
 Feature: remaining-graph-hardening
-Tests for `format_execution_failure_block()` from
-`tradingagents.agents.utils.historical_context`.
+Tests for `format_execution_failure_block()` and `find_latest_execution_failures()`
+from `tradingagents.agents.utils.historical_context`.
 """
 
 from __future__ import annotations
 
+import json
 import string
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from tradingagents.agents.utils.historical_context import (
+    find_latest_execution_failures,
     format_execution_failure_block,
 )
 
@@ -182,3 +184,177 @@ def test_single_failure_formats_correctly() -> None:
 
     # Check length cap
     assert len(result) <= 600
+
+
+# ---------------------------------------------------------------------------
+# Tests for find_latest_execution_failures() — directory-walking logic
+# ---------------------------------------------------------------------------
+
+
+def test_find_latest_execution_failures_returns_failures(tmp_path):
+    """find_latest_execution_failures() returns the most recent failure data."""
+    # Create reports/daily/2026-05-01/run_001/portfolio/report/main_portfolio_execution_result.json
+    date_dir = tmp_path / "2026-05-01"
+    report_dir = date_dir / "run_001" / "portfolio" / "report"
+    report_dir.mkdir(parents=True)
+    data = {
+        "failed_trades": [
+            {"action": "BUY", "ticker": "AAPL", "shares": 100, "reason": "Insufficient cash"}
+        ]
+    }
+    (report_dir / "main_portfolio_execution_result.json").write_text(
+        json.dumps(data), encoding="utf-8"
+    )
+
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-02",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is not None
+    assert result["date"] == "2026-05-01"
+    assert len(result["failed_trades"]) == 1
+    assert result["failed_trades"][0]["ticker"] == "AAPL"
+
+
+def test_find_latest_execution_failures_skips_empty_trades(tmp_path):
+    """find_latest_execution_failures() skips files with empty failed_trades."""
+    date_dir = tmp_path / "2026-05-01"
+    report_dir = date_dir / "run_001" / "portfolio" / "report"
+    report_dir.mkdir(parents=True)
+    data = {"failed_trades": []}
+    (report_dir / "main_portfolio_execution_result.json").write_text(
+        json.dumps(data), encoding="utf-8"
+    )
+
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-02",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is None
+
+
+def test_find_latest_execution_failures_returns_none_when_no_reports(tmp_path):
+    """find_latest_execution_failures() returns None when no matching files exist."""
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-02",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is None
+
+
+def test_find_latest_execution_failures_picks_most_recent_date(tmp_path):
+    """find_latest_execution_failures() returns the most recent date with failures."""
+    # Older date
+    old_dir = tmp_path / "2026-04-28" / "run_001" / "portfolio" / "report"
+    old_dir.mkdir(parents=True)
+    old_data = {
+        "failed_trades": [
+            {"action": "SELL", "ticker": "MSFT", "shares": 50, "reason": "Old failure"}
+        ]
+    }
+    (old_dir / "main_portfolio_execution_result.json").write_text(
+        json.dumps(old_data), encoding="utf-8"
+    )
+
+    # Newer date
+    new_dir = tmp_path / "2026-04-30" / "run_002" / "portfolio" / "report"
+    new_dir.mkdir(parents=True)
+    new_data = {
+        "failed_trades": [
+            {"action": "BUY", "ticker": "GOOG", "shares": 25, "reason": "Recent failure"}
+        ]
+    }
+    (new_dir / "main_portfolio_execution_result.json").write_text(
+        json.dumps(new_data), encoding="utf-8"
+    )
+
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-01",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is not None
+    assert result["date"] == "2026-04-30"
+    assert result["failed_trades"][0]["ticker"] == "GOOG"
+
+
+def test_find_latest_execution_failures_respects_lookback_window(tmp_path):
+    """find_latest_execution_failures() ignores dates outside the lookback window."""
+    # Date outside lookback window (8 days before as_of_date, lookback=7)
+    old_dir = tmp_path / "2026-04-23" / "run_001" / "portfolio" / "report"
+    old_dir.mkdir(parents=True)
+    data = {
+        "failed_trades": [
+            {"action": "BUY", "ticker": "TSLA", "shares": 10, "reason": "Too old"}
+        ]
+    }
+    (old_dir / "main_portfolio_execution_result.json").write_text(
+        json.dumps(data), encoding="utf-8"
+    )
+
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-01",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is None
+
+
+def test_find_latest_execution_failures_excludes_as_of_date_itself(tmp_path):
+    """find_latest_execution_failures() only looks strictly before as_of_date."""
+    same_day_dir = tmp_path / "2026-05-01" / "run_001" / "portfolio" / "report"
+    same_day_dir.mkdir(parents=True)
+    data = {
+        "failed_trades": [
+            {"action": "BUY", "ticker": "NVDA", "shares": 200, "reason": "Same day"}
+        ]
+    }
+    (same_day_dir / "main_portfolio_execution_result.json").write_text(
+        json.dumps(data), encoding="utf-8"
+    )
+
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-01",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is None
+
+
+def test_find_latest_execution_failures_matches_portfolio_id(tmp_path):
+    """find_latest_execution_failures() only matches files for the given portfolio_id."""
+    report_dir = tmp_path / "2026-05-01" / "run_001" / "portfolio" / "report"
+    report_dir.mkdir(parents=True)
+    data = {
+        "failed_trades": [
+            {"action": "BUY", "ticker": "AMZN", "shares": 30, "reason": "Wrong portfolio"}
+        ]
+    }
+    # File is for "other_portfolio", not "main_portfolio"
+    (report_dir / "other_portfolio_execution_result.json").write_text(
+        json.dumps(data), encoding="utf-8"
+    )
+
+    result = find_latest_execution_failures(
+        portfolio_id="main_portfolio",
+        as_of_date="2026-05-02",
+        reports_root=tmp_path,
+        lookback_days=7,
+    )
+
+    assert result is None
