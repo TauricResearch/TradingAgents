@@ -41,6 +41,7 @@ from tradingagents.batch import (
     load_batch_inputs,
     run_batch_analysis,
 )
+from tradingagents.allocation import AllocationPolicy
 from tradingagents.charts import ChartArtifact, generate_report_charts
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -1868,11 +1869,44 @@ def batch_command(
         "--continue-on-error/--fail-fast",
         help="Continue after a per-ticker failure, or stop at the first failure.",
     ),
+    cash: float = typer.Option(
+        0.0,
+        "--cash",
+        help="Available cash to include in allocation planning.",
+    ),
+    allocate: bool = typer.Option(
+        False,
+        "--allocate/--no-allocate",
+        help="Generate portfolio allocation recommendations.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show proposed paper orders without submitting anything.",
+    ),
+    max_position_weight: float = typer.Option(
+        0.25,
+        "--max-position-weight",
+        help="Maximum target weight per ticker, e.g. 0.25.",
+    ),
+    min_cash_weight: float = typer.Option(
+        0.0,
+        "--min-cash-weight",
+        help="Minimum target cash weight, e.g. 0.05.",
+    ),
 ):
     try:
         holdings = load_batch_inputs(input_path=input_path, tickers=tickers)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    if cash < 0:
+        raise typer.BadParameter("cash must be non-negative.")
+    if not 0 <= max_position_weight <= 1:
+        raise typer.BadParameter("max-position-weight must be between 0 and 1.")
+    if not 0 <= min_cash_weight <= 1:
+        raise typer.BadParameter("min-cash-weight must be between 0 and 1.")
+    if dry_run:
+        allocate = True
 
     if analysis_date:
         validated_batch_date = _validate_analysis_date_option(analysis_date)
@@ -1907,6 +1941,14 @@ def batch_command(
         save_path=save_path,
         display_report=display_report,
         continue_on_error=continue_on_error,
+        available_cash=cash,
+        allocate=allocate,
+        dry_run=dry_run,
+        allocation_policy=AllocationPolicy(
+            max_position_weight=max_position_weight,
+            min_cash_weight=min_cash_weight,
+        ),
+        prices=None,
     )
 
 

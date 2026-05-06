@@ -23,7 +23,7 @@ from cli.utils import normalize_ticker_symbol
 from tradingagents.agents.utils.rating import parse_rating
 
 if TYPE_CHECKING:
-    from tradingagents.allocation import AllocationPlan
+    from tradingagents.allocation import AllocationPlan, AllocationPolicy
 
 
 RATING_RANK = {
@@ -312,6 +312,11 @@ def run_batch_analysis(
     save_path: Path,
     display_report: bool,
     continue_on_error: bool,
+    available_cash: float,
+    allocate: bool,
+    dry_run: bool,
+    allocation_policy: "AllocationPolicy | None",
+    prices: dict[str, float] | None = None,
 ) -> list[BatchTickerResult]:
     from cli.main import SelectionOverrides, console, run_analysis
 
@@ -358,14 +363,71 @@ def run_batch_analysis(
                 break
 
     narrative = build_llm_narrative(results, llm_overrides)
+    allocation_plan = None
+    if allocate or dry_run:
+        from tradingagents.allocation import build_allocation_plan
+
+        allocation_plan = build_allocation_plan(
+            results,
+            available_cash=available_cash,
+            prices=prices or _derive_prices_from_holdings(results),
+            policy=allocation_policy,
+        )
     summary_path = write_batch_outputs(
         save_path,
         results,
         analysis_date,
         narrative=narrative,
+        allocation_plan=allocation_plan,
     )
     console.print(f"[green]Batch summary saved to:[/green] {summary_path.resolve()}")
+    if allocation_plan is not None:
+        allocation_path = save_path / "allocation_plan.md"
+        console.print(
+            f"[green]Allocation plan saved to:[/green] {allocation_path.resolve()}"
+        )
+    if dry_run and allocation_plan is not None:
+        _print_dry_run_table(console, allocation_plan)
     return results
+
+
+def _derive_prices_from_holdings(results: Sequence[BatchTickerResult]) -> dict[str, float]:
+    derived: dict[str, float] = {}
+    for result in results:
+        holding = result.holding
+        if (
+            holding is None
+            or holding.quantity is None
+            or holding.quantity <= 0
+            or holding.market_value is None
+        ):
+            continue
+        derived[result.ticker] = float(holding.market_value) / float(holding.quantity)
+    return derived
+
+
+def _print_dry_run_table(console: object, allocation_plan: "AllocationPlan") -> None:
+    from rich.table import Table
+
+    table = Table(title="Allocation Dry Run")
+    table.add_column("Ticker")
+    table.add_column("Action")
+    table.add_column("Quantity Delta", justify="right")
+    table.add_column("Leftover Cash", justify="right")
+
+    for row in allocation_plan.rows:
+        quantity = (
+            ""
+            if row.quantity_delta is None
+            else _format_quantity(row.quantity_delta)
+        )
+        table.add_row(
+            row.ticker,
+            row.recommended_action,
+            quantity,
+            _format_number(allocation_plan.leftover_cash),
+        )
+    console.print(table)
 
 
 def build_llm_narrative(

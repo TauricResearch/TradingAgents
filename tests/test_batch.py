@@ -225,7 +225,20 @@ def test_batch_cli_dispatches_config(monkeypatch, tmp_path):
     runner = CliRunner()
     captured = {}
 
-    def fake_run_batch_analysis(*, holdings, analysis_date, output_language, analysts, research_depth, checkpoint, llm_overrides, save_path, display_report, continue_on_error):
+    def fake_run_batch_analysis(
+        *,
+        holdings,
+        analysis_date,
+        output_language,
+        analysts,
+        research_depth,
+        checkpoint,
+        llm_overrides,
+        save_path,
+        display_report,
+        continue_on_error,
+        **kwargs,
+    ):
         captured.update(locals())
         return []
 
@@ -263,3 +276,120 @@ def test_batch_cli_dispatches_config(monkeypatch, tmp_path):
     assert captured["analysis_date"] == "2026-05-05"
     assert captured["analysts"] == [AnalystType.MARKET, AnalystType.NEWS]
     assert captured["continue_on_error"] is False
+
+
+def test_batch_cli_dispatches_allocation_and_dry_run_options(monkeypatch, tmp_path):
+    runner = CliRunner()
+    captured = {}
+
+    def fake_run_batch_analysis(
+        *,
+        holdings,
+        analysis_date,
+        output_language,
+        analysts,
+        research_depth,
+        checkpoint,
+        llm_overrides,
+        save_path,
+        display_report,
+        continue_on_error,
+        available_cash,
+        allocate,
+        dry_run,
+        allocation_policy,
+        prices=None,
+    ):
+        captured.update(locals())
+        return []
+
+    monkeypatch.setattr("cli.main.run_batch_analysis", fake_run_batch_analysis)
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "--tickers",
+            "AAPL,MSFT",
+            "--cash",
+            "1000",
+            "--allocate",
+            "--dry-run",
+            "--analysis-date",
+            "2026-05-05",
+            "--save-path",
+            str(tmp_path / "batch"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["available_cash"] == 1000
+    assert captured["allocate"] is True
+    assert captured["dry_run"] is True
+    assert captured["prices"] is None
+
+
+def test_batch_cli_rejects_negative_cash():
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "--tickers",
+            "AAPL",
+            "--cash",
+            "-1",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "cash must be non-negative" in result.output
+
+
+def test_batch_cli_dry_run_implies_allocation(monkeypatch, tmp_path):
+    runner = CliRunner()
+    captured = {}
+
+    def fake_run_batch_analysis(
+        *,
+        holdings,
+        analysis_date,
+        output_language,
+        analysts,
+        research_depth,
+        checkpoint,
+        llm_overrides,
+        save_path,
+        display_report,
+        continue_on_error,
+        available_cash,
+        allocate,
+        dry_run,
+        allocation_policy,
+        prices=None,
+    ):
+        captured.update(locals())
+        return []
+
+    monkeypatch.setattr("cli.main.run_batch_analysis", fake_run_batch_analysis)
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "--tickers",
+            "AAPL",
+            "--cash",
+            "1000",
+            "--dry-run",
+            "--analysis-date",
+            "2026-05-05",
+            "--save-path",
+            str(tmp_path / "batch"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["allocate"] is True
+    assert captured["dry_run"] is True
