@@ -53,6 +53,18 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.6 - Pin to specific version", "claude-sonnet-4-6"),
         ],
     },
+    # Google Gemini CLI subprocess provider — routes through `gemini -p`,
+    # auth via the user's `gemini auth` OAuth login.
+    "gemini_cli": {
+        "quick": [
+            ("Gemini 2.5 Flash - Balanced, fast", "gemini-2.5-flash"),
+            ("Gemini 2.5 Flash Lite - Fastest", "gemini-2.5-flash-lite"),
+        ],
+        "deep": [
+            ("Gemini 2.5 Pro - Most capable", "gemini-2.5-pro"),
+            ("Gemini 2.5 Flash - Balanced, fast", "gemini-2.5-flash"),
+        ],
+    },
     "google": {
         "quick": [
             ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),

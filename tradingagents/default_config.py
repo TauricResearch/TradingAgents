@@ -31,6 +31,9 @@ DEFAULT_CONFIG = {
     "claude_code_effort": None,  # "low" | "medium" | "high" | "xhigh" | "max"
     "claude_code_max_budget_usd": None,  # per-call USD cap forwarded to `claude --max-budget-usd`
     "claude_code_force_subscription": False,  # strip ANTHROPIC_API_KEY from subprocess env
+    # Gemini CLI (subscription) provider knobs. All optional.
+    "gemini_cli_yolo": False,  # auto-approve all actions (rarely useful here)
+    "gemini_cli_force_subscription": False,  # strip GEMINI_API_KEY/GOOGLE_API_KEY from subprocess env
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
