@@ -44,6 +44,7 @@ from tradingagents.batch import (
 from tradingagents.allocation import AllocationPolicy
 from tradingagents.charts import ChartArtifact, generate_report_charts
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution import DryRunExecutor, ExecutionOrder
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # Load environment variables
@@ -77,6 +78,72 @@ class AnalysisRunResult:
     final_state: dict[str, Any]
     report_path: Path | None = None
     save_path: Path | None = None
+
+
+def _execution_orders_from_allocation_plan(allocation_plan: Any) -> list[ExecutionOrder]:
+    orders: list[ExecutionOrder] = []
+    for row in allocation_plan.rows:
+        if row.quantity_delta is None or row.quantity_delta == 0:
+            continue
+        action = "buy" if row.quantity_delta > 0 else "sell"
+        orders.append(
+            ExecutionOrder(
+                ticker=row.ticker,
+                action=action,
+                quantity=abs(row.quantity_delta),
+            )
+        )
+    return orders
+
+
+def _print_execution_dry_run_table(console: Console, allocation_plan: Any) -> None:
+    executor = DryRunExecutor()
+    results_by_ticker = {
+        result.order.ticker: result
+        for result in executor.execute(_execution_orders_from_allocation_plan(allocation_plan))
+    }
+
+    table = Table(title="Allocation Dry Run")
+    table.add_column("Ticker")
+    table.add_column("Action")
+    table.add_column("Quantity Delta", justify="right")
+    table.add_column("Leftover Cash", justify="right")
+
+    for row in allocation_plan.rows:
+        quantity = (
+            ""
+            if row.quantity_delta is None
+            else _format_execution_quantity(row.quantity_delta)
+        )
+        result = results_by_ticker.get(row.ticker)
+        table.add_row(
+            row.ticker,
+            result.order.action if result is not None else row.recommended_action,
+            quantity,
+            _format_execution_number(allocation_plan.leftover_cash),
+        )
+    console.print(table)
+
+
+def _format_execution_number(value: float | None) -> str:
+    return "" if value is None else f"{value:.2f}"
+
+
+def _format_execution_quantity(value: float | None) -> str:
+    if value is None:
+        return ""
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.4f}"
+
+
+def _install_cli_dry_run_executor() -> None:
+    import tradingagents.batch as batch_module
+
+    batch_module._print_dry_run_table = _print_execution_dry_run_table
+
+
+_install_cli_dry_run_executor()
 
 
 # Create a deque to store recent messages with a maximum length
