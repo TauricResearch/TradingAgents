@@ -1,13 +1,11 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-06 (end of session)
-**State:** All checks green. tsc ✓ lint ✓ 15 smoke tests pass.
+**Last updated:** 2026-05-06 (mid-session pause)
+**State:** All checks green. tsc ✓ lint ✓ PR #5 closed as redundant.
 
 ---
 
 ## Where We Are
-
-**Completed this session (2026-05-06):**
 
 ### Epic td-0a1897 DONE ✓ — Route HTML Builders → JSX Components (8 routes)
 - workflow → `workflow-data.ts` + `workflow-kanban.tsx` (390 → 45 lines)
@@ -19,6 +17,13 @@
 - feedback → `feedback-data.ts` + `feedback-view.tsx` (411 → 60 lines)
 - benchmark → `benchmark-data.ts` + `benchmark-view.tsx` (275 → 55 lines)
 
+### PR #5 forward-port DONE ✓ (commit 61c6e33)
+- Aborted the 3-way merge; cherry-picked/rewrote all features instead
+- Accounts table, allocation bar, spread bets, cash breakdown, manual balance
+- `portfolio-balance.ts` route, schema migrations, seed data, `scripts/py/get_price.py`
+- All `get_price.py` references unified to `scripts/py/get_price.py`
+- PR #5 set to draft → closed as redundant
+
 ### Previous session fixes also done:
 - Static assets 404 fixed — `serveStatic` with absolute path + `rewriteRequestPath`
 - `/api/analyses/list/html` 404 fixed — DB router mount order before FS router
@@ -28,6 +33,34 @@
 - `tsconfig.json` + `tsconfig.server.json` fixed — `"types": ["bun"]`
 - Last 2 Biome `!` assertion warnings cleaned
 - New tool: `scripts/color-tools/`
+
+---
+
+## Residual HTML String Builders (not yet JSX)
+
+| File | Function | Lines | Priority |
+|------|----------|-------|----------|
+| `server/routes/portfolio.ts` | `buildPortfolioHtml` | ~90 | P2 — blocks `td-200cbd` |
+| `server/routes/analyses-db.ts` | `buildAnalysisReportHtml` | ~50 | P3 |
+
+No inline JS scripts remain in views. All runtime JS is external `<script src="...">`.
+
+---
+
+## Priority Order
+
+### 1. Next Up: `td-56fd1b` Hygiene (remaining)
+
+- `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router (309 lines)
+  - Extract `computePortfolioSummary` + types → `server/lib/portfolio-data.ts`
+  - Convert `buildPortfolioHtml` → `server/views/portfolio-summary.tsx` JSX component
+  - Keep thin route in `server/routes/portfolio.ts`
+- `td-18e84e` — price freshness badge per ticker in holdings
+- `td-02ccec` — portfolio-intelligence was cleaned in this epic, but `portfolio.ts` still large
+
+### 2. After hygiene
+
+- `td-200cbd` depends on `td-0a1897` pattern — follow the same data-first, view-second approach.
 
 ---
 
@@ -47,16 +80,6 @@ git commit -m "type(scope): what"
 ```
 
 **If checks fail:** revert immediately, diagnose second. Never pile fixes on a broken state.
-
----
-
-## Priority Order
-
-### 1. Next Up: `td-56fd1b` Hygiene (remaining)
-
-- `td-200cbd` — split `portfolio.ts` into `portfolio/` sub-router (309 lines)
-- `td-18e84e` — price freshness badge per ticker in holdings
-- `td-02ccec` — portfolio-intelligence was cleaned in this epic, but `portfolio.ts` still large
 
 ---
 
