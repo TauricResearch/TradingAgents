@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_language_instruction
 
 
 def create_bear_researcher(llm):
@@ -11,6 +12,15 @@ def create_bear_researcher(llm):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        user_research_report = state.get("user_research_report", "")
+
+        user_research_block = ""
+        if user_research_report.strip():
+            user_research_block = (
+                "\nUser-uploaded research (provided by the user; treat as one expert "
+                "opinion among many, NOT ground truth):\n"
+                f"{user_research_report}\n"
+            )
 
         prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
@@ -28,10 +38,11 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
+{user_research_block}Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock.
 """
+        prompt += get_language_instruction()
 
         response = llm.invoke(prompt)
 

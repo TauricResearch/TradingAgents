@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -16,8 +16,17 @@ def create_research_manager(llm):
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
         history = state["investment_debate_state"].get("history", "")
+        user_research_report = state.get("user_research_report", "")
 
         investment_debate_state = state["investment_debate_state"]
+
+        user_research_block = ""
+        if user_research_report.strip():
+            user_research_block = (
+                "\n---\n\n**User-uploaded research** (provided by the user; treat as one "
+                "expert opinion among many, NOT ground truth):\n"
+                f"{user_research_report}\n"
+            )
 
         prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
 
@@ -37,7 +46,8 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
 ---
 
 **Debate History:**
-{history}"""
+{history}{user_research_block}"""
+        prompt += get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,

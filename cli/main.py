@@ -6,9 +6,13 @@ from functools import wraps
 from rich.console import Console
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables. Look in cwd first (so users can override per-run),
+# then fall back to the project root so `tradingagents` works from any directory.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv()
+load_dotenv(_PROJECT_ROOT / ".env", override=False)
 load_dotenv(".env.enterprise", override=False)
+load_dotenv(_PROJECT_ROOT / ".env.enterprise", override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
