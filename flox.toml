@@ -52,12 +52,20 @@ fd.optional = true
 tree.pkg-path = "tree"
 tree.optional = true
 
-# ---- GITHUB CLI (scripts: pr-review, pr-fetch, pr-summarize) ----
+# ---- GITHUB CLI + DEFUDDLE (scripts: pr-review, pr-fetch, pr-summarize) ----
 gh.pkg-path = "gh"
+
+# defuddle: extract clean markdown from web pages (pr-fetch, pr-fetch-all)
+defuddle.pkg-path = "defuddle"
 
 # ---- DIAGRAMS (scripts: render_diagrams.ts) ----
 graphviz.pkg-path = "graphviz"
 graphviz.optional = true
+
+# ---- MONITORING (optional: sidecar for agent session monitoring) ----
+# sidecar is not in nixpkgs; install via: go install github.com/marcus/sidecar/cmd/sidecar@latest
+# Useful for tracking agent sessions and monitoring concurrent work.
+# See: .gitignore patterns (.sidecar/, .sidecar-agent, etc.)
 
 # ---- DOCUMENTATION ----
 man.pkg-path = "man"
@@ -103,35 +111,38 @@ systems = [
 # ============================================================
 # Package availability across package managers:
 #
-# Tool             nixpkgs  Arch pacman  Brew      Notes
-# ---------------  -------  ------------ --------  -----------------------------
-# just             ✅       ✅           ✅        Task runner
-# jq               ✅       ✅           ✅        JSON processing
-# watchexec        ✅       ❌           ✅        Watch mode
-# nodejs           ✅       ✅           ✅        npm compatibility
-# python3          ✅       ✅           ✅        Python runtime
-# uv               ✅       ❌           ✅        Python package manager (Astral)
-# hledger          ✅       ✅           ✅        Plain-text accounting
-# sqlite           ✅       ✅           ✅        SQL CLI + library
-# glow             ✅       GitHub       ✅        Markdown renderer (Charm)
-# gum              ✅       GitHub       ✅        TUI prompts (Charm)
-# fzf              ✅       ✅           ✅        Fuzzy finder
-# ripgrep          ✅       ✅           ✅        Fast grep
-# bat              ✅       ✅           ✅        Syntax-highlighted cat
-# fd               ✅       ✅           ✅        Fast find
-# tree             ✅       ✅           ✅        Directory tree
-# gh               ✅       ✅           ✅        GitHub CLI
-# graphviz         ✅       ✅           ✅        DOT graph rendering
-# man              ✅       ✅           ✅        Manual pages
-# git              ✅       ✅           ✅        system
+# Tool             nixpkgs  Arch pacman  Brew      Required?  Notes
+# ---------------  -------  ------------ --------  ---------  -----------------------------
+# just             ✅       ✅           ✅        YES        Task runner
+# jq               ✅       ✅           ✅        YES        JSON processing
+# watchexec        ✅       ❌           ✅        YES        Watch mode
+# nodejs           ✅       ✅           ✅        YES        npm compatibility
+# python3          ✅       ✅           ✅        YES        Python runtime
+# uv               ✅       ❌           ✅        YES        Python package manager (Astral)
+# hledger          ✅       ✅           ✅        YES        Plain-text accounting
+# sqlite           ✅       ✅           ✅        YES        SQL CLI + library
+# gh               ✅       ✅           ✅        YES        GitHub CLI
+# defuddle         ✅       ❌           ❌        YES        Extract markdown from web pages
+# glow             ✅       GitHub       ✅        YES        Markdown renderer (Charm)
+# fzf              ✅       ✅           ✅        no         Fuzzy finder
+# ripgrep          ✅       ✅           ✅        no         Fast grep
+# bat              ✅       ✅           ✅        no         Syntax-highlighted cat
+# fd               ✅       ✅           ✅        no         Fast find
+# tree             ✅       ✅           ✅        no         Directory tree
+# gum              ✅       GitHub       ✅        no         TUI prompts (Charm)
+# graphviz         ✅       ✅           ✅        no         DOT graph rendering
+# man              ✅       ✅           ✅        no         Manual pages
+# git              ✅       ✅           ✅        system     Version control
+# curl             ✅       ✅           ✅        system     HTTP client (used for post-install)
 #
-# NOT in nixpkgs (install separately):
+# NOT in nixpkgs (install separately after flox activate):
 # bun              ❌       ❌           ✅        curl -fsSL https://bun.sh/install | bash
 # mmdc             ❌       ❌           ❌        npm install -g @mermaid-js/mermaid-cli
 # biome            ❌       ❌           ❌        bun add --dev @biomejs/biome
 # typescript       ❌       ❌           ❌        bun add --dev typescript
 # td               ❌       ❌           ❌        go install github.com/marcus/td@latest
 # sidecar          ❌       ❌           ❌        go install github.com/marcus/sidecar/cmd/sidecar@latest
+#                  ^^ optional — useful for monitoring agent sessions
 #
 # Recommended post-activate setup:
 #   curl -fsSL https://bun.sh/install | bash
