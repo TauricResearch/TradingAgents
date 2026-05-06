@@ -260,7 +260,10 @@ def run_login_flow(
     if open_browser:
         webbrowser.open(url)
 
-    server = HTTPServer(("127.0.0.1", 1455), Handler)
+    try:
+        server = HTTPServer(("127.0.0.1", 1455), Handler)
+    except OSError as e:
+        raise RuntimeError(f"Failed to start OAuth callback server on port 1455: {e}") from e
     server.timeout = 1
     deadline = time.time() + timeout_seconds
     while "code" not in result:

@@ -160,7 +160,7 @@ class CodexOAuthChatModel(BaseChatModel):
             "Authorization": f"Bearer {tokens.access_token}",
             "Content-Type": "application/json",
             "Accept": "text/event-stream, application/json",
-            "User-Agent": "codex_cli_rs/0.0.1 (TradingAgents)",
+            "User-Agent": "codex_cli_rs/1.0.0 (TradingAgents)",
             "originator": "codex_cli_rs",
             "OpenAI-Beta": "responses=experimental",
         }

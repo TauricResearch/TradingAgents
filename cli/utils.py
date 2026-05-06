@@ -203,7 +203,11 @@ def select_codex_model(mode: str) -> str:
         ]),
     ).ask()
 
-    if choice is None or choice == "custom":
+    if choice is None:
+        console.print("\n[red]No Codex model selected. Exiting...[/red]")
+        exit(1)
+
+    if choice == "custom":
         return _prompt_custom_model_id()
 
     return choice
