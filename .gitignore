@@ -217,3 +217,15 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# TradingAgents runtime artifacts (kept inside workspace, ignored by git)
+/reports/
+/.cache/
+/.memory/
+*.run.log
+
+# Local agent / IDE / OS artifacts
+.DS_Store
+**/.DS_Store
+/.claude/
+/CLAUDE.md
