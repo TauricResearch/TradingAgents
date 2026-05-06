@@ -91,3 +91,26 @@ def test_target_weights_plus_cash_weight_sum_to_one_after_normalization():
     assert round(sum(row.target_weight for row in plan.rows) + plan.target_cash_weight, 6) == 1.0
     assert plan.row_for("AAPL").recommended_action == "buy"
     assert plan.leftover_cash >= 0
+
+
+def test_duplicate_success_tickers_are_rejected_before_allocation():
+    results = [
+        _result("AAPL", "Buy", 1000),
+        _result("AAPL", "Hold", 2000),
+    ]
+
+    with pytest.raises(ValueError, match="(?i)duplicate.*ticker"):
+        build_allocation_plan(
+            results,
+            available_cash=1000,
+            prices={"AAPL": 100},
+        )
+
+
+def test_negative_available_cash_is_rejected():
+    with pytest.raises(ValueError, match="available_cash"):
+        build_allocation_plan(
+            [_result("AAPL", "Buy", 1000)],
+            available_cash=-1,
+            prices={"AAPL": 100},
+        )

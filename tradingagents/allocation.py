@@ -67,6 +67,7 @@ def build_allocation_plan(
     prices: dict[str, float],
     policy: AllocationPolicy | None = None,
 ) -> AllocationPlan:
+    _validate_inputs(results, available_cash)
     policy = policy or AllocationPolicy()
     ranked_results = sorted(
         results,
@@ -110,6 +111,20 @@ def build_allocation_plan(
         total_current_value=total_current_value,
         total_projected_value=total_projected_value,
     )
+
+
+def _validate_inputs(results: Sequence[BatchTickerResult], available_cash: float) -> None:
+    if available_cash < 0:
+        raise ValueError("available_cash must be non-negative.")
+
+    seen_tickers: set[str] = set()
+    for result in results:
+        if result.status != "success":
+            continue
+        ticker = result.ticker.upper()
+        if ticker in seen_tickers:
+            raise ValueError(f"Duplicate successful ticker in allocation results: {result.ticker}")
+        seen_tickers.add(ticker)
 
 
 def _current_value(result: BatchTickerResult, prices: dict[str, float]) -> float:
