@@ -84,7 +84,7 @@ export async function buildWorkflowData(): Promise<WorkflowData> {
 
   // Fetch live prices for plan tickers (batched, 4 at a time)
   const uniqueTickers = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
-  const script = join(findProjectRoot(), "scripts", "get_price.py")
+  const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
   const priceMap = new Map<string, number | null>()
   for (let i = 0; i < uniqueTickers.length; i += 4) {
     const batch = uniqueTickers.slice(i, i + 4)

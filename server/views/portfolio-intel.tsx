@@ -111,6 +111,230 @@ function AssetClassBars({ assetClasses, totalValue }: { assetClasses: AssetClass
   )
 }
 
+// ── Allocation bar ────────────────────────────────────────────────────────────
+
+function AllocationBarSection({ bar }: { bar: PortfolioIntel["allocation_bar"] }) {
+  if (!bar) return null
+  const { buckets, actual, targets } = bar
+  return (
+    <div class="allocation-bar-section" style="margin:1.5rem 0">
+      <h4>Allocation Bar (Target vs Actual)</h4>
+      <div style="height:24px;display:flex;border-radius:4px;overflow:hidden;margin:8px 0">
+        {buckets.map((b) => (
+          <div
+            style={`display:inline-block;height:24px;width:${b.actual_pct}%;background:${b.color};`}
+            title={`${b.label}: ${b.actual_pct}% (target ${b.target_pct}%)`}
+          />
+        ))}
+      </div>
+      <div style="font-size:0.75em;color:var(--text-dim)">
+        {buckets.map((b) => (
+          <span style="margin-right:16px">
+            <span
+              style={`display:inline-block;width:10px;height:10px;border-radius:2px;background:${b.color};vertical-align:middle;margin-right:4px`}
+            />
+            {b.label}: {b.actual_pct}% (target {b.target_pct}%)
+          </span>
+        ))}
+      </div>
+      {actual.cash_pct < targets.cash_reserve_pct && (
+        <div class="hint" style="margin-top:4px">
+          ⚠️ Cash below target ({actual.cash_pct}% &lt; {targets.cash_reserve_pct}%)
+        </div>
+      )}
+      {actual.spreadbet_pct > targets.spreadbet_pct && (
+        <div class="hint" style="margin-top:4px">
+          ⚠️ Spread bet above target ({actual.spreadbet_pct}% &gt; {targets.spreadbet_pct}%)
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Cash breakdown ────────────────────────────────────────────────────────────
+
+function CashBreakdownPanel({ breakdown }: { breakdown: PortfolioIntel["cash_breakdown"] }) {
+  if (!breakdown) return null
+  return (
+    <div class="cash-breakdown" style="margin:1.5rem 0">
+      <h4>Cash Breakdown</h4>
+      <div class="intel-hero" style="margin-top:0.5rem">
+        <div class="intel-stat">
+          <div class="intel-label">Total Cash</div>
+          <div class={`intel-value${breakdown.cash_negative ? " negative" : ""}`}>
+            £{fmtIntel(breakdown.total_cash_gbp)}
+          </div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-label">Reserve ({breakdown.reserve_pct}%)</div>
+          <div class="intel-value">£{fmtIntel(breakdown.reserve_gbp)}</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-label">Spread Bet Alloc ({breakdown.spreadbet_allocation_pct}%)</div>
+          <div class="intel-value">£{fmtIntel(breakdown.spreadbet_allocation_gbp)}</div>
+        </div>
+        <div class="intel-stat">
+          <div class="intel-label">Investable</div>
+          <div class="intel-value">£{fmtIntel(breakdown.investable_gbp)}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Accounts table ────────────────────────────────────────────────────────────
+
+function AccountsTable({ accounts }: { accounts: PortfolioIntel["accounts"] }) {
+  if (!accounts || accounts.length === 0) {
+    return <div class="muted">No accounts configured</div>
+  }
+  return (
+    <div style="margin:1.5rem 0">
+      <h4>Accounts</h4>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Type</th>
+            <th>Cash</th>
+            <th>Deployed</th>
+            <th>Spread Bet</th>
+            <th>Total</th>
+            <th>Positions</th>
+            <th>Bets</th>
+          </tr>
+        </thead>
+        <tbody>
+          {accounts.map((a) => (
+            <tr>
+              <td>
+                <strong>{escIntel(a.name || a.id)}</strong>
+                {a.notes && <div class="muted" style="font-size:0.75em">{escIntel(a.notes)}</div>}
+              </td>
+              <td>
+                <span class="platform-tag">{escIntel(a.account_type)}</span>
+              </td>
+              <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                £{fmtIntel(a.balance_gbp)}
+              </td>
+              <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                £{fmtIntel(a.deployed_gbp)}
+              </td>
+              <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                £{fmtIntel(a.spreadbet_gbp)}
+              </td>
+              <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                <strong>£{fmtIntel(a.total_value_gbp)}</strong>
+              </td>
+              <td>{a.positions_count}</td>
+              <td>{a.bets_count}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Spread bet table ─────────────────────────────────────────────────────────
+
+function SpreadBetTable({ bets }: { bets: PortfolioIntel["spreadbets"] }) {
+  if (!bets || bets.length === 0) {
+    return <div class="muted">No open spread bets</div>
+  }
+  return (
+    <div style="margin:1.5rem 0">
+      <h4>Spread Bet Positions</h4>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Direction</th>
+            <th>Stake/£pt</th>
+            <th>Entry</th>
+            <th>Current</th>
+            <th>P&L</th>
+            <th>P&L %</th>
+            <th>Notional</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bets.map((b) => {
+            const pnlCls = b.pnl_gbp != null ? (b.pnl_gbp >= 0 ? "positive" : "negative") : ""
+            return (
+              <tr>
+                <td class="ticker">{escIntel(b.ticker)}</td>
+                <td>
+                  <span class={b.direction === "long" ? "positive" : "negative"}>
+                    {b.direction.toUpperCase()}
+                  </span>
+                </td>
+                <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                  {fmtIntel(b.stake_per_point)}
+                </td>
+                <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                  £{fmtIntel(b.entry_price)}
+                </td>
+                <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                  {b.current_price_gbp != null ? `£${fmtIntel(b.current_price_gbp)}` : "—"}
+                </td>
+                <td class={pnlCls} style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                  {b.pnl_gbp != null ? (b.pnl_gbp >= 0 ? "+" : "") + `£${fmtIntel(b.pnl_gbp)}` : "—"}
+                </td>
+                <td class={pnlCls} style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                  {b.pnl_pct != null ? (b.pnl_pct >= 0 ? "+" : "") + `${fmtIntel(b.pnl_pct)}%` : "—"}
+                </td>
+                <td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+                  £{fmtIntel(b.notional_gbp)}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Research queue ─────────────────────────────────────────────────────────────
+
+function ResearchQueue({ items }: { items: PortfolioIntel["research_queue"] }) {
+  if (!items || items.length === 0) {
+    return <div class="muted">No approved research items</div>
+  }
+  return (
+    <div style="margin:1.5rem 0">
+      <h4>Research Queue (Approved)</h4>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Exchange</th>
+            <th>Priority</th>
+            <th>Signal</th>
+            <th>Added</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((i) => (
+            <tr>
+              <td class="ticker">{escIntel(i.ticker)}</td>
+              <td>{escIntel(i.exchange)}</td>
+              <td>
+                <span class={i.priority === "high" ? "negative" : i.priority === "medium" ? "" : "muted"}>
+                  {escIntel(i.priority)}
+                </span>
+              </td>
+              <td>{escIntel(i.last_signal) || "—"}</td>
+              <td>{escIntel(i.added_date)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ── Platform table ────────────────────────────────────────────────────────────
 
 function PlatformTable({ platforms }: { platforms: PlatformAllocation[] }) {
@@ -227,6 +451,11 @@ export function PortfolioIntelView({ data }: { data: PortfolioIntel }) {
   return (
     <>
       <IntelHero data={data} />
+      <AllocationBarSection bar={data.allocation_bar} />
+      <CashBreakdownPanel breakdown={data.cash_breakdown} />
+      <AccountsTable accounts={data.accounts} />
+      <SpreadBetTable bets={data.spreadbets} />
+      <ResearchQueue items={data.research_queue} />
       <AssetClassBars assetClasses={data.asset_classes} totalValue={data.total_value_gbp} />
       <PlatformTable platforms={data.platforms} />
       <GovernancePanel data={data} />

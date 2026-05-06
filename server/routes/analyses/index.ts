@@ -1,6 +1,6 @@
 /** Analyses router — wires filesystem and DB sub-routers under /api/analyses. */
 import { Hono } from "hono"
-import { analysesDbRouter } from "../analyses-db.ts"
+import { analysesDbRouter } from "../analyses-db.tsx"
 import { analysesFsRouter } from "../analyses-fs.ts"
 
 export const analysesRouter = new Hono()

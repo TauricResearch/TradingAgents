@@ -41,7 +41,7 @@ export async function batchFetchPrices(tickers: string[]): Promise<Map<string, P
   const results = new Map<string, PriceResult>()
   if (tickers.length === 0) return results
 
-  const script = join(findProjectRoot(), "scripts", "get_price.py")
+  const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
   const BATCH_SIZE = 4
 
   for (let i = 0; i < tickers.length; i += BATCH_SIZE) {

@@ -9,11 +9,22 @@ import type { PriceResult } from "./types.ts"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface DbAccount {
+  id: string
+  provider: string
+  account_type: string
+  name: string
+  balance: number
+  currency: string
+  notes: string | null
+}
+
 export interface DbPosition {
   id: number
   ticker: string
   exchange: string
   platform: string
+  account_id: string | null
   quantity: number
   avg_cost: number
   entry_date: string
@@ -25,6 +36,7 @@ export interface PositionWithValue {
   ticker: string
   exchange: string
   platform: string
+  account_id: string | null
   quantity: number
   avg_cost: number
   entry_date: string
@@ -35,6 +47,52 @@ export interface PositionWithValue {
   pnl_gbp: number | null
   pnl_pct: number | null
   currency: string
+  account_type?: string
+}
+
+export interface DbSpreadBet {
+  id: number
+  account_id: string
+  ticker: string
+  direction: string
+  stake_per_point: number
+  entry_price: number
+  entry_date: string
+  stop_price: number | null
+  target_price: number | null
+  current_price: number | null
+  pnl_gbp: number | null
+  status: string
+  notes: string | null
+}
+
+export interface SpreadBetWithPnl {
+  id: number
+  account_id: string
+  ticker: string
+  direction: string
+  stake_per_point: number
+  entry_price: number
+  entry_date: string
+  stop_price: number | null
+  target_price: number | null
+  current_price_gbp: number | null
+  current_value_gbp: number | null
+  pnl_gbp: number | null
+  pnl_pct: number | null
+  notional_gbp: number
+  status: string
+  notes: string | null
+}
+
+export interface DbWatchlistItem {
+  id: number
+  ticker: string
+  exchange: string
+  priority: string
+  thesis: string | null
+  added_date: string
+  last_signal: string | null
 }
 
 export interface CashBalance {
@@ -60,6 +118,44 @@ export interface AssetClassAllocation {
   weight_pct: number
 }
 
+export interface AllocationBar {
+  targets: { cash_reserve_pct: number; spreadbet_pct: number; deployed_pct: number }
+  actual: { cash_pct: number; spreadbet_pct: number; deployed_pct: number }
+  buckets: Array<{
+    bucket: string
+    label: string
+    value_gbp: number
+    actual_pct: number
+    target_pct: number
+    color: string
+  }>
+}
+
+export interface CashBreakdown {
+  total_cash_gbp: number
+  cash_negative: boolean
+  reserve_gbp: number
+  reserve_pct: number
+  spreadbet_allocation_gbp: number
+  spreadbet_allocation_pct: number
+  investable_gbp: number
+  investable_pct: number
+}
+
+export interface AccountSummary {
+  id: string
+  provider: string
+  account_type: string
+  name: string
+  balance_gbp: number
+  deployed_gbp: number
+  spreadbet_gbp: number
+  total_value_gbp: number
+  positions_count: number
+  bets_count: number
+  notes: string | null
+}
+
 export interface PortfolioIntel {
   total_value_gbp: number
   cash_gbp: number
@@ -69,12 +165,23 @@ export interface PortfolioIntel {
   position_value_gbp: number
   positions_count: number
   fx_rates: { GBPEUR: number; GBPUSD: number }
+  allocation_bar: AllocationBar
+  cash_breakdown: CashBreakdown
+  accounts: AccountSummary[]
   platforms: PlatformAllocation[]
   asset_classes: AssetClassAllocation[]
+  spreadbets: SpreadBetWithPnl[]
+  research_queue: DbWatchlistItem[]
   governance: {
     violations: import("./governance.ts").RuleViolation[]
     suggestions: import("./governance.ts").RebalanceSuggestion[]
   }
+}
+
+const ALLOCATION_TARGETS = {
+  cash_reserve_pct: 10,
+  spreadbet_pct: 20,
+  deployed_pct: 70,
 }
 
 // ── Project root ──────────────────────────────────────────────────────────────
@@ -96,7 +203,7 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   }
 
   return new Promise((resolve) => {
-    const script = join(findProjectRoot(), "scripts", "get_price.py")
+    const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
     const child = spawn("python3", [script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
       timeout: 12_000,
@@ -151,15 +258,35 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
   const { cash: hlCash } = await getHoldings()
 
   const db = DatabaseFactory.get()
+
+  // 1. Fetch accounts
+  const accounts = db.query("SELECT * FROM accounts").all() as DbAccount[]
+  const accountsById = new Map<string, DbAccount>(accounts.map((a) => [a.id, a]))
+
+  // 2. Fetch positions with account linkage
   const dbPositions = db
     .query(
-      "SELECT id, ticker, exchange, platform, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open'",
+      "SELECT id, ticker, exchange, platform, account_id, quantity, avg_cost, entry_date, thesis FROM positions WHERE status = 'open'",
     )
     .all() as DbPosition[]
 
-  const tickers = [...new Set(dbPositions.map((p) => p.ticker))]
+  // 3. Fetch spread bet positions
+  const dbBets = db
+    .query("SELECT * FROM spreadbet_positions WHERE status = 'open'")
+    .all() as DbSpreadBet[]
+
+  // 4. Fetch research queue
+  const researchQueue = db
+    .query(
+      "SELECT id, ticker, exchange, priority, thesis, added_date, last_signal FROM watchlist WHERE stage = 'approved' ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END",
+    )
+    .all() as DbWatchlistItem[]
+
+  // 5. Fetch live prices
+  const posTickers = [...new Set(dbPositions.map((p) => p.ticker))]
+  const betTickers = [...new Set(dbBets.map((b) => b.ticker))]
   const fxPairs = ["GBPEUR=X", "GBPUSD=X"]
-  const allNeeded = [...tickers, ...fxPairs]
+  const allNeeded = [...new Set([...posTickers, ...betTickers]), ...fxPairs]
   const prices = await fetchPrices(allNeeded)
 
   const gbpeur = prices.get("GBPEUR=X")?.price ?? 1.18
@@ -167,23 +294,7 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
   const gbpPerEur = 1 / gbpeur
   const gbpPerUsd = 1 / gbpUSD
 
-  const cashByPlatform: Map<string, CashBalance[]> = new Map()
-  for (const c of hlCash) {
-    const list = cashByPlatform.get(c.platform) ?? []
-    let amountGbp = c.amount
-    if (c.currency === "EUR") amountGbp = c.amount * gbpPerEur
-    else if (c.currency === "USD") amountGbp = c.amount * gbpPerUsd
-    list.push({
-      platform: c.platform,
-      currency: c.currency,
-      amount: c.amount,
-      amount_gbp: amountGbp,
-    })
-    cashByPlatform.set(c.platform, list)
-  }
-
-  const totalCashGbp = [...cashByPlatform.values()].flat().reduce((s, c) => s + c.amount_gbp, 0)
-
+  // ── Positions with live values ───────────────────────────────────────────
   const positionsWithValue: PositionWithValue[] = dbPositions.map((p) => {
     const pd = prices.get(p.ticker)
     let currentPriceGbp: number | null = null
@@ -202,6 +313,8 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
     const pnlGbp = currentValueGbp != null ? currentValueGbp - costValueGbp : null
     const pnlPct = costValueGbp > 0 && pnlGbp != null ? (pnlGbp / costValueGbp) * 100 : null
 
+    const account = p.account_id ? accountsById.get(p.account_id) : null
+
     return {
       ...p,
       current_price_gbp: currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
@@ -210,18 +323,202 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
       pnl_gbp: pnlGbp != null ? Math.round(pnlGbp * 100) / 100 : null,
       pnl_pct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
       currency: pd?.currency ?? "GBP",
+      account_type: account?.account_type,
     }
   })
 
-  const totalPositionsValueGbp = positionsWithValue.reduce(
-    (s, p) => s + (p.current_value_gbp ?? p.cost_value_gbp),
-    0,
-  )
-  const totalPortfolioGbp = totalPositionsValueGbp + totalCashGbp
-  const cashPctRaw = totalPortfolioGbp !== 0 ? (totalCashGbp / totalPortfolioGbp) * 100 : 0
-  const cashPct = cashPctRaw
-  const absPortfolioGbp = Math.abs(totalPortfolioGbp)
+  // ── Spread bets with live P&L ────────────────────────────────────────────
+  const spreadBetsWithPnl: SpreadBetWithPnl[] = dbBets.map((b) => {
+    const pd = prices.get(b.ticker)
+    let currentPriceGbp: number | null = null
+    if (pd?.price != null) {
+      if (pd.currency === "EUR") currentPriceGbp = pd.price * gbpPerEur
+      else if (pd.currency === "USD") currentPriceGbp = pd.price / gbpUSD
+      else currentPriceGbp = pd.price
+    }
 
+    const entryPriceGbp = b.entry_price / gbpUSD
+    const notionalGbp = entryPriceGbp * b.stake_per_point
+
+    let pnlGbp: number | null = null
+    if (currentPriceGbp != null) {
+      const priceDeltaGbp = currentPriceGbp - entryPriceGbp
+      pnlGbp =
+        b.direction === "long"
+          ? priceDeltaGbp * b.stake_per_point
+          : -priceDeltaGbp * b.stake_per_point
+    }
+
+    return {
+      ...b,
+      current_price_gbp: currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
+      current_value_gbp: currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
+      pnl_gbp: pnlGbp != null ? Math.round(pnlGbp * 100) / 100 : null,
+      pnl_pct:
+        notionalGbp > 0 && pnlGbp != null
+          ? Math.round((pnlGbp / notionalGbp) * 100 * 100) / 100
+          : null,
+      notional_gbp: Math.round(notionalGbp * 100) / 100,
+    }
+  })
+
+  // ── Cash by platform (hledger) ───────────────────────────────────────────
+  const cashByPlatform: Map<string, CashBalance[]> = new Map()
+  for (const c of hlCash) {
+    const list = cashByPlatform.get(c.platform) ?? []
+    let amountGbp = c.amount
+    if (c.currency === "EUR") amountGbp = c.amount * gbpPerEur
+    else if (c.currency === "USD") amountGbp = c.amount * gbpPerUsd
+    list.push({
+      platform: c.platform,
+      currency: c.currency,
+      amount: c.amount,
+      amount_gbp: amountGbp,
+    })
+    cashByPlatform.set(c.platform, list)
+  }
+
+  // ── Account-level aggregation ──────────────────────────────────────────────
+  const accountValues = new Map<
+    string,
+    {
+      account: DbAccount
+      cash_gbp: number
+      deployed_gbp: number
+      spreadbet_gbp: number
+      positions: PositionWithValue[]
+      bets: SpreadBetWithPnl[]
+    }
+  >()
+
+  for (const acc of accounts) {
+    accountValues.set(acc.id, {
+      account: acc,
+      cash_gbp: acc.balance,
+      deployed_gbp: 0,
+      spreadbet_gbp: 0,
+      positions: [],
+      bets: [],
+    })
+  }
+
+  // Merge hledger cash into accounts
+  const platformToAccountId: Record<string, string> = {
+    degiero: "ig-isa",
+    "ig-shares": "ig-shares",
+    ibkr: "ig-shares",
+    pension: "aviva",
+    savings: "cash-other",
+    test: "ig-isa",
+  }
+
+  for (const c of hlCash) {
+    const accountId = platformToAccountId[c.platform] ?? c.platform
+    const av = accountValues.get(accountId)
+    if (!av) continue
+
+    let amountGbp = c.amount
+    if (c.currency === "EUR") amountGbp = c.amount * gbpPerEur
+    else if (c.currency === "USD") amountGbp = c.amount * gbpPerUsd
+
+    av.cash_gbp += amountGbp
+  }
+
+  // Assign positions to accounts
+  for (const p of positionsWithValue) {
+    const accountId = p.account_id ?? (p.platform === "test" ? "ig-isa" : "ig-shares")
+    const av = accountValues.get(accountId)
+    if (av) {
+      av.deployed_gbp += p.current_value_gbp ?? p.cost_value_gbp
+      av.positions.push(p)
+    }
+  }
+
+  // Assign spread bets to accounts
+  for (const b of spreadBetsWithPnl) {
+    const av = accountValues.get(b.account_id)
+    if (av) {
+      av.spreadbet_gbp += b.notional_gbp
+      av.bets.push(b)
+    }
+  }
+
+  // ── Portfolio totals ─────────────────────────────────────────────────────
+  let totalCashGbp = 0
+  let totalDeployedGbp = 0
+  let totalSpreadBetGbp = 0
+  for (const av of accountValues.values()) {
+    totalCashGbp += av.cash_gbp
+    totalDeployedGbp += av.deployed_gbp
+    totalSpreadBetGbp += av.spreadbet_gbp
+  }
+
+  const cashGbp = totalCashGbp
+  const absPortfolioGbp = Math.abs(totalDeployedGbp + totalSpreadBetGbp + cashGbp)
+  const totalPortfolioGbp = totalDeployedGbp + totalSpreadBetGbp + cashGbp
+
+  const cashPct = absPortfolioGbp > 0 ? (cashGbp / absPortfolioGbp) * 100 : 0
+  const deployedPct = absPortfolioGbp > 0 ? (totalDeployedGbp / absPortfolioGbp) * 100 : 0
+  const spreadBetPct = absPortfolioGbp > 0 ? (totalSpreadBetGbp / absPortfolioGbp) * 100 : 0
+
+  // ── Allocation bar ───────────────────────────────────────────────────────
+  const allocationBar: AllocationBar = {
+    targets: {
+      cash_reserve_pct: ALLOCATION_TARGETS.cash_reserve_pct,
+      spreadbet_pct: ALLOCATION_TARGETS.spreadbet_pct,
+      deployed_pct: ALLOCATION_TARGETS.deployed_pct,
+    },
+    actual: {
+      cash_pct: Math.round(cashPct * 100) / 100,
+      spreadbet_pct: Math.round(spreadBetPct * 100) / 100,
+      deployed_pct: Math.round(deployedPct * 100) / 100,
+    },
+    buckets: [
+      {
+        bucket: "cash",
+        label: "Cash",
+        value_gbp: Math.round(Math.abs(cashGbp) * 100) / 100,
+        actual_pct: Math.round(cashPct * 100) / 100,
+        target_pct: ALLOCATION_TARGETS.cash_reserve_pct,
+        color: "#3b82f6",
+      },
+      {
+        bucket: "deployed",
+        label: "Deployed",
+        value_gbp: Math.round(totalDeployedGbp * 100) / 100,
+        actual_pct: Math.round(deployedPct * 100) / 100,
+        target_pct: ALLOCATION_TARGETS.deployed_pct,
+        color: "#22c55e",
+      },
+      {
+        bucket: "spreadbet",
+        label: "Spread Bet",
+        value_gbp: Math.round(totalSpreadBetGbp * 100) / 100,
+        actual_pct: Math.round(spreadBetPct * 100) / 100,
+        target_pct: ALLOCATION_TARGETS.spreadbet_pct,
+        color: "#eab308",
+      },
+    ],
+  }
+
+  // ── Cash breakdown ─────────────────────────────────────────────────────────
+  const cashReserveTarget = (ALLOCATION_TARGETS.cash_reserve_pct / 100) * absPortfolioGbp
+  const spreadBetTarget = (ALLOCATION_TARGETS.spreadbet_pct / 100) * absPortfolioGbp
+  const investableCash = Math.max(0, cashGbp - cashReserveTarget)
+
+  const cashBreakdown: CashBreakdown = {
+    total_cash_gbp: Math.round(Math.abs(cashGbp) * 100) / 100,
+    cash_negative: cashGbp < 0,
+    reserve_gbp: Math.round(cashReserveTarget * 100) / 100,
+    reserve_pct: ALLOCATION_TARGETS.cash_reserve_pct,
+    spreadbet_allocation_gbp: Math.round(spreadBetTarget * 100) / 100,
+    spreadbet_allocation_pct: ALLOCATION_TARGETS.spreadbet_pct,
+    investable_gbp: Math.round(investableCash * 100) / 100,
+    investable_pct:
+      absPortfolioGbp > 0 ? Math.round((investableCash / absPortfolioGbp) * 100 * 100) / 100 : 0,
+  }
+
+  // ── Platform allocation (backward compat) ────────────────────────────────
   const positionsByPlatform = new Map<string, PositionWithValue[]>()
   for (const p of positionsWithValue) {
     const list = positionsByPlatform.get(p.platform) ?? []
@@ -241,20 +538,21 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
 
   const platformAllocations = allPlatforms.map((platform) => {
     const pos = positionsByPlatform.get(platform) ?? []
-    const cashGbp = cashByPlatformGbp.get(platform) ?? 0
+    const cashGbpPlat = cashByPlatformGbp.get(platform) ?? 0
     const posValueGbp = pos.reduce((s, p) => s + (p.current_value_gbp ?? p.cost_value_gbp), 0)
-    const totalGbp = posValueGbp + cashGbp
+    const totalGbp = posValueGbp + cashGbpPlat
     return {
       platform,
       positions: pos,
-      cash_gbp: Math.round(cashGbp * 100) / 100,
+      cash_gbp: Math.round(cashGbpPlat * 100) / 100,
       position_value_gbp: Math.round(posValueGbp * 100) / 100,
       total_value_gbp: Math.round(totalGbp * 100) / 100,
       weight_pct: absPortfolioGbp > 0 ? Math.round((totalGbp / absPortfolioGbp) * 10000) / 100 : 0,
-      cash_pct: totalGbp > 0 ? Math.round((cashGbp / totalGbp) * 10000) / 100 : 0,
+      cash_pct: totalGbp > 0 ? Math.round((cashGbpPlat / totalGbp) * 10000) / 100 : 0,
     }
   })
 
+  // ── Asset class allocation ───────────────────────────────────────────────
   const etfValueGbp = positionsWithValue
     .filter((p) => classifyTicker(p.ticker, p.exchange) === "etf")
     .reduce((s, p) => s + (p.current_value_gbp ?? p.cost_value_gbp), 0)
@@ -265,10 +563,10 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
     .filter((p) => classifyTicker(p.ticker, p.exchange) === "crypto")
     .reduce((s, p) => s + (p.current_value_gbp ?? p.cost_value_gbp), 0)
 
-  const assetClassAllocation = [
+  const assetClassAllocation: AssetClassAllocation[] = [
     {
       assetClass: "cash",
-      value_gbp: Math.round(Math.abs(totalCashGbp) * 100) / 100,
+      value_gbp: Math.round(Math.abs(cashGbp) * 100) / 100,
       weight_pct: Math.abs(cashPct),
     },
     {
@@ -291,6 +589,22 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
     },
   ].filter((a) => a.value_gbp > 0)
 
+  // ── Accounts summary ───────────────────────────────────────────────────────
+  const accountsSummary: AccountSummary[] = [...accountValues.values()].map((av) => ({
+    id: av.account.id,
+    provider: av.account.provider,
+    account_type: av.account.account_type,
+    name: av.account.name,
+    balance_gbp: Math.round(av.cash_gbp * 100) / 100,
+    deployed_gbp: Math.round(av.deployed_gbp * 100) / 100,
+    spreadbet_gbp: Math.round(av.spreadbet_gbp * 100) / 100,
+    total_value_gbp: Math.round((av.cash_gbp + av.deployed_gbp + av.spreadbet_gbp) * 100) / 100,
+    positions_count: av.positions.length,
+    bets_count: av.bets.length,
+    notes: av.account.notes,
+  }))
+
+  // ── Governance ─────────────────────────────────────────────────────────────
   const rules = loadRules()
   const overallAllocations = positionsWithValue.map((p) => ({
     ticker: p.ticker,
@@ -309,18 +623,23 @@ export async function computePortfolioIntelligence(): Promise<PortfolioIntel> {
 
   return {
     total_value_gbp: Math.round(totalPortfolioGbp * 100) / 100,
-    cash_gbp: Math.round(totalCashGbp * 100) / 100,
+    cash_gbp: Math.round(cashGbp * 100) / 100,
     cash_pct: Math.round(cashPct * 100) / 100,
-    cash_pct_raw: Math.round(cashPctRaw * 100) / 100,
-    cash_negative: totalCashGbp < 0,
-    position_value_gbp: Math.round(totalPositionsValueGbp * 100) / 100,
+    cash_pct_raw: Math.round(cashPct * 100) / 100,
+    cash_negative: cashGbp < 0,
+    position_value_gbp: Math.round(totalDeployedGbp * 100) / 100,
     positions_count: positionsWithValue.length,
     fx_rates: {
       GBPEUR: Math.round(gbpeur * 10000) / 10000,
       GBPUSD: Math.round(gbpUSD * 10000) / 10000,
     },
+    allocation_bar: allocationBar,
+    cash_breakdown: cashBreakdown,
+    accounts: accountsSummary.sort((a, b) => b.total_value_gbp - a.total_value_gbp),
     platforms: platformAllocations.sort((a, b) => b.total_value_gbp - a.total_value_gbp),
     asset_classes: assetClassAllocation,
+    spreadbets: spreadBetsWithPnl,
+    research_queue: researchQueue,
     governance: { violations: overallViolations, suggestions: overallSuggestions },
   }
 }
