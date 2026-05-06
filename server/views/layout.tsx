@@ -133,19 +133,7 @@ export function Layout(props: LayoutProps) {
           </nav>
         </header>
         <main id="content">{props.children}</main>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-function syncTab() {
-  var path = window.location.pathname;
-  document.querySelectorAll('.tab').forEach(function(tab) {
-    tab.classList.toggle('active', tab.getAttribute('hx-get') === path);
-  });
-}
-syncTab();
-document.body.addEventListener('htmx:afterSwap', syncTab);`,
-          }}
-        />
+        <script src="/static/scripts/layout.js" />
       </body>
     </html>
   );

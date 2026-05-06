@@ -4,27 +4,27 @@ import type { Context } from "hono";
 import type { JSX } from "hono/jsx";
 import { serveStatic } from "hono/bun";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { DatabaseFactory } from "./lib/db.ts";
 import { portfolioRouter } from "./routes/portfolio.ts";
 import { analysisRouter } from "./routes/analysis.ts";
-import { signalsRouter } from "./routes/signals.ts";
+import { signalsRouter } from "./routes/signals.tsx";
 import { pricesRouter } from "./routes/prices.ts";
-import { analysesRouter } from "./routes/analyses.ts";
-import { holdingsRouter } from "./routes/holdings.ts";
-import { exitsRouter } from "./routes/exits.ts";
-import { prospectsRouter } from "./routes/prospects.ts";
-import { governanceRouter } from "./routes/governance.ts";
-import { benchmarkRouter } from "./routes/benchmark.ts";
-import { feedbackRouter } from "./routes/feedback.ts";
-import { workflowRouter } from "./routes/workflow.ts";
-import { intelligenceRouter } from "./routes/portfolio-intelligence.ts";
+import { analysesRouter } from "./routes/analyses/index.ts";
+import { holdingsRouter } from "./routes/holdings.tsx";
+import { exitsRouter } from "./routes/exits.tsx";
+import { prospectsRouter } from "./routes/prospects.tsx";
+import { governanceRouter } from "./routes/governance.tsx";
+import { benchmarkRouter } from "./routes/benchmark.tsx";
+import { feedbackRouter } from "./routes/feedback.tsx";
+import { workflowRouter } from "./routes/workflow.tsx";
+import { intelligenceRouter } from "./routes/portfolio-intelligence.tsx";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
 import { SignalsView } from "./views/signals.tsx";
 import { HistoryView } from "./views/history.tsx";
-import { HoldingsView } from "./views/holdings.tsx";
+import { HoldingsPage } from "./views/holdings.tsx";
 import { ExitsView } from "./views/exits.tsx";
 import { ProspectsView } from "./views/prospects.tsx";
 import { GovernanceView } from "./views/governance.tsx";
@@ -103,7 +103,7 @@ app.get("/workflow", (c) => pageOrPartial(c, <WorkflowView />));
 app.get("/analyze", (c) => pageOrPartial(c, <AnalysisView />));
 app.get("/signals", (c) => pageOrPartial(c, <SignalsView />));
 app.get("/history", (c) => pageOrPartial(c, <HistoryView />));
-app.get("/holdings", (c) => pageOrPartial(c, <HoldingsView />));
+app.get("/holdings", (c) => pageOrPartial(c, <HoldingsPage holdingsData={{ holdings: [], platforms: [], cash: [] }} positionsData={{ positions: [] }} />));
 app.get("/exits", (c) => pageOrPartial(c, <ExitsView />));
 app.get("/prospects", (c) => pageOrPartial(c, <ProspectsView />));
 app.get("/governance", (c) => pageOrPartial(c, <GovernanceView />));
@@ -114,7 +114,15 @@ app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 
 // ── Static (serve only from static/ directory, not source files) ──
 
-app.get("/static/*", serveStatic({ root: "./server" }));
+const staticDir = resolve(import.meta.dir, "static");
+
+app.use("/static/*", serveStatic({
+  root: staticDir,
+  rewriteRequestPath: (path) => path.replace(/^\/static/, ""),
+  onFound: (_path, c) => {
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+  },
+}));
 
 // ── API routes ─────────────────────────────────────────────
 
@@ -133,8 +141,9 @@ app.route("/api/workflow", workflowRouter);
 app.route("/api/portfolio/intelligence", intelligenceRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
-import { handlePortfolioSummary } from "./routes/portfolio.ts";
+import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.ts";
 app.get("/api/portfolio/summary", handlePortfolioSummary);
+app.get("/api/portfolio/summary/html", handlePortfolioSummaryHtml);
 
 // ── Start ──────────────────────────────────────────────────
 

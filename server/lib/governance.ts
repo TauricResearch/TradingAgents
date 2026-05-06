@@ -18,8 +18,8 @@
  */
 
 import { existsSync, readFileSync } from "node:fs"
-import { join, dirname } from "node:path"
 import { homedir } from "node:os"
+import { join } from "node:path"
 import { load as parseYaml } from "js-yaml"
 
 export interface GovernanceRule {
@@ -52,11 +52,41 @@ export interface RebalanceSuggestion {
 }
 
 export const DEFAULT_RULES: GovernanceRule[] = [
-  { id: "max-position",   name: "Max single position",       limit: 15,  unit: "%",    description: "No single holding > 15% of portfolio" },
-  { id: "max-sector",     name: "Max sector concentration",  limit: 30,  unit: "%",    description: "No sector > 30% of portfolio" },
-  { id: "cash-floor",     name: "Cash floor",               limit: 10,  unit: "%",    description: "Minimum 10% cash reserve" },
-  { id: "max-drawdown",   name: "Max portfolio drawdown",   limit: 15,  unit: "%",    description: "If portfolio drops 15%, reduce to 50% cash" },
-  { id: "max-holdings",   name: "Max number of holdings",   limit: 24,  unit: "count", description: "Keep portfolio manageable (< 24 positions)" },
+  {
+    id: "max-position",
+    name: "Max single position",
+    limit: 15,
+    unit: "%",
+    description: "No single holding > 15% of portfolio",
+  },
+  {
+    id: "max-sector",
+    name: "Max sector concentration",
+    limit: 30,
+    unit: "%",
+    description: "No sector > 30% of portfolio",
+  },
+  {
+    id: "cash-floor",
+    name: "Cash floor",
+    limit: 10,
+    unit: "%",
+    description: "Minimum 10% cash reserve",
+  },
+  {
+    id: "max-drawdown",
+    name: "Max portfolio drawdown",
+    limit: 15,
+    unit: "%",
+    description: "If portfolio drops 15%, reduce to 50% cash",
+  },
+  {
+    id: "max-holdings",
+    name: "Max number of holdings",
+    limit: 24,
+    unit: "count",
+    description: "Keep portfolio manageable (< 24 positions)",
+  },
 ]
 
 // ── Config loading ────────────────────────────────────────────────────────────

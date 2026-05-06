@@ -1,35 +1,20 @@
-import { Hono } from "hono"
-import { computeSignalAccuracy, loadPostMortems } from "../lib/feedback.ts"
-import { DatabaseFactory } from "../lib/db.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
-import { dirname, join } from "node:path"
+/** Feedback data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
+import { dirname, join } from "node:path"
+import { endOfToday, priceCache } from "./cache.ts"
+import { DatabaseFactory } from "./db.ts"
+import type { PriceResult } from "./types.ts"
 
-export const feedbackRouter = new Hono()
+export {
+  computeSignalAccuracy,
+  loadPostMortems,
+  type PostMortem,
+  type SignalAccuracy,
+} from "./feedback.ts"
 
-/** GET /api/feedback — aggregated accuracy + post-mortems */
-feedbackRouter.get("/", (c) => {
-  const mortems = loadPostMortems()
-  const accuracy = computeSignalAccuracy(mortems)
-  return c.json({ accuracy, postMortems: mortems })
-})
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-/** GET /api/feedback/post-mortems — all post-mortems */
-feedbackRouter.get("/post-mortems", (c) => {
-  const mortems = loadPostMortems()
-  return c.json(mortems)
-})
-
-/** GET /api/feedback/accuracy — signal accuracy metrics */
-feedbackRouter.get("/accuracy", (c) => {
-  const mortems = loadPostMortems()
-  const accuracy = computeSignalAccuracy(mortems)
-  return c.json(accuracy)
-})
-
-// ── Signal × Position correlation (S06) ──────────────────────────────────────
-
-interface DbSignal {
+export interface DbSignal {
   id: number
   ticker: string
   platform: string
@@ -40,7 +25,7 @@ interface DbSignal {
   created_at: string
 }
 
-interface DbPosition {
+export interface DbPosition {
   id: number
   ticker: string
   exchange: string
@@ -52,7 +37,7 @@ interface DbPosition {
   status: string
 }
 
-interface TickerCorrelation {
+export interface TickerCorrelation {
   ticker: string
   signals: Array<{
     id: number
@@ -73,10 +58,18 @@ interface TickerCorrelation {
     pnl_gbp: number | null
     pnl_pct: number | null
   } | null
-  signalOutcome: "buy_success" | "buy_failure" | "sell_success" | "sell_failure" | "hold" | "no_position"
+  signalOutcome:
+    | "buy_success"
+    | "buy_failure"
+    | "sell_success"
+    | "sell_failure"
+    | "hold"
+    | "no_position"
   latestSignal: string
   outcomePct: number | null
 }
+
+// ── Project root ──────────────────────────────────────────────────────────────
 
 function findProjectRoot(): string {
   if (process.env.TA_ROOT) return process.env.TA_ROOT
@@ -85,9 +78,9 @@ function findProjectRoot(): string {
   return projectRoot
 }
 
-interface PriceResult { price: number | null; currency: string }
+// ── Price fetch ───────────────────────────────────────────────────────────────
 
-async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
+export async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   const now = Date.now()
   const cached = priceCache.get(ticker)
   if (cached && cached.expires > now && cached.price !== null) {
@@ -101,7 +94,9 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
       timeout: 12_000,
     })
     let stdout = ""
-    child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+    child.stdout.on("data", (d: Buffer) => {
+      stdout += d.toString()
+    })
     child.on("close", () => {
       try {
         const data = JSON.parse(stdout.trim())
@@ -117,24 +112,35 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   })
 }
 
-/** GET /api/feedback/with-positions — signals correlated with position outcomes */
-feedbackRouter.get("/with-positions", async (c) => {
+// ── Correlation computation ───────────────────────────────────────────────────
+
+export interface CorrelationResult {
+  correlations: TickerCorrelation[]
+  summary: { totalSignalsWithPositions: number; total: number; accurate: number; accuracy: number }
+}
+
+export async function computeCorrelations(): Promise<CorrelationResult> {
   const db = DatabaseFactory.get()
 
-  // Fetch all open positions and signals
-  const positions = db.query(
-    "SELECT id, ticker, platform, quantity, avg_cost, entry_date, thesis, status FROM positions WHERE status = 'open'",
-  ).all() as DbPosition[]
+  const positions = db
+    .query(
+      "SELECT id, ticker, platform, quantity, avg_cost, entry_date, thesis, status FROM positions WHERE status = 'open'",
+    )
+    .all() as DbPosition[]
 
-  const signals = db.query(
-    "SELECT id, ticker, platform, date, signal, reasoning, confidence, created_at FROM signals ORDER BY date DESC",
-  ).all() as DbSignal[]
+  const signals = db
+    .query(
+      "SELECT id, ticker, platform, date, signal, reasoning, confidence, created_at FROM signals ORDER BY date DESC",
+    )
+    .all() as DbSignal[]
 
   if (signals.length === 0 && positions.length === 0) {
-    return c.json({ correlations: [], summary: { total: 0, accurate: 0, accuracy: 0 } })
+    return {
+      correlations: [],
+      summary: { totalSignalsWithPositions: 0, total: 0, accurate: 0, accuracy: 0 },
+    }
   }
 
-  // Group signals by ticker (most recent first per ticker)
   const signalsByTicker = new Map<string, DbSignal[]>()
   for (const s of signals) {
     const list = signalsByTicker.get(s.ticker) ?? []
@@ -142,29 +148,26 @@ feedbackRouter.get("/with-positions", async (c) => {
     signalsByTicker.set(s.ticker, list)
   }
 
-  // FX rates for GBP conversion
-  const fxPairs = ["GBPEUR=X", "GBPUSD=X"]
-  const fxResults = await Promise.all(fxPairs.map(fetchPriceForTicker))
+  const fxResults = await Promise.all([
+    fetchPriceForTicker("GBPEUR=X"),
+    fetchPriceForTicker("GBPUSD=X"),
+  ])
   const gbpeur = fxResults[0]?.price ?? 1.18
   const gbpUSD = fxResults[1]?.price ?? 1.27
   const gbpPerEur = 1 / gbpeur
   const gbpPerUsd = 1 / gbpUSD
 
-  // All tickers needing price data
   const allTickers = [...new Set([...signalsByTicker.keys(), ...positions.map((p) => p.ticker)])]
   const priceData = new Map<string, PriceResult>()
   await Promise.all(
-    allTickers.map(
-      (t) =>
-        fetchPriceForTicker(t).then((r) => {
-          priceData.set(t, r)
-        }),
+    allTickers.map((t) =>
+      fetchPriceForTicker(t).then((r) => {
+        priceData.set(t, r)
+      }),
     ),
   )
 
   const correlations: TickerCorrelation[] = []
-
-  // Build correlations for tickers that have signals
   for (const [ticker, tickerSignals] of signalsByTicker) {
     const pos = positions.find((p) => p.ticker === ticker) ?? null
     const pd = priceData.get(ticker)
@@ -179,16 +182,18 @@ feedbackRouter.get("/with-positions", async (c) => {
     let currentValueGbp: number | null = null
     let pnlGbp: number | null = null
     let pnlPct: number | null = null
-    let costValueGbp: number = 0
+    let costValueGbp = 0
 
     if (pos) {
-      costValueGbp = pos.avg_cost * pos.quantity
+      const avgCostNum = parseFloat(String(pos.avg_cost))
+      const quantityNum = parseFloat(String(pos.quantity))
+      costValueGbp = avgCostNum * quantityNum
       if (pos.platform === "degiero" || pos.exchange === "XETRA") {
-        costValueGbp = (pos.avg_cost * pos.quantity) / gbpeur
+        costValueGbp = (avgCostNum * quantityNum) / gbpeur
       } else if (pos.platform === "ibkr" || pos.exchange === "US") {
-        costValueGbp = (pos.avg_cost * pos.quantity) / gbpUSD
+        costValueGbp = (avgCostNum * quantityNum) / gbpUSD
       }
-      currentValueGbp = currentPriceGbp != null ? currentPriceGbp * pos.quantity : null
+      currentValueGbp = currentPriceGbp != null ? currentPriceGbp * quantityNum : null
       pnlGbp = currentValueGbp != null ? currentValueGbp - costValueGbp : null
       pnlPct = costValueGbp > 0 && pnlGbp != null ? (pnlGbp / costValueGbp) * 100 : null
     }
@@ -221,8 +226,10 @@ feedbackRouter.get("/with-positions", async (c) => {
             entry_date: pos.entry_date,
             thesis: pos.thesis,
             avg_cost: pos.avg_cost,
-            current_price_gbp: currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
-            current_value_gbp: currentValueGbp != null ? Math.round(currentValueGbp * 100) / 100 : null,
+            current_price_gbp:
+              currentPriceGbp != null ? Math.round(currentPriceGbp * 100) / 100 : null,
+            current_value_gbp:
+              currentValueGbp != null ? Math.round(currentValueGbp * 100) / 100 : null,
             pnl_gbp: pnlGbp != null ? Math.round(pnlGbp * 100) / 100 : null,
             pnl_pct: pnlPct != null ? Math.round(pnlPct * 100) / 100 : null,
           }
@@ -233,7 +240,6 @@ feedbackRouter.get("/with-positions", async (c) => {
     })
   }
 
-  // Compute accuracy: only tickers with positions and buy/sell signals
   let accurate = 0
   let total = 0
   for (const c of correlations) {
@@ -249,5 +255,5 @@ feedbackRouter.get("/with-positions", async (c) => {
     accuracy: total > 0 ? Math.round((accurate / total) * 100) : 0,
   }
 
-  return c.json({ correlations, summary })
-})
+  return { correlations, summary }
+}

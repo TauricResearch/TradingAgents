@@ -14,6 +14,7 @@
         "@biomejs/biome": "^2.4.14",
         "@types/bun": "latest",
         "@types/js-yaml": "^4.0.9",
+        "colorizr": "^5.0.1",
       },
     },
   },
@@ -45,6 +46,8 @@
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
     "bun-types": ["bun-types@1.3.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA=="],
+
+    "colorizr": ["colorizr@5.0.1", "", {}, "sha512-HWGEFgGcCvqgKnnwNNUqPdSoN190SxHZFZeHNUcEuAOZbX7gVQjE9GZYl+ZrbgH5Tpjb97os3mjbULz7GijvUQ=="],
 
     "dotenv": ["dotenv@17.4.2", "", {}, "sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw=="],
 

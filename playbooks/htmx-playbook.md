@@ -4,6 +4,126 @@
 
 ---
 
+## Banned Patterns (Enforced by `just check`)
+
+These patterns are **banned** in `server/views/*.tsx`. The `check-view-scripts.ts` gate fails the build if any appear.
+
+| Pattern | Why banned | What to do instead |
+|---|---|---|
+| `dangerouslySetInnerHTML={{ __html: ... }}` | Non-cacheable, duplicated, unlintable | Extract to `server/static/scripts/*.js` |
+| `<script>{`...`}</script>` | Hono HTML-encodes quotes, breaks JS | Extract to `server/static/scripts/*.js` |
+| `function xxxScript(): string { return \`...\`; }` | Template-string wrapper is still inline | Extract to `server/static/scripts/*.js` |
+| `<script>` without `src` attribute | Inline script — same problems as above | Add `src="/static/scripts/xxx.js"` |
+| `serveStatic({ root: "./server" })` | Can leak source files | `serveStatic({ root: "./server/static" })` |
+
+**Copy `playbooks/view-scaffold.tsx` when creating a new view.** It shows the correct pattern.
+
+---
+
+## Route HTML Builders → JSX Components
+
+**The rule:** Routes that return HTML via `c.html()` must use JSX components, not string concatenation. No exceptions.
+
+### The three-layer pattern
+
+Every HTML-returning route follows this structure:
+
+```
+server/lib/{route}-data.ts     ← data layer (fetch, transform, cache)
+server/views/{component}.tsx   ← JSX components (presentation only)
+server/routes/{route}.tsx      ← thin route handler (wire data → JSX → response)
+```
+
+### Why JSX over string concat?
+
+| String concat | JSX |
+|--------------|-----|
+| `html += '<div class="' + cls + '">'` | `<div class={cls}>` |
+| Manual `esc()` on every dynamic value | Auto-escaped by compiler |
+| Flat structure — parent/child hidden | Hierarchical — DOM structure visible |
+| Typos in class names caught at runtime | Typos caught by TypeScript |
+| XSS risk on every new field | Zero XSS risk |
+
+### Extract data first
+
+**Always** extract the data-fetching logic before writing the JSX. The data layer is reusable; the JSX is specific to one rendering.
+
+```ts
+// server/lib/signals-data.ts
+export async function fetchSignalsWithHistory(
+  ticker: string | undefined,
+  platform: string | undefined,
+): Promise<{ signals: Signal[]; priceData: Map<string, PriceWithHistory> }> {
+  // ... DB queries, price fetches, caching ...
+}
+```
+
+### Write JSX views
+
+```tsx
+// server/views/signals-view.tsx
+export function SignalsViewHtml({ signals, priceData }: Props) {
+  return (
+    <table id="signals-table">
+      <tbody>
+        {signals.map((s) => (
+          <SignalRow signal={s} priceData={priceData} />
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+### Thin route handler
+
+```tsx
+// server/routes/signals.tsx  ← note .tsx extension
+import { SignalsViewHtml } from "../views/signals-view.tsx";
+
+signalsRouter.get("/view/html", async (c) => {
+  const { signals, priceData } = await fetchSignalsWithHistory(...);
+  return c.html(<SignalsViewHtml signals={signals} priceData={priceData} />);
+});
+```
+
+### Critical: file extension
+
+Route files containing JSX **must** use `.tsx`, not `.ts`. Biome will produce misleading parse errors if you forget:
+
+```
+× expected `>` but instead found `data`
+× Invalid assignment to `<SignalsViewHtml data`
+```
+
+**Fix:** Rename the file to `.tsx` and update the import in `server/index.tsx`.
+
+### Critical: JSX style attribute
+
+Hono JSX uses string values for `style`, not React objects:
+
+```tsx
+// ✅ Correct for Hono JSX
+<div style="background:#fff3cd;color:#1a1a2e">
+
+// ❌ React-style object (breaks in Hono)
+<div style={{ background: "#fff3cd" }}>
+```
+
+### Critical: camelCase attributes
+
+JSX uses camelCase for hyphenated/lowercase HTML attributes:
+
+```tsx
+// ✅ JSX camelCase
+<td colSpan={7}>
+
+// ❌ Standard HTML lowercase
+<td colspan="7">
+```
+
+---
+
 ## Core Rule: HTMX and JSON APIs Don't Mix
 
 HTMX expects HTML responses. JSON endpoints (`c.json(...)`) return `Content-Type: application/json`. When you use `hx-swap="innerHTML"` on a JSON endpoint, the browser dumps raw JSON into the DOM — useless.
@@ -84,40 +204,76 @@ app.get("/holdings", (c) => {
 
 ---
 
-## Migration: hx-get + hx-swap → fetch()
+## Migration: JSON fetch → HTMX HTML partials
 
-When we moved from HTMX auto-load to fetch():
+When a view needs dynamic data, you have two options. Only one is correct.
 
-**Before** (broken for JSON APIs):
+### Option A: HTMX + server-rendered HTML partials (correct)
+
+The route returns HTML. HTMX swaps it into the DOM.
+
+**Route:**
 ```tsx
-<div hx-get="/api/holdings" hx-trigger="load" hx-swap="innerHTML">
-  Loading…
-</div>
+// server/routes/holdings.ts
+holdingsRouter.get("/positions/html", async (c) => {
+  const positions = await getPositions();
+  return c.html(<PositionsTable positions={positions} />);
+});
 ```
 
-**After** (correct):
+**View:**
 ```tsx
-<div id="holdings-body"><div class="muted">Loading…</div></div>
+// server/views/holdings.tsx
+export function HoldingsView() {
+  return (
+    <section class="panel">
+      <h3>Positions</h3>
+      <div hx-get="/api/holdings/positions/html"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <div class="muted">Loading…</div>
+      </div>
+    </section>
+  );
+}
+```
+
+**When to use:** Any view that just displays data. The server renders the HTML. No client JS needed. This is the default.
+
+### Option B: External JS file + fetch() (acceptable for interactivity)
+
+When the view has client-side behaviour that HTMX can't handle (SSE event streams, complex form validation, drag-and-drop, canvas rendering).
+
+**View:**
+```tsx
+export function AnalysisView() {
+  return (
+    <>
+      <section class="panel">...</section>
+      <script src="/static/scripts/analysis.js" />
+    </>
+  );
+}
+```
+
+**External JS:**
+```js
+// server/static/scripts/analysis.js
+document.getElementById('analysis-form').addEventListener('submit', function(e) {
+  // ... complex SSE handling
+});
+```
+
+**When to use:** Only when HTMX partials cannot express the interaction. Examples: SSE streaming, DataType sparkline generation from raw price arrays, form validation before submit.
+
+### Option C: Inline dangerouslySetInnerHTML (banned)
+
+```tsx
+// ❌ NEVER DO THIS — non-cacheable, duplicated, unlintable
 <script dangerouslySetInnerHTML={{ __html: holdingsScript() }} />
 ```
 
-```js
-function loadHoldings() {
-  fetch('/api/holdings')
-    .then(r => r.json())
-    .then(data => {
-      // Manual DOM update instead of HTMX swap
-      document.getElementById('holdings-body').innerHTML = render(data);
-    });
-}
-loadHoldings();
-```
-
-The pattern for every view:
-1. Remove `hx-get`, `hx-trigger`, `hx-swap` from the container div
-2. Add a `<script dangerouslySetInnerHTML>` with the JS fetch logic
-3. Write a render function that builds HTML strings
-4. Call the load function on page ready (or on HTMX tab switch)
+**Why banned:** See "Why we banned dangerouslySetInnerHTML for scripts" above. This pattern was used extensively and cost ~1,500 lines of duplicated, uncacheable JavaScript across 13 view files.
 
 ---
 
@@ -362,59 +518,111 @@ html += text.split(NL)[0];
 
 ---
 
-## Inline JS: dangerouslySetInnerHTML + Function (Not `<script>` Tag)
+## Client-Side JS: External Files, Not Inline
 
-**Problem:** Hono's JSX compiler encodes HTML entities inside `<script>{...}</script>` JSX blocks — both single quotes (`'` → `&#39;`) and double quotes (`"` → `&quot;`). This breaks any JS string containing quotes.
+**The rule:** Never embed client-side JavaScript inside TSX views. Put it in `server/static/scripts/*.js` and reference with `<script src>`.
 
-**Symptom:** `<script>{`rendered as `<script>&#39;` in the browser, breaking JS syntax.
+**Why inline JS is wrong:**
+- Scripts bloat every HTML response (100–300 lines per view)
+- No browser caching — re-downloaded on every HTMX partial swap
+- Helpers (`_esc`, `_fmt`, `_sparkline`) get copy-pasted into every view
+- Violates the HTMX + SSR philosophy (server renders, client enhances)
 
-**The fix:** Use `dangerouslySetInnerHTML={{ __html: functionName() }}` where `functionName` is a plain TypeScript function that returns the script as a string. The returned string doesn't go through Hono's JSX HTML-encoding pipeline.
+**The correct architecture:**
 
+```
+server/static/scripts/
+├── common.js          # shared helpers (_esc, _fmt, _norm, _sparkline, etc.)
+├── layout.js          # tab sync, global listeners
+├── portfolio.js       # portfolio-specific behaviour
+├── analysis.js        # SSE event stream handling
+└── ...
+```
+
+**Layout.tsx loads common.js once:**
 ```tsx
-// ❌ Broken — Hono encodes quotes inside the script tag
-export function WorkflowView() {
+export function Layout(props: LayoutProps) {
   return (
-    <>
-      <h2>Workflow</h2>
-      <div id="workflow-container">Loading…</div>
-      <script>{`
-(function() {
-  var html = "<div class=\"card\">";  // double quotes → &quot;
-  // ...
-})();
-`}</script>
-    </>
+    <html>
+      <head>...</head>
+      <body>
+        {props.children}
+        <script src="/static/scripts/common.js" />
+        <script src="/static/scripts/layout.js" />
+      </body>
+    </html>
   );
 }
+```
 
-// ✅ Works — function return bypasses JSX HTML encoding
-function workflowScript(): string {
-  return `
-(function() {
-  var html = '<div class="card">';  // single quotes are fine
-  // ...
-})();
-`;
-}
-
-export function WorkflowView() {
+**Per-view scripts load in the view component:**
+```tsx
+export function PortfolioView() {
   return (
     <>
-      <h2>Workflow</h2>
-      <div id="workflow-container">Loading…</div>
-      <script dangerouslySetInnerHTML={{ __html: workflowScript() }} />
+      <section class="panel">...</section>
+      <script src="/static/scripts/portfolio.js" />
     </>
   );
 }
 ```
 
-**Why this works:** `dangerouslySetInnerHTML` bypasses Hono's JSX attribute HTML-encoding. The `__html` value comes from a function return, which is a plain TypeScript string — no JSX processing, no HTML encoding.
+**serveStatic — absolute path + rewriteRequestPath:**
 
-**Inside the script string: use single quotes.** Single-quoted JS strings `'...'` contain HTML double quotes naturally without escaping. Template literals also work.
+Hono's `serveStatic` joins `root` with the full request path. For a route `/static/*` and a request to `/static/style.css`, it resolves to `root + "/static/style.css"` — double-counting the `/static` prefix. Two fixes are required:
 
-**Where this pattern is used:** `analysis.tsx`, `workflow.tsx`, `datatype-test.tsx`.
+```tsx
+import { serveStatic } from "hono/bun";
+import { resolve } from "node:path";
 
-**Rule:** Any inline JavaScript in a Hono JSX view must use `dangerouslySetInnerHTML={{ __html: functionName() }}` — never a literal `<script>{...}</script>` block.
+const staticDir = resolve(import.meta.dir, "static");
+
+app.use("/static/*", serveStatic({
+  root: staticDir,
+  rewriteRequestPath: (path) => path.replace(/^\/static/, ""),
+  onFound: (_path, c) => {
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+  },
+}));
+```
+
+1. **Absolute `root`** via `resolve(import.meta.dir, "static")` — eliminates cwd sensitivity (Bun's cwd may differ from where the process starts).
+2. **`rewriteRequestPath`** strips the `/static` prefix so the middleware resolves `staticDir + "/style.css"` instead of `staticDir + "/static/style.css"`.
+
+**Verification:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/static/style.css
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/static/scripts/layout.js
+```
+
+**What goes in common.js:**
+```js
+// server/static/scripts/common.js
+function _esc(s) {
+  if (s == null) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function _fmt(n, dec) { return n == null ? "\u2014" : n.toFixed(dec ?? 2); }
+function _norm(vals) { /* ... */ }
+function _sparkline(priceHistory) { /* ... */ }
+```
+
+**What stays inline (rare exceptions):**
+- Tiny one-liners like `hx-on::after-request="loadSummary()"` — these are HTMX attributes, not scripts
+- No exceptions for actual `<script>` blocks. If it's more than 5 lines, it belongs in a `.js` file.
+
+---
+
+## Why we banned dangerouslySetInnerHTML for scripts
+
+This playbook previously taught `dangerouslySetInnerHTML={{ __html: functionName() }}` as the way to embed JS in Hono JSX views. This was a mistake.
+
+**What happened:** Every view copied the pattern. Every view duplicated 6+ helper functions. View files grew to 200+ lines of non-cacheable JavaScript. The `server/scripts/*.ts` intermediate extraction (typed wrappers around template strings) was a half-measure that didn't solve the root problem.
+
+**The fix:** Extract all JS to `server/static/scripts/*.js`, load with `<script src>`, and never look back.
+
+**If you absolutely must inline (don't):**
+Hono's JSX compiler encodes HTML entities inside `<script>{...}</script>` blocks. The old workaround was `dangerouslySetInnerHTML`. Do not use it. Move the code to an external file.
 
 ---
 

@@ -1,18 +1,7 @@
-/**
- * GET /api/positions/exits — exit status for all planned positions
- *
- * Fetches live prices for each ticker, then computes exit status
- * (P&L, distance to stop, distance to targets).
- *
- * Price cache: daily (expires at midnight UTC) — one fetch per ticker per calendar day.
- * Response cache: 30s — avoids recomputing when multiple routes hit simultaneously.
- */
+/** Exit status data builder — extracted from route for reuse. */
 import { dirname, join } from "node:path"
-import { Hono } from "hono"
-import { computeExitStatus, type ExitPlan, loadAllPlans } from "../lib/positions.ts"
-import { priceCache, fetchPrice, endOfToday } from "../lib/cache.ts"
-
-export const exitsRouter = new Hono()
+import { fetchPrice } from "./cache.ts"
+import { computeExitStatus, type ExitPlan, type ExitStatus, loadAllPlans } from "./positions.ts"
 
 function findProjectRoot(): string {
   if (process.env.TA_ROOT) return process.env.TA_ROOT
@@ -22,21 +11,21 @@ function findProjectRoot(): string {
 }
 
 // Response-level cache — full exit statuses valid for 30s
-let responseCache: { statuses: unknown[]; expires: number } | null = null
+let responseCache: { statuses: ExitStatus[]; expires: number } | null = null
 
-exitsRouter.get("/", async (c) => {
+export async function buildExitStatuses(): Promise<ExitStatus[]> {
   const now = Date.now()
 
   // Serve from response cache if fresh
   if (responseCache && responseCache.expires > now) {
-    return c.json(responseCache.statuses)
+    return responseCache.statuses
   }
 
   const plans = loadAllPlans()
   const unique = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
   const script = join(findProjectRoot(), "scripts", "get_price.py")
 
-  // Fetch in parallel batches (4 at a time) — keeps total time under ~40s on first load
+  // Fetch in parallel batches (4 at a time)
   const BATCH_SIZE = 4
   const priceMap = new Map<string, number | null>()
   for (let i = 0; i < unique.length; i += BATCH_SIZE) {
@@ -52,5 +41,7 @@ exitsRouter.get("/", async (c) => {
 
   // Cache for 30s
   responseCache = { statuses, expires: now + 30_000 }
-  return c.json(statuses)
-})
+  return statuses
+}
+
+export type { ExitPlan, ExitStatus, ExitTarget } from "./positions.ts"

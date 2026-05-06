@@ -1,9 +1,9 @@
-import { Hono, Context } from "hono"
+import { spawn } from "node:child_process"
+import { dirname, join } from "node:path"
+import { type Context, Hono } from "hono"
+import { endOfToday, priceCache } from "../lib/cache.ts"
 import { DatabaseFactory } from "../lib/db.ts"
 import { sanitizeForDb } from "../lib/sanitize.ts"
-import { priceCache, endOfToday } from "../lib/cache.ts"
-import { join, dirname } from "node:path"
-import { spawn } from "node:child_process"
 
 export const portfolioRouter = new Hono()
 
@@ -12,6 +12,91 @@ function findProjectRoot(): string {
   const projectRoot = dirname(dirname(import.meta.dir))
   if (projectRoot.includes("TradingAgents")) return projectRoot
   return projectRoot
+}
+
+// ── HTML helpers ───────────────────────────────────────────────────────────────
+
+function escPortfolio(s: string | null | undefined): string {
+  if (s == null) return ""
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+function fmtPortfolio(n: number | null | undefined, dec = 2): string {
+  if (n == null || Number.isNaN(n)) return "\u2014"
+  return n.toFixed(dec)
+}
+
+function clsPortfolio(pnl: number | null | undefined): string {
+  if (pnl == null) return ""
+  if (pnl > 0) return "positive"
+  if (pnl < 0) return "negative"
+  return ""
+}
+
+function fmtPnlPortfolio(pnl: number | null | undefined): string {
+  if (pnl == null) return "\u2014"
+  const sign = pnl >= 0 ? "+" : ""
+  return `${sign}${fmtPortfolio(pnl, 2)}`
+}
+
+function buildPortfolioHtml(summary: PortfolioSummary): string {
+  const totals = summary.totals
+  const pnl = totals.total_pnl_gbp
+  const pnlCls = clsPortfolio(pnl)
+
+  let html = '<section class="panel" id="pnl-panel">'
+  html += '<h3><span id="pnl-title">Portfolio Summary</span></h3>'
+  html += '<div id="pnl-summary">'
+  html += '<div class="pnl-totals" style="display:flex;gap:2rem;margin-bottom:1rem;flex-wrap:wrap">'
+  html += '<div><div class="muted" style="font-size:0.75em">Portfolio Value</div>'
+  html += `<div id="pnl-total-value" style="font-size:1.4em;font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">\u00a3${fmtPortfolio(totals.portfolio_value_gbp)}</div></div>`
+  html += '<div><div class="muted" style="font-size:0.75em">Total Cost</div>'
+  html += `<div id="pnl-total-cost" style="font-size:1.4em;font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">\u00a3${fmtPortfolio(totals.total_cost_gbp)}</div></div>`
+  html += '<div><div class="muted" style="font-size:0.75em">Unrealised P&amp;L</div>'
+  html += `<div id="pnl-total-pnl" style="font-size:1.4em;font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1" class="pnl-cell ${pnlCls}">\u00a3${fmtPnlPortfolio(pnl)}${totals.total_pnl_pct != null ? ` (${pnl != null && pnl >= 0 ? "+" : ""}${fmtPortfolio(totals.total_pnl_pct)}%)` : " \u2014"}</div></div>`
+  html += "</div>"
+  html +=
+    '<p class="muted" style="font-size:0.75em;margin:0">Prices in GBP via live FX conversion (GBPEUR, GBPUSD). Sorted by P&amp;L descending (worst positions first).</p>'
+  html += "</div></section>"
+
+  html += '<section class="panel"><h3>Positions</h3>'
+  html += '<div style="overflow-x:auto">'
+  html += '<table id="positions-table" class="positions-table">'
+  html +=
+    '<thead><tr><th>Platform</th><th>Ticker</th><th>Qty</th><th>Avg Cost</th><th>Current</th><th>Value (GBP)</th><th>P&amp;L</th><th class="date-col">Entry</th><th>Thesis</th><th></th></tr></thead>'
+  html += '<tbody id="positions-tbody">'
+
+  if (!summary.positions || summary.positions.length === 0) {
+    html += '<tr><td colspan="10" class="muted">No open positions</td></tr>'
+  } else {
+    for (const p of summary.positions) {
+      const pnlCls = clsPortfolio(p.pnl_gbp)
+      const pnlStr =
+        p.pnl_gbp != null
+          ? `${fmtPnlPortfolio(p.pnl_gbp)}${p.pnl_pct != null ? ` (${p.pnl_pct >= 0 ? "+" : ""}${fmtPortfolio(p.pnl_pct)}%)` : ""}`
+          : "\u2014"
+      const curPrice =
+        p.current_price_gbp != null ? `\u00a3${fmtPortfolio(p.current_price_gbp)}` : "\u2014"
+      const curVal =
+        p.current_value_gbp != null ? `\u00a3${fmtPortfolio(p.current_value_gbp)}` : "\u2014"
+
+      html += "<tr>"
+      html += `<td><span class="platform-tag">${escPortfolio(p.platform)}</span></td>`
+      html += `<td class="ticker">${escPortfolio(p.ticker)}</td>`
+      html += `<td>${fmtPortfolio(p.quantity)}</td>`
+      html += `<td>\u00a3${fmtPortfolio(p.avg_cost)}</td>`
+      html += `<td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">${curPrice}</td>`
+      html += `<td style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">${curVal}</td>`
+      html += `<td class="pnl-cell ${pnlCls}" style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">${pnlStr}</td>`
+      html += `<td class="date-col">${p.entry_date}</td>`
+      html += `<td>${escPortfolio(p.thesis) || "\u2014"}</td>`
+      html += `<td><button class="btn-sm" hx-delete="/api/positions/${p.id}" hx-target="#portfolio-wrapper" hx-swap="innerHTML" hx-confirm="Close this position?">Close</button></td>`
+      html += "</tr>"
+    }
+  }
+  html += "</tbody></table></div></section>"
+
+  return html
 }
 
 // ── Positions CRUD ────────────────────────────────────────────────────────────
@@ -42,7 +127,7 @@ portfolioRouter.post("/", async (c) => {
     `INSERT INTO positions (ticker, exchange, platform, quantity, avg_cost, entry_date, thesis, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-  const result = stmt.run(
+  stmt.run(
     ticker,
     exchange ?? "US",
     platform ?? "unknown",
@@ -52,29 +137,25 @@ portfolioRouter.post("/", async (c) => {
     sanitizeForDb(thesis) ?? null,
     sanitizeForDb(notes) ?? null,
   )
-  return c.json(
-    {
-      id: result.lastInsertRowid,
-      ticker,
-      exchange: exchange ?? "US",
-      platform: platform ?? "unknown",
-      quantity,
-      avg_cost,
-    },
-    201,
-  )
+
+  // Return updated portfolio HTML for HTMX
+  const summary = await computePortfolioSummary()
+  return c.html(buildPortfolioHtml(summary))
 })
 
 /** DELETE /api/positions/:id — close a position */
-portfolioRouter.delete("/:id", (c) => {
+portfolioRouter.delete("/:id", async (c) => {
   const db = DatabaseFactory.get()
   const id = c.req.param("id")
   const stmt = db.prepare("UPDATE positions SET status = 'closed' WHERE id = ?")
   const result = stmt.run(id)
   if (result.changes === 0) {
-    return c.json({ error: "position not found" }, 404)
+    return c.html('<div class="error-card"><strong>Position not found</strong></div>', 404)
   }
-  return c.json({ status: "closed", id })
+
+  // Return updated portfolio HTML for HTMX
+  const summary = await computePortfolioSummary()
+  return c.html(buildPortfolioHtml(summary))
 })
 
 // ── Portfolio P&L summary ─────────────────────────────────────────────────────
@@ -116,13 +197,11 @@ interface PortfolioSummary {
   fx_rates: Record<string, number> // e.g. { GBPEUR: 1.18, GBPUSD: 1.27 }
 }
 
-/**
- * Standalone portfolio summary handler — mounted at GET /api/portfolio/summary in index.tsx.
- * Separated from portfolioRouter (which is mounted at /api/positions) to keep URLs clean.
- */
-export async function handlePortfolioSummary(c: Context): Promise<Response> {
+async function computePortfolioSummary(): Promise<PortfolioSummary> {
   const db = DatabaseFactory.get()
-  const rows = db.query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker").all() as Array<{
+  const rows = db
+    .query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker")
+    .all() as Array<{
     id: number
     ticker: string
     exchange: string
@@ -134,37 +213,39 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
   }>
 
   if (rows.length === 0) {
-    return c.json({ positions: [], totals: { portfolio_value_gbp: 0, total_cost_gbp: 0, total_pnl_gbp: 0, total_pnl_pct: null, positions_count: 0 }, fx_rates: {} })
+    return {
+      positions: [],
+      totals: {
+        portfolio_value_gbp: 0,
+        total_cost_gbp: 0,
+        total_pnl_gbp: 0,
+        total_pnl_pct: null,
+        positions_count: 0,
+      },
+      fx_rates: {},
+    }
   }
 
-  // Unique tickers + FX pairs needed
   const tickers = [...new Set(rows.map((r) => r.ticker))]
   const fxPairs = ["GBPEUR=X", "GBPUSD=X", "GBPEUR", "GBPUSD"]
   const allTickers = [...tickers, ...fxPairs]
-
-  // Use /api/prices/batch to get full price data (price + history) for all tickers
   const priceResults = await batchFetchPrices(allTickers)
 
-  // Build FX rate map
   const fxRates: Record<string, number> = {}
   for (const fx of fxPairs) {
     const data = priceResults.get(fx)
     if (data?.price != null) {
-      // yfinance FX pairs: e.g. GBPEUR=X gives EUR per GBP
-      // 1 GBP = data.price EUR  → GBPEUR rate = data.price
       const key = fx.replace("=X", "").replace("=", "")
       fxRates[key] = data.price
     }
   }
 
-  // Default rates if FX lookups failed (rough estimates)
-  if (!fxRates["GBPEUR"]) fxRates["GBPEUR"] = 1.18
-  if (!fxRates["GBPUSD"]) fxRates["GBPUSD"] = 1.27
+  if (!fxRates.GBPEUR) fxRates.GBPEUR = 1.18
+  if (!fxRates.GBPUSD) fxRates.GBPUSD = 1.27
 
-  const gbpPerEur = 1 / fxRates["GBPEUR"] // 1 EUR = X GBP
-  const gbpPerUsd = 1 / fxRates["GBPUSD"] // 1 USD = X GBP
+  const gbpPerEur = 1 / fxRates.GBPEUR
+  const gbpPerUsd = 1 / fxRates.GBPUSD
 
-  // Enrich each position
   let totalValue = 0
   let totalCost = 0
 
@@ -179,23 +260,16 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
       } else if (priceData.currency === "USD") {
         currentPriceGbp = rawPrice * gbpPerUsd
       } else {
-        // Treat as GBP
         currentPriceGbp = rawPrice
       }
     }
 
-    // All costs stored in GBP (base currency).
-    // If cost was entered in EUR or USD, it should already be converted to GBP at entry time.
-    // For seed data that stored native currency: apply same FX conversion as current price.
-    // Default: treat as GBP (no conversion).
     const quantity = p.quantity
     let costValueGbp = p.avg_cost * quantity
-    if (p.exchange === "US" && fxRates["GBPUSD"]) {
-      // USD cost basis — convert to GBP
-      costValueGbp = (p.avg_cost * quantity) / fxRates["GBPUSD"]
-    } else if ((p.exchange === "XETRA" || p.exchange === "EUR") && fxRates["GBPEUR"]) {
-      // EUR cost basis — convert to GBP
-      costValueGbp = (p.avg_cost * quantity) / fxRates["GBPEUR"]
+    if (p.exchange === "US" && fxRates.GBPUSD) {
+      costValueGbp = (p.avg_cost * quantity) / fxRates.GBPUSD
+    } else if ((p.exchange === "XETRA" || p.exchange === "EUR") && fxRates.GBPEUR) {
+      costValueGbp = (p.avg_cost * quantity) / fxRates.GBPEUR
     }
 
     const currentValueGbp = currentPriceGbp != null ? currentPriceGbp * quantity : null
@@ -217,7 +291,6 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
     }
   })
 
-  // Sort by P&L ascending (worst first, nulls at end)
   enriched.sort((a, b) => {
     if (a.pnl_gbp == null && b.pnl_gbp == null) return 0
     if (a.pnl_gbp == null) return 1
@@ -228,7 +301,7 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
   const totalPnlGbp = totalValue - totalCost
   const totalPnlPct = totalCost > 0 ? (totalPnlGbp / totalCost) * 100 : null
 
-  const summary: PortfolioSummary = {
+  return {
     positions: enriched,
     totals: {
       portfolio_value_gbp: Math.round(totalValue * 100) / 100,
@@ -239,15 +312,33 @@ export async function handlePortfolioSummary(c: Context): Promise<Response> {
     },
     fx_rates: fxRates,
   }
+}
 
+/**
+ * Standalone portfolio summary handler — mounted at GET /api/portfolio/summary in index.tsx.
+ * Separated from portfolioRouter (which is mounted at /api/positions) to keep URLs clean.
+ */
+export async function handlePortfolioSummary(c: Context): Promise<Response> {
+  const summary = await computePortfolioSummary()
   return c.json(summary)
+}
+
+/** GET /api/portfolio/summary/html — portfolio summary + positions table as HTML for HTMX */
+export async function handlePortfolioSummaryHtml(c: Context): Promise<Response> {
+  try {
+    const summary = await computePortfolioSummary()
+    return c.html(buildPortfolioHtml(summary))
+  } catch (e: unknown) {
+    return c.html(
+      `<div class="error-card"><strong>Portfolio error</strong><br>${(e as Error).message}</div>`,
+      500,
+    )
+  }
 }
 
 // ── Batch price helper (inline to avoid circular imports) ─────────────────────
 
-async function batchFetchPrices(
-  tickers: string[],
-): Promise<Map<string, PriceData>> {
+async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceData>> {
   const results = new Map<string, PriceData>()
   const root = findProjectRoot()
   const script = join(root, "scripts", "get_price.py")
@@ -270,7 +361,9 @@ async function batchFetchPrices(
         })
 
         let stdout = ""
-        child.stdout.on("data", (d: Buffer) => { stdout += d.toString() })
+        child.stdout.on("data", (d: Buffer) => {
+          stdout += d.toString()
+        })
         child.on("close", (_code) => {
           try {
             const data = JSON.parse(stdout.trim())
@@ -280,7 +373,7 @@ async function batchFetchPrices(
               priceCache.set(ticker, { price, expires: endOfToday() })
             }
             const history: { date: string; close: number }[] = (data.history ?? []).slice(-20)
-          resolve([ticker, { price, currency, history }])
+            resolve([ticker, { price, currency, history }])
           } catch {
             resolve([ticker, { price: null, currency: "USD", history: [] }])
           }

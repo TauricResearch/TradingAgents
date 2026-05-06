@@ -1,12 +1,46 @@
-## MANDATORY: Use td for Task Management
+## MANDATORY: Use td for Task Management (Multi-Agent)
 
-Run td usage --new-session at conversation start (or after /clear). This tells you what to work on next.
+This codebase is collaborative. Multiple agents and the user share the same branch. **Every agent session is a distinct identity.**
 
-Sessions are automatic (based on terminal/agent context). Optional:
-- td session "name" to label the current session
-- td session --new to force a new session in the same context
+### Startup (do this first)
 
-Use td usage -q after first read.
+```bash
+td usage --new-session     # new identity
+td ws current              # any active work session to resume?
+td list                    # what's open / in_progress
+td reviewable              # what can I review?
+```
+
+### Core Rule: Always Use a Work Session
+
+If a task belongs to an epic, or you are doing more than one thing, use a work session (`td ws`). Never juggle individual tasks for epic work.
+
+```bash
+# Correct — work session for epic work
+td ws start "Epic: Description"
+td ws tag <id1> <id2> ...
+td ws log "progress"
+td ws handoff               # hand off all tagged tasks at once
+
+# Wrong — don't do this for epic work
+td start <id1>
+td handoff <id1>
+```
+
+**Read `playbooks/td-playbook.md` for the full multi-agent protocol.**
+
+**Before starting any work:** read `debriefs/plans/current.md`. It contains the current work plan, priority order, mandatory protocol, and known failure modes. Always start there.
+
+---
+
+## MANDATORY: Language Preference
+
+This codebase is **primarily a Bun/TypeScript house.**
+
+- **Dashboard/server work** (routes, views, scripts, tooling): **TypeScript with Bun only.**
+- **Python is reserved for:** the `tradingagents/` core package, the CLI entry point (`cli/main.py`), and the bridge script (`scripts/py/analyze_stream.py`).
+- **No Python for auxiliary tasks.** Do not reach for Python for one-off conversions, data transforms, or code-generation scripts. Use `bun -e "..."`, a `.ts` script in `scripts/`, or a throwaway `.ts` file instead.
+- **Never add a Python dependency** to solve a problem that a 20-line TypeScript snippet or an npm package can handle.
 
 ---
 
@@ -151,7 +185,8 @@ TradingAgents/
 │   │   └── portfolio-intelligence.ts  │   Unified portfolio view (hledger cash + SQLite positions)
 │   ├── views/                 │   (12 .tsx views + partials/)
 │   │   └── intelligence.tsx   │   Portfolio Intelligence view
-│   └── static/                │   CSS, fonts, favicon
+│   └── static/                │   CSS, fonts, favicon, client-side JS
+│       └── scripts/           │   External client-side scripts (canonical runtime JS)
 │
 ├── scripts/                   ← TypeScript utilities (Bun native)
 │   ├── seed_database.ts       │   Seed SQLite + exit plans + post-mortems
@@ -173,6 +208,44 @@ TradingAgents/
 ├── Justfile                   ← Unified task runner
 └── pyproject.toml             ← Python project definition
 ```
+
+---
+
+## Working Principles
+
+### Refactor Heuristic
+
+**Commit cadence:** One logical change per commit. "Logical" means: all files that must change together to achieve one goal, no more.
+
+**Fail-fast protocol:**
+1. Make small change → check → commit or revert.
+2. If checks fail after a change: revert first, diagnose second. Never pile fixes on a broken state.
+3. If stuck for >15 min on the same check failure: stop, revert, ask.
+
+**When starting a TD:**
+1. Run `just check` — must be clean before starting.
+2. Make the change to one file (or a small set of related files).
+3. Run `just check` again — must pass.
+4. Commit with message: `type(scope): what changed`.
+5. Repeat.
+
+**Batch vs. single:** Multiple small tasks that each require the same check run can be done in parallel if they don't touch the same files. If they share files (e.g. updating `biome.json` for multiple changes), do them one at a time — shared config changes are high-friction and high-revert-cost.
+
+### Known Failure Modes
+
+**Static JS copies of TypeScript = maintenance trap.**
+The canonical client-side runtime lives in `server/static/scripts/*.js`. These are the single source of truth for browser behaviour — not copies of some TypeScript original. Views reference them via `<script src="/static/scripts/xxx.js" />`. Biome linting for this directory is disabled in `biome.json` (client-side JS has different constraints than server TS). Do not maintain a second inline TypeScript copy in views.
+
+**Biome config changes must be validated immediately.**
+`biome.json` is validated by biome itself. If you add a key that doesn't exist (`files.ignore` is not valid at v2.4.14), biome fails with a parse error before running any checks. Always run `just lint` after any `biome.json` change.
+
+**Template literals inside template literals break silently.**
+Backtick-quoted strings inside template literals are a syntax error. The JSX compiler won't catch it. Runtime behavior is undefined. Fix: use `String.fromCharCode(34)` for embedded quotes or restructure the string.
+
+**Revert is faster than forward-fix.**
+If a change breaks checks and the fix isn't obvious, revert to the last known-good commit. Three failed forward-attempts burned 45 minutes. One revert took 5. Trust the revert.
+
+**No test coverage for views.** `pytest -m smoke` only covers Python. TypeScript views have no automated test. Until we have route-level tests (`td-9dbbac`), the only guard is: check `tsc` + `lint` + manual browser verification.
 
 ---
 

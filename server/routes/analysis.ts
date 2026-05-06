@@ -75,7 +75,13 @@ analysisRouter.post("/", async (c) => {
   const script = join(root, "scripts", "analyze_stream.py")
 
   if (!existsSync(script)) {
-    return c.json({ error: `analyze_stream.py not found at ${script}` }, 500)
+    return c.json(
+      {
+        error: `analyze_stream.py not found at ${script}`,
+        hint: "Ensure tradingagents is installed and the scripts directory exists",
+      },
+      500,
+    )
   }
 
   // Position context from DB

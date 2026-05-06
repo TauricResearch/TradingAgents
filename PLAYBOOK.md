@@ -314,10 +314,54 @@ tradingagents analyze --checkpoint
 | Python 3.14 build fails | PyO3 doesn't support 3.14 yet | Use Python 3.13 |
 | "No API key" error | .env not loaded | Run from project root, verify `.env` exists |
 | Ollama connection refused | Local model not running | `ollama run <model>` first |
+| `ImportError: dlopen ... symbol not found in flat namespace (_SCDynamicStoreCopyProxies)` | macOS + curl_cffi OpenSSL incompatibility | See macOS section below |
+| `curl_cffi` import fails on macOS | Homebrew OpenSSL / system OpenSSL mismatch | Install via Homebrew OpenSSL, see below |
 
 ---
 
-## 10. Limitations (Read This)
+## 10. macOS-Specific Issues
+
+### curl_cffi import fails on macOS (big one)
+
+**Error:**
+```
+ImportError: dlopen(.../curl_cffi/_wrapper.abi3.so, 0x0002):
+  symbol not found in flat namespace (_SCDynamicStoreCopyProxies)
+```
+
+**Cause:** `yfinance` uses `curl_cffi` for HTTP requests. macOS ships a system OpenSSL that lacks `_SCDynamicStoreCopyProxies`. `curl_cffi` is compiled against a newer OpenSSL, so the symbol lookup fails. This happens on **both Python 3.12 and 3.13** — Python version is not the cause.
+
+**Fix — use Homebrew OpenSSL:**
+
+```bash
+# 1. Install Homebrew OpenSSL (if not already)
+brew install openssl
+
+# 2. Reinstall curl_cffi against Homebrew OpenSSL
+uv pip install curl_cffi --force-reinstall \
+  --config-settings LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib" \
+  --config-settings CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+
+# 3. Verify it works
+python -c "import curl_cffi; print('OK')"
+
+# 4. Re-sync the full environment
+uv sync
+```
+
+**Alternative — use an older yfinance without curl_cffi:**
+
+```bash
+uv pip install "yfinance<0.2.30"
+```
+
+This downgrades yfinance to a version that doesn't require `curl_cffi`. Price data may be slightly less reliable but analysis will work.
+
+**Why this isn't in the upstream README:** The upstream project doesn't document this. It affects any macOS user with a standard Homebrew/Python setup. The fork maintains this Playbook as the canonical setup guide.
+
+---
+
+## 11. Limitations (Read This)
 
 1. **Not financial advice.** The README says it explicitly. The system is a research tool.
 2. **Garbage in, garbage out.** yfinance data quality varies. News sentiment is noisy.
@@ -328,7 +372,7 @@ tradingagents analyze --checkpoint
 
 ---
 
-## 11. Quick Reference Card
+## 12. Quick Reference Card
 
 ```bash
 # Activate environment
