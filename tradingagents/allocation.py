@@ -80,6 +80,11 @@ def build_allocation_plan(
         result.ticker: _current_value(result, prices)
         for result in ranked_results
     }
+    holding_quantities = {
+        result.ticker: result.holding.quantity
+        for result in ranked_results
+        if result.holding is not None
+    }
     holdings_value = sum(current_values.values())
     total_current_value = holdings_value + max(0.0, available_cash)
     current_weights = {
@@ -103,7 +108,11 @@ def build_allocation_plan(
         )
         for index, result in enumerate(ranked_results, start=1)
     ]
-    rows, leftover_cash = _apply_whole_share_order_sizing(rows, available_cash)
+    rows, leftover_cash = _apply_whole_share_order_sizing(
+        rows,
+        available_cash,
+        holding_quantities,
+    )
     return AllocationPlan(
         rows=rows,
         leftover_cash=leftover_cash,
@@ -116,6 +125,7 @@ def build_allocation_plan(
 def _apply_whole_share_order_sizing(
     rows: list[AllocationRow],
     available_cash: float,
+    holding_quantities: dict[str, float | None],
 ) -> tuple[list[AllocationRow], float]:
     sized_rows = list(rows)
     deployable_cash = max(0.0, available_cash)
@@ -123,7 +133,11 @@ def _apply_whole_share_order_sizing(
     for index, row in enumerate(sized_rows):
         if row.delta_value >= 0 or row.price is None or row.price <= 0:
             continue
-        quantity = -int(abs(row.delta_value) / row.price)
+        quantity = int(abs(row.delta_value) / row.price)
+        holding_quantity = holding_quantities.get(row.ticker)
+        if holding_quantity is not None:
+            quantity = min(quantity, max(0, int(holding_quantity)))
+        quantity = -quantity
         if quantity == 0:
             sized_rows[index] = replace(row, quantity_delta=0)
             continue
@@ -174,7 +188,7 @@ def _current_value(result: BatchTickerResult, prices: dict[str, float]) -> float
     if result.holding.market_value is not None:
         return float(result.holding.market_value)
     price = prices.get(result.ticker)
-    if result.holding.quantity is not None and price is not None:
+    if result.holding.quantity is not None and price is not None and price > 0:
         return float(result.holding.quantity) * float(price)
     return 0.0
 

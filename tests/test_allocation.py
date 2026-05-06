@@ -202,3 +202,42 @@ def test_missing_price_keeps_recommendation_without_quantity_delta_and_uses_mark
     assert row.rating == "Buy"
     assert row.quantity_delta is None
     assert plan.leftover_cash == 300
+
+
+def test_sell_quantity_is_capped_at_known_holding_quantity():
+    plan = build_allocation_plan(
+        [
+            BatchTickerResult(
+                ticker="AAPL",
+                status="success",
+                rating="Sell",
+                holding=PortfolioHolding(ticker="AAPL", quantity=5, market_value=1000),
+            )
+        ],
+        available_cash=0,
+        prices={"AAPL": 100},
+    )
+
+    row = plan.row_for("AAPL")
+    assert row.quantity_delta == -5
+    assert plan.leftover_cash == 500
+
+
+def test_non_positive_price_is_ignored_when_deriving_current_value():
+    plan = build_allocation_plan(
+        [
+            BatchTickerResult(
+                ticker="AAPL",
+                status="success",
+                rating="Hold",
+                holding=PortfolioHolding(ticker="AAPL", quantity=5),
+            )
+        ],
+        available_cash=0,
+        prices={"AAPL": -100},
+    )
+
+    row = plan.row_for("AAPL")
+    assert row.current_value == 0
+    assert plan.total_current_value == 0
+    assert row.quantity_delta is None
