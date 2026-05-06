@@ -4,11 +4,13 @@ import typer
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
 # Load environment variables
-load_dotenv()
-load_dotenv(".env.enterprise", override=False)
+# Use usecwd=True so the search starts from the user's working directory,
+# not from the installed package's site-packages directory.
+load_dotenv(find_dotenv(usecwd=True))
+load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
