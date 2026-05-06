@@ -6,8 +6,10 @@ from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.historical_context import (
+    find_latest_execution_failures,
     find_latest_prior_analysis,
     find_latest_prior_pm_decision,
+    format_execution_failure_block,
     format_prior_context_block,
 )
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
@@ -106,6 +108,15 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
             if prior_context_block else ""
         )
 
+        execution_failures = find_latest_execution_failures(
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        execution_failure_block = format_execution_failure_block(execution_failures)
+        # Anonymize ticker references in failure block to prevent training-data bias
+        if execution_failure_block:
+            execution_failure_block = anonymize_ticker(execution_failure_block, ticker)
+
         scanner_section = ""
         if scanner_context:
             role_guidance = "Use the scanner graph context to preserve catalysts, exposure edges, and risk factors when translating research into a trade plan."
@@ -124,6 +135,7 @@ def create_trader(llm: Any, memory: Any) -> Callable[[AgentState], dict[str, Any
         }
 
         _prior_suffix = f"\n\n{anon_prior_context}" if anon_prior_context else ""
+        _failure_suffix = f"\n\n{execution_failure_block}" if execution_failure_block else ""
         messages = [
             {
                 "role": "system",
@@ -152,7 +164,7 @@ YOUR TASK:
 5. **FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL****
 
 Apply lessons from past decisions:
-{anon_past_memory_str}{_prior_suffix}""",
+{anon_past_memory_str}{_prior_suffix}{_failure_suffix}""",
             },
             context,
         ]

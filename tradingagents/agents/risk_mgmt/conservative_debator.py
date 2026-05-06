@@ -5,6 +5,10 @@ from langchain_core.messages import AIMessage
 
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.historical_context import (
+    find_latest_execution_failures,
+    format_execution_failure_block,
+)
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
@@ -21,6 +25,14 @@ def create_conservative_debator(
         research_packet = build_research_packet(state)
         risk_summary = get_risk_debate_summary(state)
         trader_decision = state["trader_investment_plan"]
+
+        # Execution failure injection — uses DEFAULT_CONFIG portfolio_id because
+        # the trading graph state does not carry portfolio_id (it's per-ticker).
+        execution_failures = find_latest_execution_failures(
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        execution_failure_block = format_execution_failure_block(execution_failures)
 
         # Anonymize data variables to prevent training-data bias
         anon_research_packet = anonymize_ticker(
@@ -72,7 +84,7 @@ Present your initial clinical position on the risk/reward profile. Build a data-
 Output in two sections:
 1. THE DEBATE: Your initial clinical argument.
 2. SUMMARY POINTS: 3 most critical risk/mitigation points.
-"""
+{"" if not execution_failure_block else chr(10) + execution_failure_block}"""
             response, invoke_error = invoke_with_timeout(
                 llm,
                 prompt,
@@ -139,7 +151,7 @@ Engage directly with their points. Highlight where their optimism may overlook r
 Output in two sections:
 1. THE DEBATE: Your clinical rebuttal.
 2. SUMMARY POINTS: 3 most critical risk/mitigation points.
-"""
+{"" if not execution_failure_block else chr(10) + execution_failure_block}"""
             response, invoke_error = invoke_with_timeout(
                 llm,
                 prompt,

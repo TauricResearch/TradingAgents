@@ -4,6 +4,10 @@ from typing import Any
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.historical_context import (
+    find_latest_execution_failures,
+    format_execution_failure_block,
+)
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
@@ -62,6 +66,12 @@ def create_research_manager(llm: Any, memory: Any) -> Callable[[AgentState], dic
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
 
+        execution_failures = find_latest_execution_failures(
+            portfolio_id=str(DEFAULT_CONFIG.get("default_portfolio_id") or "main_portfolio"),
+            as_of_date=str(state.get("trade_date") or ""),
+        )
+        execution_failure_block = format_execution_failure_block(execution_failures)
+
         prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and make a definitive decision: Buy, Sell, or Hold.
 {macro_context}
 
@@ -103,7 +113,7 @@ Rolling debate summary:
 
 Here is the debate:
 Debate History:
-{anon_history}"""
+{anon_history}{"" if not execution_failure_block else chr(10) + chr(10) + execution_failure_block}"""
         timeout_seconds = resolve_timeout("deep")
         response, invoke_error = invoke_with_timeout(
             llm,
