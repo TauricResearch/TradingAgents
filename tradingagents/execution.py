@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Literal, Protocol, Sequence
 
@@ -17,7 +18,9 @@ class ExecutionOrder:
     quantity: float
 
     def __post_init__(self) -> None:
-        if self.quantity <= 0:
+        if self.action not in ("buy", "sell"):
+            raise ValueError("action must be 'buy' or 'sell'.")
+        if not math.isfinite(self.quantity) or self.quantity <= 0:
             raise ValueError("quantity must be greater than zero.")
         if not self.ticker.strip():
             raise ValueError("ticker is required.")

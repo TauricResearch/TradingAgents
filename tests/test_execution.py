@@ -23,6 +23,17 @@ def test_execution_order_rejects_zero_quantity():
         ExecutionOrder(ticker="AAPL", action="buy", quantity=0)
 
 
+def test_execution_order_rejects_unsupported_action():
+    with pytest.raises(ValueError, match="action"):
+        ExecutionOrder(ticker="AAPL", action="hold", quantity=1)
+
+
+@pytest.mark.parametrize("quantity", [float("nan"), float("inf"), float("-inf")])
+def test_execution_order_rejects_non_finite_quantity(quantity):
+    with pytest.raises(ValueError, match="quantity"):
+        ExecutionOrder(ticker="AAPL", action="buy", quantity=quantity)
+
+
 def test_execute_orders_dry_run_returns_planned_status():
     orders = [
         ExecutionOrder(ticker="AAPL", action="buy", quantity=2),
