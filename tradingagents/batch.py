@@ -312,10 +312,10 @@ def run_batch_analysis(
     save_path: Path,
     display_report: bool,
     continue_on_error: bool,
-    available_cash: float,
-    allocate: bool,
-    dry_run: bool,
-    allocation_policy: "AllocationPolicy | None",
+    available_cash: float = 0.0,
+    allocate: bool = False,
+    dry_run: bool = False,
+    allocation_policy: "AllocationPolicy | None" = None,
     prices: dict[str, float] | None = None,
 ) -> list[BatchTickerResult]:
     from cli.main import SelectionOverrides, console, run_analysis
@@ -367,12 +367,18 @@ def run_batch_analysis(
     if allocate or dry_run:
         from tradingagents.allocation import build_allocation_plan
 
-        allocation_plan = build_allocation_plan(
-            results,
-            available_cash=available_cash,
-            prices=prices or _derive_prices_from_holdings(results),
-            policy=allocation_policy,
-        )
+        successful_results = [result for result in results if result.status == "success"]
+        if successful_results:
+            allocation_plan = build_allocation_plan(
+                successful_results,
+                available_cash=available_cash,
+                prices=(
+                    _derive_prices_from_holdings(successful_results)
+                    if prices is None
+                    else prices
+                ),
+                policy=allocation_policy,
+            )
     summary_path = write_batch_outputs(
         save_path,
         results,

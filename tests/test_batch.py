@@ -1,5 +1,7 @@
 import json
+import inspect
 from pathlib import Path
+from types import SimpleNamespace
 
 from typer.testing import CliRunner
 
@@ -11,6 +13,7 @@ from tradingagents.batch import (
     build_batch_summary_markdown,
     load_batch_inputs,
     parse_ticker_list,
+    run_batch_analysis,
     write_batch_outputs,
 )
 from tradingagents.allocation import build_allocation_plan
@@ -175,6 +178,137 @@ def test_write_batch_outputs_writes_allocation_report_files(tmp_path):
     data = json.loads((tmp_path / "allocation_plan.json").read_text(encoding="utf-8"))
     assert data["rows"][0]["ticker"] == "AAPL"
     assert data["leftover_cash"] == 70
+
+
+def test_run_batch_analysis_allocation_options_are_backward_compatible():
+    signature = inspect.signature(run_batch_analysis)
+
+    assert signature.parameters["available_cash"].default == 0.0
+    assert signature.parameters["allocate"].default is False
+    assert signature.parameters["dry_run"].default is False
+    assert signature.parameters["allocation_policy"].default is None
+
+
+def test_run_batch_analysis_preserves_explicit_empty_prices(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run_analysis(*, checkpoint, llm_overrides, selection_overrides):
+        return SimpleNamespace(
+            final_state={
+                "final_trade_decision": "**Rating**: Buy\n\n**Executive Summary**: Buy setup.",
+                "trader_investment_plan": "FINAL TRANSACTION PROPOSAL: BUY",
+            },
+            report_path=tmp_path / "AAPL" / "complete_report.md",
+        )
+
+    def fake_build_allocation_plan(results, *, available_cash, prices, policy=None):
+        captured["prices"] = prices
+        return None
+
+    monkeypatch.setattr("cli.main.run_analysis", fake_run_analysis)
+    monkeypatch.setattr("tradingagents.batch.build_llm_narrative", lambda results, llm_overrides: None)
+    monkeypatch.setattr("tradingagents.allocation.build_allocation_plan", fake_build_allocation_plan)
+
+    run_batch_analysis(
+        holdings=[PortfolioHolding(ticker="AAPL", quantity=10, market_value=1000)],
+        analysis_date="2026-05-05",
+        output_language="English",
+        analysts=[AnalystType.MARKET],
+        research_depth=1,
+        checkpoint=False,
+        llm_overrides=None,
+        save_path=tmp_path / "batch",
+        display_report=False,
+        continue_on_error=True,
+        available_cash=0,
+        allocate=True,
+        dry_run=False,
+        allocation_policy=None,
+        prices={},
+    )
+
+    assert captured["prices"] == {}
+
+
+def test_run_batch_analysis_excludes_failed_results_from_allocation(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run_analysis(*, checkpoint, llm_overrides, selection_overrides):
+        if selection_overrides.ticker == "TSLA":
+            raise RuntimeError("provider timeout")
+        return SimpleNamespace(
+            final_state={
+                "final_trade_decision": "**Rating**: Buy\n\n**Executive Summary**: Buy setup.",
+                "trader_investment_plan": "FINAL TRANSACTION PROPOSAL: BUY",
+            },
+            report_path=tmp_path / selection_overrides.ticker / "complete_report.md",
+        )
+
+    def fake_build_allocation_plan(results, *, available_cash, prices, policy=None):
+        captured["tickers"] = [result.ticker for result in results]
+        return None
+
+    monkeypatch.setattr("cli.main.run_analysis", fake_run_analysis)
+    monkeypatch.setattr("tradingagents.batch.build_llm_narrative", lambda results, llm_overrides: None)
+    monkeypatch.setattr("tradingagents.allocation.build_allocation_plan", fake_build_allocation_plan)
+
+    run_batch_analysis(
+        holdings=[
+            PortfolioHolding(ticker="AAPL", quantity=10, market_value=1000),
+            PortfolioHolding(ticker="TSLA", quantity=5, market_value=500),
+        ],
+        analysis_date="2026-05-05",
+        output_language="English",
+        analysts=[AnalystType.MARKET],
+        research_depth=1,
+        checkpoint=False,
+        llm_overrides=None,
+        save_path=tmp_path / "batch",
+        display_report=False,
+        continue_on_error=True,
+        available_cash=0,
+        allocate=True,
+        dry_run=False,
+        allocation_policy=None,
+    )
+
+    assert captured["tickers"] == ["AAPL"]
+
+
+def test_run_batch_analysis_skips_allocation_when_all_results_fail(monkeypatch, tmp_path):
+    builder_called = False
+
+    def fake_run_analysis(*, checkpoint, llm_overrides, selection_overrides):
+        raise RuntimeError("provider timeout")
+
+    def fake_build_allocation_plan(results, *, available_cash, prices, policy=None):
+        nonlocal builder_called
+        builder_called = True
+        return None
+
+    monkeypatch.setattr("cli.main.run_analysis", fake_run_analysis)
+    monkeypatch.setattr("tradingagents.batch.build_llm_narrative", lambda results, llm_overrides: None)
+    monkeypatch.setattr("tradingagents.allocation.build_allocation_plan", fake_build_allocation_plan)
+
+    run_batch_analysis(
+        holdings=[PortfolioHolding(ticker="TSLA", quantity=5, market_value=500)],
+        analysis_date="2026-05-05",
+        output_language="English",
+        analysts=[AnalystType.MARKET],
+        research_depth=1,
+        checkpoint=False,
+        llm_overrides=None,
+        save_path=tmp_path / "batch",
+        display_report=False,
+        continue_on_error=True,
+        available_cash=0,
+        allocate=True,
+        dry_run=False,
+        allocation_policy=None,
+    )
+
+    assert builder_called is False
+    assert not (tmp_path / "batch" / "allocation_plan.md").exists()
 
 
 def test_write_batch_outputs_uses_relative_report_links_in_markdown(tmp_path):
