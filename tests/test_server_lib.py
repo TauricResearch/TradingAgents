@@ -161,6 +161,15 @@ class TestServerExports:
         assert "export function findProjectRoot" in content
 
     @pytest.mark.smoke
+    def test_markup_exports(self):
+        """markup.ts must export esc, fmt, fmtGBP."""
+        markup_path = ROOT / "server/lib/markup.ts"
+        assert markup_path.exists()
+        content = markup_path.read_text()
+        for fn in ["esc", "fmt", "fmtGBP"]:
+            assert f"export function {fn}" in content, f"Missing export: {fn}"
+
+    @pytest.mark.smoke
     def test_governance_lib_exports(self):
         """governance.ts must export checkRules, loadRules, suggestRebalance."""
         gov_path = ROOT / "server/lib/governance.ts"
