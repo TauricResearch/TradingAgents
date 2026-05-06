@@ -30,13 +30,27 @@ from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
+from cli.kalshi import kalshi_run_command
 
 console = Console()
 
 app = typer.Typer(
     name="TradingAgents",
-    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
+    help="TradingAgents CLI: Multi-Agents LLM Kalshi Prediction-Market Framework",
     add_completion=True,  # Enable shell completion
+)
+
+# Register the Kalshi runner as a top-level subcommand so users can invoke
+# ``tradingagents kalshi-run KXBTCD-26MAY05-T100000`` instead of the legacy
+# rich-display ``analyze`` flow.
+app.command("kalshi-run", help="Run the agent committee on a Kalshi contract.")(kalshi_run_command)
+
+# Settlement reflection: walk the ledger and reconcile any Kalshi-finalized
+# contracts. Designed to be called from cron after the daily settlement window.
+from cli.kalshi import kalshi_settle_command  # noqa: E402
+
+app.command("kalshi-settle", help="Reconcile open ledger rows against Kalshi settlement state.")(
+    kalshi_settle_command
 )
 
 

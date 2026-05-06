@@ -262,6 +262,90 @@ def run_contract(
     )
 
 
+# ---------------------------------------------------------------------------
+# Settlement / reflection
+# ---------------------------------------------------------------------------
+
+
+def _settlement_outcome(market: Dict) -> Optional[str]:
+    """Extract a normalized YES/NO outcome from a Kalshi market payload.
+
+    Returns ``"YES"``, ``"NO"``, or ``None`` if the contract has not yet
+    settled. Kalshi exposes settlement under several field names depending
+    on contract type — we check the common ones.
+    """
+    if not market:
+        return None
+    status = (market.get("status") or "").lower()
+    if status not in {"settled", "finalized", "closed"}:
+        return None
+    raw = market.get("result") or market.get("settlement_value") or market.get("outcome")
+    if raw is None:
+        return None
+    raw_str = str(raw).strip().upper()
+    if raw_str in {"YES", "1", "TRUE"}:
+        return "YES"
+    if raw_str in {"NO", "0", "FALSE"}:
+        return "NO"
+    return None
+
+
+def _realized_pnl_usd(*, side: str, count: int, price_cents: int, outcome: str) -> float:
+    """Realized P&L for a Kalshi contract that has settled.
+
+    Each contract pays $1 if its side resolves true, $0 otherwise.
+    """
+    cost = (price_cents / 100.0) * count
+    won = (side == outcome)
+    payoff = float(count) if won else 0.0
+    return payoff - cost
+
+
+def settle_pending(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Check each open ledger entry for settlement and update the ledger.
+
+    Designed to be invoked by a cron / scheduled run after settlement
+    time. Skips paper rows (their "venue_order_id" is None) for live-only
+    settlement; paper rows can be marked settled by a separate paper
+    settlement helper if/when the user wants synthetic outcomes.
+    """
+    from tradingagents.dataflows.kalshi_market import get_market
+
+    config = config or DEFAULT_CONFIG
+    open_rows = order_ledger.list_open(config)
+
+    updates: list[dict] = []
+    for row in open_rows:
+        if row["mode"] != "live" or not row.get("venue_order_id"):
+            continue
+        market = get_market(row["contract_id"])
+        outcome = _settlement_outcome(market or {})
+        if outcome is None:
+            continue
+        pnl = _realized_pnl_usd(
+            side=row["side"],
+            count=row["count"],
+            price_cents=row["price_cents"] or 0,
+            outcome=outcome,
+        )
+        order_ledger.update_status(
+            config=config,
+            decision_id=row["decision_id"],
+            status="settled",
+            settled_at=time.time(),
+            settlement=outcome,
+            realized_pnl_usd=pnl,
+        )
+        updates.append({
+            "decision_id": row["decision_id"],
+            "contract_id": row["contract_id"],
+            "outcome": outcome,
+            "realized_pnl_usd": pnl,
+        })
+
+    return {"settled": len(updates), "updates": updates}
+
+
 def _resolve_bankroll(*, mode: str, default: float) -> float:
     """Pull live cash balance from Kalshi when in live mode; default in paper."""
     if mode != "live":
