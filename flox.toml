@@ -1,0 +1,141 @@
+# ============================================================
+# TradingAgents Flox Environment Manifest
+# ============================================================
+# Target: Replicate the TradingAgents dev environment across
+# macOS (aarch64-darwin) and Linux (x86_64-linux, aarch64-linux).
+#
+# Tool inventory derived from: Justfile, AGENTS.md, and all
+# scripts in scripts/.
+#
+# Usage:
+#   flox init                          # Initialize in project root
+#   flox install                       # Install packages from manifest
+#   flox activate                      # Enter environment
+#   flox run -- just check             # One-shot run without shell
+# ============================================================
+
+version = 1
+
+# ============================================================
+# [install] — Packages from nixpkgs
+# ============================================================
+
+# ---- CORE (required for TradingAgents to function) ----
+[install]
+just.pkg-path = "just"
+jq.pkg-path = "jq"
+watchexec.pkg-path = "watchexec"
+nodejs.pkg-path = "nodejs"
+python3.pkg-path = "python3"
+uv.pkg-path = "uv"
+hledger.pkg-path = "hledger"
+sqlite.pkg-path = "sqlite"
+
+# ---- UI + INTERACTION (used by justfile and scripts) ----
+glow.pkg-path = "glow"
+gum.pkg-path = "gum"
+gum.optional = true
+
+# ---- FUZZY FINDER + MODERN UNIX (scripts: briefs-find, etc.) ----
+fzf.pkg-path = "fzf"
+fzf.optional = true
+
+ripgrep.pkg-path = "ripgrep"
+ripgrep.optional = true
+
+bat.pkg-path = "bat"
+bat.optional = true
+
+fd.pkg-path = "fd"
+fd.optional = true
+
+tree.pkg-path = "tree"
+tree.optional = true
+
+# ---- GITHUB CLI (scripts: pr-review, pr-fetch, pr-summarize) ----
+gh.pkg-path = "gh"
+
+# ---- DIAGRAMS (scripts: render_diagrams.ts) ----
+graphviz.pkg-path = "graphviz"
+graphviz.optional = true
+
+# ---- DOCUMENTATION ----
+man.pkg-path = "man"
+man.optional = true
+
+# ============================================================
+# [vars] — Environment variables
+# ============================================================
+[vars]
+# bun install path (not in nixpkgs — installed via official script)
+BUN_INSTALL = "$HOME/.bun"
+
+# ============================================================
+# [profile] — Shell scripts on activation
+# ============================================================
+[profile]
+common = '''
+# Add bun to PATH (installed via official script, not in nixpkgs)
+if [ -f "$BUN_INSTALL/bun" ]; then
+  [ -d "$BUN_INSTALL/bin" ] && export PATH="$BUN_INSTALL/bin:$PATH"
+fi
+
+# fzf integration — used in briefs-find, briefs-plan, and interactive scripts
+if command -v fzf >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND="fd --type f"
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+fi
+'''
+
+# ============================================================
+# [options] — Environment behaviour
+# ============================================================
+[options]
+systems = [
+  "x86_64-linux",
+  "aarch64-linux",
+  "x86_64-darwin",
+  "aarch64-darwin",
+]
+
+# ============================================================
+# NOTES — Tool availability map
+# ============================================================
+# Package availability across package managers:
+#
+# Tool             nixpkgs  Arch pacman  Brew      Notes
+# ---------------  -------  ------------ --------  -----------------------------
+# just             ✅       ✅           ✅        Task runner
+# jq               ✅       ✅           ✅        JSON processing
+# watchexec        ✅       ❌           ✅        Watch mode
+# nodejs           ✅       ✅           ✅        npm compatibility
+# python3          ✅       ✅           ✅        Python runtime
+# uv               ✅       ❌           ✅        Python package manager (Astral)
+# hledger          ✅       ✅           ✅        Plain-text accounting
+# sqlite           ✅       ✅           ✅        SQL CLI + library
+# glow             ✅       GitHub       ✅        Markdown renderer (Charm)
+# gum              ✅       GitHub       ✅        TUI prompts (Charm)
+# fzf              ✅       ✅           ✅        Fuzzy finder
+# ripgrep          ✅       ✅           ✅        Fast grep
+# bat              ✅       ✅           ✅        Syntax-highlighted cat
+# fd               ✅       ✅           ✅        Fast find
+# tree             ✅       ✅           ✅        Directory tree
+# gh               ✅       ✅           ✅        GitHub CLI
+# graphviz         ✅       ✅           ✅        DOT graph rendering
+# man              ✅       ✅           ✅        Manual pages
+# git              ✅       ✅           ✅        system
+#
+# NOT in nixpkgs (install separately):
+# bun              ❌       ❌           ✅        curl -fsSL https://bun.sh/install | bash
+# mmdc             ❌       ❌           ❌        npm install -g @mermaid-js/mermaid-cli
+# biome            ❌       ❌           ❌        bun add --dev @biomejs/biome
+# typescript       ❌       ❌           ❌        bun add --dev typescript
+# td               ❌       ❌           ❌        go install github.com/marcus/td@latest
+# sidecar          ❌       ❌           ❌        go install github.com/marcus/sidecar/cmd/sidecar@latest
+#
+# Recommended post-activate setup:
+#   curl -fsSL https://bun.sh/install | bash
+#   npm install -g @mermaid-js/mermaid-cli
+#   go install github.com/marcus/td@latest
+#
+# Then: flox activate && just check
