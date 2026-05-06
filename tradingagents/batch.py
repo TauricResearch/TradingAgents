@@ -120,8 +120,6 @@ def _holding_from_row(row: dict, row_number: int) -> PortfolioHolding:
     quantity = _optional_float(row.get("quantity"), "quantity", row_number)
     average_cost = _optional_float(row.get("average_cost"), "average_cost", row_number)
     market_value = _optional_float(row.get("market_value"), "market_value", row_number)
-    if market_value is None and quantity is not None and average_cost is not None:
-        market_value = quantity * average_cost
 
     return PortfolioHolding(
         ticker=ticker,
@@ -368,7 +366,14 @@ def run_batch_analysis(
         from tradingagents.allocation import build_allocation_plan
 
         successful_results = [result for result in results if result.status == "success"]
-        if successful_results:
+        valued_failures = _failed_results_with_market_value(results)
+        if valued_failures:
+            failed_tickers = ", ".join(result.ticker for result in valued_failures)
+            console.print(
+                "[yellow]Skipping allocation because failed holdings have market value "
+                f"and would distort portfolio weights: {failed_tickers}[/yellow]"
+            )
+        elif successful_results:
             allocation_plan = build_allocation_plan(
                 successful_results,
                 available_cash=available_cash,
@@ -395,6 +400,19 @@ def run_batch_analysis(
     if dry_run and allocation_plan is not None:
         _print_dry_run_table(console, allocation_plan)
     return results
+
+
+def _failed_results_with_market_value(
+    results: Sequence[BatchTickerResult],
+) -> list[BatchTickerResult]:
+    return [
+        result
+        for result in results
+        if result.status == "failed"
+        and result.holding is not None
+        and result.holding.market_value is not None
+        and result.holding.market_value > 0
+    ]
 
 
 def _derive_prices_from_holdings(results: Sequence[BatchTickerResult]) -> dict[str, float]:

@@ -56,9 +56,24 @@ def test_load_batch_inputs_accepts_json_list(tmp_path):
     holdings = load_batch_inputs(input_path=json_path, tickers=None)
 
     assert holdings[0].ticker == "NVDA"
-    assert holdings[0].market_value == 1800.0
+    assert holdings[0].market_value is None
     assert holdings[1].ticker == "BRK.B"
     assert holdings[1].market_value == 500.0
+
+
+def test_load_batch_inputs_does_not_infer_market_value_from_average_cost_csv(tmp_path):
+    csv_path = tmp_path / "portfolio.csv"
+    csv_path.write_text(
+        "ticker,quantity,average_cost\n"
+        "AAPL,10,150\n",
+        encoding="utf-8",
+    )
+
+    holdings = load_batch_inputs(input_path=csv_path, tickers=None)
+
+    assert holdings == [
+        PortfolioHolding(ticker="AAPL", quantity=10.0, average_cost=150.0)
+    ]
 
 
 def test_load_batch_inputs_requires_ticker_column(tmp_path):
@@ -230,7 +245,60 @@ def test_run_batch_analysis_preserves_explicit_empty_prices(monkeypatch, tmp_pat
     assert captured["prices"] == {}
 
 
-def test_run_batch_analysis_excludes_failed_results_from_allocation(monkeypatch, tmp_path):
+def test_run_batch_analysis_skips_allocation_when_failed_result_has_market_value(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run_analysis(*, checkpoint, llm_overrides, selection_overrides):
+        if selection_overrides.ticker == "TSLA":
+            raise RuntimeError("provider timeout")
+        return SimpleNamespace(
+            final_state={
+                "final_trade_decision": "**Rating**: Buy\n\n**Executive Summary**: Buy setup.",
+                "trader_investment_plan": "FINAL TRANSACTION PROPOSAL: BUY",
+            },
+            report_path=tmp_path / selection_overrides.ticker / "complete_report.md",
+        )
+
+    def fake_build_allocation_plan(results, *, available_cash, prices, policy=None):
+        captured["tickers"] = [result.ticker for result in results]
+        return None
+
+    messages = []
+
+    def fake_print(message):
+        messages.append(str(message))
+
+    monkeypatch.setattr("cli.main.run_analysis", fake_run_analysis)
+    monkeypatch.setattr("cli.main.console.print", fake_print)
+    monkeypatch.setattr("tradingagents.batch.build_llm_narrative", lambda results, llm_overrides: None)
+    monkeypatch.setattr("tradingagents.allocation.build_allocation_plan", fake_build_allocation_plan)
+
+    run_batch_analysis(
+        holdings=[
+            PortfolioHolding(ticker="AAPL", quantity=10, market_value=1000),
+            PortfolioHolding(ticker="TSLA", quantity=5, market_value=500),
+        ],
+        analysis_date="2026-05-05",
+        output_language="English",
+        analysts=[AnalystType.MARKET],
+        research_depth=1,
+        checkpoint=False,
+        llm_overrides=None,
+        save_path=tmp_path / "batch",
+        display_report=False,
+        continue_on_error=True,
+        available_cash=0,
+        allocate=True,
+        dry_run=False,
+        allocation_policy=None,
+    )
+
+    assert "tickers" not in captured
+    assert any("Skipping allocation" in message and "TSLA" in message for message in messages)
+    assert not (tmp_path / "batch" / "allocation_plan.md").exists()
+
+
+def test_run_batch_analysis_allocates_successes_when_failures_have_no_market_value(monkeypatch, tmp_path):
     captured = {}
 
     def fake_run_analysis(*, checkpoint, llm_overrides, selection_overrides):
@@ -255,7 +323,7 @@ def test_run_batch_analysis_excludes_failed_results_from_allocation(monkeypatch,
     run_batch_analysis(
         holdings=[
             PortfolioHolding(ticker="AAPL", quantity=10, market_value=1000),
-            PortfolioHolding(ticker="TSLA", quantity=5, market_value=500),
+            PortfolioHolding(ticker="TSLA", quantity=5),
         ],
         analysis_date="2026-05-05",
         output_language="English",
