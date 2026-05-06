@@ -37,7 +37,7 @@ async def websocket_endpoint(
     # Lazy-load events from disk when not in memory.
     # Covers hydrated completed/failed runs and orphaned historical runs that
     # were persisted as "running" before the server stopped.
-    _ensure_run_events_loaded(run_id)
+    await _ensure_run_events_loaded(run_id)
     if run_info.get("hydrated_from_disk") and run_info.get("status") == "running":
         run_info["status"] = "failed"
         run_info["error"] = "Run did not complete (server restarted)"
