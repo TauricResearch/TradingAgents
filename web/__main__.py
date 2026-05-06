@@ -17,7 +17,7 @@ def main() -> None:
     import uvicorn
 
     url = f"http://{args.host}:{args.port}"
-    print(f"TradingAgents Web UI → {url}")
+    print(f"TradingAgents Web UI -> {url}")
     if not args.dev:
         webbrowser.open(url)
 
