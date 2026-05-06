@@ -153,6 +153,14 @@ class TestServerExports:
         assert "PeriodReturn" in content
 
     @pytest.mark.smoke
+    def test_utils_exports(self):
+        """utils.ts must export findProjectRoot."""
+        utils_path = ROOT / "server/lib/utils.ts"
+        assert utils_path.exists()
+        content = utils_path.read_text()
+        assert "export function findProjectRoot" in content
+
+    @pytest.mark.smoke
     def test_governance_lib_exports(self):
         """governance.ts must export checkRules, loadRules, suggestRebalance."""
         gov_path = ROOT / "server/lib/governance.ts"
