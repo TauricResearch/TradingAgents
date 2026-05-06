@@ -68,7 +68,9 @@ def _load_latest_in_date(
         scan_dir = run_dir / relative_subpath
         if not scan_dir.exists():
             continue
-        matches.extend(p for p in scan_dir.iterdir() if p.is_file() and p.name.endswith(filename_tail))
+        matches.extend(
+            p for p in scan_dir.iterdir() if p.is_file() and p.name.endswith(filename_tail)
+        )
     if not matches:
         return None
     matches.sort(key=lambda p: (p.parent.parent.parent.name, p.name), reverse=True)
@@ -221,17 +223,13 @@ def format_prior_context_block(
         d = prior_analysis.get("date", "?")
         data = prior_analysis.get("data") or {}
         plan = data.get("trader_investment_plan") or data.get("final_trade_decision") or ""
-        parts.append(
-            f"\n### Last Trader Plan ({d})\n{_truncate(plan, per_section)}"
-        )
+        parts.append(f"\n### Last Trader Plan ({d})\n{_truncate(plan, per_section)}")
     if prior_pm_decision:
         d = prior_pm_decision.get("date", "?")
         data = prior_pm_decision.get("data") or {}
         decision = data.get("decision") or ""
         rationale = data.get("rationale") or ""
         body = decision if not rationale else f"{decision}\n\nRationale: {rationale}"
-        parts.append(
-            f"\n### Last PM Decision ({d})\n{_truncate(body, per_section)}"
-        )
+        parts.append(f"\n### Last PM Decision ({d})\n{_truncate(body, per_section)}")
     out = "\n".join(parts)
     return _truncate(out, max_chars)

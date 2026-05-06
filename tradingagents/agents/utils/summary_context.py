@@ -243,12 +243,17 @@ def build_debate_evidence_brief(state: AgentState) -> str:
         fund_report_text = str(state.get("fundamentals_report") or "").lower()
         if fund_report_text:
             import re as _re
+
             # PE ratio (e.g. "P/E: 83.2x" or "pe ratio of 83")
-            pe_match = _re.search(r"p/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?", fund_report_text)
+            pe_match = _re.search(
+                r"p/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)\s*x?", fund_report_text
+            )
             # Debt-to-equity (e.g. "D/E: 15.6" or "debt.to.equity.*15")
             de_match = _re.search(r"d/?e\s*(?:ratio)?[:\s]+([0-9]+(?:\.[0-9]+)?)", fund_report_text)
             # Free cash flow margin (e.g. "FCF: -73%" or "free cash flow.*-73")
-            fcf_match = _re.search(r"free\s+cash\s+flow[^.\n]{0,30}?(-?[0-9]+(?:\.[0-9]+)?%)", fund_report_text)
+            fcf_match = _re.search(
+                r"free\s+cash\s+flow[^.\n]{0,30}?(-?[0-9]+(?:\.[0-9]+)?%)", fund_report_text
+            )
             if pe_match:
                 lines.append(f"- P/E: {pe_match.group(1)}x")
             if de_match:

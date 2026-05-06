@@ -42,18 +42,23 @@ def test_surviving_claims_have_verified_true():
         "abort_signal": None,
     }
 
-    with patch(
-        "tradingagents.agents.managers.news_fact_checker.sanitize_structured_news_payload",
-        return_value=(payload, []),
-    ), patch(
-        "tradingagents.agents.managers.news_fact_checker.validate_structured_news_payload",
-        return_value=MagicMock(is_valid=True, payload=payload, code="ok", reason=""),
-    ), patch(
-        "tradingagents.agents.managers.news_fact_checker.render_structured_news_payload",
-        return_value="AAPL earnings beat.",
-    ), patch(
-        "tradingagents.agents.managers.news_fact_checker.validate_news_analysis_detailed",
-        return_value=MagicMock(is_valid=True),
+    with (
+        patch(
+            "tradingagents.agents.managers.news_fact_checker.sanitize_structured_news_payload",
+            return_value=(payload, []),
+        ),
+        patch(
+            "tradingagents.agents.managers.news_fact_checker.validate_structured_news_payload",
+            return_value=MagicMock(is_valid=True, payload=payload, code="ok", reason=""),
+        ),
+        patch(
+            "tradingagents.agents.managers.news_fact_checker.render_structured_news_payload",
+            return_value="AAPL earnings beat.",
+        ),
+        patch(
+            "tradingagents.agents.managers.news_fact_checker.validate_news_analysis_detailed",
+            return_value=MagicMock(is_valid=True),
+        ),
     ):
         node = create_news_fact_checker(MagicMock(), store)
         result = node(state)

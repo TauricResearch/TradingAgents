@@ -12,22 +12,34 @@ def test_sentiment_report_is_non_empty_when_llm_returns_blank():
 
     mock_llm = MagicMock()
 
-    with patch("tradingagents.agents.analysts.social_media_analyst.invoke_with_timeout") as mock_invoke:
+    with patch(
+        "tradingagents.agents.analysts.social_media_analyst.invoke_with_timeout"
+    ) as mock_invoke:
         mock_invoke.return_value = (AIMessage(content=""), None)
 
-        with patch("tradingagents.agents.analysts.social_media_analyst.build_sentiment_report_structured") as mock_struct:
+        with patch(
+            "tradingagents.agents.analysts.social_media_analyst.build_sentiment_report_structured"
+        ) as mock_struct:
             mock_struct.return_value = {}
 
-            with patch("tradingagents.agents.analysts.social_media_analyst.prefetch_tools_parallel") as mock_prefetch:
+            with patch(
+                "tradingagents.agents.analysts.social_media_analyst.prefetch_tools_parallel"
+            ) as mock_prefetch:
                 mock_prefetch.return_value = {}
 
-                with patch("tradingagents.agents.analysts.social_media_analyst.format_prefetched_context") as mock_format:
+                with patch(
+                    "tradingagents.agents.analysts.social_media_analyst.format_prefetched_context"
+                ) as mock_format:
                     mock_format.return_value = ""
 
-                    with patch("tradingagents.agents.analysts.social_media_analyst.build_instrument_context") as mock_instrument:
+                    with patch(
+                        "tradingagents.agents.analysts.social_media_analyst.build_instrument_context"
+                    ) as mock_instrument:
                         mock_instrument.return_value = "Test instrument context"
 
-                        with patch("tradingagents.agents.analysts.social_media_analyst.build_scanner_context_block") as mock_scanner:
+                        with patch(
+                            "tradingagents.agents.analysts.social_media_analyst.build_scanner_context_block"
+                        ) as mock_scanner:
                             mock_scanner.return_value = "Test scanner context"
 
                             node = create_social_media_analyst(mock_llm)
@@ -43,17 +55,25 @@ def test_sentiment_report_is_non_empty_when_llm_returns_blank():
                                 "macro_regime_report": "",
                             }
                             result = node(state)
-                            
+
                             # Verify sentiment_report is non-empty
                             assert result["sentiment_report"], "sentiment_report must be non-empty"
-                            assert len(result["sentiment_report"].strip()) > 10, "sentiment_report must have meaningful content"
-                            
+                            assert len(result["sentiment_report"].strip()) > 10, (
+                                "sentiment_report must have meaningful content"
+                            )
+
                             # Verify fallback contains required elements
                             report = result["sentiment_report"]
                             assert "AAPL" in report, "Report should contain the ticker"
-                            assert "Sentiment" in report or "sentiment" in report.lower(), "Report should reference sentiment"
-                            assert "neutral" in report or "Directional bias" in report, "Report should state directional bias"
-                            assert "confidence" in report.lower(), "Report should mention confidence level"
+                            assert "Sentiment" in report or "sentiment" in report.lower(), (
+                                "Report should reference sentiment"
+                            )
+                            assert "neutral" in report or "Directional bias" in report, (
+                                "Report should state directional bias"
+                            )
+                            assert "confidence" in report.lower(), (
+                                "Report should mention confidence level"
+                            )
 
 
 def test_social_analyst_prompt_mandates_sentiment_direction_format():

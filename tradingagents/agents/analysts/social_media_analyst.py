@@ -76,7 +76,7 @@ def create_social_media_analyst(llm: Any) -> Callable[[AgentState], dict[str, An
             '- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.\n'
             "- Focus on sentiment polarity shifts and volume-weighted signal strength.\n"
             "- Separate verified corporate actions from speculative social chatter.\n"
-            "- **OUTPUT COMPLETENESS**: Your output MUST include at minimum 3 sentences describing the current sentiment signal — even if signals are weak or neutral. \"No data available\" is not acceptable. State: (1) the directional bias (bullish/bearish/neutral), (2) the primary evidence, (3) the confidence level and key risk to your assessment.\n"
+            '- **OUTPUT COMPLETENESS**: Your output MUST include at minimum 3 sentences describing the current sentiment signal — even if signals are weak or neutral. "No data available" is not acceptable. State: (1) the directional bias (bullish/bearish/neutral), (2) the primary evidence, (3) the confidence level and key risk to your assessment.\n'
             "- **REQUIRED SENTIMENT FORMAT**: You MUST include exactly one of the following declaration lines near the top of your report — this is parsed downstream:\n"
             "  - `Sentiment direction: BULLISH`\n"
             "  - `Sentiment direction: BEARISH`\n"
