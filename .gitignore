@@ -236,5 +236,6 @@ scratchpad/
 # Bun
 node_modules/
 !server/lib/
+!scripts/lib/
 portfolio.db
 test_portfolio.db

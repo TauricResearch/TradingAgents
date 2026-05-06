@@ -58,11 +58,12 @@ d:  # diagrams group
 pr:  # pr group
     @just --list --group pr
 
-# Type-check + lint the TypeScript server
+# Type-check + lint + custom gates
 [group("bun")]
 check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
+    bun scripts/check-database-usage.ts
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]
