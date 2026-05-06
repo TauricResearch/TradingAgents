@@ -127,3 +127,125 @@ export type RunCreateRequest = {
   max_risk_discuss_rounds: number;
   data_vendors: Record<string, string>;
 };
+
+// ---- Watchlist + portfolio + streaming ---------------------------------
+
+export type WatchlistEntry = {
+  id: number;
+  ticker: string;
+  added_at: string;
+  notes?: string | null;
+};
+
+export type Position = {
+  id: number;
+  ticker: string;
+  shares: number;
+  cost_basis_per_share: number;
+  opened_at: string;
+  closed_at?: string | null;
+  closing_price?: number | null;
+  account?: string | null;
+  notes?: string | null;
+};
+
+export type PositionWithLive = Position & {
+  cost: number;
+  live_price: number | null;
+  value: number | null;
+  unrealized: number | null;
+  unrealized_pct: number | null;
+};
+
+export type PortfolioSummary = {
+  open_positions: PositionWithLive[];
+  total_cost: number;
+  total_value: number;
+  unrealized_pnl: number | null;
+  unrealized_pnl_pct: number | null;
+  realized_pnl: number;
+  open_count: number;
+  closed_count: number;
+};
+
+export type PriceTick = {
+  type: "price";
+  ticker: string;
+  price: number;
+  change: number | null;
+  change_pct: number | null;
+  volume: number | null;
+  polled_at: number;
+  history: Array<{ ts: number; price: number }>;
+};
+
+export type NewsItem = {
+  ticker: string;
+  title: string;
+  summary?: string | null;
+  publisher?: string | null;
+  link?: string | null;
+  published_at?: string | null;
+};
+
+// ---- Calendar ----------------------------------------------------------
+
+export type CalendarEvent = {
+  date: string;
+  ticker?: string | null;
+  kind: "earnings" | "dividend" | "run" | "ex_dividend";
+  title: string;
+  detail?: string | null;
+  payload?: Record<string, any> | null;
+};
+
+// ---- Simulation --------------------------------------------------------
+
+export type SimTrade = {
+  ticker: string;
+  shares: number;
+  entry_price: number;
+  hold_days: number;
+};
+
+export type SimRunRequest = {
+  name?: string;
+  base_run_id?: string;
+  starting_capital: number;
+  trades: SimTrade[];
+  history_days?: number;
+};
+
+export type SimPoint = {
+  day: number;
+  portfolio: number;
+  baseline_spy: number;
+  portfolio_low: number;
+  portfolio_high: number;
+};
+
+export type SimResult = {
+  name: string;
+  starting_capital: number;
+  expected_final_value: number;
+  expected_return_pct: number;
+  baseline_final_value: number;
+  baseline_return_pct: number;
+  alpha_pct: number;
+  horizon_days: number;
+  points: SimPoint[];
+  per_trade: Array<Record<string, any>>;
+};
+
+export type SimRow = {
+  id: number;
+  name?: string | null;
+  base_run_id?: string | null;
+  ticker?: string | null;
+  created_at: string;
+};
+
+export type SimDetail = SimRow & {
+  scenario: Record<string, any>;
+  result: SimResult;
+};

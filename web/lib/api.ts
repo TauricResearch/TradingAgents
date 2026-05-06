@@ -7,15 +7,23 @@
 
 import type {
   Brief,
+  CalendarEvent,
   ChatMessage,
   ChartComparisonResponse,
   ExportFile,
   MemoryResponse,
+  NewsItem,
   Note,
+  PortfolioSummary,
+  Position,
   RunCreateRequest,
   RunDetail,
   RunSummary,
   Settings,
+  SimDetail,
+  SimRow,
+  SimRunRequest,
+  WatchlistEntry,
 } from "./types";
 
 const API_BASE = "/api";
@@ -145,4 +153,76 @@ export const Exports = {
       `/runs/${runId}/exports/regenerate`,
       { method: "POST" },
     ),
+};
+
+// ---- Watchlist ---------------------------------------------------------
+
+export const Watchlist = {
+  list: () => request<WatchlistEntry[]>("/watchlist"),
+  add: (req: { ticker: string; notes?: string }) =>
+    request<WatchlistEntry>("/watchlist", { method: "POST", body: JSON.stringify(req) }),
+  remove: (ticker: string) =>
+    request<{ removed: string }>(`/watchlist/${ticker}`, { method: "DELETE" }),
+  quotes: () =>
+    request<Record<string, { price: number; change: number; change_pct: number; polled_at: number } | null>>(
+      "/watchlist/quotes",
+    ),
+};
+
+// ---- Portfolio ---------------------------------------------------------
+
+export const Portfolio = {
+  positions: (includeClosed = false) =>
+    request<Position[]>(`/portfolio/positions${includeClosed ? "?include_closed=true" : ""}`),
+  addPosition: (req: {
+    ticker: string;
+    shares: number;
+    cost_basis_per_share: number;
+    opened_at?: string;
+    account?: string;
+    notes?: string;
+  }) =>
+    request<Position>("/portfolio/positions", { method: "POST", body: JSON.stringify(req) }),
+  updatePosition: (id: number, req: Partial<{ shares: number; cost_basis_per_share: number; account: string; notes: string }>) =>
+    request<Position>(`/portfolio/positions/${id}`, { method: "PUT", body: JSON.stringify(req) }),
+  closePosition: (id: number, req: { closing_price: number; closed_at?: string }) =>
+    request<Position>(`/portfolio/positions/${id}/close`, { method: "POST", body: JSON.stringify(req) }),
+  deletePosition: (id: number) =>
+    request<{ deleted: number }>(`/portfolio/positions/${id}`, { method: "DELETE" }),
+  summary: () => request<PortfolioSummary>("/portfolio/summary"),
+};
+
+// ---- Calendar ----------------------------------------------------------
+
+export const Calendar = {
+  events: (params: { from: string; to: string; tickers?: string[] }) => {
+    const qp = new URLSearchParams();
+    qp.set("from", params.from);
+    qp.set("to", params.to);
+    if (params.tickers?.length) qp.set("tickers", params.tickers.join(","));
+    return request<CalendarEvent[]>(`/calendar?${qp}`);
+  },
+};
+
+// ---- News --------------------------------------------------------------
+
+export const News = {
+  feed: (params?: { tickers?: string[]; limit?: number }) => {
+    const qp = new URLSearchParams();
+    if (params?.tickers?.length) qp.set("tickers", params.tickers.join(","));
+    if (params?.limit) qp.set("limit", String(params.limit));
+    const qs = qp.toString();
+    return request<NewsItem[]>(`/news/feed${qs ? `?${qs}` : ""}`);
+  },
+};
+
+// ---- Simulation --------------------------------------------------------
+
+export const Simulation = {
+  run: (req: SimRunRequest) =>
+    request<SimDetail>("/sim/run", { method: "POST", body: JSON.stringify(req) }),
+  list: () => request<SimRow[]>("/sim"),
+  get: (id: number) => request<SimDetail>(`/sim/${id}`),
+  delete: (id: number) =>
+    request<{ deleted: number }>(`/sim/${id}`, { method: "DELETE" }),
 };

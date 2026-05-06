@@ -19,3 +19,15 @@ export function runStreamUrl(runId: string): string {
 export function chatStreamUrl(runId: string): string {
   return `${wsBase()}/runs/${runId}/chat/stream`;
 }
+
+export function priceStreamUrl(ticker: string): string {
+  return `${wsBase()}/streaming/price/${ticker}`;
+}
+
+export function newsStreamUrl(ticker: string): string {
+  return `${wsBase()}/streaming/news/${ticker}`;
+}
+
+export function combinedStreamUrl(ticker: string): string {
+  return `${wsBase()}/streaming/${ticker}`;
+}

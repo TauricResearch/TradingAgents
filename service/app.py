@@ -19,16 +19,23 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from gui import storage
 from service.runner_pool import pool
+from service.streaming import broadcaster
 from service.routers import (
     briefs,
+    calendar as calendar_router,
     charts as charts_router,
     chat,
     exports,
     health,
     memory,
+    news_feed,
     notes,
+    portfolio,
     runs,
     settings,
+    simulation,
+    streaming,
+    watchlist,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,8 +81,22 @@ app.add_middleware(
 @app.on_event("startup")
 async def _startup() -> None:
     storage.init_db()
-    pool.attach_loop(asyncio.get_running_loop())
+    loop = asyncio.get_running_loop()
+    pool.attach_loop(loop)
+    broadcaster.start(loop)
+    # Pre-warm the broadcaster with watchlist tickers so prices show up
+    # without a manual subscribe.
+    for entry in storage.list_watchlist():
+        try:
+            await broadcaster.subscribe("price", entry["ticker"])
+        except Exception:
+            pass
     logger.info("TradingAgents API ready. CORS origins: %s", _allowed_origins())
+
+
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    await broadcaster.stop()
 
 
 # Routers
@@ -88,6 +109,12 @@ app.include_router(settings.router)
 app.include_router(memory.router)
 app.include_router(charts_router.router)
 app.include_router(exports.router)
+app.include_router(streaming.router)
+app.include_router(watchlist.router)
+app.include_router(portfolio.router)
+app.include_router(calendar_router.router)
+app.include_router(news_feed.router)
+app.include_router(simulation.router)
 
 
 def main() -> int:

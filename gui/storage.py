@@ -77,6 +77,36 @@ def init_db() -> None:
                 model TEXT
             );
             CREATE INDEX IF NOT EXISTS chat_messages_run ON chat_messages(run_id, id);
+
+            CREATE TABLE IF NOT EXISTS watchlist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT UNIQUE NOT NULL,
+                added_at TEXT NOT NULL,
+                notes TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS positions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                shares REAL NOT NULL,
+                cost_basis_per_share REAL NOT NULL,
+                opened_at TEXT NOT NULL,
+                closed_at TEXT,
+                closing_price REAL,
+                account TEXT,
+                notes TEXT
+            );
+            CREATE INDEX IF NOT EXISTS positions_ticker ON positions(ticker, closed_at);
+
+            CREATE TABLE IF NOT EXISTS simulations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                base_run_id TEXT,
+                ticker TEXT,
+                scenario_json TEXT,
+                result_json TEXT,
+                created_at TEXT NOT NULL
+            );
             """
         )
 
@@ -244,3 +274,141 @@ def list_chat_messages(run_id: str) -> List[Dict[str, Any]]:
 def clear_chat(run_id: str) -> None:
     with _conn() as c:
         c.execute("DELETE FROM chat_messages WHERE run_id=?", (run_id,))
+
+
+# ---------------------------------------------------------------------------
+# Watchlist (per-ticker subscription for live price/news streams)
+# ---------------------------------------------------------------------------
+
+def list_watchlist() -> List[Dict[str, Any]]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM watchlist ORDER BY ticker"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_to_watchlist(ticker: str, notes: Optional[str] = None) -> Dict[str, Any]:
+    ticker = ticker.strip().upper()
+    with _conn() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO watchlist(ticker, added_at, notes) VALUES (?, ?, ?)",
+            (ticker, _now(), notes),
+        )
+        if notes is not None:
+            c.execute(
+                "UPDATE watchlist SET notes=? WHERE ticker=?", (notes, ticker)
+            )
+        row = c.execute("SELECT * FROM watchlist WHERE ticker=?", (ticker,)).fetchone()
+        return dict(row)
+
+
+def remove_from_watchlist(ticker: str) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM watchlist WHERE ticker=?", (ticker.upper(),))
+
+
+# ---------------------------------------------------------------------------
+# Positions (long-form portfolio tracking)
+# ---------------------------------------------------------------------------
+
+def list_positions(*, include_closed: bool = False) -> List[Dict[str, Any]]:
+    with _conn() as c:
+        if include_closed:
+            rows = c.execute("SELECT * FROM positions ORDER BY ticker, opened_at").fetchall()
+        else:
+            rows = c.execute(
+                "SELECT * FROM positions WHERE closed_at IS NULL ORDER BY ticker, opened_at"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_position(position_id: int) -> Optional[Dict[str, Any]]:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM positions WHERE id=?", (position_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def add_position(*, ticker: str, shares: float, cost_basis_per_share: float,
+                 opened_at: Optional[str] = None, account: Optional[str] = None,
+                 notes: Optional[str] = None) -> int:
+    with _conn() as c:
+        cur = c.execute(
+            """INSERT INTO positions(ticker, shares, cost_basis_per_share,
+                                     opened_at, account, notes)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (ticker.upper(), float(shares), float(cost_basis_per_share),
+             opened_at or _now(), account, notes),
+        )
+        return int(cur.lastrowid)
+
+
+def close_position(position_id: int, *, closing_price: float,
+                   closed_at: Optional[str] = None) -> None:
+    with _conn() as c:
+        c.execute(
+            """UPDATE positions SET closing_price=?, closed_at=? WHERE id=?""",
+            (float(closing_price), closed_at or _now(), position_id),
+        )
+
+
+def update_position(position_id: int, *, shares: Optional[float] = None,
+                    cost_basis_per_share: Optional[float] = None,
+                    account: Optional[str] = None, notes: Optional[str] = None
+                    ) -> None:
+    fields = []
+    args: List[Any] = []
+    if shares is not None:
+        fields.append("shares=?"); args.append(float(shares))
+    if cost_basis_per_share is not None:
+        fields.append("cost_basis_per_share=?"); args.append(float(cost_basis_per_share))
+    if account is not None:
+        fields.append("account=?"); args.append(account)
+    if notes is not None:
+        fields.append("notes=?"); args.append(notes)
+    if not fields:
+        return
+    args.append(position_id)
+    with _conn() as c:
+        c.execute(f"UPDATE positions SET {', '.join(fields)} WHERE id=?", args)
+
+
+def delete_position(position_id: int) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM positions WHERE id=?", (position_id,))
+
+
+# ---------------------------------------------------------------------------
+# Simulations
+# ---------------------------------------------------------------------------
+
+def list_simulations() -> List[Dict[str, Any]]:
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT * FROM simulations ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_simulation(*, name: str, base_run_id: Optional[str], ticker: Optional[str],
+                  scenario_json: str, result_json: str) -> int:
+    with _conn() as c:
+        cur = c.execute(
+            """INSERT INTO simulations(name, base_run_id, ticker,
+                                       scenario_json, result_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (name, base_run_id, (ticker.upper() if ticker else None),
+             scenario_json, result_json, _now()),
+        )
+        return int(cur.lastrowid)
+
+
+def get_simulation(sim_id: int) -> Optional[Dict[str, Any]]:
+    with _conn() as c:
+        row = c.execute("SELECT * FROM simulations WHERE id=?", (sim_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def delete_simulation(sim_id: int) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM simulations WHERE id=?", (sim_id,))
