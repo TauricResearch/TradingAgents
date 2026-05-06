@@ -114,7 +114,13 @@ def _format_news_structured(structured: object) -> str:
 
 
 def _fundamentals_risk_block(state: dict) -> str:
-    """Extract mandated metrics from fundamentals_report text for RM/Trader/risk debaters.
+    """Extract mandated metrics from fundamentals data for RM/Trader/risk debaters.
+
+    Prefers structured metrics from `fundamentals_report_structured.key_metrics`
+    (typed fields from FundamentalsKeyMetrics) over regex extraction from raw text.
+
+    Falls back to regex extraction from `fundamentals_report` when structured
+    metrics are unavailable or all fields are None.
 
     The fundamentals analyst prompt requires these exact lines:
       "P/E ratio: <val>x", "D/E ratio: <val>", "Free cash flow: <pct> YoY",
@@ -122,6 +128,44 @@ def _fundamentals_risk_block(state: dict) -> str:
 
     Patterns also cover minor deviations (no colon, "price-to-earnings", etc.)
     """
+    from tradingagents.agents.utils.output_validation import FundamentalsKeyMetrics
+
+    # --- Prefer structured metrics if available ---
+    structured = state.get("fundamentals_report_structured")
+    if isinstance(structured, dict):
+        key_metrics = structured.get("key_metrics")
+        if isinstance(key_metrics, dict):
+            # Check for typed metric fields (pe_ratio, debt_equity_ratio, etc.)
+            typed_field_names = (
+                "pe_ratio",
+                "debt_equity_ratio",
+                "fcf_change_pct",
+                "operating_margin_pct",
+                "current_ratio",
+                "working_capital_str",
+            )
+            has_typed_fields = any(
+                key_metrics.get(field) is not None for field in typed_field_names
+            )
+            if has_typed_fields:
+                metrics = FundamentalsKeyMetrics(
+                    pe_ratio=key_metrics.get("pe_ratio"),
+                    debt_equity_ratio=key_metrics.get("debt_equity_ratio"),
+                    fcf_change_pct=key_metrics.get("fcf_change_pct"),
+                    operating_margin_pct=key_metrics.get("operating_margin_pct"),
+                    current_ratio=key_metrics.get("current_ratio"),
+                    working_capital_str=key_metrics.get("working_capital_str"),
+                )
+                formatted = metrics.format_risk_block()
+                if formatted:
+                    return (
+                        "### Fundamentals Risk Metrics (structured)\n"
+                        + formatted
+                        + "\n\nNOTE: If any metric above is severely negative or deteriorating, "
+                        "it MUST be addressed explicitly before issuing a BUY recommendation."
+                    )
+
+    # --- Fall back to regex extraction from raw text ---
     import re as _re
 
     fund_text = str(state.get("fundamentals_report") or "").lower()

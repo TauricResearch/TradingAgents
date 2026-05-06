@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Code Review After PR Creation",
+  "description": "Automatically performs a code review using Opus 4.6 model after a PR is created, analyzing the changes for quality, correctness, and best practices.",
+  "version": "1",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review the current git diff for the most recent PR. Perform a thorough code review covering: 1) Correctness and potential bugs, 2) Code quality and readability, 3) Performance concerns, 4) Security issues, 5) Adherence to project conventions. Use the Opus 4.6 model quality level for depth and rigor. Provide actionable feedback with specific line references where applicable."
+  },
+  "workspaceFolderName": "TradingAgents",
+  "shortName": "pr-code-review"
+}

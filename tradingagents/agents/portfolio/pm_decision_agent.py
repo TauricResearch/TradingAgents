@@ -272,6 +272,11 @@ def create_pm_decision_agent(
         analysis_date = state.get("analysis_date") or ""
         context = _build_pm_context(state, cfg)
 
+        # Inject research packet summary if available (PR-5, Req 7.5)
+        research_packet_summary = state.get("research_packet_summary", "")
+        if research_packet_summary:
+            context = f"{context}\n\n## Research Packet Summary\n{research_packet_summary}\n"
+
         execution_failures = find_latest_execution_failures(
             portfolio_id=str(
                 state.get("portfolio_id") or DEFAULT_CONFIG.get("default_portfolio_id") or "default"

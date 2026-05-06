@@ -410,6 +410,17 @@ def build_fundamentals_report_structured(
     present_sections = [label for label, meta in sections.items() if meta.get("present")]
     error_sections = [label for label, meta in sections.items() if meta.get("error")]
 
+    # Extract typed fundamentals metrics from report text
+    extracted_metrics = FundamentalsKeyMetrics.from_report_text(report)
+    key_metrics_dict: dict[str, Any] = {
+        "numeric_mentions": numeric_mentions,
+        "summary_table_rows": summary_table_rows,
+        "report_char_count": len(report),
+    }
+    # Merge typed metric fields so downstream consumers (e.g. _fundamentals_risk_block)
+    # can access pe_ratio, debt_equity_ratio, etc. directly from key_metrics
+    key_metrics_dict.update(extracted_metrics.to_dict())
+
     return {
         "ticker": str(ticker or "").strip().upper(),
         "as_of_date": str(as_of_date or "").strip(),
@@ -425,11 +436,7 @@ def build_fundamentals_report_structured(
             "error_sections": error_sections,
             "sections": sections,
         },
-        "key_metrics": {
-            "numeric_mentions": numeric_mentions,
-            "summary_table_rows": summary_table_rows,
-            "report_char_count": len(report),
-        },
+        "key_metrics": key_metrics_dict,
         "report_excerpt": _compact_text(report, max_chars=260),
     }
 
@@ -2178,3 +2185,160 @@ def log_validation_result(
 
     if not is_valid and output_preview:
         logger.debug(f"Output preview: {preview}")
+
+
+# ---------------------------------------------------------------------------
+# FundamentalsKeyMetrics — structured metric extraction (PR-5)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class FundamentalsKeyMetrics:
+    """Typed extraction of mandated fundamentals metrics.
+
+    Extracts PE ratio, D/E ratio, FCF change, operating margin, current ratio,
+    and working capital from LLM report text using regex patterns matching the
+    mandated format lines.
+    """
+
+    pe_ratio: float | None = None
+    debt_equity_ratio: float | None = None
+    fcf_change_pct: float | None = None
+    operating_margin_pct: float | None = None
+    current_ratio: float | None = None
+    working_capital_str: str | None = None
+
+    @classmethod
+    def from_report_text(cls, report: str) -> "FundamentalsKeyMetrics":
+        """Extract metrics from LLM output using mandated format patterns.
+
+        Sets fields to None when not found (never raises).
+
+        Mandated format lines:
+        - "P/E Ratio: 83.2" or "PE Ratio: 83.2"
+        - "D/E Ratio: 15.63" or "Debt/Equity Ratio: 15.63" or "Debt-to-Equity: 15.63"
+        - "FCF Change: -73.0%" or "Free Cash Flow Change: -73%"
+        - "Operating Margin: -3.0%" or "Operating Margin: 12.5%"
+        - "Current Ratio: 0.70"
+        - "Working Capital: $2.3B (negative)" or "Working Capital: -$500M"
+        """
+        text = str(report or "")
+        pe_ratio: float | None = None
+        debt_equity_ratio: float | None = None
+        fcf_change_pct: float | None = None
+        operating_margin_pct: float | None = None
+        current_ratio: float | None = None
+        working_capital_str: str | None = None
+
+        # P/E Ratio: supports "P/E Ratio: X" and "PE Ratio: X"
+        m = re.search(r"(?:P/?E|PE)\s+Ratio\s*:\s*(-?[0-9]+(?:\.[0-9]+)?)", text, re.IGNORECASE)
+        if m:
+            try:
+                pe_ratio = float(m.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        # D/E Ratio: supports "D/E Ratio: X", "Debt/Equity Ratio: X", "Debt-to-Equity: X"
+        m = re.search(
+            r"(?:D/?E\s+Ratio|Debt[/-](?:to[/-])?Equity(?:\s+Ratio)?)\s*:\s*(-?[0-9]+(?:\.[0-9]+)?)",
+            text,
+            re.IGNORECASE,
+        )
+        if m:
+            try:
+                debt_equity_ratio = float(m.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        # FCF Change: supports "FCF Change: -73.0%" and "Free Cash Flow Change: -73%"
+        m = re.search(
+            r"(?:FCF|Free\s+Cash\s+Flow)\s+Change\s*:\s*(-?[0-9]+(?:\.[0-9]+)?)\s*%",
+            text,
+            re.IGNORECASE,
+        )
+        if m:
+            try:
+                fcf_change_pct = float(m.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        # Operating Margin: supports "Operating Margin: -3.0%" and "Operating Margin: 12.5%"
+        m = re.search(
+            r"Operating\s+Margin\s*:\s*(-?[0-9]+(?:\.[0-9]+)?)\s*%",
+            text,
+            re.IGNORECASE,
+        )
+        if m:
+            try:
+                operating_margin_pct = float(m.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        # Current Ratio: supports "Current Ratio: 0.70"
+        m = re.search(
+            r"Current\s+Ratio\s*:\s*(-?[0-9]+(?:\.[0-9]+)?)",
+            text,
+            re.IGNORECASE,
+        )
+        if m:
+            try:
+                current_ratio = float(m.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        # Working Capital: supports "Working Capital: $2.3B (negative)" or "Working Capital: -$500M"
+        m = re.search(
+            r"Working\s+Capital\s*:\s*([^\n]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if m:
+            wc_text = m.group(1).strip()
+            if wc_text:
+                working_capital_str = wc_text
+
+        return cls(
+            pe_ratio=pe_ratio,
+            debt_equity_ratio=debt_equity_ratio,
+            fcf_change_pct=fcf_change_pct,
+            operating_margin_pct=operating_margin_pct,
+            current_ratio=current_ratio,
+            working_capital_str=working_capital_str,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "pe_ratio": self.pe_ratio,
+            "debt_equity_ratio": self.debt_equity_ratio,
+            "fcf_change_pct": self.fcf_change_pct,
+            "operating_margin_pct": self.operating_margin_pct,
+            "current_ratio": self.current_ratio,
+            "working_capital_str": self.working_capital_str,
+        }
+
+    def format_risk_block(self) -> str:
+        """Format extracted metrics as a risk block string.
+
+        Produces lines like:
+        - P/E Ratio: 83.2
+        - D/E Ratio: 15.63
+        - FCF Change: -73.0%
+        - Operating Margin: -3.0%
+        - Current Ratio: 0.70
+        - Working Capital: $2.3B (negative)
+        """
+        lines: list[str] = []
+        if self.pe_ratio is not None:
+            lines.append(f"P/E Ratio: {self.pe_ratio:.2f}")
+        if self.debt_equity_ratio is not None:
+            lines.append(f"D/E Ratio: {self.debt_equity_ratio:.2f}")
+        if self.fcf_change_pct is not None:
+            lines.append(f"FCF Change: {self.fcf_change_pct:.2f}%")
+        if self.operating_margin_pct is not None:
+            lines.append(f"Operating Margin: {self.operating_margin_pct:.2f}%")
+        if self.current_ratio is not None:
+            lines.append(f"Current Ratio: {self.current_ratio:.2f}")
+        if self.working_capital_str is not None:
+            lines.append(f"Working Capital: {self.working_capital_str}")
+        return "\n".join(lines)
