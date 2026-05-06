@@ -408,6 +408,7 @@ def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
     # (display_name, provider_key, base_url)
     PROVIDERS = [
+        ("Claude Code (subscription, no API key)", "claude_code", None),
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
@@ -595,6 +596,30 @@ def ask_openai_reasoning_effort() -> str:
                 ("pointer", "fg:cyan noinherit"),
             ]
         ),
+    ).ask()
+
+
+def ask_claude_code_effort() -> str | None:
+    """Ask for Claude Code effort level.
+
+    Mirrors the levels accepted by `claude --effort` in the headless CLI.
+    Returning None lets the CLI use its default.
+    """
+    return questionary.select(
+        "Select Effort Level:",
+        choices=[
+            questionary.Choice("Default (let `claude` decide)", None),
+            questionary.Choice("High", "high"),
+            questionary.Choice("Medium", "medium"),
+            questionary.Choice("Low (faster)", "low"),
+            questionary.Choice("XHigh", "xhigh"),
+            questionary.Choice("Max", "max"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
     ).ask()
 
 

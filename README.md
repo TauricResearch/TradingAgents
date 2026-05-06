@@ -27,6 +27,14 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
+> **Fork notice.** This is a personal fork of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (Apache License 2.0). All credit for the original framework — design, implementation, agent architecture, and trading methodology — belongs to the [Tauric Research](https://github.com/TauricResearch) team.
+>
+> **What's added in this fork:**
+> - A `claude_code` LLM provider that routes every agent call through your Claude Code Pro/Max subscription via the headless `claude -p` CLI — no API keys required.
+> - Workspace-local outputs: every analysis run produces exactly one canonical structured folder under `reports/<TICKER>_<DATE>_<TIMESTAMP>/` (CLI and programmatic runs share the same writer).
+>
+> See [`tradingagents/llm_clients/claude_code_client.py`](tradingagents/llm_clients/claude_code_client.py) and [`tradingagents/reporting.py`](tradingagents/reporting.py) for the additions. Apache 2.0 attribution and the original `LICENSE` are preserved.
+
 ## News
 - [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.

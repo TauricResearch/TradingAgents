@@ -26,6 +26,7 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.reporting import default_save_path, save_report_to_disk
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -139,6 +140,16 @@ class TradingAgentsGraph:
             effort = self.config.get("anthropic_effort")
             if effort:
                 kwargs["effort"] = effort
+
+        elif provider == "claude_code":
+            effort = self.config.get("claude_code_effort")
+            if effort:
+                kwargs["effort"] = effort
+            max_budget = self.config.get("claude_code_max_budget_usd")
+            if max_budget is not None:
+                kwargs["max_budget_usd"] = max_budget
+            if self.config.get("claude_code_force_subscription"):
+                kwargs["force_subscription"] = True
 
         return kwargs
 
@@ -309,8 +320,25 @@ class TradingAgentsGraph:
         # Store current state for reflection.
         self.curr_state = final_state
 
-        # Log state to disk.
-        self._log_state(trade_date, final_state)
+        # Compute one folder per run; both the JSON state dump and the
+        # structured markdown layout land inside it.
+        save_path = default_save_path(
+            self.config["results_dir"],
+            final_state["company_of_interest"],
+            final_state["trade_date"],
+        )
+        save_path.mkdir(parents=True, exist_ok=True)
+
+        # JSON state dump (machine-readable; also populates self.log_states_dict
+        # for any in-process reflection consumers).
+        self._log_state(trade_date, final_state, save_path)
+
+        # Structured markdown report — same layout the CLI used to produce.
+        try:
+            save_report_to_disk(final_state, final_state["company_of_interest"], save_path)
+            logger.info("Report written to %s", save_path)
+        except Exception as e:
+            logger.warning("Failed to write structured report: %s", e)
 
         # Store decision for deferred reflection on the next same-ticker run.
         self.memory_log.store_decision(
@@ -325,8 +353,8 @@ class TradingAgentsGraph:
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
-    def _log_state(self, trade_date, final_state):
-        """Log the final state to a JSON file."""
+    def _log_state(self, trade_date, final_state, save_path: Path):
+        """Log the final state to a JSON file inside the run's report folder."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -353,13 +381,7 @@ class TradingAgentsGraph:
             "final_trade_decision": final_state["final_trade_decision"],
         }
 
-        # Save to file. Reject ticker values that would escape the
-        # results directory when joined as a path component.
-        safe_ticker = safe_ticker_component(self.ticker)
-        directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
-        directory.mkdir(parents=True, exist_ok=True)
-
-        log_path = directory / f"full_states_log_{trade_date}.json"
+        log_path = save_path / "full_states_log.json"
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
 

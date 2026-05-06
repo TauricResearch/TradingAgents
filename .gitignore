@@ -224,5 +224,14 @@ __marimo__/
 # Cursor history
 .history
 
-#Generated reports
-reports/
+# TradingAgents runtime artifacts (kept inside workspace, ignored by git)
+/reports/
+/.cache/
+/.memory/
+*.run.log
+
+# Local agent / IDE / OS artifacts
+.DS_Store
+**/.DS_Store
+/.claude/
+/CLAUDE.md
