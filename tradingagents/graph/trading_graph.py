@@ -4,10 +4,7 @@ import logging
 import os
 from pathlib import Path
 import json
-from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, List, Optional
-
-import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +23,20 @@ from tradingagents.agents.utils.agent_states import (
 )
 from tradingagents.dataflows.config import set_config
 
-# Import the new abstract tool methods from agent_utils
+# Placeholder analyst tools — Phase 1 replaces these with crypto/Kalshi
+# implementations (Coinbase OHLCV, Kalshi market data, crypto news, Reddit
+# + CMC sentiment, on-chain). The names are kept stable so the analyst
+# factories continue to import them while data layer work is in flight.
 from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_indicators,
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement,
     get_news,
-    get_insider_transactions,
-    get_global_news
+    get_global_news,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
+from .setup import GraphSetup, DEFAULT_ANALYSTS
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
@@ -52,19 +47,24 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
-        debug=False,
+        selected_analysts: Optional[List[str]] = None,
+        debug: bool = False,
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
     ):
         """Initialize the trading agents graph and components.
 
         Args:
-            selected_analysts: List of analyst types to include
-            debug: Whether to run in debug mode
-            config: Configuration dictionary. If None, uses default config
-            callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
+            selected_analysts: List of analyst types to include. Defaults to
+                ``DEFAULT_ANALYSTS`` (market, social, news, onchain).
+            debug: Whether to run in debug mode.
+            config: Configuration dictionary. If None, uses default config.
+            callbacks: Optional list of callback handlers (e.g., for tracking
+                LLM/tool stats).
         """
+        if selected_analysts is None:
+            selected_analysts = list(DEFAULT_ANALYSTS)
+
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
@@ -79,7 +79,6 @@ class TradingAgentsGraph:
         # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = self._get_provider_kwargs()
 
-        # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
 
@@ -98,7 +97,7 @@ class TradingAgentsGraph:
 
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
-        
+
         self.memory_log = TradingMemoryLog(self.config)
 
         # Create tool nodes
@@ -153,165 +152,87 @@ class TradingAgentsGraph:
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
+        """Create tool nodes for analyst slots.
+
+        Phase 1 replaces the placeholder tool functions with the real
+        crypto/Kalshi implementations and adds the on-chain slot. Until
+        then, ``onchain`` is intentionally absent here so the graph
+        setup quietly skips it.
+        """
         return {
             "market": ToolNode(
                 [
-                    # Core stock data tools
                     get_stock_data,
-                    # Technical indicators
                     get_indicators,
                 ]
             ),
             "social": ToolNode(
                 [
-                    # News tools for social media analysis
                     get_news,
                 ]
             ),
             "news": ToolNode(
                 [
-                    # News and insider information
                     get_news,
                     get_global_news,
-                    get_insider_transactions,
-                ]
-            ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
                 ]
             ),
         }
 
-    def _fetch_returns(
-        self, ticker: str, trade_date: str, holding_days: int = 5
-    ) -> Tuple[Optional[float], Optional[float], Optional[int]]:
-        """Fetch raw and alpha return for ticker over holding_days from trade_date.
-
-        Returns (raw_return, alpha_return, actual_holding_days) or
-        (None, None, None) if price data is unavailable (too recent, delisted,
-        or network error).
-        """
-        try:
-            start = datetime.strptime(trade_date, "%Y-%m-%d")
-            end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
-            end_str = end.strftime("%Y-%m-%d")
-
-            stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            spy = yf.Ticker("SPY").history(start=trade_date, end=end_str)
-
-            if len(stock) < 2 or len(spy) < 2:
-                return None, None, None
-
-            actual_days = min(holding_days, len(stock) - 1, len(spy) - 1)
-            raw = float(
-                (stock["Close"].iloc[actual_days] - stock["Close"].iloc[0])
-                / stock["Close"].iloc[0]
-            )
-            spy_ret = float(
-                (spy["Close"].iloc[actual_days] - spy["Close"].iloc[0])
-                / spy["Close"].iloc[0]
-            )
-            alpha = raw - spy_ret
-            return raw, alpha, actual_days
-        except Exception as e:
-            logger.warning(
-                "Could not resolve outcome for %s on %s (will retry next run): %s",
-                ticker, trade_date, e,
-            )
-            return None, None, None
-
-    def _resolve_pending_entries(self, ticker: str) -> None:
-        """Resolve pending log entries for ticker at the start of a new run.
-
-        Fetches returns for each same-ticker pending entry, generates reflections,
-        then writes all updates in a single atomic batch write to avoid redundant I/O.
-        Skips entries whose price data is not yet available (too recent or delisted).
-
-        Trade-off: only same-ticker entries are resolved per run.  Entries for
-        other tickers accumulate until that ticker is run again.
-        """
-        pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
-        if not pending:
-            return
-
-        updates = []
-        for entry in pending:
-            raw, alpha, days = self._fetch_returns(ticker, entry["date"])
-            if raw is None:
-                continue  # price not available yet — try again next run
-            reflection = self.reflector.reflect_on_final_decision(
-                final_decision=entry.get("decision", ""),
-                raw_return=raw,
-                alpha_return=alpha,
-            )
-            updates.append({
-                "ticker": ticker,
-                "trade_date": entry["date"],
-                "raw_return": raw,
-                "alpha_return": alpha,
-                "holding_days": days,
-                "reflection": reflection,
-            })
-
-        if updates:
-            self.memory_log.batch_update_with_outcomes(updates)
-
-    def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date.
+    def propagate(self, contract_id: str, trade_date: str):
+        """Run the trading agents graph for a Kalshi contract on a specific date.
 
         When ``checkpoint_enabled`` is set in config, the graph is recompiled
-        with a per-ticker SqliteSaver so a crashed run can resume from the last
-        successful node on a subsequent invocation with the same ticker+date.
-        """
-        self.ticker = company_name
+        with a per-contract SqliteSaver so a crashed run can resume from the
+        last successful node on a subsequent invocation with the same
+        contract+date.
 
-        # Resolve any pending memory-log entries for this ticker before the pipeline runs.
-        self._resolve_pending_entries(company_name)
+        Note: contract resolution outcomes (win/loss + P&L) are appended to
+        the memory log by the execution layer once Kalshi settlement data
+        becomes available — see Phase 3/4. Phase 0 deliberately drops the
+        equity-era ``_fetch_returns`` / ``_resolve_pending_entries`` path
+        which depended on yfinance + SPY benchmarking.
+        """
+        self.ticker = contract_id
 
         # Recompile with a checkpointer if the user opted in.
         if self.config.get("checkpoint_enabled"):
             self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
+                self.config["data_cache_dir"], contract_id
             )
             saver = self._checkpointer_ctx.__enter__()
             self.graph = self.workflow.compile(checkpointer=saver)
 
             step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date)
+                self.config["data_cache_dir"], contract_id, str(trade_date)
             )
             if step is not None:
                 logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
+                    "Resuming from step %d for %s on %s", step, contract_id, trade_date
                 )
             else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
+                logger.info("Starting fresh for %s on %s", contract_id, trade_date)
 
         try:
-            return self._run_graph(company_name, trade_date)
+            return self._run_graph(contract_id, trade_date)
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def _run_graph(self, company_name, trade_date):
+    def _run_graph(self, contract_id: str, trade_date: str):
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM.
-        past_context = self.memory_log.get_past_context(company_name)
+        past_context = self.memory_log.get_past_context(contract_id)
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date, past_context=past_context
+            contract_id, trade_date, past_context=past_context
         )
         args = self.propagator.get_graph_args()
 
-        # Inject thread_id so same ticker+date resumes, different date starts fresh.
+        # Inject thread_id so same contract+date resumes, different date starts fresh.
         if self.config.get("checkpoint_enabled"):
-            tid = thread_id(company_name, str(trade_date))
+            tid = thread_id(contract_id, str(trade_date))
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
         if self.debug:
@@ -332,9 +253,9 @@ class TradingAgentsGraph:
         # Log state to disk.
         self._log_state(trade_date, final_state)
 
-        # Store decision for deferred reflection on the next same-ticker run.
+        # Store decision for deferred reflection once contract settlement is known.
         self.memory_log.store_decision(
-            ticker=company_name,
+            ticker=contract_id,
             trade_date=trade_date,
             final_trade_decision=final_state["final_trade_decision"],
         )
@@ -342,7 +263,7 @@ class TradingAgentsGraph:
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
             clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date)
+                self.config["data_cache_dir"], contract_id, str(trade_date)
             )
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
@@ -352,10 +273,10 @@ class TradingAgentsGraph:
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "market_report": final_state.get("market_report", ""),
+            "sentiment_report": final_state.get("sentiment_report", ""),
+            "news_report": final_state.get("news_report", ""),
+            "on_chain_report": final_state.get("on_chain_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
@@ -379,10 +300,10 @@ class TradingAgentsGraph:
             "final_trade_decision": final_state["final_trade_decision"],
         }
 
-        # Save to file. Reject ticker values that would escape the
+        # Save to file. Reject contract values that would escape the
         # results directory when joined as a path component.
-        safe_ticker = safe_ticker_component(self.ticker)
-        directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
+        safe_id = safe_ticker_component(self.ticker)
+        directory = Path(self.config["results_dir"]) / safe_id / "TradingAgentsStrategy_logs"
         directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / f"full_states_log_{trade_date}.json"

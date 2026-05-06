@@ -10,7 +10,6 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "langchain-core>=0.3.81",
-    "backtrader>=1.9.78.123",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
     "langchain-google-genai>=4.0.0",
@@ -26,10 +25,8 @@ dependencies = [
     "rich>=14.0.0",
     "typer>=0.21.0",
     "setuptools>=80.9.0",
-    "stockstats>=0.6.5",
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
-    "yfinance>=0.2.63",
 ]
 
 [project.scripts]
@@ -51,4 +48,9 @@ markers = [
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
 ]

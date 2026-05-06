@@ -483,89 +483,10 @@ class TestDeferredReflection:
         assert "-5.0%" in human_content
         assert "Exit position immediately." in human_content
 
-    # TradingAgentsGraph._fetch_returns
-
-    def test_fetch_returns_valid_ticker(self):
-        stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
-        spy_prices   = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0]
-        mock_graph = MagicMock(spec=TradingAgentsGraph)
-        with patch("yfinance.Ticker") as mock_ticker_cls:
-            def _make_ticker(sym):
-                m = MagicMock()
-                m.history.return_value = _price_df(spy_prices if sym == "SPY" else stock_prices)
-                return m
-            mock_ticker_cls.side_effect = _make_ticker
-            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-01-05")
-        assert raw is not None and alpha is not None and days is not None
-        assert isinstance(raw, float) and isinstance(alpha, float) and isinstance(days, int)
-        assert days == 5
-
-    def test_fetch_returns_too_recent(self):
-        """Only 1 data point available → returns (None, None, None), no crash."""
-        mock_graph = MagicMock(spec=TradingAgentsGraph)
-        with patch("yfinance.Ticker") as mock_ticker_cls:
-            m = MagicMock()
-            m.history.return_value = _price_df([100.0])
-            mock_ticker_cls.return_value = m
-            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-04-19")
-        assert raw is None and alpha is None and days is None
-
-    def test_fetch_returns_delisted(self):
-        """Empty DataFrame → returns (None, None, None), no crash."""
-        mock_graph = MagicMock(spec=TradingAgentsGraph)
-        with patch("yfinance.Ticker") as mock_ticker_cls:
-            m = MagicMock()
-            m.history.return_value = pd.DataFrame({"Close": []})
-            mock_ticker_cls.return_value = m
-            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "XXXXXFAKE", "2026-01-10")
-        assert raw is None and alpha is None and days is None
-
-    def test_fetch_returns_spy_shorter_than_stock(self):
-        """SPY having fewer rows than the stock must not raise IndexError."""
-        stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
-        spy_prices   = [400.0, 402.0, 403.0]
-        mock_graph = MagicMock(spec=TradingAgentsGraph)
-        with patch("yfinance.Ticker") as mock_ticker_cls:
-            def _make_ticker(sym):
-                m = MagicMock()
-                m.history.return_value = _price_df(spy_prices if sym == "SPY" else stock_prices)
-                return m
-            mock_ticker_cls.side_effect = _make_ticker
-            raw, alpha, days = TradingAgentsGraph._fetch_returns(mock_graph, "NVDA", "2026-01-05")
-        assert raw is not None and alpha is not None and days is not None
-        assert days == 2
-
-    # TradingAgentsGraph._resolve_pending_entries
-
-    def test_resolve_skips_other_tickers(self, tmp_path):
-        """Pending AAPL entry is not resolved when the run is for NVDA."""
-        log = make_log(tmp_path)
-        log.store_decision("AAPL", "2026-01-10", DECISION_BUY)
-        mock_graph = MagicMock(spec=TradingAgentsGraph)
-        mock_graph.memory_log = log
-        mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
-        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
-        mock_graph._fetch_returns.assert_not_called()
-        assert len(log.get_pending_entries()) == 1
-
-    def test_resolve_marks_entry_completed(self, tmp_path):
-        """After resolve, get_pending_entries() is empty and the entry has a REFLECTION."""
-        log = make_log(tmp_path)
-        log.store_decision("NVDA", "2026-01-05", DECISION_BUY)
-        mock_reflector = MagicMock()
-        mock_reflector.reflect_on_final_decision.return_value = "Momentum confirmed."
-        mock_graph = MagicMock(spec=TradingAgentsGraph)
-        mock_graph.memory_log = log
-        mock_graph.reflector = mock_reflector
-        mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
-        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
-        assert log.get_pending_entries() == []
-        entries = log.load_entries()
-        assert len(entries) == 1
-        assert entries[0]["pending"] is False
-        assert entries[0]["reflection"] == "Momentum confirmed."
-        assert "+5.0%" in entries[0]["raw"]
-        assert "+2.0%" in entries[0]["alpha"]
+    # The equity-era _fetch_returns / _resolve_pending_entries tests were
+    # removed in the Kalshi pivot (Phase 0). Outcome resolution will be
+    # driven by Kalshi contract settlement data — see Phase 3/4 — and the
+    # corresponding tests will live next to the new execution layer.
 
 
 # ---------------------------------------------------------------------------

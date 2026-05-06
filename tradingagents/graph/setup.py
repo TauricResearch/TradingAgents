@@ -10,6 +10,12 @@ from tradingagents.agents.utils.agent_states import AgentState
 from .conditional_logic import ConditionalLogic
 
 
+# Default analyst slots for the Kalshi pivot. The fourth slot ("onchain")
+# replaces the equity-era "fundamentals" analyst — Phase 2 wires the
+# on-chain analyst factory and tool node.
+DEFAULT_ANALYSTS = ["market", "social", "news", "onchain"]
+
+
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
@@ -26,18 +32,19 @@ class GraphSetup:
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
 
-    def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
-    ):
+    def setup_graph(self, selected_analysts=None):
         """Set up and compile the agent workflow graph.
 
         Args:
             selected_analysts (list): List of analyst types to include. Options are:
-                - "market": Market analyst
-                - "social": Social media analyst
-                - "news": News analyst
-                - "fundamentals": Fundamentals analyst
+                - "market": Market analyst (BTC technicals)
+                - "social": Sentiment analyst (Reddit + CMC + funding)
+                - "news": News analyst (crypto news aggregation)
+                - "onchain": On-chain analyst (chain flows, ETF custody) — Phase 2
         """
+        if selected_analysts is None:
+            selected_analysts = DEFAULT_ANALYSTS
+
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
 
@@ -67,12 +74,25 @@ class GraphSetup:
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
 
-        if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
+        if "onchain" in selected_analysts:
+            # The on-chain analyst factory is added in Phase 2 alongside the
+            # on-chain dataflows. Until then, the slot is silently skipped
+            # if no factory is registered yet.
+            factory = globals().get("create_onchain_analyst")
+            if factory is not None and "onchain" in self.tool_nodes:
+                analyst_nodes["onchain"] = factory(self.quick_thinking_llm)
+                delete_nodes["onchain"] = create_msg_delete()
+                tool_nodes["onchain"] = self.tool_nodes["onchain"]
+
+        # Recompute the executed analyst order: drop slots that weren't
+        # registered (e.g. "onchain" prior to Phase 2). The wiring below
+        # only references entries present in analyst_nodes.
+        active_analysts = [a for a in selected_analysts if a in analyst_nodes]
+        if not active_analysts:
+            raise ValueError(
+                "Trading Agents Graph Setup Error: every selected analyst was skipped "
+                "because its factory or tool node is not registered yet."
             )
-            delete_nodes["fundamentals"] = create_msg_delete()
-            tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
@@ -109,11 +129,11 @@ class GraphSetup:
 
         # Define edges
         # Start with the first analyst
-        first_analyst = selected_analysts[0]
+        first_analyst = active_analysts[0]
         workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
 
         # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
+        for i, analyst_type in enumerate(active_analysts):
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
@@ -127,8 +147,8 @@ class GraphSetup:
             workflow.add_edge(current_tools, current_analyst)
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
+            if i < len(active_analysts) - 1:
+                next_analyst = f"{active_analysts[i+1].capitalize()} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
             else:
                 workflow.add_edge(current_clear, "Bull Researcher")

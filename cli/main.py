@@ -53,9 +53,9 @@ class MessageBuffer:
     # Analyst name mapping
     ANALYST_MAPPING = {
         "market": "Market Analyst",
-        "social": "Social Analyst",
+        "social": "Sentiment Analyst",
         "news": "News Analyst",
-        "fundamentals": "Fundamentals Analyst",
+        "onchain": "On-chain Analyst",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -63,9 +63,9 @@ class MessageBuffer:
     # finalizing_agent: which agent must be "completed" for this report to count as done
     REPORT_SECTIONS = {
         "market_report": ("market", "Market Analyst"),
-        "sentiment_report": ("social", "Social Analyst"),
+        "sentiment_report": ("social", "Sentiment Analyst"),
         "news_report": ("news", "News Analyst"),
-        "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
+        "on_chain_report": ("onchain", "On-chain Analyst"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -171,9 +171,9 @@ class MessageBuffer:
             # Format the current section for display
             section_titles = {
                 "market_report": "Market Analysis",
-                "sentiment_report": "Social Sentiment",
+                "sentiment_report": "Sentiment Analysis",
                 "news_report": "News Analysis",
-                "fundamentals_report": "Fundamentals Analysis",
+                "on_chain_report": "On-chain Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -189,7 +189,7 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = ["market_report", "sentiment_report", "news_report", "on_chain_report"]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
@@ -198,15 +198,15 @@ class MessageBuffer:
                 )
             if self.report_sections.get("sentiment_report"):
                 report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
+                    f"### Sentiment Analysis\n{self.report_sections['sentiment_report']}"
                 )
             if self.report_sections.get("news_report"):
                 report_parts.append(
                     f"### News Analysis\n{self.report_sections['news_report']}"
                 )
-            if self.report_sections.get("fundamentals_report"):
+            if self.report_sections.get("on_chain_report"):
                 report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
+                    f"### On-chain Analysis\n{self.report_sections['on_chain_report']}"
                 )
 
         # Research Team Reports
@@ -284,9 +284,9 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     all_teams = {
         "Analyst Team": [
             "Market Analyst",
-            "Social Analyst",
+            "Sentiment Analyst",
             "News Analyst",
-            "Fundamentals Analyst",
+            "On-chain Analyst",
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
@@ -499,12 +499,12 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
+    # Step 1: Kalshi contract identifier
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
-            "SPY",
+            "Step 1: Kalshi Contract",
+            "Enter the Kalshi contract identifier to analyze (e.g. KXBTCD-26MAY05-T100000)",
+            None,
         )
     )
     selected_ticker = get_ticker()
@@ -613,8 +613,8 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    """Get the Kalshi contract identifier from user input."""
+    return typer.prompt("")
 
 
 def get_analysis_date():
@@ -651,15 +651,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     if final_state.get("sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
-        analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
+        analyst_parts.append(("Sentiment Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
         analyst_parts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
+    if final_state.get("on_chain_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+        (analysts_dir / "onchain.md").write_text(final_state["on_chain_report"], encoding="utf-8")
+        analyst_parts.append(("On-chain Analyst", final_state["on_chain_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")
@@ -736,11 +736,11 @@ def display_complete_report(final_state):
     if final_state.get("market_report"):
         analysts.append(("Market Analyst", final_state["market_report"]))
     if final_state.get("sentiment_report"):
-        analysts.append(("Social Analyst", final_state["sentiment_report"]))
+        analysts.append(("Sentiment Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
-        analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if final_state.get("on_chain_report"):
+        analysts.append(("On-chain Analyst", final_state["on_chain_report"]))
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
         for title, content in analysts:
@@ -795,18 +795,18 @@ def update_research_team_status(status):
 
 
 # Ordered list of analysts for status transitions
-ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
+ANALYST_ORDER = ["market", "social", "news", "onchain"]
 ANALYST_AGENT_NAMES = {
     "market": "Market Analyst",
-    "social": "Social Analyst",
+    "social": "Sentiment Analyst",
     "news": "News Analyst",
-    "fundamentals": "Fundamentals Analyst",
+    "onchain": "On-chain Analyst",
 }
 ANALYST_REPORT_MAP = {
     "market": "market_report",
     "social": "sentiment_report",
     "news": "news_report",
-    "fundamentals": "fundamentals_report",
+    "onchain": "on_chain_report",
 }
 
 

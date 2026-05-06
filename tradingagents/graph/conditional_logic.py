@@ -35,13 +35,17 @@ class ConditionalLogic:
             return "tools_news"
         return "Msg Clear News"
 
-    def should_continue_fundamentals(self, state: AgentState):
-        """Determine if fundamentals analysis should continue."""
+    def should_continue_onchain(self, state: AgentState):
+        """Determine if on-chain analysis should continue.
+
+        The on-chain analyst slot replaces the equity-era fundamentals
+        analyst. Phase 2 wires the on-chain tool implementations.
+        """
         messages = state["messages"]
         last_message = messages[-1]
         if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
+            return "tools_onchain"
+        return "Msg Clear Onchain"
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
