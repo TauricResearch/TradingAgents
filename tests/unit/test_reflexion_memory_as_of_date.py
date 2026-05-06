@@ -19,17 +19,11 @@ from hypothesis import strategies as st
 
 from tradingagents.memory.reflexion import ReflexionMemory
 
-
 # ---------------------------------------------------------------------------
 # Hypothesis strategies
 # ---------------------------------------------------------------------------
 
-# Generate ISO date strings in a reasonable range
-_iso_dates = st.dates(
-    min_value=st.just(2020).flatmap(lambda _: None),  # type: ignore[arg-type]
-).map(lambda d: d.isoformat())
-
-# Simpler: generate YYYY-MM-DD strings directly
+# Generate YYYY-MM-DD strings directly
 _year = st.integers(min_value=2020, max_value=2030)
 _month = st.integers(min_value=1, max_value=12)
 _day = st.integers(min_value=1, max_value=28)  # avoid invalid dates
@@ -43,19 +37,21 @@ _iso_date_str = st.builds(
 
 _decisions = st.sampled_from(["BUY", "SELL", "HOLD", "SKIP"])
 _confidences = st.sampled_from(["high", "medium", "low"])
-_rationales = st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=("L", "N", "Z")))
+_rationales = st.text(min_size=1, max_size=50, alphabet=st.characters(categories=("L", "N", "Z")))
 
-_reflexion_record = st.fixed_dictionaries({
-    "ticker": st.just("TEST"),
-    "decision_date": _iso_date_str,
-    "decision": _decisions,
-    "rationale": _rationales,
-    "confidence": _confidences,
-    "source": st.just("pipeline"),
-    "run_id": st.just("test_run"),
-    "outcome": st.just(None),
-    "created_at": st.just("2026-01-01T00:00:00+00:00"),
-})
+_reflexion_record = st.fixed_dictionaries(
+    {
+        "ticker": st.just("TEST"),
+        "decision_date": _iso_date_str,
+        "decision": _decisions,
+        "rationale": _rationales,
+        "confidence": _confidences,
+        "source": st.just("pipeline"),
+        "run_id": st.just("test_run"),
+        "outcome": st.just(None),
+        "created_at": st.just("2026-01-01T00:00:00+00:00"),
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -94,13 +90,12 @@ def test_property3_get_history_as_of_date_filtering(tmp_path_factory, records, a
 
     # Property assertion 2: Results are in descending date order
     dates = [rec["decision_date"][:10] for rec in history]
-    assert dates == sorted(dates, reverse=True), (
-        f"Results not in descending order: {dates}"
-    )
+    assert dates == sorted(dates, reverse=True), f"Results not in descending order: {dates}"
 
     # Property assertion 3: All records that SHOULD be included ARE included
     expected_count = sum(
-        1 for r in records
+        1
+        for r in records
         if r.get("ticker") == "TEST" and r["decision_date"][:10] <= as_of_date[:10]
     )
     assert len(history) == expected_count, (
@@ -183,8 +178,7 @@ def test_corrupt_json_logs_warning_returns_empty(tmp_path, caplog):
 
     assert history == []
     assert any(
-        "corrupt" in r.message.lower() or "malformed" in r.message.lower()
-        for r in caplog.records
+        "corrupt" in r.message.lower() or "malformed" in r.message.lower() for r in caplog.records
     )
 
 
@@ -204,6 +198,9 @@ def test_unreadable_file_logs_warning_returns_empty(tmp_path, caplog):
         history = mem.get_history("AAPL", as_of_date="2026-03-20")
 
     assert history == []
+    assert any("unreadable" in r.message.lower() for r in caplog.records), (
+        "Expected a warning containing 'unreadable' to be logged"
+    )
     # Restore permissions for cleanup
     os.chmod(bad_path, 0o644)
 
@@ -222,6 +219,5 @@ def test_non_list_json_logs_warning_returns_empty(tmp_path, caplog):
 
     assert history == []
     assert any(
-        "corrupt" in r.message.lower() or "malformed" in r.message.lower()
-        for r in caplog.records
+        "corrupt" in r.message.lower() or "malformed" in r.message.lower() for r in caplog.records
     )

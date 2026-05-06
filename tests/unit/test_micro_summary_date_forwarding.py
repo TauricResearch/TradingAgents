@@ -32,8 +32,6 @@ def mock_llm():
         "RED FLAGS: None\n"
         "GREEN FLAGS: AAPL momentum +5%\n"
     )
-    llm.__or__ = MagicMock(return_value=MagicMock(invoke=MagicMock(return_value=response)))
-    # For prompt | llm chain
     llm.invoke = MagicMock(return_value=response)
     return llm
 
@@ -108,7 +106,9 @@ def test_passes_analysis_date_as_as_of_date_to_build_context(mock_llm, mock_memo
         mock_prompt.__or__ = MagicMock(
             return_value=MagicMock(
                 invoke=MagicMock(
-                    return_value=MagicMock(content="HOLDINGS TABLE:\n| TICKER | ACTION |\nRED FLAGS: None\nGREEN FLAGS: None")
+                    return_value=MagicMock(
+                        content="HOLDINGS TABLE:\n| TICKER | ACTION |\nRED FLAGS: None\nGREEN FLAGS: None"
+                    )
                 )
             )
         )
@@ -151,7 +151,9 @@ def test_no_error_when_memory_is_none(mock_llm):
         mock_prompt.__or__ = MagicMock(
             return_value=MagicMock(
                 invoke=MagicMock(
-                    return_value=MagicMock(content="HOLDINGS TABLE:\nRED FLAGS: None\nGREEN FLAGS: None")
+                    return_value=MagicMock(
+                        content="HOLDINGS TABLE:\nRED FLAGS: None\nGREEN FLAGS: None"
+                    )
                 )
             )
         )

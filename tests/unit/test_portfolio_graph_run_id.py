@@ -12,8 +12,6 @@ from __future__ import annotations
 import uuid
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 
 
