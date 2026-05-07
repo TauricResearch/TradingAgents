@@ -13,10 +13,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from tradingagents.agents.utils.summary_context import _fundamentals_risk_block
-
 
 # ---------------------------------------------------------------------------
 # Test: RM guard produces empty summary on failure status (Req 7.4)
@@ -28,17 +25,14 @@ class TestRMGuardEmptySummaryOnFailure:
 
     def test_reprompt_status_produces_empty_summary(self):
         """When violations are found, the guard returns empty research_packet_summary."""
-        from tradingagents.graph._consistency_guard import (
-            check_claims_via_llm,
-            extract_rm_claims,
-            generate_research_packet_summary,
-        )
         from tradingagents.graph.setup import GraphSetup
 
         # Create a mock LLM that returns a violation verdict
         mock_llm = MagicMock()
         mock_response = MagicMock()
-        mock_response.content = '{"results": [{"index": 0, "ok": false, "reason": "contradicts fundamentals"}]}'
+        mock_response.content = (
+            '{"results": [{"index": 0, "ok": false, "reason": "contradicts fundamentals"}]}'
+        )
         mock_llm.invoke.return_value = mock_response
 
         setup = object.__new__(GraphSetup)
@@ -139,7 +133,9 @@ class TestPMNodeReceivesSummary:
         # Create a mock result that has model_dump_json
         mock_result = MagicMock()
         mock_result.model_dump_json.return_value = '{"macro_regime": "risk-on", "regime_alignment_note": "", "sells": [], "buys": [], "holds": [], "cash_reserve_pct": 0.1, "portfolio_thesis": "test", "risk_summary": "test", "forensic_report": {"regime_alignment": "macro-aligned", "key_risks": [], "decision_confidence": "high", "position_sizing_rationale": "test"}}'
-        mock_structured_llm.__or__ = MagicMock(return_value=MagicMock(invoke=MagicMock(return_value=mock_result)))
+        mock_structured_llm.__or__ = MagicMock(
+            return_value=MagicMock(invoke=MagicMock(return_value=mock_result))
+        )
 
         # We need to capture what the prompt contains
         captured_inputs = {}
@@ -149,8 +145,13 @@ class TestPMNodeReceivesSummary:
             return mock_result
 
         # Patch the chain to capture the system message content
-        cfg = {"min_cash_pct": 0.05, "max_position_pct": 0.15, "max_sector_pct": 0.35, "max_positions": 15}
-        node_fn = create_pm_decision_agent(mock_llm, config=cfg)
+        cfg = {
+            "min_cash_pct": 0.05,
+            "max_position_pct": 0.15,
+            "max_sector_pct": 0.35,
+            "max_positions": 15,
+        }
+        create_pm_decision_agent(mock_llm, config=cfg)
 
         # Instead of running the full node (which requires complex LLM mocking),
         # verify the logic by checking _build_pm_context + the injection code path
@@ -179,7 +180,12 @@ class TestPMNodeReceivesSummary:
             "research_packet_summary": "",
         }
 
-        cfg = {"min_cash_pct": 0.05, "max_position_pct": 0.15, "max_sector_pct": 0.35, "max_positions": 15}
+        cfg = {
+            "min_cash_pct": 0.05,
+            "max_position_pct": 0.15,
+            "max_sector_pct": 0.35,
+            "max_positions": 15,
+        }
         context = _build_pm_context(state, cfg)
 
         # The injection only happens when research_packet_summary is truthy

@@ -13,12 +13,9 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.graph.portfolio_setup import PortfolioGraphSetup
 from tradingagents.portfolio.models import Portfolio
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

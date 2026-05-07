@@ -962,7 +962,11 @@ class LangGraphEngine:
         """Run per-ticker analysis pipeline and stream events."""
         instrument = resolve_instrument(params.get("ticker", "AAPL"), source_context="pipeline")
         ticker = instrument.canonical_symbol or "AAPL"
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = params.get("date")
+        if not date:
+            raise ValueError(
+                "Pipeline requires an explicit 'date' param; wall-clock fallback is forbidden."
+            )
         analysts = (
             params.get("analysts")
             or params.get("selected_analysts")
@@ -1234,7 +1238,11 @@ class LangGraphEngine:
         self, run_id: str, params: dict[str, Any]
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Run the portfolio manager workflow and stream events."""
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = params.get("date")
+        if not date:
+            raise ValueError(
+                "Portfolio run requires an explicit 'date' param; wall-clock fallback is forbidden."
+            )
         portfolio_id = params.get("portfolio_id", "main_portfolio")
         root_run_id = _root_run_id(run_id, params)
         execution_key = _execution_key(run_id, params)
@@ -1604,7 +1612,11 @@ class LangGraphEngine:
         """
         ticker = params.get("ticker", params.get("identifier", "AAPL"))
         instrument = resolve_instrument(ticker, source_context="pipeline_rerun")
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = params.get("date")
+        if not date:
+            raise ValueError(
+                "Pipeline rerun requires an explicit 'date' param; wall-clock fallback is forbidden."
+            )
         portfolio_id = params.get("portfolio_id", "main_portfolio")
         root_run_id = _root_run_id(run_id, params)
         execution_key = _execution_key(run_id, params)
@@ -2538,7 +2550,11 @@ class LangGraphEngine:
         """Resolve an auto-run Phase 2 pause by retrying selected tickers or continuing."""
         root_run_id = _root_run_id(run_id, params)
         execution_key = _execution_key(run_id, params)
-        date = params.get("date", time.strftime("%Y-%m-%d"))
+        date = params.get("date")
+        if not date:
+            raise ValueError(
+                "Auto phase3 decision requires an explicit 'date' param; wall-clock fallback is forbidden."
+            )
         force = bool(params.get("force", False))
         store = create_report_store(run_id=root_run_id)
 

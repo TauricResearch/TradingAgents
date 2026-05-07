@@ -97,7 +97,22 @@ def _make_research_manager_state(ticker: str = "AAPL") -> dict:
 
 
 class TestTraderFailureInjection:
-    """Validates Requirement 1.2: Trader node receives failure block."""
+    """Validates Requirement 1.2: Trader node receives failure block.
+
+    Uses legacy free-text path (structured_output_enabled=False) so these tests
+    remain independent of the structured output integration.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
 
     def test_trader_includes_failure_block_when_failures_available(self):
         """When execution failures exist, the trader prompt includes the failure block."""
@@ -196,7 +211,22 @@ class TestTraderFailureInjection:
 
 
 class TestResearchManagerFailureInjection:
-    """Validates Requirement 1.3: Research Manager node receives failure block."""
+    """Validates Requirement 1.3: Research Manager node receives failure block.
+
+    Uses legacy free-text path (structured_output_enabled=False) so these tests
+    remain independent of the structured output integration.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.managers.research_manager.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
 
     def test_rm_includes_failure_block_when_failures_available(self):
         """When execution failures exist, the RM prompt includes the failure block."""
@@ -283,8 +313,6 @@ class TestPMDecisionAgentFailureInjection:
 
     def test_pm_includes_failure_block_when_failures_available(self):
         """When execution failures exist, the PM prompt includes the failure block."""
-        from tradingagents.agents.portfolio.pm_decision_agent import create_pm_decision_agent
-
         fake_llm = MagicMock()
         # with_structured_output returns a chain-compatible mock
         structured_llm = MagicMock()
@@ -293,8 +321,6 @@ class TestPMDecisionAgentFailureInjection:
         # Create a mock result that behaves like a Pydantic model
         mock_result = MagicMock()
         mock_result.model_dump_json.return_value = '{"macro_regime": "neutral", "sells": [], "buys": [], "holds": [], "cash_reserve_pct": 0.1, "portfolio_thesis": "test", "risk_summary": "test", "regime_alignment_note": "test", "forensic_report": {"regime_alignment": "uncorrelated", "key_risks": [], "decision_confidence": "medium", "position_sizing_rationale": "test"}}'
-
-        captured: dict = {}
 
         def fake_chain_invoke(input_data, **kwargs):
             # The prompt is partially applied; we need to capture the system_message

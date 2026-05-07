@@ -488,7 +488,9 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
 
     # Ground-truth blocks — commodities use timeframe-labeled formatting (PR-4)
     gold_lines = _fetch_commodity_with_yoy(get_gold_price, "gold price", ["Gold"])
-    oil_lines = _fetch_commodity_with_yoy(get_oil_prices, "oil prices", ["WTI Crude", "Brent Crude"])
+    oil_lines = _fetch_commodity_with_yoy(
+        get_oil_prices, "oil prices", ["WTI Crude", "Brent Crude"]
+    )
     btc_lines = _fetch_commodity_with_yoy(get_bitcoin_price, "bitcoin price", ["Bitcoin"])
     eur_snapshot = _fetch_ground_truth(get_eur_usd_rate, "EUR/USD rate", max_rows=1)
     jpy_snapshot = _fetch_ground_truth(get_jpy_usd_rate, "JPY/USD rate", max_rows=1)

@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +9,8 @@ from agent_os.backend.dependencies import get_current_user, get_db_client
 from tradingagents.portfolio.exceptions import PortfolioNotFoundError
 from tradingagents.portfolio.supabase_client import SupabaseClient
 from tradingagents.report_paths import get_market_dir
+
+logger = logging.getLogger("agent_os")
 
 router = APIRouter(prefix="/api/portfolios", tags=["portfolios"])
 
@@ -79,29 +82,20 @@ async def get_portfolio_summary(
                 scan_data = json.loads(scan_path.read_text())
                 ctx = scan_data.get("macro_context", {})
                 regime = ctx.get("economic_cycle", "NEUTRAL").upper()
-                # Beta is often calculated per-portfolio or per-holding
-                # For now, we use a placeholder or pull from metadata
             except json.JSONDecodeError:
-                pass
+                logger.warning("Corrupt scan_summary.json at %s", scan_path)
 
         return {
-            "sharpe_ratio": sharpe or 2.42,  # Fallback to demo values if 0
+            "sharpe_ratio": sharpe,
             "market_regime": regime,
             "beta": beta,
-            "drawdown": drawdown or -2.4,
-            "var_1d": 4200.0,  # Placeholder
+            "drawdown": drawdown,
+            "var_1d": None,
             "efficiency_label": "High Efficiency" if sharpe > 2.0 else "Normal",
         }
     except Exception:
-        # Fallback for demo
-        return {
-            "sharpe_ratio": 2.42,
-            "market_regime": "BULL",
-            "beta": 1.15,
-            "drawdown": -2.4,
-            "var_1d": 4200.0,
-            "efficiency_label": "High Efficiency",
-        }
+        logger.exception("Failed to compute portfolio summary for %s", portfolio_id)
+        raise HTTPException(status_code=503, detail="Unable to compute portfolio summary") from None
 
 
 @router.get("/{portfolio_id}/latest")

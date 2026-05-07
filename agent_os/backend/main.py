@@ -92,9 +92,9 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next: Callable[[Request], Any]) -> Response:
-    logger.info(f"Incoming request: {request.method} {request.url}")
+    logger.info("Incoming request: %s %s", request.method, request.url)
     response = await call_next(request)
-    logger.info(f"Response status: {response.status_code}")
+    logger.info("Response status: %s", response.status_code)
     return response
 
 

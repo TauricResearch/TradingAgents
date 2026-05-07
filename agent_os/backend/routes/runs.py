@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -28,6 +29,10 @@ from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.report_paths import generate_run_id
 
 logger = logging.getLogger("agent_os.runs")
+
+# Module-level MongoDB client singleton (lazy-initialized by _get_mongo_col)
+_mongo_client: Any | None = None
+_mongo_lock = threading.Lock()
 
 router = APIRouter(prefix="/api/run", tags=["runs"])
 
@@ -343,7 +348,7 @@ async def trigger_scan(
     runs[run_id] = {
         "id": run_id,
         "type": "scan",
-        "status": "running",
+        "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
         "params": p,
@@ -366,7 +371,7 @@ async def trigger_pipeline(
     runs[run_id] = {
         "id": run_id,
         "type": "pipeline",
-        "status": "running",
+        "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
         "params": p,
@@ -391,7 +396,7 @@ async def trigger_portfolio(
     runs[run_id] = {
         "id": run_id,
         "type": "portfolio",
-        "status": "running",
+        "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
         "params": p,
@@ -416,7 +421,7 @@ async def trigger_auto(
     runs[run_id] = {
         "id": run_id,
         "type": "auto",
-        "status": "running",
+        "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
         "params": p,
@@ -448,7 +453,7 @@ async def trigger_mock(
     runs[run_id] = {
         "id": run_id,
         "type": "mock",
-        "status": "running",
+        "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
         "params": p,
@@ -974,18 +979,23 @@ async def reset_portfolio_stage(
 
 def _get_mongo_col() -> Any | None:
     """Return the run_events collection if MongoDB is configured."""
+    global _mongo_client
     uri = DEFAULT_CONFIG.get("mongo_uri")
     db_name = DEFAULT_CONFIG.get("mongo_db", "tradingagents")
     if uri:
-        if not hasattr(_get_mongo_col, "_client"):
-            try:
-                from pymongo import MongoClient
+        with _mongo_lock:
+            if _mongo_client is None:
+                try:
+                    from pymongo import MongoClient
 
-                _get_mongo_col._client = MongoClient(uri)
-            except Exception:
-                logger.warning("Failed to connect to MongoDB for historical events")
-                return None
-        return _get_mongo_col._client[db_name]["run_events"]
+                    _mongo_client = MongoClient(uri)
+                    # Ensure index on run_events for efficient queries
+                    col = _mongo_client[db_name]["run_events"]
+                    col.create_index([("run_id", 1), ("ts", 1)])
+                except Exception:
+                    logger.warning("Failed to connect to MongoDB for historical events")
+                    return None
+        return _mongo_client[db_name]["run_events"]
     return None
 
 

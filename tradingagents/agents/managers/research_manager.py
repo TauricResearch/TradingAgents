@@ -13,6 +13,8 @@ from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
     output_contains_scratchpad,
 )
+from tradingagents.agents.utils.structured_output import invoke_structured_or_freetext
+from tradingagents.agents.utils.structured_schemas import ResearchPlanSchema
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_investment_debate_summary,
@@ -124,50 +126,110 @@ Rolling debate summary:
 Here is the debate:
 Debate History:
 {anon_history}{_failure_suffix}"""
-        timeout_seconds = resolve_timeout("deep")
-        response, invoke_error = invoke_with_timeout(
-            llm,
-            prompt,
-            timeout_seconds=timeout_seconds,
-            max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
-        )
+        messages = [{"role": "user", "content": prompt}]
 
-        is_timeout = False
-        if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                is_timeout = True
+        # --- Structured output path (gated by config) ---
+        if DEFAULT_CONFIG.get("structured_output_enabled"):
+
+            def _rm_fallback_extractor(text: str) -> dict[str, Any]:
+                """Fallback: use existing post-hoc extraction on free-text."""
+                return build_investment_plan_structured(
+                    ticker=ticker,
+                    as_of_date=state.get("trade_date", ""),
+                    investment_plan=text,
+                    is_timeout_fallback=False,
+                    llm=llm,
+                )
+
+            schema_instance, raw_text, fallback_dict = invoke_structured_or_freetext(
+                llm=llm,
+                schema=ResearchPlanSchema,
+                messages=messages,
+                fallback_extractor=_rm_fallback_extractor,
+                agent_name="ResearchManager",
+                timeout_tier="deep",
+                max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
+            )
+
+            if schema_instance is not None:
+                # Structured path succeeded — synthesize output_content from schema
+                output_content = (
+                    f"**Recommendation**: {schema_instance.recommendation} "
+                    f"(Confidence: {schema_instance.confidence})\n\n"
+                    f"**Strongest Bull Evidence**:\n"
+                    + "\n".join(f"- {e}" for e in schema_instance.bull_evidence)
+                    + "\n\n**Strongest Bear Evidence**:\n"
+                    + "\n".join(f"- {e}" for e in schema_instance.bear_evidence)
+                    + f"\n\n**Rationale**: {schema_instance.rationale}\n\n"
+                    f"**Strategic Actions**: {schema_instance.strategic_actions}\n\n"
+                    f"**Conflict Resolution**: {schema_instance.conflict_resolution}"
+                ).replace("TICKER_A", ticker)
+
+                structured = {
+                    "recommendation": schema_instance.recommendation,
+                    "confidence": schema_instance.confidence,
+                    "bull_evidence": schema_instance.bull_evidence,
+                    "bear_evidence": schema_instance.bear_evidence,
+                    "rationale": schema_instance.rationale,
+                    "strategic_actions": schema_instance.strategic_actions,
+                    "conflict_resolution": schema_instance.conflict_resolution,
+                    "status": "structured",
+                }
             else:
-                err_type = type(invoke_error).__name__
+                # Fallback path — raw_text contains the LLM free-text response
+                output_content = raw_text.replace("TICKER_A", ticker)
+                if not str(output_content).strip() or output_contains_scratchpad(output_content):
+                    failure_class = "empty" if not str(output_content).strip() else "scratchpad"
+                    raise RuntimeError(
+                        f"Research Manager node failed: {failure_class} — no valid output after exhausting retries"
+                    )
+                structured = fallback_dict if fallback_dict else {}
+
+        else:
+            # --- Legacy free-text path (structured_output_enabled=False) ---
+            timeout_seconds = resolve_timeout("deep")
+            response, invoke_error = invoke_with_timeout(
+                llm,
+                prompt,
+                timeout_seconds=timeout_seconds,
+                max_tokens=DEFAULT_CONFIG.get("deep_think_llm_max_tokens"),
+            )
+
+            is_timeout = False
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    is_timeout = True
+                else:
+                    err_type = type(invoke_error).__name__
+                    raise RuntimeError(
+                        f"Node execution failed: {err_type} - {str(invoke_error)}"
+                    ) from invoke_error
+
+            output_content = ""
+            if response:
+                output_content = response.content.replace("TICKER_A", ticker)
+
+            if (
+                is_timeout
+                or not str(output_content).strip()
+                or output_contains_scratchpad(output_content)
+            ):
+                failure_class = (
+                    "timeout"
+                    if is_timeout
+                    else ("empty" if not str(output_content).strip() else "scratchpad")
+                )
                 raise RuntimeError(
-                    f"Node execution failed: {err_type} - {str(invoke_error)}"
-                ) from invoke_error
+                    f"Research Manager node failed: {failure_class} — no valid output after exhausting retries"
+                )
 
-        # If it was a timeout or if the content is empty/garbage, apply the deterministic fallback.
-        output_content = ""
-        if response:
-            output_content = response.content.replace("TICKER_A", ticker)
-
-        if (
-            is_timeout
-            or not str(output_content).strip()
-            or output_contains_scratchpad(output_content)
-        ):
-            failure_class = (
-                "timeout"
-                if is_timeout
-                else ("empty" if not str(output_content).strip() else "scratchpad")
+            structured = build_investment_plan_structured(
+                ticker=ticker,
+                as_of_date=state.get("trade_date", ""),
+                investment_plan=output_content,
+                is_timeout_fallback=False,
+                llm=llm,
             )
-            raise RuntimeError(
-                f"Research Manager node failed: {failure_class} — no valid output after exhausting retries"
-            )
-
-        structured = build_investment_plan_structured(
-            ticker=ticker,
-            as_of_date=state.get("trade_date", ""),
-            investment_plan=output_content,
-            is_timeout_fallback=False,
-            llm=llm,
-        )
 
         new_investment_debate_state = {
             "judge_decision": output_content,

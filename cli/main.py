@@ -1347,7 +1347,9 @@ def run_analysis():
                         )
                     if con_hist:
                         if message_buffer.agent_status.get("Conservative Analyst") != "completed":
-                            message_buffer.update_agent_status("Conservative Analyst", "in_progress")
+                            message_buffer.update_agent_status(
+                                "Conservative Analyst", "in_progress"
+                            )
                         message_buffer.update_report_section(
                             "final_trade_decision",
                             f"### Conservative Analyst Analysis\n{con_hist}",

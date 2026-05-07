@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
-
-import logging
-
-_logger = logging.getLogger(__name__)
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
+
+_logger = logging.getLogger(__name__)
 
 # Prefix format: - [HIGH] claim text  /  • (MED) claim text
 _CLAIM_PREFIX_RE = re.compile(
@@ -214,12 +213,8 @@ _RATING_RE = re.compile(r"Rating:\s*(BUY|SELL|HOLD|STRONG\s*BUY|STRONG\s*SELL)",
 _CONFIDENCE_RE = re.compile(r"Confidence:\s*([\d.]+%?)", re.IGNORECASE)
 _ENTRY_PRICE_RE = re.compile(r"Entry\s*Price:\s*\$?([\d,.]+)", re.IGNORECASE)
 _TARGET_PRICE_RE = re.compile(r"Target\s*Price:\s*\$?([\d,.]+)", re.IGNORECASE)
-_BULL_SECTION_RE = re.compile(
-    r"Bull\s*Points?:\s*\n((?:\s*\d+\.\s*.+\n?)+)", re.IGNORECASE
-)
-_BEAR_SECTION_RE = re.compile(
-    r"Bear\s*Points?:\s*\n((?:\s*\d+\.\s*.+\n?)+)", re.IGNORECASE
-)
+_BULL_SECTION_RE = re.compile(r"Bull\s*Points?:\s*\n((?:\s*\d+\.\s*.+\n?)+)", re.IGNORECASE)
+_BEAR_SECTION_RE = re.compile(r"Bear\s*Points?:\s*\n((?:\s*\d+\.\s*.+\n?)+)", re.IGNORECASE)
 _NUMBERED_ITEM_RE = re.compile(r"\d+\.\s*(.+)")
 
 

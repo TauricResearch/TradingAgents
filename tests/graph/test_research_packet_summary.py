@@ -20,9 +20,9 @@ from tradingagents.graph._consistency_guard import generate_research_packet_summ
 
 _RATINGS = st.sampled_from(["BUY", "SELL", "HOLD", "STRONG BUY", "STRONG SELL"])
 
-_tickers = st.text(
-    alphabet=string.ascii_uppercase, min_size=2, max_size=5
-).filter(lambda s: s.strip() != "")
+_tickers = st.text(alphabet=string.ascii_uppercase, min_size=2, max_size=5).filter(
+    lambda s: s.strip() != ""
+)
 
 _trade_dates = st.dates(
     min_value=__import__("datetime").date(2020, 1, 1),
@@ -62,10 +62,10 @@ def valid_investment_plan(draw):
 
     # Build the investment plan text
     bull_section = "Bull Points:\n" + "\n".join(
-        f"{i+1}. {item.strip()}" for i, item in enumerate(bull_items)
+        f"{i + 1}. {item.strip()}" for i, item in enumerate(bull_items)
     )
     bear_section = "Bear Points:\n" + "\n".join(
-        f"{i+1}. {item.strip()}" for i, item in enumerate(bear_items)
+        f"{i + 1}. {item.strip()}" for i, item in enumerate(bear_items)
     )
 
     plan = (
@@ -185,6 +185,5 @@ def test_property_summary_length_bounds(
     # Only check bounds for non-empty results
     if result:
         assert 200 <= len(result) <= 500, (
-            f"Summary length {len(result)} is outside bounds [200, 500]. "
-            f"Summary: {result!r}"
+            f"Summary length {len(result)} is outside bounds [200, 500]. Summary: {result!r}"
         )
