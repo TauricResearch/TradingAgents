@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.mingshum.polymarket</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mingshum/repo/m1ngshum/TradingAgents/.venv/bin/python</string>
+        <string>/Users/mingshum/repo/m1ngshum/TradingAgents/scripts/run_polymarket.py</string>
+        <string>--limit</string>
+        <string>5</string>
+        <string>--days-until-close</string>
+        <string>90</string>
+        <string>--min-liquidity</string>
+        <string>10000</string>
+        <string>--model</string>
+        <string>anthropic/claude-sonnet-4-6</string>
+        <string>--budget</string>
+        <string>100</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/mingshum/repo/m1ngshum/TradingAgents</string>
+
+    <!-- Run once per day at 09:00 local time. Adjust hour/minute as needed.
+         To run multiple times per day, replace StartCalendarInterval with
+         StartInterval (in seconds), e.g. 21600 = every 6 hours. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/mingshum/.tradingagents/polymarket/launchd-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/mingshum/.tradingagents/polymarket/launchd-stderr.log</string>
+
+    <!-- launchd will not retry on failure within this window. Prevents
+         a flapping job from racking up LLM costs. -->
+    <key>ThrottleInterval</key>
+    <integer>3600</integer>
+</dict>
+</plist>
