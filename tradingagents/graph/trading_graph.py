@@ -132,7 +132,8 @@ class TradingAgentsGraph:
         self.log_states_dict = {}  # date to full state dict
 
         # Set up the graph
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.graph = self.workflow.compile()
 
         # Phase subgraphs (compiled lazily on first access)
         self._debate_graph = None
@@ -190,7 +191,13 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
-        if self.debug:
+        checkpoint_enabled = self.config.get("checkpoint_enabled", False)
+
+        if checkpoint_enabled:
+            final_state = self._propagate_with_checkpoint(
+                company_name, trade_date, init_agent_state, args
+            )
+        elif self.debug:
             # Debug mode with tracing
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
@@ -215,6 +222,54 @@ class TradingAgentsGraph:
 
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
+
+    def _propagate_with_checkpoint(
+        self,
+        company_name: str,
+        trade_date: str,
+        init_agent_state: dict[str, Any],
+        args: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Run the graph with LangGraph checkpoint-based crash recovery."""
+        from .checkpointer import clear_checkpoint, get_checkpointer, thread_id
+
+        data_cache_dir = self.config.get("data_cache_dir", "")
+        tid = thread_id(company_name, trade_date)
+
+        cm = get_checkpointer(data_cache_dir, company_name)
+        saver = cm.__enter__()
+        try:
+            graph = self.workflow.compile(checkpointer=saver)
+
+            # Inject thread_id into the invocation config
+            config = args.get("config", {})
+            configurable = config.get("configurable", {})
+            configurable["thread_id"] = tid
+            config["configurable"] = configurable
+            args["config"] = config
+
+            if self.debug:
+                trace = []
+                for chunk in graph.stream(init_agent_state, **args):
+                    if len(chunk["messages"]) == 0:
+                        pass
+                    else:
+                        chunk["messages"][-1].pretty_print()
+                        trace.append(chunk)
+
+                if not trace:
+                    raise RuntimeError("Graph produced no output during debug streaming.")
+                final_state = trace[-1]
+            else:
+                final_state = graph.invoke(init_agent_state, **args)
+
+            # Success — clear checkpoint so next run starts fresh
+            clear_checkpoint(data_cache_dir, company_name, trade_date)
+            return final_state
+        finally:
+            cm.__exit__(None, None, None)
+            # Restore default compiled graph without checkpointer
+            self.graph = self.workflow.compile()
 
     def _log_state(self, trade_date: str, final_state: dict[str, Any]) -> None:
         """Log the final state to a JSON file."""

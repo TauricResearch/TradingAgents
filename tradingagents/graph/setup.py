@@ -424,8 +424,8 @@ class GraphSetup:
 
         self._wire_risk_debate(workflow, risk_nodes)
 
-        # Compile and return
-        return workflow.compile()
+        # Return uncompiled StateGraph — caller is responsible for .compile()
+        return workflow
 
     def build_debate_subgraph(self) -> Any:
         """Build a subgraph that starts from Bull Researcher (skips analysts).

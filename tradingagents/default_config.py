@@ -328,6 +328,11 @@ def build_default_config(
         "mongo_uri": _env("MONGO_URI", env=env),
         "mongo_db": _env("MONGO_DB", "tradingagents", env=env),
         "default_portfolio_id": _env("DEFAULT_PORTFOLIO_ID", "main_portfolio", env=env),
+        # Checkpoint resume (opt-in)
+        "checkpoint_enabled": _is_truthy(
+            _env("CHECKPOINT_ENABLED", env=env),
+            default=False,
+        ),
     }
 
 
