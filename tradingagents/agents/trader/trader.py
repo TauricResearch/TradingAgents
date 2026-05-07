@@ -2,6 +2,8 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from langchain_core.messages import AIMessage
+
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
@@ -209,16 +211,15 @@ Apply lessons from past decisions:
             )
 
             if schema_instance is not None:
-                # Structured path succeeded — synthesize output_content from schema
-                output_content = (
-                    f"**FINAL TRANSACTION PROPOSAL: {schema_instance.action}**\n\n"
-                    f"**Entry Price**: ${schema_instance.entry_price:.2f}\n"
-                    if schema_instance.entry_price
-                    else f"**FINAL TRANSACTION PROPOSAL: {schema_instance.action}**\n\n"
-                )
-                if schema_instance.stop_loss:
+                # Structured path succeeded — synthesize output_content from schema.
+                # Build the text representation in a clear, step-by-step way to avoid
+                # the ternary-in-concatenation ambiguity.
+                output_content = f"**FINAL TRANSACTION PROPOSAL: {schema_instance.action}**\n\n"
+                if schema_instance.entry_price is not None:
+                    output_content += f"**Entry Price**: ${schema_instance.entry_price:.2f}\n"
+                if schema_instance.stop_loss is not None:
                     output_content += f"**Stop-Loss**: ${schema_instance.stop_loss:.2f}\n"
-                if schema_instance.take_profit:
+                if schema_instance.take_profit is not None:
                     output_content += f"**Take-Profit**: ${schema_instance.take_profit:.2f}\n"
                 if schema_instance.position_sizing:
                     output_content += f"**Position Sizing**: {schema_instance.position_sizing}\n"
@@ -325,7 +326,7 @@ Apply lessons from past decisions:
                 )
 
         return {
-            "messages": [],
+            "messages": [AIMessage(content=output_content)],
             "trader_investment_plan": output_content,
             "trader_plan_structured": structured,
             "sender": "Trader",

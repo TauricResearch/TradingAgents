@@ -10,6 +10,27 @@ def _write(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _base_patches(tmp_path: Path, fake_invoke):
+    """Common patches for trader tests: disable structured output and mock invoke."""
+    return [
+        patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
+        patch(
+            "tradingagents.agents.utils.historical_context.REPORTS_ROOT",
+            str(tmp_path / "reports"),
+        ),
+        patch(
+            "tradingagents.agents.trader.trader.build_trader_plan_structured",
+            return_value={"status": "completed"},
+        ),
+        # Force legacy free-text path so these tests remain independent of
+        # the structured output integration.
+        patch.dict(
+            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+            {"structured_output_enabled": False},
+        ),
+    ]
+
+
 def test_trader_includes_prior_context_when_available(tmp_path: Path) -> None:
     base = tmp_path / "reports" / "daily"
     _write(
@@ -47,6 +68,10 @@ def test_trader_includes_prior_context_when_available(tmp_path: Path) -> None:
         patch(
             "tradingagents.agents.trader.trader.build_trader_plan_structured",
             return_value={"status": "completed"},
+        ),
+        patch.dict(
+            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+            {"structured_output_enabled": False},
         ),
     ):
         node = create_trader(fake_llm, memory)
@@ -90,6 +115,10 @@ def test_trader_system_msg_has_no_prior_context_when_absent(tmp_path: Path) -> N
             "tradingagents.agents.trader.trader.build_trader_plan_structured",
             return_value={"status": "completed"},
         ),
+        patch.dict(
+            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+            {"structured_output_enabled": False},
+        ),
     ):
         node = create_trader(fake_llm, memory)
         node(state)
@@ -130,6 +159,10 @@ def test_trader_no_crash_when_trade_date_missing(tmp_path: Path) -> None:
         patch(
             "tradingagents.agents.trader.trader.build_trader_plan_structured",
             return_value={"status": "completed"},
+        ),
+        patch.dict(
+            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+            {"structured_output_enabled": False},
         ),
     ):
         node = create_trader(fake_llm, memory)

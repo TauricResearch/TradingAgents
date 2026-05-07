@@ -11,7 +11,7 @@ context packet also has explicit ground-truth anchoring instructions, addressing
 """
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -157,6 +157,23 @@ class TestBuildResearchPacketIncludesScanner:
 
 
 class TestResearchManagerGroundTruth:
+    """Research Manager ground-truth propagation tests.
+
+    These tests exercise the legacy free-text path (structured_output_enabled=False)
+    so they remain independent of the structured output integration.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.managers.research_manager.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
+
     def test_ground_truth_in_prompt(self):
         from tradingagents.agents.managers.research_manager import create_research_manager
 
@@ -209,6 +226,24 @@ class TestResearchManagerGroundTruth:
 
 
 class TestTraderGroundTruth:
+    """Trader ground-truth propagation tests.
+
+    These tests exercise the legacy free-text path (structured_output_enabled=False)
+    so they remain independent of the structured output integration and can use the
+    simple _mock_llm helper without setting up with_structured_output.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
+
     def test_scanner_context_in_user_message(self):
         from tradingagents.agents.trader.trader import create_trader
 
@@ -469,7 +504,29 @@ class TestSummaryRulesPreserveGroundTruth:
 
 
 class TestStructuredContractEmission:
-    """Each agent must emit its canonical structured field alongside the prose report."""
+    """Each agent must emit its canonical structured field alongside the prose report.
+
+    These tests exercise the legacy free-text path (structured_output_enabled=False)
+    so they validate the existing post-hoc extraction contracts without interference
+    from the structured output integration.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+    _disable_structured_rm = patch.dict(
+        "tradingagents.agents.managers.research_manager.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+        self._disable_structured_rm.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
+        self._disable_structured_rm.stop()
 
     def test_research_manager_emits_investment_plan_structured(self):
         from tradingagents.agents.managers.research_manager import create_research_manager
