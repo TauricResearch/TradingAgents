@@ -28,6 +28,27 @@ covers the common case. Add a clear error log on final failure.
 
 ---
 
+### TODO: Block negative-EV trades pre-fill
+**What:** In `run_polymarket.py`, after the trader produces a direction, refuse
+to fill if the trade is guaranteed to lose money even when the prediction is
+correct, due to the 2% Polymarket fee on winning resolutions.
+**Why:** Observed in the live Sonnet batch: BUY_NO on a 0.2 cent YES market
+means buying NO at 99.8 cents. If NO wins, payout is $1.00 minus 2% fee =
+$0.98 per contract. Cost was $1.00 per contract, guaranteed -$2 loss on a
+100-contract buy even with a correct call. Sonnet's reasoning was structurally
+sound but ignored fee math.
+**Context:** Per contract, expected_pnl_if_win = (1.00 - vwap) - fee_per_contract.
+If `(1.00 - vwap) <= fee_per_contract`, the trade is a guaranteed loser when
+correct. Add an EV check after `simulate_fill`: if `(payout - filled_usd -
+fee_estimate_if_win) <= 0`, log "NEGATIVE_EV_BLOCKED" and skip the fill log
+entry. A more sophisticated version uses the bot's confidence vs. the market
+price to compute true expected value, but the floor case (correct = loss) is
+the fast obvious win.
+**Effort:** 15 min
+**Depends on:** nothing
+
+---
+
 ## Polymarket Phase B
 
 ### TODO: Binary risk model (Kelly criterion sizing)
