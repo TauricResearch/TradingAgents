@@ -53,3 +53,88 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+
+def test_openai_with_custom_base_url_accepts_unknown_model_without_warning():
+    from tradingagents.llm_clients.openai_client import OpenAIClient
+
+    client = OpenAIClient(
+        "mercury",
+        base_url="https://api.inceptionlabs.ai/v1",
+        provider="openai",
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert client.validate_model() is True
+        client.warn_if_unknown_model()
+
+    assert caught == []
+
+
+def test_openai_custom_base_url_does_not_force_responses_api(monkeypatch):
+    from tradingagents.llm_clients import openai_client
+
+    captured = {}
+
+    class FakeChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(openai_client, "NormalizedChatOpenAI", FakeChat)
+
+    client = openai_client.OpenAIClient(
+        "mercury",
+        base_url="https://api.inceptionlabs.ai/v1",
+        provider="openai",
+    )
+    client.get_llm()
+
+    assert captured["model"] == "mercury"
+    assert captured["base_url"] == "https://api.inceptionlabs.ai/v1"
+    assert "use_responses_api" not in captured
+
+
+def test_openai_custom_base_url_does_not_forward_reasoning_effort(monkeypatch):
+    from tradingagents.llm_clients import openai_client
+
+    captured = {}
+
+    class FakeChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(openai_client, "NormalizedChatOpenAI", FakeChat)
+
+    client = openai_client.OpenAIClient(
+        "mercury",
+        base_url="https://api.inceptionlabs.ai/v1",
+        provider="openai",
+        reasoning_effort="high",
+    )
+    client.get_llm()
+
+    assert "reasoning_effort" not in captured
+
+
+def test_openai_default_base_url_is_native_openai(monkeypatch):
+    from tradingagents.llm_clients import openai_client
+
+    captured = {}
+
+    class FakeChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(openai_client, "NormalizedChatOpenAI", FakeChat)
+
+    client = openai_client.OpenAIClient(
+        "gpt-5.4-mini",
+        base_url="https://api.openai.com/v1",
+        provider="openai",
+    )
+    client.get_llm()
+
+    assert "base_url" not in captured
+    assert captured["use_responses_api"] is True

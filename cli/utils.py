@@ -1,9 +1,11 @@
 import questionary
-from typing import List, Optional, Tuple, Dict
+import requests
+from typing import List, Tuple
 
 from rich.console import Console
 
 from cli.models import AnalystType
+from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -22,7 +24,7 @@ def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
     ticker = questionary.text(
         f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+        validate=_validate_ticker_input,
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -39,8 +41,17 @@ def get_ticker() -> str:
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
-    """Normalize ticker input while preserving exchange suffixes."""
-    return ticker.strip().upper()
+    """Normalize ticker input while preserving exchange suffixes and rejecting unsafe path components."""
+    normalized = ticker.strip().upper()
+    return safe_ticker_component(normalized)
+
+
+def _validate_ticker_input(value: str) -> bool | str:
+    try:
+        normalize_ticker_symbol(value)
+        return True
+    except ValueError as exc:
+        return str(exc)
 
 
 def get_analysis_date() -> str:
@@ -136,7 +147,6 @@ def select_research_depth() -> int:
 
 def _fetch_openrouter_models() -> List[Tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
-    import requests
     try:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()

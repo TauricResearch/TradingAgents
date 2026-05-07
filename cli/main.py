@@ -1,35 +1,56 @@
-from typing import Optional
 import datetime
-import typer
+from html import escape
+import time
+from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
-from functools import wraps
-from rich.console import Console
+from typing import Any, TypedDict, cast
+import textwrap
+
+import typer
 from dotenv import load_dotenv
+from markdown_it import MarkdownIt
+from rich import box
+from rich.align import Align
+from rich.console import Console, RenderableType
+from rich.layout import Layout
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.spinner import Spinner
+from rich.text import Text
+from rich.table import Table
+
+from cli.announcements import fetch_announcements, display_announcements
+from cli.llm_config import LLMConfigOverrides, ResolvedLLMConfig, resolve_llm_config
+from cli.models import AnalystType
+from cli.stats_handler import StatsCallbackHandler
+from cli.utils import (
+    ask_anthropic_effort,
+    ask_gemini_thinking_config,
+    ask_openai_reasoning_effort,
+    ask_output_language,
+    normalize_ticker_symbol,
+    select_analysts,
+    select_deep_thinking_agent,
+    select_llm_provider,
+    select_research_depth,
+    select_shallow_thinking_agent,
+)
+from tradingagents.batch import (
+    load_batch_inputs,
+    run_batch_analysis,
+)
+from tradingagents.allocation import AllocationPolicy
+from tradingagents.charts import ChartArtifact, generate_report_charts
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.execution import DryRunExecutor, ExecutionAction, ExecutionOrder
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # Load environment variables
 load_dotenv()
 load_dotenv(".env.enterprise", override=False)
-from rich.panel import Panel
-from rich.spinner import Spinner
-from rich.live import Live
-from rich.columns import Columns
-from rich.markdown import Markdown
-from rich.layout import Layout
-from rich.text import Text
-from rich.table import Table
-from collections import deque
-import time
-from rich.tree import Tree
-from rich import box
-from rich.align import Align
-from rich.rule import Rule
-
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-from cli.models import AnalystType
-from cli.utils import *
-from cli.announcements import fetch_announcements, display_announcements
-from cli.stats_handler import StatsCallbackHandler
 
 console = Console()
 
@@ -38,6 +59,92 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+
+
+@dataclass(frozen=True)
+class SelectionOverrides:
+    ticker: str | None = None
+    analysis_date: str | None = None
+    output_language: str | None = None
+    analysts: list[AnalystType] | None = None
+    research_depth: int | None = None
+    save_report: bool | None = None
+    save_path: Path | None = None
+    display_report: bool | None = None
+
+
+@dataclass(frozen=True)
+class AnalysisRunResult:
+    ticker: str
+    final_state: dict[str, Any]
+    report_path: Path | None = None
+    save_path: Path | None = None
+
+
+def _execution_orders_from_allocation_plan(allocation_plan: Any) -> list[ExecutionOrder]:
+    orders: list[ExecutionOrder] = []
+    for row in allocation_plan.rows:
+        if row.quantity_delta is None or row.quantity_delta == 0:
+            continue
+        action: ExecutionAction = "buy" if row.quantity_delta > 0 else "sell"
+        orders.append(
+            ExecutionOrder(
+                ticker=row.ticker,
+                action=action,
+                quantity=abs(row.quantity_delta),
+            )
+        )
+    return orders
+
+
+def _print_execution_dry_run_table(console: Any, allocation_plan: Any) -> None:
+    executor = DryRunExecutor()
+    results_by_ticker = {
+        result.order.ticker: result
+        for result in executor.execute(_execution_orders_from_allocation_plan(allocation_plan))
+    }
+
+    table = Table(title="Allocation Dry Run")
+    table.add_column("Ticker")
+    table.add_column("Action")
+    table.add_column("Quantity Delta", justify="right")
+    table.add_column("Leftover Cash", justify="right")
+
+    for row in allocation_plan.rows:
+        quantity = (
+            ""
+            if row.quantity_delta is None
+            else _format_execution_quantity(row.quantity_delta)
+        )
+        result = results_by_ticker.get(row.ticker)
+        table.add_row(
+            row.ticker,
+            result.order.action if result is not None else row.recommended_action,
+            quantity,
+            _format_execution_number(allocation_plan.leftover_cash),
+        )
+    console.print(table)
+
+
+def _format_execution_number(value: float | None) -> str:
+    return "" if value is None else f"{value:.2f}"
+
+
+def _format_execution_quantity(value: float | None) -> str:
+    if value is None:
+        return ""
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.4f}"
+
+
+def _install_cli_dry_run_executor() -> None:
+    import tradingagents.batch as batch_module
+
+    batch_module._print_dry_run_table = _print_execution_dry_run_table
+
+
+_install_cli_dry_run_executor()
 
 
 # Create a deque to store recent messages with a maximum length
@@ -71,16 +178,17 @@ class MessageBuffer:
         "final_trade_decision": (None, "Portfolio Manager"),
     }
 
-    def __init__(self, max_length=100):
-        self.messages = deque(maxlen=max_length)
-        self.tool_calls = deque(maxlen=max_length)
+    def __init__(self, max_length=100, logger: "RunLogger | None" = None):
+        self.messages: deque[Any] = deque(maxlen=max_length)
+        self.tool_calls: deque[Any] = deque(maxlen=max_length)
+        self.logger = logger
         self.current_report = None
         self.final_report = None  # Store the complete final report
-        self.agent_status = {}
+        self.agent_status: dict[str, str] = {}
         self.current_agent = None
-        self.report_sections = {}
-        self.selected_analysts = []
-        self._processed_message_ids = set()
+        self.report_sections: dict[str, str] = {}
+        self.selected_analysts: list[str] = []
+        self._processed_message_ids: set[str] = set()
 
     def init_for_analysis(self, selected_analysts):
         """Initialize agent status and report sections based on selected analysts.
@@ -141,10 +249,14 @@ class MessageBuffer:
     def add_message(self, message_type, content):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
+        if self.logger:
+            self.logger.log_message(timestamp, message_type, content)
 
     def add_tool_call(self, tool_name, args):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
+        if self.logger:
+            self.logger.log_tool_call(timestamp, tool_name, args)
 
     def update_agent_status(self, agent, status):
         if agent in self.agent_status:
@@ -155,6 +267,10 @@ class MessageBuffer:
         if section_name in self.report_sections:
             self.report_sections[section_name] = content
             self._update_current_report()
+            if self.logger and self.report_sections[section_name] is not None:
+                self.logger.write_report_section(
+                    section_name, self.report_sections[section_name]
+                )
 
     def _update_current_report(self):
         # For the panel display, only show the most recently updated section
@@ -227,7 +343,25 @@ class MessageBuffer:
         self.final_report = "\n\n".join(report_parts) if report_parts else None
 
 
-message_buffer = MessageBuffer()
+class RunLogger:
+    def __init__(self, log_file: Path, report_dir: Path):
+        self.log_file = log_file
+        self.report_dir = report_dir
+
+    def log_message(self, timestamp: str, message_type: str, content: str) -> None:
+        text = str(content).replace("\n", " ")
+        with open(self.log_file, "a", encoding="utf-8") as f:
+            f.write(f"{timestamp} [{message_type}] {text}\n")
+
+    def log_tool_call(self, timestamp: str, tool_name: str, args: dict) -> None:
+        args_str = ", ".join(f"{k}={v}" for k, v in args.items())
+        with open(self.log_file, "a", encoding="utf-8") as f:
+            f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+
+    def write_report_section(self, section_name: str, content: str | list) -> None:
+        text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
+        with open(self.report_dir / f"{section_name}.md", "w", encoding="utf-8") as f:
+            f.write(text)
 
 
 def create_layout():
@@ -253,7 +387,7 @@ def format_tokens(n):
     return str(n)
 
 
-def update_display(layout, spinner_text=None, stats_handler=None, start_time=None):
+def update_display(layout, message_buffer: MessageBuffer, spinner_text=None, stats_handler=None, start_time=None):
     # Header with welcome message
     layout["header"].update(
         Panel(
@@ -305,6 +439,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         # Add first agent with team name
         first_agent = agents[0]
         status = message_buffer.agent_status.get(first_agent, "pending")
+        status_cell: RenderableType
         if status == "in_progress":
             spinner = Spinner(
                 "dots", text="[blue]in_progress[/blue]", style="bold cyan"
@@ -460,8 +595,44 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
+def get_user_selections(
+    resolved_llm: ResolvedLLMConfig | None = None,
+    selection_overrides: SelectionOverrides | None = None,
+):
     """Get all user selections before starting the analysis display."""
+    selection_overrides = selection_overrides or SelectionOverrides()
+    selected_ticker = selection_overrides.ticker
+    analysis_date = selection_overrides.analysis_date
+    output_language = selection_overrides.output_language
+    selected_analysts = selection_overrides.analysts
+    selected_research_depth = selection_overrides.research_depth
+
+    has_all_run_inputs = bool(
+        selected_ticker
+        and analysis_date
+        and output_language
+        and selected_analysts
+        and selected_research_depth is not None
+        and resolved_llm
+        and resolved_llm.is_complete
+    )
+
+    if has_all_run_inputs:
+        assert resolved_llm is not None
+        assert selected_ticker is not None
+        assert analysis_date is not None
+        assert output_language is not None
+        assert selected_analysts is not None
+        assert selected_research_depth is not None
+        return _build_user_selections(
+            resolved_llm=resolved_llm,
+            selected_ticker=selected_ticker,
+            analysis_date=analysis_date,
+            output_language=output_language,
+            selected_analysts=selected_analysts,
+            selected_research_depth=selected_research_depth,
+        )
+
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
@@ -499,79 +670,95 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
-    console.print(
-        create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
-            "SPY",
+    if not selected_ticker:
+        # Step 1: Ticker symbol
+        console.print(
+            create_question_box(
+                "Step 1: Ticker Symbol",
+                "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+                "SPY",
+            )
         )
-    )
-    selected_ticker = get_ticker()
+        selected_ticker = get_ticker()
 
-    # Step 2: Analysis date
-    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    console.print(
-        create_question_box(
-            "Step 2: Analysis Date",
-            "Enter the analysis date (YYYY-MM-DD)",
-            default_date,
+    if not analysis_date:
+        # Step 2: Analysis date
+        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        console.print(
+            create_question_box(
+                "Step 2: Analysis Date",
+                "Enter the analysis date (YYYY-MM-DD)",
+                default_date,
+            )
         )
-    )
-    analysis_date = get_analysis_date()
+        analysis_date = get_analysis_date()
 
-    # Step 3: Output language
-    console.print(
-        create_question_box(
-            "Step 3: Output Language",
-            "Select the language for analyst reports and final decision"
+    if not output_language:
+        # Step 3: Output language
+        console.print(
+            create_question_box(
+                "Step 3: Output Language",
+                "Select the language for analyst reports and final decision"
+            )
         )
-    )
-    output_language = ask_output_language()
+        output_language = ask_output_language()
 
-    # Step 4: Select analysts
-    console.print(
-        create_question_box(
-            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+    if not selected_analysts:
+        # Step 4: Select analysts
+        console.print(
+            create_question_box(
+                "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+            )
         )
-    )
-    selected_analysts = select_analysts()
-    console.print(
-        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
-    )
+        selected_analysts = select_analysts()
+        console.print(
+            f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
+        )
 
-    # Step 5: Research depth
-    console.print(
-        create_question_box(
-            "Step 5: Research Depth", "Select your research depth level"
+    if selected_research_depth is None:
+        # Step 5: Research depth
+        console.print(
+            create_question_box(
+                "Step 5: Research Depth", "Select your research depth level"
+            )
         )
-    )
-    selected_research_depth = select_research_depth()
+        selected_research_depth = select_research_depth()
+
+    selected_llm_provider = resolved_llm.provider if resolved_llm else None
+    backend_url = resolved_llm.backend_url if resolved_llm else None
 
     # Step 6: LLM Provider
-    console.print(
-        create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+    if not selected_llm_provider:
+        console.print(
+            create_question_box(
+                "Step 6: LLM Provider", "Select your LLM provider"
+            )
         )
-    )
-    selected_llm_provider, backend_url = select_llm_provider()
+        selected_llm_provider, selected_backend_url = select_llm_provider()
+        if backend_url is None:
+            backend_url = selected_backend_url
 
     # Step 7: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+    selected_shallow_thinker = resolved_llm.quick_model if resolved_llm else None
+    selected_deep_thinker = resolved_llm.deep_model if resolved_llm else None
+    if not selected_shallow_thinker or not selected_deep_thinker:
+        console.print(
+            create_question_box(
+                "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            )
         )
-    )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    if not selected_shallow_thinker:
+        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+    if not selected_deep_thinker:
+        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     # Step 8: Provider-specific thinking configuration
-    thinking_level = None
-    reasoning_effort = None
-    anthropic_effort = None
+    thinking_level = resolved_llm.google_thinking_level if resolved_llm else None
+    reasoning_effort = resolved_llm.openai_reasoning_effort if resolved_llm else None
+    anthropic_effort = resolved_llm.anthropic_effort if resolved_llm else None
 
     provider_lower = selected_llm_provider.lower()
-    if provider_lower == "google":
+    if provider_lower == "google" and not thinking_level:
         console.print(
             create_question_box(
                 "Step 8: Thinking Mode",
@@ -579,7 +766,7 @@ def get_user_selections():
             )
         )
         thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
+    elif provider_lower == "openai" and not backend_url and not reasoning_effort:
         console.print(
             create_question_box(
                 "Step 8: Reasoning Effort",
@@ -587,7 +774,7 @@ def get_user_selections():
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
-    elif provider_lower == "anthropic":
+    elif provider_lower == "anthropic" and not anthropic_effort:
         console.print(
             create_question_box(
                 "Step 8: Effort Level",
@@ -596,18 +783,45 @@ def get_user_selections():
         )
         anthropic_effort = ask_anthropic_effort()
 
+    return _build_user_selections(
+        resolved_llm=ResolvedLLMConfig(
+            provider=selected_llm_provider,
+            quick_model=selected_shallow_thinker,
+            deep_model=selected_deep_thinker,
+            backend_url=backend_url,
+            google_thinking_level=thinking_level,
+            openai_reasoning_effort=reasoning_effort,
+            anthropic_effort=anthropic_effort,
+        ),
+        selected_ticker=selected_ticker,
+        analysis_date=analysis_date,
+        output_language=output_language,
+        selected_analysts=selected_analysts,
+        selected_research_depth=selected_research_depth,
+    )
+
+
+def _build_user_selections(
+    *,
+    resolved_llm: ResolvedLLMConfig,
+    selected_ticker: str,
+    analysis_date: str,
+    output_language: str,
+    selected_analysts: list[AnalystType],
+    selected_research_depth: int,
+) -> dict[str, Any]:
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": selected_llm_provider.lower(),
-        "backend_url": backend_url,
-        "shallow_thinker": selected_shallow_thinker,
-        "deep_thinker": selected_deep_thinker,
-        "google_thinking_level": thinking_level,
-        "openai_reasoning_effort": reasoning_effort,
-        "anthropic_effort": anthropic_effort,
+        "llm_provider": cast(str, resolved_llm.provider).lower(),
+        "backend_url": resolved_llm.backend_url,
+        "shallow_thinker": resolved_llm.quick_model,
+        "deep_thinker": resolved_llm.deep_model,
+        "google_thinking_level": resolved_llm.google_thinking_level,
+        "openai_reasoning_effort": resolved_llm.openai_reasoning_effort,
+        "anthropic_effort": resolved_llm.anthropic_effort,
         "output_language": output_language,
     }
 
@@ -636,10 +850,267 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def render_markdown_report_html(markdown_text: str, title: str) -> str:
+    """Render report Markdown as a standalone HTML document."""
+    body = MarkdownIt("commonmark", {"html": False}).enable("table").render(markdown_text)
+    safe_title = escape(title, quote=True)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{safe_title}</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --text: #1f2933;
+      --muted: #52616f;
+      --border: #d9e2ec;
+      --surface: #ffffff;
+      --accent: #0b7285;
+    }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }}
+    main {{
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+      background: var(--surface);
+      min-height: 100vh;
+    }}
+    h1, h2, h3, h4 {{
+      line-height: 1.25;
+      color: #102a43;
+    }}
+    h1 {{
+      margin-top: 0;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--accent);
+    }}
+    h2 {{
+      margin-top: 40px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }}
+    h3 {{
+      margin-top: 28px;
+    }}
+    p, li {{
+      color: var(--text);
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 0.95rem;
+    }}
+    th, td {{
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      vertical-align: top;
+    }}
+    th {{
+      background: #edf2f7;
+      text-align: left;
+    }}
+    code {{
+      background: #edf2f7;
+      border-radius: 4px;
+      padding: 2px 4px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }}
+    pre {{
+      overflow-x: auto;
+      background: #102a43;
+      color: #f0f4f8;
+      padding: 16px;
+      border-radius: 6px;
+    }}
+    blockquote {{
+      margin-left: 0;
+      padding-left: 16px;
+      border-left: 4px solid var(--accent);
+      color: var(--muted);
+    }}
+    img {{
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }}
+    @media (max-width: 720px) {{
+      main {{
+        padding: 24px 16px 48px;
+      }}
+      table {{
+        display: block;
+        overflow-x: auto;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+{body}
+  </main>
+</body>
+</html>
+"""
+
+
+def build_llm_report_metadata(selections: dict[str, Any]) -> dict[str, str]:
+    """Build stable LLM metadata for UI and saved reports."""
+    metadata = {
+        "LLM Provider": str(selections["llm_provider"]),
+        "Quick Model": str(selections["shallow_thinker"]),
+        "Deep Model": str(selections["deep_thinker"]),
+    }
+    if selections.get("backend_url"):
+        metadata["Backend URL"] = str(selections["backend_url"])
+    return metadata
+
+
+def format_llm_runtime_summary(metadata: dict[str, str]) -> str:
+    quick = metadata["Quick Model"]
+    deep = metadata["Deep Model"]
+    provider = metadata["LLM Provider"]
+    return f"LLM: {provider} | quick: {quick} | deep: {deep}"
+
+
+def format_report_metadata(metadata: dict[str, str] | None) -> str:
+    if not metadata:
+        return ""
+    return "\n".join(f"**{key}**: {value}" for key, value in metadata.items()) + "\n\n"
+
+
+def format_chart_section(artifacts: list[ChartArtifact], save_path: Path) -> str:
+    lines = ["## Technical Charts"]
+    for artifact in artifacts:
+        relative_path = artifact.path.relative_to(save_path).as_posix()
+        lines.append("")
+        lines.append(f"[![{artifact.title}]({relative_path})]({relative_path})")
+        lines.append("")
+        lines.append(artifact.description)
+    return "\n".join(lines)
+
+
+def write_pdf_report(
+    markdown_text: str,
+    pdf_path: Path,
+    *,
+    title: str,
+    report_metadata: dict[str, str] | None = None,
+    chart_artifacts: list[ChartArtifact] | None = None,
+) -> Path:
+    """Write a lightweight PDF report with text, metadata, and chart pages."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.image as mpimg
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    chart_artifacts = chart_artifacts or []
+
+    with PdfPages(pdf_path) as pdf:
+        info = pdf.infodict()
+        info["Title"] = title
+        info["Subject"] = "TradingAgents analysis report"
+        info["Creator"] = "TradingAgents"
+        if report_metadata:
+            info["Keywords"] = "; ".join(f"{key}: {value}" for key, value in report_metadata.items())
+
+        for page in _pdf_text_pages(markdown_text, title):
+            fig = plt.figure(figsize=(8.5, 11))
+            fig.patch.set_facecolor("white")
+            fig.text(0.07, 0.95, page["header"], fontsize=14, fontweight="bold", va="top")
+            fig.text(
+                0.07,
+                0.90,
+                page["body"],
+                fontsize=9,
+                family="monospace",
+                va="top",
+                linespacing=1.25,
+            )
+            fig.text(0.5, 0.03, f"Page {page['number']}", fontsize=8, ha="center", color="#666666")
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+        for artifact in chart_artifacts:
+            if not artifact.path.exists():
+                continue
+            try:
+                image = mpimg.imread(artifact.path)
+            except Exception:
+                continue
+            fig, ax = plt.subplots(figsize=(11, 8.5))
+            fig.patch.set_facecolor("white")
+            ax.imshow(image)
+            ax.axis("off")
+            fig.suptitle(artifact.title, fontsize=14, fontweight="bold")
+            fig.text(0.5, 0.04, artifact.description, ha="center", va="bottom", fontsize=9, wrap=True)
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
+    return pdf_path
+
+
+class PdfTextPage(TypedDict):
+    number: int
+    header: str
+    body: str
+
+
+def _pdf_text_pages(markdown_text: str, title: str) -> list[PdfTextPage]:
+    wrapped_lines: list[str] = []
+    for raw_line in markdown_text.splitlines():
+        if not raw_line:
+            wrapped_lines.append("")
+            continue
+        wrapped = textwrap.wrap(raw_line, width=96, replace_whitespace=False) or [raw_line]
+        wrapped_lines.extend(wrapped)
+
+    lines_per_page = 58
+    pages: list[PdfTextPage] = []
+    for start in range(0, len(wrapped_lines), lines_per_page):
+        body = "\n".join(wrapped_lines[start:start + lines_per_page])
+        pages.append({
+            "number": len(pages) + 1,
+            "header": title,
+            "body": body,
+        })
+    if not pages:
+        pages.append({"number": 1, "header": title, "body": ""})
+    return pages
+
+
+def save_report_to_disk(
+    final_state,
+    ticker: str,
+    save_path: Path,
+    report_metadata: dict[str, str] | None = None,
+):
     """Save complete analysis report to disk with organized subfolders."""
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
+    chart_artifacts: list[ChartArtifact] = []
+
+    symbol = final_state.get("company_of_interest") or ticker
+    trade_date = final_state.get("trade_date")
+    if symbol and trade_date:
+        try:
+            chart_artifacts = generate_report_charts(str(symbol), str(trade_date), save_path)
+            if chart_artifacts:
+                sections.append(format_chart_section(chart_artifacts, save_path))
+        except Exception:
+            pass
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"
@@ -722,8 +1193,19 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
-    return save_path / "complete_report.md"
+    complete_report = header + format_report_metadata(report_metadata) + "\n\n".join(sections)
+    markdown_path = save_path / "complete_report.md"
+    markdown_path.write_text(complete_report, encoding="utf-8")
+    html = render_markdown_report_html(complete_report, f"Trading Analysis Report: {ticker}")
+    (save_path / "complete_report.html").write_text(html, encoding="utf-8")
+    write_pdf_report(
+        complete_report,
+        save_path / "complete_report.pdf",
+        title=f"Trading Analysis Report: {ticker}",
+        report_metadata=report_metadata,
+        chart_artifacts=chart_artifacts,
+    )
+    return markdown_path
 
 
 def display_complete_report(final_state):
@@ -787,7 +1269,7 @@ def display_complete_report(final_state):
             console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
-def update_research_team_status(status):
+def update_research_team_status(message_buffer: MessageBuffer, status):
     """Update status for research team members (not Trader)."""
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager"]
     for agent in research_team:
@@ -926,9 +1408,60 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False):
+def _parse_analysts_option(value: str | None) -> list[AnalystType] | None:
+    if value is None or not value.strip():
+        return None
+
+    if value.strip().lower() == "all":
+        return list(AnalystType)
+
+    analysts = []
+    valid_values = {analyst.value for analyst in AnalystType}
+    for raw_key in value.split(","):
+        key = raw_key.strip().lower()
+        if not key:
+            continue
+        if key not in valid_values:
+            valid = ", ".join(sorted(valid_values))
+            raise typer.BadParameter(f"Invalid analyst '{key}'. Valid values: {valid}")
+        analysts.append(AnalystType(key))
+
+    if not analysts:
+        raise typer.BadParameter("At least one analyst must be provided.")
+    return analysts
+
+
+def _validate_research_depth(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if value not in (1, 3, 5):
+        raise typer.BadParameter("Research depth must be one of: 1, 3, 5.")
+    return value
+
+
+def _validate_analysis_date_option(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if value.strip().lower() == "today":
+        return datetime.datetime.now().strftime("%Y-%m-%d")
+    try:
+        analysis_date = datetime.datetime.strptime(value, "%Y-%m-%d")
+    except ValueError as exc:
+        raise typer.BadParameter("Analysis date must use YYYY-MM-DD format.") from exc
+    if analysis_date.date() > datetime.datetime.now().date():
+        raise typer.BadParameter("Analysis date cannot be in the future.")
+    return value
+
+
+def run_analysis(
+    checkpoint: bool = False,
+    llm_overrides: LLMConfigOverrides | None = None,
+    selection_overrides: SelectionOverrides | None = None,
+) -> AnalysisRunResult:
     # First get all user selections
-    selections = get_user_selections()
+    resolved_llm = resolve_llm_config(llm_overrides)
+    selection_overrides = selection_overrides or SelectionOverrides()
+    selections = get_user_selections(resolved_llm, selection_overrides)
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -944,6 +1477,9 @@ def run_analysis(checkpoint: bool = False):
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    llm_metadata = build_llm_report_metadata(selections)
+    safe_ticker = normalize_ticker_symbol(selections["ticker"])
+    selections["ticker"] = safe_ticker
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -960,66 +1496,26 @@ def run_analysis(checkpoint: bool = False):
         callbacks=[stats_handler],
     )
 
-    # Initialize message buffer with selected analysts
-    message_buffer.init_for_analysis(selected_analyst_keys)
-
     # Track start time for elapsed display
     start_time = time.time()
 
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir = Path(cast(str, config["results_dir"])) / safe_ticker / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
 
-    def save_message_decorator(obj, func_name):
-        func = getattr(obj, func_name)
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            func(*args, **kwargs)
-            timestamp, message_type, content = obj.messages[-1]
-            content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(f"{timestamp} [{message_type}] {content}\n")
-        return wrapper
-    
-    def save_tool_call_decorator(obj, func_name):
-        func = getattr(obj, func_name)
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            func(*args, **kwargs)
-            timestamp, tool_name, args = obj.tool_calls[-1]
-            args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
-        return wrapper
-
-    def save_report_section_decorator(obj, func_name):
-        func = getattr(obj, func_name)
-        @wraps(func)
-        def wrapper(section_name, content):
-            func(section_name, content)
-            if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
-                content = obj.report_sections[section_name]
-                if content:
-                    file_name = f"{section_name}.md"
-                    text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
-                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
-                        f.write(text)
-        return wrapper
-
-    message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
-    message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
-    message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
+    message_buffer = MessageBuffer(logger=RunLogger(log_file, report_dir))
+    message_buffer.init_for_analysis(selected_analyst_keys)
 
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=4):
         # Initial display
-        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+        update_display(layout, message_buffer, stats_handler=stats_handler, start_time=start_time)
 
         # Add initial messages
         message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
@@ -1030,18 +1526,19 @@ def run_analysis(checkpoint: bool = False):
             "System",
             f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
         )
-        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+        message_buffer.add_message("System", format_llm_runtime_summary(llm_metadata))
+        update_display(layout, message_buffer, stats_handler=stats_handler, start_time=start_time)
 
         # Update agent status to in_progress for the first analyst
         first_analyst = f"{selections['analysts'][0].value.capitalize()} Analyst"
         message_buffer.update_agent_status(first_analyst, "in_progress")
-        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+        update_display(layout, message_buffer, stats_handler=stats_handler, start_time=start_time)
 
         # Create spinner text
         spinner_text = (
             f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
         )
-        update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
+        update_display(layout, message_buffer, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
         # Initialize state and get graph args with callbacks
         init_agent_state = graph.propagator.create_initial_state(
@@ -1085,7 +1582,7 @@ def run_analysis(checkpoint: bool = False):
 
                 # Only update status when there's actual content
                 if bull_hist or bear_hist:
-                    update_research_team_status("in_progress")
+                    update_research_team_status(message_buffer, "in_progress")
                 if bull_hist:
                     message_buffer.update_report_section(
                         "investment_plan", f"### Bull Researcher Analysis\n{bull_hist}"
@@ -1098,7 +1595,7 @@ def run_analysis(checkpoint: bool = False):
                     message_buffer.update_report_section(
                         "investment_plan", f"### Research Manager Decision\n{judge}"
                     )
-                    update_research_team_status("completed")
+                    update_research_team_status(message_buffer, "completed")
                     message_buffer.update_agent_status("Trader", "in_progress")
 
             # Trading Team
@@ -1148,13 +1645,13 @@ def run_analysis(checkpoint: bool = False):
                         message_buffer.update_agent_status("Portfolio Manager", "completed")
 
             # Update the display
-            update_display(layout, stats_handler=stats_handler, start_time=start_time)
+            update_display(layout, message_buffer, stats_handler=stats_handler, start_time=start_time)
 
             trace.append(chunk)
 
         # Get final state and decision
         final_state = trace[-1]
-        decision = graph.process_signal(final_state["final_trade_decision"])
+        graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1169,32 +1666,60 @@ def run_analysis(checkpoint: bool = False):
             if section in final_state:
                 message_buffer.update_report_section(section, final_state[section])
 
-        update_display(layout, stats_handler=stats_handler, start_time=start_time)
+        update_display(layout, message_buffer, stats_handler=stats_handler, start_time=start_time)
 
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
-    # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
-    if save_choice in ("Y", "YES", ""):
+    # Prompt to save report unless configured by CLI.
+    save_report = selection_overrides.save_report
+    saved_report_path: Path | None = None
+    resolved_save_path: Path | None = None
+    if save_report is None:
+        save_choice = typer.prompt("Save report?", default="Y").strip().upper()
+        save_report = save_choice in ("Y", "YES", "")
+    if save_report:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
-        save_path = Path(save_path_str)
+        save_path = selection_overrides.save_path
+        if save_path is None:
+            if selection_overrides.save_report is True:
+                save_path = default_path
+            else:
+                save_path_str = typer.prompt(
+                    "Save path (press Enter for default)",
+                    default=str(default_path)
+                ).strip()
+                save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state,
+                selections["ticker"],
+                save_path,
+                report_metadata=llm_metadata,
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            console.print(f"  [dim]HTML report:[/dim] {report_file.with_suffix('.html').name}")
+            saved_report_path = report_file
+            resolved_save_path = save_path
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
-    # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
-    if display_choice in ("Y", "YES", ""):
+    # Prompt to display full report unless configured by CLI.
+    display_report = selection_overrides.display_report
+    if display_report is None:
+        display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+        display_report = display_choice in ("Y", "YES", "")
+    if display_report:
         display_complete_report(final_state)
+
+    return AnalysisRunResult(
+        ticker=selections["ticker"],
+        final_state=final_state,
+        report_path=saved_report_path,
+        save_path=resolved_save_path,
+    )
 
 
 @app.command()
@@ -1209,12 +1734,390 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    ticker: str | None = typer.Option(
+        None,
+        "--ticker",
+        help="Ticker symbol to analyze, e.g. SPY or CNC.TO.",
+    ),
+    analysis_date: str | None = typer.Option(
+        None,
+        "--analysis-date",
+        help="Analysis date in YYYY-MM-DD format, or 'today'.",
+    ),
+    output_language: str | None = typer.Option(
+        None,
+        "--output-language",
+        help="Language for analyst reports and final decision, e.g. English, Spanish, Chinese.",
+    ),
+    analysts: str | None = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys: market,social,news,fundamentals; or 'all'.",
+    ),
+    research_depth: int | None = typer.Option(
+        None,
+        "--research-depth",
+        help="Research depth, e.g. 1=shallow, 3=medium, 5=deep.",
+    ),
+    llm_provider: str | None = typer.Option(
+        None,
+        "--llm-provider",
+        help="LLM provider key, e.g. openai.",
+    ),
+    quick_model: str | None = typer.Option(
+        None,
+        "--quick-model",
+        help="Model for quick-thinking agents.",
+    ),
+    deep_model: str | None = typer.Option(
+        None,
+        "--deep-model",
+        help="Model for deep-thinking agents.",
+    ),
+    backend_url: str | None = typer.Option(
+        None,
+        "--backend-url",
+        help="OpenAI-compatible base URL.",
+    ),
+    openai_reasoning_effort: str | None = typer.Option(
+        None,
+        "--openai-reasoning-effort",
+        help="OpenAI reasoning effort.",
+    ),
+    google_thinking_level: str | None = typer.Option(
+        None,
+        "--google-thinking-level",
+        help="Gemini thinking level.",
+    ),
+    anthropic_effort: str | None = typer.Option(
+        None,
+        "--anthropic-effort",
+        help="Anthropic effort level.",
+    ),
+    save_report: bool | None = typer.Option(
+        None,
+        "--save-report/--no-save-report",
+        help="Save the final report after analysis.",
+    ),
+    save_path: Path | None = typer.Option(
+        None,
+        "--save-path",
+        help="Directory where the report should be saved.",
+    ),
+    display_report: bool | None = typer.Option(
+        None,
+        "--display-report/--no-display-report",
+        help="Display the full report on screen after analysis.",
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
-        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
+        n = clear_all_checkpoints(cast(str, DEFAULT_CONFIG["data_cache_dir"]))
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+    run_analysis(
+        checkpoint=checkpoint,
+        llm_overrides=LLMConfigOverrides(
+            provider=llm_provider,
+            quick_model=quick_model,
+            deep_model=deep_model,
+            backend_url=backend_url,
+            openai_reasoning_effort=openai_reasoning_effort,
+            google_thinking_level=google_thinking_level,
+            anthropic_effort=anthropic_effort,
+        ),
+        selection_overrides=SelectionOverrides(
+            ticker=normalize_ticker_symbol(ticker) if ticker else None,
+            analysis_date=_validate_analysis_date_option(analysis_date),
+            output_language=output_language,
+            analysts=_parse_analysts_option(analysts),
+            research_depth=_validate_research_depth(research_depth),
+            save_report=save_report,
+            save_path=save_path,
+            display_report=display_report,
+        ),
+    )
+
+
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    checkpoint: bool = typer.Option(
+        False,
+        "--checkpoint",
+        help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before running (force fresh start).",
+    ),
+    ticker: str | None = typer.Option(
+        None,
+        "--ticker",
+        help="Ticker symbol to analyze, e.g. SPY or CNC.TO.",
+    ),
+    analysis_date: str | None = typer.Option(
+        None,
+        "--analysis-date",
+        help="Analysis date in YYYY-MM-DD format, or 'today'.",
+    ),
+    output_language: str | None = typer.Option(
+        None,
+        "--output-language",
+        help="Language for analyst reports and final decision.",
+    ),
+    analysts: str | None = typer.Option(
+        None,
+        "--analysts",
+        help="Comma-separated analyst keys: market,social,news,fundamentals; or 'all'.",
+    ),
+    research_depth: int | None = typer.Option(
+        None,
+        "--research-depth",
+        help="Research depth, e.g. 1=shallow, 3=medium, 5=deep.",
+    ),
+    llm_provider: str | None = typer.Option(
+        None,
+        "--llm-provider",
+        help="LLM provider key, e.g. openai.",
+    ),
+    quick_model: str | None = typer.Option(
+        None,
+        "--quick-model",
+        help="Model for quick-thinking agents.",
+    ),
+    deep_model: str | None = typer.Option(
+        None,
+        "--deep-model",
+        help="Model for deep-thinking agents.",
+    ),
+    backend_url: str | None = typer.Option(
+        None,
+        "--backend-url",
+        help="OpenAI-compatible base URL.",
+    ),
+    openai_reasoning_effort: str | None = typer.Option(
+        None,
+        "--openai-reasoning-effort",
+        help="OpenAI reasoning effort.",
+    ),
+    google_thinking_level: str | None = typer.Option(
+        None,
+        "--google-thinking-level",
+        help="Gemini thinking level.",
+    ),
+    anthropic_effort: str | None = typer.Option(
+        None,
+        "--anthropic-effort",
+        help="Anthropic effort level.",
+    ),
+    save_report: bool | None = typer.Option(
+        None,
+        "--save-report/--no-save-report",
+        help="Save the final report after analysis.",
+    ),
+    save_path: Path | None = typer.Option(
+        None,
+        "--save-path",
+        help="Directory where the report should be saved.",
+    ),
+    display_report: bool | None = typer.Option(
+        None,
+        "--display-report/--no-display-report",
+        help="Display the full report on screen after analysis.",
+    ),
+):
+    if ctx.invoked_subcommand is not None:
+        return
+    analyze(
+        checkpoint=checkpoint,
+        clear_checkpoints=clear_checkpoints,
+        ticker=ticker,
+        analysis_date=analysis_date,
+        output_language=output_language,
+        analysts=analysts,
+        research_depth=research_depth,
+        llm_provider=llm_provider,
+        quick_model=quick_model,
+        deep_model=deep_model,
+        backend_url=backend_url,
+        openai_reasoning_effort=openai_reasoning_effort,
+        google_thinking_level=google_thinking_level,
+        anthropic_effort=anthropic_effort,
+        save_report=save_report,
+        save_path=save_path,
+        display_report=display_report,
+    )
+
+
+@app.command("batch")
+def batch_command(
+    input_path: Path | None = typer.Option(
+        None,
+        "--input",
+        help="CSV or JSON portfolio/watchlist file. CSV/JSON must include ticker.",
+    ),
+    tickers: str | None = typer.Option(
+        None,
+        "--tickers",
+        help="Comma-separated tickers, e.g. AAPL,MSFT,NVDA.",
+    ),
+    checkpoint: bool = typer.Option(
+        False,
+        "--checkpoint",
+        help="Enable checkpoint/resume for each ticker.",
+    ),
+    analysis_date: str | None = typer.Option(
+        None,
+        "--analysis-date",
+        help="Analysis date in YYYY-MM-DD format, or 'today'.",
+    ),
+    output_language: str = typer.Option(
+        "English",
+        "--output-language",
+        help="Language for analyst reports and final decision.",
+    ),
+    analysts: str = typer.Option(
+        "all",
+        "--analysts",
+        help="Comma-separated analyst keys: market,social,news,fundamentals; or 'all'.",
+    ),
+    research_depth: int = typer.Option(
+        1,
+        "--research-depth",
+        help="Research depth: 1, 3, or 5.",
+    ),
+    llm_provider: str | None = typer.Option(
+        None,
+        "--llm-provider",
+        help="LLM provider key, e.g. openai.",
+    ),
+    quick_model: str | None = typer.Option(
+        None,
+        "--quick-model",
+        help="Model for quick-thinking agents.",
+    ),
+    deep_model: str | None = typer.Option(
+        None,
+        "--deep-model",
+        help="Model for deep-thinking agents.",
+    ),
+    backend_url: str | None = typer.Option(
+        None,
+        "--backend-url",
+        help="OpenAI-compatible base URL.",
+    ),
+    openai_reasoning_effort: str | None = typer.Option(
+        None,
+        "--openai-reasoning-effort",
+        help="OpenAI reasoning effort.",
+    ),
+    google_thinking_level: str | None = typer.Option(
+        None,
+        "--google-thinking-level",
+        help="Gemini thinking level.",
+    ),
+    anthropic_effort: str | None = typer.Option(
+        None,
+        "--anthropic-effort",
+        help="Anthropic effort level.",
+    ),
+    save_path: Path | None = typer.Option(
+        None,
+        "--save-path",
+        help="Batch output directory.",
+    ),
+    display_report: bool = typer.Option(
+        False,
+        "--display-report/--no-display-report",
+        help="Display each full per-ticker report after analysis.",
+    ),
+    continue_on_error: bool = typer.Option(
+        True,
+        "--continue-on-error/--fail-fast",
+        help="Continue after a per-ticker failure, or stop at the first failure.",
+    ),
+    cash: float = typer.Option(
+        0.0,
+        "--cash",
+        help="Available cash to include in allocation planning.",
+    ),
+    allocate: bool = typer.Option(
+        False,
+        "--allocate/--no-allocate",
+        help="Generate portfolio allocation recommendations.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show proposed paper orders without submitting anything.",
+    ),
+    max_position_weight: float = typer.Option(
+        0.25,
+        "--max-position-weight",
+        help="Maximum target weight per ticker, e.g. 0.25.",
+    ),
+    min_cash_weight: float = typer.Option(
+        0.0,
+        "--min-cash-weight",
+        help="Minimum target cash weight, e.g. 0.05.",
+    ),
+):
+    try:
+        holdings = load_batch_inputs(input_path=input_path, tickers=tickers)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if cash < 0:
+        raise typer.BadParameter("cash must be non-negative.")
+    if not 0 <= max_position_weight <= 1:
+        raise typer.BadParameter("max-position-weight must be between 0 and 1.")
+    if not 0 <= min_cash_weight <= 1:
+        raise typer.BadParameter("min-cash-weight must be between 0 and 1.")
+    if dry_run:
+        allocate = True
+
+    if analysis_date:
+        validated_batch_date = _validate_analysis_date_option(analysis_date)
+        assert validated_batch_date is not None
+        batch_date = validated_batch_date
+    else:
+        batch_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    parsed_analysts = _parse_analysts_option(analysts) or list(AnalystType)
+    parsed_depth = _validate_research_depth(research_depth)
+    if parsed_depth is None:
+        parsed_depth = 1
+    if save_path is None:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = Path.cwd() / "reports" / f"batch_{timestamp}"
+
+    run_batch_analysis(
+        holdings=holdings,
+        analysis_date=batch_date,
+        output_language=output_language,
+        analysts=parsed_analysts,
+        research_depth=parsed_depth,
+        checkpoint=checkpoint,
+        llm_overrides=LLMConfigOverrides(
+            provider=llm_provider,
+            quick_model=quick_model,
+            deep_model=deep_model,
+            backend_url=backend_url,
+            openai_reasoning_effort=openai_reasoning_effort,
+            google_thinking_level=google_thinking_level,
+            anthropic_effort=anthropic_effort,
+        ),
+        save_path=save_path,
+        display_report=display_report,
+        continue_on_error=continue_on_error,
+        available_cash=cash,
+        allocate=allocate,
+        dry_run=dry_run,
+        allocation_policy=AllocationPolicy(
+            max_position_weight=max_position_weight,
+            min_cash_weight=min_cash_weight,
+        ),
+        prices=None,
+    )
 
 
 if __name__ == "__main__":

@@ -48,7 +48,15 @@ coverage.xml
 *.cover
 *.py.cover
 .hypothesis/
+.pytest*/
 .pytest_cache/
+.pytest-tmp/
+pytest-cache-files-*/
+ta_pytest_cache/
+ta_pytest_temp/
+ta_test_artifacts/
+ta_tmp/
+tmp_pytest_test/
 cover/
 
 # Translations
@@ -149,13 +157,24 @@ activemq-data/
 
 # Environments
 .env
+.env.enterprise
+.env.openai
+.env.gemini
+.env.inception
+.env.groq
 .envrc
-.venv
+.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+auth.json
+tradingagents/Lib/
+tradingagents/Scripts/
+tradingagents/Include/
+tradingagents/share/
+tradingagents/pyvenv.cfg
 
 # Spyder project settings
 .spyderproject
@@ -168,6 +187,7 @@ venv.bak/
 /site
 
 # mypy
+.mypy*/
 .mypy_cache/
 .dmypy.json
 dmypy.json
@@ -232,3 +252,6 @@ web/.next/
 web/node_modules/
 web/out/
 web/next-env.d.ts.bak
+
+# Local git worktrees
+.worktrees/

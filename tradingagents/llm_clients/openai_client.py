@@ -1,5 +1,6 @@
 import os
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
@@ -142,31 +143,35 @@ class OpenAIClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance."""
         self.warn_if_unknown_model()
-        llm_kwargs = {"model": self.model}
+        llm_kwargs: dict[str, Any] = {"model": self.model}
+        is_native_openai = self.provider == "openai" and _is_native_openai_base_url(self.base_url)
 
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
         if self.provider in _PROVIDER_CONFIG:
             default_base, api_key_env = _PROVIDER_CONFIG[self.provider]
-            llm_kwargs["base_url"] = self.base_url or default_base
+            if not is_native_openai:
+                llm_kwargs["base_url"] = self.base_url or default_base
             if api_key_env:
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
-        elif self.base_url:
+        elif self.base_url and not is_native_openai:
             llm_kwargs["base_url"] = self.base_url
 
         # Forward user-provided kwargs
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
+                if key == "reasoning_effort" and self.provider == "openai" and self.base_url:
+                    continue
                 llm_kwargs[key] = self.kwargs[key]
 
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.
-        if self.provider == "openai":
+        if is_native_openai:
             llm_kwargs["use_responses_api"] = True
 
         # DeepSeek's thinking-mode quirks live in their own subclass so the
@@ -176,4 +181,17 @@ class OpenAIClient(BaseLLMClient):
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""
+        if self.provider == "openai" and not _is_native_openai_base_url(self.base_url):
+            return True
         return validate_model(self.provider, self.model)
+
+
+def _is_native_openai_base_url(base_url: Optional[str]) -> bool:
+    if not base_url:
+        return True
+
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or parsed.netloc != "api.openai.com":
+        return False
+
+    return parsed.path.rstrip("/") in ("", "/v1")

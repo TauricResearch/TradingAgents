@@ -1,50 +1,40 @@
 # TradingAgents/graph/trading_graph.py
 
 import logging
+import json
 import os
 from pathlib import Path
-import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import yfinance as yf
-
-logger = logging.getLogger(__name__)
-
 from langgraph.prebuilt import ToolNode
 
-from tradingagents.llm_clients import create_llm_client
-
-from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.memory import TradingMemoryLog
-from tradingagents.dataflows.utils import safe_ticker_component
-from tradingagents.agents.utils.agent_states import (
-    AgentState,
-    InvestDebateState,
-    RiskDebateState,
-)
-from tradingagents.dataflows.config import set_config
-
-# Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
-    get_fundamentals,
     get_balance_sheet,
     get_cashflow,
+    get_fundamentals,
+    get_global_news,
+    get_indicators,
     get_income_statement,
-    get_news,
     get_insider_transactions,
-    get_global_news
+    get_news,
+    get_stock_data,
 )
+from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.dataflows.config import reset_config, use_config
+from tradingagents.dataflows.utils import safe_ticker_component
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients import create_llm_client
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
+from .setup import GraphSetup
 from .signal_processing import SignalProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class TradingAgentsGraph:
@@ -52,9 +42,9 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=None,
         debug=False,
-        config: Dict[str, Any] = None,
+        config: Dict[str, Any] | None = None,
         callbacks: Optional[List] = None,
     ):
         """Initialize the trading agents graph and components.
@@ -66,15 +56,29 @@ class TradingAgentsGraph:
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
         self.debug = debug
+        if selected_analysts is None:
+            selected_analysts = [
+                "market",
+                "social",
+                "news",
+                "fundamentals",
+            ]
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
-        # Update the interface's config
-        set_config(self.config)
+        data_cache_dir = self._require_config_str("data_cache_dir")
+        results_dir = self._require_config_str("results_dir")
+        llm_provider = self._require_config_str("llm_provider").lower()
+        deep_think_llm = self._require_config_str("deep_think_llm")
+        quick_think_llm = self._require_config_str("quick_think_llm")
+        backend_url = self._optional_config_str("backend_url")
+        max_debate_rounds = self._require_config_int("max_debate_rounds")
+        max_risk_discuss_rounds = self._require_config_int("max_risk_discuss_rounds")
+        max_recur_limit = self._require_config_int("max_recur_limit")
 
         # Create necessary directories
-        os.makedirs(self.config["data_cache_dir"], exist_ok=True)
-        os.makedirs(self.config["results_dir"], exist_ok=True)
+        os.makedirs(data_cache_dir, exist_ok=True)
+        os.makedirs(results_dir, exist_ok=True)
 
         # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = self._get_provider_kwargs()
@@ -84,15 +88,15 @@ class TradingAgentsGraph:
             llm_kwargs["callbacks"] = self.callbacks
 
         deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
+            provider=llm_provider,
+            model=deep_think_llm,
+            base_url=backend_url,
             **llm_kwargs,
         )
         quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
+            provider=llm_provider,
+            model=quick_think_llm,
+            base_url=backend_url,
             **llm_kwargs,
         )
 
@@ -106,8 +110,8 @@ class TradingAgentsGraph:
 
         # Initialize components
         self.conditional_logic = ConditionalLogic(
-            max_debate_rounds=self.config["max_debate_rounds"],
-            max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
+            max_debate_rounds=max_debate_rounds,
+            max_risk_discuss_rounds=max_risk_discuss_rounds,
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
@@ -116,24 +120,54 @@ class TradingAgentsGraph:
             self.conditional_logic,
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(max_recur_limit=max_recur_limit)
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
         # State tracking
         self.curr_state = None
         self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
+        self.log_states_dict: dict[str, dict[str, Any]] = {}  # date to full state dict
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
+    def _require_config_str(self, key: str) -> str:
+        value = self.config.get(key)
+        if not isinstance(value, str):
+            raise ValueError(f"{key} must be a string, got {value!r}")
+        return value
+
+    def _optional_config_str(self, key: str) -> str | None:
+        value = self.config.get(key)
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f"{key} must be a string or None, got {value!r}")
+        return value
+
+    def _require_config_int(self, key: str) -> int:
+        value = self.config.get(key)
+        if not isinstance(value, int):
+            raise ValueError(f"{key} must be an int, got {value!r}")
+        return value
+
+    @staticmethod
+    def _validate_trade_date(trade_date: Any) -> str:
+        if not isinstance(trade_date, str):
+            raise ValueError(f"trade_date must use YYYY-MM-DD format, got {trade_date!r}")
+        try:
+            parsed = datetime.strptime(trade_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(
+                f"trade_date must use YYYY-MM-DD format, got {trade_date!r}"
+            ) from exc
+        return parsed.strftime("%Y-%m-%d")
+
     def _get_provider_kwargs(self) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
-        provider = self.config.get("llm_provider", "").lower()
+        provider = self._require_config_str("llm_provider").lower()
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
@@ -243,7 +277,7 @@ class TradingAgentsGraph:
         updates = []
         for entry in pending:
             raw, alpha, days = self._fetch_returns(ticker, entry["date"])
-            if raw is None:
+            if raw is None or alpha is None or days is None:
                 continue  # price not available yet — try again next run
             reflection = self.reflector.reflect_on_final_decision(
                 final_decision=entry.get("decision", ""),
@@ -269,36 +303,47 @@ class TradingAgentsGraph:
         with a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
         """
-        self.ticker = company_name
+        safe_company_name = safe_ticker_component(company_name)
+        safe_trade_date = TradingAgentsGraph._validate_trade_date(trade_date)
 
-        # Resolve any pending memory-log entries for this ticker before the pipeline runs.
-        self._resolve_pending_entries(company_name)
-
-        # Recompile with a checkpointer if the user opted in.
-        if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
-            )
-            saver = self._checkpointer_ctx.__enter__()
-            self.graph = self.workflow.compile(checkpointer=saver)
-
-            step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date)
-            )
-            if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
-            else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
-
+        token = use_config(self.config)
         try:
-            return self._run_graph(company_name, trade_date)
+            self.ticker = safe_company_name
+
+            # Resolve any pending memory-log entries for this ticker before the pipeline runs.
+            self._resolve_pending_entries(safe_company_name)
+
+            if self.config.get("checkpoint_enabled"):
+                with get_checkpointer(
+                    self.config["data_cache_dir"], safe_company_name
+                ) as saver:
+                    self.graph = self.workflow.compile(checkpointer=saver)
+
+                    step = checkpoint_step(
+                        self.config["data_cache_dir"], safe_company_name, safe_trade_date
+                    )
+                    if step is not None:
+                        logger.info(
+                            "Resuming from step %d for %s on %s",
+                            step,
+                            safe_company_name,
+                            safe_trade_date,
+                        )
+                    else:
+                        logger.info(
+                            "Starting fresh for %s on %s",
+                            safe_company_name,
+                            safe_trade_date,
+                        )
+
+                    return self._run_graph(safe_company_name, safe_trade_date)
+
+            return self._run_graph(safe_company_name, safe_trade_date)
         finally:
-            if self._checkpointer_ctx is not None:
-                self._checkpointer_ctx.__exit__(None, None, None)
+            if self.config.get("checkpoint_enabled"):
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
+            reset_config(token)
 
     def _run_graph(self, company_name, trade_date):
         """Execute the graph and write the resulting state to disk and memory log."""
@@ -315,14 +360,13 @@ class TradingAgentsGraph:
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
         if self.debug:
-            trace = []
+            final_state = None
             for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
+                final_state = chunk
+                if len(chunk["messages"]) != 0:
                     chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
-            final_state = trace[-1]
+            if final_state is None:
+                raise RuntimeError("Graph stream produced no chunks")
         else:
             final_state = self.graph.invoke(init_agent_state, **args)
 
@@ -349,35 +393,9 @@ class TradingAgentsGraph:
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
-        self.log_states_dict[str(trade_date)] = {
-            "company_of_interest": final_state["company_of_interest"],
-            "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
-            "investment_debate_state": {
-                "bull_history": final_state["investment_debate_state"]["bull_history"],
-                "bear_history": final_state["investment_debate_state"]["bear_history"],
-                "history": final_state["investment_debate_state"]["history"],
-                "current_response": final_state["investment_debate_state"][
-                    "current_response"
-                ],
-                "judge_decision": final_state["investment_debate_state"][
-                    "judge_decision"
-                ],
-            },
-            "trader_investment_decision": final_state["trader_investment_plan"],
-            "risk_debate_state": {
-                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
-                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
-                "neutral_history": final_state["risk_debate_state"]["neutral_history"],
-                "history": final_state["risk_debate_state"]["history"],
-                "judge_decision": final_state["risk_debate_state"]["judge_decision"],
-            },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
-        }
+        state_log = dict(final_state)
+        state_log.pop("messages", None)
+        self.log_states_dict[str(trade_date)] = state_log
 
         # Save to file. Reject ticker values that would escape the
         # results directory when joined as a path component.

@@ -21,7 +21,6 @@ added, plus the heuristic SignalProcessor.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager

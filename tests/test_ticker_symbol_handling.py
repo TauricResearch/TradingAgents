@@ -11,6 +11,14 @@ class TickerSymbolHandlingTests(unittest.TestCase):
     def test_normalize_ticker_symbol_preserves_exchange_suffix(self):
         self.assertEqual(normalize_ticker_symbol(" cnc.to "), "CNC.TO")
 
+    def test_normalize_ticker_symbol_rejects_path_traversal(self):
+        for bad in ("../x", "..\\x", "A/B", "A\\B", ".", "..", "AAP L"):
+            with self.assertRaises(ValueError):
+                normalize_ticker_symbol(bad)
+
+    def test_normalize_ticker_symbol_accepts_safe_index_symbol(self):
+        self.assertEqual(normalize_ticker_symbol(" ^gspc "), "^GSPC")
+
     def test_build_instrument_context_mentions_exact_symbol(self):
         context = build_instrument_context("7203.T")
         self.assertIn("7203.T", context)

@@ -10,6 +10,7 @@ decision-making agents share the same shape.
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
@@ -62,6 +63,24 @@ class TestRenderTraderProposal:
         assert "Position Sizing" not in md
         assert "FINAL TRANSACTION PROPOSAL: **SELL**" in md
 
+    def test_rejects_buy_stop_loss_above_entry(self):
+        with pytest.raises(ValidationError, match="Buy stop_loss must be below entry_price"):
+            TraderProposal(
+                action=TraderAction.BUY,
+                reasoning="Good setup.",
+                entry_price=416,
+                stop_loss=460,
+            )
+
+    def test_rejects_sell_stop_loss_below_entry(self):
+        with pytest.raises(ValidationError, match="Sell stop_loss must be above entry_price"):
+            TraderProposal(
+                action=TraderAction.SELL,
+                reasoning="Weak setup.",
+                entry_price=460,
+                stop_loss=416,
+            )
+
 
 @pytest.mark.unit
 class TestRenderResearchPlan:
@@ -109,9 +128,12 @@ def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = Non
             reasoning="Strong setup.",
         )
     structured = MagicMock()
-    structured.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or proposal
-    )
+
+    def invoke(prompt):
+        captured["prompt"] = prompt
+        return proposal
+
+    structured.invoke.side_effect = invoke
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm
@@ -146,6 +168,18 @@ class TestTraderAgent:
         # The investment plan is in the user message of the captured prompt.
         prompt = captured["prompt"]
         assert any("Proposed Investment Plan" in m["content"] for m in prompt)
+
+    def test_prompt_includes_structured_output_guardrails(self):
+        captured = {}
+        llm = _structured_trader_llm(captured)
+        trader = create_trader(llm)
+        trader(_make_trader_state())
+        prompt = captured["prompt"]
+        prompt_text = "\n".join(m["content"] for m in prompt)
+        assert "plain ASCII punctuation" in prompt_text
+        assert "Do not use smart quotes" in prompt_text
+        assert "Buy stop_loss must be below entry_price" in prompt_text
+        assert "Sell stop_loss must be above entry_price" in prompt_text
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
@@ -187,9 +221,12 @@ def _structured_rm_llm(captured: dict, plan: ResearchPlan | None = None):
             strategic_actions="Hold current position; reassess after earnings.",
         )
     structured = MagicMock()
-    structured.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or plan
-    )
+
+    def invoke(prompt):
+        captured["prompt"] = prompt
+        return plan
+
+    structured.invoke.side_effect = invoke
     llm = MagicMock()
     llm.with_structured_output.return_value = structured
     return llm

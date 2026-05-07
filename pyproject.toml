@@ -17,8 +17,13 @@ dependencies = [
     "langchain-openai>=0.3.23",
     "langgraph>=0.4.8",
     "langgraph-checkpoint-sqlite>=2.0.0",
+    "markdown-it-py>=3.0.0",
+    "matplotlib>=3.10.0",
     "pandas>=2.3.0",
     "parsel>=1.10.0",
+    "pydantic>=2.0.0",
+    "python-dateutil>=2.9.0",
+    "python-dotenv>=1.0.0",
     "pytz>=2025.2",
     "questionary>=2.1.0",
     "redis>=6.2.0",
@@ -45,6 +50,15 @@ service = [
     "markdown>=3.5",
     "xhtml2pdf>=0.2.13",
 ]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-timeout>=2.3.0",
+    "types-python-dateutil>=2.9.0.20241206",
+    "types-requests>=2.32.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -56,10 +70,11 @@ include = ["tradingagents*", "cli*", "gui*", "service*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+tradingagents = ["agents/prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -p no:cacheprovider"
 markers = [
     "unit: fast isolated unit tests",
     "integration: tests requiring external services",
@@ -68,3 +83,16 @@ markers = [
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.mypy]
+exclude = "^(build|dist|\\.venv|tradingagents/(Lib|Scripts|Include))/"
+disable_error_code = ["import-untyped", "import-not-found"]
+
+[[tool.mypy.overrides]]
+module = [
+    "langgraph.checkpoint.sqlite",
+    "questionary.*",
+    "stockstats.*",
+    "yfinance.*",
+]
+ignore_missing_imports = true
