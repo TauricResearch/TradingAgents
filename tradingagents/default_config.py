@@ -324,6 +324,8 @@ def build_default_config(
         },
         # Tool-level overrides are opt-in only.
         "tool_vendors": _tool_vendor_overrides(env=env),
+        # P3: Structured Output
+        "structured_output_enabled": True,
         # Report storage backend
         "mongo_uri": _env("MONGO_URI", env=env),
         "mongo_db": _env("MONGO_DB", "tradingagents", env=env),
