@@ -1,11 +1,13 @@
 # TradingAgents/graph/trading_graph.py
 
 import json
+import logging
 import os
 from copy import deepcopy
 from typing import Any
 
 # Import the new abstract tool methods
+from tradingagents.agents.utils.decision_outcome_tracker import DecisionOutcomeTracker
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -20,6 +22,8 @@ from .propagation import Propagator
 from .reflection import Reflector
 from .setup import GraphSetup
 from .signal_processing import SignalProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class TradingAgentsGraph:
@@ -131,6 +135,14 @@ class TradingAgentsGraph:
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
 
+        # Decision outcome tracker (P2) — opt-in via config
+        self._decision_tracker: DecisionOutcomeTracker | None = None
+        if self.config.get("decision_tracker_enabled"):
+            self._decision_tracker = DecisionOutcomeTracker(
+                data_cache_dir=self.config["data_cache_dir"],
+                holding_period_days=self.config.get("decision_holding_period_days", 5),
+            )
+
         # Set up the graph
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
@@ -185,6 +197,18 @@ class TradingAgentsGraph:
 
         self.ticker = company_name
 
+        # P2: Resolve pending decisions before graph execution
+        if self._decision_tracker:
+            try:
+                self._decision_tracker.resolve_pending(company_name, str(trade_date))
+            except Exception:
+                logger.warning(
+                    "Decision tracker resolution failed for %s on %s, continuing",
+                    company_name,
+                    trade_date,
+                    exc_info=True,
+                )
+
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date, run_id=generate_run_id()
@@ -220,8 +244,13 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
 
+        # P2: Record the decision after successful execution
+        if self._decision_tracker:
+            self._record_decision_from_state(company_name, trade_date, final_state)
+
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        signal = self.process_signal(final_state["final_trade_decision"])
+        return final_state, signal
 
     def _propagate_with_checkpoint(
         self,
@@ -319,6 +348,56 @@ class TradingAgentsGraph:
             encoding="utf-8",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
+
+    def _record_decision_from_state(
+        self, company_name: str, trade_date: str, final_state: dict[str, Any]
+    ) -> None:
+        """Extract the decision from final state and record it in the tracker."""
+        final_decision = final_state.get("final_trade_decision", "")
+        if not final_decision or not final_decision.strip():
+            return
+
+        # Extract rating from the signal processor's parsed output
+        try:
+            signal = self.process_signal(final_decision)
+            # signal is typically a dict or object with action/rating info
+            if hasattr(signal, "get"):
+                rating = signal.get("action", "") or signal.get("rating", "")
+            elif hasattr(signal, "action"):
+                rating = getattr(signal, "action", "")
+            else:
+                rating = str(signal) if signal else ""
+        except Exception:
+            # If signal processing fails, try to extract rating from raw text
+            rating = self._extract_rating_from_text(final_decision)
+
+        # Build a rationale summary (first 500 chars of the decision)
+        rationale_summary = final_decision[:500].strip()
+
+        try:
+            self._decision_tracker.record_decision(
+                ticker=company_name,
+                trade_date=str(trade_date),
+                rating=rating,
+                rationale_summary=rationale_summary,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to record decision for %s on %s",
+                company_name,
+                trade_date,
+                exc_info=True,
+            )
+
+    @staticmethod
+    def _extract_rating_from_text(text: str) -> str:
+        """Best-effort extraction of a rating from free-text decision output."""
+        text_lower = text.lower()
+        # Check for canonical ratings in order of specificity
+        for rating in ("overweight", "underweight", "buy", "sell", "hold"):
+            if rating in text_lower:
+                return rating.capitalize()
+        return ""
 
     def reflect_and_remember(self, returns_losses: float) -> None:
         """Reflect on decisions and update memory based on returns."""
