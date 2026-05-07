@@ -13,10 +13,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from tradingagents.agents.utils.summary_context import _fundamentals_risk_block
-
 
 # ---------------------------------------------------------------------------
 # Test: RM guard produces empty summary on failure status (Req 7.4)
@@ -28,11 +25,6 @@ class TestRMGuardEmptySummaryOnFailure:
 
     def test_reprompt_status_produces_empty_summary(self):
         """When violations are found, the guard returns empty research_packet_summary."""
-        from tradingagents.graph._consistency_guard import (
-            check_claims_via_llm,
-            extract_rm_claims,
-            generate_research_packet_summary,
-        )
         from tradingagents.graph.setup import GraphSetup
 
         # Create a mock LLM that returns a violation verdict
@@ -150,7 +142,7 @@ class TestPMNodeReceivesSummary:
 
         # Patch the chain to capture the system message content
         cfg = {"min_cash_pct": 0.05, "max_position_pct": 0.15, "max_sector_pct": 0.35, "max_positions": 15}
-        node_fn = create_pm_decision_agent(mock_llm, config=cfg)
+        create_pm_decision_agent(mock_llm, config=cfg)
 
         # Instead of running the full node (which requires complex LLM mocking),
         # verify the logic by checking _build_pm_context + the injection code path

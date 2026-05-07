@@ -7,10 +7,9 @@ Tests for `FundamentalsKeyMetrics.from_report_text()` from
 
 from __future__ import annotations
 
-import math
 import string
 
-from hypothesis import given, settings, assume
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from tradingagents.agents.utils.output_validation import FundamentalsKeyMetrics

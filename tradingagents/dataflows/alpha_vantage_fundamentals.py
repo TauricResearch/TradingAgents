@@ -28,10 +28,10 @@ def _filter_reports_by_date(result, curr_date: str | None):
     # (e.g. "2025-99-99" passes a regex but fromisoformat raises ValueError).
     try:
         cutoff = datetime.date.fromisoformat(curr_date)
-    except ValueError:
+    except ValueError as exc:
         raise ValueError(
             f"_filter_reports_by_date: curr_date={curr_date!r} is not in YYYY-MM-DD format"
-        )
+        ) from exc
 
     result = {**result}  # shallow-copy to avoid mutating the caller's dict
     for key in ("annualReports", "quarterlyReports"):

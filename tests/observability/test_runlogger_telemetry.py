@@ -12,7 +12,6 @@ from hypothesis import strategies as st
 
 from tradingagents.observability import RunLogger, _Event
 
-
 # Strategy: generate lists of (tokens_in, tokens_out) tuples representing LLM call events
 llm_event_tuples = st.lists(
     st.tuples(

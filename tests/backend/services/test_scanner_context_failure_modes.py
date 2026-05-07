@@ -17,7 +17,6 @@ from agent_os.backend.services.scanner_context import (
     validate_commodity_block,
 )
 
-
 # ---------------------------------------------------------------------------
 # Requirement 6.5: Missing scan_date fails the node with a clear error
 # ---------------------------------------------------------------------------

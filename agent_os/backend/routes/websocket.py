@@ -120,7 +120,7 @@ async def websocket_endpoint(
         logger.info("WebSocket client disconnected run=%s", run_id)
     except asyncio.CancelledError:
         logger.info("WebSocket streaming cancelled run=%s", run_id)
-    except Exception as e:
+    except Exception:
         logger.exception("Error during streaming run=%s", run_id)
         try:
             await websocket.send_json({"type": "system", "message": "Internal streaming error"})

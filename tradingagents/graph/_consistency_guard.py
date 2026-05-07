@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
-
-import logging
-
-_logger = logging.getLogger(__name__)
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
+
+_logger = logging.getLogger(__name__)
 
 # Prefix format: - [HIGH] claim text  /  • (MED) claim text
 _CLAIM_PREFIX_RE = re.compile(

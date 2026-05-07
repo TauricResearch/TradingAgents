@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, resolve_timeout
 
 logger = logging.getLogger(__name__)
-T = TypeVar("T", bound=BaseModel)
 
 
-def invoke_structured_or_freetext(
+def invoke_structured_or_freetext[T: BaseModel](
     llm: Any,
     schema: type[T],
     messages: list,
