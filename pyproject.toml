@@ -11,14 +11,16 @@ requires-python = ">=3.10"
 dependencies = [
     # Upper bounds on the most security-sensitive packages reduce supply-chain
     # risk: a compromised patch release is not pulled in automatically.
-    # Bump these intentionally when upgrading after review.
-    "langchain-core>=0.3.81,<0.5",
+    # Bumps require an intentional bump here after a quick review.
+    # Bounds are set at the next *major* version so the langchain ecosystem
+    # (which moves fast across minor versions) stays internally compatible.
+    "langchain-core>=0.3.81,<2.0",
     "backtrader>=1.9.78.123,<2.0",
-    "langchain-anthropic>=0.3.15,<0.5",
-    "langchain-experimental>=0.3.4,<0.5",
+    "langchain-anthropic>=0.3.15,<2.0",
+    "langchain-experimental>=0.3.4,<2.0",
     "langchain-google-genai>=4.0.0,<6.0",
-    "langchain-openai>=0.3.23,<0.5",
-    "langgraph>=0.4.8,<0.6",
+    "langchain-openai>=0.3.23,<2.0",
+    "langgraph>=0.4.8,<2.0",
     "langgraph-checkpoint-sqlite>=2.0.0,<3.0",
     "pandas>=2.3.0,<3.0",
     "parsel>=1.10.0,<2.0",
@@ -26,10 +28,10 @@ dependencies = [
     "questionary>=2.1.0,<3.0",
     "redis>=6.2.0,<7.0",
     "requests>=2.32.4,<3.0",
-    "rich>=14.0.0,<15.0",
-    "typer>=0.21.0,<0.22",
-    "setuptools>=80.9.0,<82.0",
-    "stockstats>=0.6.5,<0.7",
+    "rich>=14.0.0,<16.0",
+    "typer>=0.21.0,<2.0",
+    "setuptools>=80.9.0",
+    "stockstats>=0.6.5,<1.0",
     "tqdm>=4.67.1,<5.0",
     "typing-extensions>=4.14.0,<5.0",
     "yfinance>=0.2.63,<0.4",

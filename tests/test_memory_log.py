@@ -1,5 +1,7 @@
 """Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy removal."""
 
+from datetime import datetime, timedelta
+
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
@@ -537,16 +539,49 @@ class TestDeferredReflection:
 
     # TradingAgentsGraph._resolve_pending_entries
 
-    def test_resolve_skips_other_tickers(self, tmp_path):
-        """Pending AAPL entry is not resolved when the run is for NVDA."""
+    def test_resolve_skips_recent_other_tickers(self, tmp_path):
+        """Recent pending AAPL entry is not resolved when the run is for NVDA.
+
+        Cross-ticker entries are only swept once they exceed
+        _STALE_PENDING_DAYS so a same-day or recent run on a different
+        ticker doesn't trigger an unnecessary resolution pass.
+        """
+        # Entry dated today — well within the staleness window.
+        recent_date = datetime.now().strftime("%Y-%m-%d")
         log = make_log(tmp_path)
-        log.store_decision("AAPL", "2026-01-10", DECISION_BUY)
+        log.store_decision("AAPL", recent_date, DECISION_BUY)
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.memory_log = log
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
+        mock_graph._STALE_PENDING_DAYS = TradingAgentsGraph._STALE_PENDING_DAYS
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
         mock_graph._fetch_returns.assert_not_called()
         assert len(log.get_pending_entries()) == 1
+
+    def test_resolve_sweeps_stale_other_tickers(self, tmp_path):
+        """Old pending entries for other tickers ARE resolved during sweep.
+
+        This guards against the prior behavior where a ticker that was never
+        re-run would leave its pending entry in the log indefinitely.
+        """
+        stale_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
+        log = make_log(tmp_path)
+        log.store_decision("AAPL", stale_date, DECISION_BUY)
+        mock_reflector = MagicMock()
+        mock_reflector.reflect_on_final_decision.return_value = "Stale resolved."
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.memory_log = log
+        mock_graph.reflector = mock_reflector
+        mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
+        mock_graph._STALE_PENDING_DAYS = TradingAgentsGraph._STALE_PENDING_DAYS
+        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
+        # AAPL's stale pending entry should now be resolved
+        assert log.get_pending_entries() == []
+        entries = log.load_entries()
+        assert len(entries) == 1
+        assert entries[0]["ticker"] == "AAPL"
+        assert entries[0]["pending"] is False
+        assert entries[0]["reflection"] == "Stale resolved."
 
     def test_resolve_marks_entry_completed(self, tmp_path):
         """After resolve, get_pending_entries() is empty and the entry has a REFLECTION."""
@@ -558,6 +593,7 @@ class TestDeferredReflection:
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
+        mock_graph._STALE_PENDING_DAYS = TradingAgentsGraph._STALE_PENDING_DAYS
         TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
         assert log.get_pending_entries() == []
         entries = log.load_entries()
