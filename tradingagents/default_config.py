@@ -329,10 +329,24 @@ def build_default_config(
             _env("STRUCTURED_OUTPUT_ENABLED", env=env),
             default=True,
         ),
+        # P2: Decision Outcome Tracker
+        "decision_tracker_enabled": _is_truthy(
+            _env("DECISION_TRACKER_ENABLED", env=env),
+            default=False,
+        ),
+        "decision_holding_period_days": _env_int(
+            "DECISION_HOLDING_PERIOD_DAYS", 5, env=env
+        ),
+        "decision_cross_ticker_n": _env_int("DECISION_CROSS_TICKER_N", 3, env=env),
         # Report storage backend
         "mongo_uri": _env("MONGO_URI", env=env),
         "mongo_db": _env("MONGO_DB", "tradingagents", env=env),
         "default_portfolio_id": _env("DEFAULT_PORTFOLIO_ID", "main_portfolio", env=env),
+        # Checkpoint resume (opt-in)
+        "checkpoint_enabled": _is_truthy(
+            _env("CHECKPOINT_ENABLED", env=env),
+            default=False,
+        ),
     }
 
 

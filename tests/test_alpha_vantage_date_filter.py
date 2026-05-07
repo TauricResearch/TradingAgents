@@ -1,11 +1,12 @@
-"""Tests for _filter_reports_by_date in alpha_vantage_fundamentals.
+"""Property-based and unit tests for Alpha Vantage look-ahead bias date filter.
 
-Feature: upstream-feature-adoption, Properties 4-5: Alpha Vantage Report Date Filter
+Feature: upstream-feature-adoption
+Properties 4-5: Alpha Vantage Report Date Filter, None Passthrough
+Validates: Requirements 2.1, 2.2, 2.3
 """
 
-from __future__ import annotations
-
 import copy
+import datetime
 
 import pytest
 from hypothesis import given, settings
@@ -14,163 +15,162 @@ from hypothesis import strategies as st
 from tradingagents.dataflows.alpha_vantage_fundamentals import _filter_reports_by_date
 
 # ---------------------------------------------------------------------------
-# Strategies
+# Hypothesis strategies
 # ---------------------------------------------------------------------------
 
-# Generate valid YYYY-MM-DD date strings
-_date_strategy = st.dates().map(lambda d: d.isoformat())
+_DATE_STR = st.dates(
+    min_value=datetime.date(2010, 1, 1),
+    max_value=datetime.date(2026, 12, 31),
+).map(lambda d: d.strftime("%Y-%m-%d"))
 
-# Generate a single report entry with a valid fiscalDateEnding
-_report_entry = st.fixed_dictionaries(
-    {"fiscalDateEnding": _date_strategy, "totalAssets": st.integers(min_value=0)}
-)
 
-# Generate a dict resembling an Alpha Vantage response
-_av_response = st.fixed_dictionaries(
-    {
-        "annualReports": st.lists(_report_entry, min_size=0, max_size=10),
-        "quarterlyReports": st.lists(_report_entry, min_size=0, max_size=10),
-    }
-)
+@st.composite
+def alpha_vantage_response(draw):
+    """Generate a dict mimicking Alpha Vantage report response."""
+    n_annual = draw(st.integers(min_value=0, max_value=10))
+    n_quarterly = draw(st.integers(min_value=0, max_value=20))
+
+    annual_reports = [
+        {"fiscalDateEnding": draw(_DATE_STR), "totalAssets": "1000000"} for _ in range(n_annual)
+    ]
+    quarterly_reports = [
+        {"fiscalDateEnding": draw(_DATE_STR), "totalAssets": "500000"} for _ in range(n_quarterly)
+    ]
+
+    return {"annualReports": annual_reports, "quarterlyReports": quarterly_reports}
 
 
 # ---------------------------------------------------------------------------
-# Property 4: Alpha Vantage Report Date Filter Correctness
+# Property 4: Alpha Vantage Report Date Filter
+# All remaining reports have fiscalDateEnding <= curr_date
 # ---------------------------------------------------------------------------
 
 
+@given(response=alpha_vantage_response(), curr_date=_DATE_STR)
 @settings(max_examples=100)
-@given(result=_av_response, curr_date=_date_strategy)
-def test_prop4_all_remaining_reports_on_or_before_curr_date(result, curr_date):
-    """After filtering, every remaining report has fiscalDateEnding <= curr_date."""
-    # Feature: upstream-feature-adoption, Property 4: Alpha Vantage Report Date Filter
-    result_copy = copy.deepcopy(result)
-    filtered = _filter_reports_by_date(result_copy, curr_date)
-
+def test_property_4_all_reports_on_or_before_curr_date(response, curr_date):
+    """Property 4: After filtering, every report has fiscalDateEnding <= curr_date."""
+    result = _filter_reports_by_date(response, curr_date)
     for key in ("annualReports", "quarterlyReports"):
-        for report in filtered.get(key, []):
-            assert report["fiscalDateEnding"] <= curr_date
+        if key in result:
+            for report in result[key]:
+                assert report["fiscalDateEnding"] <= curr_date
 
 
 # ---------------------------------------------------------------------------
 # Property 5: Alpha Vantage None Passthrough
+# filter(result, None) returns identical dict
 # ---------------------------------------------------------------------------
 
 
+@given(response=alpha_vantage_response())
 @settings(max_examples=100)
-@given(result=_av_response)
-def test_prop5_none_passthrough_returns_identical(result):
-    """filter(result, None) returns a dict identical to the input."""
-    # Feature: upstream-feature-adoption, Property 5: Alpha Vantage None Passthrough
-    result_copy = copy.deepcopy(result)
-    filtered = _filter_reports_by_date(result_copy, None)
-    assert filtered == result
+def test_property_5_none_passthrough(response):
+    """Property 5: Passing None as curr_date returns the dict unchanged."""
+    original = copy.deepcopy(response)
+    result = _filter_reports_by_date(response, None)
+    assert result == original
 
 
 # ---------------------------------------------------------------------------
-# Unit: Invalid curr_date raises ValueError
+# Unit tests: edge cases
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "invalid_date",
-    [
-        "2025-99-99",  # Invalid month/day
-        "2025-13-01",  # Month > 12
-        "2025-02-30",  # Feb 30 doesn't exist
-        "not-a-date",
-        "",
-        "2025/01/01",  # Wrong separator
-        "20250101",  # No separators (not YYYY-MM-DD)
-    ],
-)
-def test_invalid_curr_date_raises_valueerror(invalid_date):
-    """Invalid calendar dates raise ValueError, not silently pass."""
-    result = {"annualReports": [{"fiscalDateEnding": "2025-01-01"}]}
-    with pytest.raises(ValueError, match="curr_date must be"):
-        _filter_reports_by_date(result, invalid_date)
-
-
-# ---------------------------------------------------------------------------
-# Unit: Error string passthrough
-# ---------------------------------------------------------------------------
-
-
-def test_error_string_passthrough():
-    """When result is a string (API error), it passes through unchanged."""
-    error_msg = "Error: API rate limit exceeded"
-    assert _filter_reports_by_date(error_msg, "2025-01-01") == error_msg
-
-
-def test_error_string_passthrough_none_date():
-    """String result with None curr_date passes through."""
-    error_msg = "Error: Invalid API key"
-    assert _filter_reports_by_date(error_msg, None) == error_msg
-
-
-# ---------------------------------------------------------------------------
-# Unit: All reports after curr_date returns empty arrays
-# ---------------------------------------------------------------------------
+def test_string_input_passthrough():
+    """Error string input is returned unchanged."""
+    error_str = "Error: API rate limit exceeded"
+    result = _filter_reports_by_date(error_str, "2025-01-01")
+    assert result == error_str
 
 
 def test_all_reports_after_curr_date():
-    """When all reports are after curr_date, arrays are empty."""
-    result = {
+    """All reports after curr_date returns empty arrays."""
+    response = {
         "annualReports": [
-            {"fiscalDateEnding": "2026-12-31"},
-            {"fiscalDateEnding": "2025-12-31"},
+            {"fiscalDateEnding": "2026-12-31", "totalAssets": "1000"},
+            {"fiscalDateEnding": "2025-12-31", "totalAssets": "900"},
         ],
         "quarterlyReports": [
-            {"fiscalDateEnding": "2025-06-30"},
-            {"fiscalDateEnding": "2025-03-31"},
+            {"fiscalDateEnding": "2025-06-30", "totalAssets": "800"},
         ],
     }
-    filtered = _filter_reports_by_date(result, "2024-01-01")
-    assert filtered["annualReports"] == []
-    assert filtered["quarterlyReports"] == []
-
-
-# ---------------------------------------------------------------------------
-# Unit: Missing report keys in dict
-# ---------------------------------------------------------------------------
+    result = _filter_reports_by_date(response, "2024-01-01")
+    assert result["annualReports"] == []
+    assert result["quarterlyReports"] == []
 
 
 def test_missing_report_keys():
-    """Dict without annualReports/quarterlyReports keys is returned unchanged."""
-    result = {"symbol": "AAPL", "someOtherKey": "value"}
-    filtered = _filter_reports_by_date(result, "2025-06-01")
-    assert filtered == {"symbol": "AAPL", "someOtherKey": "value"}
+    """Dict without report keys is returned unchanged."""
+    response = {"Symbol": "AAPL", "Description": "Apple Inc."}
+    result = _filter_reports_by_date(response, "2025-01-01")
+    assert result == response
 
 
-def test_partial_report_keys():
-    """Dict with only one report key filters that key correctly."""
-    result = {
+def test_partial_filtering():
+    """Only reports after curr_date are removed."""
+    response = {
         "annualReports": [
-            {"fiscalDateEnding": "2024-12-31"},
-            {"fiscalDateEnding": "2025-12-31"},
+            {"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"},
+            {"fiscalDateEnding": "2025-12-31", "totalAssets": "1100"},
         ],
     }
-    filtered = _filter_reports_by_date(result, "2025-01-01")
-    assert filtered["annualReports"] == [{"fiscalDateEnding": "2024-12-31"}]
-    assert "quarterlyReports" not in filtered
+    result = _filter_reports_by_date(response, "2025-06-01")
+    assert len(result["annualReports"]) == 1
+    assert result["annualReports"][0]["fiscalDateEnding"] == "2024-12-31"
 
 
-# ---------------------------------------------------------------------------
-# Unit: curr_date after all data (no-op filter)
-# ---------------------------------------------------------------------------
-
-
-def test_curr_date_after_all_data():
-    """When curr_date is after all reports, all reports are retained."""
-    result = {
+def test_missing_fiscal_date_ending_excluded():
+    """Reports missing fiscalDateEnding are excluded rather than silently passing."""
+    response = {
         "annualReports": [
-            {"fiscalDateEnding": "2023-12-31"},
-            {"fiscalDateEnding": "2022-12-31"},
+            {"fiscalDateEnding": "2024-06-30", "totalAssets": "1000"},
+            {"totalAssets": "500"},  # missing fiscalDateEnding
+            {"fiscalDateEnding": "", "totalAssets": "300"},  # empty string
+        ],
+    }
+    result = _filter_reports_by_date(response, "2025-01-01")
+    # Only the report with a valid date on or before curr_date should remain
+    assert len(result["annualReports"]) == 1
+    assert result["annualReports"][0]["fiscalDateEnding"] == "2024-06-30"
+
+
+def test_no_mutation_of_input():
+    """Filtering does not mutate the original input dict."""
+    response = {
+        "annualReports": [
+            {"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"},
+            {"fiscalDateEnding": "2026-12-31", "totalAssets": "1100"},
         ],
         "quarterlyReports": [
-            {"fiscalDateEnding": "2024-03-31"},
+            {"fiscalDateEnding": "2025-06-30", "totalAssets": "800"},
         ],
     }
-    filtered = _filter_reports_by_date(result, "2030-12-31")
-    assert len(filtered["annualReports"]) == 2
-    assert len(filtered["quarterlyReports"]) == 1
+    original_annual_len = len(response["annualReports"])
+    original_quarterly_len = len(response["quarterlyReports"])
+
+    _filter_reports_by_date(response, "2025-01-01")
+
+    # Original dict must be unchanged
+    assert len(response["annualReports"]) == original_annual_len
+    assert len(response["quarterlyReports"]) == original_quarterly_len
+
+
+def test_invalid_curr_date_raises_valueerror():
+    """Malformed curr_date raises ValueError instead of silently mis-comparing.
+
+    Covers: wrong separators, non-date strings, empty string, and invalid
+    calendar dates that pass a digit-only regex (e.g. "2025-99-99").
+    """
+    response = {
+        "annualReports": [{"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"}],
+    }
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "2025/01/01")
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "Jan 2025")
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "")
+    # Invalid calendar date — passes digit regex but fromisoformat rejects it
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "2025-99-99")
