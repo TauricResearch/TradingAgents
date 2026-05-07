@@ -6,6 +6,12 @@ inclusion: auto
 
 This project uses a local virtual environment at `.venv/`.
 
+## Git & PRs
+
+- The fork remote is `origin` → `aguzererler/TradingAgents`
+- Always create PRs on `aguzererler/TradingAgents` (not the upstream `TauricResearch/TradingAgents`)
+- Use: `gh pr create --repo aguzererler/TradingAgents --base main`
+
 ## Running Python
 
 ```bash

@@ -33,6 +33,7 @@ class MarketPriceRow:
     current_price: float
     absolute_change: float
     percent_change: float
+    yoy_change: float = 0.0
 
 
 class MarketPricesClient:
@@ -56,6 +57,18 @@ class MarketPricesClient:
         except Exception as exc:
             raise YFinanceError(f"Failed to fetch market prices: {exc}") from exc
 
+        # Fetch 1-year data for YoY calculation
+        yoy_df = None
+        try:
+            yoy_df = safe_yf_download(
+                symbols,
+                period="1y",
+                auto_adjust=False,
+                progress=False,
+            )
+        except Exception:
+            logger.warning("Failed to fetch 1-year data for YoY calculation; defaulting to 0.0")
+
         rows: dict[str, MarketPriceRow] = {}
         for asset, symbol in _MARKET_PRICE_SYMBOLS.items():
             closes = self._extract_latest_closes(prices_df, symbol)
@@ -70,12 +83,22 @@ class MarketPricesClient:
             absolute_change = current_price - prev_close
             percent_change = (absolute_change / prev_close * 100) if prev_close else 0.0
 
+            # Compute YoY change from 1-year data
+            yoy_change = 0.0
+            if yoy_df is not None:
+                yoy_closes = self._extract_latest_closes(yoy_df, symbol)
+                if yoy_closes is not None and len(yoy_closes) >= 2:
+                    year_ago_price = float(yoy_closes.iloc[0])
+                    if year_ago_price:
+                        yoy_change = (current_price - year_ago_price) / year_ago_price * 100
+
             rows[asset] = MarketPriceRow(
                 asset=asset,
                 symbol=symbol,
                 current_price=current_price,
                 absolute_change=absolute_change,
                 percent_change=percent_change,
+                yoy_change=yoy_change,
             )
 
         return rows
@@ -112,14 +135,15 @@ def _format_market_price_table(title: str, rows: list[MarketPriceRow]) -> str:
         title,
         f"_Data retrieved on: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}_",
         "",
-        "| Asset | Symbol | Current Price | Change | Change % |",
-        "|---|---|---:|---:|---:|",
+        "| Asset | Symbol | Current Price | Change | Change % | YoY % |",
+        "|---|---|---:|---:|---:|---:|",
     ]
     for row in rows:
         price_str = f"${row.current_price:,.2f}"
         change_str = f"{row.absolute_change:+.2f}"
         pct_str = f"{row.percent_change:+.2f}%"
-        lines.append(f"| {row.asset} | {row.symbol} | {price_str} | {change_str} | {pct_str} |")
+        yoy_str = f"{row.yoy_change:+.2f}%"
+        lines.append(f"| {row.asset} | {row.symbol} | {price_str} | {change_str} | {pct_str} | {yoy_str} |")
     return "\n".join(lines)
 
 
