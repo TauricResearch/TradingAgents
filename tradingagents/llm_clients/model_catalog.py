@@ -15,12 +15,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 Nano - Cheapest, high-volume tasks", "gpt-5.4-nano"),
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
             ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
             ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),
             ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
             ("GPT-5.4 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.4-pro"),
+            ("Custom model ID", "custom"),
         ],
     },
     "anthropic": {
@@ -28,12 +30,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
             ("Claude Haiku 4.5 - Fast, near-instant responses", "claude-haiku-4-5"),
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
             ("Claude Opus 4.6 - Most intelligent, agents and coding", "claude-opus-4-6"),
             ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
+            ("Custom model ID", "custom"),
         ],
     },
     "google": {
@@ -42,12 +46,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
             ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite-preview"),
             ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
             ("Gemini 3.1 Pro - Reasoning-first, complex workflows", "gemini-3.1-pro-preview"),
             ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
             ("Gemini 2.5 Pro - Stable pro model", "gemini-2.5-pro"),
             ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
+            ("Custom model ID", "custom"),
         ],
     },
     "xai": {
@@ -55,12 +61,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
             ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
             ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
             ("Grok 4 - Flagship model", "grok-4-0709"),
             ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+            ("Custom model ID", "custom"),
         ],
     },
     "deepseek": {
@@ -107,11 +115,35 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+            ("Custom model ID", "custom"),
         ],
         "deep": [
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "nvidia": {
+        "quick": [
+            ("Llama-3.1 8B Instruct", "meta/llama-3.1-8b-instruct"),
+            ("Llama-3.2 3B Instruct", "meta/llama-3.2-3b-instruct"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Llama-3.1 70B Instruct", "meta/llama-3.1-70b-instruct"),
+            ("Llama-3.1 405B Instruct", "meta/llama-3.1-405b-instruct"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "litellm": {
+        "quick": [
+            ("Default Quick Model (e.g. gpt-3.5-turbo)", "gpt-3.5-turbo"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Default Deep Model (e.g. gpt-4)", "gpt-4"),
+            ("Custom model ID", "custom"),
         ],
     },
 }
