@@ -3,10 +3,12 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
 from langgraph.prebuilt import ToolNode
 from cli.main import ANALYST_AGENT_NAMES, ANALYST_ORDER, ANALYST_REPORT_MAP
 from cli.models import AnalystType
 from cli.utils import ANALYST_ORDER as CLI_ANALYST_ORDER
+from tradingagents.agents.analysts.esg_analyst import create_esg_analyst
 from tradingagents.agents.utils.esg_data_tools import get_esg_news, get_esg_scores
 from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.graph.propagation import Propagator
@@ -52,6 +54,36 @@ def test_esg_conditional_logic_and_graph_compile():
         conditional_logic=logic,
     )
     setup.setup_graph(["esg"]).compile()
+
+
+class _PromptCaptureLLM:
+    def __init__(self):
+        self.system_content = None
+
+    def bind_tools(self, tools):
+        def capture(prompt_value):
+            self.system_content = prompt_value.to_messages()[0].content
+            return AIMessage(content="ESG report", tool_calls=[])
+
+        return RunnableLambda(capture)
+
+
+def test_esg_analyst_system_message_is_rendered_as_string():
+    llm = _PromptCaptureLLM()
+    node = create_esg_analyst(llm)
+
+    result = node(
+        {
+            "messages": [("human", "AAPL")],
+            "company_of_interest": "AAPL",
+            "trade_date": "2025-01-01",
+        }
+    )
+
+    assert result["esg_report"] == "ESG report"
+    assert "You are an ESG" in llm.system_content
+    assert "('You are an ESG" not in llm.system_content
+    assert "',)" not in llm.system_content
 
 def test_esg_news_parses_nested_yfinance_articles():
     nested_article = {

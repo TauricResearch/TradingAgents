@@ -42,7 +42,7 @@ def create_esg_analyst(llm):
             "Highlight any controversies or red flags that could impact stock performance."
             + " Make sure to append a Markdown table at the end of the report to organize key points, making it easy to read."
             + " Use the available tools: `get_esg_scores` for ESG ratings and scores, `get_esg_news` for ESG-related news and controversies."
-            + get_language_instruction(),
+            + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
