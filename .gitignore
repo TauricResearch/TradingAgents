@@ -157,6 +157,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local run artifacts (not committed)
+reports/
+.gstack/
+
 # Spyder project settings
 .spyderproject
 .spyproject

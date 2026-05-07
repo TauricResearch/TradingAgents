@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal, Optional
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
 
@@ -71,3 +71,36 @@ class AgentState(MessagesState):
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     past_context: Annotated[str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"]
+
+    # ----------------------------------------------------------------------
+    # Polymarket Phase A additions
+    # ----------------------------------------------------------------------
+    # `instrument_type` is the discriminator. Existing callers default to
+    # 'stock' so behavior is unchanged. Polymarket callers (via
+    # propagate_market) set it to 'polymarket' and populate the optional
+    # fields below. Analysts and conditional_logic branch on this field.
+    instrument_type: Annotated[
+        Literal["stock", "polymarket"],
+        "Discriminator: which kind of instrument is being analysed",
+    ]
+    market_id: Annotated[
+        Optional[str],
+        "Polymarket market id (gamma-api `id`). None in stock mode.",
+    ]
+    market_question: Annotated[
+        Optional[str],
+        "Polymarket question text. None in stock mode.",
+    ]
+    yes_price: Annotated[
+        Optional[float],
+        "Current YES contract price in [0.0, 1.0]. None in stock mode.",
+    ]
+    resolution_date: Annotated[
+        Optional[str],
+        "ISO 8601 resolution date for the prediction market. None in stock mode.",
+    ]
+    probability_report: Annotated[
+        Optional[str],
+        "Probability analyst's report (replaces fundamentals_report semantically "
+        "in polymarket mode). None in stock mode.",
+    ]

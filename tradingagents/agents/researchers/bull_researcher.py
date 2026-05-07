@@ -12,7 +12,40 @@ def create_bull_researcher(llm):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        instrument_type = state.get("instrument_type", "stock")
+
+        if instrument_type == "polymarket":
+            market_question = state.get("market_question", "")
+            yes_price = state.get("yes_price", 0.5)
+            resolution_date = state.get("resolution_date", "")
+            probability_report = state.get("probability_report", "")
+            prompt = f"""You are a Bull Analyst on a Polymarket prediction market. Your job is to argue that YES is undervalued at the current price and the market is mispriced.
+
+Market: "{market_question}"
+Current YES price: {yes_price}  (range 0.0 to 1.0; this is the market's implied probability of YES)
+Resolution date: {resolution_date}
+
+Build the strongest evidence-based case that YES is mispriced low. Ground your argument in:
+1. Base rate: how often does this kind of event happen historically? Is the current price below the base rate?
+2. Recent signals: what news, data, or developments favor YES outcome?
+3. Resolution criteria: do the criteria favor a YES interpretation? Is there ambiguity that resolves toward YES?
+4. Why the market is mispriced: what is the crowd missing? Information asymmetry, inattention, or systematic bias?
+5. Bear Counterpoints: directly engage with the bear's claims; refute them with data and reasoning.
+
+Avoid stock-market vocabulary (no P/E ratios, no earnings, no moats; this is a binary event contract).
+
+Resources available:
+News context for the event: {news_report}
+Social/sentiment context: {sentiment_report}
+Probability/base-rate analysis: {probability_report}
+Market data report: {market_research_report}
+Conversation history of the debate: {history}
+Last bear argument: {current_response}
+
+Deliver a compelling bull argument and refute the bear's concerns.
+"""
+        else:
+            prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
 Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.

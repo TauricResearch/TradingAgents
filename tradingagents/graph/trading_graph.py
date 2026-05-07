@@ -262,6 +262,150 @@ class TradingAgentsGraph:
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
 
+    def propagate_market(
+        self,
+        market_id: str,
+        question: str,
+        yes_price: float,
+        resolution_date: str,
+        poll_interval_seconds: int = 1800,
+        on_step=None,
+    ):
+        """Run a lite Polymarket research pipeline for a single market.
+
+        Phase A pipeline (no LangGraph): pre-fetch Exa news, bull/bear debate
+        via the retuned researcher prompts, then a structured-output trader
+        synthesis that produces a `PolymarketDecision`.
+
+        Returns:
+            tuple[dict, PolymarketDecision]: state used and final decision
+
+        thread_id collision guard (D3 from the eng review): the cycle bucket
+        is computed from time and poll_interval, so the same market analysed
+        across two polling cycles produces distinct identifiers, useful for
+        downstream logging even though this lite pipeline does not invoke
+        the LangGraph checkpointer.
+        """
+        import time
+        from tradingagents.dataflows.polymarket_news import search_event_news
+        from tradingagents.agents.researchers.bull_researcher import create_bull_researcher
+        from tradingagents.agents.researchers.bear_researcher import create_bear_researcher
+        from tradingagents.agents.schemas import PolymarketDecision, PolymarketDirection
+
+        cycle_ts = int(time.time() // poll_interval_seconds)
+        thread_label = f"{market_id}_{cycle_ts}"
+
+        def _step(label: str) -> None:
+            if on_step is not None:
+                on_step(label)
+
+        # Step 1: Pre-fetch news context. Empty list signals low-confidence;
+        # propagate_market returns a HOLD with reason instead of crashing.
+        _step("fetching news context")
+        articles = search_event_news(question, limit=10)
+        if not articles:
+            decision = PolymarketDecision(
+                market_id=market_id,
+                question=question,
+                direction=PolymarketDirection.HOLD,
+                confidence=0.0,
+                rationale="LOW_CONFIDENCE: insufficient news context (< 3 sources)",
+                yes_price_at_analysis=yes_price,
+                cycle_ts=cycle_ts,
+            )
+            return ({"thread_label": thread_label, "low_confidence": True}, decision)
+
+        news_blob = "\n\n".join(
+            f"- {a['title']} ({a.get('published_date', 'no date')})\n  {a['text'][:500]}"
+            for a in articles[:6]
+        )
+
+        # Step 2: Build polymarket state. Empty stock fields are fine because
+        # the retuned bull/bear prompts branch on instrument_type.
+        from tradingagents.agents.utils.agent_states import InvestDebateState
+        pm_state = {
+            "messages": [],
+            "company_of_interest": "",
+            "trade_date": "",
+            "sender": "",
+            "market_report": f"YES price: {yes_price}; resolution: {resolution_date}",
+            "sentiment_report": "",
+            "news_report": news_blob,
+            "fundamentals_report": "",
+            "investment_debate_state": InvestDebateState({
+                "bull_history": "",
+                "bear_history": "",
+                "history": "",
+                "current_response": "",
+                "judge_decision": "",
+                "count": 0,
+            }),
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "risk_debate_state": {},
+            "final_trade_decision": "",
+            "past_context": "",
+            "instrument_type": "polymarket",
+            "market_id": market_id,
+            "market_question": question,
+            "yes_price": yes_price,
+            "resolution_date": resolution_date,
+            "probability_report": "",
+        }
+
+        # Step 3: Bull, then bear debate (one round each, Phase A keeps it short).
+        bull_node = create_bull_researcher(self.quick_thinking_llm)
+        bear_node = create_bear_researcher(self.quick_thinking_llm)
+        _step("bull researcher")
+        update = bull_node(pm_state)
+        pm_state["investment_debate_state"] = update["investment_debate_state"]
+        _step("bear researcher")
+        update = bear_node(pm_state)
+        pm_state["investment_debate_state"] = update["investment_debate_state"]
+
+        # Step 4: Trader synthesis with structured output.
+        trader_prompt = (
+            f"You are the Trader synthesizing a Polymarket position recommendation.\n\n"
+            f"Market: \"{question}\"\n"
+            f"Current YES price: {yes_price} (implied probability)\n"
+            f"Resolution date: {resolution_date}\n\n"
+            f"Bull/Bear debate:\n{pm_state['investment_debate_state']['history']}\n\n"
+            f"News context:\n{news_blob[:2000]}\n\n"
+            f"Decide: BUY_YES if the true probability is meaningfully higher than the "
+            f"current price, BUY_NO if meaningfully lower, HOLD otherwise (within ~5pp). "
+            f"Return a PolymarketDecision with confidence 0.0-1.0 reflecting how "
+            f"strongly the evidence supports your direction."
+        )
+
+        _step("trader synthesis")
+        try:
+            structured_llm = self.quick_thinking_llm.with_structured_output(PolymarketDecision)
+            partial = structured_llm.invoke(trader_prompt)
+            # The LLM may not echo immutable fields exactly. Override them with
+            # the inputs we know are correct so the contract is honored.
+            decision = PolymarketDecision(
+                market_id=market_id,
+                question=question,
+                direction=partial.direction,
+                confidence=partial.confidence,
+                rationale=partial.rationale,
+                yes_price_at_analysis=yes_price,
+                cycle_ts=cycle_ts,
+            )
+        except Exception as e:  # noqa: BLE001  Phase A: any failure -> HOLD
+            logger.warning("propagate_market trader step failed: %s", e)
+            decision = PolymarketDecision(
+                market_id=market_id,
+                question=question,
+                direction=PolymarketDirection.HOLD,
+                confidence=0.0,
+                rationale=f"Trader synthesis failed: {type(e).__name__}",
+                yes_price_at_analysis=yes_price,
+                cycle_ts=cycle_ts,
+            )
+
+        return (pm_state, decision)
+
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date.
 

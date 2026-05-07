@@ -226,3 +226,52 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Polymarket prediction-market decision schema (Phase A)
+# ---------------------------------------------------------------------------
+
+
+class PolymarketDirection(str, Enum):
+    """Position direction on a Polymarket binary market."""
+
+    BUY_YES = "BUY_YES"
+    BUY_NO = "BUY_NO"
+    HOLD = "HOLD"
+
+
+class PolymarketDecision(BaseModel):
+    """Trader output for a single Polymarket market.
+
+    Phase A's output contract: every market analysed by `propagate_market`
+    produces exactly this shape. Phase B's TypeScript bridge depends on this
+    schema being stable.
+    """
+
+    market_id: str = Field(
+        description="Polymarket market id (gamma-api `id` field, e.g. '540816')."
+    )
+    question: str = Field(
+        description="The market's question text, verbatim. Anchors which event was analysed."
+    )
+    direction: PolymarketDirection = Field(
+        description="BUY_YES, BUY_NO, or HOLD on this market."
+    )
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Estimated probability the recommendation is correct, 0.0 to 1.0.",
+    )
+    rationale: str = Field(
+        description="One-paragraph reasoning for the recommendation. Cite specific evidence."
+    )
+    yes_price_at_analysis: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="The current YES contract price (0.0-1.0) at the moment of analysis.",
+    )
+    cycle_ts: int = Field(
+        description="Polling cycle timestamp bucket. Used as part of the LangGraph thread id "
+        "to prevent checkpoint collisions across cycles."
+    )

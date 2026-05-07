@@ -12,7 +12,40 @@ def create_bear_researcher(llm):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        instrument_type = state.get("instrument_type", "stock")
+
+        if instrument_type == "polymarket":
+            market_question = state.get("market_question", "")
+            yes_price = state.get("yes_price", 0.5)
+            resolution_date = state.get("resolution_date", "")
+            probability_report = state.get("probability_report", "")
+            prompt = f"""You are a Bear Analyst on a Polymarket prediction market. Your job is to argue that YES is overvalued at the current price; the market is mispriced high.
+
+Market: "{market_question}"
+Current YES price: {yes_price}  (range 0.0 to 1.0; this is the market's implied probability of YES)
+Resolution date: {resolution_date}
+
+Build the strongest evidence-based case that YES is overpriced. Ground your argument in:
+1. Base rate: how often does this kind of event actually happen? Is the current price above the base rate?
+2. Recent signals: what news, data, or developments favor a NO outcome?
+3. Resolution criteria: are the criteria stricter than the market is pricing? Is there ambiguity that resolves toward NO?
+4. Why the market is mispriced high: what is the crowd over-weighting? Recency bias, narrative momentum, or hype?
+5. Bull Counterpoints: directly engage with the bull's claims; expose weak assumptions and over-optimism.
+
+Avoid stock-market vocabulary (no P/E ratios, no earnings, no moats; this is a binary event contract).
+
+Resources available:
+News context for the event: {news_report}
+Social/sentiment context: {sentiment_report}
+Probability/base-rate analysis: {probability_report}
+Market data report: {market_research_report}
+Conversation history of the debate: {history}
+Last bull argument: {current_response}
+
+Deliver a compelling bear argument and refute the bull's claims.
+"""
+        else:
+            prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
 Key points to focus on:
 

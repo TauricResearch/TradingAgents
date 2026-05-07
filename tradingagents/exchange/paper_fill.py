@@ -1,0 +1,82 @@
+"""Order-book walking simulator for Polymarket Phase A paper fills.
+
+Given a list of CLOB asks (`{"price": float, "size": float}` per level) and
+a USDC budget, walk levels cheapest-first until the budget is spent or asks
+are exhausted. Returns a dict with VWAP, contracts acquired, slippage in
+percentage points, and an estimated 2% resolution fee on the win-side payout.
+
+This is the Phase A bridge between a `PolymarketDecision` and a real-world
+P&L estimate. It does NOT place orders. It does NOT touch a wallet. It is
+deterministic and testable.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Iterable
+
+
+def simulate_fill(
+    asks: Iterable[dict[str, float]],
+    budget_usd: float,
+    fee_rate: float = 0.02,
+) -> dict[str, Any]:
+    """Walk asks cheapest-first, accumulating fills until budget is spent.
+
+    Args:
+        asks: order book asks, each `{"price": float in [0,1], "size": float contracts}`.
+            May be unsorted; this function sorts ascending by price.
+        budget_usd: USDC budget to spend.
+        fee_rate: Polymarket charges 2% on winning resolutions by default.
+
+    Returns:
+        A dict with:
+          - filled (bool): True if any contracts were acquired.
+          - filled_usd (float): USDC actually spent.
+          - contracts (float): contracts acquired.
+          - vwap (float): volume-weighted average fill price (0.0 if nothing filled).
+          - remaining_budget (float): USDC unspent.
+          - levels_consumed (int): how many price levels were touched.
+          - slippage_pp (float): (vwap - best_ask) * 100, percentage points of slippage.
+          - fee_estimate_if_win (float): contracts * 1.0 * fee_rate.
+            Polymarket fees only apply on winning resolutions; this is the
+            cost the winning side will pay if the position resolves favourably.
+          - fills (list): per-level breakdown.
+    """
+    sorted_asks = sorted(asks, key=lambda x: float(x["price"]))
+    fills: list[dict[str, float]] = []
+    remaining = float(budget_usd)
+    contracts = 0.0
+    best_ask: float | None = None
+
+    for level in sorted_asks:
+        if remaining <= 0:
+            break
+        price = float(level["price"])
+        avail_size = float(level["size"])
+        if best_ask is None:
+            best_ask = price
+        avail_usd = price * avail_size
+        spend = min(remaining, avail_usd)
+        if spend <= 0 or price <= 0:
+            continue
+        size_taken = spend / price
+        fills.append({"price": price, "size": size_taken, "usd": spend})
+        contracts += size_taken
+        remaining -= spend
+
+    filled_usd = float(budget_usd) - remaining
+    vwap = filled_usd / contracts if contracts > 0 else 0.0
+    slippage_pp = (vwap - best_ask) * 100 if best_ask is not None and contracts > 0 else 0.0
+    fee_estimate_if_win = contracts * 1.0 * fee_rate
+
+    return {
+        "filled": filled_usd > 0,
+        "filled_usd": round(filled_usd, 6),
+        "contracts": round(contracts, 6),
+        "vwap": round(vwap, 6),
+        "remaining_budget": round(remaining, 6),
+        "levels_consumed": len(fills),
+        "slippage_pp": round(slippage_pp, 4),
+        "fee_estimate_if_win": round(fee_estimate_if_win, 6),
+        "fills": fills,
+    }

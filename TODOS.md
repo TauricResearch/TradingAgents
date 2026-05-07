@@ -1,0 +1,45 @@
+# TradingAgents Fork — TODOS
+
+## Polymarket Phase A
+
+### TODO: Polymarket backtesting harness
+**What:** Script to run `propagate_market()` against already-resolved Polymarket
+markets and measure accuracy vs. resolution outcomes.
+**Why:** The 55% accuracy success criterion cannot be measured any other way.
+Without this, Phase A quality is unverifiable at ship time.
+**Context:** Gamma API exposes `resolved` markets with final YES/NO outcomes.
+Sample 50-100 resolved markets, run the research pipeline, compare direction
+to outcome. This is the only honest eval for Phase A.
+Start: `tradingagents/scripts/backtest.py`
+**Effort:** ~1 day (human) / ~30 min (CC)
+**Depends on:** Phase A data layer + `propagate_market()` complete
+
+---
+
+### TODO: Gamma API retry/backoff
+**What:** Add `tenacity` retry + exponential backoff to all Gamma REST calls
+in `tradingagents/dataflows/polymarket_data.py`.
+**Why:** Gamma rate limits are undocumented. Without retry logic, a 429 produces
+a silent empty result or an exception dump with no user-visible message.
+**Context:** `@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))`
+covers the common case. Add a clear error log on final failure.
+**Effort:** 15 min
+**Depends on:** nothing (add at any point)
+
+---
+
+## Polymarket Phase B
+
+### TODO: Binary risk model (Kelly criterion sizing)
+**What:** New position-sizing module for Polymarket binary contracts, replacing
+the `stop_loss_pct`-based formula in `trade-poc/src/risk/engine.ts`.
+**Why:** YES/NO contracts resolve at $1 or $0 — there is no stop-loss to set.
+The existing `RISK_PER_TRADE_PCT / stop_loss_pct` formula produces nonsense.
+**Context:** Kelly criterion: `f* = (b*p - q) / b`
+- `p` = estimated YES probability (from `confidence` in `PolymarketDecision`)
+- `q` = 1 - p
+- `b` = (1 / yes_price_at_analysis) - 1
+Cap at `MAX_POSITION_PCT`. Confidence threshold still applies.
+Start: `trade-poc/src/risk/binary.ts`
+**Effort:** ~0.5 day (human) / ~15 min (CC)
+**Depends on:** Phase A `PolymarketDecision` schema (needs `confidence` + `yes_price_at_analysis`)
