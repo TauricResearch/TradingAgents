@@ -10,6 +10,15 @@ from tradingagents.agents.utils.agent_states import AgentState
 from .conditional_logic import ConditionalLogic
 
 
+ANALYST_NODE_NAMES = {
+    "market": "Market Analyst",
+    "social": "Social Analyst",
+    "news": "News Analyst",
+    "fundamentals": "Fundamentals Analyst",
+    "esg": "ESG Analyst",
+}
+
+
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
@@ -37,6 +46,7 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+                - "esg": ESG analyst
         """
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
@@ -74,6 +84,13 @@ class GraphSetup:
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
+        if "esg" in selected_analysts:
+            analyst_nodes["esg"] = create_esg_analyst(
+                self.quick_thinking_llm
+            )
+            delete_nodes["esg"] = create_msg_delete()
+            tool_nodes["esg"] = self.tool_nodes["esg"]
+
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
         bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
@@ -91,10 +108,10 @@ class GraphSetup:
 
         # Add analyst nodes to the graph
         for analyst_type, node in analyst_nodes.items():
-            workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
-            workflow.add_node(
-                f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
-            )
+            analyst_node = ANALYST_NODE_NAMES[analyst_type]
+            clear_node = f"Msg Clear {analyst_node.removesuffix(' Analyst')}"
+            workflow.add_node(analyst_node, node)
+            workflow.add_node(clear_node, delete_nodes[analyst_type])
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
@@ -110,13 +127,13 @@ class GraphSetup:
         # Define edges
         # Start with the first analyst
         first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        workflow.add_edge(START, ANALYST_NODE_NAMES[first_analyst])
 
         # Connect analysts in sequence
         for i, analyst_type in enumerate(selected_analysts):
-            current_analyst = f"{analyst_type.capitalize()} Analyst"
+            current_analyst = ANALYST_NODE_NAMES[analyst_type]
             current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
+            current_clear = f"Msg Clear {current_analyst.removesuffix(' Analyst')}"
 
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
@@ -128,7 +145,7 @@ class GraphSetup:
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
+                next_analyst = ANALYST_NODE_NAMES[selected_analysts[i + 1]]
                 workflow.add_edge(current_clear, next_analyst)
             else:
                 workflow.add_edge(current_clear, "Bull Researcher")
