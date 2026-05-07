@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
 
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.run_metadata import normalize_run_params
@@ -87,7 +88,8 @@ def _set_failed_with_event(
         logger.exception("Run failed run=%s", run_id)
 
 
-def _ensure_run_events_loaded(run_id: str) -> None:
+def _ensure_run_events_loaded_sync(run_id: str) -> None:
+    """Synchronous implementation of run event loading (for use in threads)."""
     run = runs.get(run_id)
     if not run:
         return
@@ -122,6 +124,15 @@ def _ensure_run_events_loaded(run_id: str) -> None:
             run.pop("hydrated_from_disk", None)
         except Exception:
             logger.warning("Failed to lazy-load events for run=%s", run_id)
+
+
+async def _ensure_run_events_loaded(run_id: str) -> None:
+    """Load run events from disk in a background thread to avoid blocking the event loop."""
+    run = runs.get(run_id)
+    if not run:
+        return
+    if not run.get("events") or run.get("hydrated_from_disk"):
+        await asyncio.to_thread(_ensure_run_events_loaded_sync, run_id)
 
 
 def _final_scan_results(events: list[dict[str, Any]]) -> dict[str, str]:
@@ -265,7 +276,7 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None])
     try:
         async for event in gen:
             runs[run_id]["events"].append(event)
-            _checkpoint_run_events(run_id)
+            await asyncio.to_thread(_checkpoint_run_events, run_id)
         runs[run_id]["status"] = "completed"
         runs[run_id].pop("active_operation", None)
     except AwaitPhase3Decision as exc:
@@ -282,7 +293,7 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None])
         _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         runs[run_id].pop("stop_requested", None)
-        _persist_run_to_disk(run_id)
+        await asyncio.to_thread(_persist_run_to_disk, run_id)
         _clear_run_task(run_id)
 
 
@@ -300,7 +311,7 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], Non
         async for event in gen:
             event["rerun_seq"] = run["rerun_seq"]
             run.setdefault("events", []).append(event)
-            _checkpoint_run_events(run_id)
+            await asyncio.to_thread(_checkpoint_run_events, run_id)
         run["status"] = "completed"
         run.pop("active_operation", None)
     except AwaitPhase3Decision as exc:
@@ -317,7 +328,7 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], Non
         _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         run.pop("stop_requested", None)
-        _persist_run_to_disk(run_id)
+        await asyncio.to_thread(_persist_run_to_disk, run_id)
         _clear_run_task(run_id)
 
 
@@ -338,7 +349,7 @@ async def trigger_scan(
         "params": p,
         "rerun_seq": 0,
     }
-    _persist_run_to_disk(run_id)
+    background_tasks.add_task(_persist_run_to_disk, run_id)
     logger.info("Queued SCAN run=%s user=%s", run_id, user["user_id"])
     _set_run_task(run_id, _run_and_store(run_id, engine.run_scan(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
@@ -361,7 +372,7 @@ async def trigger_pipeline(
         "params": p,
         "rerun_seq": 0,
     }
-    _persist_run_to_disk(run_id)
+    background_tasks.add_task(_persist_run_to_disk, run_id)
     logger.info("Queued PIPELINE run=%s user=%s", run_id, user["user_id"])
     _set_run_task(
         run_id, _run_and_store(run_id, engine.run_pipeline(run_id, runs[run_id]["params"]))
@@ -386,7 +397,7 @@ async def trigger_portfolio(
         "params": p,
         "rerun_seq": 0,
     }
-    _persist_run_to_disk(run_id)
+    background_tasks.add_task(_persist_run_to_disk, run_id)
     logger.info("Queued PORTFOLIO run=%s user=%s", run_id, user["user_id"])
     _set_run_task(
         run_id, _run_and_store(run_id, engine.run_portfolio(run_id, runs[run_id]["params"]))
@@ -411,7 +422,7 @@ async def trigger_auto(
         "params": p,
         "rerun_seq": 0,
     }
-    _persist_run_to_disk(run_id)
+    background_tasks.add_task(_persist_run_to_disk, run_id)
     logger.info("Queued AUTO run=%s user=%s", run_id, user["user_id"])
     _set_run_task(run_id, _run_and_store(run_id, engine.run_auto(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
@@ -443,7 +454,7 @@ async def trigger_mock(
         "params": p,
         "rerun_seq": 0,
     }
-    _persist_run_to_disk(run_id)
+    background_tasks.add_task(_persist_run_to_disk, run_id)
     logger.info(
         "Queued MOCK run=%s mock_type=%s user=%s",
         run_id,
@@ -579,7 +590,7 @@ async def _append_and_store(
         async for event in gen:
             event["rerun_seq"] = run["rerun_seq"]
             run["events"].append(event)
-            _checkpoint_run_events(run_id)
+            await asyncio.to_thread(_checkpoint_run_events, run_id)
         run["status"] = "completed"
         run.pop("active_operation", None)
     except asyncio.CancelledError:
@@ -592,7 +603,7 @@ async def _append_and_store(
         _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         run.pop("stop_requested", None)
-        _persist_run_to_disk(run_id)
+        await asyncio.to_thread(_persist_run_to_disk, run_id)
         _clear_run_task(run_id)
 
 
@@ -612,7 +623,7 @@ async def _append_scan_rerun_and_store(
         async for event in gen:
             event["rerun_seq"] = run["rerun_seq"]
             run["events"].append(event)
-            _checkpoint_run_events(run_id)
+            await asyncio.to_thread(_checkpoint_run_events, run_id)
         run["status"] = "completed"
         run.pop("active_operation", None)
     except asyncio.CancelledError:
@@ -625,7 +636,7 @@ async def _append_scan_rerun_and_store(
         _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         run.pop("stop_requested", None)
-        _persist_run_to_disk(run_id)
+        await asyncio.to_thread(_persist_run_to_disk, run_id)
         _clear_run_task(run_id)
 
 
@@ -724,7 +735,7 @@ async def resume_run(
     if run_id not in runs:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    _ensure_run_events_loaded(run_id)
+    await _ensure_run_events_loaded(run_id)
     run = runs[run_id]
     status = run.get("status")
     if status == "completed":
@@ -932,9 +943,14 @@ async def stop_run(
     return {"run_id": run_id, "status": current_status or "running", "stopped": False}
 
 
+class ResetPortfolioStageRequest(BaseModel):
+    date: str
+    portfolio_id: str
+
+
 @router.delete("/portfolio-stage")
 async def reset_portfolio_stage(
-    params: dict[str, Any],
+    params: ResetPortfolioStageRequest,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Delete PM decision and execution result for a given date/portfolio_id.
@@ -944,20 +960,16 @@ async def reset_portfolio_stage(
     """
     from tradingagents.portfolio.store_factory import create_report_store
 
-    date = params.get("date")
-    portfolio_id = params.get("portfolio_id")
-    if not date or not portfolio_id:
-        raise HTTPException(status_code=422, detail="date and portfolio_id are required")
     store = create_report_store()
-    deleted = store.clear_portfolio_stage(date, portfolio_id)
+    deleted = store.clear_portfolio_stage(params.date, params.portfolio_id)
     logger.info(
         "reset_portfolio_stage date=%s portfolio=%s deleted=%s user=%s",
-        date,
-        portfolio_id,
+        params.date,
+        params.portfolio_id,
         deleted,
         user["user_id"],
     )
-    return {"deleted": deleted, "date": date, "portfolio_id": portfolio_id}
+    return {"deleted": deleted, "date": params.date, "portfolio_id": params.portfolio_id}
 
 
 def _get_mongo_col() -> Any | None:
@@ -965,13 +977,15 @@ def _get_mongo_col() -> Any | None:
     uri = DEFAULT_CONFIG.get("mongo_uri")
     db_name = DEFAULT_CONFIG.get("mongo_db", "tradingagents")
     if uri:
-        try:
-            from pymongo import MongoClient
+        if not hasattr(_get_mongo_col, "_client"):
+            try:
+                from pymongo import MongoClient
 
-            client = MongoClient(uri)
-            return client[db_name]["run_events"]
-        except Exception:
-            logger.warning("Failed to connect to MongoDB for historical events")
+                _get_mongo_col._client = MongoClient(uri)
+            except Exception:
+                logger.warning("Failed to connect to MongoDB for historical events")
+                return None
+        return _get_mongo_col._client[db_name]["run_events"]
     return None
 
 
@@ -1023,7 +1037,7 @@ async def get_run_status(
 ) -> dict[str, Any]:
     if run_id in runs:
         run = runs[run_id]
-        _ensure_run_events_loaded(run_id)
+        await _ensure_run_events_loaded(run_id)
         if run.get("hydrated_from_disk") and run.get("status") == "running":
             _set_failed_with_event(run_id, "Run did not complete (server restarted)")
         # Derive nodes_fired from events for client compatibility

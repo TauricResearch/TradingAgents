@@ -1174,7 +1174,7 @@ def run_analysis():
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     log_file = results_dir / "message_tool.log"
-    log_file.touch(exist_ok=True)
+    log_handle = open(log_file, "a", encoding="utf-8")  # noqa: SIM115
 
     def save_message_decorator(obj: MessageBuffer, func_name: str) -> Callable[..., Any]:
         func = getattr(obj, func_name)
@@ -1184,8 +1184,8 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(f"{timestamp} [{message_type}] {content}\n")
+            log_handle.write(f"{timestamp} [{message_type}] {content}\n")
+            log_handle.flush()
 
         return wrapper
 
@@ -1201,8 +1201,8 @@ def run_analysis():
                 if isinstance(tool_args, dict)
                 else str(tool_args)
             )
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+            log_handle.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+            log_handle.flush()
 
         return wrapper
 
@@ -1395,6 +1395,7 @@ def run_analysis():
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
     # Post-analysis prompts (outside Live context for clean interaction)
+    log_handle.close()
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
     # Prompt to save report

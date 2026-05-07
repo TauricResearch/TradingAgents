@@ -604,6 +604,13 @@ class LangGraphEngine:
         rl = RunLogger(run_id=run_id, mongo_uri=uri, mongo_db=db)
         self._run_loggers[logger_key or run_id] = rl
         set_run_logger(rl)
+        if not rl.callback:
+            logger.warning(
+                "RunLogger callback is not available for run=%s; "
+                "telemetry will be incomplete (llm_calls, tokens_in, tokens_out "
+                "will not be captured)",
+                run_id,
+            )
         return rl
 
     def _finish_run_logger(self, logger_key: str, log_dir: Path) -> None:

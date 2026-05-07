@@ -30,7 +30,11 @@ from tradingagents.agents.utils.critical_abort import has_abort, raise_abort
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
-from ._consistency_guard import check_claims_via_llm, extract_rm_claims
+from ._consistency_guard import (
+    check_claims_via_llm,
+    extract_rm_claims,
+    generate_research_packet_summary,
+)
 from ._graph_utils import assert_regime_consistent
 from .conditional_logic import CRITICAL_ABORT_NODE, ConditionalLogic
 
@@ -144,9 +148,16 @@ class GraphSetup:
                     violations.append({"claim": claim_text, "reason": r.get("reason", "")})
             attempt = int(state.get("_rm_consistency_attempt") or 0)
             if not violations:
+                summary = generate_research_packet_summary(
+                    ticker=state.get("company_of_interest") or "",
+                    trade_date=state.get("trade_date") or "",
+                    investment_plan=rm_text,
+                    fundamentals_report=fundamentals,
+                )
                 return {
                     "rm_consistency_status": "ok",
                     "consistency_violations": [],
+                    "research_packet_summary": summary,
                     "sender": "rm_consistency_guard",
                 }
             if attempt >= 1:
@@ -157,6 +168,7 @@ class GraphSetup:
             return {
                 "rm_consistency_status": "reprompt",
                 "consistency_violations": violations,
+                "research_packet_summary": "",
                 "_rm_consistency_attempt": attempt + 1,
                 "sender": "rm_consistency_guard",
             }

@@ -6,6 +6,10 @@ import json
 import re
 from typing import Any
 
+import logging
+
+_logger = logging.getLogger(__name__)
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from tradingagents.agents.utils.json_utils import extract_json
@@ -200,3 +204,109 @@ def check_claims_via_llm(
             ) from first_err
         raw2 = response2.content if hasattr(response2, "content") else str(response2)
         return _parse_and_validate(raw2, len(claims))
+
+
+# ---------------------------------------------------------------------------
+# Research Packet Summary Generation
+# ---------------------------------------------------------------------------
+
+_RATING_RE = re.compile(r"Rating:\s*(BUY|SELL|HOLD|STRONG\s*BUY|STRONG\s*SELL)", re.IGNORECASE)
+_CONFIDENCE_RE = re.compile(r"Confidence:\s*([\d.]+%?)", re.IGNORECASE)
+_ENTRY_PRICE_RE = re.compile(r"Entry\s*Price:\s*\$?([\d,.]+)", re.IGNORECASE)
+_TARGET_PRICE_RE = re.compile(r"Target\s*Price:\s*\$?([\d,.]+)", re.IGNORECASE)
+_BULL_SECTION_RE = re.compile(
+    r"Bull\s*Points?:\s*\n((?:\s*\d+\.\s*.+\n?)+)", re.IGNORECASE
+)
+_BEAR_SECTION_RE = re.compile(
+    r"Bear\s*Points?:\s*\n((?:\s*\d+\.\s*.+\n?)+)", re.IGNORECASE
+)
+_NUMBERED_ITEM_RE = re.compile(r"\d+\.\s*(.+)")
+
+
+def generate_research_packet_summary(
+    *,
+    ticker: str,
+    trade_date: str,
+    investment_plan: str,
+    fundamentals_report: str,
+) -> str:
+    """Generate a 200-500 char structured summary of the research packet.
+
+    Contains: ticker, trade_date, top bull points (with numbers),
+    top bear points (with numbers), final RM rating, confidence score,
+    entry price, target price.
+
+    Returns empty string if inputs are insufficient.
+    """
+    if not investment_plan or not investment_plan.strip():
+        return ""
+
+    # Extract rating
+    rating_m = _RATING_RE.search(investment_plan)
+    if not rating_m:
+        return ""
+    rating = rating_m.group(1).strip().upper()
+
+    # Extract confidence
+    confidence_m = _CONFIDENCE_RE.search(investment_plan)
+    confidence = confidence_m.group(1).strip() if confidence_m else "N/A"
+
+    # Extract entry/target price
+    entry_m = _ENTRY_PRICE_RE.search(investment_plan)
+    target_m = _TARGET_PRICE_RE.search(investment_plan)
+    if not entry_m or not target_m:
+        return ""
+    entry_price = entry_m.group(1).strip()
+    target_price = target_m.group(1).strip()
+
+    # Extract bull points
+    bull_section_m = _BULL_SECTION_RE.search(investment_plan)
+    if not bull_section_m:
+        return ""
+    bull_items = _NUMBERED_ITEM_RE.findall(bull_section_m.group(1))
+    if not bull_items:
+        return ""
+
+    # Extract bear points
+    bear_section_m = _BEAR_SECTION_RE.search(investment_plan)
+    if not bear_section_m:
+        return ""
+    bear_items = _NUMBERED_ITEM_RE.findall(bear_section_m.group(1))
+    if not bear_items:
+        return ""
+
+    # Build summary
+    header = f"{ticker} | {trade_date} | Rating: {rating} | Confidence: {confidence}"
+    bull_line = "Bull: " + "; ".join(item.strip() for item in bull_items[:3])
+    bear_line = "Bear: " + "; ".join(item.strip() for item in bear_items[:3])
+    price_line = f"Entry: ${entry_price} | Target: ${target_price}"
+
+    summary = f"{header}\n{bull_line}\n{bear_line}\n{price_line}"
+
+    # Enforce length bounds: 200-500 characters
+    if len(summary) < 200:
+        # Pad with additional context if available — try adding more bull/bear points
+        extra_bulls = bull_items[3:6]
+        extra_bears = bear_items[3:6]
+        if extra_bulls:
+            bull_line = "Bull: " + "; ".join(item.strip() for item in bull_items[:6])
+        if extra_bears:
+            bear_line = "Bear: " + "; ".join(item.strip() for item in bear_items[:6])
+        summary = f"{header}\n{bull_line}\n{bear_line}\n{price_line}"
+
+    if len(summary) < 200:
+        # Still too short — pad with fundamentals snippet
+        remaining = 200 - len(summary)
+        snippet = fundamentals_report.strip()[:remaining]
+        if snippet:
+            summary = f"{summary}\nContext: {snippet}"
+
+    if len(summary) < 200:
+        # Pad with spaces to meet minimum (last resort)
+        summary = summary + " " * (200 - len(summary))
+
+    if len(summary) > 500:
+        # Truncate to 497 chars + ellipsis
+        summary = summary[:497] + "..."
+
+    return summary

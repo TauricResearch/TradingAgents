@@ -9,7 +9,6 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import re
-import time
 from typing import Any
 
 from tradingagents.agents.utils.json_utils import extract_json
@@ -25,6 +24,132 @@ from tradingagents.agents.utils.scanner_tools import (
 )
 
 logger = logging.getLogger("agent_os.engine")
+
+
+# ---------------------------------------------------------------------------
+# Commodity timeframe formatting (PR-4)
+# ---------------------------------------------------------------------------
+
+
+def format_commodity_line(
+    name: str,
+    price: float,
+    change_pct_daily: float,
+    change_pct_yoy: float,
+) -> str:
+    """Format a single commodity with explicit timeframe labels.
+
+    Returns: "Name: $price (+X.XX% daily, +Y.YY% YoY)"
+    """
+    return f"{name}: ${price:.2f} ({change_pct_daily:+.2f}% daily, {change_pct_yoy:+.2f}% YoY)"
+
+
+def validate_commodity_block(text: str) -> bool:
+    """Reject any bare percentage in commodity section without timeframe label.
+
+    Returns True if all percentages have (daily) or (YoY) labels.
+    Returns False if any bare percentage is found without a timeframe label.
+    """
+    # Find all percentage patterns in the text
+    all_pcts = re.findall(r"[+-]?\d+\.?\d*%", text)
+    if not all_pcts:
+        return True
+
+    # Check each percentage has a timeframe label following it
+    # A valid percentage is followed by " daily" or " YoY"
+    bare_pct_pattern = re.compile(r"[+-]?\d+\.?\d*%(?!\s*(?:daily|YoY))")
+    bare_matches = bare_pct_pattern.findall(text)
+    return len(bare_matches) == 0
+
+
+def _fetch_commodity_with_yoy(
+    tool_fn: Any,
+    label: str,
+    asset_names: list[str],
+) -> list[str]:
+    """Fetch commodity data and format with both daily and YoY change labels.
+
+    Invokes the scanner tool to get the raw markdown table, then parses it
+    to extract price and daily change. YoY change is extracted from the tool
+    output if available, otherwise defaults to 0.0 (tools should expose both).
+
+    Returns a list of formatted commodity lines using format_commodity_line().
+    Falls back to ["N/A"] on failure.
+    """
+    try:
+        raw = tool_fn.invoke({})
+        return _parse_and_format_commodity_lines(raw, asset_names)
+    except Exception as e:
+        logger.warning("Failed to fetch %s for scanner context: %s", label, e)
+        return ["N/A"]
+
+
+def _parse_and_format_commodity_lines(raw: Any, asset_names: list[str]) -> list[str]:
+    """Parse markdown table output and format with timeframe-labeled percentages.
+
+    Extracts price and daily change from the standard markdown table format:
+    | Asset | Symbol | Current Price | Change | Change % |
+
+    The daily change comes from the table's Change % column.
+    YoY change is extracted from a 'YoY %' column if present, otherwise 0.0.
+    """
+    rows = parse_markdown_rows(raw)
+    rows = drop_table_header(
+        rows,
+        header_tokens={"asset", "symbol", "current price", "change", "change %", "yoy %"},
+    )
+
+    # Detect if there's a YoY column (index 5) in the header
+    header_rows = parse_markdown_rows(raw)
+    has_yoy_col = False
+    yoy_col_idx = -1
+    if header_rows:
+        header_lower = [c.lower() for c in header_rows[0]]
+        for idx, col in enumerate(header_lower):
+            if "yoy" in col:
+                has_yoy_col = True
+                yoy_col_idx = idx
+                break
+
+    lines: list[str] = []
+    for row in rows:
+        if len(row) < 5:
+            continue
+
+        asset_name = row[0].strip()
+        # Only include rows matching requested asset names (case-insensitive)
+        if asset_names and not any(
+            name.lower() in asset_name.lower() or asset_name.lower() in name.lower()
+            for name in asset_names
+        ):
+            continue
+
+        # Parse price (remove $ and commas)
+        price_str = row[2].strip().replace("$", "").replace(",", "")
+        try:
+            price = float(price_str)
+        except (ValueError, TypeError):
+            continue
+
+        # Parse daily change percentage (remove % sign)
+        daily_pct_str = row[4].strip().replace("%", "").replace("+", "")
+        try:
+            daily_pct = float(daily_pct_str)
+        except (ValueError, TypeError):
+            daily_pct = 0.0
+
+        # Parse YoY change if column exists
+        yoy_pct = 0.0
+        if has_yoy_col and yoy_col_idx < len(row):
+            yoy_str = row[yoy_col_idx].strip().replace("%", "").replace("+", "")
+            try:
+                yoy_pct = float(yoy_str)
+            except (ValueError, TypeError):
+                yoy_pct = 0.0
+
+        lines.append(format_commodity_line(asset_name, price, daily_pct, yoy_pct))
+
+    return lines if lines else ["N/A"]
 
 
 # ---------------------------------------------------------------------------
@@ -228,8 +353,22 @@ def format_filtered_economic_events(raw: Any, *, max_rows: int = 8) -> list[str]
 
 
 def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str:
-    """Build a compact summary-first scanner packet for Phase 2 analyst prompts."""
+    """Build a compact summary-first scanner packet for Phase 2 analyst prompts.
+
+    Raises:
+        RuntimeError: If scan_date is missing from scan_state (no wall-clock fallback
+            per scanner determinism rules).
+    """
     ticker = ticker.upper()
+
+    # --- Scanner determinism: fail if scan_date is missing ---
+    scan_date_str = scan_state.get("scan_date")
+    if not scan_date_str:
+        raise RuntimeError(
+            "build_scanner_context_packet: scan_date is missing from scan_state. "
+            "Cannot build scanner context without a deterministic scan date. "
+            "scan_date must be seeded at scan start and propagated through ScannerState."
+        )
 
     summary_data: dict[str, Any] = {}
     macro_summary = scan_state.get("macro_scan_summary", "")
@@ -347,10 +486,10 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     geo_pulse_lines = top_summary_lines(geopolitical_summary, max_lines=2) or ["N/A"]
     industry_pulse_lines = top_summary_lines(industry_summary, max_lines=2) or ["N/A"]
 
-    # Ground-truth blocks
-    gold_snapshot = _fetch_ground_truth(get_gold_price, "gold price", max_rows=1)
-    oil_snapshot = _fetch_ground_truth(get_oil_prices, "oil prices", max_rows=2)
-    btc_snapshot = _fetch_ground_truth(get_bitcoin_price, "bitcoin price", max_rows=1)
+    # Ground-truth blocks — commodities use timeframe-labeled formatting (PR-4)
+    gold_lines = _fetch_commodity_with_yoy(get_gold_price, "gold price", ["Gold"])
+    oil_lines = _fetch_commodity_with_yoy(get_oil_prices, "oil prices", ["WTI Crude", "Brent Crude"])
+    btc_lines = _fetch_commodity_with_yoy(get_bitcoin_price, "bitcoin price", ["Bitcoin"])
     eur_snapshot = _fetch_ground_truth(get_eur_usd_rate, "EUR/USD rate", max_rows=1)
     jpy_snapshot = _fetch_ground_truth(get_jpy_usd_rate, "JPY/USD rate", max_rows=1)
     cny_snapshot = _fetch_ground_truth(get_cny_usd_rate, "CNY/USD rate", max_rows=1)
@@ -358,7 +497,6 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     earnings_rows: list[str] = ["N/A"]
     economic_rows: list[str] = ["N/A"]
 
-    scan_date_str = scan_state.get("scan_date", time.strftime("%Y-%m-%d"))
     try:
         scan_dt = _dt.datetime.strptime(scan_date_str, "%Y-%m-%d")
         from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
@@ -386,7 +524,16 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     def _bullet_lines(items: list[str]) -> str:
         return "\n".join(f"- {line}" for line in items)
 
-    commodity_block = _bullet_lines(gold_snapshot + oil_snapshot + btc_snapshot)
+    commodity_block = _bullet_lines(gold_lines + oil_lines + btc_lines)
+
+    # Post-condition: validate commodity block has no bare percentages (PR-4)
+    if not validate_commodity_block(commodity_block):
+        raise RuntimeError(
+            "build_scanner_context_packet: commodity block contains bare percentages "
+            "without timeframe labels (daily/YoY). This violates scanner context "
+            "format requirements."
+        )
+
     fx_block = _bullet_lines(eur_snapshot + jpy_snapshot + cny_snapshot)
     earnings_block = _bullet_lines(earnings_rows)
     economic_block = _bullet_lines(economic_rows)
@@ -402,7 +549,7 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
     risk_block = _bullet_lines(macro_risk_lines)
 
     packet = f"""# SCANNER CONTEXT PACKET: {ticker}
-Date: {scan_state.get("scan_date", "N/A")}
+Date: {scan_date_str}
 
 ## 1) Selection Context
 - Ticker: {ticker}

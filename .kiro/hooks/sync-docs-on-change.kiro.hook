@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "name": "Sync Docs on Source Change",
+  "description": "When Python source files or related config files are edited, asks the agent to update the README or docs/ folder to reflect the changes.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.py",
+      "**/*.py",
+      "pyproject.toml",
+      "requirements.txt",
+      "docker-compose.yml",
+      "**/*.yaml",
+      "**/*.yml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A source file was just changed. Review the change and determine if the README.md or any files in the docs/ folder need to be updated to stay consistent. If so, make the necessary documentation updates. Focus on keeping usage instructions, API references, architecture descriptions, and configuration guides accurate. If the change is trivial or internal-only with no documentation impact, do nothing."
+  },
+  "workspaceFolderName": "TradingAgents",
+  "shortName": "sync-docs-on-change"
+}
