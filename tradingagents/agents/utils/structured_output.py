@@ -43,20 +43,23 @@ def invoke_structured_or_freetext(  # noqa: UP047
             return result, "", None
         if error is not None:
             raise error
-    except (NotImplementedError, ValidationError, TypeError, AttributeError) as exc:
+    except (
+        NotImplementedError,
+        ValidationError,
+        TypeError,
+        AttributeError,
+        TimeoutError,
+    ) as exc:
         logger.warning(
             "%s: structured output failed (%s: %s), falling back to free-text",
             agent_name,
             type(exc).__name__,
             str(exc)[:200],
         )
-    except Exception as exc:
-        logger.warning(
-            "%s: structured output unexpected error (%s: %s), falling back to free-text",
-            agent_name,
-            type(exc).__name__,
-            str(exc)[:200],
-        )
+    except Exception:
+        # Re-raise unexpected errors (auth failures, network issues, serialization
+        # bugs, etc.) so they surface loudly rather than silently degrading.
+        raise
 
     # Fallback: invoke without structured output, then extract
     result, error = invoke_with_timeout(

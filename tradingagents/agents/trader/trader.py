@@ -17,6 +17,8 @@ from tradingagents.agents.utils.output_validation import (
     build_trader_plan_structured,
     output_contains_scratchpad,
 )
+from tradingagents.agents.utils.structured_output import invoke_structured_or_freetext
+from tradingagents.agents.utils.structured_schemas import TraderProposalSchema
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -183,54 +185,135 @@ Apply lessons from past decisions:
                 "upstream Research Manager plan was empty or non-completed, so trader cannot derive entry/stop/target safely"
             )
 
-        _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
-        timeout_seconds = min(
-            float(
-                DEFAULT_CONFIG.get("mid_think_llm_timeout")
-                or DEFAULT_CONFIG.get("llm_timeout")
-                or _cap
-            ),
-            _cap,
-        )
-        result, invoke_error = invoke_with_timeout(
-            llm,
-            messages,
-            timeout_seconds=timeout_seconds,
-            max_tokens=DEFAULT_CONFIG.get("mid_think_llm_max_tokens"),
-        )
+        # --- Structured output path (gated by config) ---
+        if DEFAULT_CONFIG.get("structured_output_enabled", True):
 
-        is_timeout = False
-        if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                is_timeout = True
+            def _trader_fallback_extractor(text: str) -> dict[str, Any]:
+                """Fallback: use existing post-hoc extraction on free-text."""
+                return build_trader_plan_structured(
+                    ticker=ticker,
+                    as_of_date=state.get("trade_date", ""),
+                    trader_plan=text,
+                    is_timeout_fallback=False,
+                    llm=llm,
+                )
+
+            schema_instance, raw_text, fallback_dict = invoke_structured_or_freetext(
+                llm=llm,
+                schema=TraderProposalSchema,
+                messages=messages,
+                fallback_extractor=_trader_fallback_extractor,
+                agent_name="Trader",
+                timeout_tier="mid",
+                max_tokens=DEFAULT_CONFIG.get("mid_think_llm_max_tokens"),
+            )
+
+            if schema_instance is not None:
+                # Structured path succeeded — synthesize output_content from schema
+                output_content = (
+                    f"**FINAL TRANSACTION PROPOSAL: {schema_instance.action}**\n\n"
+                    f"**Entry Price**: ${schema_instance.entry_price:.2f}\n"
+                    if schema_instance.entry_price
+                    else f"**FINAL TRANSACTION PROPOSAL: {schema_instance.action}**\n\n"
+                )
+                if schema_instance.stop_loss:
+                    output_content += f"**Stop-Loss**: ${schema_instance.stop_loss:.2f}\n"
+                if schema_instance.take_profit:
+                    output_content += f"**Take-Profit**: ${schema_instance.take_profit:.2f}\n"
+                if schema_instance.position_sizing:
+                    output_content += f"**Position Sizing**: {schema_instance.position_sizing}\n"
+                output_content += (
+                    f"\n**Reasoning**: {schema_instance.reasoning}\n\n"
+                    f"**Catalyst Timeline**: {schema_instance.catalyst_timeline}"
+                )
+                output_content = output_content.replace("TICKER_A", ticker)
+
+                structured = {
+                    "action": schema_instance.action,
+                    "entry_price": schema_instance.entry_price,
+                    "stop_loss": schema_instance.stop_loss,
+                    "take_profit": schema_instance.take_profit,
+                    "position_sizing": schema_instance.position_sizing,
+                    "reasoning": schema_instance.reasoning,
+                    "catalyst_timeline": schema_instance.catalyst_timeline,
+                    "status": "structured",
+                }
+
+                # Apply entry-price drift guardrail on structured output too
+                entry_price = schema_instance.entry_price
             else:
-                err_type = type(invoke_error).__name__
+                # Fallback path
+                output_content = raw_text.replace("TICKER_A", ticker)
+                if (
+                    not str(output_content).strip()
+                    or output_contains_scratchpad(output_content)
+                ):
+                    failure_class = (
+                        "empty" if not str(output_content).strip() else "scratchpad"
+                    )
+                    raise RuntimeError(
+                        f"Trader node failed: {failure_class} — no valid output after exhausting retries"
+                    )
+                structured = fallback_dict if fallback_dict else {}
+                entry_price = _extract_entry_price_from_plan(output_content)
+
+        else:
+            # --- Legacy free-text path (structured_output_enabled=False) ---
+            _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
+            timeout_seconds = min(
+                float(
+                    DEFAULT_CONFIG.get("mid_think_llm_timeout")
+                    or DEFAULT_CONFIG.get("llm_timeout")
+                    or _cap
+                ),
+                _cap,
+            )
+            result, invoke_error = invoke_with_timeout(
+                llm,
+                messages,
+                timeout_seconds=timeout_seconds,
+                max_tokens=DEFAULT_CONFIG.get("mid_think_llm_max_tokens"),
+            )
+
+            is_timeout = False
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    is_timeout = True
+                else:
+                    err_type = type(invoke_error).__name__
+                    raise RuntimeError(
+                        f"Node execution failed: {err_type} - {str(invoke_error)}"
+                    ) from invoke_error
+
+            output_content = ""
+            if result:
+                output_content = result.content.replace("TICKER_A", ticker)
+
+            if (
+                is_timeout
+                or not str(output_content).strip()
+                or output_contains_scratchpad(output_content)
+            ):
+                failure_class = (
+                    "timeout"
+                    if is_timeout
+                    else ("empty" if not str(output_content).strip() else "scratchpad")
+                )
                 raise RuntimeError(
-                    f"Node execution failed: {err_type} - {str(invoke_error)}"
-                ) from invoke_error
+                    f"Trader node failed: {failure_class} — no valid output after exhausting retries"
+                )
 
-        # If it was a timeout or if the content is empty/garbage, apply the deterministic fallback.
-        output_content = ""
-        if result:
-            output_content = result.content.replace("TICKER_A", ticker)
-
-        if (
-            is_timeout
-            or not str(output_content).strip()
-            or output_contains_scratchpad(output_content)
-        ):
-            failure_class = (
-                "timeout"
-                if is_timeout
-                else ("empty" if not str(output_content).strip() else "scratchpad")
+            structured = build_trader_plan_structured(
+                ticker=ticker,
+                as_of_date=state.get("trade_date", ""),
+                trader_plan=output_content,
+                is_timeout_fallback=False,
+                llm=llm,
             )
-            raise RuntimeError(
-                f"Trader node failed: {failure_class} — no valid output after exhausting retries"
-            )
+            entry_price = _extract_entry_price_from_plan(output_content)
 
         # Guardrail: reject plans anchored to stale prices.
         current_price = _extract_current_price_from_state(state)
-        entry_price = _extract_entry_price_from_plan(output_content)
         max_entry_drift = float(DEFAULT_CONFIG.get("trader_entry_price_drift_max_pct") or 0.20)
         if current_price and entry_price:
             drift = abs(entry_price - current_price) / current_price
@@ -241,16 +324,8 @@ Apply lessons from past decisions:
                     f"by {drift:.1%} (> {max_entry_drift:.0%} threshold)."
                 )
 
-        structured = build_trader_plan_structured(
-            ticker=ticker,
-            as_of_date=state.get("trade_date", ""),
-            trader_plan=output_content,
-            is_timeout_fallback=False,
-            llm=llm,
-        )
-
         return {
-            "messages": [result] if result else [],
+            "messages": [],
             "trader_investment_plan": output_content,
             "trader_plan_structured": structured,
             "sender": "Trader",

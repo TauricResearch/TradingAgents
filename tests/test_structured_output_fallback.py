@@ -272,3 +272,27 @@ def test_runtime_error_from_fallback_includes_agent_name():
                 fallback_extractor=_mock_fallback_extractor,
                 agent_name="MyAgent",
             )
+
+
+# ---------------------------------------------------------------------------
+# Unit: Unexpected exceptions from structured path are re-raised (not swallowed)
+# ---------------------------------------------------------------------------
+
+
+def test_unexpected_exception_is_reraised():
+    """Unexpected errors (e.g., PermissionError) must NOT be silently swallowed."""
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.side_effect = PermissionError("auth failure")
+
+    with (
+        patch("tradingagents.agents.utils.structured_output.resolve_timeout", return_value=60.0),
+        patch("tradingagents.agents.utils.structured_output.invoke_with_timeout"),
+    ):
+        with pytest.raises(PermissionError, match="auth failure"):
+            invoke_structured_or_freetext(
+                llm=mock_llm,
+                schema=_TestSchema,
+                messages=[{"role": "user", "content": "test"}],
+                fallback_extractor=_mock_fallback_extractor,
+                agent_name="test_agent",
+            )
