@@ -1,6 +1,10 @@
+import logging
+import warnings
 from typing import Optional
 
 from .base_client import BaseLLMClient
+
+logger = logging.getLogger(__name__)
 
 # Providers that use the OpenAI-compatible chat completions API
 _OPENAI_COMPATIBLE = (
@@ -33,6 +37,18 @@ def create_llm_client(
         ValueError: If provider is not supported
     """
     provider_lower = provider.lower()
+
+    # Validate the model name against the known catalog early so typos or
+    # stale default config values surface immediately rather than at first LLM call.
+    from .validators import validate_model
+    if not validate_model(provider_lower, model):
+        warnings.warn(
+            f"Model '{model}' is not in the known catalog for provider '{provider}'. "
+            "The API call may fail. Check your config or model name.",
+            UserWarning,
+            stacklevel=2,
+        )
+        logger.warning("Unknown model '%s' for provider '%s'", model, provider)
 
     if provider_lower in _OPENAI_COMPATIBLE:
         from .openai_client import OpenAIClient

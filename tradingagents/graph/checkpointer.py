@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
@@ -14,6 +15,19 @@ from typing import Generator
 from langgraph.checkpoint.sqlite import SqliteSaver
 
 from tradingagents.dataflows.utils import safe_ticker_component
+
+# Per-DB write locks: keyed by resolved db path string.
+# _locks_guard protects the dict itself; each value guards one DB file.
+_db_write_locks: dict[str, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _get_db_lock(db_path: Path) -> threading.Lock:
+    key = str(db_path.resolve())
+    with _locks_guard:
+        if key not in _db_write_locks:
+            _db_write_locks[key] = threading.Lock()
+        return _db_write_locks[key]
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:
@@ -32,15 +46,24 @@ def thread_id(ticker: str, date: str) -> str:
 
 @contextmanager
 def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver, None, None]:
-    """Context manager yielding a SqliteSaver backed by a per-ticker DB."""
+    """Context manager yielding a SqliteSaver backed by a per-ticker DB.
+
+    A per-DB threading.Lock is held for the lifetime of this context so that
+    concurrent runs of the same ticker cannot interleave SQLite writes.
+    check_same_thread is kept False because SqliteSaver may hand the
+    connection across internal threads, but the external lock ensures only
+    one caller writes at a time.
+    """
     db = _db_path(data_dir, ticker)
-    conn = sqlite3.connect(str(db), check_same_thread=False)
-    try:
-        saver = SqliteSaver(conn)
-        saver.setup()
-        yield saver
-    finally:
-        conn.close()
+    lock = _get_db_lock(db)
+    with lock:
+        conn = sqlite3.connect(str(db), check_same_thread=False)
+        try:
+            saver = SqliteSaver(conn)
+            saver.setup()
+            yield saver
+        finally:
+            conn.close()
 
 
 def has_checkpoint(data_dir: str | Path, ticker: str, date: str) -> bool:

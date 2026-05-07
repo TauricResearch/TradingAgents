@@ -8,6 +8,15 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+_ent_env = Path(".env.enterprise")
+if not _ent_env.exists():
+    import warnings
+    warnings.warn(
+        ".env.enterprise not found — enterprise configuration will not be loaded. "
+        "Copy .env.enterprise.example to .env.enterprise if you need enterprise settings.",
+        UserWarning,
+        stacklevel=1,
+    )
 load_dotenv(".env.enterprise", override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner

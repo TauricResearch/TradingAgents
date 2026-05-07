@@ -9,27 +9,30 @@ description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "langchain-core>=0.3.81",
-    "backtrader>=1.9.78.123",
-    "langchain-anthropic>=0.3.15",
-    "langchain-experimental>=0.3.4",
-    "langchain-google-genai>=4.0.0",
-    "langchain-openai>=0.3.23",
-    "langgraph>=0.4.8",
-    "langgraph-checkpoint-sqlite>=2.0.0",
-    "pandas>=2.3.0",
-    "parsel>=1.10.0",
+    # Upper bounds on the most security-sensitive packages reduce supply-chain
+    # risk: a compromised patch release is not pulled in automatically.
+    # Bump these intentionally when upgrading after review.
+    "langchain-core>=0.3.81,<0.5",
+    "backtrader>=1.9.78.123,<2.0",
+    "langchain-anthropic>=0.3.15,<0.5",
+    "langchain-experimental>=0.3.4,<0.5",
+    "langchain-google-genai>=4.0.0,<6.0",
+    "langchain-openai>=0.3.23,<0.5",
+    "langgraph>=0.4.8,<0.6",
+    "langgraph-checkpoint-sqlite>=2.0.0,<3.0",
+    "pandas>=2.3.0,<3.0",
+    "parsel>=1.10.0,<2.0",
     "pytz>=2025.2",
-    "questionary>=2.1.0",
-    "redis>=6.2.0",
-    "requests>=2.32.4",
-    "rich>=14.0.0",
-    "typer>=0.21.0",
-    "setuptools>=80.9.0",
-    "stockstats>=0.6.5",
-    "tqdm>=4.67.1",
-    "typing-extensions>=4.14.0",
-    "yfinance>=0.2.63",
+    "questionary>=2.1.0,<3.0",
+    "redis>=6.2.0,<7.0",
+    "requests>=2.32.4,<3.0",
+    "rich>=14.0.0,<15.0",
+    "typer>=0.21.0,<0.22",
+    "setuptools>=80.9.0,<82.0",
+    "stockstats>=0.6.5,<0.7",
+    "tqdm>=4.67.1,<5.0",
+    "typing-extensions>=4.14.0,<5.0",
+    "yfinance>=0.2.63,<0.4",
 ]
 
 [project.scripts]

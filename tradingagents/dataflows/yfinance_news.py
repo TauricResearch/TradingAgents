@@ -87,12 +87,13 @@ def get_news_yfinance(
                 if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
                     continue
 
+            news_str += "<!-- EXTERNAL_DATA_START -->\n"
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
                 news_str += f"{data['summary']}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
-            news_str += "\n"
+            news_str += "<!-- EXTERNAL_DATA_END -->\n\n"
             filtered_count += 1
 
         if filtered_count == 0:
@@ -100,8 +101,8 @@ def get_news_yfinance(
 
         return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
-    except Exception as e:
-        return f"Error fetching news for {ticker}: {str(e)}"
+    except Exception:
+        return f"Error fetching news for {ticker}: data unavailable"
 
 
 def get_global_news_yfinance(
@@ -184,14 +185,15 @@ def get_global_news_yfinance(
                 link = article.get("link", "")
                 summary = ""
 
+            news_str += "<!-- EXTERNAL_DATA_START -->\n"
             news_str += f"### {title} (source: {publisher})\n"
             if summary:
                 news_str += f"{summary}\n"
             if link:
                 news_str += f"Link: {link}\n"
-            news_str += "\n"
+            news_str += "<!-- EXTERNAL_DATA_END -->\n\n"
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
-    except Exception as e:
-        return f"Error fetching global news: {str(e)}"
+    except Exception:
+        return "Error fetching global news: data unavailable"

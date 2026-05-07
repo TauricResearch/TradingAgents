@@ -298,8 +298,8 @@ def get_fundamentals(
 
         return header + "\n".join(lines)
 
-    except Exception as e:
-        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+    except Exception:
+        return f"Error retrieving fundamentals for {ticker}: data unavailable"
 
 
 def get_balance_sheet(
@@ -330,8 +330,8 @@ def get_balance_sheet(
         
         return header + csv_string
         
-    except Exception as e:
-        return f"Error retrieving balance sheet for {ticker}: {str(e)}"
+    except Exception:
+        return f"Error retrieving balance sheet for {ticker}: data unavailable"
 
 
 def get_cashflow(
@@ -362,8 +362,8 @@ def get_cashflow(
         
         return header + csv_string
         
-    except Exception as e:
-        return f"Error retrieving cash flow for {ticker}: {str(e)}"
+    except Exception:
+        return f"Error retrieving cash flow for {ticker}: data unavailable"
 
 
 def get_income_statement(
@@ -394,8 +394,8 @@ def get_income_statement(
         
         return header + csv_string
         
-    except Exception as e:
-        return f"Error retrieving income statement for {ticker}: {str(e)}"
+    except Exception:
+        return f"Error retrieving income statement for {ticker}: data unavailable"
 
 
 def get_insider_transactions(
@@ -418,5 +418,5 @@ def get_insider_transactions(
         
         return header + csv_string
         
-    except Exception as e:
-        return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+    except Exception:
+        return f"Error retrieving insider transactions for {ticker}: data unavailable"
