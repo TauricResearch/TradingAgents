@@ -1,10 +1,20 @@
+import logging
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import (
+    StockstatsUtils,
+    _clean_dataframe,
+    filter_financials_by_date,
+    get_wrapped_stockstats,
+    load_ohlcv,
+    yf_retry,
+)
+
+logger = logging.getLogger(__name__)
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -163,8 +173,8 @@ def get_stock_stats_indicators_window(
         for date_str, value in date_values:
             ind_string += f"{date_str}: {value}\n"
         
-    except Exception as e:
-        print(f"Error getting bulk stockstats data: {e}")
+    except Exception:
+        logger.exception("Error getting bulk stockstats data; falling back to per-date")
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -192,30 +202,31 @@ def _get_stock_stats_bulk(
 ) -> dict:
     """
     Optimized bulk calculation of stock stats indicators.
-    Fetches data once and calculates indicator for all available dates.
+
+    Uses get_wrapped_stockstats() so the wrapped DataFrame is reused
+    across indicator calls within the same (symbol, curr_date). For a
+    typical analyst pass that requests ~8 indicators, this reduces disk
+    reads and stockstats setup from O(8) to O(1).
+
     Returns dict mapping date strings to indicator values.
     """
-    from stockstats import wrap
+    df = get_wrapped_stockstats(symbol, curr_date)
 
-    data = load_ohlcv(symbol, curr_date)
-    df = wrap(data)
-    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-    
-    # Calculate the indicator for all rows at once
-    df[indicator]  # This triggers stockstats to calculate the indicator
-    
-    # Create a dictionary mapping date strings to indicator values
+    # Calculate the indicator for all rows at once. stockstats appends the
+    # resulting column to df (in place); subsequent calls for other
+    # indicators reuse the same wrapped frame.
+    df[indicator]
+
     result_dict = {}
     for _, row in df.iterrows():
         date_str = row["Date"]
         indicator_value = row[indicator]
-        
-        # Handle NaN/None values
+
         if pd.isna(indicator_value):
             result_dict[date_str] = "N/A"
         else:
             result_dict[date_str] = str(indicator_value)
-    
+
     return result_dict
 
 
@@ -236,9 +247,10 @@ def get_stockstats_indicator(
             indicator,
             curr_date,
         )
-    except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
+    except Exception:
+        logger.exception(
+            "Error getting stockstats indicator data for indicator %s on %s",
+            indicator, curr_date,
         )
         return ""
 

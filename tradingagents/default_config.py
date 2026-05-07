@@ -25,6 +25,9 @@ DEFAULT_CONFIG = {
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    # Default LLM request timeout in seconds. None means "use SDK default"
+    # (often unbounded, which lets a stuck provider hang the whole run).
+    "llm_timeout": 120,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

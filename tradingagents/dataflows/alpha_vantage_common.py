@@ -1,11 +1,20 @@
+import logging
 import os
+import re
 import requests
 import pandas as pd
 import json
 from datetime import datetime
 from io import StringIO
 
+logger = logging.getLogger(__name__)
+
 API_BASE_URL = "https://www.alphavantage.co/query"
+
+# Connect / read timeout for outbound HTTP. Without this, a stuck Alpha
+# Vantage backend will hang the entire analysis run.
+HTTP_TIMEOUT = (5, 30)
+
 
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
@@ -13,6 +22,20 @@ def get_api_key() -> str:
     if not api_key:
         raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
     return api_key
+
+
+def _redact_api_key(message: str) -> str:
+    """Replace the literal apikey value in any string with [REDACTED].
+
+    requests.HTTPError stringifies with the full URL including query params,
+    which leaks the Alpha Vantage api key into logs and exception traces.
+    Use this on any error message before logging or re-raising.
+    """
+    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    if api_key:
+        message = message.replace(api_key, "[REDACTED]")
+    # Also redact any apikey=... pattern in case the env var value differs
+    return re.sub(r"apikey=[^&\s]+", "apikey=[REDACTED]", message)
 
 def format_datetime_for_api(date_input) -> str:
     """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
@@ -63,11 +86,20 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
-    response.raise_for_status()
+    try:
+        response = requests.get(API_BASE_URL, params=api_params, timeout=HTTP_TIMEOUT)
+        response.raise_for_status()
+    except requests.HTTPError as e:
+        # requests.HTTPError stringifies with the full URL — scrub the api
+        # key before re-raising so it doesn't leak via uncaught exceptions.
+        scrubbed = _redact_api_key(str(e))
+        raise requests.HTTPError(scrubbed) from None
+    except requests.RequestException as e:
+        scrubbed = _redact_api_key(str(e))
+        raise requests.RequestException(scrubbed) from None
 
     response_text = response.text
-    
+
     # Check if response is JSON (error responses are typically JSON)
     try:
         response_json = json.loads(response_text)
@@ -118,5 +150,5 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
 
     except Exception as e:
         # If filtering fails, return original data with a warning
-        print(f"Warning: Failed to filter CSV data by date range: {e}")
+        logger.warning("Failed to filter CSV data by date range: %s", e)
         return csv_data

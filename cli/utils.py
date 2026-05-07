@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Dict
 from rich.console import Console
 
 from cli.models import AnalystType
+from tradingagents.dataflows.utils import safe_ticker_component
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -18,11 +19,28 @@ ANALYST_ORDER = [
 ]
 
 
+def _validate_ticker_input(value: str):
+    """questionary validator: non-empty AND passes safe_ticker_component."""
+    stripped = (value or "").strip()
+    if not stripped:
+        return "Please enter a valid ticker symbol."
+    try:
+        safe_ticker_component(stripped.upper())
+    except ValueError as e:
+        return f"Invalid ticker: {e}"
+    return True
+
+
 def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
+    """Prompt the user to enter a ticker symbol.
+
+    Validation runs both the non-empty check and safe_ticker_component so a
+    ticker that would later fail deep inside the graph (e.g. one with
+    path-traversal characters) is rejected immediately at the input prompt.
+    """
     ticker = questionary.text(
         f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+        validate=_validate_ticker_input,
         style=questionary.Style(
             [
                 ("text", "fg:green"),

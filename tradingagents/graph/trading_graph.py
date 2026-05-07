@@ -15,7 +15,6 @@ from langgraph.prebuilt import ToolNode
 
 from tradingagents.llm_clients import create_llm_client
 
-from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.utils import safe_ticker_component
@@ -24,7 +23,7 @@ from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
 )
-from tradingagents.dataflows.config import set_config
+from tradingagents.runtime import set_runtime_config
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -69,8 +68,9 @@ class TradingAgentsGraph:
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
-        # Update the interface's config
-        set_config(self.config)
+        # Update the runtime's config (writes to the process-wide default
+        # so all dataflow / agent reads see the new values)
+        set_runtime_config(self.config)
 
         # Create necessary directories
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
@@ -226,23 +226,45 @@ class TradingAgentsGraph:
             )
             return None, None, None
 
+    # Older pending entries (this many days past trade_date) are eligible for
+    # cross-ticker resolution at the start of every run. This prevents a
+    # ticker that's never re-run from accumulating un-resolved entries
+    # forever. Same-ticker entries are always resolved regardless of age.
+    _STALE_PENDING_DAYS = 30
+
     def _resolve_pending_entries(self, ticker: str) -> None:
-        """Resolve pending log entries for ticker at the start of a new run.
+        """Resolve pending log entries at the start of a new run.
 
-        Fetches returns for each same-ticker pending entry, generates reflections,
-        then writes all updates in a single atomic batch write to avoid redundant I/O.
-        Skips entries whose price data is not yet available (too recent or delisted).
-
-        Trade-off: only same-ticker entries are resolved per run.  Entries for
-        other tickers accumulate until that ticker is run again.
+        Always resolves all pending entries for the current ticker.  Also
+        sweeps pending entries for *other* tickers older than
+        _STALE_PENDING_DAYS so abandoned tickers don't pile up indefinitely.
+        Updates are written in a single atomic batch.  Entries whose price
+        data is unavailable (too recent or delisted) are left for next run.
         """
-        pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
-        if not pending:
+        all_pending = self.memory_log.get_pending_entries()
+        if not all_pending:
+            return
+
+        cutoff = datetime.now() - timedelta(days=self._STALE_PENDING_DAYS)
+        to_resolve = []
+        for entry in all_pending:
+            if entry["ticker"] == ticker:
+                to_resolve.append(entry)
+                continue
+            try:
+                entry_date = datetime.strptime(entry["date"], "%Y-%m-%d")
+            except (ValueError, TypeError):
+                continue
+            if entry_date < cutoff:
+                to_resolve.append(entry)
+
+        if not to_resolve:
             return
 
         updates = []
-        for entry in pending:
-            raw, alpha, days = self._fetch_returns(ticker, entry["date"])
+        for entry in to_resolve:
+            entry_ticker = entry["ticker"]
+            raw, alpha, days = self._fetch_returns(entry_ticker, entry["date"])
             if raw is None:
                 continue  # price not available yet — try again next run
             reflection = self.reflector.reflect_on_final_decision(
@@ -251,7 +273,7 @@ class TradingAgentsGraph:
                 alpha_return=alpha,
             )
             updates.append({
-                "ticker": ticker,
+                "ticker": entry_ticker,
                 "trade_date": entry["date"],
                 "raw_return": raw,
                 "alpha_return": alpha,
@@ -270,6 +292,12 @@ class TradingAgentsGraph:
         successful node on a subsequent invocation with the same ticker+date.
         """
         self.ticker = company_name
+
+        # Reset the per-process vendor result cache so this run starts fresh.
+        # Within one propagate() call, identical vendor calls (e.g. get_news
+        # from both news and social analysts) are deduplicated.
+        from tradingagents.dataflows.interface import clear_vendor_cache
+        clear_vendor_cache()
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)

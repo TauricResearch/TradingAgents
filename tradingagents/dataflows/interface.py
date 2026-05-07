@@ -1,3 +1,4 @@
+import threading
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -131,14 +132,55 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+# Per-process result cache for vendor routing.
+#
+# Within one analysis run, multiple analysts often call the same vendor method
+# with the same arguments (e.g. news_analyst and social_media_analyst both
+# call get_news for the same ticker+dates). The cache key includes the method
+# name, the resolved vendor config, and a hashable form of args+kwargs.
+#
+# call_vendor_cache_clear() should be called at the start of each propagate()
+# so different runs don't share results.
+_VENDOR_CACHE: dict[tuple, object] = {}
+_VENDOR_CACHE_LOCK = threading.Lock()
+
+
+def clear_vendor_cache() -> None:
+    """Clear the vendor result cache. Call between analysis runs."""
+    with _VENDOR_CACHE_LOCK:
+        _VENDOR_CACHE.clear()
+
+
+def _make_cache_key(method: str, vendor_config: str, args: tuple, kwargs: dict):
+    """Build a hashable cache key from a vendor call."""
+    try:
+        kw_items = tuple(sorted(kwargs.items()))
+        return (method, vendor_config, args, kw_items)
+    except TypeError:
+        # Args contain unhashable values; skip caching by returning None.
+        return None
+
+
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to appropriate vendor implementation with fallback support.
+
+    Results are memoized per-process via _VENDOR_CACHE so concurrent analysts
+    requesting the same data don't trigger duplicate vendor calls. Errors
+    are not cached.
+    """
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
+
+    cache_key = _make_cache_key(method, vendor_config, args, kwargs)
+    if cache_key is not None:
+        with _VENDOR_CACHE_LOCK:
+            cached = _VENDOR_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
 
     # Build fallback chain: primary vendors first, then remaining available vendors
     all_available_vendors = list(VENDOR_METHODS[method].keys())
@@ -155,7 +197,11 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            result = impl_func(*args, **kwargs)
+            if cache_key is not None:
+                with _VENDOR_CACHE_LOCK:
+                    _VENDOR_CACHE[cache_key] = result
+            return result
         except AlphaVantageRateLimitError:
             continue  # Only rate limits trigger fallback
 

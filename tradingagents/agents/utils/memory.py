@@ -25,6 +25,12 @@ class TradingMemoryLog:
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
         # Optional cap on resolved entries. None disables rotation.
         self._max_entries = cfg.get("memory_log_max_entries")
+        # Cache: (mtime_ns, parsed_entries). Refreshed when file mtime
+        # changes. A single propagate() reads the log multiple times
+        # (get_pending_entries, get_past_context); without this cache each
+        # read re-opens, re-splits, and re-regex-parses the whole file.
+        self._cache_mtime: int | None = None
+        self._cache_entries: List[dict] = []
 
     # --- Write path (Phase A) ---
 
@@ -53,9 +59,21 @@ class TradingMemoryLog:
     # --- Read path (Phase A) ---
 
     def load_entries(self) -> List[dict]:
-        """Parse all entries from log. Returns list of dicts."""
+        """Parse all entries from log. Returns list of dicts.
+
+        Result is cached and only re-parsed when the file mtime changes.
+        The cache is invalidated implicitly by every write path (which
+        bumps mtime via os.replace).
+        """
         if not self._log_path or not self._log_path.exists():
             return []
+        try:
+            mtime = self._log_path.stat().st_mtime_ns
+        except OSError:
+            mtime = None
+        if mtime is not None and mtime == self._cache_mtime:
+            return self._cache_entries
+
         text = self._log_path.read_text(encoding="utf-8")
         raw_entries = [e.strip() for e in text.split(self._SEPARATOR) if e.strip()]
         entries = []
@@ -63,6 +81,8 @@ class TradingMemoryLog:
             parsed = self._parse_entry(raw)
             if parsed:
                 entries.append(parsed)
+        self._cache_mtime = mtime
+        self._cache_entries = entries
         return entries
 
     def get_pending_entries(self) -> List[dict]:
