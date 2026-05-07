@@ -188,6 +188,7 @@ Apply lessons from past decisions:
             )
 
         # --- Structured output path (gated by config) ---
+        entry_price = None
         if DEFAULT_CONFIG.get("structured_output_enabled", True):
 
             def _trader_fallback_extractor(text: str) -> dict[str, Any]:

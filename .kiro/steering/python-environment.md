@@ -21,13 +21,13 @@ This project uses a local virtual environment at `.venv/`.
 ## Running Tests
 
 ```bash
-.venv/bin/python -m pytest tests/path/to/test_file.py -x -q
+.venv/bin/pytest tests/path/to/test_file.py -x -q
 ```
 
 ## Running a specific test
 
 ```bash
-.venv/bin/python -m pytest tests/path/to/test_file.py::TestClassName::test_method -x -q
+.venv/bin/pytest tests/path/to/test_file.py::TestClassName::test_method -x -q
 ```
 
 ## Linting
