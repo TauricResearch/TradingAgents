@@ -126,16 +126,33 @@ def _repo_env_path() -> Path:
     return Path(__file__).resolve().parents[2] / ".env"
 
 
-def _provider_api_key(api_key_env: str) -> Optional[str]:
-    """Return provider key, preferring this checkout's .env over stale shells.
+def _dotenv_candidates() -> list[Path]:
+    """Candidate dotenv files, ordered from local runtime to package checkout."""
+    candidates = [
+        Path.cwd() / ".env",
+        Path.home() / ".env",
+        _repo_env_path(),
+    ]
+    seen = set()
+    unique = []
+    for path in candidates:
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique.append(path)
+    return unique
 
-    Local TradingAgents runs often happen from long-lived terminals. A stale
-    exported DEEPSEEK_API_KEY can otherwise beat the repo .env and cause 401s
-    for an old key suffix even when .env is correct.
-    """
-    repo_env = _repo_env_path()
-    if repo_env.exists():
-        env_value = dotenv_values(repo_env).get(api_key_env)
+
+def _provider_api_key(api_key_env: str) -> Optional[str]:
+    """Return provider key, preferring local dotenv files over stale shells."""
+    for env_path in _dotenv_candidates():
+        if not env_path.exists():
+            continue
+        env_value = dotenv_values(env_path).get(api_key_env)
         if env_value:
             return env_value
     return os.environ.get(api_key_env)
