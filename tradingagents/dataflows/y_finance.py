@@ -2,14 +2,55 @@ import logging
 from datetime import datetime
 from typing import Annotated
 
+import pandas as pd
 import requests
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .finnhub_common import ThirdPartyTimeoutError
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
+from .stockstats_utils import (
+    StockstatsUtils,
+    _clean_dataframe,
+    _load_or_fetch_ohlcv,
+    filter_ohlcv_by_date,
+    yf_retry,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _filter_financials_by_date(data: pd.DataFrame, curr_date: str | None) -> pd.DataFrame | str:
+    """Drop financial statement columns whose date header is after curr_date.
+
+    yfinance returns financial statements with dates as column headers (Timestamps).
+    This function drops columns representing future fiscal periods to prevent
+    look-ahead bias in backtesting.
+
+    Args:
+        data: Financial statement DataFrame (rows=line items, columns=dates).
+        curr_date: Cutoff date in YYYY-MM-DD format. If None, returns data unchanged.
+
+    Returns:
+        DataFrame with only columns where date <= curr_date, or a message string
+        if all columns are filtered out.
+    """
+    if curr_date is None or data.empty:
+        return data
+    try:
+        cutoff = pd.Timestamp(curr_date)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            f"_filter_financials_by_date: cannot parse curr_date={curr_date!r} as a date"
+        ) from exc
+    # yfinance column headers are Timestamps — filter them
+    date_cols = pd.to_datetime(data.columns, errors="coerce")
+    mask = date_cols <= cutoff
+    # Keep columns that are valid dates and <= cutoff, plus any non-date columns
+    keep_mask = mask | date_cols.isna()
+    filtered = data.loc[:, keep_mask]
+    if filtered.empty:
+        return f"No financial data available on or before {curr_date}"
+    return filtered
 
 
 def get_YFin_data_online(
@@ -273,7 +314,7 @@ def _get_stock_stats_bulk(
     """
     Optimized bulk calculation of stock stats indicators.
     Fetches data once (via shared _load_or_fetch_ohlcv cache) and calculates
-    the indicator for all available dates.
+    the indicator for all available dates up to curr_date.
     Returns dict mapping date strings to indicator values.
 
     Raises:
@@ -285,6 +326,8 @@ def _get_stock_stats_bulk(
     # dynamic cache filename, and corpus validation — no duplicated download logic here.
     data = _load_or_fetch_ohlcv(symbol)
     data = _clean_dataframe(data)
+    # Filter to prevent look-ahead bias: only data on or before curr_date
+    data = filter_ohlcv_by_date(data, curr_date)
     df = wrap(data)
     # After wrap(), the date column becomes the datetime index (named 'date').
     # Access via df.index, not df["Date"] which stockstats would try to parse as an indicator.
@@ -378,9 +421,9 @@ def get_fundamentals(
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
+    curr_date: Annotated[str, "current date for look-ahead bias filtering"] = None,
 ) -> str:
-    """Get balance sheet data from yfinance."""
+    """Get balance sheet data from yfinance, filtered by curr_date to prevent look-ahead bias."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -391,6 +434,11 @@ def get_balance_sheet(
 
         if data.empty:
             return f"No balance sheet data found for symbol '{ticker}'"
+
+        # Filter to prevent look-ahead bias
+        data = _filter_financials_by_date(data, curr_date)
+        if isinstance(data, str):
+            return data
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -414,9 +462,9 @@ def get_balance_sheet(
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
+    curr_date: Annotated[str, "current date for look-ahead bias filtering"] = None,
 ) -> str:
-    """Get cash flow data from yfinance."""
+    """Get cash flow data from yfinance, filtered by curr_date to prevent look-ahead bias."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -427,6 +475,11 @@ def get_cashflow(
 
         if data.empty:
             return f"No cash flow data found for symbol '{ticker}'"
+
+        # Filter to prevent look-ahead bias
+        data = _filter_financials_by_date(data, curr_date)
+        if isinstance(data, str):
+            return data
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -450,9 +503,9 @@ def get_cashflow(
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
+    curr_date: Annotated[str, "current date for look-ahead bias filtering"] = None,
 ) -> str:
-    """Get income statement data from yfinance."""
+    """Get income statement data from yfinance, filtered by curr_date to prevent look-ahead bias."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -463,6 +516,11 @@ def get_income_statement(
 
         if data.empty:
             return f"No income statement data found for symbol '{ticker}'"
+
+        # Filter to prevent look-ahead bias
+        data = _filter_financials_by_date(data, curr_date)
+        if isinstance(data, str):
+            return data
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
