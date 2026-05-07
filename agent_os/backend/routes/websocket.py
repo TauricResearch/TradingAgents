@@ -123,7 +123,7 @@ async def websocket_endpoint(
     except Exception as e:
         logger.exception("Error during streaming run=%s", run_id)
         try:
-            await websocket.send_json({"type": "system", "message": f"Error: {str(e)}"})
+            await websocket.send_json({"type": "system", "message": "Internal streaming error"})
             await websocket.close()
         except Exception:
             pass  # client already gone
