@@ -12,13 +12,30 @@ def _filter_reports_by_date(result, curr_date: str | None):
         curr_date: Cutoff date in YYYY-MM-DD format. If None, returns result unchanged.
 
     Returns:
-        Filtered result dict, or original if curr_date is None or result is not a dict.
+        A new filtered result dict, or original if curr_date is None or result is not a dict.
+        The original dict is never mutated.
+
+    Raises:
+        ValueError: If curr_date is provided but not in YYYY-MM-DD format.
     """
-    if not curr_date or not isinstance(result, dict):
+    if curr_date is None or not isinstance(result, dict):
         return result
+
+    # Validate curr_date format to prevent silent lexicographic mis-comparisons
+    import re
+
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", curr_date):
+        raise ValueError(
+            f"_filter_reports_by_date: curr_date={curr_date!r} is not in YYYY-MM-DD format"
+        )
+
+    result = {**result}  # shallow-copy to avoid mutating the caller's dict
     for key in ("annualReports", "quarterlyReports"):
         if key in result:
-            result[key] = [r for r in result[key] if r.get("fiscalDateEnding", "") <= curr_date]
+            result[key] = [
+                r for r in result[key]
+                if r.get("fiscalDateEnding") and r["fiscalDateEnding"] <= curr_date
+            ]
     return result
 
 
@@ -28,10 +45,18 @@ def get_fundamentals(ticker: str, curr_date: str = None) -> str:
 
     Args:
         ticker (str): Ticker symbol of the company
-        curr_date (str): Current date you are trading at, yyyy-mm-dd (not used for Alpha Vantage)
+        curr_date (str): Current date you are trading at, yyyy-mm-dd (not used for Alpha Vantage OVERVIEW)
 
     Returns:
         str: Company overview data including financial ratios and key metrics
+
+    Note:
+        The OVERVIEW endpoint returns a flat dict of key-value pairs (e.g. EPS,
+        PERatio, 52WeekHigh) rather than date-indexed report arrays. Because
+        there are no annualReports/quarterlyReports arrays to filter,
+        _filter_reports_by_date is intentionally not applied here. The values
+        reflect the latest available snapshot from Alpha Vantage and cannot be
+        reliably date-filtered without a historical API.
     """
     params = {
         "symbol": ticker,

@@ -131,3 +131,16 @@ def test_none_curr_date_returns_unchanged():
     )
     result = _filter_financials_by_date(df, None)
     pd.testing.assert_frame_equal(result, df)
+
+
+def test_invalid_curr_date_raises_valueerror():
+    """Malformed curr_date raises ValueError with context message."""
+    import pytest
+
+    dates = pd.date_range("2024-01-01", periods=4, freq="QE")
+    df = pd.DataFrame(
+        {d: [100] for d in dates},
+        index=["Revenue"],
+    )
+    with pytest.raises(ValueError, match="cannot parse curr_date"):
+        _filter_financials_by_date(df, "not-a-date")

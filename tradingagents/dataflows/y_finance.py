@@ -36,7 +36,12 @@ def _filter_financials_by_date(data: pd.DataFrame, curr_date: str | None) -> pd.
     """
     if curr_date is None or data.empty:
         return data
-    cutoff = pd.Timestamp(curr_date)
+    try:
+        cutoff = pd.Timestamp(curr_date)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            f"_filter_financials_by_date: cannot parse curr_date={curr_date!r} as a date"
+        ) from exc
     # yfinance column headers are Timestamps — filter them
     date_cols = pd.to_datetime(data.columns, errors="coerce")
     mask = date_cols <= cutoff

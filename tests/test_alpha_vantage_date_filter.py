@@ -5,6 +5,9 @@ Properties 4-5: Alpha Vantage Report Date Filter, None Passthrough
 Validates: Requirements 2.1, 2.2, 2.3
 """
 
+import copy
+import datetime
+
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -15,8 +18,8 @@ from tradingagents.dataflows.alpha_vantage_fundamentals import _filter_reports_b
 # ---------------------------------------------------------------------------
 
 _DATE_STR = st.dates(
-    min_value=__import__("datetime").date(2010, 1, 1),
-    max_value=__import__("datetime").date(2026, 12, 31),
+    min_value=datetime.date(2010, 1, 1),
+    max_value=datetime.date(2026, 12, 31),
 ).map(lambda d: d.strftime("%Y-%m-%d"))
 
 
@@ -63,8 +66,6 @@ def test_property_4_all_reports_on_or_before_curr_date(response, curr_date):
 @settings(max_examples=100)
 def test_property_5_none_passthrough(response):
     """Property 5: Passing None as curr_date returns the dict unchanged."""
-    import copy
-
     original = copy.deepcopy(response)
     result = _filter_reports_by_date(response, None)
     assert result == original
@@ -116,3 +117,65 @@ def test_partial_filtering():
     result = _filter_reports_by_date(response, "2025-06-01")
     assert len(result["annualReports"]) == 1
     assert result["annualReports"][0]["fiscalDateEnding"] == "2024-12-31"
+
+
+def test_missing_fiscal_date_ending_excluded():
+    """Reports missing fiscalDateEnding are excluded rather than silently passing."""
+    response = {
+        "annualReports": [
+            {"fiscalDateEnding": "2024-06-30", "totalAssets": "1000"},
+            {"totalAssets": "500"},  # missing fiscalDateEnding
+            {"fiscalDateEnding": "", "totalAssets": "300"},  # empty string
+        ],
+    }
+    result = _filter_reports_by_date(response, "2025-01-01")
+    # Only the report with a valid date on or before curr_date should remain
+    assert len(result["annualReports"]) == 1
+    assert result["annualReports"][0]["fiscalDateEnding"] == "2024-06-30"
+
+
+def test_no_mutation_of_input():
+    """Filtering does not mutate the original input dict."""
+    response = {
+        "annualReports": [
+            {"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"},
+            {"fiscalDateEnding": "2026-12-31", "totalAssets": "1100"},
+        ],
+        "quarterlyReports": [
+            {"fiscalDateEnding": "2025-06-30", "totalAssets": "800"},
+        ],
+    }
+    original_annual_len = len(response["annualReports"])
+    original_quarterly_len = len(response["quarterlyReports"])
+
+    _filter_reports_by_date(response, "2025-01-01")
+
+    # Original dict must be unchanged
+    assert len(response["annualReports"]) == original_annual_len
+    assert len(response["quarterlyReports"]) == original_quarterly_len
+
+
+def test_invalid_curr_date_raises_valueerror():
+    """Malformed curr_date raises ValueError instead of silently mis-comparing."""
+    import pytest
+
+    response = {
+        "annualReports": [{"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"}],
+    }
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "2025/01/01")
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "Jan 2025")
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "")
+
+
+def test_empty_string_curr_date_raises():
+    """Empty string curr_date raises ValueError, not silent passthrough."""
+    import pytest
+
+    response = {
+        "annualReports": [{"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"}],
+    }
+    with pytest.raises(ValueError):
+        _filter_reports_by_date(response, "")
