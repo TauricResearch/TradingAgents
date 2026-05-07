@@ -1,6 +1,8 @@
 import os
+from pathlib import Path
 from typing import Any, Optional
 
+from dotenv import dotenv_values
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
@@ -120,6 +122,25 @@ _PROVIDER_CONFIG = {
 }
 
 
+def _repo_env_path() -> Path:
+    return Path(__file__).resolve().parents[2] / ".env"
+
+
+def _provider_api_key(api_key_env: str) -> Optional[str]:
+    """Return provider key, preferring this checkout's .env over stale shells.
+
+    Local TradingAgents runs often happen from long-lived terminals. A stale
+    exported DEEPSEEK_API_KEY can otherwise beat the repo .env and cause 401s
+    for an old key suffix even when .env is correct.
+    """
+    repo_env = _repo_env_path()
+    if repo_env.exists():
+        env_value = dotenv_values(repo_env).get(api_key_env)
+        if env_value:
+            return env_value
+    return os.environ.get(api_key_env)
+
+
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
 
@@ -151,7 +172,7 @@ class OpenAIClient(BaseLLMClient):
             default_base, api_key_env = _PROVIDER_CONFIG[self.provider]
             llm_kwargs["base_url"] = self.base_url or default_base
             if api_key_env:
-                api_key = os.environ.get(api_key_env)
+                api_key = _provider_api_key(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
             else:

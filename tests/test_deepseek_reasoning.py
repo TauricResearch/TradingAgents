@@ -19,8 +19,56 @@ from langchain_core.prompt_values import ChatPromptValue
 from tradingagents.llm_clients.openai_client import (
     DeepSeekChatOpenAI,
     NormalizedChatOpenAI,
+    OpenAIClient,
     _input_to_messages,
+    _provider_api_key,
 )
+
+
+# ---------------------------------------------------------------------------
+# Provider API-key precedence
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_provider_api_key_prefers_repo_env_over_stale_shell(monkeypatch, tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("DEEPSEEK_API_KEY=sk-live-repo-key-90fe\n", encoding="utf-8")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-stale-shell-key-3f4A")
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.openai_client._repo_env_path",
+        lambda: env_file,
+    )
+
+    assert _provider_api_key("DEEPSEEK_API_KEY") == "sk-live-repo-key-90fe"
+
+
+@pytest.mark.unit
+def test_openai_client_uses_repo_env_key_for_deepseek(monkeypatch, tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("DEEPSEEK_API_KEY=sk-live-repo-key-90fe\n", encoding="utf-8")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-stale-shell-key-3f4A")
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.openai_client._repo_env_path",
+        lambda: env_file,
+    )
+
+    captured = {}
+
+    class _FakeDeepSeekChat:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.openai_client.DeepSeekChatOpenAI",
+        _FakeDeepSeekChat,
+    )
+
+    OpenAIClient("deepseek-v4-flash", provider="deepseek").get_llm()
+
+    assert captured["api_key"] == "sk-live-repo-key-90fe"
+    assert captured["base_url"] == "https://api.deepseek.com"
+    assert captured["model"] == "deepseek-v4-flash"
 
 
 # ---------------------------------------------------------------------------
