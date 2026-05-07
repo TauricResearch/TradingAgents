@@ -33,7 +33,29 @@ This project uses a local virtual environment at `.venv/`.
 ## Linting
 
 ```bash
-.venv/bin/python -m ruff check .
+.venv/bin/ruff check .
+```
+
+## Formatting
+
+```bash
+.venv/bin/ruff format .
+```
+
+## Pre-Push CI Checklist
+
+CI runs two checks: **Ruff Lint** and **Ruff Format**. Always run both locally before pushing:
+
+```bash
+.venv/bin/ruff check . --fix   # fix lint errors (I001, F401, F841, etc.)
+.venv/bin/ruff format .        # fix formatting
+```
+
+Then verify:
+
+```bash
+.venv/bin/ruff check .         # must print "All checks passed!"
+.venv/bin/ruff format --check . # must print "X files already formatted"
 ```
 
 ## Key Details
