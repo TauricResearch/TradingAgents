@@ -1,3 +1,5 @@
+import datetime
+
 from .alpha_vantage_common import _make_api_request
 
 
@@ -16,15 +18,17 @@ def _filter_reports_by_date(result, curr_date: str | None):
         The original dict is never mutated.
 
     Raises:
-        ValueError: If curr_date is provided but not in YYYY-MM-DD format.
+        ValueError: If curr_date is provided but not a valid calendar date in YYYY-MM-DD format
+                    (e.g. "2025-99-99" is rejected even though it matches the digit pattern).
     """
     if curr_date is None or not isinstance(result, dict):
         return result
 
-    # Validate curr_date format to prevent silent lexicographic mis-comparisons
-    import re
-
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", curr_date):
+    # Parse curr_date to reject both malformed strings and invalid calendar dates
+    # (e.g. "2025-99-99" passes a regex but fromisoformat raises ValueError).
+    try:
+        cutoff = datetime.date.fromisoformat(curr_date)
+    except ValueError:
         raise ValueError(
             f"_filter_reports_by_date: curr_date={curr_date!r} is not in YYYY-MM-DD format"
         )
@@ -34,7 +38,7 @@ def _filter_reports_by_date(result, curr_date: str | None):
         if key in result:
             result[key] = [
                 r for r in result[key]
-                if r.get("fiscalDateEnding") and r["fiscalDateEnding"] <= curr_date
+                if r.get("fiscalDateEnding") and r["fiscalDateEnding"] <= cutoff.isoformat()
             ]
     return result
 

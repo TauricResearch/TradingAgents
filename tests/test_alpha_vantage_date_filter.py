@@ -8,6 +8,7 @@ Validates: Requirements 2.1, 2.2, 2.3
 import copy
 import datetime
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -156,9 +157,11 @@ def test_no_mutation_of_input():
 
 
 def test_invalid_curr_date_raises_valueerror():
-    """Malformed curr_date raises ValueError instead of silently mis-comparing."""
-    import pytest
+    """Malformed curr_date raises ValueError instead of silently mis-comparing.
 
+    Covers: wrong separators, non-date strings, empty string, and invalid
+    calendar dates that pass a digit-only regex (e.g. "2025-99-99").
+    """
     response = {
         "annualReports": [{"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"}],
     }
@@ -168,14 +171,6 @@ def test_invalid_curr_date_raises_valueerror():
         _filter_reports_by_date(response, "Jan 2025")
     with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
         _filter_reports_by_date(response, "")
-
-
-def test_empty_string_curr_date_raises():
-    """Empty string curr_date raises ValueError, not silent passthrough."""
-    import pytest
-
-    response = {
-        "annualReports": [{"fiscalDateEnding": "2024-12-31", "totalAssets": "1000"}],
-    }
-    with pytest.raises(ValueError):
-        _filter_reports_by_date(response, "")
+    # Invalid calendar date — passes digit regex but fromisoformat rejects it
+    with pytest.raises(ValueError, match="not in YYYY-MM-DD format"):
+        _filter_reports_by_date(response, "2025-99-99")
