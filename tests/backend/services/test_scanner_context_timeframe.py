@@ -75,9 +75,7 @@ def test_property_commodity_timeframe_format_compliance(
 
     # 1. Output matches the expected format pattern:
     #    "Name: $price (+X.XX% daily, +Y.YY% YoY)"
-    pattern = re.compile(
-        r"^.+: \$[\d.]+ \([+-][\d.]+% daily, [+-][\d.]+% YoY\)$"
-    )
+    pattern = re.compile(r"^.+: \$[\d.]+ \([+-][\d.]+% daily, [+-][\d.]+% YoY\)$")
     assert pattern.match(result), (
         f"Output does not match expected format pattern.\n"
         f"Got: {result!r}\n"
@@ -89,15 +87,12 @@ def test_property_commodity_timeframe_format_compliance(
     bare_pct_pattern = re.compile(r"[+-]?\d+\.?\d*%(?!\s*(?:daily|YoY))")
     bare_matches = bare_pct_pattern.findall(result)
     assert not bare_matches, (
-        f"Found bare percentage(s) without timeframe label: {bare_matches}\n"
-        f"In output: {result!r}"
+        f"Found bare percentage(s) without timeframe label: {bare_matches}\nIn output: {result!r}"
     )
 
     # 3. Output contains the commodity name, price, and both labeled percentages.
     assert name in result, f"Commodity name {name!r} not found in output: {result!r}"
-    assert f"${price:.2f}" in result, (
-        f"Price ${price:.2f} not found in output: {result!r}"
-    )
+    assert f"${price:.2f}" in result, f"Price ${price:.2f} not found in output: {result!r}"
     assert "daily" in result, f"'daily' label not found in output: {result!r}"
     assert "YoY" in result, f"'YoY' label not found in output: {result!r}"
 

@@ -178,13 +178,8 @@ Debate History:
             else:
                 # Fallback path — raw_text contains the LLM free-text response
                 output_content = raw_text.replace("TICKER_A", ticker)
-                if (
-                    not str(output_content).strip()
-                    or output_contains_scratchpad(output_content)
-                ):
-                    failure_class = (
-                        "empty" if not str(output_content).strip() else "scratchpad"
-                    )
+                if not str(output_content).strip() or output_contains_scratchpad(output_content):
+                    failure_class = "empty" if not str(output_content).strip() else "scratchpad"
                     raise RuntimeError(
                         f"Research Manager node failed: {failure_class} — no valid output after exhausting retries"
                     )

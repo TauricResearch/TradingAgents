@@ -242,7 +242,10 @@ class DecisionOutcomeTracker:
 
         # Sort by abs(alpha) descending, then by trade_date descending for recency tie-break
         resolved.sort(
-            key=lambda r: (-abs(r.alpha if r.alpha is not None else 0), -_date_ordinal(r.trade_date))
+            key=lambda r: (
+                -abs(r.alpha if r.alpha is not None else 0),
+                -_date_ordinal(r.trade_date),
+            )
         )
         top_n = resolved[:n]
 

@@ -95,9 +95,7 @@ async def get_portfolio_summary(
         }
     except Exception:
         logger.exception("Failed to compute portfolio summary for %s", portfolio_id)
-        raise HTTPException(
-            status_code=503, detail="Unable to compute portfolio summary"
-        ) from None
+        raise HTTPException(status_code=503, detail="Unable to compute portfolio summary") from None
 
 
 @router.get("/{portfolio_id}/latest")

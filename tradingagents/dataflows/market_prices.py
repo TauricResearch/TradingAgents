@@ -143,7 +143,9 @@ def _format_market_price_table(title: str, rows: list[MarketPriceRow]) -> str:
         change_str = f"{row.absolute_change:+.2f}"
         pct_str = f"{row.percent_change:+.2f}%"
         yoy_str = f"{row.yoy_change:+.2f}%"
-        lines.append(f"| {row.asset} | {row.symbol} | {price_str} | {change_str} | {pct_str} | {yoy_str} |")
+        lines.append(
+            f"| {row.asset} | {row.symbol} | {price_str} | {change_str} | {pct_str} | {yoy_str} |"
+        )
     return "\n".join(lines)
 
 

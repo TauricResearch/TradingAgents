@@ -19,39 +19,61 @@ from tradingagents.agents.utils.output_validation import FundamentalsKeyMetrics
 # ---------------------------------------------------------------------------
 
 # Metric value strategies
-_pe_ratio_values = st.floats(min_value=0.01, max_value=9999.99, allow_nan=False, allow_infinity=False)
-_de_ratio_values = st.floats(min_value=0.01, max_value=9999.99, allow_nan=False, allow_infinity=False)
-_fcf_change_values = st.floats(min_value=-999.99, max_value=999.99, allow_nan=False, allow_infinity=False)
-_operating_margin_values = st.floats(min_value=-999.99, max_value=999.99, allow_nan=False, allow_infinity=False)
-_current_ratio_values = st.floats(min_value=0.01, max_value=99.99, allow_nan=False, allow_infinity=False)
+_pe_ratio_values = st.floats(
+    min_value=0.01, max_value=9999.99, allow_nan=False, allow_infinity=False
+)
+_de_ratio_values = st.floats(
+    min_value=0.01, max_value=9999.99, allow_nan=False, allow_infinity=False
+)
+_fcf_change_values = st.floats(
+    min_value=-999.99, max_value=999.99, allow_nan=False, allow_infinity=False
+)
+_operating_margin_values = st.floats(
+    min_value=-999.99, max_value=999.99, allow_nan=False, allow_infinity=False
+)
+_current_ratio_values = st.floats(
+    min_value=0.01, max_value=99.99, allow_nan=False, allow_infinity=False
+)
 
-_working_capital_examples = st.sampled_from([
-    "$2.3B (negative)",
-    "-$500M",
-    "$1.2B",
-    "$450M (positive)",
-    "-$1.8B",
-    "$3.5B (healthy)",
-    "$100M",
-    "-$200M (concerning)",
-])
+_working_capital_examples = st.sampled_from(
+    [
+        "$2.3B (negative)",
+        "-$500M",
+        "$1.2B",
+        "$450M (positive)",
+        "-$1.8B",
+        "$3.5B (healthy)",
+        "$100M",
+        "-$200M (concerning)",
+    ]
+)
 
 # Filler text that does NOT contain metric patterns
 _filler_text = st.text(
     alphabet=string.ascii_lowercase + " \n",
     min_size=0,
     max_size=200,
-).map(lambda s: s.replace("ratio", "").replace("margin", "").replace("change", "").replace("capital", ""))
+).map(
+    lambda s: (
+        s.replace("ratio", "").replace("margin", "").replace("change", "").replace("capital", "")
+    )
+)
 
 
 # Strategy for PE ratio format variants
 _pe_format = st.sampled_from(["P/E Ratio", "PE Ratio", "P/E ratio", "pe ratio"])
 
 # Strategy for D/E ratio format variants
-_de_format = st.sampled_from([
-    "D/E Ratio", "Debt/Equity Ratio", "Debt-to-Equity", "D/E ratio",
-    "Debt/Equity ratio", "Debt-to-Equity",
-])
+_de_format = st.sampled_from(
+    [
+        "D/E Ratio",
+        "Debt/Equity Ratio",
+        "Debt-to-Equity",
+        "D/E ratio",
+        "Debt/Equity ratio",
+        "Debt-to-Equity",
+    ]
+)
 
 # Strategy for FCF change format variants
 _fcf_format = st.sampled_from(["FCF Change", "Free Cash Flow Change", "fcf change"])
@@ -236,7 +258,9 @@ def test_property_metric_extraction_correctness(data: tuple) -> None:
             f"Operating margin mismatch: got {result.operating_margin_pct}, expected {expected['operating_margin_pct']}"
         )
     else:
-        assert result.operating_margin_pct is None, "Operating margin should be None when not in report"
+        assert result.operating_margin_pct is None, (
+            "Operating margin should be None when not in report"
+        )
 
     if "current_ratio" in expected:
         assert result.current_ratio is not None, "Current ratio should be extracted"
@@ -252,7 +276,9 @@ def test_property_metric_extraction_correctness(data: tuple) -> None:
             f"Working capital mismatch: got {result.working_capital_str!r}, expected {expected['working_capital_str']!r}"
         )
     else:
-        assert result.working_capital_str is None, "Working capital should be None when not in report"
+        assert result.working_capital_str is None, (
+            "Working capital should be None when not in report"
+        )
 
 
 @settings(max_examples=100)
@@ -334,7 +360,9 @@ def test_property_metric_round_trip_preservation(metrics: dict) -> None:
         f"FCF change round-trip failed: got {result.fcf_change_pct}, expected {metrics['fcf_change_pct']}"
     )
 
-    assert result.operating_margin_pct is not None, "Operating margin should be extracted in round-trip"
+    assert result.operating_margin_pct is not None, (
+        "Operating margin should be extracted in round-trip"
+    )
     assert abs(result.operating_margin_pct - metrics["operating_margin_pct"]) <= 0.01, (
         f"Operating margin round-trip failed: got {result.operating_margin_pct}, expected {metrics['operating_margin_pct']}"
     )

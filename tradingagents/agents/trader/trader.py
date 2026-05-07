@@ -246,13 +246,8 @@ Apply lessons from past decisions:
             else:
                 # Fallback path
                 output_content = raw_text.replace("TICKER_A", ticker)
-                if (
-                    not str(output_content).strip()
-                    or output_contains_scratchpad(output_content)
-                ):
-                    failure_class = (
-                        "empty" if not str(output_content).strip() else "scratchpad"
-                    )
+                if not str(output_content).strip() or output_contains_scratchpad(output_content):
+                    failure_class = "empty" if not str(output_content).strip() else "scratchpad"
                     raise RuntimeError(
                         f"Trader node failed: {failure_class} — no valid output after exhausting retries"
                     )

@@ -37,7 +37,8 @@ def _filter_reports_by_date(result, curr_date: str | None):
     for key in ("annualReports", "quarterlyReports"):
         if key in result:
             result[key] = [
-                r for r in result[key]
+                r
+                for r in result[key]
                 if r.get("fiscalDateEnding") and r["fiscalDateEnding"] <= cutoff.isoformat()
             ]
     return result

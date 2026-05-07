@@ -334,9 +334,7 @@ def build_default_config(
             _env("DECISION_TRACKER_ENABLED", env=env),
             default=False,
         ),
-        "decision_holding_period_days": _env_int(
-            "DECISION_HOLDING_PERIOD_DAYS", 5, env=env
-        ),
+        "decision_holding_period_days": _env_int("DECISION_HOLDING_PERIOD_DAYS", 5, env=env),
         "decision_cross_ticker_n": _env_int("DECISION_CROSS_TICKER_N", 3, env=env),
         # Report storage backend
         "mongo_uri": _env("MONGO_URI", env=env),

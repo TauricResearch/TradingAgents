@@ -87,18 +87,12 @@ class TestValidateCommodityBlockRejectsBare:
 
     def test_rejects_mixed_bare_and_labeled(self) -> None:
         """If any percentage is bare, the block is rejected even if others are labeled."""
-        text = (
-            "Gold: $2000.00 (+1.50% daily, +8.00% YoY)\n"
-            "Oil: $75.00 (-3.2%)"
-        )
+        text = "Gold: $2000.00 (+1.50% daily, +8.00% YoY)\nOil: $75.00 (-3.2%)"
         assert validate_commodity_block(text) is False
 
     def test_rejects_multiline_bare_percentages(self) -> None:
         """Multiple bare percentages across lines are all rejected."""
-        text = (
-            "- Gold $4583 (-12%)\n"
-            "- Oil $68 (+2.5%)\n"
-        )
+        text = "- Gold $4583 (-12%)\n- Oil $68 (+2.5%)\n"
         assert validate_commodity_block(text) is False
 
 
