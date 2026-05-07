@@ -50,6 +50,18 @@ class TestMissingScanDateFailure:
         with pytest.raises(RuntimeError, match="deterministic scan date"):
             build_scanner_context_packet(scan_state, "TSLA")
 
+    def test_malformed_scan_date_raises_runtime_error(self) -> None:
+        """When scan_date is present but not YYYY-MM-DD, a RuntimeError is raised."""
+        scan_state: dict = {"scan_date": "2025/03/15"}
+        with pytest.raises(RuntimeError, match="malformed"):
+            build_scanner_context_packet(scan_state, "AAPL")
+
+    def test_invalid_date_string_raises_runtime_error(self) -> None:
+        """When scan_date is a non-date string, a RuntimeError is raised."""
+        scan_state: dict = {"scan_date": "not-a-date"}
+        with pytest.raises(RuntimeError, match="malformed"):
+            build_scanner_context_packet(scan_state, "MSFT")
+
 
 # ---------------------------------------------------------------------------
 # Requirement 6.4: validate_commodity_block rejects bare percentages

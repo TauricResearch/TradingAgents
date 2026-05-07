@@ -499,27 +499,32 @@ def build_scanner_context_packet(scan_state: dict[str, Any], ticker: str) -> str
 
     try:
         scan_dt = _dt.datetime.strptime(scan_date_str, "%Y-%m-%d")
-        from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
-        to_date = (scan_dt + _dt.timedelta(days=14)).strftime("%Y-%m-%d")
+    except (ValueError, TypeError) as e:
+        raise RuntimeError(
+            f"build_scanner_context_packet: scan_date '{scan_date_str}' is malformed "
+            f"(expected YYYY-MM-DD). Cannot build scanner context with an invalid scan date. "
+            f"Original error: {e}"
+        ) from e
 
-        try:
-            earnings_rows = format_filtered_earnings_rows(
-                get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date}),
-                ticker,
-                peer_tickers,
-                max_rows=8,
-            )
-        except Exception as e:
-            logger.warning("Failed to fetch earnings calendar for scanner context: %s", e)
-        try:
-            economic_rows = format_filtered_economic_events(
-                get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date}),
-                max_rows=8,
-            )
-        except Exception as e:
-            logger.warning("Failed to fetch economic calendar for scanner context: %s", e)
+    from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
+    to_date = (scan_dt + _dt.timedelta(days=14)).strftime("%Y-%m-%d")
+
+    try:
+        earnings_rows = format_filtered_earnings_rows(
+            get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date}),
+            ticker,
+            peer_tickers,
+            max_rows=8,
+        )
     except Exception as e:
-        logger.warning("Failed to parse scan date for calendar data: %s", e)
+        logger.warning("Failed to fetch earnings calendar for scanner context: %s", e)
+    try:
+        economic_rows = format_filtered_economic_events(
+            get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date}),
+            max_rows=8,
+        )
+    except Exception as e:
+        logger.warning("Failed to fetch economic calendar for scanner context: %s", e)
 
     def _bullet_lines(items: list[str]) -> str:
         return "\n".join(f"- {line}" for line in items)
