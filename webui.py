@@ -41,6 +41,7 @@ from tradingagents.dataflows.user_research import (
     list_research,
 )
 from tradingagents.llm_clients import create_llm_client
+from worker_drainer import WorkerDrainer
 
 
 # Concurrency: each analysis runs in its own subprocess (worker.py), so the
@@ -659,19 +660,36 @@ def _release_slot(run_id):
             pass
 
 
-# Garbage-collect any registry entries whose subprocess has exited but whose
-# session disappeared (e.g. user closed the browser mid-run). Without this,
-# the semaphore would slowly leak.
+# Watchdog GC. Two failure modes to handle:
+#   1. Worker hangs (e.g., LLM API or network deadlock) — drainer can't help
+#      because the worker isn't writing anything. We hard-terminate after
+#      30 min so the semaphore slot is reclaimable. Normal runs finish in ~7 min.
+#   2. Worker finished but the owning browser session never came back to
+#      release the slot. We release entries whose `last_seen` is stale.
+_GC_NOW = time.time()
+_GC_HARD_TIMEOUT = 1800   # 30 min — > 4 × normal worker runtime
+_GC_ABANDON_GRACE = 300   # 5 min since last rerun touched this entry
 for _rid, _info in list(_state["runs"].items()):
     _proc = _info.get("proc")
-    if _proc is not None and _proc.poll() is not None:
-        if _info.get("decision") is None and _info.get("error") is None:
-            # Worker exited but never emitted "done" — surface as error
-            _info["error"] = {"type": "WorkerExited",
-                              "msg": f"worker exited with code {_proc.returncode}"}
-        # Only auto-release if no session is still tracking this run
-        if _info.get("session_count", 0) <= 0:
-            _release_slot(_rid)
+    if _proc is None:
+        continue
+    _age = _GC_NOW - _info.get("started_at", _GC_NOW)
+    if _proc.poll() is None and _age > _GC_HARD_TIMEOUT:
+        try:
+            _proc.terminate()
+        except Exception:
+            pass
+        continue  # next GC cycle, after exit, will release the slot
+    if _proc.poll() is None:
+        continue
+    # Worker has exited. Synthesize an error if it never emitted done/error.
+    _drn = _info.get("drainer")
+    if _drn is not None and _drn.decision is None and _drn.error is None:
+        _drn.error = {"type": "WorkerExited",
+                      "msg": f"worker exited with code {_proc.returncode}"}
+    _last_seen = _info.get("last_seen", _info.get("started_at", _GC_NOW))
+    if _GC_NOW - _last_seen > _GC_ABANDON_GRACE:
+        _release_slot(_rid)
 
 current_run_id = st.session_state.get("current_run_id")
 worker_info = _state["runs"].get(current_run_id) if current_run_id else None
@@ -837,6 +855,10 @@ if run and worker_info is None:
         stdin=_sp_init.PIPE, stdout=_sp_init.PIPE, stderr=_sp_init.PIPE,
         text=True, bufsize=1, encoding="utf-8",
     )
+    # Start draining stdout immediately. Without this, a closed browser tab
+    # leaves no consumer on the pipe — the worker fills the 64 KB buffer and
+    # blocks forever in pipe_write.
+    _drainer_new = WorkerDrainer(_proc_new)
 
     def _assemble_user_research(ticker_: str) -> str:
         chunks = []
@@ -861,11 +883,12 @@ if run and worker_info is None:
     new_run_id = f"{_authed_email}|{ticker}|{trade_date}|{int(time.time() * 1000)}"
     worker_info = {
         "email": _authed_email, "ticker": ticker, "trade_date": str(trade_date),
-        "proc": _proc_new, "started_at": time.time(),
-        "chunks": [], "decision": None, "error": None,
+        "proc": _proc_new,
+        "drainer": _drainer_new,
+        "started_at": time.time(),
+        "last_seen": time.time(),
         "selected_analysts": selected_analysts,
         "checkpoint_enabled": checkpoint_enabled,
-        "session_count": 1,
     }
     _state["runs"][new_run_id] = worker_info
     st.session_state["current_run_id"] = new_run_id
@@ -1041,99 +1064,82 @@ else:
     push_event(T("ev_started"), T("ev_started_d").format(ticker, trade_date))
 tick_timer()
 
-# ─── Replay any chunks already received in prior reruns ───
-for _ch in worker_info["chunks"]:
-    render_chunk(_ch)
+# Mark this rerun as actively watching — the watchdog GC uses this to
+# distinguish abandoned runs from ones a session is still consuming.
+worker_info["last_seen"] = time.time()
 
-# ─── Continue streaming from the persistent proc ───
-import select as _select
-import json as _json
-
+# ─── Pull worker output from the drainer thread ───
+# The drainer (started right after Popen) reads stdout in the background so
+# the pipe never blocks even if no streamlit session is reading. This loop
+# just polls its in-memory state and re-renders new chunks.
 _proc = worker_info["proc"]
-_stdout_fd = _proc.stdout.fileno()
+_drainer = worker_info["drainer"]
+
+# Replay everything seen so far. Idempotent — render_chunk paints the latest
+# state of each section, so re-rendering the same chunk is a no-op.
+_rendered = 0
+for _ch in _drainer.snapshot_chunks():
+    render_chunk(_ch)
+    _rendered += 1
+
 last_chunk_at = time.time()
-try:
-    while worker_info["decision"] is None and worker_info["error"] is None:
-        if _proc.poll() is not None:
-            # Worker exited — drain remaining lines from the pipe before exiting loop.
-            for _line in _proc.stdout:
-                _line = _line.strip()
-                if not _line:
-                    continue
-                try:
-                    ev = _json.loads(_line)
-                except _json.JSONDecodeError:
-                    print(f"[worker non-JSON] {_line[:200]}", flush=True)
-                    continue
-                kind = ev.get("kind")
-                if kind == "chunk":
-                    worker_info["chunks"].append(ev.get("data", {}))
-                    render_chunk(ev.get("data", {}))
-                elif kind == "done":
-                    worker_info["decision"] = ev.get("decision", "")
-                elif kind == "error":
-                    worker_info["error"] = ev
-            break
-
-        ready, _, _ = _select.select([_stdout_fd], [], [], 1.0)
-        tick_timer()
-        idle_sec = int(time.time() - last_chunk_at)
-        if idle_sec >= 5:
-            last_event_box.markdown(
-                f"⏳ waiting on worker · {idle_sec}s since last chunk"
-                if st.session_state["ui_lang"] == "en"
-                else f"⏳ 等 worker 中 · 距上次更新 {idle_sec}s"
-            )
-        if not ready:
-            continue
-
-        line = _proc.stdout.readline()
-        if not line:  # EOF
-            break
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            ev = _json.loads(line)
-        except _json.JSONDecodeError:
-            print(f"[worker non-JSON] {line[:200]}", flush=True)
-            continue
-        kind = ev.get("kind")
+while _drainer.decision is None and _drainer.error is None:
+    _snap = _drainer.snapshot_chunks()
+    if len(_snap) > _rendered:
+        for _ch in _snap[_rendered:]:
+            render_chunk(_ch)
+        _rendered = len(_snap)
         last_chunk_at = time.time()
-        if kind == "chunk":
-            worker_info["chunks"].append(ev.get("data", {}))
-            render_chunk(ev.get("data", {}))
-        elif kind == "started":
-            push_event(T("ev_started"), T("ev_started_d").format(ticker, trade_date))
-        elif kind == "done":
-            worker_info["decision"] = ev.get("decision", "")
-            print(f"[run] DONE chunks={len(worker_info['chunks'])} "
-                  f"decision_len={len(worker_info['decision'])}", flush=True)
-        elif kind == "error":
-            worker_info["error"] = ev
-            print(f"[run] worker ERROR {ev.get('type')}: {ev.get('msg')}", flush=True)
-            print(ev.get("trace", ""), flush=True)
-finally:
-    # Only release / clean up if the worker actually finished. If we were
-    # interrupted by a script rerun (e.g. user changed language), leave the
-    # registry entry so the next rerun resumes from where we left off.
-    if worker_info["decision"] is not None or worker_info["error"] is not None:
-        try:
-            _proc.wait(timeout=5)
-        except Exception:
-            pass
-        try:
-            _stderr_tail = _proc.stderr.read()
-            if _stderr_tail:
-                for ln in _stderr_tail.splitlines()[-50:]:
-                    print(f"[worker stderr] {ln}", flush=True)
-        except Exception:
-            pass
-        _release_slot(current_run_id)
-        st.session_state.pop("current_run_id", None)
 
-worker_error = worker_info.get("error")
-decision = worker_info.get("decision")
+    if _drainer.eof:
+        # Worker exited but never emitted done/error — surface a synthetic
+        # error so the UI doesn't loop forever waiting.
+        _drainer.error = {"type": "WorkerExited",
+                          "msg": f"worker exited with code {_proc.returncode}"}
+        break
+
+    tick_timer()
+    worker_info["last_seen"] = time.time()
+    idle_sec = int(time.time() - last_chunk_at)
+    if idle_sec >= 5:
+        last_event_box.markdown(
+            f"⏳ waiting on worker · {idle_sec}s since last chunk"
+            if st.session_state["ui_lang"] == "en"
+            else f"⏳ 等 worker 中 · 距上次更新 {idle_sec}s"
+        )
+    time.sleep(0.5)
+
+# Final pull — a chunk could have landed between our last snapshot and the
+# decision/error being set.
+_snap = _drainer.snapshot_chunks()
+if len(_snap) > _rendered:
+    for _ch in _snap[_rendered:]:
+        render_chunk(_ch)
+
+if _drainer.decision is not None:
+    print(f"[run] DONE chunks={len(_snap)} "
+          f"decision_len={len(_drainer.decision)}", flush=True)
+elif _drainer.error is not None:
+    print(f"[run] worker ERROR {_drainer.error.get('type')}: "
+          f"{_drainer.error.get('msg')}", flush=True)
+    print(_drainer.error.get("trace", ""), flush=True)
+
+try:
+    _proc.wait(timeout=5)
+except Exception:
+    pass
+try:
+    _stderr_tail = _proc.stderr.read()
+    if _stderr_tail:
+        for ln in _stderr_tail.splitlines()[-50:]:
+            print(f"[worker stderr] {ln}", flush=True)
+except Exception:
+    pass
+_release_slot(current_run_id)
+st.session_state.pop("current_run_id", None)
+
+worker_error = _drainer.error
+decision = _drainer.decision
 
 if worker_error:
     push_event(T("ev_error"), worker_error.get("msg", ""))
