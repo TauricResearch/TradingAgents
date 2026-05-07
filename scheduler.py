@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -46,10 +47,29 @@ WORKER_PATH = str(_ROOT / "worker.py")
 LOCK_PATH = "/tmp/trading-scheduler.lock"
 WEBUI_BASE_URL = os.getenv("WEBUI_PUBLIC_URL", "http://localhost:8501")
 
+# Watchlists with more than this many resolved tickers get one consolidated
+# summary message instead of a full per-ticker report. Stops Telegram from
+# being flooded with hundreds of section messages on big watchlists.
+SUMMARY_THRESHOLD = int(os.getenv("TRADINGAGENTS_SCHEDULER_SUMMARY_THRESHOLD", "5"))
+
+# How many worker subprocesses run in parallel per user. Bounded by Gemini
+# RPM quota and host RAM (each worker ≈ 250 MB resident).
+CONCURRENCY = max(1, int(os.getenv("TRADINGAGENTS_SCHEDULER_CONCURRENCY", "4")))
+
 
 def _log(msg: str) -> None:
     """Print with a timestamp + flush — visible immediately in journalctl."""
     print(f"{time.strftime('%F %T')} {msg}", flush=True)
+
+
+def _send(chat_id: str, text: str, **kwargs: Any) -> bool:
+    """Wrap notify.send_telegram so failures hit the journal instead of being
+    silently swallowed. Without this, a wrong chat_id or 403 looks identical
+    to a successful run from systemd's perspective."""
+    ok, detail = notify.send_telegram(chat_id, text, **kwargs)
+    if not ok:
+        _log(f"  telegram send failed → chat={chat_id}: {detail}")
+    return ok
 
 
 def _decision_label(text: str) -> str:
@@ -194,13 +214,13 @@ def _push_full_report(
     if n_notes:
         suffix = "" if n_notes == 1 else "s"
         header += f"\n📎 Used {n_notes} user-uploaded research note{suffix}"
-    notify.send_telegram(chat_id, header, parse_mode="Markdown",
-                         disable_notification=False)
+    _send(chat_id, header, parse_mode="Markdown",
+          disable_notification=False)
 
     # Range stats — fail-soft, never abort the report.
     try:
         rs = compute_range_stats(ticker, trade_date)
-        notify.send_telegram(
+        _send(
             chat_id,
             format_range_stats_telegram(rs),
             parse_mode=None,
@@ -261,16 +281,16 @@ def _push_full_report(
         # parse_mode=None: LLM output may contain stray "*"/"_" that would break
         # the legacy Markdown parser. Title is plain ASCII so no risk.
         text = f"━━ {title} ━━\n\n{content}"
-        notify.send_telegram(chat_id, text, parse_mode=None,
-                             disable_notification=True)
+        _send(chat_id, text, parse_mode=None,
+              disable_notification=True)
 
     # 4. Footer with deep link back to webui (silent)
     footer = (
         f"🔗 完整 webui: {WEBUI_BASE_URL}\n"
         f"💡 命令: 给我发 /history {ticker} 看历史决策"
     )
-    notify.send_telegram(chat_id, footer, parse_mode=None,
-                         disable_notification=True)
+    _send(chat_id, footer, parse_mode=None,
+          disable_notification=True)
 
 
 def _push_error(chat_id: str, ticker: str, trade_date: str,
@@ -280,7 +300,75 @@ def _push_error(chat_id: str, ticker: str, trade_date: str,
         f"Daily analysis failed.\n\n"
         f"`{err.get('type', 'Error')}`: {err.get('msg', '(no message)')[:300]}"
     )
-    notify.send_telegram(chat_id, msg, parse_mode="Markdown")
+    _send(chat_id, msg, parse_mode="Markdown")
+
+
+def _format_summary(
+    trade_date: str,
+    results: list[dict[str, Any]],
+    *,
+    elapsed_sec: float,
+    webui_url: str = WEBUI_BASE_URL,
+) -> str:
+    """Format one consolidated summary message for big watchlists.
+
+    `results` is a list of dicts, each:
+        {"ticker": str, "ok": True,  "decision": str}
+        {"ticker": str, "ok": False, "error_msg": str}
+
+    Tickers in each decision bucket are sorted alphabetically so the message
+    is reproducible regardless of worker completion order.
+    """
+    by_label: dict[str, list[str]] = {"BUY": [], "SELL": [], "HOLD": [], "—": []}
+    failed: list[tuple[str, str]] = []
+    for r in results:
+        if r.get("ok"):
+            label = _decision_label(r.get("decision") or "")
+            by_label.setdefault(label, []).append(r["ticker"])
+        else:
+            failed.append((r["ticker"], (r.get("error_msg") or "")[:80]))
+
+    n_total = len(results)
+    elapsed_min = max(1, round(elapsed_sec / 60.0))
+
+    lines = [f"📊 Daily {trade_date} · {n_total} tickers · {elapsed_min} min"]
+
+    for label in ("BUY", "SELL", "HOLD"):
+        items = sorted(by_label.get(label, []))
+        if items:
+            lines.append("")
+            lines.append(f"{_decision_emoji(label)} {label} ({len(items)})")
+            lines.append("  " + " · ".join(items))
+
+    misc = sorted(by_label.get("—", []))
+    if misc:
+        lines.append("")
+        lines.append(f"⚪ Unclassified ({len(misc)})")
+        lines.append("  " + " · ".join(misc))
+
+    if failed:
+        lines.append("")
+        lines.append(f"⚠️ Failed ({len(failed)})")
+        for t, msg in sorted(failed):
+            lines.append(f"  • {t}: {msg}")
+
+    lines.append("")
+    lines.append(f"🔗 webui: {webui_url}")
+    lines.append("💡 给我发 /history TICKER 看完整报告")
+    return "\n".join(lines)
+
+
+def _push_summary(
+    chat_id: str,
+    trade_date: str,
+    results: list[dict[str, Any]],
+    *,
+    elapsed_sec: float,
+) -> None:
+    """Send the consolidated summary message. parse_mode=None because ticker
+    symbols and decision text could contain ``*``/``_``."""
+    text = _format_summary(trade_date, results, elapsed_sec=elapsed_sec)
+    _send(chat_id, text, parse_mode=None, disable_notification=False)
 
 
 def _process_user(slug: str, prefs: dict[str, Any], *, dry_run: bool) -> None:
@@ -299,29 +387,78 @@ def _process_user(slug: str, prefs: dict[str, Any], *, dry_run: bool) -> None:
     trade_date = _trade_date()
     _log(f"user {slug}: {len(raw_tickers)} ticker(s) for {trade_date}")
 
+    # Resolve up front so we know whether to use full or summary mode based
+    # on actual successful resolves, and so a flood of unresolvables doesn't
+    # tip a small watchlist into summary mode.
+    resolved: list[tuple[str, str]] = []  # (raw, ticker)
     for raw in raw_tickers:
         ticker, _resolve_msg = ticker_resolver.resolve_ticker(raw)
         if not ticker:
             _log(f"  '{raw}': could not resolve")
             if not dry_run:
-                notify.send_telegram(chat_id,
-                    f"⚠️ Couldn't resolve `{raw}` to a ticker symbol.")
+                _send(chat_id,
+                      f"⚠️ Couldn't resolve `{raw}` to a ticker symbol.")
             continue
         _log(f"  {raw} → {ticker}")
+        resolved.append((raw, ticker))
 
-        if dry_run:
-            continue
+    if dry_run or not resolved:
+        return
 
-        result = _run_worker(slug, ticker, trade_date, prefs)
-        if result["ok"]:
+    summary_mode = len(resolved) > SUMMARY_THRESHOLD
+    _log(f"user {slug}: mode={'summary' if summary_mode else 'full'} "
+         f"concurrency={CONCURRENCY}")
+
+    started = time.monotonic()
+    summary_results: list[dict[str, Any]] = []
+
+    with ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+        future_to_ticker = {
+            pool.submit(_run_worker, slug, ticker, trade_date, prefs): ticker
+            for _, ticker in resolved
+        }
+        for fut in as_completed(future_to_ticker):
+            ticker = future_to_ticker[fut]
             try:
-                _push_full_report(chat_id, slug, ticker, trade_date,
-                                  result["decision"])
-            except Exception as e:
-                _log(f"  telegram push failed for {ticker}: "
-                     f"{type(e).__name__}: {e}")
-        else:
-            _push_error(chat_id, ticker, trade_date, result["error"])
+                result = fut.result()
+            except Exception as e:  # noqa: BLE001 — keep batch alive
+                result = {"ok": False, "error": {
+                    "type": type(e).__name__, "msg": str(e),
+                }}
+
+            if summary_mode:
+                if result["ok"]:
+                    summary_results.append({
+                        "ticker": ticker, "ok": True,
+                        "decision": result["decision"],
+                    })
+                else:
+                    err = result["error"]
+                    summary_results.append({
+                        "ticker": ticker, "ok": False,
+                        "error_msg": f"{err.get('type', 'Error')}: "
+                                     f"{err.get('msg', '?')[:80]}",
+                    })
+                continue
+
+            # Full mode: push each ticker's report as soon as its worker
+            # finishes. Order is non-deterministic with concurrency > 1.
+            if result["ok"]:
+                try:
+                    _push_full_report(chat_id, slug, ticker, trade_date,
+                                      result["decision"])
+                except Exception as e:
+                    _log(f"  telegram push failed for {ticker}: "
+                         f"{type(e).__name__}: {e}")
+            else:
+                _push_error(chat_id, ticker, trade_date, result["error"])
+
+    elapsed = time.monotonic() - started
+    _log(f"user {slug}: workers done in {elapsed:.0f}s")
+
+    if summary_mode:
+        _push_summary(chat_id, trade_date, summary_results,
+                      elapsed_sec=elapsed)
 
 
 def _acquire_host_lock() -> int | None:
