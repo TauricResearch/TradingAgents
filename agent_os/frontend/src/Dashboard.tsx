@@ -203,7 +203,7 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay backdropFilter="blur(6px)" />
-      <ModalContent bg="slate.900" color="white" maxH="85vh" border="1px solid" borderColor="whiteAlpha.200">
+      <ModalContent bg="slate.900" color="white" maxH="90vh" border="1px solid" borderColor="whiteAlpha.200">
         <ModalCloseButton />
         <ModalHeader borderBottomWidth="1px" borderColor="whiteAlpha.100">
           <HStack>
@@ -229,7 +229,7 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
             <TabPanels>
               {event.prompt && (
                 <TabPanel p={0}>
-                  <Box bg="blackAlpha.500" p={4} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100" maxH="60vh" overflowY="auto">
+                  <Box bg="blackAlpha.500" p={4} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100" overflowY="auto">
                     <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="whiteAlpha.900">
                       {event.prompt}
                     </Text>
@@ -238,7 +238,7 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
               )}
               {(event.response || (event.type === 'result' && event.message)) && (
                 <TabPanel p={0}>
-                  <Box bg="blackAlpha.500" p={4} borderRadius="md" border="1px solid" borderColor={event.status === 'error' ? 'red.700' : 'whiteAlpha.100'} maxH="60vh" overflowY="auto">
+                  <Box bg="blackAlpha.500" p={4} borderRadius="md" border="1px solid" borderColor={event.status === 'error' ? 'red.700' : 'whiteAlpha.100'} overflowY="auto">
                     <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color={event.status === 'error' ? 'red.200' : 'whiteAlpha.900'}>
                       {event.response || event.message}
                     </Text>
@@ -247,7 +247,7 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
               )}
               {event.error && (
                 <TabPanel p={0}>
-                  <Box bg="red.900" p={4} borderRadius="md" border="1px solid" borderColor="red.600" maxH="60vh" overflowY="auto">
+                  <Box bg="red.900" p={4} borderRadius="md" border="1px solid" borderColor="red.600" overflowY="auto">
                     <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="red.200">
                       {event.error}
                     </Text>

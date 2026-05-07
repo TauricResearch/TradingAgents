@@ -311,11 +311,13 @@ class EventMapper:
                 output = (event.get("data") or {}).get("output")
                 if output is not None:
                     raw_text = _extract_content(output)
-                    output_text = (
+                    output_text = raw_text[:_MAX_FULL_LEN] if raw_text else ""
+                    output_snippet = (
                         raw_text if node_name in _FULL_PAYLOAD_NODES else _truncate(raw_text)
                     )
                 else:
                     output_text = ""
+                    output_snippet = ""
                 logger.info(
                     "Node end node=%s latency=%dms run=%s", node_name, latency_ms, execution_key
                 )
@@ -326,7 +328,7 @@ class EventMapper:
                         "type": "result",
                         "agent": node_name.upper(),
                         "identifier": identifier,
-                        "message": f"Completed node: {node_name}",
+                        "message": f"Completed node: {node_name}" + (f" | {output_snippet}" if output_snippet else ""),
                         "response": output_text,
                         "metrics": {"model": "langgraph_node", "latency_ms": latency_ms},
                     }
