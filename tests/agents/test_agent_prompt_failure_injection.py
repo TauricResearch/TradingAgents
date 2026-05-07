@@ -97,7 +97,22 @@ def _make_research_manager_state(ticker: str = "AAPL") -> dict:
 
 
 class TestTraderFailureInjection:
-    """Validates Requirement 1.2: Trader node receives failure block."""
+    """Validates Requirement 1.2: Trader node receives failure block.
+
+    Uses legacy free-text path (structured_output_enabled=False) so these tests
+    remain independent of the structured output integration.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
 
     def test_trader_includes_failure_block_when_failures_available(self):
         """When execution failures exist, the trader prompt includes the failure block."""
@@ -196,7 +211,22 @@ class TestTraderFailureInjection:
 
 
 class TestResearchManagerFailureInjection:
-    """Validates Requirement 1.3: Research Manager node receives failure block."""
+    """Validates Requirement 1.3: Research Manager node receives failure block.
+
+    Uses legacy free-text path (structured_output_enabled=False) so these tests
+    remain independent of the structured output integration.
+    """
+
+    _disable_structured = patch.dict(
+        "tradingagents.agents.managers.research_manager.DEFAULT_CONFIG",
+        {"structured_output_enabled": False},
+    )
+
+    def setup_method(self):
+        self._disable_structured.start()
+
+    def teardown_method(self):
+        self._disable_structured.stop()
 
     def test_rm_includes_failure_block_when_failures_available(self):
         """When execution failures exist, the RM prompt includes the failure block."""
