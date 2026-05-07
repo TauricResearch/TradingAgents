@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -31,6 +32,7 @@ logger = logging.getLogger("agent_os.runs")
 
 # Module-level MongoDB client singleton (lazy-initialized by _get_mongo_col)
 _mongo_client: Any | None = None
+_mongo_lock = threading.Lock()
 
 router = APIRouter(prefix="/api/run", tags=["runs"])
 
@@ -981,14 +983,18 @@ def _get_mongo_col() -> Any | None:
     uri = DEFAULT_CONFIG.get("mongo_uri")
     db_name = DEFAULT_CONFIG.get("mongo_db", "tradingagents")
     if uri:
-        if _mongo_client is None:
-            try:
-                from pymongo import MongoClient
+        with _mongo_lock:
+            if _mongo_client is None:
+                try:
+                    from pymongo import MongoClient
 
-                _mongo_client = MongoClient(uri)
-            except Exception:
-                logger.warning("Failed to connect to MongoDB for historical events")
-                return None
+                    _mongo_client = MongoClient(uri)
+                    # Ensure index on run_events for efficient queries
+                    col = _mongo_client[db_name]["run_events"]
+                    col.create_index([("run_id", 1), ("ts", 1)])
+                except Exception:
+                    logger.warning("Failed to connect to MongoDB for historical events")
+                    return None
         return _mongo_client[db_name]["run_events"]
     return None
 

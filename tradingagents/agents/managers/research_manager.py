@@ -129,7 +129,7 @@ Debate History:
         messages = [{"role": "user", "content": prompt}]
 
         # --- Structured output path (gated by config) ---
-        if DEFAULT_CONFIG.get("structured_output_enabled", True):
+        if DEFAULT_CONFIG.get("structured_output_enabled"):
 
             def _rm_fallback_extractor(text: str) -> dict[str, Any]:
                 """Fallback: use existing post-hoc extraction on free-text."""

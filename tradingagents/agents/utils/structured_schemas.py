@@ -28,6 +28,12 @@ RATING_SYNONYMS: dict[str, str] = {
 def normalize_rating(raw: str) -> str:
     """Map a raw rating string to the canonical 5-tier vocabulary.
 
+    This is a **post-hoc helper for free-text extraction only** — it is NOT wired
+    into ResearchPlanSchema as a Pydantic field_validator.  When the LLM returns a
+    non-canonical rating (e.g. "Strong Buy"), Pydantic will raise ValidationError
+    and the structured output utility will degrade to the free-text fallback path,
+    where this function is used to normalize the extracted rating string.
+
     Checks exact match first (case-insensitive), then synonym lookup.
     Defaults to 'Hold' if unmappable.
     """

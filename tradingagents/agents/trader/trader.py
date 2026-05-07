@@ -30,7 +30,7 @@ def _parse_price_token(raw: str) -> float | None:
         return None
     try:
         value = float(token)
-    except Exception:
+    except ValueError:
         return None
     return value if value > 0 else None
 
@@ -189,7 +189,7 @@ Apply lessons from past decisions:
 
         # --- Structured output path (gated by config) ---
         entry_price = None
-        if DEFAULT_CONFIG.get("structured_output_enabled", True):
+        if DEFAULT_CONFIG.get("structured_output_enabled"):
 
             def _trader_fallback_extractor(text: str) -> dict[str, Any]:
                 """Fallback: use existing post-hoc extraction on free-text."""

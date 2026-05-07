@@ -123,6 +123,9 @@ def test_prop14_fallback_on_error_types(error: Exception):
     assert fallback_dict is not None
     assert fallback_dict["action"] == "Hold"
     assert raw_text == "some fallback text"
+    # Verify invoke_with_timeout was called exactly once (for the free-text fallback
+    # path only — the structured path raises before invoke_with_timeout is reached).
+    assert mock_invoke.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +223,40 @@ def test_logging_includes_agent_name(caplog):
 
     assert any("MyCustomAgent" in record.message for record in caplog.records)
     assert any("NotImplementedError" in record.message for record in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Unit: TimeoutError from structured path is NOT swallowed (propagates)
+# ---------------------------------------------------------------------------
+
+
+def test_timeout_error_from_structured_path_propagates():
+    """TimeoutError from the structured LLM call must propagate, not fall back.
+
+    This prevents doubling worst-case latency by silently retrying via free-text.
+    """
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.return_value = MagicMock()
+
+    with (
+        patch("tradingagents.agents.utils.structured_output.resolve_timeout", return_value=60.0),
+        patch("tradingagents.agents.utils.structured_output.invoke_with_timeout") as mock_invoke,
+    ):
+        # Simulate structured path timing out
+        mock_invoke.return_value = (None, TimeoutError("structured call timed out"))
+
+        with pytest.raises(TimeoutError, match="structured call timed out"):
+            invoke_structured_or_freetext(
+                llm=mock_llm,
+                schema=_TestSchema,
+                messages=[{"role": "user", "content": "test"}],
+                fallback_extractor=_mock_fallback_extractor,
+                agent_name="test_agent",
+            )
+
+        # Verify invoke_with_timeout was called only once (structured path) —
+        # the free-text fallback was NOT attempted.
+        assert mock_invoke.call_count == 1
 
 
 # ---------------------------------------------------------------------------

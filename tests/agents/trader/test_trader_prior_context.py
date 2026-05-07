@@ -48,33 +48,20 @@ def test_trader_includes_prior_context_when_available(tmp_path: Path) -> None:
         captured["messages"] = messages
         return response, None
 
-    state = {
-        "company_of_interest": "AAPL",
-        "investment_plan": "Manager says BUY",
-        "investment_plan_structured": {"status": "completed"},
-        "market_report": "tech setup positive",
-        "sentiment_report": "neutral",
-        "news_report": "earnings beat",
-        "fundamentals_report": "PE 28",
-        "trade_date": "2026-05-01",
-        "scanner_graph_context_text": "",
-    }
-
-    with (
-        patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
-        patch(
-            "tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")
-        ),
-        patch(
-            "tradingagents.agents.trader.trader.build_trader_plan_structured",
-            return_value={"status": "completed"},
-        ),
-        patch.dict(
-            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
-            {"structured_output_enabled": False},
-        ),
-    ):
+    patches = _base_patches(tmp_path, fake_invoke)
+    with patches[0], patches[1], patches[2], patches[3]:
         node = create_trader(fake_llm, memory)
+        state = {
+            "company_of_interest": "AAPL",
+            "investment_plan": "Manager says BUY",
+            "investment_plan_structured": {"status": "completed"},
+            "market_report": "tech setup positive",
+            "sentiment_report": "neutral",
+            "news_report": "earnings beat",
+            "fundamentals_report": "PE 28",
+            "trade_date": "2026-05-01",
+            "scanner_graph_context_text": "",
+        }
         node(state)
 
     system_msg = captured["messages"][0]["content"]
@@ -94,33 +81,20 @@ def test_trader_system_msg_has_no_prior_context_when_absent(tmp_path: Path) -> N
         captured["messages"] = messages
         return response, None
 
-    state = {
-        "company_of_interest": "AAPL",
-        "investment_plan": "Manager says BUY",
-        "investment_plan_structured": {"status": "completed"},
-        "market_report": "tech setup positive",
-        "sentiment_report": "neutral",
-        "news_report": "earnings beat",
-        "fundamentals_report": "PE 28",
-        "trade_date": "2026-05-01",
-        "scanner_graph_context_text": "",
-    }
-
-    with (
-        patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
-        patch(
-            "tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")
-        ),
-        patch(
-            "tradingagents.agents.trader.trader.build_trader_plan_structured",
-            return_value={"status": "completed"},
-        ),
-        patch.dict(
-            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
-            {"structured_output_enabled": False},
-        ),
-    ):
+    patches = _base_patches(tmp_path, fake_invoke)
+    with patches[0], patches[1], patches[2], patches[3]:
         node = create_trader(fake_llm, memory)
+        state = {
+            "company_of_interest": "AAPL",
+            "investment_plan": "Manager says BUY",
+            "investment_plan_structured": {"status": "completed"},
+            "market_report": "tech setup positive",
+            "sentiment_report": "neutral",
+            "news_report": "earnings beat",
+            "fundamentals_report": "PE 28",
+            "trade_date": "2026-05-01",
+            "scanner_graph_context_text": "",
+        }
         node(state)
 
     system_msg = captured["messages"][0]["content"]
@@ -139,33 +113,20 @@ def test_trader_no_crash_when_trade_date_missing(tmp_path: Path) -> None:
         captured["messages"] = messages
         return response, None
 
-    state = {
-        "company_of_interest": "AAPL",
-        "investment_plan": "Manager says BUY",
-        "investment_plan_structured": {"status": "completed"},
-        "market_report": "tech setup positive",
-        "sentiment_report": "neutral",
-        "news_report": "earnings beat",
-        "fundamentals_report": "PE 28",
-        # trade_date intentionally absent
-        "scanner_graph_context_text": "",
-    }
-
-    with (
-        patch("tradingagents.agents.trader.trader.invoke_with_timeout", side_effect=fake_invoke),
-        patch(
-            "tradingagents.agents.utils.historical_context.REPORTS_ROOT", str(tmp_path / "reports")
-        ),
-        patch(
-            "tradingagents.agents.trader.trader.build_trader_plan_structured",
-            return_value={"status": "completed"},
-        ),
-        patch.dict(
-            "tradingagents.agents.trader.trader.DEFAULT_CONFIG",
-            {"structured_output_enabled": False},
-        ),
-    ):
+    patches = _base_patches(tmp_path, fake_invoke)
+    with patches[0], patches[1], patches[2], patches[3]:
         node = create_trader(fake_llm, memory)
+        state = {
+            "company_of_interest": "AAPL",
+            "investment_plan": "Manager says BUY",
+            "investment_plan_structured": {"status": "completed"},
+            "market_report": "tech setup positive",
+            "sentiment_report": "neutral",
+            "news_report": "earnings beat",
+            "fundamentals_report": "PE 28",
+            # trade_date intentionally absent
+            "scanner_graph_context_text": "",
+        }
         result = node(state)
 
     assert "trader_investment_plan" in result

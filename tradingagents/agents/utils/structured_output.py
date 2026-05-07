@@ -41,13 +41,16 @@ def invoke_structured_or_freetext[T: BaseModel](
             # result is already a Pydantic model instance
             return result, "", None
         if error is not None:
+            # TimeoutError must propagate — don't mask latency issues by
+            # silently falling back to a second full-timeout invocation.
+            if isinstance(error, TimeoutError):
+                raise error
             raise error
     except (
         NotImplementedError,
         ValidationError,
         TypeError,
         AttributeError,
-        TimeoutError,
     ) as exc:
         logger.warning(
             "%s: structured output failed (%s: %s), falling back to free-text",
