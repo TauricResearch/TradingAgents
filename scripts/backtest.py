@@ -49,18 +49,20 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 OUTPUT_DIR = Path.home() / ".tradingagents" / "polymarket"
 
 
-def _fetch_resolved_markets(limit: int, min_liquidity: float = 10000.0) -> list[dict]:
+def _fetch_resolved_markets(limit: int, min_volume: float = 10000.0) -> list[dict]:
     """Pull resolved (closed) markets from gamma for backtesting.
 
     Filters out:
       - cancelled markets (CANCELED outcome)
       - data anomalies (UNKNOWN outcome from [0,0] outcomePrices)
-      - markets below min_liquidity (avoid tiny-liquidity edge cases)
+      - markets below min_volume cumulative trade volume (resolved markets
+        always have $0 current liquidity, so volume is the right
+        "was this a real, traded market?" signal)
       - markets without token IDs
     """
     params = {
         "closed": "true",
-        "limit": str(max(limit * 4, 50)),  # over-fetch for filtering
+        "limit": str(max(limit * 8, 100)),  # over-fetch for filtering
         "order": "endDate",
         "ascending": "false",  # most recently closed first
     }
@@ -77,7 +79,7 @@ def _fetch_resolved_markets(limit: int, min_liquidity: float = 10000.0) -> list[
         m = _normalise_market(raw_m)
         if m is None:
             continue
-        if m["liquidity"] < min_liquidity:
+        if m["volume"] < min_volume:
             continue
         if not m.get("yes_token_id") or not m.get("no_token_id"):
             continue
@@ -105,10 +107,14 @@ def main() -> int:
         help="OpenRouter model id (default: openai/gpt-4o-mini)",
     )
     parser.add_argument(
-        "--min-liquidity",
+        "--min-volume",
         type=float,
         default=10000.0,
-        help="Skip markets below this liquidity floor (default: $10,000)",
+        help=(
+            "Skip resolved markets below this cumulative-volume threshold "
+            "(default: $10,000). Volume is used instead of liquidity because "
+            "resolved markets always show $0 current liquidity."
+        ),
     )
     args = parser.parse_args()
 
@@ -116,9 +122,9 @@ def main() -> int:
         print("ERROR: EXA_API_KEY and OPENROUTER_API_KEY must be set", file=sys.stderr)
         return 2
 
-    print(f"Fetching {args.limit} resolved markets (>= ${args.min_liquidity:,.0f} liquidity)...")
+    print(f"Fetching {args.limit} resolved markets (>= ${args.min_volume:,.0f} cumulative volume)...")
     try:
-        markets = _fetch_resolved_markets(args.limit, args.min_liquidity)
+        markets = _fetch_resolved_markets(args.limit, args.min_volume)
     except GammaAPIError as e:
         print(f"ERROR: gamma fetch failed: {e}", file=sys.stderr)
         return 3
