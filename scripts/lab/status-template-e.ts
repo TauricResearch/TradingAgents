@@ -1,31 +1,28 @@
 #!/usr/bin/env bun
 /**
- * Server lifecycle: start means start, stop means stop.
+ * Lab: Template E — The simplest correct version
  *
- * Usage: bun scripts/server-lifecycle.ts <start|stop|restart|status>
+ * One border. Dynamic width. No wrapping. Hint outside.
+ *
+ * Run: bun scripts/lab/status-template-e.ts
  */
 
 import { execSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { gum } from "./lib/gum.ts"
+import { gum } from "../lib/gum.ts"
 
 const HOME = process.env.HOME ?? "~"
-const RUNTIME = join(HOME, ".tradingagents")
-const PID_FILE = join(RUNTIME, "server.pid")
-const LOG_FILE = join(RUNTIME, "server.log")
-const PREV_LOG = join(RUNTIME, "server.prev.log")
+const PID_FILE = join(HOME, ".tradingagents", "server.pid")
 const PORT = parseInt(process.env.TA_DASHBOARD_PORT ?? "3000", 10)
 const DB_PATH = process.env.PORTFOLIO_DB ?? "./portfolio.db"
 const TEST_DB_PATH = process.env.TEST_PORTFOLIO_DB ?? "./test_portfolio.db"
 
-function ensureDir() {
-  if (!existsSync(RUNTIME)) mkdirSync(RUNTIME, { recursive: true })
-}
+// ── Detection ──────────────────────────────────────────────────────────────
 
 function readPid(): number | null {
   try {
-    const text = readFileSync(PID_FILE, "utf-8")
+    const text = require("node:fs").readFileSync(PID_FILE, "utf-8")
     const pid = parseInt(text.trim(), 10)
     return Number.isNaN(pid) ? null : pid
   } catch {
@@ -39,14 +36,6 @@ function isAlive(pid: number): boolean {
     return true
   } catch {
     return false
-  }
-}
-
-function killPort(port: number) {
-  try {
-    execSync(`lsof -ti :${port} | xargs kill -9 2>/dev/null`, { shell: "/bin/bash" })
-  } catch {
-    /* no process on port */
   }
 }
 
@@ -85,14 +74,14 @@ function detectTd(): boolean {
   return existsSync(".todos")
 }
 
-interface ServiceRow {
+interface Row {
   name: string
   state: "running" | "stopped" | "error" | "unknown"
   detail: string
   verb: string
 }
 
-function gatherServices(): ServiceRow[] {
+function gather(): Row[] {
   const pid = readPid()
   const dashboardRunning = pid !== null && isAlive(pid)
   const portOccupied = detectPort(PORT)
@@ -147,10 +136,10 @@ function gatherServices(): ServiceRow[] {
   ]
 }
 
-async function status() {
-  const rows = gatherServices()
+// ── Simplest correct display ─────────────────────────────────────────────
 
-  const dotColour: Record<ServiceRow["state"], string> = {
+async function display(rows: Row[]) {
+  const dotColour: Record<Row["state"], string> = {
     running: "\x1b[32m",
     stopped: "\x1b[90m",
     error: "\x1b[31m",
@@ -161,6 +150,7 @@ async function status() {
   const maxName = Math.max(...rows.map((r) => r.name.length))
   const maxDetail = Math.max(...rows.map((r) => r.detail.length))
 
+  // Build plain-text rows
   const lines: string[] = [
     `${"Service".padEnd(maxName + 2)}${"Status".padEnd(10)}${"Detail".padEnd(maxDetail + 2)}Verb`,
     "─".repeat(maxName + maxDetail + 24),
@@ -175,129 +165,29 @@ async function status() {
   }
 
   const body = lines.join("\n")
+
+  // One border around the whole thing
   const box = await gum(body, ["--border", "rounded", "--padding", "1 2"])
+
+  // Title outside the box (avoids fixed-width wrapping issues)
   const title = await gum("TradingAgents", ["--bold", "--foreground", "212"])
+
+  // Hint outside the box — plain text, no wrapping risk
+  const hint =
+    "\x1b[90mhint: just <verb>  →  serve  db-stats  hl  test-db-stats  gn-status  td-status\x1b[0m"
 
   console.log("")
   console.log(`  ${title}`)
   console.log(box)
-  console.log(
-    `  \x1b[90mhint: just <verb>  →  serve  db-stats  hl  test-db-stats  gn-status  td-status\x1b[0m`,
-  )
-
-  // Port-occupied warning outside the box
-  const pid = readPid()
-  const running = pid !== null && isAlive(pid)
-  if (!running && detectPort(PORT)) {
-    console.log("")
-    console.log(`  \x1b[33m⚠ Port ${PORT} occupied but PID file missing — run: just restart\x1b[0m`)
-  }
-
+  console.log(`  ${hint}`)
   console.log("")
 }
 
-function start() {
-  ensureDir()
-
-  // Kill whatever is on the port
-  killPort(PORT)
-
-  // Kill old PID if different
-  const oldPid = readPid()
-  if (oldPid && isAlive(oldPid)) {
-    try {
-      process.kill(oldPid, "SIGKILL")
-    } catch {}
-  }
-
-  // Rotate log
-  try {
-    renameSync(LOG_FILE, PREV_LOG)
-  } catch {}
-
-  // Start server — child writes directly to log file, parent exits immediately
-  const cmd = `nohup bun run src/server/index.tsx > "${LOG_FILE}" 2>&1 & echo $!`
-  const pid = parseInt(execSync(cmd, { shell: "/bin/bash", encoding: "utf-8" }).trim(), 10)
-
-  // Write PID
-  writeFileSync(PID_FILE, String(pid))
-
-  console.log(`Server started (PID ${pid}, port ${PORT})`)
-}
-
-function stop() {
-  const pid = readPid()
-  if (!pid) {
-    console.log("Server not running")
-    return
-  }
-
-  if (!isAlive(pid)) {
-    console.log("Server not running (stale PID removed)")
-    try {
-      unlinkSync(PID_FILE)
-    } catch {}
-    return
-  }
-
-  console.log(`Stopping server (PID ${pid})...`)
-  try {
-    process.kill(pid, "SIGTERM")
-  } catch {}
-
-  // Wait up to 5s
-  for (let i = 0; i < 10; i++) {
-    writeFileSync("/dev/null", "") // small sleep hack
-    const start = Date.now()
-    while (Date.now() - start < 500) {} // 500ms busy-wait
-    if (!isAlive(pid)) {
-      console.log("Server stopped")
-      try {
-        unlinkSync(PID_FILE)
-      } catch {}
-      return
-    }
-  }
-
-  // Force kill
-  try {
-    process.kill(pid, "SIGKILL")
-  } catch {}
-  try {
-    unlinkSync(PID_FILE)
-  } catch {}
-  console.log("Server killed")
-}
-
-function restart() {
-  stop()
-  start()
-}
-
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
-  const cmd = Bun.argv[2] ?? "status"
-
-  switch (cmd) {
-    case "status":
-    case "s":
-      await status()
-      break
-    case "start":
-      start()
-      break
-    case "stop":
-      stop()
-      break
-    case "restart":
-    case "r":
-      restart()
-      break
-    default:
-      console.log("Usage: bun scripts/server-lifecycle.ts <start|stop|restart|status>")
-      process.exit(1)
-  }
+  const rows = gather()
+  await display(rows)
 }
 
 main()

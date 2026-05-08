@@ -116,3 +116,26 @@ production file. Three iterations, all broken. User said: "STOP."
 We created `scripts/lab-gum.ts`. First attempt with `execSync` + `input`:
 broken. Second attempt with `Bun.spawn` + `stdin.write()`: perfect. Ported the
 working pattern back. Total time saved: 10+ minutes. Risk: zero.
+
+## War Story 2: Status Display Templates
+
+Context window was exhausted. Previous session had partially fixed
+`scripts/server-lifecycle.ts` but reverted to hand-rolled ANSI boxes. The
+user asked: "Let's think through what we require."
+
+Instead of editing `server-lifecycle.ts` directly, we created
+`scripts/lab/status-templates.ts` with four competing layouts (A–D), all
+using live service detection. Each template was a complete hypothesis:
+- Template A: Fixed-width bordered table
+- Template B: Compact inline verbs
+- Template C: Two-column cards
+- Template D: Minimal, no border
+
+All were evaluated against real data. A and B failed on content wrapping.
+C was visually heavy. D lacked presence. From the evaluation, we extracted
+Template E — the simplest correct version: one border, dynamic width,
+title/hint outside, inline ANSI dots.
+
+Only then did we edit `server-lifecycle.ts`. One shot, correct first time.
+Seven biome lint issues were also fixed in the same commit because we were
+not thrashing on a broken production file.

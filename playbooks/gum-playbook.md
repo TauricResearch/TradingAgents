@@ -123,6 +123,55 @@ await gum(multi, ["--border", "rounded"])
 **Do NOT** pass multi-line text as a command-line argument. Gum interprets
 lines after the first as extra positional arguments, producing garbage output.
 
+## Validated Pattern: Service Status Table
+
+**Source of truth:** `scripts/server-lifecycle.ts` `status()` (post-2026-05-08).
+
+Problem: Display multiple services with state, detail, and associated `just` verb.
+Constraints: Must not wrap, must be readable at any terminal width, must support
+future services without layout changes.
+
+### The Winning Pattern (Template E)
+
+```typescript
+const dotColour: Record<"running" | "stopped" | "error" | "unknown", string> = {
+  running: "\x1b[32m", stopped: "\x1b[90m",
+  error: "\x1b[31m", unknown: "\x1b[33m",
+}
+
+// Build plain-text rows with ANSI inline dots
+const lines = [
+  `${"Service".padEnd(maxName + 2)}${"Status".padEnd(10)}${"Detail".padEnd(maxDetail + 2)}Verb`,
+  "─".repeat(maxName + maxDetail + 24),
+  ...rows.map(r => {
+    const dot = `${dotColour[r.state]}●\x1b[0m`
+    return `${dot} ${r.name.padEnd(maxName + 1)} ${r.state.padEnd(9)} ${r.detail.padEnd(maxDetail + 2)}${r.verb}`
+  }),
+]
+
+// One border. Dynamic width. No --width flag.
+const box = await gum(lines.join("\n"), ["--border", "rounded", "--padding", "1 2"])
+
+// Title and hint OUTSIDE the box — never wrap
+const title = await gum("TradingAgents", ["--bold", "--foreground", "212"])
+console.log(`  ${title}`)
+console.log(box)
+console.log(`  \x1b[90mhint: just <verb> → ...\x1b[0m`)
+```
+
+### Why This Wins
+
+| Approach | Why It Fails |
+|----------|-------------|
+| Fixed `--width` + variable content | Wraps inside box, breaks layout |
+| Nested borders (cards) | Visual noise, brittle side-by-side splicing |
+| Title inside the box | Title text wraps if too long |
+| `gum` per-row colour | `--foreground` applies to whole block, not per row |
+| Pure ANSI no border | Lacks visual presence, hard to scan |
+
+**Rule:** One border around the data. Title and hint outside. Inline ANSI dots
+for per-row colour. Dynamic width via `padEnd()` math, not `--width`.
+
 ## When NOT to Use Gum
 
 - Inside the Bun/Hono server (serves HTML, not terminal)
