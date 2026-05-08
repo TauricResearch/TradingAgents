@@ -114,6 +114,40 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
     },
+    # Apple MLX via `mlx_lm.server` / oMLX. HF repos under mlx-community (or local).
+    # Sizes are suggestions—actual fit depends on unified memory and context length.
+    "mlx": {
+        "quick": [
+            (
+                "Mistral Small 24B Instruct 4bit (fast · moderate footprint)",
+                "mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+            ),
+            (
+                "Qwen2.5 14B Instruct 4bit (lighter · very fast)",
+                "mlx-community/Qwen2.5-14B-Instruct-4bit",
+            ),
+            (
+                "Llama 3.2 3B Instruct 4bit (smoke-test / minimal footprint)",
+                "mlx-community/Llama-3.2-3B-Instruct-4bit",
+            ),
+            ("Custom MLX model ID", "custom"),
+        ],
+        "deep": [
+            (
+                "Qwen2.5 32B Instruct 4bit (recommended · strong default)",
+                "mlx-community/Qwen2.5-32B-Instruct-4bit",
+            ),
+            (
+                "Mistral Small 24B Instruct 4bit (strong quality · fast)",
+                "mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+            ),
+            (
+                "Llama 3.1 70B Instruct 4bit (max quality · high memory use)",
+                "mlx-community/Meta-Llama-3.1-70B-Instruct-4bit",
+            ),
+            ("Custom MLX model ID", "custom"),
+        ],
+    },
 }
 
 

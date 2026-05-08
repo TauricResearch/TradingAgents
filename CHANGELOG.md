@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **Apple MLX provider.** New `llm_provider: "mlx"` routes through the existing
+  `OpenAIClient` (provider discriminator) and defaults to
+  `http://localhost:8000/v1`. Works with both [oMLX](https://omlx.ai)
+  (`omlx serve`, multi-model, API-key auth) and the stock
+  [`mlx_lm.server`](https://github.com/ml-explore/mlx-lm) (single-model, no
+  auth). `OMLX_API_KEY` is honoured when set; otherwise we send a `"local"`
+  placeholder bearer so keyless servers keep working. Validators treat `mlx` as
+  permissive (parity with `ollama` / `openrouter`) so any HF repo id loaded by
+  the running server is accepted.
+- **Non-interactive `tradingagents analyze`.** All wizard inputs are now
+  exposed as flags — `--ticker`, `--date`, `--analysts`, `--depth`,
+  `--provider`, `--model` (or `--quick-model` + `--deep-model`),
+  `--backend-url`, plus the existing `--checkpoint` / `--clear-checkpoints`.
+  Pass `-y` / `--yes` to skip the wizard entirely (e.g. for CI, scripted runs,
+  or repeat invocations). Without `-y`, flags are ignored and the interactive
+  wizard runs as before.
+- **MLX setup preflight.** When `mlx` is selected the CLI prints a setup
+  panel covering both server options (oMLX and `mlx_lm.server`), then probes
+  `GET /v1/models` before launching the dashboard. Connection refused or HTTP
+  401 produce a single actionable error panel instead of a LangGraph
+  traceback.
+- **HuggingFace cache autocomplete** for the CLI's "Custom MLX model ID"
+  prompt — any `mlx-community/*` (or other HF repo id) already pulled into
+  `~/.cache/huggingface/hub` (or `HF_HUB_CACHE` / `HF_HOME`) tab-completes
+  in place.
+
+### Changed
+
+- `.gitignore` now ignores all `.env*` files (including multi-dot variants
+  like `.env.local.work`) while keeping `.env.example` and
+  `.env.enterprise.example` tracked as templates.
+- README and `.env.example` document `OMLX_API_KEY` alongside the existing
+  provider keys; CLAUDE.md gains a non-interactive `analyze` example and an
+  MLX/oMLX architecture note.
+
 ## [0.2.4] — 2026-04-25
 
 ### Added

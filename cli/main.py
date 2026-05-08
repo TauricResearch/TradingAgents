@@ -555,6 +555,8 @@ def get_user_selections():
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
+    if selected_llm_provider.lower() == "mlx":
+        print_mlx_setup_reminder(backend_url)
 
     # Step 7: Thinking agents
     console.print(
@@ -564,6 +566,8 @@ def get_user_selections():
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    if selected_llm_provider.lower() == "mlx":
+        warn_mlx_quick_deep_mismatch(selected_shallow_thinker, selected_deep_thinker)
 
     # Step 8: Provider-specific thinking configuration
     thinking_level = None
@@ -595,6 +599,9 @@ def get_user_selections():
             )
         )
         anthropic_effort = ask_anthropic_effort()
+
+    if provider_lower == "mlx":
+        verify_mlx_server_reachable(backend_url)
 
     return {
         "ticker": selected_ticker,
@@ -926,9 +933,105 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False):
-    # First get all user selections
-    selections = get_user_selections()
+
+def build_cli_selections(
+    *,
+    ticker: str,
+    analysis_date: str,
+    output_language: str,
+    analysts_csv: str,
+    research_depth: str,
+    llm_provider: str,
+    backend_url: Optional[str],
+    quick_model: Optional[str],
+    deep_model: Optional[str],
+    model: Optional[str],
+    google_thinking_level: Optional[str],
+    openai_reasoning_effort: Optional[str],
+    anthropic_effort: Optional[str],
+) -> dict:
+    """Assemble the selections dict used by ``run_analysis`` from CLI flags."""
+    try:
+        depth_val = parse_research_depth_flag(research_depth)
+        analysts_list = parse_analysts_flag(analysts_csv)
+        date_ok = validate_analysis_date_cli(analysis_date)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+
+    prov = llm_provider.strip().lower()
+    if model:
+        qm = dm = model.strip()
+    else:
+        if not quick_model or not deep_model:
+            console.print(
+                "[red]Provide --model, or both --quick-model and --deep-model.[/red]"
+            )
+            raise typer.Exit(1)
+        qm = quick_model.strip()
+        dm = deep_model.strip()
+
+    backend = (
+        backend_url.strip()
+        if backend_url and backend_url.strip()
+        else default_backend_url_for_provider(prov)
+    )
+
+    g_think = None
+    o_effort = None
+    a_effort = None
+    if prov == "google":
+        g = (google_thinking_level or "high").strip().lower()
+        if g not in ("high", "minimal"):
+            console.print(
+                "[red]--google-thinking must be 'high' or 'minimal'.[/red]"
+            )
+            raise typer.Exit(1)
+        g_think = g
+    elif prov == "openai":
+        o = (openai_reasoning_effort or "medium").strip().lower()
+        if o not in ("low", "medium", "high"):
+            console.print(
+                "[red]--openai-reasoning must be 'low', 'medium', or 'high'.[/red]"
+            )
+            raise typer.Exit(1)
+        o_effort = o
+    elif prov == "anthropic":
+        a = (anthropic_effort or "high").strip().lower()
+        if a not in ("low", "medium", "high"):
+            console.print(
+                "[red]--anthropic-effort must be 'low', 'medium', or 'high'.[/red]"
+            )
+            raise typer.Exit(1)
+        a_effort = a
+
+    if prov == "mlx":
+        warn_mlx_quick_deep_mismatch(qm, dm)
+        verify_mlx_server_reachable(backend)
+
+    return {
+        "ticker": normalize_ticker_symbol(ticker),
+        "analysis_date": date_ok,
+        "analysts": analysts_list,
+        "research_depth": depth_val,
+        "llm_provider": prov,
+        "backend_url": backend,
+        "shallow_thinker": qm,
+        "deep_thinker": dm,
+        "google_thinking_level": g_think,
+        "openai_reasoning_effort": o_effort,
+        "anthropic_effort": a_effort,
+        "output_language": (output_language or "English").strip(),
+    }
+
+
+def run_analysis(
+    checkpoint: bool = False,
+    selections: Optional[dict] = None,
+    non_interactive: bool = False,
+):
+    if selections is None:
+        selections = get_user_selections()
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -1171,6 +1274,14 @@ def run_analysis(checkpoint: bool = False):
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
+    if non_interactive:
+        rdir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+        console.print(
+            f"\n[bold cyan]Analysis complete.[/bold cyan] "
+            f"Artifacts: [dim]{rdir.resolve()}[/dim]"
+        )
+        return
+
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
@@ -1209,12 +1320,155 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        "--non-interactive",
+        help="Skip the wizard; requires --ticker, --date, --analysts, --depth, --provider, and --model (or --quick-model + --deep-model).",
+    ),
+    ticker: Optional[str] = typer.Option(
+        None,
+        "--ticker",
+        "-t",
+        help="Symbol to analyze (e.g. SPY, 7203.T).",
+    ),
+    analysis_date: Optional[str] = typer.Option(
+        None,
+        "--date",
+        "-d",
+        help="Analysis date YYYY-MM-DD.",
+    ),
+    output_language: Optional[str] = typer.Option(
+        None,
+        "--output-language",
+        "--lang",
+        help="Report language (default: English).",
+    ),
+    analysts: Optional[str] = typer.Option(
+        None,
+        "--analysts",
+        "-a",
+        help="Comma-separated: market,social,news,fundamentals.",
+    ),
+    research_depth: Optional[str] = typer.Option(
+        None,
+        "--depth",
+        help="shallow|medium|deep or 1|3|5.",
+    ),
+    llm_provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        "-p",
+        help="LLM provider key (openai, google, mlx, ollama, ...).",
+    ),
+    backend_url: Optional[str] = typer.Option(
+        None,
+        "--backend-url",
+        help="Override API base URL (default per provider if omitted).",
+    ),
+    quick_model: Optional[str] = typer.Option(
+        None,
+        "--quick-model",
+        help="Quick-thinking model / deployment name.",
+    ),
+    deep_model: Optional[str] = typer.Option(
+        None,
+        "--deep-model",
+        help="Deep-thinking model / deployment name.",
+    ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Use the same model for quick and deep thinking.",
+    ),
+    google_thinking_level: Optional[str] = typer.Option(
+        None,
+        "--google-thinking",
+        help="Gemini thinking: high or minimal (default: high).",
+    ),
+    openai_reasoning_effort: Optional[str] = typer.Option(
+        None,
+        "--openai-reasoning",
+        help="OpenAI reasoning effort: low, medium, high (default: medium).",
+    ),
+    anthropic_effort: Optional[str] = typer.Option(
+        None,
+        "--anthropic-effort",
+        help="Claude effort: low, medium, high (default: high).",
+    ),
 ):
+    analysis_flags = (
+        ticker,
+        analysis_date,
+        output_language,
+        analysts,
+        research_depth,
+        llm_provider,
+        backend_url,
+        quick_model,
+        deep_model,
+        model,
+        google_thinking_level,
+        openai_reasoning_effort,
+        anthropic_effort,
+    )
+    if not non_interactive and any(f is not None for f in analysis_flags):
+        console.print(
+            "[yellow]CLI analysis flags require --yes / -y (--non-interactive); "
+            "without it the wizard runs and flags are ignored.[/yellow]"
+        )
+
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
+
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+
+    cli_selections: Optional[dict] = None
+    if non_interactive:
+        missing: list[str] = []
+        if not ticker:
+            missing.append("--ticker")
+        if not analysis_date:
+            missing.append("--date")
+        if not analysts:
+            missing.append("--analysts")
+        if not research_depth:
+            missing.append("--depth")
+        if not llm_provider:
+            missing.append("--provider")
+        if not model and (not quick_model or not deep_model):
+            missing.append("--model (or --quick-model and --deep-model)")
+        if missing:
+            console.print(
+                "[red]Non-interactive mode requires: "
+                + ", ".join(missing)
+                + "[/red]"
+            )
+            raise typer.Exit(1)
+        cli_selections = build_cli_selections(
+            ticker=ticker,
+            analysis_date=analysis_date,
+            output_language=output_language or "English",
+            analysts_csv=analysts,
+            research_depth=research_depth,
+            llm_provider=llm_provider,
+            backend_url=backend_url,
+            quick_model=quick_model,
+            deep_model=deep_model,
+            model=model,
+            google_thinking_level=google_thinking_level,
+            openai_reasoning_effort=openai_reasoning_effort,
+            anthropic_effort=anthropic_effort,
+        )
+
+    run_analysis(
+        checkpoint=checkpoint,
+        selections=cli_selections,
+        non_interactive=non_interactive,
+    )
 
 
 if __name__ == "__main__":
