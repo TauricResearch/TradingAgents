@@ -553,16 +553,16 @@ const BACKEND = `ws://${location.host}/ws`;
 const API = `http://${location.host}/api`;
 
 // ── Charts ─────────────────────────────────────────────────────────────────
-function _signalDataset(decision, signalDate, closeValues) {
+function _signalDataset(decision, closeValues) {
   if (!decision || decision === 'PENDING') return null;
   const priceAtSignal = closeValues[closeValues.length - 1];
   const color = decision === 'BUY' ? '#00e676' : decision === 'SELL' ? '#ff1744' : '#888888';
-  const style = decision === 'SELL' ? 'triangle' : decision === 'BUY' ? 'triangle' : 'circle';
+  const style = decision === 'HOLD' ? 'circle' : 'triangle';
   const rotation = decision === 'SELL' ? 180 : 0;
   return {
     type: 'scatter',
     label: 'Signal',
-    data: [{ x: signalDate, y: priceAtSignal }],
+    data: closeValues.map((_, i) => i === closeValues.length - 1 ? priceAtSignal : null),
     yAxisID: 'y',
     pointStyle: style,
     rotation: rotation,
@@ -570,6 +570,7 @@ function _signalDataset(decision, signalDate, closeValues) {
     borderColor: color,
     pointRadius: 8,
     pointHoverRadius: 8,
+    spanGaps: false,
   };
 }
 
@@ -582,7 +583,8 @@ async function loadChart(ticker) {
     const r = await fetch(`${API}/tickers/${ticker}/chart`);
     if (!r.ok) throw new Error('no data');
     data = await r.json();
-  } catch {
+  } catch (e) {
+    console.warn('[loadChart]', ticker, e);
     container.innerHTML = '<div class="chart-no-data">NO CHART DATA</div>';
     return;
   }
@@ -594,7 +596,7 @@ async function loadChart(ticker) {
   const signalDate = data.dates[data.dates.length - 1];
   const s = state[ticker];
   const decision = s && s.result ? s.result.decision : null;
-  const signalDs = _signalDataset(decision, signalDate, data.close);
+  const signalDs = _signalDataset(decision, data.close);
 
   const datasets = [
     {
@@ -618,6 +620,11 @@ async function loadChart(ticker) {
     },
   ];
   if (signalDs) datasets.push(signalDs);
+
+  if (chartInstances[ticker]) {
+    chartInstances[ticker].destroy();
+    delete chartInstances[ticker];
+  }
 
   chartInstances[ticker] = new Chart(canvas, {
     type: 'bar',
