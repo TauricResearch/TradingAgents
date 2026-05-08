@@ -15,6 +15,7 @@ const main = defineCommand({
   },
   subCommands: {
     plan: () => import("./commands/plan.ts").then((m) => m.planCommand),
+    ig: () => import("./commands/ig.ts").then((m) => m.igCommand),
     help: () => import("./commands/help.ts").then((m) => m.helpCommand),
   },
 })
