@@ -13,6 +13,7 @@ Usage: trading <command> [args]
 Core:
   plan <ticker>              Generate trade plan (shares or spread bet)
   execute <ticker>           Calculate plan and execute via IG API
+  portfolio                  Show holdings, P&L, and cash summary
   config <get|set|list|...>  Manage CLI defaults
 
 IG Trading:
