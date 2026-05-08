@@ -177,6 +177,7 @@ check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
+    bun scripts/reg-sync.ts --all
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]

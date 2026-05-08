@@ -91,7 +91,7 @@ function loadJsonl(path: string): Record<string, unknown>[] {
 
 function saveJsonl(path: string, entries: UnifiedEntry[]) {
   const lines = entries.map((e) => JSON.stringify(e)).join("\n")
-  writeFileSync(path, lines + "\n")
+  writeFileSync(path, `${lines}\n`)
 }
 
 const MIGRATIONS: Array<{

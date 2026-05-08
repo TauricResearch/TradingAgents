@@ -135,7 +135,7 @@ function checkRegistry(name: string, def: RegistryDef, fix: boolean): boolean {
 
     const merged = [...kept, ...added].sort((a, b) => a.file.localeCompare(b.file))
     const lines = merged.map((e) => JSON.stringify(e)).join("\n")
-    writeFileSync(def.indexPath, lines + "\n")
+    writeFileSync(def.indexPath, `${lines}\n`)
     console.log(`  ✓ regenerated: ${merged.length} entries`)
   }
 
