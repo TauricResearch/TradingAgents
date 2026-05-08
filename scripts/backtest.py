@@ -49,7 +49,11 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 OUTPUT_DIR = Path.home() / ".tradingagents" / "polymarket"
 
 
-def _fetch_resolved_markets(limit: int, min_volume: float = 10000.0) -> list[dict]:
+def _fetch_resolved_markets(
+    limit: int,
+    min_volume: float = 10000.0,
+    end_date_max: str | None = None,
+) -> list[dict]:
     """Pull resolved (closed) markets from gamma for backtesting.
 
     Filters out:
@@ -59,6 +63,11 @@ def _fetch_resolved_markets(limit: int, min_volume: float = 10000.0) -> list[dic
         always have $0 current liquidity, so volume is the right
         "was this a real, traded market?" signal)
       - markets without token IDs
+
+    If `end_date_max` is set (ISO date string), filters to markets that
+    closed BEFORE that date. Useful for forcing domain diversity: the
+    most-recent closed list is currently dominated by crypto FDV launches,
+    so going back a few weeks surfaces politics/sports/tech markets.
     """
     params = {
         "closed": "true",
@@ -66,6 +75,8 @@ def _fetch_resolved_markets(limit: int, min_volume: float = 10000.0) -> list[dic
         "order": "endDate",
         "ascending": "false",  # most recently closed first
     }
+    if end_date_max is not None:
+        params["end_date_max"] = end_date_max
     try:
         resp = httpx.get(f"{GAMMA_BASE}/markets", params=params, timeout=DEFAULT_TIMEOUT)
         resp.raise_for_status()
@@ -116,15 +127,31 @@ def main() -> int:
             "resolved markets always show $0 current liquidity."
         ),
     )
+    parser.add_argument(
+        "--end-date-max",
+        default=None,
+        help=(
+            "Filter to markets that closed BEFORE this ISO date "
+            "(e.g. '2026-04-15'). The most-recent closed markets are "
+            "currently dominated by crypto FDV launches; going back a few "
+            "weeks surfaces politics/sports/tech for cross-domain testing."
+        ),
+    )
     args = parser.parse_args()
 
     if not all(os.environ.get(k) for k in ["EXA_API_KEY", "OPENROUTER_API_KEY"]):
         print("ERROR: EXA_API_KEY and OPENROUTER_API_KEY must be set", file=sys.stderr)
         return 2
 
-    print(f"Fetching {args.limit} resolved markets (>= ${args.min_volume:,.0f} cumulative volume)...")
+    horizon = f" (closed before {args.end_date_max})" if args.end_date_max else ""
+    print(
+        f"Fetching {args.limit} resolved markets (>= ${args.min_volume:,.0f} "
+        f"cumulative volume){horizon}..."
+    )
     try:
-        markets = _fetch_resolved_markets(args.limit, args.min_volume)
+        markets = _fetch_resolved_markets(
+            args.limit, args.min_volume, end_date_max=args.end_date_max
+        )
     except GammaAPIError as e:
         print(f"ERROR: gamma fetch failed: {e}", file=sys.stderr)
         return 3
