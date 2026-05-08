@@ -126,7 +126,8 @@ class BacktestReport:
             )
 
         returns = [raw for _, raw, _ in resolved]
-        alphas = [a for _, _, a in resolved]
+        strategy_returns = [(result.direction or 0) * raw for result, raw, _ in resolved]
+        alphas = [a for _, _, a in resolved if a is not None]
 
         # Equity curve — direction-adjusted P&L
         equity = [1.0]
@@ -165,16 +166,16 @@ class BacktestReport:
             }
 
         # Risk metrics
-        mean_r = sum(returns) / len(returns)
+        mean_strategy_r = sum(strategy_returns) / len(strategy_returns)
         vol: Optional[float] = None
         sharpe: Optional[float] = None
-        if len(returns) > 1:
-            variance = sum((r - mean_r) ** 2 for r in returns) / (len(returns) - 1)
+        if len(strategy_returns) > 1:
+            variance = sum((r - mean_strategy_r) ** 2 for r in strategy_returns) / (len(strategy_returns) - 1)
             vol = math.sqrt(variance) if variance > 0 else 0.0
             rf_per_period = self.risk_free_rate / self.periods_per_year
             if vol and vol > 0:
                 sharpe = (
-                    (mean_r - rf_per_period)
+                    (mean_strategy_r - rf_per_period)
                     / vol
                     * math.sqrt(self.periods_per_year)
                 )
@@ -191,11 +192,11 @@ class BacktestReport:
             signal_counts=signal_counts,
             error_count=error_count,
             hold_count=hold_count,
-            total_return=sum(returns),
-            mean_return=mean_r,
+            total_return=equity[-1] - 1.0,
+            mean_return=mean_strategy_r,
             cumulative_equity=equity,
-            mean_alpha=sum(alphas) / len(alphas),
-            pct_beat_spy=sum(1 for a in alphas if a > 0) / len(alphas),
+            mean_alpha=sum(alphas) / len(alphas) if alphas else None,
+            pct_beat_spy=sum(1 for a in alphas if a > 0) / len(alphas) if alphas else None,
             win_rate=win_rate,
             precision_recall_per_tier=tier_stats,
             sharpe_ratio=sharpe,
