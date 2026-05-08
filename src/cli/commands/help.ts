@@ -36,6 +36,10 @@ Data & Operations:
   backup [--test]            Backup SQLite database
   summarize [ticker]         LLM summary of analyses
 
+Setup:
+  trading completion bash > ~/.bashrc
+  trading completion zsh > ~/.zshrc
+
 Examples:
   trading plan AAPL
   trading plan AAPL --mode spreadbet --risk 0.03
