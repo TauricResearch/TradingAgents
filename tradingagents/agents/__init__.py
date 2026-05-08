@@ -9,6 +9,7 @@ from .analysts.macro_analyst import create_macro_analyst
 from .analysts.options_analyst import create_options_analyst
 from .analysts.quant_analyst import create_quant_analyst
 from .analysts.earnings_analyst import create_earnings_analyst
+from .analysts.review_analyst import create_review_analyst
 
 from .researchers.bear_researcher import create_bear_researcher
 from .researchers.bull_researcher import create_bull_researcher
@@ -43,4 +44,5 @@ __all__ = [
     "create_options_analyst",
     "create_quant_analyst",
     "create_earnings_analyst",
+    "create_review_analyst",
 ]

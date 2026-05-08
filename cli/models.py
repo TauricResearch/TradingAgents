@@ -12,3 +12,4 @@ class AnalystType(str, Enum):
     OPTIONS = "options"
     QUANT = "quant"
     EARNINGS = "earnings"
+    REVIEW = "review"

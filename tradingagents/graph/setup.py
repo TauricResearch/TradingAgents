@@ -102,6 +102,13 @@ class GraphSetup:
             delete_nodes["earnings"] = create_msg_delete()
             tool_nodes["earnings"] = self.tool_nodes["earnings"]
 
+        if "review" in selected_analysts:
+            analyst_nodes["review"] = create_review_analyst(
+                self.quick_thinking_llm
+            )
+            delete_nodes["review"] = create_msg_delete()
+            tool_nodes["review"] = self.tool_nodes["review"]
+
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
         bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)

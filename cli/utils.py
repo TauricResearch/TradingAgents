@@ -19,6 +19,7 @@ ANALYST_ORDER = [
     ("Options Analyst", AnalystType.OPTIONS),
     ("Quantitative Analyst", AnalystType.QUANT),
     ("Earnings Analyst", AnalystType.EARNINGS),
+    ("Review Analyst", AnalystType.REVIEW),
 ]
 
 

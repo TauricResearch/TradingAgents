@@ -60,6 +60,7 @@ class AgentState(MessagesState):
     options_report: Annotated[str, "Report from the Options Analyst"]
     quant_report: Annotated[str, "Report from the Quant Analyst"]
     earnings_report: Annotated[str, "Report from the Earnings Analyst"]
+    review_report: Annotated[str, "Report from the Performance Review Analyst"]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

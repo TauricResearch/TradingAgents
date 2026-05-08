@@ -60,6 +60,7 @@ class MessageBuffer:
         "options": "Options Analyst",
         "quant": "Quant Analyst",
         "earnings": "Earnings Analyst",
+        "review": "Review Analyst",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -74,6 +75,7 @@ class MessageBuffer:
         "options_report": ("options", "Options Analyst"),
         "quant_report": ("quant", "Quant Analyst"),
         "earnings_report": ("earnings", "Earnings Analyst"),
+        "review_report": ("review", "Review Analyst"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -665,6 +667,26 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if final_state.get("macro_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "macro.md").write_text(final_state["macro_report"], encoding="utf-8")
+        analyst_parts.append(("Macro Analyst", final_state["macro_report"]))
+    if final_state.get("options_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "options.md").write_text(final_state["options_report"], encoding="utf-8")
+        analyst_parts.append(("Options Analyst", final_state["options_report"]))
+    if final_state.get("quant_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "quant.md").write_text(final_state["quant_report"], encoding="utf-8")
+        analyst_parts.append(("Quant Analyst", final_state["quant_report"]))
+    if final_state.get("earnings_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "earnings.md").write_text(final_state["earnings_report"], encoding="utf-8")
+        analyst_parts.append(("Earnings Analyst", final_state["earnings_report"]))
+    if final_state.get("review_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "review.md").write_text(final_state["review_report"], encoding="utf-8")
+        analyst_parts.append(("Performance Review Analyst", final_state["review_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")
@@ -746,6 +768,16 @@ def display_complete_report(final_state):
         analysts.append(("News Analyst", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
         analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if final_state.get("macro_report"):
+        analysts.append(("Macro Analyst", final_state["macro_report"]))
+    if final_state.get("options_report"):
+        analysts.append(("Options Analyst", final_state["options_report"]))
+    if final_state.get("quant_report"):
+        analysts.append(("Quant Analyst", final_state["quant_report"]))
+    if final_state.get("earnings_report"):
+        analysts.append(("Earnings Analyst", final_state["earnings_report"]))
+    if final_state.get("review_report"):
+        analysts.append(("Performance Review Analyst", final_state["review_report"]))
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
         for title, content in analysts:

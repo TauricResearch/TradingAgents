@@ -40,8 +40,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_macro_data,
     get_options_data,
     get_quant_data,
-    search_web
+    search_web,
 )
+from tradingagents.agents.utils.review_tools import get_past_performance_data
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -208,6 +209,11 @@ class TradingAgentsGraph:
             "earnings": ToolNode(
                 [
                     search_web,
+                ]
+            ),
+            "review": ToolNode(
+                [
+                    get_past_performance_data,
                 ]
             ),
         }
@@ -384,6 +390,7 @@ class TradingAgentsGraph:
             "options_report": final_state.get("options_report", ""),
             "quant_report": final_state.get("quant_report", ""),
             "earnings_report": final_state.get("earnings_report", ""),
+            "review_report": final_state.get("review_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
