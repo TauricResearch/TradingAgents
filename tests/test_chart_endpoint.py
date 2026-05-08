@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 def _make_history(n=30):
@@ -40,6 +40,7 @@ class TestChartEndpoint:
         with patch("backend.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = _make_history(5)
             r = client.get("/api/tickers/AAPL/chart")
+        assert r.status_code == 200
         from datetime import datetime
         for d in r.json()["dates"]:
             datetime.strptime(d, "%Y-%m-%d")   # must not raise
@@ -48,6 +49,13 @@ class TestChartEndpoint:
         with patch("backend.yf.Ticker") as mock_ticker:
             mock_ticker.return_value.history.return_value = pd.DataFrame()
             r = client.get("/api/tickers/DELISTED/chart")
+        assert r.status_code == 404
+        assert r.json()["error"] == "No data"
+
+    def test_yfinance_exception_returns_404(self, client):
+        with patch("backend.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.history.side_effect = RuntimeError("network error")
+            r = client.get("/api/tickers/BADINPUT/chart")
         assert r.status_code == 404
         assert r.json()["error"] == "No data"
 
