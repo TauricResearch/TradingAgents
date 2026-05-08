@@ -1,6 +1,8 @@
 
 
 def create_bear_researcher(llm):
+    from tradingagents.agents.utils.agent_states import InstrumentType
+
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
@@ -12,9 +14,9 @@ def create_bear_researcher(llm):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        instrument_type = state.get("instrument_type", "stock")
+        instrument_type = state.get("instrument_type", InstrumentType.STOCK.value)
 
-        if instrument_type == "polymarket":
+        if instrument_type == InstrumentType.POLYMARKET.value:
             market_question = state.get("market_question", "")
             yes_price = state.get("yes_price", 0.5)
             resolution_date = state.get("resolution_date", "")

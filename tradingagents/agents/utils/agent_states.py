@@ -1,6 +1,19 @@
+from enum import Enum
 from typing import Annotated, Literal, Optional
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
+
+
+class InstrumentType(str, Enum):
+    """Discriminator for AgentState's instrument_type field.
+
+    str-Enum so values stay compatible with the existing Literal type
+    annotation and with raw-string comparisons in legacy code paths.
+    Use in place of bare strings to avoid silent typos.
+    """
+
+    STOCK = "stock"
+    POLYMARKET = "polymarket"
 
 
 # Researcher team state

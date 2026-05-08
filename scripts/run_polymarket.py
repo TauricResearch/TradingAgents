@@ -56,10 +56,6 @@ def _append_jsonl(path: Path, payload: dict) -> None:
         f.write(json.dumps(payload, separators=(",", ":")) + "\n")
 
 
-def _append_decision(path: Path, payload: dict) -> None:
-    _append_jsonl(path, payload)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=3, help="Number of markets to analyse")
@@ -194,7 +190,7 @@ def main() -> int:
             "model": args.model,
             **decision.model_dump(mode="json"),
         }
-        _append_decision(log_path, payload)
+        _append_jsonl(log_path, payload)
 
         if not args.quiet:
             print(f"    -> {decision.direction.value} (conf {decision.confidence:.2f})")
@@ -246,7 +242,6 @@ def main() -> int:
             "budget_usd": args.budget,
             **fill,
         }
-        fill_payload.pop("fills", None)
         _append_jsonl(fill_log_path, fill_payload)
 
         if not args.quiet:

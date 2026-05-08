@@ -78,7 +78,6 @@ def simulate_fill(
         "levels_consumed": len(fills),
         "slippage_pp": round(slippage_pp, 4),
         "fee_estimate_if_win": round(fee_estimate_if_win, 6),
-        "fills": fills,
     }
 
 

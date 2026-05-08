@@ -354,14 +354,21 @@ class TradingAgentsGraph:
         }
 
         # Step 3: Bull, then bear debate (one round each, Phase A keeps it short).
+        # Immutable updates per project coding-style: rebuild pm_state with spread.
         bull_node = create_bull_researcher(self.quick_thinking_llm)
         bear_node = create_bear_researcher(self.quick_thinking_llm)
         _step("bull researcher")
-        update = bull_node(pm_state)
-        pm_state["investment_debate_state"] = update["investment_debate_state"]
+        bull_update = bull_node(pm_state)
+        pm_state = {
+            **pm_state,
+            "investment_debate_state": bull_update["investment_debate_state"],
+        }
         _step("bear researcher")
-        update = bear_node(pm_state)
-        pm_state["investment_debate_state"] = update["investment_debate_state"]
+        bear_update = bear_node(pm_state)
+        pm_state = {
+            **pm_state,
+            "investment_debate_state": bear_update["investment_debate_state"],
+        }
 
         # Step 4: Trader synthesis with structured output.
         trader_prompt = (

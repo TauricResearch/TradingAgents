@@ -40,6 +40,7 @@ from tradingagents.dataflows.polymarket_data import (
     DEFAULT_TIMEOUT,
     GAMMA_BASE,
     GammaAPIError,
+    _http_get_with_retry,
     _normalise_market,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -78,8 +79,9 @@ def _fetch_resolved_markets(
     if end_date_max is not None:
         params["end_date_max"] = end_date_max
     try:
-        resp = httpx.get(f"{GAMMA_BASE}/markets", params=params, timeout=DEFAULT_TIMEOUT)
-        resp.raise_for_status()
+        resp = _http_get_with_retry(
+            f"{GAMMA_BASE}/markets", params=params, timeout=DEFAULT_TIMEOUT
+        )
     except httpx.HTTPStatusError as e:
         raise GammaAPIError(f"Gamma /markets returned {e.response.status_code}: {e}") from e
     except httpx.RequestError as e:
