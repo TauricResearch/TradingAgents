@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Set, Tuple
 
 import pandas as pd
 
-from .models import BacktestResult
+from .models import BacktestResult, derive_direction
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 logger = logging.getLogger(__name__)
 
@@ -60,15 +66,6 @@ def append_result(output_file: str, result: BacktestResult) -> None:
         f.write(json.dumps(asdict(result)) + "\n")
 
 
-import hashlib
-import os
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from .models import derive_direction
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-
-
 class BacktestEngine:
     def __init__(
         self,
@@ -97,6 +94,7 @@ class BacktestEngine:
                 home, ".tradingagents", "backtests", f"{h}.jsonl"
             )
         self.output_file = output_file
+        self._write_lock = threading.Lock()
 
     def run(self, resume: bool = False) -> list[BacktestResult]:
         all_dates = generate_dates(self.start_date, self.end_date, self.freq)
@@ -128,12 +126,13 @@ class BacktestEngine:
         results = []
         for trade_date in dates:
             result = self._run_one(graph, ticker, trade_date)
-            append_result(self.output_file, result)
+            with self._write_lock:
+                append_result(self.output_file, result)
             results.append(result)
         return results
 
     def _run_one(
-        self, graph, ticker: str, trade_date: str
+        self, graph: "TradingAgentsGraph", ticker: str, trade_date: str
     ) -> BacktestResult:
         max_retries = 5
         backoff = 1.0
@@ -164,9 +163,3 @@ class BacktestEngine:
                     error=err_str,
                     run_duration_seconds=round(duration, 2),
                 )
-
-        return BacktestResult(
-            ticker=ticker,
-            trade_date=trade_date,
-            error="Max retries exceeded",
-        )
