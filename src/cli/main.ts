@@ -17,6 +17,7 @@ const main = defineCommand({
     plan: () => import("./commands/plan.ts").then((m) => m.planCommand),
     execute: () => import("./commands/execute.ts").then((m) => m.executeCommand),
     ig: () => import("./commands/ig.ts").then((m) => m.igCommand),
+    benchmark: () => import("./commands/benchmark.ts").then((m) => m.benchmarkCommand),
     portfolio: () => import("./commands/portfolio.ts").then((m) => m.portfolioCommand),
     config: () => import("./commands/config.ts").then((m) => m.configCommand),
     seed: () => import("./commands/seed.ts").then((m) => m.seedCommand),

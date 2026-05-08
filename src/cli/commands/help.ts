@@ -13,6 +13,7 @@ Usage: trading <command> [args]
 Core:
   plan <ticker>              Generate trade plan (shares or spread bet)
   execute <ticker>           Calculate plan and execute via IG API
+  benchmark [--benchmark]    Compare portfolio vs. passive index
   portfolio                  Show holdings, P&L, and cash summary
   watchlist                  Show prospects being tracked
   signals [ticker]           Show latest AI-generated signals

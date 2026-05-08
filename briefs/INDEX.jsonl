@@ -1,10 +1,14 @@
 {"file":"2026-05-02-brief-portfolio-intelligence.md","date":"2026-05-02","status":"done","summary":"Portfolio Intelligence System: hledger cash + SQLite positions unified view","meta":{"epic":null}}
 {"file":"2026-05-07-brief-ascii-to-dot.md","date":"2026-05-07","status":"done","summary":"Replace ASCII diagrams with DOT + SVG/PNG via graphviz rendering pipeline","meta":{"epic":null}}
+{"file":"2026-05-08-brief-ctx-lexicon-upgrade.md","date":"2026-05-08","status":"open","summary":"Upgrade CTX conceptual lexicon to merged schema with stable IDs, type taxonomy, and structured tags","meta":{"epic":"UNIFIED-CLI-001"}}
+{"file":"2026-05-08-brief-ig-api-client-integration.md","date":"2026-05-08","status":"open","summary":"Integrate custom IG API client using native fetch; ig-trading-api package is broken","meta":{"epic":"UNIFIED-CLI-001"}}
+{"file":"2026-05-08-brief-just-silo-template.md","date":"2026-05-08","status":"done","summary":"Canonical silo template: directory structure with named compartments and justfile facade","meta":{"epic":"UNIFIED-CLI-001"}}
 {"file":"brief-dashboard-2026-05-02.md","date":"2026-05-02","status":"done","summary":"Dashboard v1 foundation: Bun/Hono server, HTMX frontend, SQLite persistence","meta":{"epic":null}}
 {"file":"brief-dashboard-phase2-2026-05-02.md","date":"2026-05-02","status":"done","summary":"Dashboard Phase 2: holdings, exits, governance, benchmark, feedback tabs","meta":{"epic":null}}
 {"file":"brief-doc-review-recommendations-2026-05-08.md","date":"2026-05-08","status":"done","summary":"Documentation review: path drift fix, TA_DASHBOARD_PORT wiring, hygiene epic decomposition","meta":{"epic":null}}
 {"file":"brief-portfolio-intelligence.md","date":"2026-05-02","status":"done","summary":"Unified Portfolio Intelligence: accounts, allocation bar, spread bets, cash breakdown","meta":{"epic":null}}
 {"file":"brief-static-assets-2026-05-05.md","date":"2026-05-05","status":"done","summary":"Static client-side scripts for dashboard: external JS files, HTMX partials","meta":{"epic":null}}
+{"file":"brief-trading-benchmark.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"datatype-sparklines.md","date":"2026-05-02","status":"done","summary":"DataType variable font integration for dashboard inline charts (sparklines, bars, pies)","meta":{"epic":null}}
 {"file":"epic-daily-price-records.md","date":"2026-05-02","status":"done","summary":"Daily OHLCV price records for all holdings via Yahoo Finance + sync scripts","meta":{"epic":null}}
 {"file":"epic-dashboard-v1.md","date":"2026-05-02","status":"done","summary":"Dashboard v1: pipeline to intelligence — positions, analysis, signals, watchlist","meta":{"epic":null}}
@@ -13,6 +17,3 @@
 {"file":"epic-trade-calculator.md","date":"2026-05-07","status":"done","summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders","meta":{"epic":null}}
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
-{"file":"2026-05-08-brief-just-silo-template.md","date":"2026-05-08","status":"done","summary":"Canonical silo template: directory structure with named compartments and justfile facade","meta":{"epic":"UNIFIED-CLI-001"}}
-{"file":"2026-05-08-brief-ctx-lexicon-upgrade.md","date":"2026-05-08","status":"open","summary":"Upgrade CTX conceptual lexicon to merged schema with stable IDs, type taxonomy, and structured tags","meta":{"epic":"UNIFIED-CLI-001"}}
-{"file":"2026-05-08-brief-ig-api-client-integration.md","date":"2026-05-08","status":"open","summary":"Integrate custom IG API client using native fetch; ig-trading-api package is broken","meta":{"epic":"UNIFIED-CLI-001"}}
