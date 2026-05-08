@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const REQUIRED = ["file", "date", "status", "summary"]
+const LEXICON_REQUIRED = ["file", "id", "date", "status", "type", "summary"]
 
 const REGISTRIES: Record<string, string> = {
   briefs: "briefs/INDEX.jsonl",
@@ -48,7 +49,8 @@ function checkRegistry(name: string, path: string): boolean {
         continue
       }
 
-      for (const field of REQUIRED) {
+      const requiredFields = name === "lexicon" ? LEXICON_REQUIRED : REQUIRED
+      for (const field of requiredFields) {
         if (obj[field] == null) {
           console.error(`  ✗ ${name}:${i + 1} — missing "${field}"`)
           ok = false

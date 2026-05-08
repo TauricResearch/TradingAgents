@@ -63,15 +63,38 @@ function formatMeta(meta: Record<string, unknown> | undefined): string[] {
   return lines
 }
 
+function formatTags(tags: unknown): string {
+  if (!Array.isArray(tags)) return ""
+  const filtered = tags.filter((t) => typeof t === "string" && !t.startsWith("[#"))
+  return filtered.join(" ")
+}
+
 function formatEntry(entry: UnifiedEntry, width: number, isLexicon = false): string {
   const indent = "      "
   const textWidth = width - indent.length
 
-  // Lexicon entries use "file" as the term identifier
-  const id = entry.file
-  const header = isLexicon
-    ? `${id.padEnd(20)}  ${entry.status.toUpperCase().padEnd(10)}  ${entry.date}`
-    : `${entry.date}  ${entry.status.toUpperCase().padEnd(10)}  ${id}`
+  if (isLexicon) {
+    // Lexicon v2: show id, type, status, date, summary, tags
+    const id = (entry as Record<string, unknown>).id ?? entry.file
+    const type = (entry as Record<string, unknown>).type ?? "term"
+    const header = `${String(id).padEnd(12)}  ${String(type).padEnd(24)}  ${entry.status.toUpperCase().padEnd(8)}  ${entry.date}`
+    const summaryLines = wrap(entry.summary, textWidth)
+    const tagStr = formatTags(entry.meta?.tags)
+    const metaLines = [
+      ...(entry.meta?.heuristic ? [`heuristic: ${entry.meta.heuristic}`] : []),
+      ...(tagStr ? [`tags: ${tagStr}`] : []),
+    ]
+
+    return [
+      header,
+      ...summaryLines.map((l) => `${indent}${l}`),
+      ...metaLines.map((l) => `${indent}${l}`),
+      "",
+    ].join("\n")
+  }
+
+  // Standard registry entry
+  const header = `${entry.date}  ${entry.status.toUpperCase().padEnd(10)}  ${entry.file}`
   const summaryLines = wrap(entry.summary, textWidth)
   const metaLines = formatMeta(entry.meta)
 

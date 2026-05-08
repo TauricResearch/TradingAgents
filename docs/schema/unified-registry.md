@@ -44,6 +44,7 @@ registry-specific data.
 | decisions | `Accepted`, `Proposed`, `Superseded` | `supersedes`, `superseded_by` |
 | playbooks | `canonical`, `project` | `source`, `mining_candidate`, `mining_note`, `last_mined` |
 | docs | `active`, `archived`, `draft` | `type`, `topic` |
+| lexicon | `active`, `draft` | `category`, `heuristic`, `usage`, `tags`, `related`, `coined_by` |
 
 ## Validation
 
@@ -76,6 +77,63 @@ bun scripts/reg-list.ts debriefs
 bun scripts/reg-list.ts decisions
 bun scripts/reg-list.ts playbooks
 ```
+
+## Lexicon Schema (v2 — Merged with CTX)
+
+The lexicon uses an extended schema that merges our unified structure with
+CTX's tag taxonomy:
+
+```json
+{
+  "file": "barnacle",
+  "id": "oh-001",
+  "date": "2026-05-08",
+  "status": "active",
+  "type": "operational-heuristic",
+  "summary": "A convention without living justification...",
+  "meta": {
+    "category": "process",
+    "origin": "playbooks/conventions-playbook.md",
+    "heuristic": "If a convention fights the tool default, suspect it.",
+    "usage": "The capitalized Justfile rule is a barnacle.",
+    "tags": [
+      "[#process]",
+      "[Quality: silver]",
+      "[Related: convention]",
+      "[Origin: playbooks/conventions-playbook.md]"
+    ],
+    "related": ["convention", "friction", "scrape"],
+    "coined_by": "agent"
+  }
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `file` | yes | Human-readable term identifier |
+| `id` | yes | Stable machine ID (`term-001`, `oh-058`) |
+| `date` | yes | ISO date |
+| `status` | yes | `active`, `draft` |
+| `type` | yes | `term`, `operational-heuristic`, `pattern`, `failure-mode`, `philosophy` |
+| `summary` | yes | Definition |
+| `meta.category` | yes | Semantic category |
+| `meta.heuristic` | yes | Condensed actionable rule |
+| `meta.usage` | yes | Example sentence |
+| `meta.tags` | yes | Structured bracket notation (see below) |
+| `meta.related` | yes | Related term identifiers |
+| `meta.coined_by` | yes | `human` or `agent` |
+
+### Tag Taxonomy (Bracket Notation)
+
+| Prefix | Example | Meaning |
+|--------|---------|---------|
+| `[#category]` | `[#process]` | Semantic category |
+| `[Quality: level]` | `[Quality: silver]` | Maturity: bronze / silver / gold |
+| `[Related: term]` | `[Related: silo]` | Bidirectional link to related term |
+| `[Origin: source]` | `[Origin: playbook.md]` | Source document |
+| `[Guided_By: term]` | `[Guided_By: fail-fast]` | This term is guided by that principle |
+| `[Implements: term]` | `[Implements: PHI-2]` | This implements that protocol |
+| `[Substrate_Issue: mode]` | `[Substrate_Issue: Biddability]` | Addresses this failure mode |
 
 ## Adding a New Registry
 
