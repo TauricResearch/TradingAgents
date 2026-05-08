@@ -80,3 +80,31 @@ def simulate_fill(
         "fee_estimate_if_win": round(fee_estimate_if_win, 6),
         "fills": fills,
     }
+
+
+def is_economic_when_correct(fill: dict[str, Any]) -> bool:
+    """Return True if the position pays out positive even when correct.
+
+    On Polymarket each contract pays $1.00 on a winning resolution, with
+    a 2% fee on the winning side. A position bought at vwap ~0.99 pays
+    only ~$0.01/contract above the buy price; if that's less than the
+    fee, the position loses money even when the prediction is right.
+
+    This guard catches the "BUY_NO at 99c on a near-zero YES market"
+    failure mode observed live: contract pays $1, fee is $0.02, but
+    you paid $0.999. Net = -$0.019/contract no matter the outcome.
+
+    Args:
+        fill: dict from simulate_fill. Reads contracts, filled_usd,
+            fee_estimate_if_win.
+
+    Returns False on unfilled positions (contracts=0) and on positions
+    where the win-side payout doesn't cover entry + fee.
+    """
+    contracts = float(fill.get("contracts", 0))
+    filled_usd = float(fill.get("filled_usd", 0))
+    fee_if_win = float(fill.get("fee_estimate_if_win", 0))
+    if contracts <= 0 or filled_usd <= 0:
+        return False
+    win_payout = contracts * 1.0
+    return (win_payout - filled_usd - fee_if_win) > 0

@@ -32,7 +32,7 @@ from tradingagents.dataflows.polymarket_data import (
     get_order_book,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.exchange.paper_fill import simulate_fill
+from tradingagents.exchange.paper_fill import is_economic_when_correct, simulate_fill
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 logger = logging.getLogger(__name__)
@@ -220,6 +220,23 @@ def main() -> int:
             continue
 
         fill = simulate_fill(book["asks"], budget_usd=args.budget)
+
+        # Negative-EV guard: if the position would lose money even when
+        # correct (the BUY at 99c trap), skip persisting it.
+        if fill["filled"] and not is_economic_when_correct(fill):
+            net_if_win = (
+                fill["contracts"] * 1.0
+                - fill["filled_usd"]
+                - fill["fee_estimate_if_win"]
+            )
+            if not args.quiet:
+                print(
+                    f"    fill: BLOCKED — NEGATIVE_EV "
+                    f"(vwap {fill['vwap']:.3f}, would yield ${net_if_win:+.2f} even if correct)"
+                )
+                print()
+            continue
+
         fill_payload = {
             "ts": now.isoformat(),
             "market_id": m["id"],
@@ -229,8 +246,6 @@ def main() -> int:
             "budget_usd": args.budget,
             **fill,
         }
-        # Drop the verbose per-level fills array from the persisted log; keep
-        # the aggregates. The full level breakdown is available by re-running.
         fill_payload.pop("fills", None)
         _append_jsonl(fill_log_path, fill_payload)
 

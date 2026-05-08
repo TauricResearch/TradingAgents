@@ -1,8 +1,8 @@
-"""Unit tests for paper_fill.simulate_fill."""
+"""Unit tests for paper_fill.simulate_fill and is_economic_when_correct."""
 
 import pytest
 
-from tradingagents.exchange.paper_fill import simulate_fill
+from tradingagents.exchange.paper_fill import is_economic_when_correct, simulate_fill
 
 
 @pytest.mark.unit
@@ -102,5 +102,46 @@ def test_fee_estimate_at_winning_resolution():
     """Fee is estimated against the WIN payout (per contract * $1 * fee_rate)."""
     asks = [{"price": 0.40, "size": 1000.0}]
     result = simulate_fill(asks, budget_usd=100.0, fee_rate=0.02)
-    # 250 contracts * $1 payout if win * 2% fee = $5
     assert result["fee_estimate_if_win"] == pytest.approx(5.0, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# is_economic_when_correct: catches the BUY at 99c trap
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_economic_when_cheap_entry_with_real_upside():
+    """Healthy directional bet: cheap entry, big upside."""
+    fill = {"contracts": 250.0, "filled_usd": 100.0, "fee_estimate_if_win": 5.0}
+    assert is_economic_when_correct(fill) is True
+
+
+@pytest.mark.unit
+def test_uneconomic_when_buying_at_99_cents():
+    """The trap observed live: BUY_NO at 99.9c on a near-zero YES market.
+    Each contract pays $1 if we win, fee is 2c, paid 99.9c. Net = -1.9c.
+    """
+    fill = {"contracts": 100.1, "filled_usd": 100.0, "fee_estimate_if_win": 2.0}
+    assert is_economic_when_correct(fill) is False
+
+
+@pytest.mark.unit
+def test_uneconomic_when_unfilled():
+    """A fill with zero contracts cannot be economic by definition."""
+    fill = {"contracts": 0, "filled_usd": 0, "fee_estimate_if_win": 0}
+    assert is_economic_when_correct(fill) is False
+
+
+@pytest.mark.unit
+def test_break_even_is_treated_as_uneconomic():
+    """Zero net is not positive EV. The guard requires strict > 0."""
+    fill = {"contracts": 102.0, "filled_usd": 100.0, "fee_estimate_if_win": 2.0}
+    assert is_economic_when_correct(fill) is False
+
+
+@pytest.mark.unit
+def test_economic_when_just_above_break_even():
+    """Strictly positive payout-after-fee passes."""
+    fill = {"contracts": 103.0, "filled_usd": 100.0, "fee_estimate_if_win": 2.0}
+    assert is_economic_when_correct(fill) is True
