@@ -77,6 +77,7 @@ export async function buildWorkflowData(): Promise<WorkflowData> {
   const planSet = new Set(plans.map((p: ExitPlan) => `${p.ticker}::${p.platform || "unknown"}`))
 
   // Fetch live prices for plan tickers (batched, 4 at a time)
+  // Falls back to SQLite prices table if Python fetch fails
   const uniqueTickers = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
   const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
   const priceMap = new Map<string, number | null>()
@@ -84,6 +85,15 @@ export async function buildWorkflowData(): Promise<WorkflowData> {
     const batch = uniqueTickers.slice(i, i + 4)
     const results = await Promise.all(batch.map((t) => fetchPrice(t, script, findProjectRoot())))
     batch.forEach((t, idx) => void priceMap.set(t, results[idx] ?? null))
+  }
+
+  // SQLite fallback for tickers where Python fetch failed
+  for (const ticker of uniqueTickers) {
+    if (priceMap.get(ticker) != null) continue
+    const row = db
+      .query(`SELECT close FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1`)
+      .get(ticker) as { close: number } | null
+    if (row) priceMap.set(ticker, row.close)
   }
 
   // Build exit statuses
@@ -123,8 +133,11 @@ export async function buildWorkflowData(): Promise<WorkflowData> {
 
     const exitPlan: ExitPlanData = {
       entryPrice: status?.plan.entry_price ?? p.avg_cost,
-      invalidationPrice: status?.plan.invalidation?.price ?? 0,
-      invalidationThesis: status?.plan.invalidation?.thesis ?? "",
+      invalidationPrice:
+        status?.plan.invalidation?.price ??
+        parseFloat(String(status?.plan.invalidation_price ?? 0)),
+      invalidationThesis:
+        status?.plan.invalidation?.thesis ?? status?.plan.invalidation_thesis ?? "",
       targets: status?.plan.targets ?? [],
       timeStop: status?.plan.time_stop ?? null,
       timeStopDaysLeft: status?.timeStopDaysLeft,

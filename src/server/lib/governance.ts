@@ -187,16 +187,17 @@ export function checkRules(
     }
   }
 
-  // Cash floor
+  // Cash floor — advisory only: warn if below minimum, note if high cash is intentional
   const cashRule = findRule(rules, "cash-floor")
   if (cashPct < cashRule.limit) {
     violations.push({
       rule: cashRule,
       current: cashPct,
-      severity: "breach",
+      severity: "warn",
       detail: `Cash is ${cashPct.toFixed(1)}% (minimum: ${cashRule.limit}%)`,
     })
   }
+  // Note: high cash (e.g. 99% with locked SIPPs/savings) is not a violation — advisory only
 
   // Max drawdown
   const ddRule = findRule(rules, "max-drawdown")
