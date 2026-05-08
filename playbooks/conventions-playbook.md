@@ -54,6 +54,8 @@ justify it in one sentence, delete it.
 | `src/lib/` = shared modules | Imported by `src/server/` and `src/cli/` | 2026-05-07 |
 | `src/server/lib/` = server-only | NOT imported outside `src/server/` | 2026-05-07 |
 | PRs ≤ 30 files per concern | Reviewable, bisectable, merges fast; stack branches for dependencies | 2026-05-08 |
+| Pre-PR self-review checklist | 3-gate checklist (mechanical, semantic, docs) before opening PR; catches ~1 real bug per 3 bot flags | 2026-05-08 |
+| td ↔ current.md sync at startup | `td list` must match `debriefs/plans/current.md`; stale planning docs are process barnacles | 2026-05-08 |
 | `scripts/` = support TS (loose) | Tooling, automation, not shipped | 2026-05-07 |
 | `scripts/lab/` = experiments | Loosest types; disposable | 2026-05-07 |
 | `scripts/lib/` = shared helpers | Reusable across scripts; pass `just check` | 2026-05-06 |
@@ -65,6 +67,27 @@ justify it in one sentence, delete it.
 | 2026-05-07 | `Justfile` (capitalized) | `playbooks/just-playbook.md`, `ci-cd-playbook.md` | Fought `just` formatter; created duplicate file on macOS | claude |
 | 2026-05-07 | Empty `src/` directory | Project root | Claimed to be source root but contained nothing; misled every new agent | claude |
 
+## Process Barnacles
+
+Barnacles aren't just in documents. The development process itself accumulates
+drift: tasks marked `in_review` on a merged PR, planning docs that don't match
+the td database, handoff files referencing work that's been done for days.
+
+**Process barnacles are more dangerous than doc barnacles** because they
+mislead agents about what work actually remains. An agent that reads
+`current.md` listing 5 "open" tasks and skips a td sync will spend an hour
+investigating work that's already shipped.
+
+| Process Barnacle | Symptom | Fix |
+|------------------|---------|-----|
+| Stale planning docs | `current.md` says "5 open" but `td list` shows them closed | Update `current.md` immediately; add sync to startup ritual |
+| Orphaned in_review tasks | Tasks in `in_review` with merged PRs | `td approve` or `td close` the tasks; log the cleanup |
+| Handoff doc drift | `handoff-next-session.md` references a branch that's been deleted | Delete or rewrite the handoff; it's worse than no handoff |
+| Zombie branches | Local branches for merged/deleted PRs | `git branch -d`; they confuse `git branch --show-current` |
+
+Treat these the same as doc barnacles: scrape on sight. The barnacle removal
+record below tracks them.
+
 ## Barnacle Inspection Prompt
 
 **Run this at the start of every session.** If you find a barnacle, either
@@ -73,6 +96,7 @@ remove it or add it to the record above with a note explaining why it persists.
 ```
 ## Barnacle Inspection
 
+### Document barnacles
 Scan the project's documents (playbooks, docs, READMEs, AGENTS.md) and
 scripts for fragments that:
 
@@ -93,6 +117,14 @@ Also inspect the directory tree:
 
 If it fails two of three: it is a barnacle. Scrape it. Update the record.
 If it passes: add it to the Active Conventions table with its justification.
+
+### Process barnacles
+After the doc scan, run these checks:
+
+1. `td list` → compare against `debriefs/plans/current.md`. Mismatches? Fix current.md.
+2. `td list` → any tasks in `in_review` with merged PRs? Approve/close them.
+3. `debriefs/handoff-next-session.md` → still references a live branch? Still accurate?
+4. `git branch` → any local branches for deleted/merged PRs? Delete them.
 ```
 
 ## Startup Ritual

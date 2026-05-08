@@ -9,6 +9,10 @@ td usage --new-session     # new identity
 td ws current              # any active work session to resume?
 td list                    # what's open / in_progress
 td reviewable              # what can I review?
+# Sync: compare td list against debriefs/plans/current.md.
+# If current.md lists tasks as "open" that td shows as closed, update it.
+# If tasks are in_review but the PR is merged, approve/close them.
+# Stale planning docs are process barnacles — scrape them immediately.
 ```
 
 ### Core Rule: Always Use a Work Session
@@ -250,6 +254,32 @@ TradingAgents/
 - Review surface area: a 30-file PR gets a thorough review in minutes. A 191-file PR gets a skim.
 - `git bisect`: a small, focused commit isolates breakage to one change. A monolithic commit says "something in these 191 files broke."
 - Merge velocity: small PRs merge in hours. Large PRs accumulate conflicts and drift over days.
+
+### Pre-PR Checklist
+
+Before opening a PR or marking a task for review, run through these gates. Automated reviewers (CodeRabbit, etc.) are a safety net, not a replacement — they catch ~1 real bug per 3 flagged items. Self-review catches the rest before the bot sees them.
+
+**Gate 1: Mechanical**
+- [ ] `just check` — biome + tsc + DB usage gate, all green
+- [ ] `git diff --stat main...HEAD | wc -l` — under 30 files (or justified in PR body)
+- [ ] All new `.tsx` files have `/** @jsxImportSource hono/jsx */` if they contain JSX
+- [ ] No new `.ts` files contain JSX (must be `.tsx`)
+- [ ] No `console.log` left in production paths (debug logging is fine, remove before merge)
+- [ ] No `new Database()` outside `src/server/lib/db.ts`
+
+**Gate 2: Semantic**
+- [ ] New routes return correct status codes (404 for missing, not 200)
+- [ ] SQLite REAL columns are parsed with `parseFloat()` before arithmetic
+- [ ] hLedger output parsing handles edge cases (empty output, missing fields)
+- [ ] SSE events follow the defined schema (see ARCHITECTURE.md)
+- [ ] Error responses use `{ error, detail, hint }` structure
+
+**Gate 3: Documentation**
+- [ ] Paths in docs match actual file locations (not `server/` when it's `src/server/`)
+- [ ] New scripts have a line in `scripts/README.md` if they're long-lived
+- [ ] `debriefs/plans/current.md` reflects actual td state after the PR merges
+
+Skip Gate 3 for documentation-only or lint-only PRs.
 
 ### Known Failure Modes
 
