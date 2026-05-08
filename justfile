@@ -703,3 +703,4 @@ push:
 
 alias a := analyze
 alias l := lint
+alias sc := shortcuts
