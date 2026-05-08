@@ -169,6 +169,20 @@ and after.
 
 Prove patterns in `scripts/lab/` before touching production.
 
+### Conceptual Lexicon
+
+The silo maintains a `silo-conceptual-lexicon.jsonl` at root level. Every
+coined term, heuristic, or convention that is reused across documents
+must be added here. Agents must consult the lexicon before inventing
+new terminology — the term may already exist with a stable `id`.
+
+New term process:
+1. Check if the concept already exists in the lexicon
+2. If yes, use the existing `id` and `[Related: ...]` links
+3. If no, add an entry with `status: draft`, a heuristic, and a usage example
+4. Upgrade to `status: active` only after the term has been used in two
+   or more documents (briefs, playbooks, decisions, debriefs)
+
 ### Extract-before-move
 
 Break cross-directory couplings before moving directories.

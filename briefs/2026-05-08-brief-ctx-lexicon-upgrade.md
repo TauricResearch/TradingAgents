@@ -131,7 +131,7 @@ registry tooling).
 ### File Format Change
 
 **From**: Single JSON array (`conceptual-lexicon-example.json`)
-**To**: JSONL lines (`debriefs/lexicon.jsonl`)
+**To**: JSONL lines (`silo-conceptual-lexicon.jsonl`)
 
 Benefits:
 - Append-only edits (no parse/serialize)
@@ -169,7 +169,7 @@ draft:   14
 ## Silo-Relevant Terms to Incorporate
 
 From 161 CTX entries, **7 are directly relevant** to the silo/project conventions
-and should be added to `debriefs/lexicon.jsonl`:
+and should be added to `silo-conceptual-lexicon.jsonl`:
 
 | CTX ID | Term | Why It Belongs |
 |--------|------|----------------|
@@ -194,13 +194,13 @@ linking them to existing terms via `[Related: ...]` and `[Origin: CTX OH-xxx]` t
 - [x] `reg-check lexicon` passes
 - [x] `reg-list lexicon` renders human-readable output
 - [x] Old JSON array archived (`docs/conceptual-lexicon-example.json` retained)
-- [x] 7 silo-relevant terms incorporated into `debriefs/lexicon.jsonl`
+- [x] 7 silo-relevant terms incorporated into `silo-conceptual-lexicon.jsonl`
 - [x] Conversion script exists (`scripts/ctx-lexicon-convert.ts`)
 - [x] CTX lexicon accessible via `just reg-lexicon-ctx`
 
 ## Related
 
 - Current CTX lexicon: `docs/conceptual-lexicon-example.json`
-- Merged lexicon: `debriefs/lexicon.jsonl`
+- Merged lexicon: `silo-conceptual-lexicon.jsonl`
 - Migration script: `scripts/lexicon-migrate.ts`
 - Unified registry schema: `docs/schema/unified-registry.md`

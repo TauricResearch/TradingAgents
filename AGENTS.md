@@ -336,6 +336,7 @@ This project is indexed by GitNexus as **TradingAgents** (5074 symbols, 6891 rel
 
 | Resource | Use for |
 |----------|---------|
+| `silo-conceptual-lexicon.jsonl` | **Consult first.** Vocabulary, heuristics, and conventions used in this silo |
 | `gitnexus://repo/TradingAgents/context` | Codebase overview, check index freshness |
 | `gitnexus://repo/TradingAgents/clusters` | All functional areas |
 | `gitnexus://repo/TradingAgents/processes` | All execution flows |
