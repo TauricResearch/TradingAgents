@@ -32,28 +32,19 @@ from tradingagents.dataflows.polymarket_data import (
     get_order_book,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.exchange.io_utils import POLYMARKET_OUTPUT_DIR, append_jsonl
 from tradingagents.exchange.paper_fill import is_economic_when_correct, simulate_fill
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_DIR = Path.home() / ".tradingagents" / "polymarket"
-
 
 def _decision_log_path(now: datetime) -> Path:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return OUTPUT_DIR / f"decisions-{now.strftime('%Y-%m-%d')}.jsonl"
+    return POLYMARKET_OUTPUT_DIR / f"decisions-{now.strftime('%Y-%m-%d')}.jsonl"
 
 
 def _fill_log_path(now: datetime) -> Path:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return OUTPUT_DIR / f"paper-fills-{now.strftime('%Y-%m-%d')}.jsonl"
-
-
-def _append_jsonl(path: Path, payload: dict) -> None:
-    """Append one JSONL line. Atomic-enough for single-process polling."""
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(payload, separators=(",", ":")) + "\n")
+    return POLYMARKET_OUTPUT_DIR / f"paper-fills-{now.strftime('%Y-%m-%d')}.jsonl"
 
 
 def main() -> int:
@@ -190,7 +181,7 @@ def main() -> int:
             "model": args.model,
             **decision.model_dump(mode="json"),
         }
-        _append_jsonl(log_path, payload)
+        append_jsonl(log_path, payload)
 
         if not args.quiet:
             print(f"    -> {decision.direction.value} (conf {decision.confidence:.2f})")
@@ -242,7 +233,7 @@ def main() -> int:
             "budget_usd": args.budget,
             **fill,
         }
-        _append_jsonl(fill_log_path, fill_payload)
+        append_jsonl(fill_log_path, fill_payload)
 
         if not args.quiet:
             if fill["filled"]:

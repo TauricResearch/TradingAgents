@@ -24,7 +24,6 @@ Writes one JSONL row per market to:
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -44,10 +43,9 @@ from tradingagents.dataflows.polymarket_data import (
     _normalise_market,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.exchange.io_utils import POLYMARKET_OUTPUT_DIR, append_jsonl
 from tradingagents.exchange.scoring import MarketOutcome, classify_outcome
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-
-OUTPUT_DIR = Path.home() / ".tradingagents" / "polymarket"
 
 
 def _fetch_resolved_markets(
@@ -176,8 +174,7 @@ def main() -> int:
     ta = TradingAgentsGraph(config=config)
 
     now = datetime.now(timezone.utc)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    log_path = OUTPUT_DIR / f"backtest-{now.strftime('%Y-%m-%d')}-{_model_slug(args.model)}.jsonl"
+    log_path = POLYMARKET_OUTPUT_DIR / f"backtest-{now.strftime('%Y-%m-%d')}-{_model_slug(args.model)}.jsonl"
 
     correct = 0
     total_scored = 0
@@ -236,8 +233,7 @@ def main() -> int:
             "is_hold": is_hold,
             "rationale": decision.rationale,
         }
-        with log_path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+        append_jsonl(log_path, row)
 
     print()
     print("=" * 70)

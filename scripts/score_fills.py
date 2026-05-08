@@ -28,6 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 from tradingagents.dataflows.polymarket_data import GammaAPIError, get_market_by_id
+from tradingagents.exchange.io_utils import POLYMARKET_OUTPUT_DIR
 from tradingagents.exchange.scoring import (
     MarketOutcome,
     classify_outcome,
@@ -35,15 +36,12 @@ from tradingagents.exchange.scoring import (
 )
 
 
-FILL_DIR = Path.home() / ".tradingagents" / "polymarket"
-
-
 def _load_fills(date: str | None) -> list[dict]:
     """Load fills from one date or all dates."""
     if date:
-        paths = [FILL_DIR / f"paper-fills-{date}.jsonl"]
+        paths = [POLYMARKET_OUTPUT_DIR / f"paper-fills-{date}.jsonl"]
     else:
-        paths = sorted(FILL_DIR.glob("paper-fills-*.jsonl"))
+        paths = sorted(POLYMARKET_OUTPUT_DIR.glob("paper-fills-*.jsonl"))
 
     fills: list[dict] = []
     for path in paths:
