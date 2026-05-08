@@ -68,3 +68,100 @@ class TestJSONLHelpers:
         nested = str(tmp_path / "deep" / "path" / "out.jsonl")
         append_result(nested, BacktestResult(ticker="X", trade_date="2024-01-01"))
         assert (tmp_path / "deep" / "path" / "out.jsonl").exists()
+
+
+@pytest.mark.unit
+class TestBacktestEngine:
+    def test_run_calls_propagate_once_per_date(self, tmp_path):
+        from unittest.mock import MagicMock, patch
+        from tradingagents.backtesting.engine import BacktestEngine
+
+        with patch("tradingagents.backtesting.engine.TradingAgentsGraph") as MockGraph:
+            instance = MockGraph.return_value
+            instance.propagate.return_value = (
+                {"final_trade_decision": "**Rating**: Buy\n"},
+                "Buy",
+            )
+            engine = BacktestEngine(
+                tickers=["NVDA"],
+                start_date="2024-01-01",
+                end_date="2024-01-31",
+                freq="monthly",
+                output_file=str(tmp_path / "out.jsonl"),
+            )
+            results = engine.run()
+
+        assert len(results) == 1
+        assert results[0].ticker == "NVDA"
+        assert results[0].rating == "Buy"
+        assert results[0].direction == 1
+        assert results[0].error is None
+
+    def test_run_records_error_without_aborting(self, tmp_path):
+        from unittest.mock import MagicMock, patch
+        from tradingagents.backtesting.engine import BacktestEngine
+
+        with patch("tradingagents.backtesting.engine.TradingAgentsGraph") as MockGraph:
+            instance = MockGraph.return_value
+            instance.propagate.side_effect = RuntimeError("LLM unavailable")
+            engine = BacktestEngine(
+                tickers=["NVDA"],
+                start_date="2024-01-01",
+                end_date="2024-01-31",
+                freq="monthly",
+                output_file=str(tmp_path / "out.jsonl"),
+            )
+            results = engine.run()
+
+        assert len(results) == 1
+        assert results[0].error == "LLM unavailable"
+        assert results[0].rating is None
+        assert results[0].direction is None
+
+    def test_resume_skips_completed_pairs(self, tmp_path):
+        from unittest.mock import MagicMock, patch
+        from tradingagents.backtesting.engine import BacktestEngine
+
+        out = tmp_path / "out.jsonl"
+        out.write_text(
+            '{"ticker":"NVDA","trade_date":"2024-01-01","error":null,"rating":"Buy",'
+            '"direction":1,"raw_output":"","run_duration_seconds":5.0}\n',
+            encoding="utf-8",
+        )
+        with patch("tradingagents.backtesting.engine.TradingAgentsGraph") as MockGraph:
+            instance = MockGraph.return_value
+            engine = BacktestEngine(
+                tickers=["NVDA"],
+                start_date="2024-01-01",
+                end_date="2024-01-31",
+                freq="monthly",
+                output_file=str(out),
+            )
+            results = engine.run(resume=True)
+
+        instance.propagate.assert_not_called()
+        assert results == []
+
+    def test_results_written_to_jsonl(self, tmp_path):
+        from unittest.mock import patch
+        from tradingagents.backtesting.engine import BacktestEngine
+        import json
+
+        out = tmp_path / "out.jsonl"
+        with patch("tradingagents.backtesting.engine.TradingAgentsGraph") as MockGraph:
+            instance = MockGraph.return_value
+            instance.propagate.return_value = ({"final_trade_decision": ""}, "Hold")
+            engine = BacktestEngine(
+                tickers=["AAPL"],
+                start_date="2024-01-01",
+                end_date="2024-01-31",
+                freq="monthly",
+                output_file=str(out),
+            )
+            engine.run()
+
+        lines = out.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 1
+        obj = json.loads(lines[0])
+        assert obj["ticker"] == "AAPL"
+        assert obj["rating"] == "Hold"
