@@ -2,17 +2,16 @@
 
 ## Polymarket Phase A
 
-### TODO: Polymarket backtesting harness
-**What:** Script to run `propagate_market()` against already-resolved Polymarket
-markets and measure accuracy vs. resolution outcomes.
-**Why:** The 55% accuracy success criterion cannot be measured any other way.
-Without this, Phase A quality is unverifiable at ship time.
-**Context:** Gamma API exposes `resolved` markets with final YES/NO outcomes.
-Sample 50-100 resolved markets, run the research pipeline, compare direction
-to outcome. This is the only honest eval for Phase A.
-Start: `tradingagents/scripts/backtest.py`
-**Effort:** ~1 day (human) / ~30 min (CC)
-**Depends on:** Phase A data layer + `propagate_market()` complete
+### DONE: Polymarket backtesting harness
+Shipped 2026-05-08 as `scripts/backtest.py`. Pulls resolved markets from
+gamma, runs `propagate_market()` against them, compares direction to
+outcome. Includes `--end-date-max` for cross-domain testing.
+Findings: `docs/PHASE_A_FINDINGS.md`.
+
+### DONE: Block negative-EV trades pre-fill
+Shipped 2026-05-08 (commit `d7ae4d9`). `is_economic_when_correct(fill)`
+in `tradingagents/exchange/paper_fill.py`. Wired into `run_polymarket.py`
+so guaranteed-loser trades log "NEGATIVE_EV_BLOCKED" and don't persist.
 
 ---
 
@@ -22,29 +21,28 @@ in `tradingagents/dataflows/polymarket_data.py`.
 **Why:** Gamma rate limits are undocumented. Without retry logic, a 429 produces
 a silent empty result or an exception dump with no user-visible message.
 **Context:** `@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))`
-covers the common case. Add a clear error log on final failure.
+on transient failures only (network errors, 429, 5xx). Don't retry 4xx
+client errors.
 **Effort:** 15 min
-**Depends on:** nothing (add at any point)
+**Depends on:** nothing
 
 ---
 
-### TODO: Block negative-EV trades pre-fill
-**What:** In `run_polymarket.py`, after the trader produces a direction, refuse
-to fill if the trade is guaranteed to lose money even when the prediction is
-correct, due to the 2% Polymarket fee on winning resolutions.
-**Why:** Observed in the live Sonnet batch: BUY_NO on a 0.2 cent YES market
-means buying NO at 99.8 cents. If NO wins, payout is $1.00 minus 2% fee =
-$0.98 per contract. Cost was $1.00 per contract, guaranteed -$2 loss on a
-100-contract buy even with a correct call. Sonnet's reasoning was structurally
-sound but ignored fee math.
-**Context:** Per contract, expected_pnl_if_win = (1.00 - vwap) - fee_per_contract.
-If `(1.00 - vwap) <= fee_per_contract`, the trade is a guaranteed loser when
-correct. Add an EV check after `simulate_fill`: if `(payout - filled_usd -
-fee_estimate_if_win) <= 0`, log "NEGATIVE_EV_BLOCKED" and skip the fill log
-entry. A more sophisticated version uses the bot's confidence vs. the market
-price to compute true expected value, but the floor case (correct = loss) is
-the fast obvious win.
-**Effort:** 15 min
+### TODO: Tighten bull/bear prompts to address drama bias
+**What:** Modify the polymarket-mode bull/bear researcher prompts to push
+back on cases where they reward "yes-it-happens" reasoning on dramatic
+geopolitical events.
+**Why:** Observed in cross-domain backtest (2026-05-08): both gpt-4o-mini
+and Sonnet went BUY_YES on "Will another country conduct military action
+against Iran by April 15?" (actual: NO). The bull researcher rewards
+finding any news suggesting YES, even when prior probability is low.
+The fix: add to the bull prompt "Be skeptical of dramatic outcomes
+('war breaks out', 'leader assassinated', etc.), these are usually
+correctly priced low. Argue YES only when you have specific recent
+catalysts that move the probability above the historical base rate."
+**Context:** Files: `tradingagents/agents/researchers/bull_researcher.py`,
+`bear_researcher.py` (polymarket branch).
+**Effort:** 20 min + 5-market backtest to confirm (~$0.10)
 **Depends on:** nothing
 
 ---
@@ -54,13 +52,14 @@ the fast obvious win.
 ### TODO: Binary risk model (Kelly criterion sizing)
 **What:** New position-sizing module for Polymarket binary contracts, replacing
 the `stop_loss_pct`-based formula in `trade-poc/src/risk/engine.ts`.
-**Why:** YES/NO contracts resolve at $1 or $0 — there is no stop-loss to set.
+**Why:** YES/NO contracts resolve at $1 or $0; there is no stop-loss to set.
 The existing `RISK_PER_TRADE_PCT / stop_loss_pct` formula produces nonsense.
 **Context:** Kelly criterion: `f* = (b*p - q) / b`
 - `p` = estimated YES probability (from `confidence` in `PolymarketDecision`)
 - `q` = 1 - p
 - `b` = (1 / yes_price_at_analysis) - 1
 Cap at `MAX_POSITION_PCT`. Confidence threshold still applies.
-Start: `trade-poc/src/risk/binary.ts`
+Start: `trade-poc/src/risk/binary.ts` or as Python in `tradingagents/exchange/`.
 **Effort:** ~0.5 day (human) / ~15 min (CC)
-**Depends on:** Phase A `PolymarketDecision` schema (needs `confidence` + `yes_price_at_analysis`)
+**Depends on:** Phase A `PolymarketDecision` schema (already exists), regulatory
+review for real-money execution, py-clob-client wallet integration.

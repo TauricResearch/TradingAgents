@@ -16,6 +16,13 @@ import logging
 from typing import Any
 
 import httpx
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +37,42 @@ class GammaAPIError(Exception):
 
 class CLOBAPIError(Exception):
     """Raised when CLOB returns a non-2xx response or unparseable body."""
+
+
+def _is_transient_http_error(exc: BaseException) -> bool:
+    """Return True if the exception is worth retrying.
+
+    Retry on:
+      - Network errors (timeout, connection refused, DNS) - httpx.RequestError
+      - 429 (rate limit) and 5xx (server error) - httpx.HTTPStatusError
+    Do NOT retry on 4xx client errors (e.g. 404 not-found, 400 bad request) -
+    those will fail again with the same response no matter how often we retry.
+    """
+    if isinstance(exc, httpx.RequestError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        return code == 429 or code >= 500
+    return False
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    retry=retry_if_exception(_is_transient_http_error),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _http_get_with_retry(url: str, **kwargs: Any) -> httpx.Response:
+    """GET with retry on transient failures (429, 5xx, network errors).
+
+    Final exception is re-raised after retries are exhausted so the calling
+    function can convert it into a domain-specific error (GammaAPIError or
+    CLOBAPIError).
+    """
+    resp = httpx.get(url, **kwargs)
+    resp.raise_for_status()
+    return resp
 
 
 def _normalise_market(raw: dict[str, Any]) -> dict[str, Any] | None:
@@ -117,8 +160,9 @@ def get_open_markets(
     if end_date_min is not None:
         params["end_date_min"] = end_date_min
     try:
-        resp = httpx.get(f"{GAMMA_BASE}/markets", params=params, timeout=DEFAULT_TIMEOUT)
-        resp.raise_for_status()
+        resp = _http_get_with_retry(
+            f"{GAMMA_BASE}/markets", params=params, timeout=DEFAULT_TIMEOUT
+        )
     except httpx.HTTPStatusError as e:
         raise GammaAPIError(f"Gamma /markets returned {e.response.status_code}: {e}") from e
     except httpx.RequestError as e:
@@ -144,8 +188,9 @@ def get_market_by_id(market_id: str) -> dict[str, Any]:
     Raises GammaAPIError on network failure or unparseable response.
     """
     try:
-        resp = httpx.get(f"{GAMMA_BASE}/markets/{market_id}", timeout=DEFAULT_TIMEOUT)
-        resp.raise_for_status()
+        resp = _http_get_with_retry(
+            f"{GAMMA_BASE}/markets/{market_id}", timeout=DEFAULT_TIMEOUT
+        )
     except httpx.HTTPStatusError as e:
         raise GammaAPIError(
             f"Gamma /markets/{market_id} returned {e.response.status_code}"
@@ -178,10 +223,11 @@ def get_order_book(token_id: str) -> dict[str, Any]:
     network failure.
     """
     try:
-        resp = httpx.get(
-            f"{CLOB_BASE}/book", params={"token_id": token_id}, timeout=DEFAULT_TIMEOUT
+        resp = _http_get_with_retry(
+            f"{CLOB_BASE}/book",
+            params={"token_id": token_id},
+            timeout=DEFAULT_TIMEOUT,
         )
-        resp.raise_for_status()
     except httpx.HTTPStatusError as e:
         raise CLOBAPIError(
             f"CLOB /book returned {e.response.status_code} for {token_id}"
