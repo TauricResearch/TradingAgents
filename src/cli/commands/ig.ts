@@ -19,6 +19,7 @@ export const igCommand = defineCommand({
     search: () => import("./ig-search.ts").then((m) => m.igSearchCommand),
     prices: () => import("./ig-prices.ts").then((m) => m.igPricesCommand),
     positions: () => import("./ig-positions.ts").then((m) => m.igPositionsCommand),
+    history: () => import("./ig-history.ts").then((m) => m.igHistoryCommand),
     buy: () => import("./ig-buy.ts").then((m) => m.igBuyCommand),
     sell: () => import("./ig-sell.ts").then((m) => m.igSellCommand),
   },

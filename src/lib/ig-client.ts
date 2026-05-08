@@ -292,4 +292,70 @@ export class IGClient {
       10000,
     )
   }
+
+  // ── History ───────────────────────────────────────────────────────────────
+
+  async getActivityHistory(params?: {
+    from?: string // YYYY-MM-DD
+    to?: string // YYYY-MM-DD
+    detailed?: boolean
+  }): Promise<{
+    activities: Array<{
+      date: string
+      channel: string
+      type: string
+      status: string
+      description: string
+      details?: {
+        marketName?: string
+        period?: string
+        epic?: string
+        expiry?: string
+        dealReference?: string
+        direction?: "BUY" | "SELL"
+        size?: string
+        level?: string
+        currency?: string
+        stopLevel?: string
+        limitLevel?: string
+      }
+    }>
+  }> {
+    const qs = new URLSearchParams()
+    if (params?.from) qs.set("from", params.from)
+    if (params?.to) qs.set("to", params.to)
+    if (params?.detailed) qs.set("detailed", String(params.detailed))
+    const query = qs.toString()
+    return this.fetch(
+      `/history/activity${query ? `?${query}` : ""}`,
+      { headers: { Version: "3" } },
+      10000,
+    )
+  }
+
+  async getTransactionHistory(params?: {
+    from?: string // YYYY-MM-DD
+    to?: string // YYYY-MM-DD
+    type?: string // "ALL" | "WITHDRAWAL" | "DEPOSIT" | "TRADE"
+  }): Promise<{
+    transactions: Array<{
+      date: string
+      type: string
+      amount: number
+      balance: number
+      reference: string
+      description: string
+    }>
+  }> {
+    const qs = new URLSearchParams()
+    if (params?.from) qs.set("from", params.from)
+    if (params?.to) qs.set("to", params.to)
+    if (params?.type) qs.set("type", params.type)
+    const query = qs.toString()
+    return this.fetch(
+      `/history/transactions${query ? `?${query}` : ""}`,
+      { headers: { Version: "2" } },
+      10000,
+    )
+  }
 }
