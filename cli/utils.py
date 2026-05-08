@@ -268,8 +268,6 @@ def select_llm_provider() -> tuple[str, str | None]:
     provider, url = choice
     if provider == "openai":
         url = os.getenv("OPENAI_BASE_URL", url)
-
-    if provider == "openai":
         use_custom_url = questionary.confirm(
             "Use a custom OpenAI-compatible base URL?",
             default=False,
@@ -293,6 +291,9 @@ def select_llm_provider() -> tuple[str, str | None]:
                     ]
                 ),
             ).ask()
+            if custom_url is None:
+                console.print("\n[red]No base URL provided. Exiting...[/red]")
+                exit(1)
             url = custom_url.strip()
 
     return provider, url

@@ -72,6 +72,26 @@ class CliProviderSelectionTests(unittest.TestCase):
         self.assertEqual(backend_url, "https://env-proxy.example/v1")
         mock_text.assert_not_called()
 
+    @patch("cli.utils.console.print")
+    @patch("cli.utils.questionary.text")
+    @patch("cli.utils.questionary.confirm")
+    @patch("cli.utils.questionary.select")
+    def test_openai_exits_when_custom_backend_url_prompt_is_cancelled(
+        self,
+        mock_select,
+        mock_confirm,
+        mock_text,
+        mock_print,
+    ):
+        mock_select.return_value = _PromptResult(("openai", "https://api.openai.com/v1"))
+        mock_confirm.return_value = _PromptResult(True)
+        mock_text.return_value = _PromptResult(None)
+
+        with self.assertRaises(SystemExit):
+            select_llm_provider()
+
+        mock_print.assert_called_with("\n[red]No base URL provided. Exiting...[/red]")
+
 
 if __name__ == "__main__":
     unittest.main()
