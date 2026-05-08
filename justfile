@@ -121,7 +121,7 @@ p:  # Python — tradingagents package, tests, analysis
 
 [group("nav")]
 h:  # hLedger — plain-text accounting
-    @bun scripts/just-group-menu.ts hledger
+    @just hledger::default
 
 [group("nav")]
 t:  # td — task management
