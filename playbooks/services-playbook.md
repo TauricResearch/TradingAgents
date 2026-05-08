@@ -3,6 +3,11 @@
 **Objective**: Ensure the TradingAgents dashboard server follows a consistent
 lifecycle, logging, and management pattern.
 
+**One-sentence rule:** `just start` means start. Kill whatever is on the port,
+write the PID, print "started", exit. No ifs, no buts.
+
+---
+
 ## 1. Architecture: Single-Service Daemon
 
 TradingAgents runs one background service: the dashboard server. It is managed
@@ -15,11 +20,15 @@ by `scripts/server-lifecycle.ts` using PID files and log capture.
 4.  **Stale Cleanup**: Remove dead PID files before starting.
 5.  **Graceful Shutdown**: SIGTERM → wait → SIGKILL fallback.
 
+---
+
 ## 2. Port Registry
 
 | Service | Port | Env Var | Description |
 |---------|------|---------|-------------|
 | Dashboard Server | 3000 | `TA_DASHBOARD_PORT` | Hono + HTMX web UI |
+
+---
 
 ## 3. File Locations
 
@@ -31,6 +40,8 @@ by `scripts/server-lifecycle.ts` using PID files and log capture.
 ```
 
 Created on first run if absent.
+
+---
 
 ## 4. Standard Interface
 
@@ -44,6 +55,8 @@ All service commands use `scripts/server-lifecycle.ts`:
 | `just restart` | Kill port 3000, kill PID, start fresh |
 | `just status` | Show service status |
 | `just ports` | Show all listening ports |
+
+---
 
 ## 5. Implementation Details
 
@@ -67,6 +80,36 @@ START:
 - If port 3000 is occupied, something is stale or wrong.
 - No "Port already in use" errors. No manual `pkill` dances.
 - Just start. It works.
+
+### How to Spawn the Server
+
+**Use the shell. Do NOT use `Bun.spawn` with pipes.**
+
+```typescript
+// ✅ CORRECT: nohup + shell redirection. Parent exits immediately.
+const cmd = `nohup bun run src/server/index.tsx > "${LOG_FILE}" 2>&1 & echo $!`
+const pid = parseInt(execSync(cmd, { shell: "/bin/bash", encoding: "utf-8" }).trim(), 10)
+```
+
+```typescript
+// ❌ WRONG: Bun.spawn with pipes hangs the parent process.
+const child = spawn("bun", ["run", "src/server/index.tsx"], {
+  detached: true,
+  stdio: ["ignore", "pipe", "pipe"],
+})
+child.stdout?.on("data", (d) => logFd.write(d))  // This listener keeps the event loop alive
+child.unref()  // Does NOT help — the pipe streams hold references
+```
+
+**Why `Bun.spawn` with pipes fails for daemons:**
+- The `stdout`/`stderr` pipes create event listeners in the parent
+- `detached: true` and `unref()` do not close these listeners
+- The parent's event loop stays alive until the child exits
+- Result: the parent process hangs forever, printing "Command aborted"
+
+**When to use `Bun.spawn`:** Short-lived commands where you capture all output and then exit. When the command finishes, the pipes close and the parent can exit.
+
+**When to use `execSync` with `nohup`:** Long-running background services where the parent must exit immediately.
 
 ### Stop Protocol
 
@@ -98,6 +141,8 @@ function isProcessAlive(pid: number): boolean {
 
 `kill(pid, 0)` checks if process exists without sending a signal.
 
+---
+
 ## 6. Best Practices
 
 - **Never use `ps | grep` for PID discovery.** Always use the PID file.
@@ -118,6 +163,8 @@ function isProcessAlive(pid: number): boolean {
 ❌ Old: restart = stop → wait → check → start → may fail
 ✅ New: restart = kill port → kill PID → start → always works
 ```
+
+---
 
 ## 7. Future Expansion
 
