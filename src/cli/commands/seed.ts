@@ -26,12 +26,18 @@ export const seedCommand = defineCommand({
       description: "Seed prices from Yahoo Finance",
       default: false,
     },
+    watchlist: {
+      type: "boolean",
+      description: "Seed watchlist items",
+      default: false,
+    },
   },
   run: async ({ args }) => {
     const flags: string[] = []
     if (args.positions) flags.push("--positions")
     if (args.signals) flags.push("--signals")
     if (args.prices) flags.push("--prices")
+    if (args.watchlist) flags.push("--watchlist")
 
     const proc = Bun.spawn(["bun", "scripts/seed_database.ts", ...flags], {
       stdout: "inherit",
