@@ -241,6 +241,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
+        ("AWS Bedrock", "bedrock", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
     ]
 

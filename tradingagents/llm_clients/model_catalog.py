@@ -101,6 +101,21 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "bedrock": {
+        "quick": [
+            ("Claude Sonnet 4.6 - Latest fast model, Feb 2026", "us.anthropic.claude-sonnet-4-6"),
+            ("Claude Sonnet 4 - Balanced, proven", "us.anthropic.claude-sonnet-4-20250514-v1:0"),
+            ("Claude Haiku 4.5 - Fastest, cheapest", "anthropic.claude-3-5-haiku-20241022-v1:0"),
+            ("Nova Pro - AWS native, balanced (Amazon)", "amazon.nova-pro-v1:0"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Claude Opus 4.7 - Flagship, 1M context, Apr 2026", "us.anthropic.claude-opus-4-7"),
+            ("Claude Sonnet 4.6 - Fast + intelligent", "us.anthropic.claude-sonnet-4-6"),
+            ("Claude Sonnet 4 - Balanced, proven", "us.anthropic.claude-sonnet-4-20250514-v1:0"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [
