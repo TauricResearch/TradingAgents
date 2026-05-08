@@ -110,89 +110,54 @@ set dotenv-load := true
 mod hledger
 
 # Group navigation shortcuts — just <letter> to list that group's recipes
+# Uses scripts/just-group-menu.ts for formatted output with common-marker indicators.
 [group("nav")]
 b:  # Bun — TypeScript server tooling
-    @echo ""
-    @echo "=== Bun: TypeScript server tooling ==="
-    @echo ""
-    @just --list --group bun
+    @bun scripts/just-group-menu.ts bun
 
 [group("nav")]
 p:  # Python — tradingagents package, tests, analysis
-    @echo ""
-    @echo "=== Python: tradingagents package, tests, analysis ==="
-    @echo ""
-    @just --list --group python
+    @bun scripts/just-group-menu.ts python
 
 [group("nav")]
 h:  # hLedger — plain-text accounting
-    @echo ""
-    @echo "=== hLedger: plain-text accounting ==="
-    @echo ""
-    @just --list hledger
+    @bun scripts/just-group-menu.ts hledger
 
 [group("nav")]
 t:  # td — task management
-    @echo ""
-    @echo "=== td: task management ==="
-    @echo ""
-    @just --list --group td
+    @bun scripts/just-group-menu.ts td
 
 [group("nav")]
 db:  # Database — backup, stats, maintenance
-    @echo ""
-    @echo "=== Database: backup, stats, maintenance ==="
-    @echo ""
-    @just --list --group db
+    @bun scripts/just-group-menu.ts db
 
 [group("nav")]
 m:  # Meta — project info, help, state
-    @echo ""
-    @echo "=== Meta: project info, help, state ==="
-    @echo ""
-    @just --list --group meta
+    @bun scripts/just-group-menu.ts meta
 
 [group("nav")]
 r:  # Run — business operations (analyze, portfolio, sync, seed)
-    @echo ""
-    @echo "=== Run: business operations ==="
-    @echo ""
-    @just --list --group run
+    @bun scripts/just-group-menu.ts run
 
 [group("nav")]
 s:  # Seed — database seeding and partial resets
-    @echo ""
-    @echo "=== Seed: database seeding ==="
-    @echo ""
-    @just --list --group seed
+    @bun scripts/just-group-menu.ts seed
 
 [group("nav")]
 x:  # Test — test DB and development tools
-    @echo ""
-    @echo "=== Test: test DB and development tools ==="
-    @echo ""
-    @just --list --group test
+    @bun scripts/just-group-menu.ts test
 
 [group("nav")]
 d:  # Diagrams — render .dot / .mmd to .svg
-    @echo ""
-    @echo "=== Diagrams: render .dot / .mmd to .svg ==="
-    @echo ""
-    @just --list --group diagrams
+    @bun scripts/just-group-menu.ts diagrams
 
 [group("nav")]
 pr:  # PR — GitHub pull request helpers
-    @echo ""
-    @echo "=== PR: GitHub pull request helpers ==="
-    @echo ""
-    @just --list --group pr
+    @bun scripts/just-group-menu.ts pr
 
 [group("nav")]
 hk:  # Hooks — git workflow automation
-    @echo ""
-    @echo "=== Hooks: git workflow automation ==="
-    @echo ""
-    @just --list --group hooks
+    @bun scripts/just-group-menu.ts hooks
 
 # Aliases for common hledger recipes (backward compat)
 alias hl := hledger::hl
@@ -628,17 +593,11 @@ gn-status:
 
 [group("nav")]
 gn:  # GitNexus — code knowledge graph
-    @echo ""
-    @echo "=== GitNexus: code knowledge graph ==="
-    @echo ""
-    @just --list --group gn
+    @bun scripts/just-group-menu.ts gn
 
 [group("nav")]
 srv:  # Server — lifecycle management
-    @echo ""
-    @echo "=== Server: lifecycle management ==="
-    @echo ""
-    @just --list --group srv
+    @bun scripts/just-group-menu.ts srv
 
 # ── Server lifecycle ────────────────────────────────────────────────────────
 #   Start, stop, restart, and monitor the dashboard server.
@@ -697,10 +656,7 @@ lab-gum:
 
 [group("nav")]
 lab:  # Lab — terminal experiments
-    @echo ""
-    @echo "=== Lab: terminal experiments ==="
-    @echo ""
-    @just --list --group lab
+    @bun scripts/just-group-menu.ts lab
 
 # ── Hooks: git workflow automation ─────────────────────────────────────────
 
