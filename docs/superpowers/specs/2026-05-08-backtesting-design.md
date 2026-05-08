@@ -115,7 +115,8 @@ standard market holidays are skipped. Supported freq values: `"monthly"` (MS),
 
 At start, loads all completed `(ticker, trade_date)` pairs from the existing output
 file and skips them from the run queue. A run is "completed" only if its
-`BacktestResult` has `error=None`.
+`BacktestResult` has `error=None`. Failed runs (error is set) are retried on
+`--resume` — they are present in the JSONL for audit but not treated as done.
 
 ```python
 completed = load_completed_pairs(output_file)   # set of (ticker, date) tuples
@@ -153,7 +154,9 @@ report.compute(hold_days_override: Optional[int] = None) -> BacktestSummary
 ```
 
 `compute()` calls `fetch_returns(ticker, trade_date, holding_days)` for each result
-where `error is None`. Holding days are resolved per-result:
+where `error is None`. When `fetch_returns` itself returns `(None, None, None)` (too
+recent, delisted, or network error), that result is excluded from all metric
+calculations but counted in `error_count` for transparency. Holding days are resolved per-result:
 
 ```python
 def get_holding_days(
