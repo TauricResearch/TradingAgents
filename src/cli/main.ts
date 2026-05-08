@@ -17,6 +17,7 @@ const main = defineCommand({
     plan: () => import("./commands/plan.ts").then((m) => m.planCommand),
     execute: () => import("./commands/execute.ts").then((m) => m.executeCommand),
     ig: () => import("./commands/ig.ts").then((m) => m.igCommand),
+    config: () => import("./commands/config.ts").then((m) => m.configCommand),
     help: () => import("./commands/help.ts").then((m) => m.helpCommand),
   },
 })

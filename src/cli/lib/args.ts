@@ -2,11 +2,10 @@
  * Shared CLI argument definitions for citty commands.
  * Import and reuse across subcommands for consistency.
  *
- * Defaults are pulled from src/server/lib/settings.ts so they are
- * configurable in one place (settings.json).
+ * Defaults cascade: args → config store → settings.ts → hardcoded.
  */
 
-import { cfg } from "../../server/lib/settings.ts"
+import { config } from "../../lib/config.ts"
 
 export const tickerArg = {
   type: "positional" as const,
@@ -18,28 +17,28 @@ export const platformArg = {
   type: "string" as const,
   description: "Platform (ajbell, aviva, ig, nsandi)",
   alias: "p",
-  default: cfg.trading.defaultPlatform,
+  default: config.get("platform", "ig"),
 }
 
 export const modeArg = {
   type: "string" as const,
   description: "Trade mode (shares, spreadbet)",
   alias: "m",
-  default: cfg.trading.defaultMode,
+  default: config.get("mode", "shares"),
 }
 
 export const accountArg = {
   type: "string" as const,
   description: "Account balance in GBP",
   alias: "a",
-  default: String(cfg.trading.defaultAccountBalance),
+  default: String(config.getNumber("account", 50000)),
 }
 
 export const riskArg = {
   type: "string" as const,
   description: "Risk per trade as decimal (e.g., 0.02 for 2%)",
   alias: "r",
-  default: String(cfg.trading.defaultRiskPerTrade),
+  default: String(config.getNumber("risk", 0.02)),
 }
 
 export const entryArg = {

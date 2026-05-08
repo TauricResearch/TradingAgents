@@ -172,10 +172,10 @@ export const planCommand = defineCommand({
   run({ args }) {
     // 1. Extract
     const ticker = args.ticker
-    const platformName = args.platform ?? "ig"
-    const mode = (args.mode ?? "shares") as TradeMode
-    const accountBalance = parseFloat(args.account ?? "50000")
-    const riskPerTrade = parseFloat(args.risk ?? "0.02")
+    const platformName = args.platform
+    const mode = args.mode as TradeMode
+    const accountBalance = parseFloat(args.account)
+    const riskPerTrade = parseFloat(args.risk)
     const entryPrice = args.entry ? parseFloat(args.entry) : undefined
 
     // 2. Validate platform
