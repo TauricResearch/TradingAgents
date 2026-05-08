@@ -60,6 +60,11 @@ reg-docs:
 reg-lexicon:
     bun scripts/reg-list.ts lexicon
 
+# List CTX conceptual lexicon (converted to merged schema)
+[group("reg")]
+reg-lexicon-ctx:
+    bun scripts/reg-list.ts lexicon-ctx
+
 # Show consolidated project state (briefs, debriefs, tasks, docs)
 [group("reg")]
 reg-state:

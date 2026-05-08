@@ -119,6 +119,7 @@ const FILE_MAP: Record<string, string> = {
   playbooks: "playbooks/REGISTRY.jsonl",
   docs: "docs/INDEX.jsonl",
   lexicon: "debriefs/lexicon.jsonl",
+  "lexicon-ctx": "debriefs/lexicon-ctx.jsonl",
 }
 
 function main() {

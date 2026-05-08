@@ -141,22 +141,62 @@ Benefits:
 
 ## Migration Plan
 
-1. **Export CTX lexicon to JSONL** using conversion script
+1. **Export CTX lexicon to JSONL** using conversion script (`scripts/ctx-lexicon-convert.ts`)
 2. **Add unified fields** (date, status, heuristic, usage, coined_by, origin)
 3. **Migrate tags** to bracket notation
 4. **Validate** with `reg-check.ts`
 5. **Deprecate old format** (keep as archive)
 
+## Conversion Output
+
+- **Input**: `docs/conceptual-lexicon-example.json` (161 entries, JSON array)
+- **Output**: `debriefs/lexicon-ctx.jsonl` (161 entries, JSONL)
+- **Script**: `scripts/ctx-lexicon-convert.ts`
+
+Type distribution after conversion:
+```
+term:                  38
+operational-heuristic: 120
+pattern:                3
+```
+
+Status distribution:
+```
+active: 147
+draft:   14
+```
+
+## Silo-Relevant Terms to Incorporate
+
+From 161 CTX entries, **7 are directly relevant** to the silo/project conventions
+and should be added to `debriefs/lexicon.jsonl`:
+
+| CTX ID | Term | Why It Belongs |
+|--------|------|----------------|
+| OH-040 | **factored-design** | "One logical change per commit" — maps to our extract-before-move |
+| OH-041 | **optimal-simplicity** | "Facade, not workbench" — maps to our justfile philosophy |
+| OH-082 | **fast-slow-thinking** | Deliberate for complex, fast for trivial — maps to fail-fast |
+| OH-092 | **console-first-validation** | Validate data before building UI — maps to reg-check/reg-sync |
+| OH-095 | **tase-mandate** | Test, Automate, Scale, Evangelize — maps to our CI/CD |
+| OH-130 | **data-first-diagnostics** | Data volume before code logic — maps to barnacle detection |
+| OH-131 | **exploratory-programming** | Workbench vs filing cabinet — maps to lab-first |
+
+These 7 terms were added with silo-specific heuristics and usage examples,
+linking them to existing terms via `[Related: ...]` and `[Origin: CTX OH-xxx]` tags.
+
 ## Acceptance Criteria
 
-- [ ] CTX lexicon entries have stable `id` fields
-- [ ] All entries have `date`, `status`, `type` fields
-- [ ] All entries have `meta.heuristic` and `meta.usage`
-- [ ] Tags use bracket notation with semantic prefixes
-- [ ] File is JSONL, not JSON array
-- [ ] `reg-check lexicon` passes
-- [ ] `reg-list lexicon` renders human-readable output
-- [ ] Old JSON array archived (not deleted)
+- [x] CTX lexicon entries have stable `id` fields
+- [x] All entries have `date`, `status`, `type` fields
+- [x] All entries have `meta.heuristic` and `meta.usage` (with silo-specific content for incorporated terms)
+- [x] Tags use bracket notation with semantic prefixes
+- [x] File is JSONL, not JSON array
+- [x] `reg-check lexicon` passes
+- [x] `reg-list lexicon` renders human-readable output
+- [x] Old JSON array archived (`docs/conceptual-lexicon-example.json` retained)
+- [x] 7 silo-relevant terms incorporated into `debriefs/lexicon.jsonl`
+- [x] Conversion script exists (`scripts/ctx-lexicon-convert.ts`)
+- [x] CTX lexicon accessible via `just reg-lexicon-ctx`
 
 ## Related
 
