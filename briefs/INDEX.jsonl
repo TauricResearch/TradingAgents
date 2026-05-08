@@ -13,3 +13,4 @@
 {"file":"epic-trade-calculator.md","date":"2026-05-07","status":"done","summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders","meta":{"epic":null}}
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
+{"file":"2026-05-08-brief-just-silo-template.md","date":"2026-05-08","status":"done","summary":"Canonical silo template: directory structure with named compartments and justfile facade","meta":{"epic":"UNIFIED-CLI-001"}}

@@ -1,0 +1,75 @@
+digraph silo_structure {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=9, color="#666666"];
+
+  // Root
+  silo [label="Silo\n(project root)", shape=folder, fillcolor="#f5f5f5", color="#333333", style="bold,filled", width=1.5];
+
+  // Document compartments (with indexes)
+  briefs [label="briefs/\nWork proposals\nINDEX.jsonl", fillcolor="#e8f0fe", color="#1a73e8"];
+  debriefs [label="debriefs/\nRetrospectives\nINDEX.jsonl", fillcolor="#e8f0fe", color="#1a73e8"];
+  decisions [label="decisions/\nADRs\nINDEX.jsonl", fillcolor="#e8f0fe", color="#1a73e8"];
+  playbooks [label="playbooks/\nConventions\nREGISTRY.jsonl", fillcolor="#e8f0fe", color="#1a73e8"];
+  docs [label="docs/\nDocumentation\nINDEX.jsonl", fillcolor="#e8f0fe", color="#1a73e8"];
+
+  // Subdirs under docs
+  diagrams [label="docs/diagrams/", fillcolor="#d2e3fc", color="#1a73e8", fontsize=9];
+  schema [label="docs/schema/", fillcolor="#d2e3fc", color="#1a73e8", fontsize=9];
+
+  // Source code
+  src [label="src/\nSource code", fillcolor="#e6f4ea", color="#137333"];
+  cli [label="src/cli/", fillcolor="#ceead6", color="#137333", fontsize=9];
+  lib [label="src/lib/", fillcolor="#ceead6", color="#137333", fontsize=9];
+  server [label="src/server/", fillcolor="#ceead6", color="#137333", fontsize=9];
+
+  // Scripts
+  scripts [label="scripts/\nAutomation", fillcolor="#fef7e0", color="#b06000"];
+  scripts_lib [label="scripts/lib/", fillcolor="#feefc3", color="#b06000", fontsize=9];
+  scripts_lab [label="scripts/lab/", fillcolor="#feefc3", color="#b06000", fontsize=9];
+
+  // Tests
+  tests [label="tests/\nTest suites", fillcolor="#fce8e6", color="#c5221f"];
+
+  // Infrastructure
+  backups [label="backups/", fillcolor="#f3e8fd", color="#7b1fa2"];
+  archive [label="archive/", fillcolor="#f3e8fd", color="#7b1fa2"];
+
+  // Root files
+  justfile [label="justfile\n(facade)", shape=note, fillcolor="#fff3e0", color="#e65100"];
+  configs [label="package.json\npyproject.toml\ntsconfig.json", shape=note, fillcolor="#fff3e0", color="#e65100", fontsize=9];
+
+  // ── Edges ──
+  silo -> briefs;
+  silo -> debriefs;
+  silo -> decisions;
+  silo -> playbooks;
+  silo -> docs;
+  silo -> src;
+  silo -> scripts;
+  silo -> tests;
+  silo -> backups;
+  silo -> archive;
+  silo -> justfile [style=dashed];
+  silo -> configs [style=dashed];
+
+  docs -> diagrams;
+  docs -> schema;
+  src -> cli;
+  src -> lib;
+  src -> server;
+  scripts -> scripts_lib;
+  scripts -> scripts_lab;
+
+  // ── Index relationships ──
+  briefs -> debriefs [style=dashed, color="#1a73e8", label="reg-sync"];
+  debriefs -> decisions [style=dashed, color="#1a73e8", label="reg-check"];
+  decisions -> playbooks [style=dashed, color="#1a73e8"];
+  playbooks -> docs [style=dashed, color="#1a73e8"];
+
+  // ── Justfile orchestration ──
+  justfile -> briefs [style=dashed, color="#e65100", constraint=false];
+  justfile -> src [style=dashed, color="#e65100", constraint=false];
+  justfile -> scripts [style=dashed, color="#e65100", constraint=false];
+  justfile -> tests [style=dashed, color="#e65100", constraint=false];
+}

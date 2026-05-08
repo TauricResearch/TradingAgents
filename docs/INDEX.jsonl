@@ -1,11 +1,12 @@
+{"file":"diagrams/README.md","date":"2026-05-08","status":"active","summary":"Diagram generation pipeline: DOT to SVG/PNG via graphviz","meta":{"type":"reference","topic":"diagrams"}}
 {"file":"help.md","date":"2026-05-06","status":"active","summary":"Quick reference for common commands and workflows","meta":{"type":"reference","topic":"commands"}}
 {"file":"ig-connectivity-config.md","date":"2026-05-08","status":"active","summary":"IG API connectivity: demo account setup, V2 auth, instrument discovery","meta":{"type":"guide","topic":"ig-api"}}
 {"file":"ig-trading-guide.md","date":"2026-05-08","status":"active","summary":"IG trading workflow: placing orders, managing positions, margin rules","meta":{"type":"guide","topic":"ig-api"}}
-{"file":"portfolio-snapshot-2026-05-07.md","date":"2026-05-07","status":"active","summary":"Real portfolio holdings and account balances as of 2026-05-07","meta":{"type":"snapshot","topic":"portfolio"}}
-{"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
-{"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
-{"file":"diagrams/README.md","date":"2026-05-08","status":"active","summary":"Diagram generation pipeline: DOT to SVG/PNG via graphviz","meta":{"type":"reference","topic":"diagrams"}}
+{"file":"just-silo-manifest.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"just/just-command-runner-best-practices.md","date":"2026-05-08","status":"active","summary":"Best practices for just command runner: shebangs, doc attributes, modules","meta":{"type":"reference","topic":"just"}}
 {"file":"just/just-global-and-user.md","date":"2026-05-08","status":"active","summary":"Global and user-level just command configuration patterns","meta":{"type":"reference","topic":"just"}}
 {"file":"just/just-project-level-commands.md","date":"2026-05-08","status":"active","summary":"Project-level just commands: per-directory Justfiles and module imports","meta":{"type":"reference","topic":"just"}}
+{"file":"portfolio-snapshot-2026-05-07.md","date":"2026-05-07","status":"active","summary":"Real portfolio holdings and account balances as of 2026-05-07","meta":{"type":"snapshot","topic":"portfolio"}}
 {"file":"schema/unified-registry.md","date":"2026-05-08","status":"active","summary":"Unified JSONL schema for all document indexes in the repository","meta":{"type":"schema","topic":"registry"}}
+{"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
+{"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}

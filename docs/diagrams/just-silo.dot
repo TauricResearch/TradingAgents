@@ -1,0 +1,66 @@
+digraph just_silo {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9, color="#666666"];
+
+  // Color palette (oklch-based, accessible)
+  // Groups by concern, not by frequency
+
+  // ── Meta / Navigation ──
+  nav [label="Navigation\n[nav] 15 shortcuts", fillcolor="#e8f0fe", color="#1a73e8"];
+  meta [label="Orientation\n[meta] help, info", fillcolor="#e8f0fe", color="#1a73e8"];
+
+  // ── Development ──
+  bun [label="TypeScript/Bun\n[bun] check, lint, serve, test", fillcolor="#e6f4ea", color="#137333"];
+  test [label="Testing\n[test] unit, integration, E2E", fillcolor="#e6f4ea", color="#137333"];
+  lab [label="Experiments\n[lab] gum, pid-file", fillcolor="#fce8e6", color="#c5221f"];
+
+  // ── Runtime ──
+  run [label="Trading Operations\n[run] analyze, sync, seed", fillcolor="#fef7e0", color="#b06000"];
+  python [label="Python Bridge\n[python] install, run, test", fillcolor="#fef7e0", color="#b06000"];
+  srv [label="Services\n[srv] start, stop, status, logs", fillcolor="#fef7e0", color="#b06000"];
+
+  // ── Data ──
+  db [label="Database\n[db] backup, stats, reset", fillcolor="#f3e8fd", color="#7b1fa2"];
+  seed [label="Seeding\n[seed] positions, signals, prices", fillcolor="#f3e8fd", color="#7b1fa2"];
+
+  // ── Documentation ──
+  reg [label="Registry\n[reg] list, check, sync", fillcolor="#e0f7fa", color="#00695c"];
+  diagrams [label="Diagrams\n[diagrams] render, clean, regen", fillcolor="#e0f7fa", color="#00695c"];
+  gn [label="GitNexus\n[gn] graph, impact, context", fillcolor="#e0f7fa", color="#00695c"];
+
+  // ── Collaboration ──
+  pr [label="Pull Requests\n[pr] fetch, summarize", fillcolor="#fff3e0", color="#e65100"];
+  td [label="Task Management\n[td] status, next, context", fillcolor="#fff3e0", color="#e65100"];
+
+  // ── Hooks ──
+  hooks [label="Git Hooks\n[hooks] install, push", fillcolor="#fce8e6", color="#c5221f"];
+
+  // ── Central orchestrator ──
+  justfile [label="Justfile\nThe Facade", shape=ellipse, fillcolor="#f5f5f5", color="#333333", style="bold,filled"];
+
+  // ── Relationships ──
+  justfile -> nav [style=dashed, label="lists"];
+  justfile -> meta [style=dashed, label="orients"];
+  justfile -> bun [label="checks"];
+  justfile -> test [label="verifies"];
+  justfile -> run [label="operates"];
+  justfile -> python [label="bridges"];
+  justfile -> srv [label="manages"];
+  justfile -> db [label="persists"];
+  justfile -> seed [label="populates"];
+  justfile -> reg [label="indexes"];
+  justfile -> diagrams [label="renders"];
+  justfile -> gn [label="maps"];
+  justfile -> pr [label="reviews"];
+  justfile -> td [label="tracks"];
+  justfile -> hooks [style=dashed, label="automates"];
+  justfile -> lab [style=dashed, label="experiments"];
+
+  // ── Cross-silo flows ──
+  bun -> test [label="gate", style=dashed, color="#137333"];
+  db -> seed [label="schema", style=dashed, color="#7b1fa2"];
+  run -> db [label="uses", style=dashed, color="#b06000"];
+  reg -> diagrams [label="documents", style=dashed, color="#00695c"];
+  gn -> diagrams [label="generates", style=dashed, color="#00695c"];
+}
