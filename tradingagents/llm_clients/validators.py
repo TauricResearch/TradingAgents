@@ -6,7 +6,7 @@ from .model_catalog import get_known_models
 VALID_MODELS = {
     provider: models
     for provider, models in get_known_models().items()
-    if provider not in ("ollama", "openrouter")
+    if provider not in ("ollama", "openrouter", "lm_studio")
 }
 
 
@@ -17,7 +17,7 @@ def validate_model(provider: str, model: str) -> bool:
     """
     provider_lower = provider.lower()
 
-    if provider_lower in ("ollama", "openrouter"):
+    if provider_lower in ("ollama", "openrouter", "lm_studio"):
         return True
 
     if provider_lower not in VALID_MODELS:
