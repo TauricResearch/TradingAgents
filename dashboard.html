@@ -560,7 +560,7 @@ function _signalDataset(decision, closeValues) {
   const style = decision === 'HOLD' ? 'circle' : 'triangle';
   const rotation = decision === 'SELL' ? 180 : 0;
   return {
-    type: 'scatter',
+    type: 'line',
     label: 'Signal',
     data: closeValues.map((_, i) => i === closeValues.length - 1 ? priceAtSignal : null),
     yAxisID: 'y',
@@ -593,7 +593,6 @@ async function loadChart(ticker) {
   if (!canvas) return;
   canvas.style.height = '120px';
 
-  const signalDate = data.dates[data.dates.length - 1];
   const s = state[ticker];
   const decision = s && s.result ? s.result.decision : null;
   const signalDs = _signalDataset(decision, data.close);
