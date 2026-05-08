@@ -82,7 +82,9 @@ export const pricesCommand = defineCommand({
 
     const change = data.previousClose != null ? data.price - data.previousClose : null
     const changePct =
-      data.previousClose != null && data.previousClose !== 0 ? change! / data.previousClose : null
+      data.previousClose != null && data.previousClose !== 0 && change != null
+        ? change / data.previousClose
+        : null
 
     const changeStr =
       change != null

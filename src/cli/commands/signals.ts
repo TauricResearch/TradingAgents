@@ -104,7 +104,7 @@ export const signalsCommand = defineCommand({
 
       const reasoningShort = r.reasoning
         ? r.reasoning.length > 45
-          ? r.reasoning.slice(0, 42) + "..."
+          ? `${r.reasoning.slice(0, 42)}...`
           : r.reasoning
         : "—"
 

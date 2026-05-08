@@ -31,7 +31,7 @@ interface AccountRow {
 }
 
 function toJSON(data: unknown): string {
-  return JSON.stringify(data, null, 2) + "\n"
+  return `${JSON.stringify(data, null, 2)}\n`
 }
 
 function toCSV(rows: Record<string, unknown>[]): string {
@@ -52,7 +52,7 @@ function toCSV(rows: Record<string, unknown>[]): string {
         .join(","),
     ),
   ]
-  return lines.join("\n") + "\n"
+  return `${lines.join("\n")}\n`
 }
 
 export const exportCommand = defineCommand({

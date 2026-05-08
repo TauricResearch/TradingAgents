@@ -62,9 +62,9 @@ complete -F _trading_completions trading
 }
 
 function zshCompletion(): string {
-  const cmdList = COMMANDS.join(" ")
-  const igList = IG_SUBCOMMANDS.join(" ")
-  const cfgList = CONFIG_SUBCOMMANDS.join(" ")
+  const _cmdList = COMMANDS.join(" ")
+  const _igList = IG_SUBCOMMANDS.join(" ")
+  const _cfgList = CONFIG_SUBCOMMANDS.join(" ")
   return `#!/bin/zsh
 # trading CLI zsh completion
 _trading() {

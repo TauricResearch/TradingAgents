@@ -77,7 +77,7 @@ export const spreadbetsCommand = defineCommand({
       const reset = "\x1b[0m"
       const notesShort = r.notes
         ? r.notes.length > 25
-          ? r.notes.slice(0, 22) + "..."
+          ? `${r.notes.slice(0, 22)}...`
           : r.notes
         : "—"
 

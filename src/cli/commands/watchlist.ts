@@ -69,7 +69,7 @@ export const watchlistCommand = defineCommand({
     for (const r of rows) {
       const thesisShort = r.thesis
         ? r.thesis.length > 35
-          ? r.thesis.slice(0, 32) + "..."
+          ? `${r.thesis.slice(0, 32)}...`
           : r.thesis
         : "—"
       const priColor =

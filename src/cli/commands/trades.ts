@@ -98,7 +98,7 @@ export const tradesCommand = defineCommand({
       const reset = "\x1b[0m"
       const reasonShort = r.reason
         ? r.reason.length > 35
-          ? r.reason.slice(0, 32) + "..."
+          ? `${r.reason.slice(0, 32)}...`
           : r.reason
         : "—"
 

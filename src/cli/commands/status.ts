@@ -57,7 +57,7 @@ export const statusCommand = defineCommand({
 
     let serverRunning = false
     try {
-      const resp = fetch("http://localhost:3000/")
+      const _resp = fetch("http://localhost:3000/")
       serverRunning = true
     } catch {
       serverRunning = false
@@ -82,8 +82,8 @@ export const statusCommand = defineCommand({
     console.log("")
 
     console.log("Configuration")
-    console.log(`  Config store:     ${configExists ? "✓ " + configPath : "✗ not found"}`)
-    console.log(`  Memory log:       ${memoryLogExists ? "✓ " + memoryLogPath : "✗ not found"}`)
+    console.log(`  Config store:     ${configExists ? `✓ ${configPath}` : "✗ not found"}`)
+    console.log(`  Memory log:       ${memoryLogExists ? `✓ ${memoryLogPath}` : "✗ not found"}`)
     console.log(`  Dashboard port:   ${cfg.app.dashboardPort}`)
     console.log("")
 

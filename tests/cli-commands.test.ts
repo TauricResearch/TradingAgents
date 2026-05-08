@@ -33,7 +33,7 @@ async function run(
 }
 
 describe("trading config", () => {
-  const configPath = `${process.env.HOME}/.tradingagents/config.json`
+  const _configPath = `${process.env.HOME}/.tradingagents/config.json`
 
   test("set and get a value", async () => {
     const setResult = await run(["config", "set", "test_key", "test_value"])
