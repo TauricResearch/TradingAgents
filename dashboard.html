@@ -743,6 +743,11 @@ function initTicker(ticker) {
 }
 
 function removeTicker(ticker) {
+  if (chartInstances[ticker]) {
+    chartInstances[ticker].destroy();
+    delete chartInstances[ticker];
+  }
+  chartsLoaded.delete(ticker);
   delete state[ticker];
   const card = document.getElementById('card-' + ticker);
   if (card) {
@@ -767,6 +772,17 @@ function applyResult(ticker, result, lastUpdated) {
   if (lastUpdated) {
     const el = document.getElementById('last-updated-' + ticker);
     if (el) el.textContent = 'Updated ' + new Date(lastUpdated).toLocaleTimeString();
+  }
+  // Update signal overlay if chart already loaded
+  const chart = chartInstances[ticker];
+  if (chart && result) {
+    const labels = chart.data.labels;
+    const closeDs = chart.data.datasets.find(d => d.label === 'Close');
+    const closeValues = closeDs ? closeDs.data : [];
+    chart.data.datasets = chart.data.datasets.filter(d => d.label !== 'Signal');
+    const signalDs = _signalDataset(result.decision, closeValues);
+    if (signalDs) chart.data.datasets.push(signalDs);
+    chart.update();
   }
 }
 
