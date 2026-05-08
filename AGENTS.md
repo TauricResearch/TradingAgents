@@ -83,8 +83,13 @@ pkill -9 -f bun   # zombie bun processes are common
 | Task | Command |
 |------|---------|
 | Start dashboard | `bun run src/server/index.tsx` |
-| Run CLI analysis | `tradingagents analyze` or `just run` |
-| Analyze specific ticker | `just analyze TKA.DE` |
+| Run CLI analysis | `trading analyze <TICKER>` or `tradingagents analyze` |
+| Trade plan | `trading plan <TICKER> [--mode spreadbet]` |
+| IG trading | `trading ig <login|accounts|search|prices|positions|buy|sell>` |
+| Portfolio summary | `trading portfolio` |
+| Watchlist | `trading watchlist` |
+| Signals | `trading signals [TICKER]` |
+| Config defaults | `trading config <get|set|list|path>` |
 | Run tests | `uv run pytest -v -m smoke` |
 | Type check server | `tsc --project tsconfig.server.json --noEmit` |
 | Lint | `just lint` |
@@ -169,7 +174,12 @@ TradingAgents/
 │   ├── agents/                │   LLM-powered agent definitions
 │   └── default_config.py      │   All config keys + defaults
 │
-├── src/cli/                   ← TypeScript CLI + Python CLI
+├── src/cli/                   ← TypeScript CLI (`trading`)
+│   ├── main.ts                │   Entry: citty subcommand dispatch
+│   ├── commands/              │   plan, execute, ig, portfolio, watchlist, signals, analyze, config, seed, sync, backup, summarize
+│   └── lib/                   │   platforms.ts, args.ts, ig-instruments.ts
+│
+├── cli/                       ← Python CLI (`tradingagents`)
 │   └── main.py                │   `tradingagents analyze` entry point
 │
 ├── src/server/                ← Bun/Hono dashboard server
