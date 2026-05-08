@@ -8,6 +8,7 @@ from stockstats import wrap
 from typing import Annotated
 import os
 from .config import get_config
+from .utils import safe_ticker_component
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,10 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     subsequent calls the cache is reused. Rows after curr_date are
     filtered out so backtests never see future prices.
     """
+    # Reject ticker values that would escape the cache directory when
+    # interpolated into the cache filename (e.g. ``../../tmp/x``).
+    safe_symbol = safe_ticker_component(symbol)
+
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
 
@@ -63,11 +68,11 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
         config["data_cache_dir"],
-        f"{symbol}-YFin-data-{start_str}-{end_str}.csv",
+        f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
     if os.path.exists(data_file):
-        data = pd.read_csv(data_file, on_bad_lines="skip")
+        data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
     else:
         data = yf_retry(lambda: yf.download(
             symbol,
@@ -78,7 +83,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             auto_adjust=True,
         ))
         data = data.reset_index()
-        data.to_csv(data_file, index=False)
+        data.to_csv(data_file, index=False, encoding="utf-8")
 
     data = _clean_dataframe(data)
 
