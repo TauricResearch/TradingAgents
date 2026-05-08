@@ -51,3 +51,13 @@ class TestBacktestResult:
         r = BacktestResult(ticker="TSLA", trade_date="2024-03-01", error="timeout")
         assert r.rating is None
         assert r.direction is None
+
+
+def test_public_exports():
+    from tradingagents import backtesting
+    assert hasattr(backtesting, "BacktestEngine")
+    assert hasattr(backtesting, "BacktestReport")
+    assert hasattr(backtesting, "BacktestResult")
+    assert hasattr(backtesting, "BacktestSummary")
+    assert hasattr(backtesting, "DIRECTION_MAP")
+    assert hasattr(backtesting, "derive_direction")
