@@ -65,6 +65,20 @@ try {
   // Column already exists — safe to ignore
 }
 
+// Migration: add fair_value column to watchlist if missing
+try {
+  DatabaseFactory.get().exec("ALTER TABLE watchlist ADD COLUMN fair_value REAL");
+} catch {
+  // Column already exists — safe to ignore
+}
+
+// Migration: add max_position_gbp column to watchlist if missing
+try {
+  DatabaseFactory.get().exec("ALTER TABLE watchlist ADD COLUMN max_position_gbp REAL");
+} catch {
+  // Column already exists — safe to ignore
+}
+
 // Migration: add account_id column to positions if missing
 try {
   DatabaseFactory.get().exec(

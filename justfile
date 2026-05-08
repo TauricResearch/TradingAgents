@@ -339,6 +339,11 @@ portfolio:
 alerts:
     bun run src/cli/main.ts alerts
 
+# Show contingency buylist — watchlist items with fair value targets
+[group("run")]
+buylist:
+    bun run src/cli/main.ts buylist
+
 # Show portfolio holdings (DEV, uses hledger + SQLite via dashboard)
 [group("run")]
 portfolio-intel:
