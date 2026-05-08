@@ -419,12 +419,18 @@ def ask_gemini_thinking_config() -> str | None:
 
 
 def ask_output_language() -> str:
-    """Ask for report output language."""
+    """Ask for report output language.
+
+    The two Chinese variants are listed separately because Chinese-trained
+    LLMs (DeepSeek, Qwen, GLM) default to Simplified when given just
+    "Chinese", so users wanting Traditional must select it explicitly.
+    """
     choice = questionary.select(
         "Select Output Language:",
         choices=[
             questionary.Choice("English (default)", "English"),
-            questionary.Choice("Chinese (中文)", "Chinese"),
+            questionary.Choice("Traditional Chinese (繁體中文)", "Traditional Chinese"),
+            questionary.Choice("Simplified Chinese (简体中文)", "Simplified Chinese"),
             questionary.Choice("Japanese (日本語)", "Japanese"),
             questionary.Choice("Korean (한국어)", "Korean"),
             questionary.Choice("Hindi (हिन्दी)", "Hindi"),
