@@ -90,10 +90,12 @@ def _make_pm_state(investment_plan: str, trader_plan: str):
             "current_neutral_response": "",
             "count": 1,
         },
-        "market_report": "Market report.",
-        "sentiment_report": "Sentiment report.",
-        "news_report": "News report.",
-        "fundamentals_report": "Fundamentals report.",
+        "analyst_reports": {
+            "market": "Market report.",
+            "social": "Sentiment report.",
+            "news": "News report.",
+            "fundamentals": "Fundamentals report.",
+        },
         "investment_plan": investment_plan,
         "trader_investment_plan": trader_plan,
     }

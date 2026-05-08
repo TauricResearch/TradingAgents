@@ -1,11 +1,10 @@
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_indicators,
     get_language_instruction,
     get_stock_data,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_market_analyst(llm):
@@ -14,10 +13,9 @@ def create_market_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
-        tools = [
-            get_stock_data,
-            get_indicators,
-        ]
+        tools = [get_stock_data, get_indicators]
+        llm_with_tools = llm.bind_tools(tools)
+        tool_map = {t.name: t for t in tools}
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
@@ -49,40 +47,36 @@ Volume-Based Indicators:
             + get_language_instruction()
         )
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
+        messages = [
+            SystemMessage(
+                content=(
                     "You are a helpful AI assistant, collaborating with other assistants."
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
-                ),
-                MessagesPlaceholder(variable_name="messages"),
-            ]
-        )
+                    f" You have access to the following tools: {', '.join(tool_map)}.\n{system_message}"
+                    f" For your reference, the current date is {current_date}. {instrument_context}"
+                )
+            ),
+            HumanMessage(content=state["company_of_interest"]),
+        ]
 
-        prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
-        prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(instrument_context=instrument_context)
+        # Self-contained tool-calling loop — no shared graph messages needed.
+        while True:
+            result = llm_with_tools.invoke(messages)
+            messages.append(result)
+            if not result.tool_calls:
+                break
+            for tc in result.tool_calls:
+                tool_output = tool_map[tc["name"]].invoke(tc["args"])
+                messages.append(
+                    ToolMessage(
+                        content=str(tool_output),
+                        tool_call_id=tc["id"],
+                        name=tc["name"],
+                    )
+                )
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = chain.invoke(state["messages"])
-
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
-
-        return {
-            "messages": [result],
-            "market_report": report,
-        }
+        return {"analyst_reports": {"market": result.content}}
 
     return market_analyst_node

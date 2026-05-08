@@ -1,6 +1,7 @@
 # TradingAgents/graph/propagation.py
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
@@ -11,8 +12,7 @@ from tradingagents.agents.utils.agent_states import (
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
-        """Initialize with configuration parameters."""
+    def __init__(self, max_recur_limit: int = 100):
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
@@ -24,6 +24,8 @@ class Propagator:
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "past_context": past_context,
+            # Analyst reports accumulate via operator.or_ as analysts complete.
+            "analyst_reports": {},
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",
@@ -48,20 +50,11 @@ class Propagator:
                     "count": 0,
                 }
             ),
-            "market_report": "",
-            "fundamentals_report": "",
-            "sentiment_report": "",
-            "news_report": "",
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
-        """Get arguments for the graph invocation.
-
-        Args:
-            callbacks: Optional list of callback handlers for tool execution tracking.
-                       Note: LLM callbacks are handled separately via LLM constructor.
-        """
-        config = {"recursion_limit": self.max_recur_limit}
+        """Get arguments for the graph invocation."""
+        config: Dict[str, Any] = {"recursion_limit": self.max_recur_limit}
         if callbacks:
             config["callbacks"] = callbacks
         return {

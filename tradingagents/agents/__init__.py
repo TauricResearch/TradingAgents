@@ -1,4 +1,3 @@
-from .utils.agent_utils import create_msg_delete
 from .utils.agent_states import AgentState, InvestDebateState, RiskDebateState
 
 from .analysts.fundamentals_analyst import create_fundamentals_analyst
@@ -20,7 +19,6 @@ from .trader.trader import create_trader
 
 __all__ = [
     "AgentState",
-    "create_msg_delete",
     "InvestDebateState",
     "RiskDebateState",
     "create_bear_researcher",
