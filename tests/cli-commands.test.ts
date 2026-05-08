@@ -10,7 +10,10 @@ import { join } from "node:path"
 
 const CLI = join(import.meta.dir, "..", "src", "cli", "main.ts")
 
-async function run(args: string[], env?: Record<string, string>): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+async function run(
+  args: string[],
+  env?: Record<string, string>,
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const proc = Bun.spawn({
     cmd: ["bun", CLI, ...args],
     env: { ...process.env, ...env },
