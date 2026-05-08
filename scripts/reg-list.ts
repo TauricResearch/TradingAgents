@@ -63,11 +63,15 @@ function formatMeta(meta: Record<string, unknown> | undefined): string[] {
   return lines
 }
 
-function formatEntry(entry: UnifiedEntry, width: number): string {
+function formatEntry(entry: UnifiedEntry, width: number, isLexicon = false): string {
   const indent = "      "
   const textWidth = width - indent.length
 
-  const header = `${entry.date}  ${entry.status.toUpperCase().padEnd(10)}  ${entry.file}`
+  // Lexicon entries use "file" as the term identifier
+  const id = entry.file
+  const header = isLexicon
+    ? `${id.padEnd(20)}  ${entry.status.toUpperCase().padEnd(10)}  ${entry.date}`
+    : `${entry.date}  ${entry.status.toUpperCase().padEnd(10)}  ${id}`
   const summaryLines = wrap(entry.summary, textWidth)
   const metaLines = formatMeta(entry.meta)
 
@@ -91,18 +95,22 @@ const FILE_MAP: Record<string, string> = {
   decisions: "decisions/INDEX.jsonl",
   playbooks: "playbooks/REGISTRY.jsonl",
   docs: "docs/INDEX.jsonl",
+  lexicon: "debriefs/lexicon.jsonl",
 }
 
 function main() {
   const registry = Bun.argv[2]
   if (!registry) {
-    console.error("Usage: bun scripts/reg-list.ts <briefs|debriefs|decisions|playbooks>")
+    console.error(
+      "Usage: bun scripts/reg-list.ts <briefs|debriefs|decisions|playbooks|docs|lexicon>",
+    )
     process.exit(1)
   }
 
   const path = FILE_MAP[registry]
   if (!path) {
     console.error(`Unknown registry: ${registry}`)
+    console.error(`Known: ${Object.keys(FILE_MAP).join(", ")}`)
     process.exit(1)
   }
 
@@ -112,7 +120,7 @@ function main() {
 
   console.log(`── ${registry.toUpperCase()} (${entries.length} entries) ──\n`)
   for (const entry of entries) {
-    console.log(formatEntry(entry, width))
+    console.log(formatEntry(entry, width, registry === "lexicon"))
   }
 }
 

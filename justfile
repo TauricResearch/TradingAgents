@@ -55,6 +55,11 @@ reg-mining:
 reg-docs:
     bun scripts/reg-list.ts docs
 
+# List conceptual lexicon (terms, heuristics, definitions)
+[group("reg")]
+reg-lexicon:
+    bun scripts/reg-list.ts lexicon
+
 # Show consolidated project state (briefs, debriefs, tasks, docs)
 [group("reg")]
 reg-state:
@@ -79,6 +84,18 @@ reg-sync-fix:
 [group("reg")]
 barnacle-scan:
     bun scripts/barnacle-scan.ts
+
+# Watch for barnacles (runs scan every N minutes, logs to ~/.tradingagents/barnacle-watch.log)
+[group("reg")]
+barnacle-watch MINUTES="60":
+    @echo "{{YELLOW}}⏱{{NORMAL}} Starting barnacle watcher (interval: {{MINUTES}} min)"
+    @echo "{{YELLOW}}⏱{{NORMAL}} Press Ctrl+C to stop. Logs: ~/.tradingagents/barnacle-watch.log"
+    while true; do \
+        echo "[$(date -Iseconds)] Scanning..." >> ~/.tradingagents/barnacle-watch.log; \
+        bun scripts/barnacle-scan.ts --mechanical >> ~/.tradingagents/barnacle-watch.log 2>&1; \
+        echo "---" >> ~/.tradingagents/barnacle-watch.log; \
+        sleep $(({{MINUTES}} * 60)); \
+    done
 
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments := true

@@ -19,6 +19,8 @@ const REGISTRIES: Record<string, string> = {
   debriefs: "debriefs/INDEX.jsonl",
   decisions: "decisions/INDEX.jsonl",
   playbooks: "playbooks/REGISTRY.jsonl",
+  docs: "docs/INDEX.jsonl",
+  lexicon: "debriefs/lexicon.jsonl",
 }
 
 function checkRegistry(name: string, path: string): boolean {
