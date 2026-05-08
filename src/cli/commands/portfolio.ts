@@ -7,6 +7,7 @@
  */
 
 import { defineCommand } from "citty"
+import { gum } from "../../../scripts/lib/gum.ts"
 import { DatabaseFactory } from "../../lib/db.ts"
 import { cfg } from "../../server/lib/settings.ts"
 
@@ -53,7 +54,7 @@ export const portfolioCommand = defineCommand({
     description: "Show portfolio holdings, P&L, and cash summary",
   },
   args: {},
-  run: () => {
+  run: async () => {
     DatabaseFactory.connect(cfg.portfolio.db)
     const db = DatabaseFactory.get()
 
@@ -145,70 +146,70 @@ export const portfolioCommand = defineCommand({
       })
     }
 
-    // ── Print positions table ────────────────────────────────────────────────
+    // ── Print positions table (Gum-styled) ────────────────────────────────
 
-    const wTicker = 12
-    const wPlatform = 10
-    const wQty = 6
-    const wPrice = 10
-    const wCost = 14
-    const wValue = 14
-    const wPnl = 14
-    const wPct = 8
-
-    const header = `${"Ticker".padEnd(wTicker)} ${"Platform".padEnd(wPlatform)} ${"Qty".padStart(wQty)} ${"Price".padStart(wPrice)} ${"Cost".padStart(wCost)} ${"Value".padStart(wValue)} ${"P&L".padStart(wPnl)} ${"%".padStart(wPct)}`
-    const line = "─".repeat(header.length)
-
-    console.log("")
-    console.log("PORTFOLIO HOLDINGS")
-    console.log(line)
-    console.log(header)
-    console.log(line)
-
-    for (const r of rows) {
-      const priceStr = r.price != null ? r.price.toFixed(2) : "—"
-      const pnlStr = fmtGBP(r.pnlGBP)
-      const pnlColor = r.pnlGBP >= 0 ? "\x1b[32m" : "\x1b[31m"
-      const reset = "\x1b[0m"
-      console.log(
-        `${r.ticker.padEnd(wTicker)} ${r.platform.padEnd(wPlatform)} ${String(r.qty).padStart(wQty)} ${priceStr.padStart(wPrice)} ${fmtGBP(r.costGBP).padStart(wCost)} ${fmtGBP(r.valueGBP).padStart(wValue)} ${pnlColor}${pnlStr.padStart(wPnl)}${reset} ${fmtPct(r.pnlPct).padStart(wPct)}`,
-      )
-    }
-
-    console.log(line)
+    const maxTicker = Math.max(6, ...rows.map((r) => r.ticker.length))
+    const maxPlatform = Math.max(8, ...rows.map((r) => r.platform.length))
 
     const totalPnlGBP = totalValueGBP - totalCostGBP
     const totalPnlPct = totalCostGBP > 0 ? totalPnlGBP / totalCostGBP : null
-    console.log(
-      `${"TOTAL".padEnd(wTicker + wPlatform + wQty + wPrice + 3)} ${fmtGBP(totalCostGBP).padStart(wCost)} ${fmtGBP(totalValueGBP).padStart(wValue)} ${totalPnlGBP >= 0 ? "\x1b[32m" : "\x1b[31m"}${fmtGBP(totalPnlGBP).padStart(wPnl)}\x1b[0m ${fmtPct(totalPnlPct).padStart(wPct)}`,
+
+    const posLines = [
+      `${"Ticker".padEnd(maxTicker + 2)}${"Platform".padEnd(maxPlatform + 2)}${"Qty".padStart(6)} ${"Price".padStart(10)} ${"Cost".padStart(14)} ${"Value".padStart(14)} ${"P&L".padStart(14)} ${"%".padStart(8)}`,
+      "─".repeat(maxTicker + maxPlatform + 78),
+    ]
+
+    for (const r of rows) {
+      const pnlColour = r.pnlGBP >= 0 ? "\x1b[32m" : "\x1b[31m"
+      const reset = "\x1b[0m"
+      const priceStr = r.price != null ? r.price.toFixed(2) : "—"
+      posLines.push(
+        `${r.ticker.padEnd(maxTicker + 2)}${r.platform.padEnd(maxPlatform + 2)}${String(r.qty).padStart(6)} ${priceStr.padStart(10)} ${fmtGBP(r.costGBP).padStart(14)} ${fmtGBP(r.valueGBP).padStart(14)} ${pnlColour}${fmtGBP(r.pnlGBP).padStart(14)}${reset} ${fmtPct(r.pnlPct).padStart(8)}`,
+      )
+    }
+
+    posLines.push("─".repeat(maxTicker + maxPlatform + 78))
+    posLines.push(
+      `${"TOTAL".padEnd(maxTicker + maxPlatform + 20)} ${fmtGBP(totalCostGBP).padStart(14)} ${fmtGBP(totalValueGBP).padStart(14)} ${totalPnlGBP >= 0 ? "\x1b[32m" : "\x1b[31m"}${fmtGBP(totalPnlGBP).padStart(14)}\x1b[0m ${fmtPct(totalPnlPct).padStart(8)}`,
     )
+
+    const box = await gum(posLines.join("\n"), ["--border", "rounded", "--padding", "1 2"])
+    const title = await gum("Portfolio", ["--bold", "--foreground", "212"])
+
     console.log("")
+    console.log(`  ${title}`)
+    console.log(box)
 
     // ── Print cash summary ───────────────────────────────────────────────────
 
     let totalCash = 0
-    console.log("CASH & ACCOUNTS")
-    console.log(line)
-    console.log(`${"Account".padEnd(28)} ${"Type".padEnd(12)} ${"Balance".padStart(14)}`)
-    console.log(line)
+    const cashTitle = await gum("Cash & Accounts", ["--bold", "--foreground", "250"])
+    console.log(`  ${cashTitle}`)
+
+    const cashLine = "─".repeat(54)
+    console.log(`  ${cashLine}`)
+    console.log(`  ${"Account".padEnd(28)} ${"Type".padEnd(12)} ${"Balance".padStart(14)}`)
+    console.log(`  ${cashLine}`)
     for (const ac of accounts) {
       totalCash += ac.balance
       console.log(
-        `${ac.name.padEnd(28)} ${ac.account_type.padEnd(12)} ${fmtGBP(ac.balance).padStart(14)}`,
+        `  ${ac.name.padEnd(28)} ${ac.account_type.padEnd(12)} ${fmtGBP(ac.balance).padStart(14)}`,
       )
     }
-    console.log(line)
-    console.log(`${"TOTAL CASH".padEnd(28 + 12)} ${fmtGBP(totalCash).padStart(14)}`)
+    console.log(`  ${cashLine}`)
+    console.log(`  ${"TOTAL CASH".padEnd(40)} ${fmtGBP(totalCash).padStart(14)}`)
     console.log("")
 
     // ── Print net worth summary ────────────────────────────────────────────
 
     const netWorth = totalValueGBP + totalCash
-    console.log("NET WORTH SUMMARY")
-    console.log(`  Investments: ${fmtGBP(totalValueGBP)}`)
-    console.log(`  Cash:        ${fmtGBP(totalCash)}`)
-    console.log(`  ──────────────────────`)
-    console.log(`  Total:       ${fmtGBP(netWorth)}`)
+    const nwTitle = await gum("Net Worth", ["--bold", "--foreground", "250"])
+    console.log(`  ${nwTitle}`)
+    console.log(`  ${cashLine}`)
+    console.log(`  ${"Investments:".padEnd(16)} ${fmtGBP(totalValueGBP).padStart(14)}`)
+    console.log(`  ${"Cash:".padEnd(16)} ${fmtGBP(totalCash).padStart(14)}`)
+    console.log(`  ${cashLine}`)
+    console.log(`  ${"Total:".padEnd(16)} ${fmtGBP(netWorth).padStart(14)}`)
     console.log("")
   },
 })

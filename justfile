@@ -329,7 +329,12 @@ td-reset:
 analyze-tka DEBATES="1":
     just analyze TKA.DE today {{DEBATES}}
 
-# Show portfolio holdings (DEV, uses hledger + SQLite)
+# Show portfolio holdings via CLI (SQLite only, no server required)
+[group("run")]
+portfolio:
+    bun run src/cli/main.ts portfolio
+
+# Show portfolio holdings (DEV, uses hledger + SQLite via dashboard)
 [group("run")]
 portfolio-intel:
     bun scripts/portfolio-intel.ts
