@@ -58,11 +58,7 @@ reg-mining:
 # Validate all registries (required fields, no duplicates)
 [group("reg")]
 reg-check:
-    @echo "Validating registries..."
-    @jq -e 'select(.file == null or .status == null or .date == null or .summary == null) | error("missing required field")' briefs/INDEX.jsonl 2>/dev/null && echo "  briefs/INDEX.jsonl ✓" || echo "  briefs/INDEX.jsonl ✗"
-    @jq -e 'select(.file == null or .date == null or .decision == null) | error("missing required field")' debriefs/INDEX.jsonl 2>/dev/null && echo "  debriefs/INDEX.jsonl ✓" || echo "  debriefs/INDEX.jsonl ✗"
-    @jq -e 'select(.file == null or .date == null or .status == null or .summary == null) | error("missing required field")' decisions/INDEX.jsonl 2>/dev/null && echo "  decisions/INDEX.jsonl ✓" || echo "  decisions/INDEX.jsonl ✗"
-    @jq -e 'select(.file == null or .canonical == null or .covers == null) | error("missing required field")' playbooks/REGISTRY.jsonl 2>/dev/null && echo "  playbooks/REGISTRY.jsonl ✓" || echo "  playbooks/REGISTRY.jsonl ✗"
+    bun scripts/reg-check.ts
 
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments := true
@@ -166,6 +162,7 @@ alias hl-net-worth := hledger::hl-net-worth
 
 # Type-check + lint + custom gates
 [group("bun")]
+[doc("Run biome + tsc + db-usage gate. Must pass before commits.")]
 check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
@@ -600,12 +597,14 @@ srv:  # Server — lifecycle management
 
 # Show all service status
 [group("srv")]
+[doc("Gum-formatted status table for Dashboard, SQLite, GitNexus.")]
 status:
     @echo "{{CYAN}}●{{NORMAL}} Checking service status..."
     bun scripts/server-lifecycle.ts status
 
 # Start dashboard server (background daemon)
 [group("srv")]
+[doc("Start dashboard as daemon. Writes PID to ~/.tradingagents/server.pid")]
 start:
     @echo "{{GREEN}}▶{{NORMAL}} Starting dashboard server..."
     bun scripts/server-lifecycle.ts start
@@ -613,12 +612,14 @@ start:
 # Stop dashboard server
 [confirm("Stop the dashboard server?")]
 [group("srv")]
+[doc("Graceful stop (SIGTERM → wait → SIGKILL fallback).")]
 stop:
     @echo "{{RED}}■{{NORMAL}} Stopping dashboard server..."
     bun scripts/server-lifecycle.ts stop
 
 # Restart dashboard server
 [group("srv")]
+[doc("Rotate logs, stop, start.")]
 restart:
     @echo "{{YELLOW}}↻{{NORMAL}} Restarting dashboard server..."
     bun scripts/server-lifecycle.ts restart
@@ -663,21 +664,7 @@ install-hooks:
 # Explicit push with diagram regen (alternative to pre-push hook)
 [group("hooks")]
 push:
-    @echo "=== Regenerating diagrams ==="
-    just regen-diagrams
-    @echo ""
-    @echo "=== Checking for diagram changes ==="
-    @if git diff --quiet docs/diagrams/gn-* docs/diagrams/*.svg 2>/dev/null; then \
-        echo "No diagram changes."; \
-    else \
-        echo "Diagrams changed. Committing..."; \
-        git add docs/diagrams/gn-*.dot docs/diagrams/gn-*.svg docs/diagrams/gn-*.png 2>/dev/null || true; \
-        git add docs/diagrams/*.svg 2>/dev/null || true; \
-        git commit -m "chore(diagrams): auto-regenerate before push" --no-verify || true; \
-    fi
-    @echo ""
-    @echo "=== Pushing ==="
-    git push
+    bun scripts/push-with-diagrams.ts
 
 alias a := analyze
 alias l := lint
