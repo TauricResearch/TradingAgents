@@ -421,7 +421,28 @@
   .toast.success { border-left: 3px solid var(--green); }
   .toast.error   { border-left: 3px solid var(--red); }
   .toast.info    { border-left: 3px solid var(--amber); }
+  .chart-container {
+    margin-top: 8px;
+    padding: 0 4px;
+    width: 100%;
+  }
+  .chart-container canvas {
+    width: 100% !important;
+    height: 120px !important;
+    display: block;
+  }
+  .chart-no-data {
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+  }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -524,6 +545,8 @@ function agentClass(name) {
 
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {};     // ticker -> { status, currentAgent, result, logs, completedAgents }
+const chartInstances = {};        // ticker → Chart instance
+const chartsLoaded = new Set();   // tickers whose chart data has been fetched
 let ws = null;
 let wsReconnectTimer = null;
 const BACKEND = `ws://${location.host}/ws`;
@@ -745,6 +768,11 @@ function renderCard(ticker) {
       `).join('')}
     </div>
 
+    <!-- Price chart -->
+    <div class="chart-container" id="chart-container-${ticker}">
+      <canvas id="chart-${ticker}"></canvas>
+    </div>
+
     <!-- Log terminal -->
     <div class="card-log" id="log-${ticker}">
       <div class="log-line">
@@ -762,6 +790,10 @@ function renderCard(ticker) {
     </div>
   `;
   grid.appendChild(card);
+  if (!chartsLoaded.has(ticker)) {
+    chartsLoaded.add(ticker);
+    loadChart(ticker);
+  }
 }
 
 function updateCardStatus(ticker) {
