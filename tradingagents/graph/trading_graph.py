@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 from tradingagents.llm_clients import create_llm_client
 
 from tradingagents.agents import *
+from tradingagents.agents.schemas import build_run_snapshot
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.utils import safe_ticker_component
@@ -30,6 +31,8 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+
+from tradingagents.dataflows.interface import clear_session_cache
 
 
 class TradingAgentsGraph:
@@ -228,6 +231,10 @@ class TradingAgentsGraph:
         """
         self.ticker = company_name
 
+        # Reset the per-run vendor call cache so that two separate propagate()
+        # calls on different dates/tickers never share stale cached data.
+        clear_session_cache()
+
         self._resolve_pending_entries()
 
         if self.config.get("checkpoint_enabled"):
@@ -296,32 +303,15 @@ class TradingAgentsGraph:
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
     def _log_state(self, trade_date: str, final_state: Dict[str, Any]) -> None:
-        """Persist the final state to a JSON file."""
-        analyst_reports = final_state.get("analyst_reports", {})
+        """Persist the final state to a JSON file.
 
-        self.log_states_dict[str(trade_date)] = {
-            "schema_version": 1,
-            "company_of_interest": final_state["company_of_interest"],
-            "trade_date": final_state["trade_date"],
-            "analyst_reports": analyst_reports,
-            "investment_debate_state": {
-                "bull_history": final_state["investment_debate_state"]["bull_history"],
-                "bear_history": final_state["investment_debate_state"]["bear_history"],
-                "history": final_state["investment_debate_state"]["history"],
-                "current_response": final_state["investment_debate_state"]["current_response"],
-                "judge_decision": final_state["investment_debate_state"]["judge_decision"],
-            },
-            "trader_investment_decision": final_state["trader_investment_plan"],
-            "risk_debate_state": {
-                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
-                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
-                "neutral_history": final_state["risk_debate_state"]["neutral_history"],
-                "history": final_state["risk_debate_state"]["history"],
-                "judge_decision": final_state["risk_debate_state"]["judge_decision"],
-            },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
-        }
+        The ``RunSnapshot`` Pydantic model owns the serialisation contract:
+        adding or renaming fields happens in one place (``schemas.py``) and
+        the schema version is baked in, making future migrations mechanical.
+        """
+        snapshot = build_run_snapshot(trade_date, final_state)
+        snapshot_dict = snapshot.model_dump()
+        self.log_states_dict[str(trade_date)] = snapshot_dict
 
         safe_ticker = safe_ticker_component(self.ticker)
         directory = Path(self.config["results_dir"]) / safe_ticker / "TradingAgentsStrategy_logs"
@@ -329,7 +319,7 @@ class TradingAgentsGraph:
 
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+            json.dump(snapshot_dict, f, indent=4)
 
     def process_signal(self, full_signal: str) -> str:
         """Extract the core Buy/Hold/Sell signal from a full decision string."""

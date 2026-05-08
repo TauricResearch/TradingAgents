@@ -19,7 +19,7 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -226,3 +226,84 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Run state snapshot — used by TradingAgentsGraph._log_state
+# ---------------------------------------------------------------------------
+
+
+class _InvestDebateSnapshot(BaseModel):
+    """Serialisable snapshot of the research debate state."""
+
+    bull_history: str = ""
+    bear_history: str = ""
+    history: str = ""
+    current_response: str = ""
+    judge_decision: str = ""
+
+
+class _RiskDebateSnapshot(BaseModel):
+    """Serialisable snapshot of the risk debate state."""
+
+    aggressive_history: str = ""
+    conservative_history: str = ""
+    neutral_history: str = ""
+    history: str = ""
+    judge_decision: str = ""
+
+
+class RunSnapshot(BaseModel):
+    """Self-documenting snapshot of a completed propagate() run.
+
+    Written to ``full_states_log_<date>.json`` by ``_log_state()``.
+    The schema is versioned via ``schema_version`` so that future
+    migrations are mechanical — increment the version and write a
+    migration helper rather than hand-editing every callsite.
+    """
+
+    schema_version: int = 1
+    company_of_interest: str
+    trade_date: str
+    analyst_reports: Dict[str, str] = Field(default_factory=dict)
+    investment_debate_state: _InvestDebateSnapshot = Field(
+        default_factory=_InvestDebateSnapshot
+    )
+    trader_investment_decision: str = ""
+    risk_debate_state: _RiskDebateSnapshot = Field(
+        default_factory=_RiskDebateSnapshot
+    )
+    investment_plan: str = ""
+    final_trade_decision: str = ""
+
+
+def build_run_snapshot(trade_date: str, final_state: dict) -> RunSnapshot:
+    """Construct a :class:`RunSnapshot` from a completed graph ``final_state``.
+
+    Handles missing or ``None`` keys gracefully so the log is always written
+    even when the graph exited early.
+    """
+    ids = final_state.get("investment_debate_state") or {}
+    rds = final_state.get("risk_debate_state") or {}
+    return RunSnapshot(
+        company_of_interest=final_state.get("company_of_interest", ""),
+        trade_date=str(trade_date),
+        analyst_reports=final_state.get("analyst_reports") or {},
+        investment_debate_state=_InvestDebateSnapshot(
+            bull_history=ids.get("bull_history", ""),
+            bear_history=ids.get("bear_history", ""),
+            history=ids.get("history", ""),
+            current_response=ids.get("current_response", ""),
+            judge_decision=ids.get("judge_decision", ""),
+        ),
+        trader_investment_decision=final_state.get("trader_investment_plan", ""),
+        risk_debate_state=_RiskDebateSnapshot(
+            aggressive_history=rds.get("aggressive_history", ""),
+            conservative_history=rds.get("conservative_history", ""),
+            neutral_history=rds.get("neutral_history", ""),
+            history=rds.get("history", ""),
+            judge_decision=rds.get("judge_decision", ""),
+        ),
+        investment_plan=final_state.get("investment_plan", ""),
+        final_trade_decision=final_state.get("final_trade_decision", ""),
+    )
