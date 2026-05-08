@@ -37,6 +37,25 @@ export interface DebriefEntry {
   epic: string | null
   /** The single most important decision or takeaway from this debrief */
   decision: string
+  /** Comma-separated ADR filenames this debrief produced, or null */
+  adr: string | null
+}
+
+// ── Decisions Index: decisions/INDEX.jsonl ───────────────────────────────
+
+export interface DecisionEntry {
+  /** Relative filename within decisions/ directory */
+  file: string
+  /** Date the decision was recorded (YYYY-MM-DD) */
+  date: string
+  /** Current status */
+  status: "Proposed" | "Accepted" | "Superseded"
+  /** ADR this decision supersedes, or null */
+  supersedes: string | null
+  /** ADR that supersedes this one, or null */
+  superseded_by: string | null
+  /** One-line summary of the decision */
+  summary: string
 }
 
 // ── Playbooks Registry: playbooks/REGISTRY.jsonl ──────────────────────────

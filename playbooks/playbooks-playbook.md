@@ -64,6 +64,25 @@ If the playbook defines a *style* rather than a *process*, list the rules here.
 *   If a playbook fails, UPDATE IT. Do not just bypass it.
 *   **Deprecation:** If a playbook is obsolete, add a `> **DEPRECATED**` banner at the top and link to the successor.
 
+## The Knowledge System
+
+Playbooks are part of a three-tier knowledge architecture:
+
+| Tier | Directory | Contains | Answers |
+|------|-----------|----------|---------|
+| **Decisions** | `decisions/` | Architecture Decision Records (ADRs) | "Why did we choose X over Y?" |
+| **Playbooks** | `playbooks/` | Repeatable patterns, conventions, how-to | "How do I do X correctly?" |
+| **Registry** | `*.jsonl` | Machine-readable indexes of all knowledge | "Show me all canonical playbooks" |
+
+**The flow:**
+1. **Brief** (`briefs/`) — what we plan to build
+2. **Decision** (`decisions/`) — why we chose the approach we did (captured during implementation)
+3. **Debrief** (`debriefs/`) — what we built and what we learned (captured after)
+4. **Playbook** (`playbooks/`) — extracted patterns that can be reused (mined from debriefs + decisions)
+
+See `playbooks/decisions-playbook.md` for the ADR process.
+
 ## Location
 All playbooks reside in `playbooks/`.
 Filename convention: `topic-subtopic-playbook.md` (unless it's a specific protocol like `grep-strategy.md`).
+The playbook registry is `playbooks/REGISTRY.jsonl` — update it when adding, modifying, or deprecating a playbook.

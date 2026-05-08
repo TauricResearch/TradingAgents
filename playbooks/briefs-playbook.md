@@ -102,6 +102,17 @@ One paragraph. Why does this matter?
 What must be true for the epic to be considered complete?
 ```
 
+## Capturing Decisions
+
+Briefs are aspirational — they describe what you plan to build. The actual decisions made during implementation (technology choices, architectural trade-offs, rejected alternatives) should be captured as **Architecture Decision Records (ADRs)** in `decisions/`.
+
+When implementing a brief:
+- If you make a choice between two viable alternatives, write an ADR
+- If you discover a constraint that changes the design, write an ADR
+- If you adopt a new tool or pattern, write an ADR
+
+See `playbooks/decisions-playbook.md` for the ADR format and process.
+
 ## Review Checklist
 
 Before committing a brief:
@@ -110,3 +121,5 @@ Before committing a brief:
 - [ ] No ambiguous language ("should", "maybe", "consider")
 - [ ] Dependencies are listed
 - [ ] Technical notes explain non-obvious decisions
+- [ ] Significant architectural decisions have corresponding ADRs in `decisions/`
+- [ ] `briefs/INDEX.jsonl` entry added or updated

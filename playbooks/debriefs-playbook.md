@@ -179,9 +179,27 @@ explore_links("[debrief-id]")
 - **Higher confidence** through redundant verification methods
 - **Recommended Tool for Adding Tags:** Use amalfa MCP server `search_documents` to find similar debriefs and discover common tag patterns
 
+## Capturing Architectural Decisions
+
+During implementation, you will make choices between alternatives. These decisions — the *why* behind the *what* — are the most valuable output of any session. Capture them as **Architecture Decision Records (ADRs)** in `decisions/`.
+
+**When to write an ADR:**
+- You choose between two or more viable alternatives (e.g., Bun vs Node, HTMX vs React)
+- You adopt a new tool, pattern, or constraint that shapes the architecture
+- You discover a trade-off that future contributors need to understand
+
+**How to link ADRs to debriefs:**
+- Add the ADR filename to the `adr` field in `debriefs/INDEX.jsonl`
+- Reference the ADR in the debrief's "Lessons Learned" section
+- The ADR captures the decision; the debrief captures the context in which it was made
+
+See `playbooks/decisions-playbook.md` for the full ADR format and process.
+
 ## Post-Debrief Checklist
 - [ ] **Archive Brief:** Move the completed brief from `briefs/` to `briefs/archive/` (or use date-prefix naming).
 - [ ] **Frontmatter Tags Present:** Verify debrief includes `date`, `tags`, `agent`, and `environment` fields.
+- [ ] **Write ADRs:** Any architectural decisions made during the session have corresponding ADRs in `decisions/`.
+- [ ] **Update Index:** `debriefs/INDEX.jsonl` entry added and linked to any ADRs via the `adr` field.
 - [ ] **Update Changelog:** Add a summary of changes to `CHANGELOG.md` under the `[Unreleased]` section.
 - [ ] **Update Current Task:** Update `_CURRENT_TASK.md` to reflect the completion of the current objective and readiness for the next.
 - [ ] **Ingest Debrief:** Ensure `amalfa watcher` is running (to auto-ingest) or run `amalfa init` to update the knowledge graph.
