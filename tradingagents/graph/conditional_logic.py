@@ -1,6 +1,7 @@
 # TradingAgents/graph/conditional_logic.py
 
 from tradingagents.agents.utils.agent_states import AgentState
+from .node_names import NodeNames
 
 
 class ConditionalLogic:
@@ -32,18 +33,18 @@ class ConditionalLogic:
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if investment debate should continue."""
         if state["investment_debate_state"]["count"] >= self._research_limit:
-            return "Research Manager"
+            return NodeNames.RESEARCH_MANAGER
         if state["investment_debate_state"]["current_response"].startswith("Bull"):
-            return "Bear Researcher"
-        return "Bull Researcher"
+            return NodeNames.BEAR_RESEARCHER
+        return NodeNames.BULL_RESEARCHER
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
         if state["risk_debate_state"]["count"] >= self._risk_limit:
-            return "Portfolio Manager"
+            return NodeNames.PORTFOLIO_MANAGER
         speaker = state["risk_debate_state"]["latest_speaker"]
         if speaker.startswith("Aggressive"):
-            return "Conservative Analyst"
+            return NodeNames.CONSERVATIVE_ANALYST
         if speaker.startswith("Conservative"):
-            return "Neutral Analyst"
-        return "Aggressive Analyst"
+            return NodeNames.NEUTRAL_ANALYST
+        return NodeNames.AGGRESSIVE_ANALYST

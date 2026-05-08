@@ -1,4 +1,12 @@
-from typing import Annotated
+from __future__ import annotations
+
+from typing import Any, Annotated
+
+try:
+    import pandas as pd
+    _DataFrame = pd.DataFrame
+except ImportError:  # pragma: no cover
+    _DataFrame = Any  # type: ignore[assignment,misc]
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -110,15 +118,21 @@ VENDOR_METHODS = {
 }
 
 def get_category_for_method(method: str) -> str:
-    """Get the category that contains the specified method."""
+    """Return the TOOLS_CATEGORIES key that owns *method*.
+
+    Raises ``ValueError`` if the method is not registered in any category.
+    """
     for category, info in TOOLS_CATEGORIES.items():
         if method in info["tools"]:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
-def get_vendor(category: str, method: str = None) -> str:
-    """Get the configured vendor for a data category or specific tool method.
-    Tool-level configuration takes precedence over category-level.
+
+def get_vendor(category: str, method: str | None = None) -> str:
+    """Return the configured vendor name for a data category or specific tool.
+
+    Tool-level configuration (``tool_vendors`` key in config) takes precedence
+    over the category-level ``data_vendors`` mapping.
     """
     config = get_config()
 
@@ -131,8 +145,17 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
-def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+
+def route_to_vendor(method: str, *args: Any, **kwargs: Any) -> str | _DataFrame:
+    """Route *method* to the appropriate vendor implementation with fallback.
+
+    Tries vendors in priority order (primary first, then remaining available).
+    ``AlphaVantageRateLimitError`` triggers an automatic fallback to the next
+    vendor; all other exceptions propagate.
+
+    Returns the vendor function's result — typically a formatted string or a
+    ``pandas.DataFrame`` depending on the method.
+    """
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]

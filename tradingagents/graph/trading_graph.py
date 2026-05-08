@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Set
 
 import yfinance as yf
 
@@ -101,6 +101,10 @@ class TradingAgentsGraph:
         self.curr_state = None
         self.ticker = None
         self.log_states_dict: Dict[str, Any] = {}
+        # In-session cache for _fetch_returns: keyed by (ticker, trade_date).
+        # Only successful (non-None) fetches are cached so transient failures
+        # are retried on the next call within the same session.
+        self._returns_cache: Dict[Tuple[str, str], Tuple[float, float, int]] = {}
 
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
@@ -137,9 +141,17 @@ class TradingAgentsGraph:
     ) -> Tuple[Optional[float], Optional[float], Optional[int]]:
         """Fetch raw and alpha return for ticker over holding_days from trade_date.
 
+        Results are cached in-session by (ticker, trade_date) so that a busy
+        backtest loop resolving many pending entries for the same ticker/date
+        pair only hits the network once per session.
+
         Returns (raw_return, alpha_return, actual_holding_days) or
         (None, None, None) if price data is unavailable.
         """
+        cache_key = (ticker, trade_date)
+        if cache_key in self._returns_cache:
+            return self._returns_cache[cache_key]
+
         try:
             start = datetime.strptime(trade_date, "%Y-%m-%d")
             end = start + timedelta(days=holding_days + 7)
@@ -161,7 +173,9 @@ class TradingAgentsGraph:
                 / spy["Close"].iloc[0]
             )
             alpha = raw - spy_ret
-            return raw, alpha, actual_days
+            result = (raw, alpha, actual_days)
+            self._returns_cache[cache_key] = result  # only cache successful fetches
+            return result
         except Exception as e:
             logger.warning(
                 "Could not resolve outcome for %s on %s (will retry next run): %s",
@@ -169,15 +183,20 @@ class TradingAgentsGraph:
             )
             return None, None, None
 
-    def _resolve_pending_entries(self, ticker: str) -> None:
-        """Resolve pending log entries for ticker at the start of a new run."""
-        pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
+    def _resolve_pending_entries(self) -> None:
+        """Resolve ALL pending log entries at the start of a new run.
+
+        Resolves across all tickers so that entries from previous tickers
+        don't silently accumulate forever — they just need any propagate()
+        call to trigger resolution once the holding period has elapsed.
+        """
+        pending = self.memory_log.get_pending_entries()
         if not pending:
             return
 
         updates = []
         for entry in pending:
-            raw, alpha, days = self._fetch_returns(ticker, entry["date"])
+            raw, alpha, days = self._fetch_returns(entry["ticker"], entry["date"])
             if raw is None:
                 continue
             reflection = self.reflector.reflect_on_final_decision(
@@ -186,7 +205,7 @@ class TradingAgentsGraph:
                 alpha_return=alpha,
             )
             updates.append({
-                "ticker": ticker,
+                "ticker": entry["ticker"],
                 "trade_date": entry["date"],
                 "raw_return": raw,
                 "alpha_return": alpha,
@@ -209,7 +228,7 @@ class TradingAgentsGraph:
         """
         self.ticker = company_name
 
-        self._resolve_pending_entries(company_name)
+        self._resolve_pending_entries()
 
         if self.config.get("checkpoint_enabled"):
             self._checkpointer_ctx = get_checkpointer(

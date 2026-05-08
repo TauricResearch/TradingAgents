@@ -503,6 +503,7 @@ class TestDeferredReflection:
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
         spy_prices   = [400.0, 402.0, 404.0, 403.0, 405.0, 406.0]
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph._returns_cache = {}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             def _make_ticker(sym):
                 m = MagicMock()
@@ -517,6 +518,7 @@ class TestDeferredReflection:
     def test_fetch_returns_too_recent(self):
         """Only 1 data point available → returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph._returns_cache = {}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             m = MagicMock()
             m.history.return_value = _price_df([100.0])
@@ -527,6 +529,7 @@ class TestDeferredReflection:
     def test_fetch_returns_delisted(self):
         """Empty DataFrame → returns (None, None, None), no crash."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph._returns_cache = {}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             m = MagicMock()
             m.history.return_value = pd.DataFrame({"Close": []})
@@ -539,6 +542,7 @@ class TestDeferredReflection:
         stock_prices = [100.0, 102.0, 104.0, 103.0, 105.0, 106.0]
         spy_prices   = [400.0, 402.0, 403.0]
         mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph._returns_cache = {}
         with patch("yfinance.Ticker") as mock_ticker_cls:
             def _make_ticker(sym):
                 m = MagicMock()
@@ -551,16 +555,26 @@ class TestDeferredReflection:
 
     # TradingAgentsGraph._resolve_pending_entries
 
-    def test_resolve_skips_other_tickers(self, tmp_path):
-        """Pending AAPL entry is not resolved when the run is for NVDA."""
+    def test_resolve_resolves_all_tickers(self, tmp_path):
+        """_resolve_pending_entries() resolves ALL pending entries regardless of ticker.
+
+        The previous implementation only resolved the current-run ticker, which
+        caused other tickers' entries to silently accumulate.  The new behaviour
+        resolves every pending entry so the backlog is drained on each run.
+        """
         log = make_log(tmp_path)
         log.store_decision("AAPL", "2026-01-10", DECISION_BUY)
+        log.store_decision("MSFT", "2026-01-11", DECISION_SELL)
+        mock_reflector = MagicMock()
+        mock_reflector.reflect_on_final_decision.return_value = "Auto-resolved."
         mock_graph = MagicMock(spec=TradingAgentsGraph)
         mock_graph.memory_log = log
+        mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
-        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
-        mock_graph._fetch_returns.assert_not_called()
-        assert len(log.get_pending_entries()) == 1
+        TradingAgentsGraph._resolve_pending_entries(mock_graph)
+        # Both entries should have been processed
+        assert mock_graph._fetch_returns.call_count == 2
+        assert log.get_pending_entries() == []
 
     def test_resolve_marks_entry_completed(self, tmp_path):
         """After resolve, get_pending_entries() is empty and the entry has a REFLECTION."""
@@ -572,7 +586,7 @@ class TestDeferredReflection:
         mock_graph.memory_log = log
         mock_graph.reflector = mock_reflector
         mock_graph._fetch_returns = MagicMock(return_value=(0.05, 0.02, 5))
-        TradingAgentsGraph._resolve_pending_entries(mock_graph, "NVDA")
+        TradingAgentsGraph._resolve_pending_entries(mock_graph)
         assert log.get_pending_entries() == []
         entries = log.load_entries()
         assert len(entries) == 1

@@ -1,4 +1,4 @@
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_language_instruction,
 )
+from tradingagents.agents.utils.tool_utils import dispatch_tool_calls
 
 
 def create_fundamentals_analyst(llm):
@@ -45,15 +46,7 @@ def create_fundamentals_analyst(llm):
             messages.append(result)
             if not result.tool_calls:
                 break
-            for tc in result.tool_calls:
-                tool_output = tool_map[tc["name"]].invoke(tc["args"])
-                messages.append(
-                    ToolMessage(
-                        content=str(tool_output),
-                        tool_call_id=tc["id"],
-                        name=tc["name"],
-                    )
-                )
+            messages.extend(dispatch_tool_calls(tool_map, result.tool_calls))
 
         return {"analyst_reports": {"fundamentals": result.content}}
 

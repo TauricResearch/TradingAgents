@@ -6,6 +6,7 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+from .node_names import NodeNames, ANALYST_NODE_NAMES
 
 __all__ = [
     "TradingAgentsGraph",
@@ -14,4 +15,6 @@ __all__ = [
     "Propagator",
     "Reflector",
     "SignalProcessor",
+    "NodeNames",
+    "ANALYST_NODE_NAMES",
 ]
