@@ -127,7 +127,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_analyses_subrouter_exports(self):
         """analyses/index.ts must export analysesRouter."""
-        index_path = ROOT / "server/routes/analyses/index.ts"
+        index_path = ROOT / "src/server/routes/analyses/index.ts"
         assert index_path.exists(), "analyses/index.ts not found"
         content = index_path.read_text()
         assert "analysesRouter" in content
@@ -136,7 +136,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_analyses_common_exports(self):
         """analyses-common.ts must export shared helpers."""
-        common_path = ROOT / "server/routes/analyses-common.ts"
+        common_path = ROOT / "src/server/routes/analyses-common.ts"
         assert common_path.exists()
         content = common_path.read_text()
         for fn in ["extractSignal", "extractConfidence", "estimateConfidence", "buildConfidenceSparkline", "resultsDir", "escapeHtml", "signalClass"]:
@@ -145,7 +145,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_types_exports(self):
         """types.ts must export PriceResult and re-export BenchmarkPrice/PeriodReturn."""
-        types_path = ROOT / "server/lib/types.ts"
+        types_path = ROOT / "src/server/lib/types.ts"
         assert types_path.exists()
         content = types_path.read_text()
         assert "export interface PriceResult" in content
@@ -155,7 +155,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_utils_exports(self):
         """utils.ts must export findProjectRoot."""
-        utils_path = ROOT / "server/lib/utils.ts"
+        utils_path = ROOT / "src/server/lib/utils.ts"
         assert utils_path.exists()
         content = utils_path.read_text()
         assert "export function findProjectRoot" in content
@@ -163,7 +163,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_markup_exports(self):
         """markup.ts must export esc, fmt, fmtGBP."""
-        markup_path = ROOT / "server/lib/markup.ts"
+        markup_path = ROOT / "src/server/lib/markup.ts"
         assert markup_path.exists()
         content = markup_path.read_text()
         for fn in ["esc", "fmt", "fmtCommas", "fmtGBP"]:
@@ -172,7 +172,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_governance_lib_exports(self):
         """governance.ts must export checkRules, loadRules, suggestRebalance."""
-        gov_path = ROOT / "server/lib/governance.ts"
+        gov_path = ROOT / "src/server/lib/governance.ts"
         assert gov_path.exists()
         content = gov_path.read_text()
         for fn in ["checkRules", "loadRules", "suggestRebalance"]:
@@ -181,7 +181,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_feedback_lib_exports(self):
         """feedback.ts lib must export loadPostMortems, computeSignalAccuracy."""
-        fb_path = ROOT / "server/lib/feedback.ts"
+        fb_path = ROOT / "src/server/lib/feedback.ts"
         assert fb_path.exists()
         content = fb_path.read_text()
         for fn in ["loadPostMortems", "computeSignalAccuracy"]:
@@ -190,7 +190,7 @@ class TestServerExports:
     @pytest.mark.smoke
     def test_positions_lib_exports(self):
         """positions.ts lib must export computeExitStatus, loadAllPlans."""
-        pos_path = ROOT / "server/lib/positions.ts"
+        pos_path = ROOT / "src/server/lib/positions.ts"
         assert pos_path.exists()
         content = pos_path.read_text()
         for fn in ["computeExitStatus", "loadAllPlans"]:
@@ -205,7 +205,7 @@ class TestRouteHandlerPatterns:
         """Views must not use dangerouslySetInnerHTML for script injection (use <XxxScript /> JSX pattern)."""
         # After refactor, these should all be clean
         problem_files = []
-        for tsx in (ROOT / "server/views").glob("*.tsx"):
+        for tsx in (ROOT / "src/server/views").glob("*.tsx"):
             content = tsx.read_text()
             # Check for the OLD pattern (dangerouslySetInnerHTML with function call)
             if "dangerouslySetInnerHTML" in content and "Script()" in content:
@@ -221,7 +221,7 @@ class TestRouteHandlerPatterns:
             "feedback.tsx", "datatype-test.tsx", "history.tsx", "prospects.tsx",
             "signals.tsx", "intelligence.tsx", "portfolio.tsx", "analysis.tsx",
         ]:
-            tsx = ROOT / "server/views" / name
+            tsx = ROOT / "src/server/views" / name
             if not tsx.exists():
                 continue
             content = tsx.read_text()
