@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-07
 **Epic ID:** UNIFIED-CLI-001
-**Status:** Open
+**Status:** Done
 **Priority:** P1
 **Language:** TypeScript (Bun runtime)
 **Location:** `cli/trading/`
