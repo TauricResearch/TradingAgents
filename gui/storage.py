@@ -50,7 +50,8 @@ def init_db() -> None:
                 tokens_in INTEGER DEFAULT 0,
                 tokens_out INTEGER DEFAULT 0,
                 log_path TEXT,
-                error_message TEXT
+                error_message TEXT,
+                error_log_path TEXT
             );
             CREATE INDEX IF NOT EXISTS runs_ticker_date ON runs(ticker, trade_date);
             CREATE INDEX IF NOT EXISTS runs_started ON runs(started_at DESC);
@@ -109,6 +110,13 @@ def init_db() -> None:
             );
             """
         )
+        _ensure_column(c, "runs", "error_log_path", "TEXT")
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 @contextmanager
@@ -165,14 +173,44 @@ def update_run_stats(run_id: str, *, llm_calls: int, tool_calls: int,
 
 
 def finalize_run(run_id: str, *, decision: Optional[str], log_path: Optional[str],
-                 error: Optional[str] = None) -> None:
+                 error: Optional[str] = None, error_log_path: Optional[str] = None) -> None:
     status = "error" if error else "done"
     with _conn() as c:
         c.execute(
             """UPDATE runs SET status=?, decision=?, log_path=?, error_message=?,
+                              error_log_path=COALESCE(?, error_log_path),
                               completed_at=? WHERE run_id=?""",
-            (status, decision, log_path, error, _now(), run_id),
+            (status, decision, log_path, error, error_log_path, _now(), run_id),
         )
+
+
+def write_run_error_log(
+    *,
+    run_id: str,
+    meta: Dict[str, Any],
+    message: str,
+    traceback_text: Optional[str] = None,
+    events: Optional[List[Dict[str, Any]]] = None,
+    stderr: Optional[List[str]] = None,
+) -> Path:
+    ticker = str(meta.get("ticker") or "UNKNOWN").strip().upper() or "UNKNOWN"
+    trade_date = str(meta.get("trade_date") or "unknown")
+    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    path = DB_PATH.parent / "errors" / ticker / f"{run_id}__{trade_date}__{ts}.error.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": 1,
+        "kind": "tradingagents-gui-error",
+        "run_id": run_id,
+        "message": message,
+        "traceback": traceback_text or "",
+        "metadata": meta,
+        "recent_events": (events or [])[-200:],
+        "stderr": stderr or [],
+        "written_at": _now(),
+    }
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    return path
 
 
 def get_run(run_id: str) -> Optional[Dict[str, Any]]:

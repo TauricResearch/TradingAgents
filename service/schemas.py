@@ -56,6 +56,7 @@ class RunSummary(BaseModel):
     tokens_out: int = 0
     log_path: Optional[str] = None
     error_message: Optional[str] = None
+    error_log_path: Optional[str] = None
 
 
 class RunDetail(RunSummary):

@@ -42,6 +42,8 @@ SS.setdefault("run_id", None)
 SS.setdefault("run_meta", {})
 SS.setdefault("run_decision", None)
 SS.setdefault("run_error", None)
+SS.setdefault("run_traceback", None)
+SS.setdefault("run_error_log_path", None)
 SS.setdefault("run_warning", None)
 
 
@@ -56,6 +58,8 @@ def _reset() -> None:
     SS.run_meta = {}
     SS.run_decision = None
     SS.run_error = None
+    SS.run_traceback = None
+    SS.run_error_log_path = None
     SS.run_warning = None
 
 
@@ -107,9 +111,25 @@ def _ingest(events: List[Dict[str, Any]]) -> None:
             SS.run_warning = ev.get("message", "")
         elif t == "error":
             SS.run_error = ev.get("message", "unknown error")
+            SS.run_traceback = ev.get("traceback", "")
+            error_log_path = None
+            if SS.run_id:
+                try:
+                    error_log_path = storage.write_run_error_log(
+                        run_id=SS.run_id,
+                        meta=SS.run_meta or {},
+                        message=SS.run_error,
+                        traceback_text=SS.run_traceback,
+                        events=SS.run_events,
+                        stderr=SS.runner_handle.stderr_buf if SS.runner_handle else None,
+                    )
+                    SS.run_error_log_path = str(error_log_path)
+                except Exception as log_error:
+                    SS.run_warning = f"Could not write error log: {log_error}"
             if SS.run_id:
                 storage.finalize_run(SS.run_id, decision=None, log_path=None,
-                                     error=SS.run_error)
+                                     error=SS.run_error,
+                                     error_log_path=str(error_log_path) if error_log_path else None)
 
 
 def _config_form() -> Dict[str, Any] | None:
@@ -258,6 +278,11 @@ with status_col:
         st.info("Configure a run above and hit **Analyze**.")
     elif SS.run_error:
         st.error(f"Run failed: {SS.run_error}")
+        if SS.run_error_log_path:
+            st.caption(f"Error log: `{SS.run_error_log_path}`")
+        if SS.run_traceback:
+            with st.expander("Traceback"):
+                st.code(SS.run_traceback, language="python")
     elif SS.run_decision is not None:
         st.success(f"Decision: **{SS.run_decision}**")
         if SS.run_warning:
