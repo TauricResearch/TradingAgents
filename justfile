@@ -288,6 +288,11 @@ test-trade-calc:
 test-trade-calc-integration:
     bun test tests/trade-calculator-integration.test.ts
 
+# Run CLI command smoke tests
+[group("bun")]
+test-cli:
+    bun test tests/cli-commands.test.ts
+
 # Quick smoke test for structured output (openai, google, anthropic, deepseek)
 [group("python")]
 test-quick PROVIDER="openai":
