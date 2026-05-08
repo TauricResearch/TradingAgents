@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from tradingagents.agents.utils.sanitize import sanitize_news_text
+
 logger = logging.getLogger(__name__)
 
 EXA_BASE = "https://api.exa.ai"
@@ -91,12 +93,16 @@ def search_event_news(question: str, limit: int = 10) -> list[dict[str, Any]]:
         )
         return []
 
+    # Sanitize untrusted internet content before it flows into LLM prompts.
+    # Anyone who controls a website indexed by Exa can embed prompt-injection
+    # markers; sanitize_news_text neutralizes the most common patterns and
+    # truncates to bound prompt growth.
     return [
         {
-            "title": r.get("title", ""),
+            "title": sanitize_news_text(r.get("title", ""), max_len=200),
             "url": r.get("url", ""),
             "published_date": r.get("publishedDate"),
-            "text": r.get("text", ""),
+            "text": sanitize_news_text(r.get("text", "")),
         }
         for r in results
     ]
