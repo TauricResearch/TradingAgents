@@ -334,6 +334,11 @@ analyze-tka DEBATES="1":
 portfolio:
     bun run src/cli/main.ts portfolio
 
+# Check exit plan alerts for all positions
+[group("run")]
+alerts:
+    bun run src/cli/main.ts alerts
+
 # Show portfolio holdings (DEV, uses hledger + SQLite via dashboard)
 [group("run")]
 portfolio-intel:
