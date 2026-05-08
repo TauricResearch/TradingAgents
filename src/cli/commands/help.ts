@@ -10,14 +10,34 @@ export const helpCommand = defineCommand({
 
 Usage: trading <command> [args]
 
-Commands:
-  plan <ticker>      Generate trade plan (shares or spread bet)
-  help               Show this message
+Core:
+  plan <ticker>              Generate trade plan (shares or spread bet)
+  execute <ticker>           Calculate plan and execute via IG API
+  config <get|set|list|...>  Manage CLI defaults
+
+IG Trading:
+  ig login                   Authenticate with IG
+  ig accounts                List IG accounts
+  ig search <term>           Search markets
+  ig prices <epic>           Fetch historical prices
+  ig positions               List open positions
+  ig buy <epic>              Place market buy order
+  ig sell <dealId>           Close position
+
+Data & Operations:
+  seed [--positions]         Seed database with test data
+  sync prices [ticker]       Sync Yahoo Finance prices
+  backup [--test]            Backup SQLite database
+  summarize [ticker]         LLM summary of analyses
 
 Examples:
-  trading plan AAPL --platform ig --account 50000 --risk 0.02
-  trading plan AAPL --platform ig --mode spreadbet --account 50000 --risk 0.02
-  trading plan TKA.DE --platform ajbell --account 25000 --risk 0.015
+  trading plan AAPL
+  trading plan AAPL --mode spreadbet --risk 0.03
+  trading execute AAPL
+  trading ig search FTSE
+  trading ig buy IX.D.FTSE.CFD.IP --size 0.5
+  trading config set account 75000
+  trading config set risk 0.02
 `)
   },
 })

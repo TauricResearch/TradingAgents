@@ -18,6 +18,10 @@ const main = defineCommand({
     execute: () => import("./commands/execute.ts").then((m) => m.executeCommand),
     ig: () => import("./commands/ig.ts").then((m) => m.igCommand),
     config: () => import("./commands/config.ts").then((m) => m.configCommand),
+    seed: () => import("./commands/seed.ts").then((m) => m.seedCommand),
+    sync: () => import("./commands/sync.ts").then((m) => m.syncCommand),
+    backup: () => import("./commands/backup.ts").then((m) => m.backupCommand),
+    summarize: () => import("./commands/summarize.ts").then((m) => m.summarizeCommand),
     help: () => import("./commands/help.ts").then((m) => m.helpCommand),
   },
 })
