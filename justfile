@@ -75,6 +75,11 @@ reg-sync:
 reg-sync-fix:
     bun scripts/reg-sync.ts --all --fix
 
+# Scan for barnacles (stale conventions, misdirecting docs)
+[group("reg")]
+barnacle-scan:
+    bun scripts/barnacle-scan.ts
+
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments := true
 set dotenv-load := true
