@@ -165,15 +165,89 @@ def _fetch_openrouter_models() -> List[Tuple[str, str]]:
         return []
 
 
-def select_openrouter_model() -> str:
-    """Select an OpenRouter model from the newest available, or enter a custom ID."""
-    models = _fetch_openrouter_models()
+# Stable, widely-used providers shown first in the curated picker.
+# Order matters: this is the rank at which each provider's models appear.
+# Anything not in this tuple still shows up, just at the bottom.
+_OPENROUTER_PRIORITY_PROVIDERS: Tuple[str, ...] = (
+    "deepseek",
+    "anthropic",
+    "openai",
+    "google",
+    "x-ai",
+    "mistralai",
+    "meta-llama",
+    "qwen",
+)
 
-    choices = [questionary.Choice(name, value=mid) for name, mid in models[:5]]
+
+def _curate_openrouter_models(
+    models: List[Tuple[str, str]],
+    *,
+    per_provider_limit: int = 2,
+) -> List[Tuple[str, str]]:
+    """Filter and sort OpenRouter models for the interactive picker.
+
+    Drops the :free variants — they share an upstream rate-limit pool and
+    routinely 429 mid-analysis (this is what crashed our first run). The
+    Custom-ID prompt remains available for users who explicitly want a
+    free model and accept the failure mode.
+
+    Sorts so the providers in _OPENROUTER_PRIORITY_PROVIDERS surface first
+    in their listed order, capped at ``per_provider_limit`` entries each so
+    a single chatty provider (deepseek has 11+ variants) doesn't crowd out
+    everyone else.  Models from non-priority providers land at the bottom
+    in alphabetical order with no per-provider cap.
+    """
+    filtered = [(name, mid) for name, mid in models if not mid.endswith(":free")]
+
+    # Group by provider while preserving the API's insertion order, which
+    # OpenRouter sorts newest-first. We rely on that order so users see
+    # "deepseek-v3.2" before "deepseek-v2", not "v2" first via alphabetic.
+    by_provider: dict[str, List[Tuple[str, str]]] = {}
+    for entry in filtered:
+        prov = entry[1].split("/", 1)[0]
+        by_provider.setdefault(prov, []).append(entry)
+
+    out: List[Tuple[str, str]] = []
+    seen_ids: set[str] = set()
+
+    # Priority providers, capped per-provider, in declared order.
+    # Within each provider, take the first N as returned by the API
+    # (newest-first), not alphabetical.
+    for prov in _OPENROUTER_PRIORITY_PROVIDERS:
+        for entry in by_provider.get(prov, [])[:per_provider_limit]:
+            out.append(entry)
+            seen_ids.add(entry[1])
+
+    # Non-priority providers only: priority providers' overflow stays
+    # hidden so a chatty provider can't crowd the long tail. Users who
+    # want a specific older variant can still type it via Custom ID.
+    priority_set = set(_OPENROUTER_PRIORITY_PROVIDERS)
+    leftovers = [
+        e for e in filtered
+        if e[1] not in seen_ids and e[1].split("/", 1)[0] not in priority_set
+    ]
+    out.extend(sorted(leftovers, key=lambda e: e[1]))
+    return out
+
+
+def select_openrouter_model() -> str:
+    """Select a curated OpenRouter model, or enter a custom ID.
+
+    Free-tier models (:free suffix) are excluded from the picker because
+    they're commonly rate-limited upstream and produce mid-analysis 429s.
+    Users who want a specific model — free or otherwise — can still type
+    the ID via the "Custom model ID" option.
+    """
+    models = _fetch_openrouter_models()
+    curated = _curate_openrouter_models(models)
+
+    # Show up to 8 from the priority list. Custom-ID always available.
+    choices = [questionary.Choice(name, value=mid) for name, mid in curated[:8]]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
     choice = questionary.select(
-        "Select OpenRouter Model (latest available):",
+        "Select OpenRouter Model (stable providers — :free variants excluded):",
         choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
@@ -185,7 +259,7 @@ def select_openrouter_model() -> str:
 
     if choice is None or choice == "custom":
         return questionary.text(
-            "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
+            "Enter OpenRouter model ID (e.g. deepseek/deepseek-chat):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
         ).ask().strip()
 
