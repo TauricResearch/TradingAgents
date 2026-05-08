@@ -29,7 +29,7 @@ export const statusCommand = defineCommand({
     description: "System status overview",
   },
   args: {},
-  run: () => {
+  run: async () => {
     // ── Database ────────────────────────────────────────────────────────────
 
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -57,8 +57,8 @@ export const statusCommand = defineCommand({
 
     let serverRunning = false
     try {
-      const _resp = fetch("http://localhost:3000/")
-      serverRunning = true
+      const resp = await fetch("http://localhost:3000/", { signal: AbortSignal.timeout(2000) })
+      serverRunning = resp.status === 200
     } catch {
       serverRunning = false
     }
