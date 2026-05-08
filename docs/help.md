@@ -26,7 +26,12 @@ just serve        # Start dashboard at http://localhost:3000
 | `just check` | Full CI gate: lint + type check |
 | `just lint-fix` | Auto-fix Biome lint errors |
 | `just test-smoke` | Run pytest suite |
-| `just portfolio-intel` | Portfolio holdings (hledger + SQLite) |
+| `just portfolio` | Portfolio holdings via CLI (SQLite only) |
+| `just portfolio-intel` | Portfolio holdings via dashboard (hledger + SQLite) |
+| `just buylist` | Contingency buylist (fair value targets) |
+| `just alerts` | Exit plan alerts for all positions |
+| `just research TICKER` | Run pipeline analysis, extract buylist values |
+| `trading ig history` | IG activity/transaction history |
 | `just sync-prices` | Sync prices for open positions |
 
 ## Key docs

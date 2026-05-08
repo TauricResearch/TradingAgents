@@ -21,11 +21,11 @@ provides single-letter shortcuts to list recipes within a group.
 | **meta** | Orientation | `help`, `info` | `m` |
 | **bun** | TypeScript/Bun | `check`, `lint`, `serve`, `test-*` | `b` |
 | **test** | Testing | `test-*`, `copy-test-to-dev` | `t` |
-| **run** | Trading Operations | `analyze`, `sync-prices`, `seed-db`, `trading` | `r` |
+| **run** | Trading Operations | `analyze`, `portfolio`, `buylist`, `alerts`, `research`, `sync-prices`, `seed-db`, `trading` | `r` |
 | **python** | Python Bridge | `install`, `run`, `test-smoke` | `p` |
-| **srv** | Services | `start`, `stop`, `status`, `logs` | `s` |
+| **srv** | Services | `start`, `stop`, `status`, `logs` | `srv` |
 | **db** | Database | `backup`, `stats`, `reset` | `db` |
-| **seed** | Seeding | `seed-*` | (via `r`) |
+| **seed** | Seeding | `seed-*` | `s` |
 | **reg** | Registry | `reg-*` (list, check, sync) | (via `r`) |
 | **diagrams** | Diagrams | `diagrams`, `regen-diagrams` | `d` |
 | **gn** | GitNexus | `gn-*` (graph, impact, context) | `gn` |
@@ -73,7 +73,8 @@ just m      # [meta] recipes
 just p      # [python] recipes
 just pr     # [pr] recipes
 just r      # [run] recipes
-just s      # [srv] recipes
+just s      # [seed] recipes
+just srv    # [srv] recipes
 just t      # [test] recipes
 ```
 
