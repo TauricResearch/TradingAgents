@@ -139,3 +139,53 @@ title/hint outside, inline ANSI dots.
 Only then did we edit `server-lifecycle.ts`. One shot, correct first time.
 Seven biome lint issues were also fixed in the same commit because we were
 not thrashing on a broken production file.
+
+## War Story 3: Portfolio and IG History (Session ses_02a5c6)
+
+One session built four Gum-styled CLI commands (portfolio, IG history, alerts,
+plus the status display from War Story 2). All used lab-first:
+
+| Feature | Lab Script | What Was Tested | Production Result |
+|---------|-----------|----------------|-------------------|
+| Status display | `scripts/lab/status-templates.ts` | 4 layouts with live data | Template E selected, zero reverts |
+| Portfolio table | `scripts/lab/portfolio-gum.ts` | Multi-column financial table | Dynamic width validated, no wrapping |
+| IG history | `scripts/lab/ig-history.ts` | Activity vs transaction layout | Mock data proved format before API call |
+| Exit plan alerts | `scripts/lab/alerts.ts` | Alert severity logic | Edge cases (multi-target, time stop) caught early |
+
+**Result:** 4 features, 6 commits, zero forward-fixes, zero reverts, all `just check` green.
+Compare to previous session's direct-editing approach: 35+ bundled commits,
+2 broken tests, scope violation, context window exhaustion.
+
+## New Rules (Validated by Evidence)
+
+### The Context Window Rule
+
+**If you're on attempt 3 of the same file without a green `just check`, stop.
+Create a lab.**
+
+The previous session's debrief: "Context window: EXHAUSTED." The implementer
+had edited `server-lifecycle.ts` directly, broken it, fixed it, broken it
+again. By attempt 3, the file was a palimpsest of half-solutions. A lab would
+have absorbed that entropy.
+
+### The Live Data Principle
+
+**Use real data for layout experiments. Use mock data for API shape experiments.**
+
+- `status-templates.ts` used live service detection (Dashboard PID, hledger
+  status, etc.) because a table that looks good with 2 rows may wrap with 7.
+- `ig-history.ts` used mock data because the question was "Does this format
+  handle the IG response shape?" not "Does the IG API respond?"
+
+This distinction prevents false positives. A layout that works with dummy
+strings fails when real PIDs, paths, and timestamps are inserted.
+
+### The One-Shot Port Rule
+
+**A lab-proven pattern should port to production in a single edit, passing
+`just check` first time.**
+
+If the port requires forward-fixes, the lab wasn't finished. The lab's job is
+to eliminate all unknowns so the production edit is mechanical. Template E
+was proven before it touched `server-lifecycle.ts`. The port was one edit,
+one commit, one green check.

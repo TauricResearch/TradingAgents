@@ -172,6 +172,49 @@ console.log(`  \x1b[90mhint: just <verb> → ...\x1b[0m`)
 **Rule:** One border around the data. Title and hint outside. Inline ANSI dots
 for per-row colour. Dynamic width via `padEnd()` math, not `--width`.
 
+## Validated Pattern: Multi-Column Financial Table
+
+**Source of truth:** `src/cli/commands/portfolio.ts`, `src/cli/commands/alerts.ts`
+(post-2026-05-08).
+
+For tables with many columns (Ticker, Platform, Qty, Price, Cost, Value, P&L, %):
+
+```typescript
+const maxTicker = Math.max(6, ...rows.map((r) => r.ticker.length))
+
+const lines = [
+  `${"Ticker".padEnd(maxTicker + 2)}${"Qty".padStart(6)} ${"Price".padStart(10)} ${"P&L".padStart(14)}`,
+  "─".repeat(maxTicker + 36),
+  ...rows.map((r) => {
+    const pnlColour = r.pnl >= 0 ? "\x1b[32m" : "\x1b[31m"
+    const reset = "\x1b[0m"
+    return `${r.ticker.padEnd(maxTicker + 2)}${String(r.qty).padStart(6)} ${r.price.toFixed(2).padStart(10)} ${pnlColour}${fmtGBP(r.pnl).padStart(14)}${reset}`
+  }),
+]
+
+const box = await gum(lines.join("\n"), ["--border", "rounded", "--padding", "1 2"])
+```
+
+**Key difference from service status tables:** Financial tables need inline
+ANSI for per-row P&L colour. The dot pattern (●) from Template E works, but
+for dense data, embed the colour directly in the value cell.
+
+## The One Border Rule (General Principle)
+
+**Every Gum display should have at most one border.**
+
+Multiple nested borders create visual noise and brittle layout code
+(side-by-side card splicing, width calculations). One border around the
+data, titles and hints outside. This applies to:
+- Service status tables
+- Financial tables
+- Alert displays
+- Any multi-line output
+
+The only exception: when showing genuinely separate datasets (e.g. two
+unrelated tables) where a gap between single-border boxes is clearer than
+one massive box.
+
 ## When NOT to Use Gum
 
 - Inside the Bun/Hono server (serves HTML, not terminal)
