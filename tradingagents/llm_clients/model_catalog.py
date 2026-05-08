@@ -102,6 +102,21 @@ MODEL_OPTIONS: ProviderModeOptions = {
         ],
     },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
+    "lm_studio": {
+        "quick": [
+            ("Qwen 3.6 27B (local)", "qwen3.6-27b-mtp"),
+            ("Qwen 3 Coder 30B (local)", "qwen3-coder-30b-a3b-instruct"),
+            ("FinGPT MT Llama 3 8B (local)", "fingpt-mt-llama-3-8b-lora"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Qwen 3.6 35B (local)", "qwopus3.6-35b-a3b-v1"),
+            ("Liquid LFM 2 24B (local)", "liquid/lfm2-24b-a2b"),
+            ("Google Gemma 4 26B (local)", "google/gemma-4-26b-a4b"),
+            ("Qwen 3.6 27B (local)", "qwen3.6-27b-mtp"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     "ollama": {
         "quick": [
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
