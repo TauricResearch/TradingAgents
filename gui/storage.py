@@ -359,13 +359,17 @@ def update_position(position_id: int, *, shares: Optional[float] = None,
     fields = []
     args: List[Any] = []
     if shares is not None:
-        fields.append("shares=?"); args.append(float(shares))
+        fields.append("shares=?")
+        args.append(float(shares))
     if cost_basis_per_share is not None:
-        fields.append("cost_basis_per_share=?"); args.append(float(cost_basis_per_share))
+        fields.append("cost_basis_per_share=?")
+        args.append(float(cost_basis_per_share))
     if account is not None:
-        fields.append("account=?"); args.append(account)
+        fields.append("account=?")
+        args.append(account)
     if notes is not None:
-        fields.append("notes=?"); args.append(notes)
+        fields.append("notes=?")
+        args.append(notes)
     if not fields:
         return
     args.append(position_id)

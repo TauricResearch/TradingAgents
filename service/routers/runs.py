@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from typing import List, Optional
@@ -11,7 +10,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from gui import storage
-from gui.log_browser import discover_logs, load_archive_full, load_log
+from gui.log_browser import discover_logs, load_archive_full
 from tradingagents.dataflows.utils import safe_ticker_component
 from service.runner_pool import pool
 from service.schemas import RunCreateRequest, RunDetail, RunSummary

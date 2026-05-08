@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Generator, Iterable, List, Optional
 
-from gui.config import PROVIDER_KEYS, load as load_config
+from gui.config import load as load_config
 
 
 def bootstrap_env() -> None:

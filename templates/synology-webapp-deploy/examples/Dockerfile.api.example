@@ -7,11 +7,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Build deps for any native Python wheels that don't ship binaries
-# (cairo for pycairo / xhtml2pdf, libpq for psycopg2-binary alternative,
-# ssl-dev for cryptography, etc.). Trim to what your project needs.
+# (libpq for psycopg2-binary alternative, ssl-dev for cryptography, etc.).
+# Trim to what your project needs.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
-        libcairo2-dev \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,11 +26,6 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
-
-# Runtime equivalents of the build deps. Cairo for pycairo, etc.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libcairo2 \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

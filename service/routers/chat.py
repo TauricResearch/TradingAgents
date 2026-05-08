@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from gui import chat as chat_mod
 from gui import storage

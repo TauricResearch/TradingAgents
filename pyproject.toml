@@ -41,14 +41,12 @@ dependencies = [
 gui = [
     "streamlit>=1.36.0",
     "markdown>=3.5",
-    "xhtml2pdf>=0.2.13",
 ]
 service = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "websockets>=13.0",
     "markdown>=3.5",
-    "xhtml2pdf>=0.2.13",
 ]
 dev = [
     "pytest>=8.0.0",

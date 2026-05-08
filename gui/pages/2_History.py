@@ -182,6 +182,23 @@ if state is None:
 
 st.markdown(f"**{chosen['ticker']}** · {chosen['trade_date']}  ·  decision **{chosen['decision']}**")
 
+# Build the meta dict shared by brief, chat, and export helpers.
+db_row = storage.get_run(chosen["run_id"]) if chosen.get("run_id") else None
+export_meta = {
+    "ticker": chosen["ticker"],
+    "trade_date": chosen["trade_date"],
+    "decision": chosen.get("decision"),
+    "provider": chosen.get("provider"),
+    "deep_model": chosen.get("deep_model"),
+    "quick_model": (db_row or {}).get("quick_model"),
+    "started_at": (db_row or {}).get("started_at"),
+    "completed_at": (db_row or {}).get("completed_at"),
+    "tokens_in": chosen.get("tokens_in", 0),
+    "tokens_out": chosen.get("tokens_out", 0),
+    "run_id": chosen.get("run_id") or "",
+    "log_path": log_path,
+}
+
 # ---- Plain-English brief (the headline, top of page) ------------------
 st.subheader("📋 Plain-English brief")
 brief_caption_col, brief_btn_col = st.columns([4, 1])
@@ -267,22 +284,6 @@ else:
 st.divider()
 
 # ---- Export panel -----------------------------------------------------
-# Build the meta dict the export module expects, joining DB fields where we have them.
-db_row = storage.get_run(chosen["run_id"]) if chosen.get("run_id") else None
-export_meta = {
-    "ticker": chosen["ticker"],
-    "trade_date": chosen["trade_date"],
-    "decision": chosen.get("decision"),
-    "provider": chosen.get("provider"),
-    "deep_model": chosen.get("deep_model"),
-    "quick_model": (db_row or {}).get("quick_model"),
-    "started_at": (db_row or {}).get("started_at"),
-    "completed_at": (db_row or {}).get("completed_at"),
-    "tokens_in": chosen.get("tokens_in", 0),
-    "tokens_out": chosen.get("tokens_out", 0),
-    "run_id": chosen.get("run_id") or "",
-    "log_path": log_path,
-}
 
 st.subheader("📦 Files for this run")
 st.caption(
@@ -344,13 +345,8 @@ _file_row("Markdown", "md", prior_exports.get("md"),
           helptext="Plain-text report — paste anywhere.")
 _file_row("Standalone HTML", "html", prior_exports.get("html"),
           helptext="Self-contained interactive report — emailable, viewable offline.")
-if export.has_pdf_support():
-    _file_row("PDF", "pdf", prior_exports.get("pdf"),
-              helptext="Print-friendly archive document.")
-else:
-    f1, f2, _, _ = st.columns([2, 4, 1, 1])
-    f1.markdown("**PDF**")
-    f2.caption("Disabled — install with `pip install xhtml2pdf`")
+_file_row("PDF", "pdf", prior_exports.get("pdf"),
+          helptext="Print-friendly archive document.")
 
 # Re-export button (forces fresh files including any updated brief).
 exp_col1, exp_col2 = st.columns([1, 5])

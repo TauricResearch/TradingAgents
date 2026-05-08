@@ -28,7 +28,6 @@ cancel a run by terminating the subprocess.
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 import time
 import traceback

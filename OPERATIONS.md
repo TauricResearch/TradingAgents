@@ -263,15 +263,10 @@ For persistence across reboots, set up a Task Scheduler boot task
 (see §"Persistence note" earlier in this doc).
 
 **4. Build deps for native Python wheels.**
-The slim Python image needs cairo system libraries to build `pycairo`
-(transitive dep of `xhtml2pdf`). Already in the Dockerfile:
-- builder stage: `gcc + libcairo2-dev + pkg-config`
-- runtime stage: `libcairo2`
-
-If the build fails on a future "Unknown compiler(s)" or "missing
-header" error for some other native dep, the fix is the same shape —
-add the compile-time deps to the builder stage and the runtime `.so`s
-to the runtime stage.
+The current images avoid extra native build dependencies. If the build
+fails on a future "Unknown compiler(s)" or "missing header" error for a
+new native dep, add the compile-time deps to the builder stage and the
+runtime `.so`s to the runtime stage.
 
 **5. First-deploy can land into a non-empty directory.**
 DSM (or you) may pre-create `/volume1/docker/tradingagents/` before the
@@ -288,7 +283,7 @@ which coexists with the persistent `data/` subdir without overwriting it.
   scripts, `OPERATIONS.md`).
 - **2026-05-05** — First successful deploy to `192.168.2.34`. Hit and
   resolved: DSM 7 missing Authorized-Keys UI, non-interactive SSH PATH,
-  Docker socket group ownership, pycairo native-build deps,
+  Docker socket group ownership,
   `git clone` into non-empty directory.
 - **2026-05-05** — Migrated from Streamlit-only to Next.js + FastAPI
   stack. New compose services `api` (8000) and `web` (3000); legacy

@@ -14,8 +14,6 @@ when terminal events arrive.
 from __future__ import annotations
 
 import asyncio
-import os
-import queue
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional

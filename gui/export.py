@@ -6,21 +6,20 @@ a prior export — every export is timestamped and tied to the run_id.
 
 The three formats serve different jobs:
 - **markdown**: cheap, diffable, easy to paste into anywhere.
-- **PDF**: archive-ready static document. Uses ``xhtml2pdf`` (pure Python
-  on Windows, no system deps).
+- **PDF**: archive-ready static document rendered with matplotlib PdfPages.
 - **standalone HTML**: a single self-contained file that renders the run
   with tabs in vanilla JS — emailable, viewable offline, no server
   needed.
 
-PDF support depends on ``xhtml2pdf``; standalone HTML / markdown render
-prettier markdown when ``markdown`` is installed but degrade gracefully
-to plain text if not.
+Standalone HTML / markdown render prettier markdown when ``markdown`` is
+installed but degrade gracefully to plain text if not.
 """
 
 from __future__ import annotations
 
 import html
-import json
+import io
+import textwrap
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -33,14 +32,6 @@ try:
 except Exception:  # pragma: no cover
     _md = None
     _HAS_MARKDOWN = False
-
-try:
-    from xhtml2pdf import pisa  # type: ignore
-    _HAS_XHTML2PDF = True
-except Exception:  # pragma: no cover
-    pisa = None
-    _HAS_XHTML2PDF = False
-
 
 EXPORTS_DIR = Path(DEFAULT_CONFIG.get("results_dir", str(Path.home() / ".tradingagents" / "logs"))).parent / "exports"
 
@@ -250,18 +241,11 @@ def render_html(state: Dict[str, Any], meta: Dict[str, Any]) -> str:
 # PDF export
 # ---------------------------------------------------------------------------
 
-_PDF_CSS = """
-@page { size: letter; margin: 0.75in 0.75in; }
-body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #1a1a1a; }
-h1 { font-size: 22pt; margin: 0 0 4px 0; }
-h2 { font-size: 14pt; border-bottom: 1px solid #999; padding-bottom: 2px; margin-top: 18px; page-break-after: avoid; }
-h3 { font-size: 12pt; margin-top: 12px; page-break-after: avoid; }
-.meta { color: #555; font-size: 10pt; margin-bottom: 14px; }
-.section { page-break-inside: auto; }
-pre, code { font-family: Courier, monospace; font-size: 9pt; }
-pre { background: #f3f3f3; padding: 8px; }
-blockquote { border-left: 2px solid #888; padding-left: 8px; color: #444; }
-"""
+def _pdf_title(meta: Dict[str, Any]) -> str:
+    return f"{meta.get('ticker', '?')} - {meta.get('trade_date', '?')} TradingAgents report"
+
+
+_PDF_CSS = ""
 
 
 def _pdf_html(state: Dict[str, Any], meta: Dict[str, Any]) -> str:
@@ -289,14 +273,61 @@ def _pdf_html(state: Dict[str, Any], meta: Dict[str, Any]) -> str:
 </body></html>"""
 
 
-def render_pdf(state: Dict[str, Any], meta: Dict[str, Any]) -> Optional[bytes]:
-    """Render a PDF; returns ``None`` if ``xhtml2pdf`` isn't installed."""
-    if not _HAS_XHTML2PDF:
-        return None
-    import io
-    src = _pdf_html(state, meta)
+def _pdf_pages(markdown_text: str) -> list[str]:
+    wrapped_lines: list[str] = []
+    for raw_line in markdown_text.splitlines():
+        if not raw_line:
+            wrapped_lines.append("")
+            continue
+        wrapped_lines.extend(textwrap.wrap(raw_line, width=96, replace_whitespace=False) or [raw_line])
+
+    lines_per_page = 58
+    pages = [
+        "\n".join(wrapped_lines[start:start + lines_per_page])
+        for start in range(0, len(wrapped_lines), lines_per_page)
+    ]
+    return pages or [""]
+
+
+def render_pdf(state: Dict[str, Any], meta: Dict[str, Any]) -> bytes:
+    """Render a print-friendly PDF using matplotlib's built-in PDF backend."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    title = _pdf_title(meta)
     out = io.BytesIO()
-    pisa.CreatePDF(src, dest=out, encoding="utf-8")
+
+    with PdfPages(out) as pdf:
+        info = pdf.infodict()
+        info["Title"] = title
+        info["Subject"] = "TradingAgents GUI export"
+        info["Creator"] = "TradingAgents"
+        info["Keywords"] = "; ".join(
+            f"{key}: {value}"
+            for key, value in meta.items()
+            if value is not None and key in {"ticker", "trade_date", "decision", "provider", "run_id"}
+        )
+
+        for page_number, body in enumerate(_pdf_pages(render_markdown(state, meta)), start=1):
+            fig = plt.figure(figsize=(8.5, 11))
+            fig.patch.set_facecolor("white")
+            fig.text(0.07, 0.95, title, fontsize=14, fontweight="bold", va="top")
+            fig.text(
+                0.07,
+                0.90,
+                body,
+                fontsize=9,
+                family="monospace",
+                va="top",
+                linespacing=1.25,
+            )
+            fig.text(0.5, 0.03, f"Page {page_number}", fontsize=8, ha="center", color="#666666")
+            pdf.savefig(fig, bbox_inches="tight")
+            plt.close(fig)
+
     return out.getvalue()
 
 
@@ -364,4 +395,4 @@ def list_exports_for_run(meta: Dict[str, Any]) -> Dict[str, Path]:
 
 
 def has_pdf_support() -> bool:
-    return _HAS_XHTML2PDF
+    return True
