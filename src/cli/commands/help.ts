@@ -31,6 +31,7 @@ IG Trading:
 Data & Operations:
   analyze <ticker>           Run TradingAgents LLM analysis
   prices <ticker>          Quick price lookup
+  export <json|csv>          Export portfolio data
   seed [--positions]         Seed database with test data
   sync prices [ticker]       Sync Yahoo Finance prices
   backup [--test]            Backup SQLite database

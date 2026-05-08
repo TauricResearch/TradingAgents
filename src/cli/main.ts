@@ -28,6 +28,7 @@ const main = defineCommand({
     watchlist: () => import("./commands/watchlist.ts").then((m) => m.watchlistCommand),
     analyze: () => import("./commands/analyze.ts").then((m) => m.analyzeCommand),
     summarize: () => import("./commands/summarize.ts").then((m) => m.summarizeCommand),
+    export: () => import("./commands/export.ts").then((m) => m.exportCommand),
     completion: () => import("./commands/completion.ts").then((m) => m.completionCommand),
     help: () => import("./commands/help.ts").then((m) => m.helpCommand),
   },
