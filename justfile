@@ -55,6 +55,11 @@ reg-mining:
 reg-docs:
     bun scripts/reg-list.ts docs
 
+# Show consolidated project state (briefs, debriefs, tasks, docs)
+[group("reg")]
+reg-state:
+    bun scripts/reg-state.ts
+
 # Validate all registries (required fields, no duplicates)
 [group("reg")]
 reg-check:
