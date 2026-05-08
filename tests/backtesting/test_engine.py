@@ -165,3 +165,57 @@ class TestBacktestEngine:
         obj = json.loads(lines[0])
         assert obj["ticker"] == "AAPL"
         assert obj["rating"] == "Hold"
+
+    def test_429_error_triggers_retry(self, tmp_path):
+        from unittest.mock import patch
+        from tradingagents.backtesting.engine import BacktestEngine
+
+        with patch("tradingagents.backtesting.engine.TradingAgentsGraph") as MockGraph:
+            with patch("tradingagents.backtesting.engine.time.sleep"):  # don't actually sleep
+                instance = MockGraph.return_value
+                # First call raises 429, second call succeeds
+                instance.propagate.side_effect = [
+                    Exception("429 Too Many Requests"),
+                    ({"final_trade_decision": "**Rating**: Buy\n"}, "Buy"),
+                ]
+                engine = BacktestEngine(
+                    tickers=["NVDA"],
+                    start_date="2024-01-01",
+                    end_date="2024-01-31",
+                    freq="monthly",
+                    output_file=str(tmp_path / "out.jsonl"),
+                )
+                results = engine.run()
+
+        assert len(results) == 1
+        assert results[0].error is None       # succeeded after retry
+        assert results[0].rating == "Buy"
+        assert instance.propagate.call_count == 2  # called twice
+
+    def test_429_exhausted_returns_error(self, tmp_path):
+        from unittest.mock import patch
+        from tradingagents.backtesting.engine import BacktestEngine
+
+        with patch("tradingagents.backtesting.engine.TradingAgentsGraph") as MockGraph:
+            with patch("tradingagents.backtesting.engine.time.sleep"):
+                instance = MockGraph.return_value
+                # All 5 attempts raise 429 — last one should produce an error result
+                instance.propagate.side_effect = [
+                    Exception("429 Too Many Requests"),
+                    Exception("429 Too Many Requests"),
+                    Exception("429 Too Many Requests"),
+                    Exception("429 Too Many Requests"),
+                    Exception("429 Too Many Requests"),
+                ]
+                engine = BacktestEngine(
+                    tickers=["NVDA"],
+                    start_date="2024-01-01",
+                    end_date="2024-01-31",
+                    freq="monthly",
+                    output_file=str(tmp_path / "out.jsonl"),
+                )
+                results = engine.run()
+
+        assert len(results) == 1
+        assert results[0].error is not None   # all retries exhausted
+        assert "429" in results[0].error

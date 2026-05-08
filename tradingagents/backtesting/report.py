@@ -51,9 +51,9 @@ class BacktestSummary:
     error_count: int             # pipeline failures + unresolvable return fetches
     hold_count: int              # HOLD signals (excluded from directional win rate)
 
-    # Raw returns (direction-neutral — raw asset move, not strategy P&L)
-    total_return: Optional[float]
-    mean_return: Optional[float]
+    # Strategy returns (direction-adjusted: Buy/Sell P&L, consistent with equity curve)
+    total_return: Optional[float]   # equity[-1] - 1.0
+    mean_return: Optional[float]    # mean per-period strategy return
     cumulative_equity: list      # strategy equity curve starting at 1.0
 
     # Alpha
@@ -125,7 +125,6 @@ class BacktestReport:
                 sharpe_ratio=None, max_drawdown=None, volatility=None,
             )
 
-        returns = [raw for _, raw, _ in resolved]
         strategy_returns = [(result.direction or 0) * raw for result, raw, _ in resolved]
         alphas = [a for _, _, a in resolved if a is not None]
 
