@@ -47,7 +47,7 @@ Engage by questioning their optimism and emphasizing the potential downsides the
             "current_neutral_response": risk_debate_state.get(
                 "current_neutral_response", ""
             ),
-            "count": risk_debate_state["count"] + 1,
+            "count": risk_debate_state.get("count", 0) + 1,
         }
 
         return {"risk_debate_state": new_risk_debate_state}

@@ -34,7 +34,7 @@ export class ConfigStore {
   }
 
   save(): void {
-    writeFileSync(CONFIG_PATH, JSON.stringify(this.data, null, 2) + "\n")
+    writeFileSync(CONFIG_PATH, `${JSON.stringify(this.data, null, 2)}\n`)
   }
 
   get<T>(key: string, fallback: T): T {

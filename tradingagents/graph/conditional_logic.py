@@ -45,23 +45,25 @@ class ConditionalLogic:
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
+        debate_state = state["investment_debate_state"]
+        count = debate_state.get("count", 0) or 0
 
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        if count >= 2 * self.max_debate_rounds:
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
+        if debate_state.get("current_response", "").startswith("Bull"):
             return "Bear Researcher"
         return "Bull Researcher"
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
-        if (
-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
-        ):  # 3 rounds of back-and-forth between 3 agents
+        risk_state = state["risk_debate_state"]
+        count = risk_state.get("count", 0) or 0
+
+        if count >= 3 * self.max_risk_discuss_rounds:
             return "Portfolio Manager"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
+        latest = risk_state.get("latest_speaker", "")
+        if latest.startswith("Aggressive"):
             return "Conservative Analyst"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Conservative"):
+        if latest.startswith("Conservative"):
             return "Neutral Analyst"
         return "Aggressive Analyst"

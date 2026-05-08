@@ -45,7 +45,7 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
             ),
             "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
             "current_neutral_response": argument,
-            "count": risk_debate_state["count"] + 1,
+            "count": risk_debate_state.get("count", 0) + 1,
         }
 
         return {"risk_debate_state": new_risk_debate_state}

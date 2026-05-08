@@ -14,12 +14,14 @@ def create_bear_researcher(llm):
 
         prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
+CRITICAL INSTRUCTION: You must argue AGAINST buying this stock. Do NOT agree with the Bull Analyst. Your job is to find flaws in the bull case and demonstrate why the bear thesis is superior. Disagree with the previous argument whenever possible.
+
 Key points to focus on:
 
 - Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
 - Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
 - Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
+- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions. Identify at least one specific flaw in the bull argument.
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
 
 Resources available:
@@ -42,7 +44,8 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
             "bear_history": bear_history + "\n" + argument,
             "bull_history": investment_debate_state.get("bull_history", ""),
             "current_response": argument,
-            "count": investment_debate_state["count"] + 1,
+            "judge_decision": investment_debate_state.get("judge_decision", ""),
+            "count": investment_debate_state.get("count", 0) + 1,
         }
 
         return {"investment_debate_state": new_investment_debate_state}

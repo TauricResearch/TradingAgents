@@ -367,6 +367,10 @@ class TradingAgentsGraph:
                     "judge_decision"
                 ],
                 "count": final_state["investment_debate_state"]["count"],
+                "debate_metrics": final_state["investment_debate_state"].get(
+                    "debate_metrics",
+                    {},
+                ),
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
             "risk_debate_state": {
