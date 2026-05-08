@@ -35,7 +35,7 @@ hl-holdings:
 # Cash balances per platform
 [group("hledger")]
 hl-cash:
-    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets: --tree | grep -E "(cash|EUR|USD)"
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets: --tree
 
 # All accounts defined in journal
 [group("hledger")]
@@ -80,4 +80,4 @@ hl-register TICKER:
 # Net worth over time
 [group("hledger")]
 hl-net-worth:
-    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --equity --monthly
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance --tree --monthly
