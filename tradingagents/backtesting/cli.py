@@ -54,17 +54,25 @@ def main(argv=None) -> None:
     )
 
     print(
-        f"Backtesting {args.ticker}  {args.start} → {args.end}  "
+        f"Backtesting {args.ticker}  {args.start} -> {args.end}  "
         f"freq={args.freq}  workers={args.workers}"
     )
-    results = engine.run(resume=args.resume)
+    try:
+        results = engine.run(resume=args.resume)
+    except Exception as exc:
+        print(f"Error during backtest run: {exc}")
+        raise SystemExit(1)
 
     if not results:
         print("No new results — all dates already completed. Use --resume to skip.")
         return
 
     report = BacktestReport(results, risk_free_rate=args.risk_free_rate)
-    summary = report.compute(hold_days_override=args.hold_days)
+    try:
+        summary = report.compute(hold_days_override=args.hold_days)
+    except Exception as exc:
+        print(f"Error computing report: {exc}")
+        raise SystemExit(1)
 
     print("\n=== Backtest Summary ===")
     print(f"Signals:   {summary.signal_counts}")
@@ -74,7 +82,7 @@ def main(argv=None) -> None:
     if summary.mean_return is not None:
         print(f"Mean ret:  {summary.mean_return:.2%}")
     if summary.mean_alpha is not None:
-        print(f"Mean α:    {summary.mean_alpha:.2%}")
+        print(f"Mean alpha: {summary.mean_alpha:.2%}")
     if summary.sharpe_ratio is not None:
         print(f"Sharpe:    {summary.sharpe_ratio:.2f}")
     if summary.max_drawdown is not None:
