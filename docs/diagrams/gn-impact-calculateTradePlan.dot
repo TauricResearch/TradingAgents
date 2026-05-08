@@ -1,0 +1,31 @@
+digraph "Impact of calculateTradePlan" {
+  rankdir=LR;
+  node [shape=box, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=9, color="#666666"];
+  bgcolor="#fafafa";
+
+  Function_server_lib_trade_calculator_ts_calculateTradePlan [label="calculateTradePlan", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_calculateATR [label="calculateATR", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_estimateATR [label="estimateATR", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_findSwingHighLow [label="findSwingHighLow", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_round2 [label="round2", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_round4 [label="round4", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_scripts_trade_calculator_ts_main [label="main", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Method_cli_trading_commands_plan_ts_run_1 [label="run", fillcolor="#c990e8", style="filled", fontcolor="white", tooltip="Method: plan.ts"];
+  File_tests_trade_calculator_test_ts [label="trade-calculator.test.ts", fillcolor="#f5f5f5", style="filled", fontcolor="white", tooltip="File: trade-calculator.test.ts"];
+  File_tests_trade_calculator_integration_test_ts [label="trade-calculator-integration.test.ts", fillcolor="#f5f5f5", style="filled", fontcolor="white", tooltip="File: trade-calculator-integration.test.ts"];
+  File_server_routes_trade_plan_tsx [label="trade-plan.tsx", fillcolor="#f5f5f5", style="filled", fontcolor="white", tooltip="File: trade-plan.tsx"];
+  File_server_lib_trade_calculator_ts [label="trade-calculator.ts", fillcolor="#f5f5f5", style="filled", fontcolor="white", tooltip="File: trade-calculator.ts"];
+
+  Function_server_lib_trade_calculator_ts_calculateTradePlan -> Function_server_lib_trade_calculator_ts_calculateATR;
+  Function_server_lib_trade_calculator_ts_calculateTradePlan -> Function_server_lib_trade_calculator_ts_estimateATR;
+  Function_server_lib_trade_calculator_ts_calculateTradePlan -> Function_server_lib_trade_calculator_ts_findSwingHighLow;
+  Function_server_lib_trade_calculator_ts_calculateTradePlan -> Function_server_lib_trade_calculator_ts_round2;
+  Function_server_lib_trade_calculator_ts_calculateTradePlan -> Function_server_lib_trade_calculator_ts_round4;
+  Function_scripts_trade_calculator_ts_main -> Function_server_lib_trade_calculator_ts_calculateTradePlan;
+  Method_cli_trading_commands_plan_ts_run_1 -> Function_server_lib_trade_calculator_ts_calculateTradePlan;
+  File_tests_trade_calculator_test_ts -> Function_server_lib_trade_calculator_ts_calculateTradePlan;
+  File_tests_trade_calculator_integration_test_ts -> Function_server_lib_trade_calculator_ts_calculateTradePlan;
+  File_server_routes_trade_plan_tsx -> Function_server_lib_trade_calculator_ts_calculateTradePlan;
+  File_server_lib_trade_calculator_ts -> Function_server_lib_trade_calculator_ts_calculateTradePlan;
+}

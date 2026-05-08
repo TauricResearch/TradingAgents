@@ -166,7 +166,7 @@ class TestServerExports:
         markup_path = ROOT / "server/lib/markup.ts"
         assert markup_path.exists()
         content = markup_path.read_text()
-        for fn in ["esc", "fmt", "fmtGBP"]:
+        for fn in ["esc", "fmt", "fmtCommas", "fmtGBP"]:
             assert f"export function {fn}" in content, f"Missing export: {fn}"
 
     @pytest.mark.smoke

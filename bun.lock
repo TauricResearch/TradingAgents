@@ -5,6 +5,7 @@
     "": {
       "name": "tradingagents-dashboard",
       "dependencies": {
+        "citty": "^0.2.2",
         "dotenv": "^17.4.2",
         "hono": "^4.9.8",
         "js-yaml": "^4.1.1",
@@ -46,6 +47,8 @@
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
     "bun-types": ["bun-types@1.3.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA=="],
+
+    "citty": ["citty@0.2.2", "", {}, "sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w=="],
 
     "colorizr": ["colorizr@5.0.1", "", {}, "sha512-HWGEFgGcCvqgKnnwNNUqPdSoN190SxHZFZeHNUcEuAOZbX7gVQjE9GZYl+ZrbgH5Tpjb97os3mjbULz7GijvUQ=="],
 

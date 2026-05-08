@@ -46,12 +46,12 @@ tradingagents/
 
 ![LangGraph Workflow](docs/diagrams/langgraph-workflow.svg)
 
-### CLI (`cli/`)
+### CLI (`src/cli/`)
 
 Typer-based interactive CLI. Handles user prompts, Rich display, report saving.
 
 ```
-cli/
+src/cli/
 ├── main.py                 ← `tradingagents analyze` entry point
 ├── config.py               ← Config helpers
 ├── models.py               ← Pydantic models (AnalystType enum, etc.)
@@ -60,12 +60,12 @@ cli/
 └── stats_handler.py        ← LLM/tool call callback handler
 ```
 
-### Dashboard Server (`server/`)
+### Dashboard Server (`src/server/`)
 
 Bun/Hono web server. 11 tabs, 12 API route groups, ~2400 lines total. TEST_MODE=1 uses test_portfolio.db with isolated data and a visual amber banner.
 
 ```
-server/
+src/server/
 ├── index.tsx               ← Entry: route wiring, DB lifecycle, graceful shutdown
 │
 ├── lib/
@@ -193,7 +193,7 @@ and forwards it as an SSE event to the connected browser client.
 
 ### SQLite (`portfolio.db` / `test_portfolio.db`)
 
-WAL mode, singleton via `DatabaseFactory`. Schema in `server/lib/schema.sql`.
+WAL mode, singleton via `DatabaseFactory`. Schema in `src/server/lib/schema.sql`.
 
 **Positions are deprecated in SQLite** — hledger is the authoritative source for what you own.
 The `positions` table is kept for AI artefacts (signals, analyses, watchlist) only.
@@ -214,7 +214,7 @@ Set `TEST_MODE=1` to use `test_portfolio.db` instead of `portfolio.db`.
 Single source of truth for accounts + transactions. **Read-only** from dashboard perspective.
 
 - Price file: `P 2026-05-02 TKA.DE €8.45` entries
-- All operations via `just hl*` commands or `server/lib/hledger.ts` subprocess wrapper
+- All operations via `just hl*` commands or `src/server/lib/hledger.ts` subprocess wrapper
 
 ### Decision Memory (`~/.tradingagents/memory/trading_memory.md`)
 
@@ -246,12 +246,12 @@ in `~/.tradingagents/logs/<TICKER>/<DATE>/`.
 
 | Variable | Default | Used by |
 |----------|---------|---------|
-| `TA_DASHBOARD_PORT` | `3000` | `server/index.tsx` (canonical) |
-| `PORT` | `3000` | `server/index.tsx` (fallback, for platform deploys like Render/Heroku) |
-| `PORTFOLIO_DB` | `./portfolio.db` | `server/index.tsx` |
+| `TA_DASHBOARD_PORT` | `3000` | `src/server/index.tsx` (canonical) |
+| `PORT` | `3000` | `src/server/index.tsx` (fallback, for platform deploys like Render/Heroku) |
+| `PORTFOLIO_DB` | `./portfolio.db` | `src/server/index.tsx` |
 | `TRADINGAGENTS_MEMORY_LOG_PATH` | `~/.tradingagents/memory/trading_memory.md` | `tradingagents` package |
 | `TRADINGAGENTS_CACHE_DIR` | `~/.tradingagents/cache` | `tradingagents` package |
-| `HLEDGER_FILE` | `~/.hledger.journal` | `server/lib/hledger.ts`, Justfile |
+| `HLEDGER_FILE` | `~/.hledger.journal` | `src/server/lib/hledger.ts`, Justfile |
 | `TEST_MODE` | `0` | Set to `1` to use `test_portfolio.db` (isolated test environment) |
 | `TEST_PORTFOLIO_DB` | `./test_portfolio.db` | Path to test SQLite DB |
 | `OPENAI_API_KEY` | — | LLM provider |
@@ -260,9 +260,9 @@ in `~/.tradingagents/logs/<TICKER>/<DATE>/`.
 | `OPENROUTER_API_KEY` | — | LLM provider (recommended) |
 | `ALPHA_VANTAGE_API_KEY` | — | Data vendor (optional) |
 
-LLM provider keys are loaded via `dotenv` in both the CLI (`cli/main.py`) and
+LLM provider keys are loaded via `dotenv` in both the CLI (`src/cli/main.py`) and
 the analysis script (`scripts/py/analyze_stream.py`). The Bun server loads `.env`
-for the summarisation endpoint (`server/routes/analyses.ts`).
+for the summarisation endpoint (`src/server/routes/analyses.ts`).
 
 ---
 
@@ -355,7 +355,7 @@ to the client.
 
 ## Not Done / Known Gaps
 
-- [ ] `TA_DASHBOARD_PORT` env var not yet wired in `server/index.tsx` (currently uses `process.env.PORT`, not `process.env.TA_DASHBOARD_PORT`)
+- [x] `TA_DASHBOARD_PORT` env var now wired via `cfg.app.dashboardPort` in `src/server/lib/settings.ts` (canonical: `TA_DASHBOARD_PORT`, fallback: `PORT`)
 - [ ] Port constant `3000` should be exported from a config module, not inline in `index.tsx`
 - [ ] Prices route is a stub (no yfinance subprocess implementation)
 - [ ] No authentication or access control on the dashboard

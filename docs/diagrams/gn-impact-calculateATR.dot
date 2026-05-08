@@ -1,0 +1,17 @@
+digraph "Impact of calculateATR" {
+  rankdir=LR;
+  node [shape=box, fontname="Helvetica", fontsize=10];
+  edge [fontname="Helvetica", fontsize=9, color="#666666"];
+  bgcolor="#fafafa";
+
+  Function_server_lib_trade_calculator_ts_calculateATR [label="calculateATR", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_estimateATR [label="estimateATR", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  Function_server_lib_trade_calculator_ts_calculateTradePlan [label="calculateTradePlan", fillcolor="#4a90d9", style="filled", fontcolor="white", tooltip="Function: trade-calculator.ts"];
+  File_tests_trade_calculator_test_ts [label="trade-calculator.test.ts", fillcolor="#f5f5f5", style="filled", fontcolor="white", tooltip="File: trade-calculator.test.ts"];
+  File_server_lib_trade_calculator_ts [label="trade-calculator.ts", fillcolor="#f5f5f5", style="filled", fontcolor="white", tooltip="File: trade-calculator.ts"];
+
+  Function_server_lib_trade_calculator_ts_calculateATR -> Function_server_lib_trade_calculator_ts_estimateATR;
+  Function_server_lib_trade_calculator_ts_calculateTradePlan -> Function_server_lib_trade_calculator_ts_calculateATR;
+  File_tests_trade_calculator_test_ts -> Function_server_lib_trade_calculator_ts_calculateATR;
+  File_server_lib_trade_calculator_ts -> Function_server_lib_trade_calculator_ts_calculateATR;
+}

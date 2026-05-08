@@ -103,7 +103,7 @@ Full command list: `just --list`
 
 ```
 TradingAgents/
-├── server/                 # Bun/Hono dashboard
+├── src/server/             # Bun/Hono dashboard
 │   ├── index.tsx           # Entry point, routes, graceful shutdown
 │   ├── routes/             # API endpoints (12 modules)
 │   └── views/              # HTMX SSR views (12 .tsx)

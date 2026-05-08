@@ -34,7 +34,6 @@ sqlite.pkg-path = "sqlite"
 # ---- UI + INTERACTION (used by justfile and scripts) ----
 glow.pkg-path = "glow"
 gum.pkg-path = "gum"
-gum.optional = true
 
 # ---- FUZZY FINDER + MODERN UNIX (scripts: briefs-find, etc.) ----
 fzf.pkg-path = "fzf"

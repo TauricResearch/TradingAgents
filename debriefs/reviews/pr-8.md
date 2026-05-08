@@ -1,122 +1,3 @@
-# PR Review Checklist (LLM-generated)
-
-## rule Issue 1: Python tests outside designated Python area
-
-**Severity:** rule
-**Files:** tests/test_server_lib.py:155-170
-
-Pytest tests were added in the `tests/` directory, which might violate project conventions regarding where Python tests should reside.
-
-**Actions:**
-- [ ] Move tests to the TypeScript test suite, OR
-- [ ] Relocate tests to an explicitly allowed Python testing area, OR
-- [ ] Document this exception in AGENTS.md
-
-## bug Issue 2: SQLite REAL values not parsed as numbers
-
-**Severity:** bug
-**Files:** server/lib/intel-compute.ts:78-85, server/lib/intel-compute.ts:111-113, server/lib/intel-compute.ts:165-169
-
-Arithmetic operations are performed on SQLite REAL columns (`avg_cost`, `balance`, etc.) without ensuring they are parsed from strings to floating-point numbers, leading to potential string concatenation instead of correct calculations.
-
-**Actions:**
-- [ ] Add parseFloat() wrapper before all numeric operations on REAL columns in the specified locations.
-- [ ] Verify that schema.sql REAL columns correspond to the fields being parsed.
-
-## bug Issue 3: Duplicated path segments in resultsDir
-
-**Severity:** bug
-**Files:** server/lib/settings.ts:52-59, server/lib/settings.ts:74-93, server/lib/settings.json:4-13, server/routes/analyses-common.ts:6-9
-
-The configuration for `cfg.paths.resultsDir` results in duplicated path segments (e.g., `~/.tradingagents/.tradingagents/logs`) because `taRoot()` appends `.tradingagents` to HOME, while defaults already contain this segment.
-
-**Actions:**
-- [ ] Fix path resolution by either basing `taRoot()` only on `HOME` and keeping defaults as `.tradingagents/logs`, OR basing `taRoot()` on `$HOME/.tradingagents` and changing defaults to relative paths like `logs`.
-- [ ] Add a smoke assertion to verify that `cfg.paths.resultsDir` resolves to the expected, correct path.
-
-## bug Issue 4: FreshnessBadge uses local time for UTC calculation
-
-**Severity:** bug
-**Files:** server/views/holdings.tsx:29-57
-
-The FreshnessBadge logic uses local time getters (`getFullYear`, `getMonth`, `getDate`) inside `Date.UTC()`, reintroducing timezone dependence and potentially causing off-by-one day errors depending on the server's timezone.
-
-**Actions:**
-- [ ] Update the code to use UTC getters: `now.getUTCFullYear()`, `now.getUTCMonth()`, and `now.getUTCDate()`.
-- [ ] Implement validation for `dateStr` using the regex `^\d{4}-\d{2}-\d{2}$` and return a neutral badge ('—') if the input format is invalid.
-
----
-_Generated 2026-05-06T17:47:33.221Z via google/gemini-2.5-flash-lite-preview-09-2025_
-
-
-# PR #8 Review Checklist
-
-Generated from Qodo + CodeRabbit review comments.
-Source: `debriefs/reviews/pr-8.md`
-
----
-
-## 🔴 Issue 1: Python tests in `tests/` (Rule violation)
-
-**Severity:** Rule violation (AGENTS.md compliance)
-**What:** Added pytest tests in `tests/test_server_lib.py` — outside the designated Python boundaries.
-**Where:** `tests/test_server_lib.py[155-170]`
-
-- [ ] **Action:** Either:
-  - Move tests to Bun/TypeScript test suite, OR
-  - Relocate to explicitly allowed Python area (if intended), OR
-  - Document exception in AGENTS.md
-
----
-
-## 🔴 Issue 2: SQLite REAL values not parsed (Correctness bug)
-
-**Severity:** Bug — incorrect calculations
-**What:** `intel-compute.ts` does arithmetic on SQLite REAL columns (`avg_cost`, `balance`, `entry_price`, `stake_per_point`) without `parseFloat()`. SQLite REALs may return as strings.
-**Where:**
-- `server/lib/intel-compute.ts[78-85]` — position cost/value math
-- `server/lib/intel-compute.ts[111-113]` — spread bet notional
-- `server/lib/intel-compute.ts[165-169]` — account aggregation
-
-- [ ] **Action:** Add `parseFloat()` wrapper before all numeric operations on REAL columns.
-- [ ] **Verify:** Check `server/lib/schema.sql` REAL columns match the fields being parsed.
-
----
-
-## 🔴 Issue 3: Misresolved `resultsDir` path (Correctness bug)
-
-**Severity:** Bug — analyses filesystem routes will look in wrong directory
-**What:** `cfg.paths.resultsDir` duplicates path segments. `settings.json` defaults include `.tradingagents/logs` but `settings.ts` `taRoot()` appends `.tradingagents` to HOME, so `resolvePath()` joins them into `~/.tradingagents/.tradingagents/logs`.
-**Where:**
-- `server/lib/settings.ts[52-59]` — `taRoot()` function
-- `server/lib/settings.ts[74-93]` — path resolution
-- `server/lib/settings.json[4-13]` — defaults
-- `server/routes/analyses-common.ts[6-9]` — `resultsDir()`
-
-- [ ] **Action:** Fix path resolution — either:
-  - Base `taRoot()` on `HOME` (not `$HOME/.tradingagents`) and keep defaults as `.tradingagents/logs`, OR
-  - Base `taRoot()` on `$HOME/.tradingagents` and change defaults to `logs`, `positions`, etc.
-- [ ] **Action:** Add smoke assertion that `cfg.paths.resultsDir` resolves correctly.
-
----
-
-## 🔴 Issue 4: FreshnessBadge UTC day mismatch (Correctness bug)
-
-**Severity:** Bug — off-by-one day in freshness indicator
-**What:** Uses `now.getFullYear()` / `getMonth()` / `getDate()` (local) inside `Date.UTC()`, reintroducing timezone dependence. Also no validation of `dateStr` format — malformed input yields NaN.
-**Where:** `server/views/holdings.tsx[29-57]`
-
-- [ ] **Action:** Use UTC getters: `now.getUTCFullYear()`, `getUTCMonth()`, `getUTCDate()`
-- [ ] **Action:** Validate `dateStr` with `^\d{4}-\d{2}-\d{2}$` regex; return neutral badge (`—`) if invalid
-
----
-
-## 📝 Notes
-
-- All 4 issues are from automated review (Qodo). No human reviews yet.
-- Issue 1 may be a false positive — `tests/` is explicitly for Python smoke tests per project convention.
-- Issues 2 and 3 are data/correctness bugs that should be fixed before merge.
-- Issue 4 is a refinement of an already-attempted fix (td-18e84e).
 ## Summary
 
 This PR bundles the codebase hygiene work from the branch. It started as a price-freshness fix and grew into a focused refactoring of shared utilities, configuration, and the portfolio intelligence layer.
@@ -187,6 +68,16 @@ SKIPPED \[1\] tests/test\_server\_lib.py:31: hledger print -j not supported: hle
 
 Closes: td-18e84e, td-bad98e, td-204e30, td-462ccc, td-a4899a, td-02ccec, td-ab38bf, td-56fd1b
 
+## Summary by CodeRabbit
+
+- **New Features**
+	- Portfolio Intelligence Dashboard: Displays accounts, platform allocations, asset class breakdowns, cash management, governance rules, and research queue.
+		- Enhanced currency and numeric formatting throughout the application.
+- **Documentation**
+	- Added workflow patterns guide and development playbook updates.
+- **Chores**
+	- Refactored internal architecture for improved maintainability and added development automation tools.
+
 ---
 
 ## Comments
@@ -197,7 +88,7 @@ Closes: td-18e84e, td-bad98e, td-204e30, td-462ccc, td-a4899a, td-02ccec, td-ab3
 > 
 > ## Rate limit exceeded
 > 
-> `@pjsvis` has exceeded the limit for the number of commits that can be reviewed per hour. Please wait **55 minutes and 46 seconds** before requesting another review.
+> `@pjsvis` has exceeded the limit for the number of commits that can be reviewed per hour. Please wait **57 minutes and 19 seconds** before requesting another review.
 > 
 > To continue reviewing without waiting, purchase usage credits in the [billing tab](https://app.coderabbit.ai/settings/subscription?tab=usage&tenantId=62afbac9-050a-45c6-9d0b-3b42ecfa4f91).
 > 
@@ -223,48 +114,131 @@ Closes: td-18e84e, td-bad98e, td-204e30, td-462ccc, td-a4899a, td-02ccec, td-ab3
 > 
 > **Plan**: Pro
 > 
-> **Run ID**: `afa14b8a-e3e0-43cb-85a5-e170ddd2fd75`
+> **Run ID**: `35468a0c-c1f8-44a0-ad81-b802b97cdac6`
 > 
 > 📥 Commits
 > 
-> Reviewing files that changed from the base of the PR and between [be46eec](https://github.com/pjsvis/TradingAgents/commit/be46eecb6958a8f24a934ac5e9bc421d5241c119) and [6023271](https://github.com/pjsvis/TradingAgents/commit/60232716f53f09c77784b03abe7a9049d00da4bf).
+> Reviewing files that changed from the base of the PR and between [62108d6](https://github.com/pjsvis/TradingAgents/commit/62108d6205b43f118c87ab65e0059016cb925d6e) and [99a8f3f](https://github.com/pjsvis/TradingAgents/commit/99a8f3fbdf317d11d414f8691e2094e8c91426f9).
 > 
-> 📒 Files selected for processing (35)
-> - `debriefs/handoff-next-session.md`
-> - `debriefs/plans/current.md`
-> - `debriefs/reviews/pr-8-2026-05-06.md`
-> - `scripts/pr-fetch-all.sh`
-> - `server/index.tsx`
-> - `server/lib/benchmark-data.ts`
-> - `server/lib/benchmark.ts`
-> - `server/lib/exits-data.ts`
-> - `server/lib/feedback-data.ts`
-> - `server/lib/intel-compute.ts`
-> - `server/lib/intel-prices.ts`
-> - `server/lib/intel-types.ts`
-> - `server/lib/markup.ts`
-> - `server/lib/portfolio-data.ts`
-> - `server/lib/portfolio-intel-data.ts`
-> - `server/lib/signals-data.ts`
-> - `server/lib/utils.ts`
-> - `server/lib/workflow-data.ts`
-> - `server/routes/analyses-common.ts`
-> - `server/routes/analyses-fs.ts`
-> - `server/routes/benchmark.tsx`
-> - `server/routes/prices.ts`
-> - `server/views/holdings.tsx`
-> - `server/views/partials/intel-accounts.tsx`
-> - `server/views/partials/intel-allocation.tsx`
-> - `server/views/partials/intel-asset-class.tsx`
-> - `server/views/partials/intel-cash.tsx`
-> - `server/views/partials/intel-governance.tsx`
-> - `server/views/partials/intel-hero.tsx`
-> - `server/views/partials/intel-platforms.tsx`
-> - `server/views/partials/intel-research.tsx`
-> - `server/views/partials/intel-spreadbets.tsx`
-> - `server/views/portfolio-intel.tsx`
-> - `server/views/portfolio-summary.tsx`
-> - `tests/test_server_lib.py`
+> 📒 Files selected for processing (8)
+> - `brew.txt`
+> - `briefs/epic-debate-mechanism-investigation.md`
+> - `briefs/upstream-issue-debate-state-logging.md`
+> - `debriefs/debrief-session-2026-05-06-hygiene.md`
+> - `docs/tidy-first-philosophy.md`
+> - `flox.toml`
+> - `scripts/lib/llm.ts`
+> - `tradingagents/graph/trading_graph.py`
+> 
+> 📝 Walkthrough
+> 
+> ## Walkthrough
+> 
+> This PR introduces a comprehensive portfolio intelligence system with ticker classification, P&L computation, and multi-layered UI views. Supporting changes include extracting a shared `findProjectRoot` utility, refactoring database initialization via `DatabaseFactory`, and adding operational tooling for cached PR review analysis.
+> 
+> ## Changes
+> 
+> **Portfolio Intelligence System**
+> 
+> | Layer / File(s) | Summary |
+> | --- | --- |
+> | **Type Definitions**   `server/lib/intel-types.ts` | Introduces 14 new interfaces for portfolio data: accounts, positions, spread bets, watchlist items, valuations, allocations, and the `PortfolioIntel` aggregate. Adds `ALLOCATION_TARGETS` constant. |
+> | **Price Fetching**   `server/lib/intel-prices.ts` | New module that fetches live prices for multiple tickers via Python script, with in-memory caching expiring at end-of-day. Returns a `Map<string, PriceResult>`. |
+> | **Core Intelligence Computation**   `server/lib/intel-compute.ts` | Implements `classifyTicker` (etf/crypto/equity) and main `computePortfolioIntelligence()` function that orchestrates data aggregation (accounts, positions, spreads, watchlist), applies live prices in GBP, computes P&L, allocations, and governance violations/rebalance suggestions. |
+> | **Data Module Refactoring**   `server/lib/portfolio-intel-data.ts` | Converts to a barrel module re-exporting functions and types from `intel-compute.ts`, `intel-prices.ts`, and `intel-types.ts`. |
+> | **Shared Markup Helpers**   `server/lib/markup.ts` | New utility module with `esc`, `fmt`, `fmtCommas`, `fmtGBP` formatters for use across views. |
+> | **Utility Extraction**   `server/lib/utils.ts`, `server/lib/benchmark-data.ts`, `server/lib/benchmark.ts`, `server/lib/exits-data.ts`, `server/lib/feedback-data.ts`, `server/lib/signals-data.ts`, `server/lib/workflow-data.ts`, `server/lib/portfolio-data.ts`, `server/routes/prices.ts` | Extract shared `findProjectRoot()` helper to `server/lib/utils.ts`; multiple modules updated to import rather than define locally. |
+> | **Configuration Integration**   `server/index.tsx`, `server/routes/analyses-common.ts`, `server/routes/analyses-fs.ts`, `server/routes/benchmark.tsx` | Routes and entry point now use centralized `cfg` settings for test mode, API keys, paths, and ticker defaults instead of environment variables. |
+> | **Database Factory Adoption**   `scripts/seed_database.ts`, `scripts/sync-prices.ts`, `scripts/summarize_analyses.ts`, `server/index.tsx` | Refactor all database initialization and access to use `DatabaseFactory.connect()` and `DatabaseFactory.get()` for centralized DB lifecycle management. |
+> | **Portfolio View Components**   `server/views/partials/intel-hero.tsx`, `server/views/partials/intel-accounts.tsx`, `server/views/partials/intel-allocation.tsx`, `server/views/partials/intel-asset-class.tsx`, `server/views/partials/intel-cash.tsx`, `server/views/partials/intel-governance.tsx`, `server/views/partials/intel-platforms.tsx`, `server/views/partials/intel-research.tsx`, `server/views/partials/intel-spreadbets.tsx` | Nine new TSX partial components render portfolio metrics, account summaries, allocations, cash breakdown, governance status, platform/asset-class breakdowns, watchlist, and spread bets. |
+> | **Main Portfolio View Refactoring**   `server/views/portfolio-intel.tsx` | Refactored from monolithic (~650 lines) to a composition of imported partials; maintains same public signature. |
+> | **Holdings View Updates**   `server/views/holdings.tsx`, `server/views/portfolio-summary.tsx` | Apply new `fmtGBP` formatting, fix timezone-safe date diffs for freshness badge, move shared `esc`/`fmt` helpers to markup module. |
+> | **Test Coverage**   `tests/test_server_lib.py` | Add tests verifying `utils.ts` exports `findProjectRoot` and `markup.ts` exports `esc`, `fmt`, `fmtGBP`. Add test validating views reference external scripts via `/static/scripts` when available. |
+> 
+> ---
+> 
+> **PR Review Cache Infrastructure**
+> 
+> | Layer / File(s) | Summary |
+> | --- | --- |
+> | **LLM Substrate**   `scripts/lib/llm.ts` | New shared OpenRouter LLM client with configurable model, temperature, max tokens, and optional headers. Loads `.env` and abstracts away API plumbing. |
+> | **Bash Fetch Script**   `scripts/pr-fetch-all.sh` | Fetches open PRs from GitHub CLI and converts each to markdown via defuddle, persisting to `debriefs/reviews/pr-<num>.md`. |
+> | **PR Summarizer**   `scripts/pr-summarize.ts` | Reads cached PR markdown, invokes LLM to extract actionable issues by severity, formats into a checklist in Markdown, optionally writing back to the review file. |
+> | **LLM Playbook Refactor**   `scripts/refactor-playbook.ts` | New utility to refactor war-story markdown playbooks into prescriptive format via LLM, with optional backup and output redirection. |
+> | **Database Usage Gate**   `scripts/check-database-usage.ts` | New enforcer script scanning `.ts`/`.tsx`/`.js` files for raw `new Database()` calls outside `server/lib/db.ts`, reporting violations with file/line and guiding to use `DatabaseFactory`. |
+> | **Tooling Integration**   `justfile` | Add new `pr` group with commands: `prs` (list), `pr-fetch NUM`, `pr-fetch-all`, `pr-summarize NUM`. Extend type-check lint to run database usage check. |
+> | **Operational Context**   `.gitignore`, `.pi/defuddle-log.jsonl`, `debriefs/handoff-next-session.md`, `debriefs/plans/current.md`, `debriefs/reviews/pr-8.md`, `docs/workflow-patterns.md`, `playbooks/htmx-playbook.md` | Track `.gitignore` negation for scripts/lib/, log PR processing, document session handoff and planning, add PR review checklist example, refactor HTMX playbook from war-story to prescriptive multi-section handbook with validation suite. |
+> 
+> ---
+> 
+> ## Sequence Diagram(s)
+> 
+> sequenceDiagram
+>     participant Client as Client/Dashboard
+>     participant Route as Route Handler
+>     participant DataLayer as Data Layer<br/>(portfolio-intel-data)
+>     participant Compute as Intel Compute<br/>(intel-compute.ts)
+>     participant Prices as Price Fetcher<br/>(intel-prices.ts)
+>     participant DB as SQLite DB
+> 
+>     Client->>Route: GET /portfolio-intel
+>     Route->>DataLayer: computePortfolioIntelligence()
+>     DataLayer->>Compute: computePortfolioIntelligence()
+>     Compute->>DB: Load accounts, positions,<br/>spread bets, watchlist
+>     DB-->>Compute: Account/Position data
+>     Compute->>Prices: fetchPrices(tickers)
+>     Prices-->>Compute: Live prices in GBP
+>     Compute->>DB: Load governance rules
+>     Compute->>Compute: Aggregate valuations,<br/>P&L, allocations,<br/>check violations
+>     Compute-->>DataLayer: PortfolioIntel object
+>     DataLayer-->>Route: PortfolioIntel
+>     Route->>Route: Render portfolio-intel.tsx<br/>with partials
+>     Route-->>Client: HTML (hero, accounts,<br/>platforms, allocations,<br/>governance, etc.)
+> 
+> Loading
+> 
+> ---
+> 
+> ## Estimated code review effort
+> 
+> 🎯 4 (Complex) | ⏱️ ~60 minutes
+> 
+> ---
+> 
+> ## Possibly related PRs
+> 
+> - [pjsvis/TradingAgents#6](https://github.com/pjsvis/TradingAgents/pull/6): Related to dashboard and pricing stack changes affecting scripts/sync-prices.ts, scripts/seed\_database.ts, server/views/holdings.tsx, and schema/cache modules.
+> 
+> ---
+> 
+> ## Poem
+> 
+> > 🐰 *A rabbit's ode to new sight:*
+> > 
+> > *Portfolio glows with fresh-minted light,*  
+> > *Prices and positions now dance in UTC,*  
+> > *From chaos of env, a Config set free—*  
+> > *Intelligence blooms where data takes flight,*  
+> > *GBP accounts for gold and for plight! ✨*
+> 
+> 🚥 Pre-merge checks | ✅ 4 | ❌ 1
+> 
+> ### ❌ Failed checks (1 warning)
+> 
+> | Check name | Status | Explanation | Resolution |
+> | --- | --- | --- | --- |
+> | Docstring Coverage | ⚠️ Warning | Docstring coverage is 50.82% which is insufficient. The required threshold is 80.00%. | Write docstrings for the functions missing them to satisfy the coverage threshold. |
+> 
+> ✅ Passed checks (4 passed)
+> 
+> | Check name | Status | Explanation |
+> | --- | --- | --- |
+> | Description Check | ✅ Passed | Check skipped - CodeRabbit’s high-level summary is enabled. |
+> | Title check | ✅ Passed | The title accurately captures the main theme of the PR: refactoring for code hygiene by extracting shared utilities, view helpers, centralizing environment configuration, and splitting the portfolio intelligence modules. |
+> | Linked Issues check | ✅ Passed | Check skipped because no linked issues were found for this pull request. |
+> | Out of Scope Changes check | ✅ Passed | Check skipped because no linked issues were found for this pull request. |
+> 
+> <sub>✏️ Tip: You can configure your own custom pre-merge checks in the settings.</sub>
 > 
 > ✨ Finishing Touches 🧪 Generate unit tests (beta)
 > - [ ] Create PR with unit tests
@@ -1016,3 +990,990 @@ Closes: td-18e84e, td-bad98e, td-204e30, td-462ccc, td-a4899a, td-02ccec, td-ab3
 > **ⓘ You are approaching your monthly quota for Qodo.** [Upgrade your plan](https://www.qodo.ai/pricing)
 > 
 > [![Qodo Logo](https://camo.githubusercontent.com/98e72c9f6ad8add65bbdbbc11db4c98390935df31403537ee3f8ab634ce1d5b8/68747470733a2f2f7777772e716f646f2e61692f77702d636f6e74656e742f75706c6f6164732f323032352f30332f716f646f2d6c6f676f2e737667)](https://www.qodo.ai/)
+
+> **coderabbitai** ·
+> 
+> **Actionable comments posted: 16**
+> 
+> 🧹 Nitpick comments (5)
+> 
+> > server/lib/utils.ts (1)
+> > 
+> > > `7-8`: *⚡ Quick win*
+> > > 
+> > > **Dead conditional — both branches return the same value.**
+> > > 
+> > > Lines 7 and 8 are identical in effect: whether or not `projectRoot` contains `"TradingAgents"`, the function returns `projectRoot`. The `if` guard is dead code and implies a validation or branching logic that does not actually exist.
+> > > 
+> > > The original per-file implementations that were consolidated here likely had a meaningful else-branch (a different fallback path, an error throw, or a secondary resolution strategy). That logic appears to have been silently dropped.
+> > > 
+> > > Either simplify to a direct return, or restore the intended fallback:
+> > > 
+> > > ♻️ Proposed fix — remove dead conditional
+> > > ```diff
+> > > export function findProjectRoot(): string {
+> > >    if (process.env.TA_ROOT) return process.env.TA_ROOT
+> > >    const projectRoot = dirname(dirname(import.meta.dir))
+> > > -  if (projectRoot.includes("TradingAgents")) return projectRoot
+> > >    return projectRoot
+> > >  }
+> > > ```
+> > > 
+> > > Or, if the original intent was to throw when not in the expected directory:
+> > > 
+> > > ```diff
+> > > export function findProjectRoot(): string {
+> > >    if (process.env.TA_ROOT) return process.env.TA_ROOT
+> > >    const projectRoot = dirname(dirname(import.meta.dir))
+> > > -  if (projectRoot.includes("TradingAgents")) return projectRoot
+> > > -  return projectRoot
+> > > +  if (!projectRoot.includes("TradingAgents")) {
+> > > +    throw new Error(\`findProjectRoot: unexpected path "${projectRoot}" — set TA_ROOT to override\`)
+> > > +  }
+> > > +  return projectRoot
+> > >  }
+> > > ```
+> > > 🤖 Prompt for AI Agents
+> > > 
+> > > ```
+> > > Verify each finding against current code. Fix only still-valid issues, skip the
+> > > rest with a brief reason, keep changes minimal, and validate.
+> > > 
+> > > In \`@server/lib/utils.ts\` around lines 7 - 8, The conditional checking
+> > > projectRoot.includes("TradingAgents") is dead — both branches return
+> > > projectRoot; remove the redundant if and simplify the function to directly
+> > > return projectRoot (or, if intended, restore the original fallback/error
+> > > behavior instead of returning unconditionally); locate the check referencing
+> > > projectRoot and the includes("TradingAgents") call in server/lib/utils.ts and
+> > > either delete that if block and return projectRoot, or reintroduce the original
+> > > else-branch (throw or alternate resolution) if that was the intended behavior.
+> > > ```
+> > server/views/partials/intel-allocation.tsx (1)
+> > 
+> > > `11-28`: *⚡ Quick win*
+> > > 
+> > > **Use the Datatype bar-chart format here instead of bespoke `<div>` bars.**
+> > > 
+> > > This is rendering a bar chart manually, but the server view guidelines standardize chart output on the Datatype `{b:values}` encoding. Keeping this on the shared chart format will make the new partial consistent with the rest of the SSR dashboard.
+> > > 
+> > > As per coding guidelines, "Three chart types using Datatype font: `{l:values}` sparkline, `{b:values}` bar chart, `{p:value}` pie chart".
+> > > 
+> > > 🤖 Prompt for AI Agents
+> > > 
+> > > ```
+> > > Verify each finding against current code. Fix only still-valid issues, skip the
+> > > rest with a brief reason, keep changes minimal, and validate.
+> > > 
+> > > In \`@server/views/partials/intel-allocation.tsx\` around lines 11 - 28, Replace the
+> > > manual div-based bar rendering in the intel-allocation partial with the
+> > > standardized Datatype bar-chart encoding: instead of mapping buckets into inline
+> > > div bars (code referencing buckets and properties actual_pct, target_pct, label,
+> > > color), produce a single \`{b:values}\` Datatype string constructed from the
+> > > buckets' actual_pct values (and preserve color order if needed by encoding
+> > > colors alongside values according to the Datatype spec), and keep the legend
+> > > lines but switch their small color swatches to plain inline elements that match
+> > > the Datatype output; update the title/tooltip generation to derive from the same
+> > > buckets (label, actual_pct, target_pct) so the new \`{b:...}\` chart replaces the
+> > > bespoke bars while preserving labels and tooltips.
+> > > ```
+> > server/views/partials/intel-asset-class.tsx (1)
+> > 
+> > > `21-47`: *⚡ Quick win*
+> > > 
+> > > **Use the Datatype bar-chart encoding for the asset-class visualization.**
+> > > 
+> > > This partial is also hand-building a bar chart with styled `div`s. The view layer guidelines standardize chart rendering on the Datatype `{b:values}` format, so this should follow the same convention as the rest of the dashboard.
+> > > 
+> > > As per coding guidelines, "Three chart types using Datatype font: `{l:values}` sparkline, `{b:values}` bar chart, `{p:value}` pie chart".
+> > > 
+> > > 🤖 Prompt for AI Agents
+> > > 
+> > > ```
+> > > Verify each finding against current code. Fix only still-valid issues, skip the
+> > > rest with a brief reason, keep changes minimal, and validate.
+> > > 
+> > > In \`@server/views/partials/intel-asset-class.tsx\` around lines 21 - 47, The
+> > > current JSX in the intel-asset-class partial manually builds a bar chart using
+> > > <div>s (looping over assetClasses, computing w and color, using ASSET_COLORS) —
+> > > replace this with the standardized Datatype bar-chart encoding \`{b:values}\`:
+> > > construct the values string from assetClasses (e.g., percentage ints or raw GBP
+> > > values as required) and pass that single Datatype string into the view instead
+> > > of rendering the allocation-bar <div> blocks; preserve labels/tooltip data by
+> > > keeping the existing mapping logic (assetClasses, ASSET_COLORS) but emit the
+> > > condensed \`{b:...}\` payload and the small legend row separately using the same
+> > > color lookup so styling and tooltips remain consistent.
+> > > ```
+> > server/views/portfolio-intel.tsx (1)
+> > 
+> > > `3-3`: *⚡ Quick win*
+> > > 
+> > > **Prefer importing `PortfolioIntel` from the canonical types module.**
+> > > 
+> > > Use `../lib/intel-types.ts` directly here instead of the backward-compat barrel to keep module boundaries explicit.
+> > > 
+> > > Suggested diff
+> > > ```diff
+> > > -import type { PortfolioIntel } from "../lib/portfolio-intel-data.ts"
+> > > +import type { PortfolioIntel } from "../lib/intel-types.ts"
+> > > ```
+> > > 🤖 Prompt for AI Agents
+> > > 
+> > > ```
+> > > Verify each finding against current code. Fix only still-valid issues, skip the
+> > > rest with a brief reason, keep changes minimal, and validate.
+> > > 
+> > > In \`@server/views/portfolio-intel.tsx\` at line 3, Replace the import of the
+> > > PortfolioIntel type from the backward-compat barrel
+> > > "../lib/portfolio-intel-data.ts" with the canonical types module
+> > > "../lib/intel-types.ts"; update the import statement that currently references
+> > > PortfolioIntel so it imports from "../lib/intel-types.ts" (leave all usages of
+> > > the PortfolioIntel symbol in the file unchanged).
+> > > ```
+> > server/views/partials/intel-hero.tsx (1)
+> > 
+> > > `3-3`: *⚡ Quick win*
+> > > 
+> > > **Import types from the canonical module rather than the backward-compat barrel.**
+> > > 
+> > > The PR splits `portfolio-intel-data.ts` into focused modules and keeps it only as a backward-compat barrel; new code should import directly from `server/lib/intel-types.ts`. The same pattern occurs in `intel-platforms.tsx`, `intel-accounts.tsx`, and `intel-spreadbets.tsx` — applying this consistently keeps the barrel free of new dependents and makes the eventual deprecation a no-op.
+> > > 
+> > > ♻️ Proposed change
+> > > ```diff
+> > > -import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+> > > +import type { PortfolioIntel } from "../../lib/intel-types.ts"
+> > >  import { fmtCommas } from "../../lib/markup.ts"
+> > > ```
+> > > 
+> > > > Note: The AI summary for this file (and the three sibling partials) claims the import resolves to `server/lib/intel-types.ts`, while the actual code imports from `server/lib/portfolio-intel-data.ts`.
+> > > 
+> > > 🤖 Prompt for AI Agents
+> > > 
+> > > ```
+> > > Verify each finding against current code. Fix only still-valid issues, skip the
+> > > rest with a brief reason, keep changes minimal, and validate.
+> > > 
+> > > In \`@server/views/partials/intel-hero.tsx\` at line 3, The import in intel-hero.tsx
+> > > currently pulls the PortfolioIntel type from the backward-compat barrel
+> > > (PortfolioIntel from "server/lib/portfolio-intel-data.ts"); update the import to
+> > > reference the canonical module "server/lib/intel-types.ts" instead and do the
+> > > same for the other sibling partials (intel-platforms.tsx, intel-accounts.tsx,
+> > > intel-spreadbets.tsx) so new code depends on the focused intel-types module;
+> > > look for uses of the PortfolioIntel type and adjust only the import source,
+> > > leaving the symbol name unchanged.
+> > > ```
+> 🤖 Prompt for all review comments with AI agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> Inline comments:
+> In \`@justfile\`:
+> - Around line 358-365: The pr-fetch NUM recipe currently writes directly to
+> pr-{{NUM}}.md which can leave a truncated/empty cache if defuddle fails; change
+> the recipe to write output to a temporary file (e.g., created with mktemp in the
+> same debriefs/reviews directory) and only mv the temp to the final path
+> ("pr-{{NUM}}.md") after defuddle exits successfully to make the write atomic;
+> ensure the temp is created inside debriefs/reviews (so mv is atomic on the same
+> filesystem) and clean up the temp on error (use trap or conditional rm) while
+> keeping existing mkdir -p and the same url/file variables and defuddle
+> invocation (replace the direct redirection line defuddle parse --markdown "$url"
+> > "$file" with the temp-write-and-mv flow).
+> 
+> In \`@playbooks/htmx-playbook.md\`:
+> - Line 253: Remove the stray unlabeled fenced-code opener found at the end of
+> playbooks/htmx-playbook.md (the lone \`\`\` shown in the diff); delete that
+> trailing backtick fence (or replace it with a properly labeled fenced-code block
+> if you intended to include code) so the markdown no longer has an unclosed code
+> fence that triggers MD040 and breaks rendering.
+> 
+> In \`@scripts/check-database-usage.ts\`:
+> - Around line 45-47: The current detector uses code.indexOf("new Database(")
+> which misses cases like "new Database ("; update the check in the loop to use a
+> whitespace-tolerant regex (e.g., search/test for /\bnew\s+Database\s*\(/)
+> instead of indexOf so variable code and idx logic still short-circuits when no
+> match is found; ensure you replace the idx assignment and the subsequent
+> continue condition to use the regex match result so lines with arbitrary spacing
+> around "new" and "Database" are caught.
+> 
+> In \`@scripts/lib/llm.ts\`:
+> - Around line 69-78: The outbound fetch to API_URL can hang indefinitely; wrap
+> the request with an AbortController and a timeout (e.g., REQUEST_TIMEOUT_MS
+> constant) by passing controller.signal into fetch, start a setTimeout that calls
+> controller.abort() after the timeout, and clear that timer when the fetch
+> resolves; in the catch branch detect an abort (error.name === 'AbortError') and
+> throw/surface a timeout-specific error message like "OpenRouter request timed
+> out after Xms" so callers of this helper (the code using API_URL, headers,
+> messages, opts, DEFAULT_MODEL) can handle timeout cases explicitly.
+> 
+> In \`@scripts/pr-fetch-all.sh\`:
+> - Around line 15-17: The script silently truncates results because gh pr list
+> uses a hardcoded --limit 20; update the logic around the gh pr list invocation
+> to avoid silent drops by either removing the --limit 20 (or making it
+> configurable via an env var like PR_LIMIT) or adding a guard that detects when
+> the returned PR count equals the cap and emits a visible warning; refer to the
+> gh pr list invocation and the --limit 20 token in the script to locate and
+> change this behavior and ensure any warning mentions REPO and the applied limit
+> so callers know why results may be incomplete.
+> 
+> In \`@scripts/pr-summarize.ts\`:
+> - Around line 21-23: The severity values are inconsistent between the model
+> prompt and your renderer: PrIssue.severity and toChecklist() expect emoji values
+> ("🔴","🟡","📘") but the prompt asks for "bug"/"warning"/"rule", causing wrong
+> headings. Fix by normalizing severities in one place: either update the model
+> prompt to request the emoji tokens ("🔴","🟡","📘") so the parsed PrIssue
+> objects already match, or add a normalization step after parsing (e.g., a
+> mapSeverity function used where you parse the model response and before
+> toChecklist()) that maps "bug"→"🔴","warning"→"🟡","rule"→"📘", and ensure
+> toChecklist() consumes PrIssue.severity (the interface PrIssue and the
+> toChecklist() function) consistently.
+> - Around line 136-145: In the write branches (when writeMode is true and when
+> outputArg is set) ensure Bun.write is awaited so the file write completes before
+> logging success: in the block using writeMode/prFile/existing/combined and the
+> block using outputArg/outFile/checklist, change the Bun.write(...) calls to
+> await Bun.write(...) and keep the subsequent console.log lines to report success
+> only after the await.
+> 
+> In \`@scripts/seed_database.ts\`:
+> - Around line 1307-1328: The current migration blocks around the db.exec calls
+> for ALTER TABLE and CREATE INDEX (the three places adding stage, account_id, and
+> idx_positions_account) swallow all errors; change each catch to inspect the
+> thrown error (e.g. capture the exception in the catch block) and only suppress
+> it when it clearly indicates a duplicate column/index (match messages like
+> "duplicate column name", "already exists" or similar, case-insensitive); for any
+> other error rethrow so failures (DB locked, corrupted, syntax issues) aren’t
+> hidden. Ensure you apply this pattern to the ALTER TABLE for watchlist (stage),
+> ALTER TABLE for positions (account_id) and CREATE INDEX idx_positions_account.
+> 
+> In \`@server/lib/intel-compute.ts\`:
+> - Around line 34-47: The SQLite REAL columns are not being parsed to numbers, so
+> fields like balance, quantity, avg_cost, stake_per_point, entry_price, etc. may
+> be strings and will break arithmetic; update the code that builds accounts,
+> dbPositions, and dbBets (the accounts map creation, the db.query results for
+> positions and spreadbet_positions) to parseFloat() these REAL fields immediately
+> after the query and before constructing DbAccount/DbPosition/DbSpreadBet objects
+> (e.g., convert account.balance, position.quantity, position.avg_cost,
+> bet.stake_per_point, bet.entry_price) so all numeric arithmetic uses actual
+> numbers.
+> - Around line 242-253: The payload can expose negative percentage values
+> (cash_pct and bucket.actual_pct) which are used directly as CSS widths; update
+> the calculations in server/lib/intel-compute.ts to clamp percentages to a
+> non-negative value (e.g., wrap Math.round(...)/100 results with Math.max(0,
+> ...)) for actual.cash_pct and for each bucket's actual_pct (and any other pct
+> fields derived from cashGbp/cashPct) so AllocationBarSection never receives a
+> negative width; reference the \`actual\` object fields (\`cash_pct\`,
+> \`spreadbet_pct\`, \`deployed_pct\`) and the bucket entries (\`bucket.actual_pct\`,
+> \`value_gbp\`) when applying the clamp.
+> - Around line 198-205: The loop assigning accountId currently defaults all null
+> p.account_id to "ig-isa" for test or "ig-shares" otherwise, which ignores your
+> earlier platform->account mapping; change the fallback to consult the existing
+> platform mapping (the variable you defined earlier, e.g., platformAccountMap or
+> platformMapping) when p.account_id is null: if p.account_id use it, else if
+> p.platform === "test" use "ig-isa", else if platformMapping[p.platform] use that
+> mapped account id, and only as a final fallback use "ig-shares"; keep updating
+> accountValues.get(accountId).deployed_gbp and .positions as before.
+> 
+> In \`@server/lib/intel-prices.ts\`:
+> - Around line 9-12: The cache lookup in priceCache (variable cached) only
+> returns cached.price and hardcodes currency:"USD", causing wrong FX when
+> original quote currency differed; update the caching logic to store and return
+> the original currency alongside price (e.g., add cached.currency and use it in
+> the return), or if currency is unknown skip the cache hit and proceed to fetch;
+> ensure the same fix is applied to the other cache-return block referenced around
+> lines 27-30 (same cached/currency handling).
+> 
+> In \`@server/lib/markup.ts\`:
+> - Around line 26-30: fmtGBP currently returns a raw toFixed string (e.g.
+> "£1234567.89") and lacks thousand separators; update fmtGBP to reuse the
+> existing fmtCommas helper (or replace both formatters with a single
+> Intl.NumberFormat-based implementation) so the numeric portion is formatted with
+> commas while preserving the currency symbol, decimal precision parameter (dec)
+> and the null/NaN em-dash behavior; locate and change the fmtGBP function in
+> markup.ts to call fmtCommas on the fixed-decimal number (or use
+> Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP',
+> minimumFractionDigits: dec, maximumFractionDigits: dec }) and return the
+> formatted string) so holdings.tsx displays readable GBP values.
+> 
+> In \`@server/views/partials/intel-hero.tsx\`:
+> - Around line 9-14: JSX text contains Unicode escape sequences (e.g., "\u00a3"
+> and "\u26a0\ufe0f") that render literally instead of as symbols; update the
+> occurrences in server/views/partials/intel-hero.tsx (lines ~11,18,23,33) and
+> server/views/partials/intel-platforms.tsx (lines ~29,35) to use actual
+> characters or safe JSX expressions. Replace each escape like "\u00a3" with the
+> literal "£" or {"\u00a3"} or an HTML entity (&pound;), and replace
+> "\u26a0\ufe0f" with "⚠️" or {"\u26a0\ufe0f"} (or corresponding numeric entities)
+> so the banner text (and other strings in the IntelHero component/JSX) displays
+> the intended symbols consistently with intel-accounts.tsx and
+> intel-spreadbets.tsx.
+> 
+> In \`@server/views/partials/intel-spreadbets.tsx\`:
+> - Around line 46-48: The P&L rendering currently concatenates the sign before
+> the currency symbol which yields "£-1,234.56" for negatives; update the
+> rendering logic in the JSX where pnlCls and b.pnl_gbp are used so the negative
+> sign appears before the currency symbol (e.g., produce "-£1,234.56") — either
+> compute a separate sign variable from b.pnl_gbp and prepend it before "£" or
+> replace the manual concat with a GBP-aware formatter that takes b.pnl_gbp and
+> returns a correctly signed string; ensure fmtCommas is used only for absolute
+> value formatting or removed if the formatter handles commas.
+> 
+> In \`@tests/test_server_lib.py\`:
+> - Around line 169-170: The test currently asserts exports for "esc", "fmt", and
+> "fmtGBP" but misses the newly added "fmtCommas"; update the assertion to include
+> "fmtCommas" (e.g., add "fmtCommas" to the list iterated over or add a separate
+> assert) so the test checks for export of fmtCommas from markup.ts alongside esc,
+> fmt, and fmtGBP.
+> 
+> ---
+> 
+> Nitpick comments:
+> In \`@server/lib/utils.ts\`:
+> - Around line 7-8: The conditional checking
+> projectRoot.includes("TradingAgents") is dead — both branches return
+> projectRoot; remove the redundant if and simplify the function to directly
+> return projectRoot (or, if intended, restore the original fallback/error
+> behavior instead of returning unconditionally); locate the check referencing
+> projectRoot and the includes("TradingAgents") call in server/lib/utils.ts and
+> either delete that if block and return projectRoot, or reintroduce the original
+> else-branch (throw or alternate resolution) if that was the intended behavior.
+> 
+> In \`@server/views/partials/intel-allocation.tsx\`:
+> - Around line 11-28: Replace the manual div-based bar rendering in the
+> intel-allocation partial with the standardized Datatype bar-chart encoding:
+> instead of mapping buckets into inline div bars (code referencing buckets and
+> properties actual_pct, target_pct, label, color), produce a single \`{b:values}\`
+> Datatype string constructed from the buckets' actual_pct values (and preserve
+> color order if needed by encoding colors alongside values according to the
+> Datatype spec), and keep the legend lines but switch their small color swatches
+> to plain inline elements that match the Datatype output; update the
+> title/tooltip generation to derive from the same buckets (label, actual_pct,
+> target_pct) so the new \`{b:...}\` chart replaces the bespoke bars while
+> preserving labels and tooltips.
+> 
+> In \`@server/views/partials/intel-asset-class.tsx\`:
+> - Around line 21-47: The current JSX in the intel-asset-class partial manually
+> builds a bar chart using <div>s (looping over assetClasses, computing w and
+> color, using ASSET_COLORS) — replace this with the standardized Datatype
+> bar-chart encoding \`{b:values}\`: construct the values string from assetClasses
+> (e.g., percentage ints or raw GBP values as required) and pass that single
+> Datatype string into the view instead of rendering the allocation-bar <div>
+> blocks; preserve labels/tooltip data by keeping the existing mapping logic
+> (assetClasses, ASSET_COLORS) but emit the condensed \`{b:...}\` payload and the
+> small legend row separately using the same color lookup so styling and tooltips
+> remain consistent.
+> 
+> In \`@server/views/partials/intel-hero.tsx\`:
+> - Line 3: The import in intel-hero.tsx currently pulls the PortfolioIntel type
+> from the backward-compat barrel (PortfolioIntel from
+> "server/lib/portfolio-intel-data.ts"); update the import to reference the
+> canonical module "server/lib/intel-types.ts" instead and do the same for the
+> other sibling partials (intel-platforms.tsx, intel-accounts.tsx,
+> intel-spreadbets.tsx) so new code depends on the focused intel-types module;
+> look for uses of the PortfolioIntel type and adjust only the import source,
+> leaving the symbol name unchanged.
+> 
+> In \`@server/views/portfolio-intel.tsx\`:
+> - Line 3: Replace the import of the PortfolioIntel type from the backward-compat
+> barrel "../lib/portfolio-intel-data.ts" with the canonical types module
+> "../lib/intel-types.ts"; update the import statement that currently references
+> PortfolioIntel so it imports from "../lib/intel-types.ts" (leave all usages of
+> the PortfolioIntel symbol in the file unchanged).
+> ```
+> 🪄 Autofix (Beta)
+> 
+> Fix all unresolved CodeRabbit comments on this PR:
+> 
+> - [ ] Push a commit to this branch (recommended)
+> - [ ] Create a new PR with the fixes
+> 
+> ---
+> 
+> ℹ️ Review info ⚙️ Run configuration
+> 
+> **Configuration used**: defaults
+> 
+> **Review profile**: CHILL
+> 
+> **Plan**: Pro
+> 
+> **Run ID**: `582de056-9f52-4683-98c9-e880f73adbb1`
+> 
+> 📥 Commits
+> 
+> Reviewing files that changed from the base of the PR and between [be46eec](https://github.com/pjsvis/TradingAgents/commit/be46eecb6958a8f24a934ac5e9bc421d5241c119) and [62108d6](https://github.com/pjsvis/TradingAgents/commit/62108d6205b43f118c87ab65e0059016cb925d6e).
+> 
+> 📒 Files selected for processing (47)
+> - `.gitignore`
+> - `.pi/defuddle-log.jsonl`
+> - `debriefs/handoff-next-session.md`
+> - `debriefs/plans/current.md`
+> - `debriefs/reviews/pr-8.md`
+> - `docs/workflow-patterns.md`
+> - `justfile`
+> - `playbooks/htmx-playbook.md`
+> - `scripts/check-database-usage.ts`
+> - `scripts/lib/llm.ts`
+> - `scripts/pr-fetch-all.sh`
+> - `scripts/pr-summarize.ts`
+> - `scripts/refactor-playbook.ts`
+> - `scripts/seed_database.ts`
+> - `scripts/summarize_analyses.ts`
+> - `scripts/sync-prices.ts`
+> - `server/index.tsx`
+> - `server/lib/benchmark-data.ts`
+> - `server/lib/benchmark.ts`
+> - `server/lib/exits-data.ts`
+> - `server/lib/feedback-data.ts`
+> - `server/lib/intel-compute.ts`
+> - `server/lib/intel-prices.ts`
+> - `server/lib/intel-types.ts`
+> - `server/lib/markup.ts`
+> - `server/lib/portfolio-data.ts`
+> - `server/lib/portfolio-intel-data.ts`
+> - `server/lib/signals-data.ts`
+> - `server/lib/utils.ts`
+> - `server/lib/workflow-data.ts`
+> - `server/routes/analyses-common.ts`
+> - `server/routes/analyses-fs.ts`
+> - `server/routes/benchmark.tsx`
+> - `server/routes/prices.ts`
+> - `server/views/holdings.tsx`
+> - `server/views/partials/intel-accounts.tsx`
+> - `server/views/partials/intel-allocation.tsx`
+> - `server/views/partials/intel-asset-class.tsx`
+> - `server/views/partials/intel-cash.tsx`
+> - `server/views/partials/intel-governance.tsx`
+> - `server/views/partials/intel-hero.tsx`
+> - `server/views/partials/intel-platforms.tsx`
+> - `server/views/partials/intel-research.tsx`
+> - `server/views/partials/intel-spreadbets.tsx`
+> - `server/views/portfolio-intel.tsx`
+> - `server/views/portfolio-summary.tsx`
+> - `tests/test_server_lib.py`
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟡 Minor* | *⚡ Quick win*
+> 
+> **Write fetched PR reviews atomically.**
+> 
+> `> "$file"` truncates the cached review before `defuddle` succeeds. If the fetch fails or is interrupted, you keep an empty/partial `pr-{{NUM}}.md` that looks like a valid cache entry.
+> 
+> Suggested fix
+> ```diff
+> #!/usr/bin/env bash
+>      set -euo pipefail
+>      mkdir -p debriefs/reviews
+>      url="https://github.com/pjsvis/TradingAgents/pull/{{NUM}}"
+>      file="debriefs/reviews/pr-{{NUM}}.md"
+> -    defuddle parse --markdown "$url" > "$file"
+> +    tmp="$(mktemp)"
+> +    trap 'rm -f "$tmp"' EXIT
+> +    defuddle parse --markdown "$url" > "$tmp"
+> +    mv "$tmp" "$file"
+> +    trap - EXIT
+>      echo "Saved: $file"
+> ```
+> 📝 Committable suggestion
+> 
+> > ‼️ **IMPORTANT**  
+> > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+> 
+> Suggested change
+> 
+> |  | pr-fetch NUM: # fetch PR #NUM as markdown via defuddle |
+> | --- | --- |
+> |  | #!/usr/bin/env bash |
+> |  | set -euo pipefail |
+> |  | mkdir -p debriefs/reviews |
+> |  | url="https://github.com/pjsvis/TradingAgents/pull/{{NUM}}" |
+> |  | file="debriefs/reviews/pr-{{NUM}}.md" |
+> |  | defuddle parse --markdown "$url" > "$file" |
+> |  | echo "Saved: $file" |
+> |  | pr-fetch NUM: # fetch PR \`#NUM\` as markdown via defuddle |
+> |  | #!/usr/bin/env bash |
+> |  | set -euo pipefail |
+> |  | mkdir -p debriefs/reviews |
+> |  | url="https://github.com/pjsvis/TradingAgents/pull/{{NUM}}" |
+> |  | file="debriefs/reviews/pr-{{NUM}}.md" |
+> |  | tmp="$(mktemp)" |
+> |  | trap 'rm -f "$tmp"' EXIT |
+> |  | defuddle parse --markdown "$url" > "$tmp" |
+> |  | mv "$tmp" "$file" |
+> |  | trap - EXIT |
+> |  | echo "Saved: $file" |
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@justfile\` around lines 358 - 365, The pr-fetch NUM recipe currently writes
+> directly to pr-{{NUM}}.md which can leave a truncated/empty cache if defuddle
+> fails; change the recipe to write output to a temporary file (e.g., created with
+> mktemp in the same debriefs/reviews directory) and only mv the temp to the final
+> path ("pr-{{NUM}}.md") after defuddle exits successfully to make the write
+> atomic; ensure the temp is created inside debriefs/reviews (so mv is atomic on
+> the same filesystem) and clean up the temp on error (use trap or conditional rm)
+> while keeping existing mkdir -p and the same url/file variables and defuddle
+> invocation (replace the direct redirection line defuddle parse --markdown "$url"
+> > "$file" with the temp-write-and-mv flow).
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟡 Minor* | *⚡ Quick win*
+> 
+> **Remove the stray fenced-code opener at Line 253.**
+> 
+> There is an extra unlabeled code fence at the end, which triggers MD040 and can break markdown rendering. Delete that trailing \`\`\` line (or convert it to a properly labeled block if intentional).
+> 
+> 🧰 Tools 🪛 markdownlint-cli2 (0.22.1)
+> 
+> \[warning\] 253-253: Fenced code blocks should have a language specified
+> 
+> (MD040, fenced-code-language)
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@playbooks/htmx-playbook.md\` at line 253, Remove the stray unlabeled
+> fenced-code opener found at the end of playbooks/htmx-playbook.md (the lone \`\`\`
+> shown in the diff); delete that trailing backtick fence (or replace it with a
+> properly labeled fenced-code block if you intended to include code) so the
+> markdown no longer has an unclosed code fence that triggers MD040 and breaks
+> rendering.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟠 Major* | *⚡ Quick win*
+> 
+> **Make the raw-`Database` detector whitespace-tolerant.**
+> 
+> This only catches the exact substring `new Database(`, so `new Database (` slips through and bypasses the gate. That leaves an easy path for direct SQLite usage outside `DatabaseFactory`.
+> 
+> Suggested fix
+> ```diff
+> -    const idx = code.indexOf("new Database(")
+> -    if (idx === -1) continue
+> +    const match = /\bnew\s+Database\s*\(/.exec(code)
+> +    if (!match) continue
+> +    const idx = match.index
+> ```
+> 📝 Committable suggestion
+> 
+> > ‼️ **IMPORTANT**  
+> > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+> 
+> Suggested change
+> 
+> |  | const code \= line.replace(/\\/\\/.\*$/, "") |
+> | --- | --- |
+> |  | const idx \= code.indexOf("new Database(") |
+> |  | if (idx \=== \-1) continue |
+> |  | const code \= line.replace(/\\/\\/.\*$/, "") |
+> |  | const match \= /\\bnew\\s+Database\\s\*\\(/.exec(code) |
+> |  | if (!match) continue |
+> |  | const idx \= match.index |
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@scripts/check-database-usage.ts\` around lines 45 - 47, The current detector
+> uses code.indexOf("new Database(") which misses cases like "new Database (";
+> update the check in the loop to use a whitespace-tolerant regex (e.g.,
+> search/test for /\bnew\s+Database\s*\(/) instead of indexOf so variable code and
+> idx logic still short-circuits when no match is found; ensure you replace the
+> idx assignment and the subsequent continue condition to use the regex match
+> result so lines with arbitrary spacing around "new" and "Database" are caught.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟠 Major* | *⚡ Quick win*
+> 
+> **Add a timeout to the shared OpenRouter request.**
+> 
+> This helper sits on the hot path for multiple scripts, but the outbound call can hang indefinitely today. A stalled socket will wedge `pr-summarize`, `summarize_analyses`, and `refactor-playbook` until the process is killed manually. Please bound the request and surface a timeout-specific error.
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@scripts/lib/llm.ts\` around lines 69 - 78, The outbound fetch to API_URL can
+> hang indefinitely; wrap the request with an AbortController and a timeout (e.g.,
+> REQUEST_TIMEOUT_MS constant) by passing controller.signal into fetch, start a
+> setTimeout that calls controller.abort() after the timeout, and clear that timer
+> when the fetch resolves; in the catch branch detect an abort (error.name ===
+> 'AbortError') and throw/surface a timeout-specific error message like
+> "OpenRouter request timed out after Xms" so callers of this helper (the code
+> using API_URL, headers, messages, opts, DEFAULT_MODEL) can handle timeout cases
+> explicitly.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟡 Minor* | *⚡ Quick win*
+> 
+> **Silent truncation if there are more than 20 open PRs.**
+> 
+> The hardcoded `--limit 20` drops PRs beyond that count with no warning. A simple guard would prevent silent misses.
+> 
+> 🛡️ Proposed fix
+> ```diff
+> gh pr list --repo "$REPO" \
+>    --json number,title,updatedAt \
+> -  --state open --limit 20 | \
+> +  --state open --limit 100 | \
+> ```
+> 
+> Or, if the cap is intentional, emit a visible warning when the list hits the limit:
+> 
+> ```diff
+> +PR_JSON=$(gh pr list --repo "$REPO" --json number,title,updatedAt --state open --limit 20)
+> +COUNT=$(echo "$PR_JSON" | jq 'length')
+> +if [ "$COUNT" -eq 20 ]; then
+> +  echo "⚠️  Result capped at 20 — there may be more open PRs"
+> +fi
+> +echo "$PR_JSON" | \
+>  jq -r '.[] | "\(.number)"' | \
+> ```
+> 📝 Committable suggestion
+> 
+> > ‼️ **IMPORTANT**  
+> > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+> 
+> Suggested change
+> 
+> |  | gh pr list --repo "$REPO" \\ |
+> | --- | --- |
+> |  | \--json number,title,updatedAt \\ |
+> |  | \--state open --limit 20 \| \\ |
+> |  | gh pr list --repo "$REPO" \\ |
+> |  | \--json number,title,updatedAt \\ |
+> |  | \--state open --limit 100 \| \\ |
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@scripts/pr-fetch-all.sh\` around lines 15 - 17, The script silently truncates
+> results because gh pr list uses a hardcoded --limit 20; update the logic around
+> the gh pr list invocation to avoid silent drops by either removing the --limit
+> 20 (or making it configurable via an env var like PR_LIMIT) or adding a guard
+> that detects when the returned PR count equals the cap and emits a visible
+> warning; refer to the gh pr list invocation and the --limit 20 token in the
+> script to locate and change this behavior and ensure any warning mentions REPO
+> and the applied limit so callers know why results may be incomplete.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟠 Major* | *⚡ Quick win*
+> 
+> **Cache hits lose the original quote currency.**
+> 
+> The cache only stores `price`, so every cache hit returns `{ currency: "USD" }` even when the fresh fetch returned EUR, GBP, or another currency. Downstream portfolio valuation will then apply the wrong FX rate until the cache expires. Please cache `currency` alongside `price`, or skip cache hits when the currency is unknown.
+> 
+> Also applies to: 27-30
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@server/lib/intel-prices.ts\` around lines 9 - 12, The cache lookup in
+> priceCache (variable cached) only returns cached.price and hardcodes
+> currency:"USD", causing wrong FX when original quote currency differed; update
+> the caching logic to store and return the original currency alongside price
+> (e.g., add cached.currency and use it in the return), or if currency is unknown
+> skip the cache hit and proceed to fetch; ensure the same fix is applied to the
+> other cache-return block referenced around lines 27-30 (same cached/currency
+> handling).
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟠 Major* | *⚡ Quick win*
+> 
+> 🧩 Analysis chain
+> 
+> 🏁 Script executed:
+> 
+> ```shell
+> #!/bin/bash
+> # Confirm fmtGBP/fmtCommas usage and that no caller adds commas after fmtGBP.
+> echo "=== fmtGBP call sites ==="
+> rg -nP --type=ts --type=tsx '\bfmtGBP\s*\(' -C1
+> echo
+> echo "=== Any test asserting fmtGBP output format? ==="
+> rg -nP 'fmtGBP' tests/ 2>/dev/null || true
+> fd -e py -e ts -e tsx . tests/ 2>/dev/null | xargs rg -nP 'fmtGBP' 2>/dev/null || true
+> ```
+> 
+> Repository: pjsvis/TradingAgents
+> 
+> Length of output: 498
+> 
+> ---
+> 
+> 🏁 Script executed:
+> 
+> ```shell
+> #!/bin/bash
+> 
+> echo "=== Search for fmtGBP with broader patterns ==="
+> rg -i 'fmtgbp' --type-list | head -20
+> echo
+> echo "=== fmtGBP references (case-insensitive, all files) ==="
+> rg -i 'fmtgbp' -C2
+> echo
+> echo "=== Check if holdings.tsx exists and its size ==="
+> find . -name 'holdings.tsx' -o -name 'holdings.ts' | head -5
+> echo
+> echo "=== Look at holdings file if it exists ==="
+> find . -name 'holdings.ts*' -exec wc -l {} \;
+> ```
+> 
+> Repository: pjsvis/TradingAgents
+> 
+> Length of output: 8664
+> 
+> ---
+> 
+> 🏁 Script executed:
+> 
+> ```shell
+> #!/bin/bash
+> 
+> echo "=== Verify markup.ts exists and check fmtGBP definition ==="
+> find . -name 'markup.ts' -exec cat {} \;
+> echo
+> echo "=== Check what functions holdings.tsx actually imports/uses for currency ==="
+> find . -name 'holdings.ts*' -exec head -50 {} \;
+> ```
+> 
+> Repository: pjsvis/TradingAgents
+> 
+> Length of output: 4148
+> 
+> ---
+> 
+> **`fmtGBP` is missing thousand separators — large portfolio values in `holdings.tsx` render as unreadable amounts like `£1234567.89`.**
+> 
+> The function is called 11 times across `holdings.tsx` for critical display values: position invalidation prices, cost basis, current prices, portfolio totals, and cash balances. Since `n.toFixed(dec)` returns an unformatted string, these amounts display without commas. The `fmtCommas` helper already solves this problem, yet `fmtGBP` doesn't use it—creating an inconsistency between the two currency-related formatters.
+> 
+> Fix by reusing `fmtCommas` within `fmtGBP`:
+> 
+> Proposed fix — reuse `fmtCommas`
+> ```diff
+> /** Format a GBP currency value. Returns "—" for null/NaN. */
+>  export function fmtGBP(n: number | null | undefined, dec = 2): string {
+>    if (n == null || Number.isNaN(n)) return "\u2014"
+> -  return \`\u00a3${n.toFixed(dec)}\`
+> +  // Place the sign before the currency symbol: "-£1,234.56", not "£-1,234.56".
+> +  const sign = n < 0 ? "-" : ""
+> +  return \`${sign}\u00a3${fmtCommas(Math.abs(n), dec)}\`
+>  }
+> ```
+> 
+> Alternatively, use `Intl.NumberFormat` to handle both `fmtCommas` and `fmtGBP` with vetted locale-aware formatting.
+> 
+> 📝 Committable suggestion
+> 
+> > ‼️ **IMPORTANT**  
+> > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+> 
+> Suggested change
+> 
+> |  | /\*\* Format a GBP currency value. Returns "—" for null/NaN. \*/ |
+> | --- | --- |
+> |  | export function fmtGBP(n: number \| null \| undefined, dec \= 2): string { |
+> |  | if (n \== null \|\| Number.isNaN(n)) return "\\u2014" |
+> |  | return \`\\u00a3${n.toFixed(dec)}\` |
+> |  | } |
+> |  | /\*\* Format a GBP currency value. Returns "—" for null/NaN. \*/ |
+> |  | export function fmtGBP(n: number \| null \| undefined, dec \= 2): string { |
+> |  | if (n \== null \|\| Number.isNaN(n)) return "\\u2014" |
+> |  | // Place the sign before the currency symbol: "-£1,234.56", not "£-1,234.56". |
+> |  | const sign \= n < 0 ? "-" : "" |
+> |  | return \`${sign}\\u00a3${fmtCommas(Math.abs(n), dec)}\` |
+> |  | } |
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@server/lib/markup.ts\` around lines 26 - 30, fmtGBP currently returns a raw
+> toFixed string (e.g. "£1234567.89") and lacks thousand separators; update fmtGBP
+> to reuse the existing fmtCommas helper (or replace both formatters with a single
+> Intl.NumberFormat-based implementation) so the numeric portion is formatted with
+> commas while preserving the currency symbol, decimal precision parameter (dec)
+> and the null/NaN em-dash behavior; locate and change the fmtGBP function in
+> markup.ts to call fmtCommas on the fixed-decimal number (or use
+> Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP',
+> minimumFractionDigits: dec, maximumFractionDigits: dec }) and return the
+> formatted string) so holdings.tsx displays readable GBP values.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟠 Major* | *⚡ Quick win*
+> 
+> 🧩 Analysis chain
+> 
+> 🏁 Script executed:
+> 
+> ```shell
+> #!/bin/bash
+> # Inspect the raw bytes of the intel-hero/intel-platforms JSX text positions
+> # to determine whether \u00a3 and \u26a0 are literal escape sequences or
+> # the actual Unicode characters.
+> 
+> for f in server/views/partials/intel-hero.tsx server/views/partials/intel-platforms.tsx server/views/partials/intel-accounts.tsx server/views/partials/intel-spreadbets.tsx; do
+>   echo "=== $f ==="
+>   # Show any literal backslash-u escape sequences present in the file
+>   rg -nP '\\u[0-9a-fA-F]{4}' "$f" || echo "  (no \\u escapes found)"
+>   echo "--- bytes around currency/warning glyphs ---"
+>   # Hex-dump only lines that contain pound sign or warning glyph or backslash-u
+>   grep -nE '£|⚠|\\u00a3|\\u26a0' "$f" | head -20
+> done
+> ```
+> 
+> Repository: pjsvis/TradingAgents
+> 
+> Length of output: 1874
+> 
+> ---
+> 
+> **Fix unicode escape sequences in JSX text — they render as literal characters, not symbols.**
+> 
+> `\u00a3` and `\u26a0\ufe0f` in JSX text are not interpreted as escape sequences. The browser renders them literally as the six-character strings `\u00a3` and `\u26a0\ufe0f`, not as `£` and `⚠️`. The sibling partials `intel-accounts.tsx` and `intel-spreadbets.tsx` use literal `£` directly in JSX text, while `intel-hero.tsx` (lines 11, 18, 23, 33) and `intel-platforms.tsx` (lines 29, 35) use escape sequences, causing inconsistent rendering.
+> 
+> Fix by using the literal character (e.g., `£`), an HTML entity (`&pound;` / `&#x26a0;&#xfe0f;`), or a JSX expression with a string (`{"\u00a3"}`).
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@server/views/partials/intel-hero.tsx\` around lines 9 - 14, JSX text contains
+> Unicode escape sequences (e.g., "\u00a3" and "\u26a0\ufe0f") that render
+> literally instead of as symbols; update the occurrences in
+> server/views/partials/intel-hero.tsx (lines ~11,18,23,33) and
+> server/views/partials/intel-platforms.tsx (lines ~29,35) to use actual
+> characters or safe JSX expressions. Replace each escape like "\u00a3" with the
+> literal "£" or {"\u00a3"} or an HTML entity (&pound;), and replace
+> "\u26a0\ufe0f" with "⚠️" or {"\u26a0\ufe0f"} (or corresponding numeric entities)
+> so the banner text (and other strings in the IntelHero component/JSX) displays
+> the intended symbols consistently with intel-accounts.tsx and
+> intel-spreadbets.tsx.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟡 Minor* | *⚡ Quick win*
+> 
+> **Negative P&L renders as `£-1,234.56` instead of the conventional `-£1,234.56`.**
+> 
+> When `b.pnl_gbp < 0`, the sign prefix branch yields `""`, so the output becomes `£` + a comma-formatted negative number. Move the sign outside the currency symbol, or rely on a single GBP formatter that handles sign placement.
+> 
+> ♻️ Proposed fix
+> ```diff
+> -                <td class={pnlCls} style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+> -                  {b.pnl_gbp != null ? (b.pnl_gbp >= 0 ? "+" : "") + \`£${fmtCommas(b.pnl_gbp)}\` : "—"}
+> -                </td>
+> +                <td class={pnlCls} style="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1">
+> +                  {b.pnl_gbp != null
+> +                    ? \`${b.pnl_gbp >= 0 ? "+" : "-"}£${fmtCommas(Math.abs(b.pnl_gbp))}\`
+> +                    : "—"}
+> +                </td>
+> ```
+> 📝 Committable suggestion
+> 
+> > ‼️ **IMPORTANT**  
+> > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+> 
+> Suggested change
+> 
+> |  | <td class\={pnlCls} style\="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1"\> |
+> | --- | --- |
+> |  | {b.pnl\_gbp != null ? (b.pnl\_gbp \>= 0 ? "+" : "") + \`£${fmtCommas(b.pnl\_gbp)}\` : "—"} |
+> |  | </td\> |
+> |  | <td class\={pnlCls} style\="font-family:Datatype,monospace;font-feature-settings:'calt'1,'liga'1"\> |
+> |  | {b.pnl\_gbp != null |
+> |  | ? \`${b.pnl\_gbp \>= 0 ? "+" : "-"}£${fmtCommas(Math.abs(b.pnl\_gbp))}\` |
+> |  | : "—"} |
+> |  | </td\> |
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@server/views/partials/intel-spreadbets.tsx\` around lines 46 - 48, The P&L
+> rendering currently concatenates the sign before the currency symbol which
+> yields "£-1,234.56" for negatives; update the rendering logic in the JSX where
+> pnlCls and b.pnl_gbp are used so the negative sign appears before the currency
+> symbol (e.g., produce "-£1,234.56") — either compute a separate sign variable
+> from b.pnl_gbp and prepend it before "£" or replace the manual concat with a
+> GBP-aware formatter that takes b.pnl_gbp and returns a correctly signed string;
+> ensure fmtCommas is used only for absolute value formatting or removed if the
+> formatter handles commas.
+> ```
+
+> **coderabbitai** · 2026-05-06
+> 
+> *⚠️ Potential issue* | *🟡 Minor* | *⚡ Quick win*
+> 
+> **Include `fmtCommas` in export coverage.**
+> 
+> `markup.ts` now exposes `fmtCommas`; this test should assert it too so export regressions are caught.
+> 
+> Suggested diff
+> ```diff
+> -        for fn in ["esc", "fmt", "fmtGBP"]:
+> +        for fn in ["esc", "fmt", "fmtCommas", "fmtGBP"]:
+>              assert f"export function {fn}" in content, f"Missing export: {fn}"
+> ```
+> 📝 Committable suggestion
+> 
+> > ‼️ **IMPORTANT**  
+> > Carefully review the code before committing. Ensure that it accurately replaces the highlighted code, contains no missing lines, and has no issues with indentation. Thoroughly test & benchmark the code to ensure it meets the requirements.
+> 
+> Suggested change
+> 
+> |  | for fn in \["esc", "fmt", "fmtGBP"\]: |
+> | --- | --- |
+> |  | assert f"export function {fn}" in content, f"Missing export: {fn}" |
+> |  | for fn in \["esc", "fmt", "fmtCommas", "fmtGBP"\]: |
+> |  | assert f"export function {fn}" in content, f"Missing export: {fn}" |
+> 
+> 🤖 Prompt for AI Agents
+> 
+> ```
+> Verify each finding against current code. Fix only still-valid issues, skip the
+> rest with a brief reason, keep changes minimal, and validate.
+> 
+> In \`@tests/test_server_lib.py\` around lines 169 - 170, The test currently asserts
+> exports for "esc", "fmt", and "fmtGBP" but misses the newly added "fmtCommas";
+> update the assertion to include "fmtCommas" (e.g., add "fmtCommas" to the list
+> iterated over or add a separate assert) so the test checks for export of
+> fmtCommas from markup.ts alongside esc, fmt, and fmtGBP.
+> ```

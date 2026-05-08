@@ -31,7 +31,7 @@ interface PrIssue {
 const SYSTEM_PROMPT = `You are a senior code reviewer. Read the following PR review document and extract all actionable issues.
 
 For each issue, provide in JSON:
-- severity: "bug" (🔴), "warning" (🟡), or "rule" (📘)
+- severity: "🔴" (bug), "🟡" (warning), or "📘" (rule)
 - title: short summary (max 10 words)
 - files: array of file paths with line ranges if available
 - description: one-paragraph explanation of the problem
@@ -39,7 +39,7 @@ For each issue, provide in JSON:
 
 Output ONLY a valid JSON array. No markdown, no prose, no code blocks. Example:
 [
-  {"severity":"bug","title":"SQLite REAL not parsed","files":["server/lib/intel-compute.ts:78-85"],"description":"...","actions":["Add parseFloat() before arithmetic"]}
+  {"severity":"🔴","title":"SQLite REAL not parsed","files":["src/lib/intel-compute.ts:78-85"],"description":"...","actions":["Add parseFloat() before arithmetic"]}
 ]`
 
 // ── API call ────────────────────────────────────────────────────────────────
@@ -137,11 +137,11 @@ async function main() {
     const outFile = prFile
     const existing = await Bun.file(outFile).text()
     const combined = `${checklist}\n\n${existing}`
-    Bun.write(outFile, combined)
+    await Bun.write(outFile, combined)
     console.log(`Prepended checklist to ${outFile}`)
   } else if (outputArg) {
     const outFile = join(process.cwd(), "debriefs", "reviews", outputArg)
-    Bun.write(outFile, checklist)
+    await Bun.write(outFile, checklist)
     console.log(`Wrote: ${outFile}`)
   } else {
     console.log(checklist)

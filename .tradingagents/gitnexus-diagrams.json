@@ -1,0 +1,8 @@
+{
+  "symbols": [
+    { "name": "calculateTradePlan", "depth": 1 },
+    { "name": "DatabaseFactory", "depth": 2 },
+    { "name": "calculateATR", "depth": 1 }
+  ],
+  "files": ["server/index.tsx", "cli/trading/main.ts"]
+}

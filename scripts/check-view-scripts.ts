@@ -16,7 +16,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const VIEWS_DIR = join(import.meta.dir, "..", "server", "views")
+const VIEWS_DIR = join(import.meta.dir, "..", "src", "server", "views")
 const files = readdirSync(VIEWS_DIR).filter((f) => f.endsWith(".tsx"))
 
 const bannedPatterns = [
@@ -40,10 +40,14 @@ for (const file of files) {
 }
 
 // Also verify serveStatic root is tight
-const INDEX = join(import.meta.dir, "..", "server", "index.tsx")
+const INDEX = join(import.meta.dir, "..", "src", "server", "index.tsx")
 const indexContent = readFileSync(INDEX, "utf-8")
-if (!indexContent.includes('root: "./server/static"')) {
-  console.error("\u274c BANNED: server/index.tsx does not lock serveStatic to ./server/static")
+const hasLiteralRoot = indexContent.includes('root: "./server/static"')
+const hasComputedRoot = indexContent.includes('resolve(import.meta.dir, "static")')
+if (!hasLiteralRoot && !hasComputedRoot) {
+  console.error(
+    "\u274c BANNED: src/server/index.tsx does not lock serveStatic to a local static directory",
+  )
   errors++
 }
 

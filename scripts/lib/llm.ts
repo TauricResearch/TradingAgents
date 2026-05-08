@@ -52,6 +52,8 @@ function loadEnvOnce(): void {
 
 loadEnvOnce()
 
+const REQUEST_TIMEOUT_MS = 60_000
+
 export async function llm(messages: LlmMessage[], opts: LlmOptions = {}): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY ?? ""
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set (checked .env and env)")
@@ -63,27 +65,40 @@ export async function llm(messages: LlmMessage[], opts: LlmOptions = {}): Promis
   if (opts.title) headers["X-Title"] = opts.title
   if (opts.referer) headers["HTTP-Referer"] = opts.referer
 
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: opts.model ?? DEFAULT_MODEL,
-      messages,
-      temperature: opts.temperature ?? 0.2,
-      max_tokens: opts.maxTokens ?? 4000,
-    }),
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`OpenRouter ${res.status}: ${err.slice(0, 500)}`)
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: opts.model ?? DEFAULT_MODEL,
+        messages,
+        temperature: opts.temperature ?? 0.2,
+        max_tokens: opts.maxTokens ?? 4000,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`OpenRouter ${res.status}: ${err.slice(0, 500)}`)
+    }
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>
+    }
+
+    const content = data?.choices?.[0]?.message?.content
+    if (!content) throw new Error("LLM response missing content")
+    return content
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error(`OpenRouter request timed out after ${REQUEST_TIMEOUT_MS}ms`)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
   }
-
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
-  }
-
-  const content = data?.choices?.[0]?.message?.content
-  if (!content) throw new Error("LLM response missing content")
-  return content
 }

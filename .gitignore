@@ -1,3 +1,4 @@
+backups/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -235,7 +236,17 @@ scratchpad/
 
 # Bun
 node_modules/
-!server/lib/
+!src/lib/
+!src/server/lib/
 !scripts/lib/
+!src/cli/lib/
 portfolio.db
 test_portfolio.db
+# Archived and backup files
+*.archived
+*.backup
+.gitnexus
+# GitNexus generated files
+.claude/skills/gitnexus/
+CLAUDE.md
+AGENTS.md

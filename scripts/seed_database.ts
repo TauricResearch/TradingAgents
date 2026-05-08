@@ -9,7 +9,7 @@
  *   bun run scripts/seed_database.ts --signals    # Signals only
  *   bun run scripts/seed_database.ts --all        # Everything (default)
  *
- * DB resolution (mirrors server/index.tsx):
+ * DB resolution (mirrors src/server/index.tsx):
  *   --db PATH         Explicit path (highest priority)
  *   PORTFOLIO_DB      DEV database path
  *   TEST_MODE=1       Uses TEST_PORTFOLIO_DB or ./test_portfolio.db
@@ -27,7 +27,7 @@ import {
 import { homedir } from "node:os"
 import { join } from "node:path"
 import * as yaml from "js-yaml"
-import { DatabaseFactory } from "../server/lib/db.ts"
+import { DatabaseFactory } from "../src/lib/db.ts"
 
 const DEFAULT_DB = join(process.cwd(), "portfolio.db")
 const POSITIONS_BASE = join(homedir(), ".tradingagents", "positions")
@@ -1309,22 +1309,28 @@ async function main() {
     db.exec(
       "ALTER TABLE watchlist ADD COLUMN stage TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired'))",
     )
-  } catch {
-    // Column already exists — safe to ignore
+  } catch (err) {
+    if (!(err instanceof Error) || !/duplicate column name|already exists/i.test(err.message)) {
+      throw err
+    }
   }
 
   // Migration: add account_id column to positions if missing
   try {
     db.exec("ALTER TABLE positions ADD COLUMN account_id TEXT REFERENCES accounts(id)")
-  } catch {
-    // Column already exists — safe to ignore
+  } catch (err) {
+    if (!(err instanceof Error) || !/duplicate column name|already exists/i.test(err.message)) {
+      throw err
+    }
   }
 
   // Migration: add positions account index if missing
   try {
     db.exec("CREATE INDEX idx_positions_account ON positions(account_id)")
-  } catch {
-    // Index already exists — safe to ignore
+  } catch (err) {
+    if (!(err instanceof Error) || !/already exists/i.test(err.message)) {
+      throw err
+    }
   }
 
   const seedAll =

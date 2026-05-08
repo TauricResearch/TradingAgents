@@ -14,7 +14,7 @@ echo "Fetching open PRs for $REPO..."
 
 gh pr list --repo "$REPO" \
   --json number,title,updatedAt \
-  --state open --limit 20 | \
+  --state open --limit 100 | \
 jq -r '.[] | "\(.number)"' | \
 while read -r num; do
   url="https://github.com/$REPO/pull/$num"

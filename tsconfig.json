@@ -33,6 +33,6 @@
     "types": ["bun"],
     "skipLibCheck": true
   },
-  "include": ["server/**/*.ts", "server/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist", "scripts", ".venv"]
 }

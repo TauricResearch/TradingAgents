@@ -6,7 +6,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "format": "biome format . --write",
-    "check": "biome check . && tsc --project tsconfig.json --noEmit"
+    "check": "biome check . && tsc --project tsconfig.json --noEmit",
+    "trading": "bun src/cli/main.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
@@ -15,6 +16,7 @@
     "colorizr": "^5.0.1"
   },
   "dependencies": {
+    "citty": "^0.2.2",
     "dotenv": "^17.4.2",
     "hono": "^4.9.8",
     "js-yaml": "^4.1.1",

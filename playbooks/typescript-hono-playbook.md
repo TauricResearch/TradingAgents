@@ -83,6 +83,71 @@ el.innerHTML = '<table>' + rows.map(...).join('') + '</table>';
 
 ---
 
+## Unicode escapes in JSX text — DO NOT USE
+
+**Rule:** Never use `\uXXXX` JS string escapes in raw JSX text. They render as six literal characters (`\u00a3` → `\` `u` `0` `0` `a` `3`), not as the intended symbol.
+
+**Why:** Hono JSX emits text between tags as literal HTML. Only inside `{ }` JS expressions does string escape processing occur.
+
+**Bad — renders as `\u00a3100`:**
+```tsx
+// ❌ Raw JSX text — no JS string processing
+<span>\u00a3100</span>
+<span>\u2192 Next</span>
+<span>\u2713 Done</span>
+```
+
+**Good — literal character:**
+```tsx
+// ✅ Type the symbol directly in JSX text
+<span>£100</span>
+<span>→ Next</span>
+<span>✓ Done</span>
+```
+
+**Good — JS expression:**
+```tsx
+// ✅ JS string escape inside braces is processed by JS
+<span>{"\u00a3"}100</span>
+<span>{"\u2192"} Next</span>
+<span>{"\u2713"} Done</span>
+
+// ✅ Variable holding escape
+const arrow = "\u2192"
+<span>{arrow} Next</span>
+```
+
+**Good — HTML entity:**
+```tsx
+// ✅ Browser interprets HTML entity
+<span>&pound;100</span>
+<span>&rarr; Next</span>
+<span>&#10003; Done</span>
+```
+
+### Quick reference: which symbols are affected
+
+| Symbol | Escape | Used in views | Fix |
+|--------|--------|-------------|-----|
+| £ | `\u00a3` | portfolio-summary, intel-hero, intel-platforms | Replace with `£` |
+| → | `\u2192` | prospects-view, analysis-report | Replace with `→` |
+| ← | `\u2190` | analysis-report | Replace with `←` |
+| ✓ | `\u2713` | workflow-kanban | Replace with `✓` |
+| ✅ | `\u2705` | governance-view | Replace with `✅` |
+| ✕ | `\u2715` | prospects-view | Replace with `✕` |
+| ⚠ | `\u26a0` | workflow-kanban, governance-view | Replace with `⚠` |
+| ⚠️ | `\u26a0\ufe0f` | intel-hero, exit-list | Replace with `⚠️` |
+| ◇ | `\u25C7` | workflow-kanban | Replace with `◇` |
+| ◆ | `\u25C6` | workflow-kanban | Replace with `◆` |
+| ⏱ | `\u23F1` | workflow-kanban | Replace with `⏱` |
+| — | `\u2014` | fmtPnl, signals-view | Replace with `—` |
+| · | `\u00b7` | holdings | Replace with `·` |
+| ▶ | `\u25b6` | analysis-view | Replace with `▶` |
+
+**Test page:** Visit `/lab/currency` for a live comparison of all methods.
+
+---
+
 ## Template literals in `.tsx` files — DO NOT USE
 
 **Rule:** Do not use template literals (`` `...` ``) for strings containing HTML/JSX tags inside `.tsx` files.

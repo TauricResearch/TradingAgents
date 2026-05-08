@@ -38,7 +38,7 @@ td handoff <id1>
 This codebase is **primarily a Bun/TypeScript house.**
 
 - **Dashboard/server work** (routes, views, scripts, tooling): **TypeScript with Bun only.**
-- **Python is reserved for:** the `tradingagents/` core package, the CLI entry point (`cli/main.py`), and the bridge script (`scripts/py/analyze_stream.py`).
+- **Python is reserved for:** the `tradingagents/` core package, the CLI entry point (`src/cli/main.py`), and the bridge script (`scripts/py/analyze_stream.py`).
 - **No Python for auxiliary tasks.** Do not reach for Python for one-off conversions, data transforms, or code-generation scripts. Use `bun -e "..."`, a `.ts` script in `scripts/`, or a throwaway `.ts` file instead.
 - **Never add a Python dependency** to solve a problem that a 20-line TypeScript snippet or an npm package can handle.
 
@@ -51,7 +51,7 @@ This repo contains **two distinct systems** sharing one codebase:
 | System | What | Language | Entry Point |
 |--------|------|----------|-------------|
 | **tradingagents package** | Multi-agent LLM trading framework | Python 3.13 | `tradingagents analyze` (CLI) / `TradingAgentsGraph` (API) |
-| **Dashboard server** | Web UI wrapping the Python package | TypeScript (Bun/Hono) | `bun run server/index.tsx` |
+| **Dashboard server** | Web UI wrapping the Python package | TypeScript (Bun/Hono) | `bun run src/server/index.tsx` |
 
 **Golden rule:** The dashboard wraps the `tradingagents` package via subprocess. **Never fork or modify `tradingagents/` core agent logic** unless fixing a bug. The bridge is `scripts/analyze_stream.py`.
 
@@ -66,7 +66,7 @@ The dashboard server listens on port **3000** by default.
 ```bash
 # Environment variable override:
 export TA_DASHBOARD_PORT=8080
-bun run server/index.tsx
+bun run src/server/index.tsx
 ```
 
 If port 3000 is occupied, kill stale processes before restarting:
@@ -78,7 +78,7 @@ pkill -9 -f bun   # zombie bun processes are common
 
 | Task | Command |
 |------|---------|
-| Start dashboard | `bun run server/index.tsx` |
+| Start dashboard | `bun run src/server/index.tsx` |
 | Run CLI analysis | `tradingagents analyze` or `just run` |
 | Analyze specific ticker | `just analyze TKA.DE` |
 | Run tests | `uv run pytest -v -m smoke` |
@@ -104,7 +104,7 @@ pkill -9 -f bun   # zombie bun processes are common
 
 ### 1. Database — `DatabaseFactory` only
 
-All SQLite access goes through `server/lib/db.ts` → `DatabaseFactory`.
+All SQLite access goes through `src/server/lib/db.ts` → `DatabaseFactory`.
 - **Never** use `new Database()` directly.
 - **Always** use the factory singleton (WAL mode, pragmas enforced).
 - **Always** `parseFloat()` on SQLite REAL columns — they return strings.
@@ -113,7 +113,7 @@ All SQLite access goes through `server/lib/db.ts` → `DatabaseFactory`.
 
 - Server renders HTML via Hono JSX (`.tsx` with `/** @jsxImportSource hono/jsx */`).
 - **No SPA frameworks** (no React, Vue, Svelte on client).
-- **No client-side markdown** — rendered server-side via `server/lib/markdown.ts`.
+- **No client-side markdown** — rendered server-side via `src/server/lib/markdown.ts`.
 - Use `pageOrPartial(c, <View />)` for routes that serve both full pages and HTMX partials.
 
 ### 3. HTMX + JSON APIs don't mix
@@ -136,7 +136,7 @@ All SQLite access goes through `server/lib/db.ts` → `DatabaseFactory`.
 
 ### 6. Datatype font
 
-- Uses the **variable font** from `server/static/fonts/Datatype.woff2` (has GSUB table).
+- Uses the **variable font** from `src/server/static/fonts/Datatype.woff2` (has GSUB table).
 - Static fonts (e.g. from CDN) lack GSUB — chart ligatures will not render.
 - Three chart types: `{l:values}` sparkline, `{b:values}` bar chart, `{p:value}` pie chart.
 - `font-feature-settings: 'calt' 1, 'liga' 1` is mandatory in CSS.
@@ -165,10 +165,10 @@ TradingAgents/
 │   ├── agents/                │   LLM-powered agent definitions
 │   └── default_config.py      │   All config keys + defaults
 │
-├── cli/                       ← Python CLI (typer-based)
+├── src/cli/                   ← TypeScript CLI + Python CLI
 │   └── main.py                │   `tradingagents analyze` entry point
 │
-├── server/                    ← Bun/Hono dashboard server
+├── src/server/                ← Bun/Hono dashboard server
 │   ├── index.tsx              │   Entry: routes, lifecycle, graceful shutdown
 │   ├── lib/                   │
 │   │   ├── db.ts              │   DatabaseFactory (WAL, singleton)
@@ -239,7 +239,7 @@ TradingAgents/
 ### Known Failure Modes
 
 **Static JS copies of TypeScript = maintenance trap.**
-The canonical client-side runtime lives in `server/static/scripts/*.js`. These are the single source of truth for browser behaviour — not copies of some TypeScript original. Views reference them via `<script src="/static/scripts/xxx.js" />`. Biome linting for this directory is disabled in `biome.json` (client-side JS has different constraints than server TS). Do not maintain a second inline TypeScript copy in views.
+The canonical client-side runtime lives in `src/server/static/scripts/*.js`. These are the single source of truth for browser behaviour — not copies of some TypeScript original. Views reference them via `<script src="/static/scripts/xxx.js" />`. Biome linting for this directory is disabled in `biome.json` (client-side JS has different constraints than server TS). Do not maintain a second inline TypeScript copy in views.
 
 **Biome config changes must be validated immediately.**
 `biome.json` is validated by biome itself. If you add a key that doesn't exist (`files.ignore` is not valid at v2.4.14), biome fails with a parse error before running any checks. Always run `just lint` after any `biome.json` change.
@@ -253,7 +253,7 @@ If a change breaks checks and the fix isn't obvious, revert to the last known-go
 **No test coverage for views.** `pytest -m smoke` only covers Python. TypeScript views have no automated test. Until we have route-level tests (`td-9dbbac`), the only guard is: check `tsc` + `lint` + manual browser verification.
 
 **Route file with JSX retaining `.ts` extension.**
-Biome will produce cryptic parse errors: "expected `>` but instead found `data"`. The parser treats JSX as TypeScript class syntax. Fix: rename to `.tsx` and update all imports in `server/index.tsx`.
+Biome will produce cryptic parse errors: "expected `>` but instead found `data"`. The parser treats JSX as TypeScript class syntax. Fix: rename to `.tsx` and update all imports in `src/server/index.tsx`.
 
 **Forward-porting vs merging.**
 When a PR was written against old architecture that you've since refactored, evaluate conflict count × semantic distance. String-concat vs JSX is a chasm, not a gap. If >15 conflict regions: abort merge, cherry-pick ideas, rewrite into new architecture.
@@ -265,4 +265,46 @@ When a script moves (e.g. `scripts/` → `scripts/py/`), update ALL references i
 
 ## Quick Reference: How Things Flow
 
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
 
+This project is indexed by GitNexus as **TradingAgents** (5074 symbols, 6891 relationships, 140 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+
+## Always Do
+
+- **MUST run impact analysis before editing any function, class, or method signature.** Before renaming, extracting, removing, or changing the signature of a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user. Not needed for docs, lint, config, or one-line fixes that don't change the call graph.
+- **MUST run `gitnexus_detect_changes()` before committing structural changes** to verify your changes only affect expected symbols and execution flows. Skip for documentation-only or lint-only commits.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+
+## Never Do
+
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+
+## Resources
+
+| Resource | Use for |
+|----------|---------|
+| `gitnexus://repo/TradingAgents/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/TradingAgents/clusters` | All functional areas |
+| `gitnexus://repo/TradingAgents/processes` | All execution flows |
+| `gitnexus://repo/TradingAgents/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->

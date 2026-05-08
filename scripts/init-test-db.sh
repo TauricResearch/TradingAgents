@@ -15,7 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DB_DIR="$PROJECT_ROOT"
-SCHEMA="$PROJECT_ROOT/server/lib/schema.sql"
+SCHEMA="$PROJECT_ROOT/src/lib/schema.sql"
 TEST_DB="$DB_DIR/test_portfolio.db"
 
 mkdir -p "$DB_DIR"
@@ -38,7 +38,7 @@ cp "$SCHEMA" /tmp/test_schema.sql
 sqlite3 "$TEST_DB" < /tmp/test_schema.sql
 rm /tmp/test_schema.sql
 
-echo "[OK] test_portfolio.db created with schema from server/lib/schema.sql"
+echo "[OK] test_portfolio.db created with schema from src/lib/schema.sql"
 echo ""
 echo "Tables:"
 sqlite3 "$TEST_DB" ".tables"

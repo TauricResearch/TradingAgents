@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Gate: Only server/lib/db.ts may create SQLite Database instances.
+ * Gate: Only src/lib/db.ts may create SQLite Database instances.
  *
  * All code must use DatabaseFactory.connect() / DatabaseFactory.get().
  * See: playbooks/sqlite-playbook.md
@@ -10,7 +10,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const EXCLUDED_DIRS = ["node_modules", ".git", "debriefs", "briefs"]
-const ALLOWED_FILE = join("server", "lib", "db.ts")
+const ALLOWED_FILE = join("src", "lib", "db.ts")
 
 function walk(dir: string, files: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -43,8 +43,9 @@ for (const file of allFiles) {
     const line = lines[i]
     // Strip end-of-line comments
     const code = line.replace(/\/\/.*$/, "")
-    const idx = code.indexOf("new Database(")
-    if (idx === -1) continue
+    const match = /\bnew\s+Database\s*\(/.exec(code)
+    if (!match) continue
+    const idx = match.index
 
     // Check if the match is inside a string literal by counting quotes before it
     const before = code.slice(0, idx)

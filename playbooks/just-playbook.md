@@ -2,7 +2,7 @@
 
 ## Core Principle
 
-**The Justfile is a facade, not a workbench.**
+**The justfile is a facade, not a workbench.**
 
 It enumerates what's available and delegates to scripts. It has zero logic of its own. Every non-trivial implementation lives in a script — testable, debuggable, versioned independently.
 
@@ -43,7 +43,7 @@ Before adding a recipe, ask:
 
 ---
 
-## Recipes That Should Never Be In The Justfile
+## Recipes That Should Never Be In The justfile
 
 - Multi-line echo blocks with formatted text → Markdown file + renderer
 - Complex env var assembly in shell → Python/JS script reads it internally
@@ -55,7 +55,7 @@ Before adding a recipe, ask:
 ## Facade Pattern (correct usage)
 
 ```just
-# Justfile — thin interface, no logic
+# justfile — thin interface, no logic
 help:
     @glow docs/help.md 2>/dev/null || cat docs/help.md
 
@@ -198,3 +198,19 @@ help:
 | Env var | `env("VAR", "default")` |
 | Private (hidden) | `_recipe:` |
 | Working dir | `invocation_directory()` |
+---
+
+## Convention Hygiene
+
+**Rule:** The justfile is named `justfile` (lowercase). No exceptions.
+
+**Why:** `just` accepts both `justfile` and `Justfile`, but the built-in
+formatter (`just --unstable --fmt`) writes to `justfile`. Fighting the tool
+creates friction. We previously maintained `Justfile` (capitalized) as a
+"convention" — it served no purpose, created duplicate-file bugs on macOS, and
+forced manual renaming after every format. It was a barnacle. We scraped it off.
+
+**General principle for conventions:**
+1. If it fights the tool default, suspect it.
+2. If you cannot justify it in one sentence, delete it.
+3. If it causes friction twice, it is already a barnacle.

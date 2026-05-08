@@ -250,4 +250,3 @@ var short = item.lesson.split(/\r?\n/)[0];  // matches actual \n or \r\n
     # Expected output: 200
     ```
 5.  **Sanitization Check:** Review database interaction points in route handlers and seed scripts to confirm `sanitizeForDb()` is applied before writing user/AI content.
-```

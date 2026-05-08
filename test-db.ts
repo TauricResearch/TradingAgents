@@ -1,6 +1,6 @@
 import { readFileSync, unlinkSync } from "node:fs"
 import { join } from "node:path"
-import { DatabaseFactory } from "./server/lib/db.ts"
+import { DatabaseFactory } from "./src/lib/db.ts"
 
 const TEST_DB = "/tmp/test-portfolio.db"
 
@@ -47,7 +47,7 @@ for (const c of checks) {
 }
 
 console.log("4. Load schema...")
-const schema = readFileSync(join(import.meta.dir, "server/lib/schema.sql"), "utf-8")
+const schema = readFileSync(join(import.meta.dir, "src/lib/schema.sql"), "utf-8")
 db.exec(schema)
 console.log("   Schema loaded ✅")
 
