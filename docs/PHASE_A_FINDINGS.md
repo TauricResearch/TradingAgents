@@ -18,6 +18,7 @@ models (gpt-4o-mini, claude-sonnet-4-6), the honest read is:
 | Cross-domain (10) | mini | 10 | 70% | 0 | First test where mini differentiated, 7 BUY_YES + 3 BUY_NO |
 | Cross-domain (10) | Sonnet | 10 | 67% (6/9 + 1 HOLD) | 1 | Sonnet drops to mini-level once look-ahead is gone |
 | **Cross-domain (10) + drama-fix** | **Sonnet** | **10** | **88.9% (8/9 + 1 HOLD)** | **1** | **+22pp from drama-bias prompt fix; surgical effect on Iran-military and Trump-ceasefire markets** |
+| **Look-ahead-free deep (30)** | **Sonnet** | **30** | **100% (24/24 + 6 HOLDs)** | **6** | **closed before 2026-03-01; class-imbalanced (28 NO / 2 YES); Sonnet held both YES markets (4.6% random chance); no BUY_YES calls in sample** |
 
 ## Key findings
 
@@ -57,10 +58,29 @@ The 18 paper positions on Welsh/UK local elections (resolving over the
 next 24-72h) cannot be recall, those events occur AFTER training.
 That is the clean test.
 
+### 6. 30-market look-ahead-free backtest: calibration evidence
+On a deeper sample closed before 2026-03-01 (mostly SAG awards markets,
+2 esports, 1 economic indicator, 1 geopolitical, 2 short crypto-price
+binaries), Sonnet hit 24/24 directional + 6 HOLDs.
+
+The "100%" headline is inflated by the class imbalance (28 NO / 2 YES);
+an always-NO bot would score 93.3% on this sample. The interesting
+result is that **both** YES_WINS markets (XRP 15-min, Red Wings hockey)
+were among the 6 HOLDs. The probability Sonnet held both YES markets
+by random chance is ~4.6%, so this is statistically meaningful evidence
+of calibration discipline: Sonnet refused to bet on the un-callable
+markets rather than guessing.
+
+The gap: zero BUY_YES calls in the entire sample. The drama-fix run
+(88.9%) DID show working YES discrimination on a smaller cross-domain
+sample, but the 30-market sample didn't include enough YES-favoring
+markets to test it independently.
+
 ## Implications for Phase B
 
 The case for real-money execution is **MORE PLAUSIBLE but not yet justified**:
-- 88.9% accuracy on 10 markets after drama-fix is encouraging but still small sample
+- 88.9% accuracy on 10 markets + 100% on 30 (mostly NO-skewed) shows
+  calibration discipline; absolute edge claims still need a balanced sample
 - 2% Polymarket fees + slippage erode marginal edge
 - Geopolitical drama bias addressed; quote-prediction bias remains (Trump-Allah)
 
