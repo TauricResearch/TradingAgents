@@ -28,21 +28,33 @@ client errors.
 
 ---
 
-### TODO: Tighten bull/bear prompts to address drama bias
-**What:** Modify the polymarket-mode bull/bear researcher prompts to push
-back on cases where they reward "yes-it-happens" reasoning on dramatic
-geopolitical events.
-**Why:** Observed in cross-domain backtest (2026-05-08): both gpt-4o-mini
-and Sonnet went BUY_YES on "Will another country conduct military action
-against Iran by April 15?" (actual: NO). The bull researcher rewards
-finding any news suggesting YES, even when prior probability is low.
-The fix: add to the bull prompt "Be skeptical of dramatic outcomes
-('war breaks out', 'leader assassinated', etc.), these are usually
-correctly priced low. Argue YES only when you have specific recent
-catalysts that move the probability above the historical base rate."
-**Context:** Files: `tradingagents/agents/researchers/bull_researcher.py`,
-`bear_researcher.py` (polymarket branch).
-**Effort:** 20 min + 5-market backtest to confirm (~$0.10)
+### DONE: Drama-bias prompt fix
+Shipped 2026-05-08 (commit `b1ee146`). Added BASE-RATE SKEPTICISM clause
+to the trader synthesis prompt in `propagate_market()`. A/B test on the
+same 10 cross-domain markets: 67% accuracy -> 88.9% accuracy. Surgical
+flip on the two drama-bias markets (Iran military action, Trump
+ceasefire end), no regressions on previously-correct calls.
+
+Implementation lives in the trader prompt rather than the bull/bear
+prompts: bull's job is to find the strongest YES case; weakening the
+bull would degrade input quality. The trader is the right layer for
+the calibration check.
+
+---
+
+### TODO: Investigate quote-prediction failure mode
+**What:** Sonnet (and mini) wrongly predicted "Trump praise Allah by
+Apr 15" as NO when actual was YES. Quote-prediction markets are a
+distinct failure mode from drama-bias.
+**Why:** The bot has no information advantage on whether a person
+will say a specific word in a specific upcoming interview. It should
+either default to base-rate (prior frequency Trump used the word) or
+HOLD.
+**Context:** Add a clause to the trader prompt: "for quote-prediction
+markets ('will X say Y'), default to the historical frequency the
+person has used the word in similar contexts. If you have no base
+rate, prefer HOLD."
+**Effort:** 15 min + same A/B 10-market test
 **Depends on:** nothing
 
 ---

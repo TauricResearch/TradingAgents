@@ -15,8 +15,9 @@ models (gpt-4o-mini, claude-sonnet-4-6), the honest read is:
 | Crypto-FDV (5) | mini | 5 | 60% | 0 | All BUY_YES, class-balance match, no real differentiation |
 | Crypto-FDV (5) | Sonnet | 5 | 100% (4/4 + 1 HOLD) | 1 | Looks great, but training-data look-ahead almost certain |
 | Crypto-FDV (10) | Sonnet | 10 | 100% (8/8 + 2 HOLDs) | 2 | Same caveat |
-| **Cross-domain (10)** | **mini** | **10** | **70%** | **0** | First test where mini differentiated, 7 BUY_YES + 3 BUY_NO |
-| **Cross-domain (10)** | **Sonnet** | **10** | **67% (6/9 + 1 HOLD)** | **1** | Truth-tell, Sonnet drops to mini-level once look-ahead is gone |
+| Cross-domain (10) | mini | 10 | 70% | 0 | First test where mini differentiated, 7 BUY_YES + 3 BUY_NO |
+| Cross-domain (10) | Sonnet | 10 | 67% (6/9 + 1 HOLD) | 1 | Sonnet drops to mini-level once look-ahead is gone |
+| **Cross-domain (10) + drama-fix** | **Sonnet** | **10** | **88.9% (8/9 + 1 HOLD)** | **1** | **+22pp from drama-bias prompt fix; surgical effect on Iran-military and Trump-ceasefire markets** |
 
 ## Key findings
 
@@ -26,11 +27,21 @@ markets are recent (Apr-May 2026), within the LLM's training horizon for
 news ingestion. Cross-domain markets a few weeks earlier produce a
 different shape entirely.
 
-### 2. Both models share a "yes-it-happens" geopolitical bias
-On the cross-domain set, both went BUY_YES on "Will another country
-conduct military action against Iran by April 15?" (actual: NO). The
-bull researcher prompt rewards finding any "evidence YES might happen,"
-which over-weights low-probability dramatic events.
+### 2. Both models share a "yes-it-happens" geopolitical bias [FIXED]
+On the cross-domain set, both initially went BUY_YES on "Will another
+country conduct military action against Iran by April 15?" (actual:
+NO). The bull researcher prompt rewards finding any "evidence YES
+might happen," which over-weights low-probability dramatic events.
+
+**Fix shipped (commit b1ee146):** added a BASE-RATE SKEPTICISM clause
+to the trader synthesis prompt. The trader now explicitly checks
+whether the YES case rests on "something dramatic might happen"
+without specific recent catalysts, and defaults to HOLD or BUY_NO
+when no concrete catalyst exists.
+
+**A/B result on the same 10 markets**: accuracy jumped from 67% to
+88.9%. Two markets flipped from wrong to right (Iran military action,
+Trump ceasefire end), no regressions. The fix is surgical, not blunt.
 
 ### 3. Sonnet's HOLD discipline is the only real differentiator
 On 10 cross-domain markets, Sonnet HELD 1 (US escorts Hormuz, conf 0.52)
@@ -48,14 +59,16 @@ That is the clean test.
 
 ## Implications for Phase B
 
-The case for real-money execution is **NOT YET justified**:
-- 67-70% accuracy on 10 markets is not statistically significant
+The case for real-money execution is **MORE PLAUSIBLE but not yet justified**:
+- 88.9% accuracy on 10 markets after drama-fix is encouraging but still small sample
 - 2% Polymarket fees + slippage erode marginal edge
-- Geopolitical drama bias unaddressed
+- Geopolitical drama bias addressed; quote-prediction bias remains (Trump-Allah)
 
 Recommended sequence before any real-money move:
 1. Score the live Welsh/UK positions when they resolve (post-cutoff truth)
-2. Tighten bull/bear prompts to push back on drama bias
+2. ~~Tighten bull/bear prompts to push back on drama bias~~ DONE (commit b1ee146)
 3. Run a 50-market backtest with `--end-date-max 2026-03-01` for a
    wider, less-recallable sample
-4. Only then evaluate Phase B economics with the binary risk model
+4. Investigate the quote-prediction failure mode (Trump-Allah) if it
+   recurs at scale
+5. Only then evaluate Phase B economics with the binary risk model
