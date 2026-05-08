@@ -15,6 +15,7 @@ Core:
   execute <ticker>           Calculate plan and execute via IG API
   portfolio                  Show holdings, P&L, and cash summary
   watchlist                  Show prospects being tracked
+  signals [ticker]           Show latest AI-generated signals
   config <get|set|list|...>  Manage CLI defaults
 
 IG Trading:
