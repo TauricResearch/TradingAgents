@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 /**
  * System status overview.
  *
@@ -30,6 +29,18 @@ export const statusCommand = defineCommand({
   },
   args: {},
   run: async () => {
+    // ── Server ──────────────────────────────────────────────────────────────
+
+    let serverRunning = false
+    try {
+      const resp = await fetch("http://localhost:3000/", {
+        signal: AbortSignal.timeout(2000),
+      })
+      serverRunning = resp.status === 200
+    } catch {
+      serverRunning = false
+    }
+
     // ── Database ────────────────────────────────────────────────────────────
 
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -53,21 +64,15 @@ export const statusCommand = defineCommand({
     const memoryLogPath = cfg.paths.memoryLog
     const memoryLogExists = existsSync(memoryLogPath)
 
-    // ── Server ──────────────────────────────────────────────────────────────
-
-    let serverRunning = false
-    try {
-      const resp = await fetch("http://localhost:3000/", { signal: AbortSignal.timeout(2000) })
-      serverRunning = resp.status === 200
-    } catch {
-      serverRunning = false
-    }
-
     // ── Print ───────────────────────────────────────────────────────────────
 
     console.log("")
     console.log("SYSTEM STATUS")
     console.log("─".repeat(50))
+    console.log("")
+
+    console.log("Server")
+    console.log(`  Status:           ${serverRunning ? "✓ Running on :3000" : "✗ Not running"}`)
     console.log("")
 
     console.log("Database")
@@ -82,13 +87,9 @@ export const statusCommand = defineCommand({
     console.log("")
 
     console.log("Configuration")
-    console.log(`  Config store:     ${configExists ? `✓ ${configPath}` : "✗ not found"}`)
-    console.log(`  Memory log:       ${memoryLogExists ? `✓ ${memoryLogPath}` : "✗ not found"}`)
+    console.log(`  Config store:     ${configExists ? "✓" : "✗ not found"}`)
+    console.log(`  Memory log:       ${memoryLogExists ? "✓" : "✗ not found"}`)
     console.log(`  Dashboard port:   ${cfg.app.dashboardPort}`)
-    console.log("")
-
-    console.log("Server")
-    console.log(`  Status:           ${serverRunning ? "✓ Running on :3000" : "✗ Not running"}`)
     console.log("")
   },
 })

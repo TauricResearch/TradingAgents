@@ -49,11 +49,49 @@ function killPort(port: number) {
 
 function status() {
   const pid = readPid()
-  if (pid && isAlive(pid)) {
-    console.log(`Server running (PID ${pid}, port ${PORT})`)
-  } else {
-    console.log(`Server stopped (port ${PORT})`)
+  const running = pid !== null && isAlive(pid)
+
+  // Check port
+  let portOccupied = false
+  try {
+    execSync(`lsof -ti :${PORT}`, { shell: "/bin/bash" })
+    portOccupied = true
+  } catch {
+    portOccupied = false
   }
+
+  // Check hledger
+  let hledgerOk = false
+  try {
+    execSync("hledger -f ~/.hledger.journal balance --tree >/dev/null 2>&1")
+    hledgerOk = true
+  } catch {
+    hledgerOk = false
+  }
+
+  const wName = 18
+  const wStatus = 10
+
+  console.log("")
+  console.log("╔════════════════════════════════════════════════════╗")
+  console.log("║  SERVICES                                          ║")
+  console.log("╠════════════════════════════════════════════════════╣")
+  console.log(`║  ${"Service".padEnd(wName)} ${"Status".padStart(wStatus)}   Detail             ║`)
+  console.log("║  ──────────────────────────────────────────────────  ║")
+  console.log(
+    `║  ${"Dashboard".padEnd(wName)} ${(running ? "\x1b[32mrunning\x1b[0m" : "\x1b[31mstopped\x1b[0m").padStart(wStatus + 9)}   ${running ? `PID ${pid}` : `port ${PORT} free`}    ║`,
+  )
+  console.log(
+    `║  ${"hledger".padEnd(wName)} ${(hledgerOk ? "\x1b[32mrunning\x1b[0m" : "\x1b[31merror\x1b[0m").padStart(wStatus + 9)}   journal loaded     ║`,
+  )
+  console.log("╚════════════════════════════════════════════════════╝")
+
+  if (!running && portOccupied) {
+    console.log("")
+    console.log("  ⚠ Port occupied but PID file missing — run: just restart")
+  }
+
+  console.log("")
 }
 
 function start() {
