@@ -28,6 +28,7 @@ const main = defineCommand({
     signals: () => import("./commands/signals.ts").then((m) => m.signalsCommand),
     watchlist: () => import("./commands/watchlist.ts").then((m) => m.watchlistCommand),
     buylist: () => import("./commands/buylist.ts").then((m) => m.buylistCommand),
+    research: () => import("./commands/research.ts").then((m) => m.researchCommand),
     alerts: () => import("./commands/alerts.ts").then((m) => m.alertsCommand),
     analyze: () => import("./commands/analyze.ts").then((m) => m.analyzeCommand),
     summarize: () => import("./commands/summarize.ts").then((m) => m.summarizeCommand),

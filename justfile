@@ -344,6 +344,11 @@ alerts:
 buylist:
     bun run src/cli/main.ts buylist
 
+# Run TradingAgents research pipeline and extract buylist values
+[group("run")]
+research TICKER:
+    bun run src/cli/main.ts research {{TICKER}}
+
 # Show portfolio holdings (DEV, uses hledger + SQLite via dashboard)
 [group("run")]
 portfolio-intel:
