@@ -38,6 +38,9 @@ Data & Operations:
   backup [--test]            Backup SQLite database
   summarize [ticker]         LLM summary of analyses
 
+System:
+  status                     System status overview
+
 Setup:
   trading completion bash > ~/.bashrc
   trading completion zsh > ~/.zshrc
