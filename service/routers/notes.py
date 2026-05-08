@@ -43,6 +43,8 @@ def update_note(note_id: int, req: NoteUpdateRequest) -> Note:
         raise HTTPException(status_code=404, detail="note not found")
     storage.update_note(note_id, title=req.title, body=req.body, tags=req.tags)
     row = storage.get_note(note_id)
+    if row is None:
+        raise HTTPException(status_code=500, detail="note not retrievable")
     return Note(**row)
 
 

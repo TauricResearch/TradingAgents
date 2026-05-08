@@ -67,7 +67,7 @@ def _earnings_for(ticker: str) -> List[CalendarEvent]:
         # Old shape: DataFrame with "Earnings Date" row.
         try:
             row = cal.loc["Earnings Date"]
-            for v in row.values.flatten():
+            for v in row.to_numpy().flatten():
                 iso = _to_iso(v)
                 if iso:
                     out.append(CalendarEvent(

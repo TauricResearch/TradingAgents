@@ -187,6 +187,8 @@ def run_simulation(req: SimRunRequest) -> SimDetail:
         result_json=result.model_dump_json(),
     )
     row = storage.get_simulation(sid)
+    if row is None:
+        raise HTTPException(status_code=500, detail="simulation not retrievable")
     return SimDetail(
         id=sid,
         name=row["name"],

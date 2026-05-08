@@ -54,13 +54,13 @@ def list_run_exports(run_id: str) -> List[dict]:
     out: List[dict] = []
 
     # JSON archive — already on disk, point to the source file.
-    p = Path(log_path)
-    if p.exists():
+    archive_path = Path(log_path)
+    if archive_path.exists():
         out.append({
             "ext": "json",
-            "path": str(p),
-            "size_bytes": p.stat().st_size,
-            "filename": p.name,
+            "path": str(archive_path),
+            "size_bytes": archive_path.stat().st_size,
+            "filename": archive_path.name,
         })
 
     # Auto-generate the other three if they don't already exist.
@@ -76,14 +76,14 @@ def list_run_exports(run_id: str) -> List[dict]:
             if pdf:
                 export_mod.write_export(pdf, meta, "pdf")
         existing = export_mod.list_exports_for_run(meta)
-        for ext in ("md", "html", "pdf"):
-            p = existing.get(ext)
-            if p and p.exists():
+        for export_ext in ("md", "html", "pdf"):
+            export_path = existing.get(export_ext)
+            if export_path and export_path.exists():
                 out.append({
-                    "ext": ext,
-                    "path": str(p),
-                    "size_bytes": p.stat().st_size,
-                    "filename": p.name,
+                    "ext": export_ext,
+                    "path": str(export_path),
+                    "size_bytes": export_path.stat().st_size,
+                    "filename": export_path.name,
                 })
     return out
 
@@ -93,6 +93,7 @@ def download_export(run_id: str, ext: str) -> FileResponse:
     if ext not in {"json", "md", "html", "pdf"}:
         raise HTTPException(status_code=400, detail="unsupported format")
     meta, log_path = _meta_for_run(run_id)
+    path: Path | None
     if ext == "json":
         path = Path(log_path)
     else:

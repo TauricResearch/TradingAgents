@@ -243,6 +243,7 @@ def add_note(*, title: str, body: str, ticker: Optional[str] = None,
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (ticker, run_id, title, body, tags, now, now),
         )
+        assert cur.lastrowid is not None
         return int(cur.lastrowid)
 
 
@@ -297,6 +298,7 @@ def add_chat_message(*, run_id: str, role: str, content: str,
                VALUES (?, ?, ?, ?, ?)""",
             (run_id, role, content, _now(), model),
         )
+        assert cur.lastrowid is not None
         return int(cur.lastrowid)
 
 
@@ -378,6 +380,7 @@ def add_position(*, ticker: str, shares: float, cost_basis_per_share: float,
             (ticker.upper(), float(shares), float(cost_basis_per_share),
              opened_at or _now(), account, notes),
         )
+        assert cur.lastrowid is not None
         return int(cur.lastrowid)
 
 
@@ -442,6 +445,7 @@ def add_simulation(*, name: str, base_run_id: Optional[str], ticker: Optional[st
             (name, base_run_id, (ticker.upper() if ticker else None),
              scenario_json, result_json, _now()),
         )
+        assert cur.lastrowid is not None
         return int(cur.lastrowid)
 
 

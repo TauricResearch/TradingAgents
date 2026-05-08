@@ -30,11 +30,14 @@ def comparison(
         for ts, row in df.iterrows():
             points.append(ChartPoint(
                 date=ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts),
-                values={k: float(v) for k, v in row.items() if v == v},  # filters NaN
+                values={str(k): float(v) for k, v in row.items() if v == v},  # filters NaN
             ))
 
     rt_df = charts_mod.realised_returns_table(ticker, trade_date)
-    rt_records = rt_df.to_dict(orient="records") if rt_df is not None else None
+    rt_records = [
+        {str(k): str(v) for k, v in record.items()}
+        for record in rt_df.to_dict(orient="records")
+    ] if rt_df is not None else None
 
     return ChartComparisonResponse(
         ticker=ticker,

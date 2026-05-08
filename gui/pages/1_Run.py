@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from datetime import date
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 import streamlit as st
 
@@ -339,7 +339,7 @@ with action_col:
 sections = SS.run_sections
 debates = SS.run_debates
 
-tab_labels = [
+tab_labels: list[tuple[str, str | None]] = [
     ("Market", "market_report"),
     ("Sentiment", "sentiment_report"),
     ("News", "news_report"),
@@ -354,7 +354,7 @@ tab_labels = [
 tabs = st.tabs([f"✓ {lbl}" if (key and sections.get(key)) else lbl
                 for lbl, key in tab_labels])
 
-for tab, (label, key) in zip(tabs, tab_labels):
+for tab, (label, section_key) in zip(tabs, tab_labels):
     with tab:
         if label == "Bull vs Bear":
             bcol, ecol = st.columns(2)
@@ -380,8 +380,8 @@ for tab, (label, key) in zip(tabs, tab_labels):
         elif label == "Live Log":
             log = "\n".join(SS.run_log[-100:]) or "(no events yet)"
             st.code(log[-20_000:], language="text")
-        elif key:
-            content = sections.get(key)
+        elif section_key:
+            content = sections.get(section_key)
             if content:
                 st.markdown(safe_md(content))
             else:
@@ -471,7 +471,7 @@ if SS.run_id and SS.run_decision is not None:
         rt = charts.realised_returns_table(ticker_for_chart, date_for_chart)
         if rt is not None:
             st.markdown("**Realised return windows** (vs SPY, post-trade-date):")
-            st.dataframe(rt, width="stretch", hide_index=True)
+            st.dataframe(rt, width="stretch", hide_index=True)  # type: ignore[call-overload]
 
 # ---------------------------------------------------------------------------
 # Chat about this run — full Q&A panel.
@@ -529,7 +529,7 @@ if SS.run_id and SS.run_decision is not None:
         with st.chat_message("assistant"):
             history_for_llm = SS[hist_key][:-1]
             stream = chat.stream_response(chat_state, chat_meta, history_for_llm, q)
-            response_text = st.write_stream(lambda: (safe_md(t) for t in stream))
+            response_text = cast(str, st.write_stream(lambda: (safe_md(t) for t in stream)))
         SS[hist_key].append({"role": "assistant", "content": response_text})
         storage.add_chat_message(run_id=SS.run_id, role="assistant",
                                  content=response_text,

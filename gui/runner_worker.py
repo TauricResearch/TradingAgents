@@ -232,9 +232,10 @@ def run(job: Dict[str, Any]) -> None:
     # - otherwise, when provider is ollama, fall back to the GUI config's
     #   stored ``ollama_base_url`` (set on the Settings page) so users
     #   don't have to specify the URL on every run.
+    llm_provider = str(config.get("llm_provider") or "")
     if job.get("backend_url"):
         config["backend_url"] = job["backend_url"]
-    elif (config.get("llm_provider") or "").lower() == "ollama":
+    elif llm_provider.lower() == "ollama":
         try:
             from gui.config import load as _load_cfg
             ollama_url = (_load_cfg().get("defaults", {}) or {}).get("ollama_base_url")
@@ -281,11 +282,11 @@ def run(job: Dict[str, Any]) -> None:
         emit({"type": "error", "message": "graph produced no output"})
         return
 
-    ta.curr_state = final_state
+    setattr(ta, "curr_state", final_state)
 
     # Compute the canonical path the same way ``_log_state`` does so we can
     # archive after writing.
-    report_dir = Path(config["results_dir"]) / safe_ticker_component(ticker) / "TradingAgentsStrategy_logs"
+    report_dir = Path(str(config["results_dir"])) / safe_ticker_component(ticker) / "TradingAgentsStrategy_logs"
     canonical_path = report_dir / f"full_states_log_{trade_date}.json"
 
     # Write the canonical state log. If this fails we still try to archive

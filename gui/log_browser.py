@@ -20,7 +20,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def results_dir() -> Path:
-    return Path(DEFAULT_CONFIG["results_dir"])
+    return Path(str(DEFAULT_CONFIG["results_dir"]))
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -141,7 +141,7 @@ def load_archive_full(path: str | Path) -> Optional[Dict[str, Any]]:
 
 
 def memory_log_path() -> Path:
-    return Path(DEFAULT_CONFIG["memory_log_path"])
+    return Path(str(DEFAULT_CONFIG["memory_log_path"]))
 
 
 def read_memory_log() -> str:

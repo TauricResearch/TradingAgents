@@ -12,7 +12,7 @@ import json
 import os
 import stat
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from tradingagents.default_config import DEFAULT_CONFIG
 
@@ -58,13 +58,14 @@ DATA_VENDORS = ["yfinance", "alpha_vantage"]
 
 
 def _empty_config() -> Dict[str, Any]:
+    data_vendors = cast(Dict[str, str], DEFAULT_CONFIG["data_vendors"])
     defaults = {
         "llm_provider": DEFAULT_CONFIG["llm_provider"],
         "deep_think_llm": DEFAULT_CONFIG["deep_think_llm"],
         "quick_think_llm": DEFAULT_CONFIG["quick_think_llm"],
         "max_debate_rounds": DEFAULT_CONFIG["max_debate_rounds"],
         "max_risk_discuss_rounds": DEFAULT_CONFIG["max_risk_discuss_rounds"],
-        "data_vendors": dict(DEFAULT_CONFIG["data_vendors"]),
+        "data_vendors": dict(data_vendors),
         "output_language": DEFAULT_CONFIG["output_language"],
         "checkpoint_enabled": DEFAULT_CONFIG["checkpoint_enabled"],
         # Ollama base URL — empty means "use the framework default" which is

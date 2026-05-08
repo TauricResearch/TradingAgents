@@ -51,7 +51,7 @@ def watchlist_quotes() -> dict:
     """Last-known quote snapshot for every ticker in the watchlist —
     cheap REST endpoint suitable for periodic UI refresh fallback when
     a client doesn't want to maintain live WebSockets per row."""
-    out = {}
+    out: dict[str, dict[str, float | None] | None] = {}
     for entry in storage.list_watchlist():
         ticker = entry["ticker"]
         st = broadcaster._state.get(ticker)

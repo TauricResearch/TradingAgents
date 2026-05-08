@@ -83,7 +83,10 @@ def update_position(pid: int, req: PositionUpdateRequest) -> Position:
         account=req.account,
         notes=req.notes,
     )
-    return Position(**storage.get_position(pid))
+    row = storage.get_position(pid)
+    if row is None:
+        raise HTTPException(status_code=500, detail="position not retrievable")
+    return Position(**row)
 
 
 @router.post("/positions/{pid}/close", response_model=Position)
@@ -91,7 +94,10 @@ def close_position(pid: int, req: PositionCloseRequest) -> Position:
     if not storage.get_position(pid):
         raise HTTPException(status_code=404, detail="position not found")
     storage.close_position(pid, closing_price=req.closing_price, closed_at=req.closed_at)
-    return Position(**storage.get_position(pid))
+    row = storage.get_position(pid)
+    if row is None:
+        raise HTTPException(status_code=500, detail="position not retrievable")
+    return Position(**row)
 
 
 @router.delete("/positions/{pid}")

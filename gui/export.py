@@ -33,7 +33,7 @@ except Exception:  # pragma: no cover
     _md = None
     _HAS_MARKDOWN = False
 
-EXPORTS_DIR = Path(DEFAULT_CONFIG.get("results_dir", str(Path.home() / ".tradingagents" / "logs"))).parent / "exports"
+EXPORTS_DIR = Path(str(DEFAULT_CONFIG.get("results_dir", Path.home() / ".tradingagents" / "logs"))).parent / "exports"
 
 
 # ---------------------------------------------------------------------------

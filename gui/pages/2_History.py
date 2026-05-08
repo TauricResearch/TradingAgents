@@ -7,6 +7,7 @@ launched) and on-disk JSON state logs (which include CLI-launched runs).
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 import streamlit as st
@@ -26,7 +27,7 @@ st.title("Run history")
 # canonical files (CLI runs from before archival was added) join only by
 # (ticker, date) and don't have stats.
 db_by_run_id = {r["run_id"]: r for r in storage.list_runs(limit=10_000)}
-db_by_ticker_date = {}
+db_by_ticker_date: dict[tuple[str, str], dict[str, Any]] = {}
 for r in db_by_run_id.values():
     # Latest DB row per (ticker, date) for joining canonical files.
     db_by_ticker_date.setdefault((r["ticker"], r["trade_date"]), r)
@@ -148,7 +149,7 @@ st.dataframe(
           "tokens_in", "tokens_out", "status"]],
     width="stretch",
     hide_index=True,
-)
+)  # type: ignore[call-overload]
 
 st.divider()
 st.subheader("Open a run")
@@ -260,21 +261,21 @@ with bench_col3:
 
 benchmarks = ["SPY"] + (["QQQ"] if show_qqq else [])
 with st.spinner("Pulling price data from Yahoo…"):
-    df = charts.build_comparison_frame(
+    chart_df = charts.build_comparison_frame(
         chosen["ticker"], chosen["trade_date"],
         days_back=days_back, days_forward=days_forward,
         benchmarks=benchmarks,
     )
-if df is None or df.empty:
+if chart_df is None or chart_df.empty:
     st.caption("Couldn't fetch price data for this ticker / window.")
 else:
     st.caption(f"Indexed to **100** at the trade date ({chosen['trade_date']}).")
-    st.line_chart(df, height=320)
+    st.line_chart(chart_df, height=320)
 
 returns_df = charts.realised_returns_table(chosen["ticker"], chosen["trade_date"])
 if returns_df is not None:
     st.markdown("**Realised return windows** (vs SPY, post-trade-date):")
-    st.dataframe(returns_df, width="stretch", hide_index=True)
+    st.dataframe(returns_df, width="stretch", hide_index=True)  # type: ignore[call-overload]
 else:
     st.caption(
         "Trade date is too recent for realised-return windows. "
@@ -325,7 +326,7 @@ def _file_row(label: str, ext: str, path: Path | None, *, helptext: str = "") ->
             mime={"json": "application/json", "md": "text/markdown",
                   "html": "text/html", "pdf": "application/pdf"}.get(ext, "application/octet-stream"),
             file_name=path.name,
-            width="stretch", key=f"dl_{ext}_file",
+            width="stretch", key=f"dl_{ext}_file",  # type: ignore[call-arg]
             help=helptext or f"Download the {ext} file ({size_kb:.1f} KB)",
         )
         # Streamlit can't open the OS file manager from a button, but
@@ -452,7 +453,7 @@ if question:
         stream = chat.stream_response(state, meta_for_chat, history_for_llm,
                                       question, tool_trace=tool_trace)
         # st.write_stream renders chunks token-by-token AND returns the joined text.
-        response_text = st.write_stream(lambda: (safe_md(t) for t in stream))
+        response_text = cast(str, st.write_stream(lambda: (safe_md(t) for t in stream)))
 
     st.session_state[hist_key].append({"role": "assistant", "content": response_text})
     if chosen.get("run_id"):
