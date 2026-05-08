@@ -26,6 +26,7 @@ IG Trading:
   ig sell <dealId>           Close position
 
 Data & Operations:
+  analyze <ticker>           Run TradingAgents LLM analysis
   seed [--positions]         Seed database with test data
   sync prices [ticker]       Sync Yahoo Finance prices
   backup [--test]            Backup SQLite database

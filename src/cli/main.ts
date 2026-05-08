@@ -22,6 +22,7 @@ const main = defineCommand({
     seed: () => import("./commands/seed.ts").then((m) => m.seedCommand),
     sync: () => import("./commands/sync.ts").then((m) => m.syncCommand),
     backup: () => import("./commands/backup.ts").then((m) => m.backupCommand),
+    analyze: () => import("./commands/analyze.ts").then((m) => m.analyzeCommand),
     summarize: () => import("./commands/summarize.ts").then((m) => m.summarizeCommand),
     help: () => import("./commands/help.ts").then((m) => m.helpCommand),
   },
