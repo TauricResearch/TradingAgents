@@ -1,3 +1,4 @@
+import os
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -265,6 +266,35 @@ def select_llm_provider() -> tuple[str, str | None]:
         exit(1)
 
     provider, url = choice
+    if provider == "openai":
+        url = os.getenv("OPENAI_BASE_URL", url)
+
+    if provider == "openai":
+        use_custom_url = questionary.confirm(
+            "Use a custom OpenAI-compatible base URL?",
+            default=False,
+            style=questionary.Style(
+                [
+                    ("selected", "fg:magenta noinherit"),
+                    ("highlighted", "fg:magenta noinherit"),
+                    ("pointer", "fg:magenta noinherit"),
+                ]
+            ),
+        ).ask()
+        if use_custom_url:
+            custom_url = questionary.text(
+                "Enter the OpenAI-compatible base URL:",
+                default=url or "",
+                validate=lambda x: len(x.strip()) > 0 or "Please enter a valid base URL.",
+                style=questionary.Style(
+                    [
+                        ("text", "fg:green"),
+                        ("highlighted", "noinherit"),
+                    ]
+                ),
+            ).ask()
+            url = custom_url.strip()
+
     return provider, url
 
 

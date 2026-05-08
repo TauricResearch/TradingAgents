@@ -119,6 +119,8 @@ _PROVIDER_CONFIG = {
     "ollama": ("http://localhost:11434/v1", None),
 }
 
+_OPENAI_BASE_URL_ENV_VAR = "OPENAI_BASE_URL"
+
 
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
@@ -156,6 +158,11 @@ class OpenAIClient(BaseLLMClient):
                     llm_kwargs["api_key"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
+        elif self.provider == "openai":
+            llm_kwargs["base_url"] = self.base_url or os.environ.get(
+                _OPENAI_BASE_URL_ENV_VAR,
+                "https://api.openai.com/v1",
+            )
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 

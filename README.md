@@ -138,6 +138,7 @@ TradingAgents supports multiple LLM providers. Set the API key for your chosen p
 
 ```bash
 export OPENAI_API_KEY=...          # OpenAI (GPT)
+export OPENAI_BASE_URL=...         # Optional OpenAI-compatible proxy/gateway
 export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
