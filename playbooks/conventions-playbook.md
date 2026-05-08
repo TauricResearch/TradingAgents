@@ -53,6 +53,7 @@ justify it in one sentence, delete it.
 | `src/` = production TS (strict) | `tsc --noEmit` enforced; tested code only | 2026-05-07 |
 | `src/lib/` = shared modules | Imported by `src/server/` and `src/cli/` | 2026-05-07 |
 | `src/server/lib/` = server-only | NOT imported outside `src/server/` | 2026-05-07 |
+| PRs ≤ 30 files per concern | Reviewable, bisectable, merges fast; stack branches for dependencies | 2026-05-08 |
 | `scripts/` = support TS (loose) | Tooling, automation, not shipped | 2026-05-07 |
 | `scripts/lab/` = experiments | Loosest types; disposable | 2026-05-07 |
 | `scripts/lib/` = shared helpers | Reusable across scripts; pass `just check` | 2026-05-06 |

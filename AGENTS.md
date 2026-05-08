@@ -236,6 +236,21 @@ TradingAgents/
 
 **Batch vs. single:** Multiple small tasks that each require the same check run can be done in parallel if they don't touch the same files. If they share files (e.g. updating `biome.json` for multiple changes), do them one at a time — shared config changes are high-friction and high-revert-cost.
 
+### PR Size Discipline
+
+**One concern per PR.** A PR that bundles a directory restructure, a new CLI, API integration, a trade calculator, and documentation into one changeset is unreviewable and un-bisectable. PR #9 (191 files, 16k lines) is the cautionary example — the review cycle stretched over days because no single reviewer could assess five independent concerns at once.
+
+**Rules:**
+- **Hard cap: 30 files per PR.** If `git diff --stat main...HEAD | wc -l` exceeds 30, split it. Mechanical renames (e.g. `server/` → `src/server/`) are an exception — they're low-risk and reviewable by pattern, not by line.
+- **One PR per td epic story.** Epics with multiple stories should produce multiple PRs, not one. Use `td` story IDs to track which PR maps to which story.
+- **Stack branches, don't bundle.** If Story B depends on Story A, cut branch B from branch A, not from `main`. Merge bottom-up: A → `main`, then rebase B onto `main`, then merge B.
+- **Justify exceptions in the PR body.** If a PR genuinely can't be split (e.g. a cross-cutting type change that touches 40 files), explain why in the description. "It's all related" is not a justification.
+
+**Why it matters:**
+- Review surface area: a 30-file PR gets a thorough review in minutes. A 191-file PR gets a skim.
+- `git bisect`: a small, focused commit isolates breakage to one change. A monolithic commit says "something in these 191 files broke."
+- Merge velocity: small PRs merge in hours. Large PRs accumulate conflicts and drift over days.
+
 ### Known Failure Modes
 
 **Static JS copies of TypeScript = maintenance trap.**

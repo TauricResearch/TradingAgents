@@ -63,7 +63,8 @@ export function calculateTradePlan(input: TradePlanInput): TradePlan {
   }
 
   const sorted = [...priceHistory].sort((a, b) => a.date.localeCompare(b.date))
-  const latest = sorted[sorted.length - 1]!
+  const latest = sorted[sorted.length - 1]
+  if (!latest) throw new Error("Price history is empty")
   const entry = entryPrice ?? latest.close
 
   // ATR requires at least 15 bars (14 periods + 1 prior close)
@@ -139,8 +140,9 @@ export function calculateATR(bars: PriceBar[], n = 14): number {
   const trValues: number[] = []
 
   for (let i = 1; i < bars.length; i++) {
-    const curr = bars[i]!
-    const prev = bars[i - 1]!
+    const curr = bars[i]
+    const prev = bars[i - 1]
+    if (!curr || !prev) continue
     const tr = Math.max(
       curr.high - curr.low,
       Math.abs(curr.high - prev.close),
@@ -179,11 +181,14 @@ export function findSwingHighLow(bars: PriceBar[]): { swingLow: number; swingHig
   // Use last 22 bars for swing detection
   const window = bars.length >= 22 ? bars.slice(-22) : bars
 
-  let swingLow = window[0]!.low
+  const firstBar = window[0]
+  if (!firstBar) return { swingLow: 0, swingHigh: 0 }
+  let swingLow = firstBar.low
   let swingLowIdx = 0
 
   for (let i = 1; i < window.length; i++) {
-    const bar = window[i]!
+    const bar = window[i]
+    if (!bar) continue
     if (bar.low < swingLow) {
       swingLow = bar.low
       swingLowIdx = i
@@ -191,9 +196,11 @@ export function findSwingHighLow(bars: PriceBar[]): { swingLow: number; swingHig
   }
 
   // Point B: highest high after Point A
-  let swingHigh = window[swingLowIdx]!.high
+  const peakBar = window[swingLowIdx]
+  let swingHigh = peakBar?.high ?? swingLow
   for (let i = swingLowIdx + 1; i < window.length; i++) {
-    const bar = window[i]!
+    const bar = window[i]
+    if (!bar) continue
     if (bar.high > swingHigh) {
       swingHigh = bar.high
     }
