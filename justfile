@@ -21,6 +21,37 @@ info:
     glow - "$tmp" 2>/dev/null || cat "$tmp"
     rm -f "$tmp"
 
+# Shortcut reference: just <letter> → group menu
+[group("meta")]
+shortcuts:
+    #!/usr/bin/env bash
+    echo ""
+    echo "══════════════════════════════════════════════════════════════════════"
+    echo "  NAVIGATION SHORTCUTS  —  just <letter> to see a group's recipes"
+    echo "══════════════════════════════════════════════════════════════════════"
+    echo ""
+    printf "  %-6s  %-28s  %s\n" "Letter" "Group" "Purpose"
+    echo "  ────────────────────────────────────────────────────────────────────"
+    printf "  %-6s  %-28s  %s\n" "b"     "Bun"              "TypeScript server tooling"
+    printf "  %-6s  %-28s  %s\n" "p"     "Python"           "tradingagents package, analysis"
+    printf "  %-6s  %-28s  %s\n" "db"    "Database"         "SQLite backup, stats, maintenance"
+    printf "  %-6s  %-28s  %s\n" "r"     "Run"              "Business operations (analyze, sync)"
+    printf "  %-6s  %-28s  %s\n" "s"     "Seed"             "Database seeding"
+    printf "  %-6s  %-28s  %s\n" "x"     "Test"             "Test DB, development tools"
+    printf "  %-6s  %-28s  %s\n" "d"     "Diagrams"         "Render .dot / .mmd to .svg"
+    printf "  %-6s  %-28s  %s\n" "pr"    "PR"               "GitHub pull request helpers"
+    printf "  %-6s  %-28s  %s\n" "hk"    "Hooks"            "Git workflow automation"
+    printf "  %-6s  %-28s  %s\n" "gn"    "GitNexus"         "Code knowledge graph"
+    printf "  %-6s  %-28s  %s\n" "srv"   "Server"           "Dashboard lifecycle"
+    printf "  %-6s  %-28s  %s\n" "t"     "td"               "Task management"
+    printf "  %-6s  %-28s  %s\n" "m"     "Meta"             "Project info, help, state"
+    printf "  %-6s  %-28s  %s\n" "h"     "hLedger"          "Plain-text accounting"
+    printf "  %-6s  %-28s  %s\n" "lab"   "Lab"              "Terminal experiments"
+    echo ""
+    echo "  Also: just info  — full project state"
+    echo "        just help  — project orientation guide"
+    echo ""
+
 # ── Registry: briefs, debriefs, playbook indexes (JSONL + jq) ────────────────
 #   Query the project's knowledge base. All indexes are JSONL: one JSON object per line.
 #   See: src/server/lib/registry-types.ts for schema definitions.
