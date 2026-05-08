@@ -27,7 +27,8 @@
 
 ## Current TD Status
 
-**OPEN:** None. All TDs closed.
+**OPEN:**
+- `td-a67291` [P1] DOCS-CLEANUP-2: Fix remaining path drift from review of td-f42750
 
 **Awaiting prioritization:**
 - CLI portfolio command (terminal view of holdings/P&L)

@@ -68,7 +68,7 @@ function convertLine(line: string): string {
 }
 
 function main() {
-  const inputPath = process.argv[2] || "server/static/style.css"
+  const inputPath = process.argv[2] || "src/server/static/style.css"
   const outputPath = process.argv[3] || inputPath
 
   const css = readFileSync(inputPath, "utf-8")

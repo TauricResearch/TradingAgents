@@ -1,16 +1,12 @@
 /**
- * Tests for cli/trading/lib/ig-instruments.ts
+ * Tests for src/cli/lib/ig-instruments.ts
  *
  * Validates IG instrument config and trade plan validation.
  * All values cross-referenced against IG demo API (2026-05-07).
  */
 
 import { describe, expect, test } from "bun:test"
-import {
-  getIGInstrument,
-  IG_INSTRUMENTS,
-  validateIGPlan,
-} from "../cli/trading/lib/ig-instruments.ts"
+import { getIGInstrument, IG_INSTRUMENTS, validateIGPlan } from "../src/cli/lib/ig-instruments.ts"
 
 describe("getIGInstrument", () => {
   test("returns config for known tickers", () => {

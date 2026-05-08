@@ -17,7 +17,7 @@ oklch provides uniform perceptual lightness. Changing the `l` (lightness) channe
 ### Usage
 
 ```bash
-# Convert default stylesheet (server/static/style.css) in-place
+# Convert default stylesheet (src/server/static/style.css) in-place
 bun scripts/color-tools/convert-hex-to-oklch.ts
 
 # Convert a specific file, writing to a different output

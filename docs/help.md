@@ -7,7 +7,7 @@ Multi-agent LLM trading framework + web dashboard.
 | Directory | System | Description |
 |-----------|--------|-------------|
 | `tradingagents/` | Python CLI | `tradingagents analyze`, LangGraph workflow |
-| `server/` | Bun/Hono | Web dashboard on port 3000 |
+| `src/server/` | Bun/Hono | Web dashboard on port 3000 |
 
 ## Quick start
 

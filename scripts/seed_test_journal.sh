@@ -9,7 +9,7 @@
 #   ./scripts/seed_test_journal.sh /tmp/test.journal   → write to custom path
 #
 # Then point the dashboard at it:
-#   HLEDGER_FILE=/tmp/test.journal bun run server/index.tsx
+#   HLEDGER_FILE=/tmp/test.journal bun run src/server/index.tsx
 #
 # Or use the just recipe:
 #   just seed-test-journal
@@ -168,7 +168,7 @@ hledger -f "$OUTPUT" balance --tree --value end 2>/dev/null || {
 
 echo ""
 echo "Done. To use this journal with the dashboard:"
-echo "  HLEDGER_FILE=$OUTPUT bun run server/index.tsx"
+echo "  HLEDGER_FILE=$OUTPUT bun run src/server/index.tsx"
 echo ""
 echo "Platforms: test (3 edge cases), degiero (4 holdings), ibkr (4 holdings)"
 echo "Edge cases: delisted ticker (DELISTED), zero-quantity, crypto, multi-currency"

@@ -32,8 +32,8 @@ class TestCurrencyConsistency:
 
     @pytest.mark.smoke
     def test_no_eur_in_server_tsx(self):
-        """server/views/*.tsx must not contain EUR symbol."""
-        server_views = Path("server/views").glob("*.tsx")
+        """src/server/views/*.tsx must not contain EUR symbol."""
+        server_views = Path("src/server/views").glob("*.tsx")
         problems = {}
         for f in server_views:
             lines = _eur_in_file(f)
@@ -47,8 +47,8 @@ class TestCurrencyConsistency:
 
     @pytest.mark.smoke
     def test_no_eur_in_server_routes(self):
-        """server/routes/*.ts must not contain EUR symbol."""
-        server_routes = Path("server/routes").glob("*.ts")
+        """src/server/routes/*.ts must not contain EUR symbol."""
+        server_routes = Path("src/server/routes").glob("*.ts")
         problems = {}
         for f in server_routes:
             lines = _eur_in_file(f)
