@@ -16,6 +16,7 @@ Core:
   portfolio                  Show holdings, P&L, and cash summary
   watchlist                  Show prospects being tracked
   signals [ticker]           Show latest AI-generated signals
+  trades [ticker]            Show trade history
   config <get|set|list|...>  Manage CLI defaults
 
 IG Trading:
