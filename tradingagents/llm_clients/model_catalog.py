@@ -129,6 +129,19 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
     },
+    "lm-studio": {
+        "quick": [
+            ("Qwen2.5 7B - Fast, quality small model", "qwen2.5-7b"),
+            ("Mistral 7B - Balanced performance", "mistral-7b"),
+            ("Neural Chat 7B - Optimized for chat", "neural-chat-7b"),
+        ],
+        "deep": [
+            ("Qwen2.5 32B - High quality reasoning", "qwen2.5-32b"),
+            ("Llama 3.1 70B - Most capable local", "llama-3.1-70b"),
+            ("Qwen2.5 7B - Fast, quality small model", "qwen2.5-7b"),
+            ("Mistral 7B - Balanced performance", "mistral-7b"),
+        ],
+    },
 }
 
 

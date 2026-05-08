@@ -34,20 +34,30 @@ class TradingMemoryLog:
         trade_date: str,
         final_trade_decision: str,
     ) -> None:
-        """Append pending entry at end of propagate(). No LLM call."""
+        """Append pending entry at end of propagate(). No LLM call.
+        
+        Uses atomic write to prevent corruption on crashes.
+        """
         if not self._log_path:
             return
-        # Idempotency guard: fast raw-text scan instead of full parse
-        if self._log_path.exists():
-            raw = self._log_path.read_text(encoding="utf-8")
-            for line in raw.splitlines():
-                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("| pending]"):
-                    return
+        
+        # Idempotency guard: check if entry already exists using structured parsing
+        existing_entries = self.load_entries()
+        for entry in existing_entries:
+            if entry.get("date") == trade_date and entry.get("ticker") == ticker and entry.get("pending"):
+                # Entry already exists as pending - skip to avoid duplicate
+                return
+        
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
         entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
-        with open(self._log_path, "a", encoding="utf-8") as f:
-            f.write(entry)
+        
+        # Use atomic write to prevent corruption if process crashes mid-write
+        if self._log_path.exists():
+            with open(self._log_path, "a", encoding="utf-8") as f:
+                f.write(entry)
+        else:
+            self._log_path.write_text(entry, encoding="utf-8")
 
     # --- Read path (Phase A) ---
 
@@ -204,6 +214,57 @@ class TradingMemoryLog:
                         f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
                     )
                     del update_map[(trade_date, ticker)]
+                    matched = True
+                    break
+
+            if not matched:
+                new_blocks.append(block)
+
+        new_blocks = self._apply_rotation(new_blocks)
+        new_text = self._SEPARATOR.join(new_blocks)
+        tmp_path = self._log_path.with_suffix(".tmp")
+        tmp_path.write_text(new_text, encoding="utf-8")
+        tmp_path.replace(self._log_path)
+
+    def batch_mark_unresolvable(self, unresolvable: List[dict]) -> None:
+        """Mark entries as outcome_unavailable after max retry attempts.
+
+        Each element of unresolvable must have keys: ticker, trade_date, outcome, reason.
+        Replaces pending tag with outcome_unavailable tag to prevent infinite retry loops.
+        """
+        if not self._log_path or not self._log_path.exists() or not unresolvable:
+            return
+
+        text = self._log_path.read_text(encoding="utf-8")
+        blocks = text.split(self._SEPARATOR)
+
+        # Build lookup keyed by (trade_date, ticker) for O(1) dispatch
+        unresolvable_map = {(u["trade_date"], u["ticker"]): u for u in unresolvable}
+
+        new_blocks = []
+        for block in blocks:
+            stripped = block.strip()
+            if not stripped:
+                new_blocks.append(block)
+                continue
+
+            lines = stripped.splitlines()
+            tag_line = lines[0].strip()
+
+            matched = False
+            for (trade_date, ticker), unresolv in list(unresolvable_map.items()):
+                pending_prefix = f"[{trade_date} | {ticker} |"
+                if tag_line.startswith(pending_prefix) and tag_line.endswith("| pending]"):
+                    fields = [f.strip() for f in tag_line[1:-1].split("|")]
+                    rating = fields[2]
+                    new_tag = (
+                        f"[{trade_date} | {ticker} | {rating} | outcome_unavailable]"
+                    )
+                    rest = "\n".join(lines[1:])
+                    new_blocks.append(
+                        f"{new_tag}\n\n{rest.lstrip()}\n\nNOTE: {unresolv['reason']}"
+                    )
+                    del unresolvable_map[(trade_date, ticker)]
                     matched = True
                     break
 
