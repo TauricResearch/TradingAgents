@@ -1,0 +1,15 @@
+{"file":"2026-05-02-brief-portfolio-intelligence.md","status":"done","date":"2026-05-02","epic":null,"summary":"Portfolio Intelligence System: hledger cash + SQLite positions unified view"}
+{"file":"2026-05-07-brief-ascii-to-dot.md","status":"done","date":"2026-05-07","epic":null,"summary":"Replace ASCII diagrams with DOT + SVG/PNG via graphviz rendering pipeline"}
+{"file":"brief-dashboard-2026-05-02.md","status":"done","date":"2026-05-02","epic":null,"summary":"Dashboard v1 foundation: Bun/Hono server, HTMX frontend, SQLite persistence"}
+{"file":"brief-dashboard-phase2-2026-05-02.md","status":"done","date":"2026-05-02","epic":null,"summary":"Dashboard Phase 2: holdings, exits, governance, benchmark, feedback tabs"}
+{"file":"brief-doc-review-recommendations-2026-05-08.md","status":"done","date":"2026-05-08","epic":null,"summary":"Documentation review: path drift fix, TA_DASHBOARD_PORT wiring, hygiene epic decomposition"}
+{"file":"brief-portfolio-intelligence.md","status":"done","date":"2026-05-02","epic":null,"summary":"Unified Portfolio Intelligence: accounts, allocation bar, spread bets, cash breakdown"}
+{"file":"brief-static-assets-2026-05-05.md","status":"done","date":"2026-05-05","epic":null,"summary":"Static client-side scripts for dashboard: external JS files, HTMX partials"}
+{"file":"datatype-sparklines.md","status":"done","date":"2026-05-02","epic":null,"summary":"DataType variable font integration for dashboard inline charts (sparklines, bars, pies)"}
+{"file":"epic-daily-price-records.md","status":"done","date":"2026-05-02","epic":null,"summary":"Daily OHLCV price records for all holdings via Yahoo Finance + sync scripts"}
+{"file":"epic-dashboard-v1.md","status":"done","date":"2026-05-02","epic":null,"summary":"Dashboard v1: pipeline to intelligence — positions, analysis, signals, watchlist"}
+{"file":"epic-debate-mechanism-investigation.md","status":"done","date":"2026-05-07","epic":null,"summary":"Investigate and fix TradingAgents debate mechanism: state log serialization bug"}
+{"file":"epic-ig-api-validation.md","status":"done","date":"2026-05-07","epic":null,"summary":"IG API validation: test real order placement, connectivity config, instrument data"}
+{"file":"epic-trade-calculator.md","status":"done","date":"2026-05-07","epic":null,"summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders"}
+{"file":"epic-unified-cli.md","status":"done","date":"2026-05-07","epic":"td-d19b7c","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration"}
+{"file":"upstream-issue-debate-state-logging.md","status":"done","date":"2026-05-07","epic":null,"summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents"}

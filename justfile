@@ -21,6 +21,43 @@ info:
     glow - "$tmp" 2>/dev/null || cat "$tmp"
     rm -f "$tmp"
 
+# ── Registry: briefs, debriefs, playbook indexes (JSONL + jq) ────────────────
+#   Query the project's knowledge base. All indexes are JSONL: one JSON object per line.
+#   See: src/server/lib/registry-types.ts for schema definitions.
+
+# List all briefs (status, date, summary)
+[group("reg")]
+reg-briefs:
+    @jq -r '"FILE\tSTATUS\tDATE\tSUMMARY", "----\t------\t----\t-------", (.[] | [.file, .status, .date, .summary]) | @tsv' briefs/INDEX.jsonl | column -t -s $$'\t'
+
+# List all debriefs (date, decision)
+[group("reg")]
+reg-debriefs:
+    @jq -r '"DATE\tEPIC\tDECISION", "----\t----\t--------", (.[] | [.date, (.epic // "-"), .decision]) | @tsv' debriefs/INDEX.jsonl | column -t -s $$'\t'
+
+# List canonical playbooks (reusable across projects)
+[group("reg")]
+reg-canonical:
+    @jq -r 'select(.canonical == true) | "\(.file)\t\(.covers)"' playbooks/REGISTRY.jsonl | column -t -s $$'\t'
+
+# List project-specific playbooks (TradingAgents only)
+[group("reg")]
+reg-project:
+    @jq -r 'select(.canonical == false) | "\(.file)\t\(.covers)"' playbooks/REGISTRY.jsonl | column -t -s $$'\t'
+
+# List playbooks that are mining candidates (portable patterns to extract)
+[group("reg")]
+reg-mining:
+    @jq -r 'select(.mining_candidate == true) | "\(.file)\t\(.mining_note)"' playbooks/REGISTRY.jsonl | column -t -s $$'\t'
+
+# Validate all registries (required fields, no duplicates)
+[group("reg")]
+reg-check:
+    @echo "Validating registries..."
+    @jq -e 'select(.file == null or .status == null or .date == null or .summary == null) | error("missing required field")' briefs/INDEX.jsonl 2>/dev/null && echo "  briefs/INDEX.jsonl ✓" || echo "  briefs/INDEX.jsonl ✗"
+    @jq -e 'select(.file == null or .date == null or .decision == null) | error("missing required field")' debriefs/INDEX.jsonl 2>/dev/null && echo "  debriefs/INDEX.jsonl ✓" || echo "  debriefs/INDEX.jsonl ✗"
+    @jq -e 'select(.file == null or .canonical == null or .covers == null) | error("missing required field")' playbooks/REGISTRY.jsonl 2>/dev/null && echo "  playbooks/REGISTRY.jsonl ✓" || echo "  playbooks/REGISTRY.jsonl ✗"
+
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments := true
 set dotenv-load := true

@@ -250,3 +250,6 @@ test_portfolio.db
 .claude/skills/gitnexus/
 CLAUDE.md
 AGENTS.md
+
+# DeepSeek runtime state (not part of the project)
+.deepseek/
