@@ -1,46 +1,34 @@
 #!/usr/bin/env bun
 /**
- * Validate all JSONL registries.
+ * Validate JSONL indexes against unified schema.
  *
- * Checks required fields are present in each registry.
- * Replaces inline jq validation in justfile.
+ * Unified schema: { file, date, status, summary, meta? }
+ *
+ * Usage:
+ *   bun scripts/reg-check.ts          # validate all registries
+ *   bun scripts/reg-check.ts briefs   # validate single registry
  */
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-interface Registry {
-  file: string
-  required: string[]
+const REQUIRED = ["file", "date", "status", "summary"]
+
+const REGISTRIES: Record<string, string> = {
+  briefs: "briefs/INDEX.jsonl",
+  debriefs: "debriefs/INDEX.jsonl",
+  decisions: "decisions/INDEX.jsonl",
+  playbooks: "playbooks/REGISTRY.jsonl",
 }
 
-const REGISTRIES: Registry[] = [
-  {
-    file: "briefs/INDEX.jsonl",
-    required: ["file", "status", "date", "summary"],
-  },
-  {
-    file: "debriefs/INDEX.jsonl",
-    required: ["file", "date", "decision"],
-  },
-  {
-    file: "decisions/INDEX.jsonl",
-    required: ["file", "date", "status", "summary"],
-  },
-  {
-    file: "playbooks/REGISTRY.jsonl",
-    required: ["file", "canonical", "covers"],
-  },
-]
-
-function checkRegistry(registry: Registry): boolean {
-  const path = join(process.cwd(), registry.file)
+function checkRegistry(name: string, path: string): boolean {
+  const fullPath = join(process.cwd(), path)
   let ok = true
 
   try {
-    const content = readFileSync(path, "utf-8").trim()
+    const content = readFileSync(fullPath, "utf-8").trim()
     if (!content) {
-      console.error(`  ✗ ${registry.file} — empty`)
+      console.error(`  ✗ ${name} — empty`)
       return false
     }
 
@@ -53,24 +41,24 @@ function checkRegistry(registry: Registry): boolean {
       try {
         obj = JSON.parse(line)
       } catch {
-        console.error(`  ✗ ${registry.file}:${i + 1} — invalid JSON`)
+        console.error(`  ✗ ${name}:${i + 1} — invalid JSON`)
         ok = false
         continue
       }
 
-      for (const field of registry.required) {
+      for (const field of REQUIRED) {
         if (obj[field] == null) {
-          console.error(`  ✗ ${registry.file}:${i + 1} — missing "${field}"`)
+          console.error(`  ✗ ${name}:${i + 1} — missing "${field}"`)
           ok = false
         }
       }
     }
 
     if (ok) {
-      console.log(`  ✓ ${registry.file} (${lines.length} entries)`)
+      console.log(`  ✓ ${name} (${lines.length} entries)`)
     }
   } catch (e) {
-    console.error(`  ✗ ${registry.file} — ${e instanceof Error ? e.message : String(e)}`)
+    console.error(`  ✗ ${name} — ${e instanceof Error ? e.message : String(e)}`)
     ok = false
   }
 
@@ -78,11 +66,25 @@ function checkRegistry(registry: Registry): boolean {
 }
 
 function main() {
-  console.log("Validating registries...")
+  const target = Bun.argv[2]
   let allOk = true
-  for (const registry of REGISTRIES) {
-    if (!checkRegistry(registry)) allOk = false
+
+  if (target) {
+    const path = REGISTRIES[target]
+    if (!path) {
+      console.error(`Unknown registry: ${target}`)
+      console.error(`Known: ${Object.keys(REGISTRIES).join(", ")}`)
+      process.exit(1)
+    }
+    console.log(`Validating ${target}...`)
+    if (!checkRegistry(target, path)) allOk = false
+  } else {
+    console.log("Validating registries...")
+    for (const [name, path] of Object.entries(REGISTRIES)) {
+      if (!checkRegistry(name, path)) allOk = false
+    }
   }
+
   if (!allOk) process.exit(1)
 }
 

@@ -2,8 +2,8 @@
 /**
  * Human-readable registry lister.
  *
- * Reads a JSONL registry and prints formatted entries.
- * Wraps summaries to terminal width (or 80 columns default).
+ * Reads a JSONL index and prints formatted entries.
+ * Expects unified schema: { file, date, status, summary, meta? }
  *
  * Usage:
  *   bun scripts/reg-list.ts briefs
@@ -15,14 +15,20 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const REGISTRY_DIR = ""
 const MAX_SUMMARY_WIDTH = 72
+
+interface UnifiedEntry {
+  file: string
+  date: string
+  status: string
+  summary: string
+  meta?: Record<string, unknown>
+}
 
 function getTerminalWidth(): number {
   try {
     const cols = Bun.env.COLUMNS
     if (cols) return parseInt(cols, 10)
-    // Try tput
     const output = new TextDecoder().decode(Bun.spawnSync({ cmd: ["tput", "cols"] }).stdout).trim()
     const w = parseInt(output, 10)
     return w > 40 ? w : 80
@@ -35,7 +41,6 @@ function wrap(text: string, width: number): string[] {
   const words = text.split(/\s+/)
   const lines: string[] = []
   let current = ""
-
   for (const word of words) {
     if (current.length + word.length + 1 > width) {
       lines.push(current)
@@ -48,40 +53,43 @@ function wrap(text: string, width: number): string[] {
   return lines.length ? lines : [""]
 }
 
-function formatEntry(entry: Record<string, unknown>, width: number): string {
-  const file = String(entry.file ?? "?")
-  const date = String(entry.date ?? "?")
+function formatMeta(meta: Record<string, unknown> | undefined): string[] {
+  if (!meta) return []
+  const lines: string[] = []
+  for (const [key, value] of Object.entries(meta)) {
+    if (value == null) continue
+    lines.push(`${key}: ${value}`)
+  }
+  return lines
+}
+
+function formatEntry(entry: UnifiedEntry, width: number): string {
   const indent = "      "
   const textWidth = width - indent.length
 
-  const lines: string[] = []
+  const header = `${entry.date}  ${entry.status.toUpperCase().padEnd(10)}  ${entry.file}`
+  const summaryLines = wrap(entry.summary, textWidth)
+  const metaLines = formatMeta(entry.meta)
 
-  // Debriefs have 'decision' as main text, optional epic/adr/session
-  if (entry.decision != null) {
-    lines.push(`${date}  ${file}`)
-    lines.push(...wrap(String(entry.decision), textWidth).map((l) => `${indent}${l}`))
-    if (entry.epic) lines.push(`${indent}epic: ${entry.epic}`)
-    if (entry.adr) lines.push(`${indent}adr:  ${entry.adr}`)
-    if (entry.session) lines.push(`${indent}ses:  ${entry.session}`)
-  }
-  // Playbooks have 'covers' and 'canonical'
-  else if (entry.covers != null) {
-    const canonical = entry.canonical === true ? "canonical" : "project"
-    lines.push(`${canonical.toUpperCase().padEnd(10)}  ${file}`)
-    lines.push(...wrap(String(entry.covers), textWidth).map((l) => `${indent}${l}`))
-  }
-  // Briefs and decisions have 'status' and 'summary'
-  else {
-    const status = String(entry.status ?? "?")
-    const summary = String(entry.summary ?? "")
-    lines.push(`${date}  ${status.toUpperCase().padEnd(10)}  ${file}`)
-    if (summary) {
-      lines.push(...wrap(summary, textWidth).map((l) => `${indent}${l}`))
-    }
-  }
+  return [
+    header,
+    ...summaryLines.map((l) => `${indent}${l}`),
+    ...metaLines.map((l) => `${indent}${l}`),
+    "",
+  ].join("\n")
+}
 
-  lines.push("")
-  return lines.join("\n")
+function loadJsonl(path: string): UnifiedEntry[] {
+  const content = readFileSync(path, "utf-8").trim()
+  if (!content) return []
+  return content.split("\n").map((line) => JSON.parse(line))
+}
+
+const FILE_MAP: Record<string, string> = {
+  briefs: "briefs/INDEX.jsonl",
+  debriefs: "debriefs/INDEX.jsonl",
+  decisions: "decisions/INDEX.jsonl",
+  playbooks: "playbooks/REGISTRY.jsonl",
 }
 
 function main() {
@@ -91,41 +99,19 @@ function main() {
     process.exit(1)
   }
 
-  const fileMap: Record<string, string> = {
-    briefs: "briefs/INDEX.jsonl",
-    debriefs: "debriefs/INDEX.jsonl",
-    decisions: "decisions/INDEX.jsonl",
-    playbooks: "playbooks/REGISTRY.jsonl",
-  }
-
-  const path = fileMap[registry]
+  const path = FILE_MAP[registry]
   if (!path) {
     console.error(`Unknown registry: ${registry}`)
-    console.error(`Known: ${Object.keys(fileMap).join(", ")}`)
     process.exit(1)
   }
 
   const width = Math.min(getTerminalWidth(), MAX_SUMMARY_WIDTH + 10)
   const fullPath = join(process.cwd(), path)
+  const entries = loadJsonl(fullPath)
 
-  try {
-    const content = readFileSync(fullPath, "utf-8").trim()
-    if (!content) {
-      console.log(`(empty: ${path})`)
-      return
-    }
-
-    const lines = content.split("\n")
-    console.log(`── ${registry.toUpperCase()} (${lines.length} entries) ──\n`)
-
-    for (const line of lines) {
-      if (!line.trim()) continue
-      const entry = JSON.parse(line)
-      console.log(formatEntry(entry, width))
-    }
-  } catch (e) {
-    console.error(`Error reading ${path}: ${e instanceof Error ? e.message : String(e)}`)
-    process.exit(1)
+  console.log(`── ${registry.toUpperCase()} (${entries.length} entries) ──\n`)
+  for (const entry of entries) {
+    console.log(formatEntry(entry, width))
   }
 }
 
