@@ -11,7 +11,7 @@ by `scripts/server-lifecycle.ts` using PID files and log capture.
 **Key Principles**:
 1.  **PID File Tracking**: Exact process identity. No `ps | grep` fragility.
 2.  **Log Capture**: Server stdout/stderr written to `~/.tradingagents/server.log`.
-3.  **Port Check**: Verify port 3000 is free before starting.
+3.  **Kill Port Before Start**: Whatever is on port 3000 dies. No questions.
 4.  **Stale Cleanup**: Remove dead PID files before starting.
 5.  **Graceful Shutdown**: SIGTERM → wait → SIGKILL fallback.
 
@@ -38,27 +38,39 @@ All service commands use `scripts/server-lifecycle.ts`:
 
 | Command | What |
 |---------|------|
-| `just start` | Start dashboard server |
+| `just start` | Start dashboard server (kills port 3000 first) |
 | `just serve` | Alias for `just start` |
 | `just stop` | Stop dashboard server |
-| `just restart` | Stop then start |
+| `just restart` | Kill port 3000, kill PID, start fresh |
 | `just status` | Show service status |
 | `just ports` | Show all listening ports |
 
 ## 5. Implementation Details
 
-### PID File Protocol
+### Start Protocol
+
+**Philosophy: Start means start. No ifs, no buts.**
 
 ```
 START:
-  1. Read PID file if exists
-  2. If PID alive → already running, abort
-  3. If PID dead → remove stale file, continue
-  4. Check port 3000 is free
+  1. Kill whatever is listening on port 3000 (lsof | xargs kill -9)
+  2. Kill whatever PID is in server.pid (SIGKILL)
+  3. Remove stale PID file
+  4. Rotate log: server.log → server.prev.log
   5. Spawn server with stdout/stderr → server.log
   6. Write PID to server.pid
   7. Health check: curl http://localhost:3000/health
+```
 
+**Why kill first?**
+- We own the machine. We decide what runs.
+- If port 3000 is occupied, something is stale or wrong.
+- No "Port already in use" errors. No manual `pkill` dances.
+- Just start. It works.
+
+### Stop Protocol
+
+```
 STOP:
   1. Read PID from server.pid
   2. If no PID file → not running
@@ -91,8 +103,21 @@ function isProcessAlive(pid: number): boolean {
 - **Never use `ps | grep` for PID discovery.** Always use the PID file.
 - **Always redirect stdout/stderr to log file.** Otherwise output is lost.
 - **Rotate logs on restart.** Prevents unbounded log growth.
-- **Check port before start.** Fail fast with clear error: "Port 3000 in use by PID X".
+- **Kill port before start.** Whatever is on port 3000 dies first. No errors.
 - **Health check after start.** Verify `/health` responds within 5 seconds.
+
+### The "Start Means Start" Rule
+
+```
+❌ Old: "Port already in use" → user must manually pkill
+✅ New: just start → kills port → starts server → done
+
+❌ Old: "PID file exists, server already running" → abort
+✅ New: just start → kills old PID → starts fresh → done
+
+❌ Old: restart = stop → wait → check → start → may fail
+✅ New: restart = kill port → kill PID → start → always works
+```
 
 ## 7. Future Expansion
 
