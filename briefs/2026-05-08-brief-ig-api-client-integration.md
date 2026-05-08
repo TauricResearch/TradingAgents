@@ -69,10 +69,13 @@ Validate the client with demo credentials before touching production code:
 
 ## Acceptance Criteria
 
-- [ ] Lab experiment passes all 7 steps
-- [ ] Package installed and type-checks with tsc
-- [ ] No new Python dependencies (TypeScript/Bun only)
-- [ ] Demo credentials stored securely (env vars, not in git)
+- [x] Lab experiment passes all 7 steps (custom fetch client, ig-trading-api abandoned)
+- [x] Custom client type-checks with tsc
+- [x] No new Python dependencies (TypeScript/Bun only)
+- [x] Demo credentials from env vars (not in git)
+- [x] CLI subcommands: login, accounts, search, prices, positions, buy, sell
+- [x] `trading execute` bridges trade plan to IG order placement
+- [x] Orders recorded in SQLite trades table
 - [ ] Integration documented in `docs/ig-api-client.md`
 
 ## Related
