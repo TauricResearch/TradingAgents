@@ -25,15 +25,20 @@ info:
 #   Query the project's knowledge base. All indexes are JSONL: one JSON object per line.
 #   See: src/server/lib/registry-types.ts for schema definitions.
 
+# List all decisions (date, status, summary)
+[group("reg")]
+reg-decisions:
+    @(echo -e "FILE\tDATE\tSTATUS\tSUMMARY"; echo -e "----\t----\t------\t-------"; jq -sr '.[] | [.file, .date, .status, .summary] | @tsv' decisions/INDEX.jsonl) | column -t
+
 # List all briefs (status, date, summary)
 [group("reg")]
 reg-briefs:
-    @jq -r '"FILE\tSTATUS\tDATE\tSUMMARY", "----\t------\t----\t-------", (.[] | [.file, .status, .date, .summary]) | @tsv' briefs/INDEX.jsonl | column -t -s $$'\t'
+    @(echo -e "FILE\tSTATUS\tDATE\tSUMMARY"; echo -e "----\t------\t----\t-------"; jq -sr '.[] | [.file, .status, .date, .summary] | @tsv' briefs/INDEX.jsonl) | column -t
 
-# List all debriefs (date, decision)
+# List all debriefs (date, epic, decision)
 [group("reg")]
 reg-debriefs:
-    @jq -r '"DATE\tEPIC\tDECISION", "----\t----\t--------", (.[] | [.date, (.epic // "-"), .decision]) | @tsv' debriefs/INDEX.jsonl | column -t -s $$'\t'
+    @(echo -e "DATE\tEPIC\tDECISION"; echo -e "----\t----\t--------"; jq -sr '.[] | [.date, (.epic // "-"), .decision] | @tsv' debriefs/INDEX.jsonl) | column -t
 
 # List canonical playbooks (reusable across projects)
 [group("reg")]
@@ -56,6 +61,7 @@ reg-check:
     @echo "Validating registries..."
     @jq -e 'select(.file == null or .status == null or .date == null or .summary == null) | error("missing required field")' briefs/INDEX.jsonl 2>/dev/null && echo "  briefs/INDEX.jsonl ✓" || echo "  briefs/INDEX.jsonl ✗"
     @jq -e 'select(.file == null or .date == null or .decision == null) | error("missing required field")' debriefs/INDEX.jsonl 2>/dev/null && echo "  debriefs/INDEX.jsonl ✓" || echo "  debriefs/INDEX.jsonl ✗"
+    @jq -e 'select(.file == null or .date == null or .status == null or .summary == null) | error("missing required field")' decisions/INDEX.jsonl 2>/dev/null && echo "  decisions/INDEX.jsonl ✓" || echo "  decisions/INDEX.jsonl ✗"
     @jq -e 'select(.file == null or .canonical == null or .covers == null) | error("missing required field")' playbooks/REGISTRY.jsonl 2>/dev/null && echo "  playbooks/REGISTRY.jsonl ✓" || echo "  playbooks/REGISTRY.jsonl ✗"
 
 set shell := ["bash", "-o", "pipefail", "-c"]
