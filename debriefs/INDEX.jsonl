@@ -21,5 +21,8 @@
 {"file":"debrief-static-scripts-htmx-partials-2026-05-05.md","date":"2026-05-05","status":"done","summary":"Static scripts and HTMX partials: external JS files extracted, type check passes","meta":{"epic":"td-ca0e7c","adr":null,"session":"ses_6119d0"}}
 {"file":"debrief-workflow-harden-2026-05-03.md","date":"2026-05-03","status":"done","summary":"Workflow hardened: 3-column Kanban, exit strategy table in Pending Exit cards, platform routing","meta":{"epic":null,"adr":null,"session":null}}
 {"file":"handoff-next-session.md","date":"2026-05-06","status":"done","summary":"Handoff for next session: three major workstreams completed, price freshness badge next up","meta":{"epic":"td-18e84e","adr":null,"session":null}}
+{"file":"plans/current.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"research-summary-2026-05-02.md","date":"2026-05-02","status":"done","summary":"Dashboard foundation research: Bun/Hono stack selection, HTMX SSR pattern, hLedger integration","meta":{"epic":null,"adr":null,"session":null}}
+{"file":"reviews/pr-8.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"reviews/pr-9.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"session-prompt-holdings-jsx.md","date":"2026-05-05","status":"done","summary":"Next session prompt: complete Holdings JSX refactor with external script extraction","meta":{"epic":"td-8dd762","adr":null,"session":null}}

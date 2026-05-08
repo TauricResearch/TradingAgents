@@ -43,6 +43,7 @@ registry-specific data.
 | debriefs | `done` | `epic`, `adr`, `session` |
 | decisions | `Accepted`, `Proposed`, `Superseded` | `supersedes`, `superseded_by` |
 | playbooks | `canonical`, `project` | `source`, `mining_candidate`, `mining_note`, `last_mined` |
+| docs | `active`, `archived`, `draft` | `type`, `topic` |
 
 ## Validation
 
@@ -52,6 +53,18 @@ bun scripts/reg-check.ts
 
 # Single registry
 bun scripts/reg-check.ts briefs
+```
+
+## Sync Check
+
+Detect missing or stale entries:
+
+```bash
+# Check all indexes against filesystem
+bun scripts/reg-sync.ts --all
+
+# Fix stale/missing entries (regenerate from disk)
+bun scripts/reg-sync.ts --all --fix
 ```
 
 ## Display
@@ -70,6 +83,10 @@ bun scripts/reg-list.ts playbooks
 2. Use unified schema: `{ file, date, status, summary, meta? }`
 3. Add to `scripts/reg-check.ts` `REGISTRIES` map
 4. Add to `scripts/reg-list.ts` `FILE_MAP`
-5. Add just recipe: `reg-newtype: bun scripts/reg-list.ts newtype`
+5. Add to `scripts/reg-sync.ts` `REGISTRIES` map
+6. Add just recipes:
+   ```just
+   reg-newtype: bun scripts/reg-list.ts newtype
+   ```
 
 No special-case formatting. No custom validation rules.

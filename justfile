@@ -50,10 +50,25 @@ reg-canonical:
 reg-mining:
     @jq -r 'select(.mining_candidate == true) | "\(.file) — \(.mining_note)"' playbooks/REGISTRY.jsonl
 
+# List all docs (human-readable)
+[group("reg")]
+reg-docs:
+    bun scripts/reg-list.ts docs
+
 # Validate all registries (required fields, no duplicates)
 [group("reg")]
 reg-check:
     bun scripts/reg-check.ts
+
+# Check all indexes are up-to-date (files vs entries)
+[group("reg")]
+reg-sync:
+    bun scripts/reg-sync.ts --all
+
+# Fix stale/missing index entries (regenerate from disk)
+[group("reg")]
+reg-sync-fix:
+    bun scripts/reg-sync.ts --all --fix
 
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments := true

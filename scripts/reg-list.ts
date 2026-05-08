@@ -90,6 +90,7 @@ const FILE_MAP: Record<string, string> = {
   debriefs: "debriefs/INDEX.jsonl",
   decisions: "decisions/INDEX.jsonl",
   playbooks: "playbooks/REGISTRY.jsonl",
+  docs: "docs/INDEX.jsonl",
 }
 
 function main() {
