@@ -17,6 +17,7 @@ Core:
   watchlist                  Show prospects being tracked
   signals [ticker]           Show latest AI-generated signals
   trades [ticker]            Show trade history
+  spreadbets                 Show spread bet positions
   config <get|set|list|...>  Manage CLI defaults
 
 IG Trading:

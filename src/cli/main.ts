@@ -30,6 +30,7 @@ const main = defineCommand({
     summarize: () => import("./commands/summarize.ts").then((m) => m.summarizeCommand),
     import: () => import("./commands/import.ts").then((m) => m.importCommand),
     export: () => import("./commands/export.ts").then((m) => m.exportCommand),
+    spreadbets: () => import("./commands/spreadbets.ts").then((m) => m.spreadbetsCommand),
     status: () => import("./commands/status.ts").then((m) => m.statusCommand),
     completion: () => import("./commands/completion.ts").then((m) => m.completionCommand),
     help: () => import("./commands/help.ts").then((m) => m.helpCommand),
