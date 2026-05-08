@@ -30,10 +30,9 @@
 **IN_REVIEW:**
 - `td-a67291` [P1] DOCS-CLEANUP-2: Fix remaining path drift from review of td-f42750 (impl: ses_02a5c6)
 - `td-dc35e0` [P2] CLI-PORTFOLIO: Style trading portfolio with Gum and add just recipe (impl: ses_02a5c6)
+- `td-3fda84` [P2] IG-HISTORY: Add trading ig history command for IG platform activity (impl: ses_02a5c6)
 
 **Awaiting prioritization:**
-- CLI portfolio command (terminal view of holdings/P&L)
-- IG trade history command
 - Price alert system
 - Further dashboard UX improvements
 
