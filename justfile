@@ -25,35 +25,30 @@ info:
 #   Query the project's knowledge base. All indexes are JSONL: one JSON object per line.
 #   See: src/server/lib/registry-types.ts for schema definitions.
 
-# List all decisions (date, status, summary)
+# List all decisions (human-readable)
 [group("reg")]
 reg-decisions:
-    @(echo -e "FILE\tDATE\tSTATUS\tSUMMARY"; echo -e "----\t----\t------\t-------"; jq -sr '.[] | [.file, .date, .status, .summary] | @tsv' decisions/INDEX.jsonl) | column -t
+    bun scripts/reg-list.ts decisions
 
-# List all briefs (status, date, summary)
+# List all briefs (human-readable)
 [group("reg")]
 reg-briefs:
-    @(echo -e "FILE\tSTATUS\tDATE\tSUMMARY"; echo -e "----\t------\t----\t-------"; jq -sr '.[] | [.file, .status, .date, .summary] | @tsv' briefs/INDEX.jsonl) | column -t
+    bun scripts/reg-list.ts briefs
 
-# List all debriefs (date, epic, decision)
+# List all debriefs (human-readable)
 [group("reg")]
 reg-debriefs:
-    @(echo -e "DATE\tEPIC\tDECISION"; echo -e "----\t----\t--------"; jq -sr '.[] | [.date, (.epic // "-"), .decision] | @tsv' debriefs/INDEX.jsonl) | column -t
+    bun scripts/reg-list.ts debriefs
 
 # List canonical playbooks (reusable across projects)
 [group("reg")]
 reg-canonical:
-    @jq -r 'select(.canonical == true) | "\(.file)\t\(.covers)"' playbooks/REGISTRY.jsonl | column -t -s $$'\t'
-
-# List project-specific playbooks (TradingAgents only)
-[group("reg")]
-reg-project:
-    @jq -r 'select(.canonical == false) | "\(.file)\t\(.covers)"' playbooks/REGISTRY.jsonl | column -t -s $$'\t'
+    bun scripts/reg-list.ts playbooks
 
 # List playbooks that are mining candidates (portable patterns to extract)
 [group("reg")]
 reg-mining:
-    @jq -r 'select(.mining_candidate == true) | "\(.file)\t\(.mining_note)"' playbooks/REGISTRY.jsonl | column -t -s $$'\t'
+    @jq -r 'select(.mining_candidate == true) | "\(.file) — \(.mining_note)"' playbooks/REGISTRY.jsonl
 
 # Validate all registries (required fields, no duplicates)
 [group("reg")]
