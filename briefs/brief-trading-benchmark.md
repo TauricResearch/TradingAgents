@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-08
 **Brief ID:** BENCH-001
-**Status:** Open
+**Status:** Done
 **Priority:** P1
 **Language:** TypeScript (Bun runtime)
 **Location:** `src/cli/commands/benchmark.ts`
