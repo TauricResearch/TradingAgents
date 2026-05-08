@@ -27,8 +27,8 @@
 
 ## Current TD Status
 
-**OPEN:**
-- `td-a67291` [P1] DOCS-CLEANUP-2: Fix remaining path drift from review of td-f42750
+**IN_REVIEW:**
+- `td-a67291` [P1] DOCS-CLEANUP-2: Fix remaining path drift from review of td-f42750 (impl: ses_02a5c6)
 
 **Awaiting prioritization:**
 - CLI portfolio command (terminal view of holdings/P&L)

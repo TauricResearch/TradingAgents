@@ -19,6 +19,7 @@
 {"file":"debrief-session-2026-05-08-gum-status.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"debrief-session-2026-05-08-ig-api-client.md","date":"2026-05-08","status":"done","summary":"IG API client integration: custom fetch client replacing broken npm package, CLI subcommands, execute bridge from plan to order","meta":{"epic":"UNIFIED-CLI-001","session":"ses_f5f225"}}
 {"file":"debrief-session-2026-05-08-lessons-learned.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"debrief-session-2026-05-08-ses_02a5c6.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"debrief-session-2026-05-08-silo-infrastructure.md","date":"2026-05-08","status":"done","summary":"Comprehensive silo infrastructure: unified registry, conceptual lexicon v2 with CTX tag taxonomy, barnacle detection daemon, justfile facade, silo template, CTX lexicon integration","meta":{"epic":"UNIFIED-CLI-001","session":"ses_f5f225"}}
 {"file":"debrief-session-2026-05-08-status.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"debrief-session-2026-05-08-unified-cli-completion.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
