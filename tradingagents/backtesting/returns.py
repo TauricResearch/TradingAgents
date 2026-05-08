@@ -18,7 +18,7 @@ def fetch_returns(
 
     Requires network access. Returns (None, None, None) when price data is
     unavailable — ticker too recent, delisted, or a network error occurred.
-    When mocking in tests, patch at tradingagents.backtesting.returns.fetch_returns.
+    When testing this function directly, patch tradingagents.backtesting.returns.yf.Ticker. When testing callers (e.g. BacktestReport), patch at the caller's import location.
     """
     try:
         start = datetime.strptime(trade_date, "%Y-%m-%d")
