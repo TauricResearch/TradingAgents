@@ -26,3 +26,4 @@
 {"file":"reviews/pr-8.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"reviews/pr-9.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"session-prompt-holdings-jsx.md","date":"2026-05-05","status":"done","summary":"Next session prompt: complete Holdings JSX refactor with external script extraction","meta":{"epic":"td-8dd762","adr":null,"session":null}}
+{"file":"debrief-session-2026-05-08-silo-infrastructure.md","date":"2026-05-08","status":"done","summary":"Comprehensive silo infrastructure: unified registry, conceptual lexicon v2 with CTX tag taxonomy, barnacle detection daemon, justfile facade, silo template, CTX lexicon integration","meta":{"epic":"UNIFIED-CLI-001","session":"ses_f5f225"}}
