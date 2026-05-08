@@ -62,10 +62,10 @@ class MessageBuffer:
     # analyst_key: which analyst selection controls this section (None = always included)
     # finalizing_agent: which agent must be "completed" for this report to count as done
     REPORT_SECTIONS = {
-        "market_report": ("market", "Market Analyst"),
-        "sentiment_report": ("social", "Social Analyst"),
-        "news_report": ("news", "News Analyst"),
-        "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
+        "analyst_report_market": ("market", "Market Analyst"),
+        "analyst_report_social": ("social", "Social Analyst"),
+        "analyst_report_news": ("news", "News Analyst"),
+        "analyst_report_fundamentals": ("fundamentals", "Fundamentals Analyst"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -170,10 +170,10 @@ class MessageBuffer:
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
-                "market_report": "Market Analysis",
-                "sentiment_report": "Social Sentiment",
-                "news_report": "News Analysis",
-                "fundamentals_report": "Fundamentals Analysis",
+                "analyst_report_market": "Market Analysis",
+                "analyst_report_social": "Social Sentiment",
+                "analyst_report_news": "News Analysis",
+                "analyst_report_fundamentals": "Fundamentals Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -188,26 +188,22 @@ class MessageBuffer:
     def _update_final_report(self):
         report_parts = []
 
-        # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
-        if any(self.report_sections.get(section) for section in analyst_sections):
+        # Analyst Team Reports
+        analyst_section_map = {
+            "analyst_report_market": "Market Analysis",
+            "analyst_report_social": "Social Sentiment",
+            "analyst_report_news": "News Analysis",
+            "analyst_report_fundamentals": "Fundamentals Analysis",
+        }
+        analyst_content = [
+            (title, self.report_sections[key])
+            for key, title in analyst_section_map.items()
+            if self.report_sections.get(key)
+        ]
+        if analyst_content:
             report_parts.append("## Analyst Team Reports")
-            if self.report_sections.get("market_report"):
-                report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
-                )
-            if self.report_sections.get("sentiment_report"):
-                report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
-                )
-            if self.report_sections.get("news_report"):
-                report_parts.append(
-                    f"### News Analysis\n{self.report_sections['news_report']}"
-                )
-            if self.report_sections.get("fundamentals_report"):
-                report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
-                )
+            for title, content in analyst_content:
+                report_parts.append(f"### {title}\n{content}")
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
@@ -643,23 +639,26 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"
+    analyst_reports = final_state.get("analyst_reports") or {}
+    _analyst_display = {
+        "market": "Market Analyst",
+        "social": "Social Analyst",
+        "news": "News Analyst",
+        "fundamentals": "Fundamentals Analyst",
+    }
+    _analyst_filenames = {
+        "market": "market.md",
+        "social": "sentiment.md",
+        "news": "news.md",
+        "fundamentals": "fundamentals.md",
+    }
     analyst_parts = []
-    if final_state.get("market_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "market.md").write_text(final_state["market_report"], encoding="utf-8")
-        analyst_parts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
-        analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
-        analyst_parts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
-        analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    for key, display_name in _analyst_display.items():
+        report = analyst_reports.get(key)
+        if report:
+            analysts_dir.mkdir(exist_ok=True)
+            (analysts_dir / _analyst_filenames[key]).write_text(report, encoding="utf-8")
+            analyst_parts.append((display_name, report))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")
@@ -732,15 +731,14 @@ def display_complete_report(final_state):
     console.print(Rule("Complete Analysis Report", style="bold green"))
 
     # I. Analyst Team Reports
-    analysts = []
-    if final_state.get("market_report"):
-        analysts.append(("Market Analyst", final_state["market_report"]))
-    if final_state.get("sentiment_report"):
-        analysts.append(("Social Analyst", final_state["sentiment_report"]))
-    if final_state.get("news_report"):
-        analysts.append(("News Analyst", final_state["news_report"]))
-    if final_state.get("fundamentals_report"):
-        analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    _display_names = {
+        "market": "Market Analyst",
+        "social": "Social Analyst",
+        "news": "News Analyst",
+        "fundamentals": "Fundamentals Analyst",
+    }
+    _ar = final_state.get("analyst_reports") or {}
+    analysts = [(name, _ar[key]) for key, name in _display_names.items() if _ar.get(key)]
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
         for title, content in analysts:
@@ -803,51 +801,49 @@ ANALYST_AGENT_NAMES = {
     "fundamentals": "Fundamentals Analyst",
 }
 ANALYST_REPORT_MAP = {
-    "market": "market_report",
-    "social": "sentiment_report",
-    "news": "news_report",
-    "fundamentals": "fundamentals_report",
+    "market": "analyst_report_market",
+    "social": "analyst_report_social",
+    "news": "analyst_report_news",
+    "fundamentals": "analyst_report_fundamentals",
 }
 
 
 def update_analyst_statuses(message_buffer, chunk):
-    """Update analyst statuses based on accumulated report state.
+    """Update analyst statuses from streaming chunks.
 
-    Logic:
-    - Store new report content from the current chunk if present
-    - Check accumulated report_sections (not just current chunk) for status
-    - Analysts with reports = completed
-    - First analyst without report = in_progress
-    - Remaining analysts without reports = pending
-    - When all analysts done, set Bull Researcher to in_progress
+    Analysts now run in parallel, so all start as in_progress and each
+    transitions to completed individually when its report arrives.
     """
     selected = message_buffer.selected_analysts
-    found_active = False
+    analyst_reports = chunk.get("analyst_reports") or {}
 
     for analyst_key in ANALYST_ORDER:
         if analyst_key not in selected:
             continue
 
         agent_name = ANALYST_AGENT_NAMES[analyst_key]
-        report_key = ANALYST_REPORT_MAP[analyst_key]
+        section_key = ANALYST_REPORT_MAP[analyst_key]
 
-        # Capture new report content from current chunk
-        if chunk.get(report_key):
-            message_buffer.update_report_section(report_key, chunk[report_key])
+        # Capture any new report arriving in this chunk.
+        if analyst_key in analyst_reports:
+            message_buffer.update_report_section(section_key, analyst_reports[analyst_key])
 
-        # Determine status from accumulated sections, not just current chunk
-        has_report = bool(message_buffer.report_sections.get(report_key))
+        has_report = bool(message_buffer.report_sections.get(section_key))
+        current_status = message_buffer.agent_status.get(agent_name)
 
         if has_report:
-            message_buffer.update_agent_status(agent_name, "completed")
-        elif not found_active:
+            if current_status != "completed":
+                message_buffer.update_agent_status(agent_name, "completed")
+        elif current_status not in ("in_progress", "completed"):
+            # All selected analysts start running in parallel.
             message_buffer.update_agent_status(agent_name, "in_progress")
-            found_active = True
-        else:
-            message_buffer.update_agent_status(agent_name, "pending")
 
-    # When all analysts complete, transition research team to in_progress
-    if not found_active and selected:
+    # When every selected analyst is done, advance the research team.
+    all_done = all(
+        message_buffer.agent_status.get(ANALYST_AGENT_NAMES[k]) == "completed"
+        for k in selected
+    )
+    if all_done and selected:
         if message_buffer.agent_status.get("Bull Researcher") == "pending":
             message_buffer.update_agent_status("Bull Researcher", "in_progress")
 
@@ -1032,9 +1028,10 @@ def run_analysis(checkpoint: bool = False):
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        # Update agent status to in_progress for the first analyst
-        first_analyst = f"{selections['analysts'][0].value.capitalize()} Analyst"
-        message_buffer.update_agent_status(first_analyst, "in_progress")
+        # All analysts start in parallel — set every selected analyst to in_progress.
+        for analyst in selections["analysts"]:
+            analyst_node = f"{analyst.value.capitalize()} Analyst"
+            message_buffer.update_agent_status(analyst_node, "in_progress")
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Create spinner text
@@ -1164,9 +1161,13 @@ def run_analysis(checkpoint: bool = False):
             "System", f"Completed analysis for {selections['analysis_date']}"
         )
 
-        # Update final report sections
-        for section in message_buffer.report_sections.keys():
-            if section in final_state:
+        # Update final report sections from conclusive state.
+        analyst_reports_final = final_state.get("analyst_reports") or {}
+        for analyst_key, section_key in ANALYST_REPORT_MAP.items():
+            if analyst_key in analyst_reports_final:
+                message_buffer.update_report_section(section_key, analyst_reports_final[analyst_key])
+        for section in ("investment_plan", "trader_investment_plan", "final_trade_decision"):
+            if final_state.get(section):
                 message_buffer.update_report_section(section, final_state[section])
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)

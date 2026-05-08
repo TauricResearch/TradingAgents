@@ -15,6 +15,9 @@ DEFAULT_CONFIG = {
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.4",
     "quick_think_llm": "gpt-5.4-mini",
+    # Retries on transient LLM errors (rate-limit, timeout, connection).
+    # Forwarded to each provider's SDK client; set to 0 to disable.
+    "llm_max_retries": 3,
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/avante_god/code/polymarket_home/tradingagents -type f -name \"README*\" -o -name \"CLAUDE.md\" -o -name \"*.md\" | head -20)",
+      "Bash(cd /home/avante_god/code/polymarket_home/tradingagents && pwd && ls -la)",
+      "Bash(xargs ls -la)",
+      "Bash(xargs grep -l \"TODO\\\\|FIXME\\\\|HACK\\\\|XXX\")",
+      "Bash(git config *)",
+      "Bash(git checkout *)",
+      "Bash(grep -rn \"market_report\\\\|sentiment_report\\\\|news_report\\\\|fundamentals_report\\\\|tool_nodes\\\\|should_continue_market\\\\|should_continue_social\\\\|should_continue_news\\\\|should_continue_fundamentals\" //wsl.localhost/ubuntu-24.04/home/avante_god/code/polymarket_home/tradingagents/.claude/worktrees/romantic-archimedes-1d8977/tests/ 2>/dev/null)",
+      "Bash(python -m pytest tests/ -x -q --tb=short)",
+      "Bash(python -m pytest tests/test_memory_log.py tests/test_signal_processing.py tests/test_safe_ticker_component.py -x -q --tb=short)",
+      "Bash(git -C //wsl.localhost/ubuntu-24.04/home/avante_god/code/polymarket_home/tradingagents/.claude/worktrees/romantic-archimedes-1d8977 add -A)",
+      "Bash(git -C //wsl.localhost/ubuntu-24.04/home/avante_god/code/polymarket_home/tradingagents/.claude/worktrees/romantic-archimedes-1d8977 status --short)"
+    ]
+  }
+}

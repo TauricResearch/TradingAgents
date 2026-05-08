@@ -1,46 +1,31 @@
-from typing import Annotated
+import operator
+from typing import Annotated, Dict
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
 
 
 # Researcher team state
 class InvestDebateState(TypedDict):
-    bull_history: Annotated[
-        str, "Bullish Conversation history"
-    ]  # Bullish Conversation history
-    bear_history: Annotated[
-        str, "Bearish Conversation history"
-    ]  # Bullish Conversation history
-    history: Annotated[str, "Conversation history"]  # Conversation history
-    current_response: Annotated[str, "Latest response"]  # Last response
-    judge_decision: Annotated[str, "Final judge decision"]  # Last response
-    count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    bull_history: Annotated[str, "Bullish Conversation history"]
+    bear_history: Annotated[str, "Bearish Conversation history"]
+    history: Annotated[str, "Conversation history"]
+    current_response: Annotated[str, "Latest response"]
+    judge_decision: Annotated[str, "Final judge decision"]
+    count: Annotated[int, "Length of the current conversation"]
 
 
 # Risk management team state
 class RiskDebateState(TypedDict):
-    aggressive_history: Annotated[
-        str, "Aggressive Agent's Conversation history"
-    ]  # Conversation history
-    conservative_history: Annotated[
-        str, "Conservative Agent's Conversation history"
-    ]  # Conversation history
-    neutral_history: Annotated[
-        str, "Neutral Agent's Conversation history"
-    ]  # Conversation history
-    history: Annotated[str, "Conversation history"]  # Conversation history
+    aggressive_history: Annotated[str, "Aggressive Agent's Conversation history"]
+    conservative_history: Annotated[str, "Conservative Agent's Conversation history"]
+    neutral_history: Annotated[str, "Neutral Agent's Conversation history"]
+    history: Annotated[str, "Conversation history"]
     latest_speaker: Annotated[str, "Analyst that spoke last"]
-    current_aggressive_response: Annotated[
-        str, "Latest response by the aggressive analyst"
-    ]  # Last response
-    current_conservative_response: Annotated[
-        str, "Latest response by the conservative analyst"
-    ]  # Last response
-    current_neutral_response: Annotated[
-        str, "Latest response by the neutral analyst"
-    ]  # Last response
+    current_aggressive_response: Annotated[str, "Latest response by the aggressive analyst"]
+    current_conservative_response: Annotated[str, "Latest response by the conservative analyst"]
+    current_neutral_response: Annotated[str, "Latest response by the neutral analyst"]
     judge_decision: Annotated[str, "Judge's decision"]
-    count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    count: Annotated[int, "Length of the current conversation"]
 
 
 class AgentState(MessagesState):
@@ -49,13 +34,10 @@ class AgentState(MessagesState):
 
     sender: Annotated[str, "Agent that sent this message"]
 
-    # research step
-    market_report: Annotated[str, "Report from the Market Analyst"]
-    sentiment_report: Annotated[str, "Report from the Social Media Analyst"]
-    news_report: Annotated[
-        str, "Report from the News Researcher of current world affairs"
-    ]
-    fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    # Analyst reports — keyed by analyst type ("market", "social", "news", "fundamentals").
+    # operator.or_ merges dicts so parallel analyst nodes each contribute their own key
+    # without overwriting each other's output.
+    analyst_reports: Annotated[Dict[str, str], operator.or_]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

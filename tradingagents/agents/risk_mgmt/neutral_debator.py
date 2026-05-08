@@ -9,10 +9,11 @@ def create_neutral_debator(llm):
         current_aggressive_response = risk_debate_state.get("current_aggressive_response", "")
         current_conservative_response = risk_debate_state.get("current_conservative_response", "")
 
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        reports = state.get("analyst_reports", {})
+        market_research_report = reports.get("market", "")
+        sentiment_report = reports.get("social", "")
+        news_report = reports.get("news", "")
+        fundamentals_report = reports.get("fundamentals", "")
 
         trader_decision = state["trader_investment_plan"]
 

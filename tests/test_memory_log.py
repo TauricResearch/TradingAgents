@@ -4,14 +4,16 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
 
-from tradingagents.agents.utils.memory import TradingMemoryLog
+import json
+
+from tradingagents.agents.utils.memory import TradingMemoryLog, _ENTRY_SEP
 from tradingagents.agents.schemas import PortfolioDecision, PortfolioRating
 from tradingagents.graph.reflection import Reflector
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.propagation import Propagator
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 
-_SEP = TradingMemoryLog._SEPARATOR
+_SEP = _ENTRY_SEP
 
 DECISION_BUY = "Rating: Buy\nEnter at $189-192, 6% portfolio cap."
 DECISION_OVERWEIGHT = (
@@ -37,12 +39,18 @@ def make_log(tmp_path, filename="trading_memory.md"):
 
 def _seed_completed(tmp_path, ticker, date, decision_text, reflection_text, filename="trading_memory.md"):
     """Write a completed entry directly to file, bypassing the API."""
-    entry = (
-        f"[{date} | {ticker} | Buy | +1.0% | +0.5% | 5d]\n\n"
-        f"DECISION:\n{decision_text}\n\n"
-        f"REFLECTION:\n{reflection_text}"
-        + _SEP
-    )
+    entry = json.dumps({
+        "version": 1,
+        "date": date,
+        "ticker": ticker,
+        "rating": "Buy",
+        "pending": False,
+        "raw_return": 0.01,
+        "alpha_return": 0.005,
+        "holding_days": 5,
+        "decision": decision_text,
+        "reflection": reflection_text,
+    }) + _SEP
     with open(tmp_path / filename, "a", encoding="utf-8") as f:
         f.write(entry)
 
@@ -74,10 +82,12 @@ def _make_pm_state(past_context=""):
             "current_neutral_response": "",
             "count": 1,
         },
-        "market_report": "Market report.",
-        "sentiment_report": "Sentiment report.",
-        "news_report": "News report.",
-        "fundamentals_report": "Fundamentals report.",
+        "analyst_reports": {
+            "market": "Market report.",
+            "social": "Sentiment report.",
+            "news": "News report.",
+            "fundamentals": "Fundamentals report.",
+        },
         "investment_plan": "Research plan.",
         "trader_investment_plan": "Trader plan.",
     }
@@ -155,8 +165,12 @@ class TestTradingMemoryLogCore:
     def test_pending_tag_format(self, tmp_path):
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
-        text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
-        assert "[2026-01-10 | NVDA | Buy | pending]" in text
+        entries = log.load_entries()
+        assert len(entries) == 1
+        e = entries[0]
+        assert e["date"] == "2026-01-10"
+        assert e["ticker"] == "NVDA"
+        assert e["pending"] is True
 
     # Rating parsing
 
@@ -213,7 +227,7 @@ class TestTradingMemoryLogCore:
         assert e["ticker"] == "NVDA"
         assert e["rating"] == "Buy"
         assert e["pending"] is True
-        assert e["raw"] is None
+        assert e["raw_return"] is None
 
     def test_load_entries_multiple(self, tmp_path):
         log = make_log(tmp_path)
@@ -391,11 +405,13 @@ class TestDeferredReflection:
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Momentum confirmed.")
-        text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
-        assert "[2026-01-10 | NVDA | Buy | pending]" not in text
-        assert "+4.2%" in text
-        assert "+2.1%" in text
-        assert "5d" in text
+        entries = log.load_entries()
+        assert len(entries) == 1
+        e = entries[0]
+        assert e["pending"] is False
+        assert abs(e["raw_return"] - 0.042) < 1e-9
+        assert abs(e["alpha_return"] - 0.021) < 1e-9
+        assert e["holding_days"] == 5
 
     def test_update_appends_reflection(self, tmp_path):
         log = make_log(tmp_path)
@@ -451,11 +467,9 @@ class TestDeferredReflection:
         assert e["pending"] is False
         assert e["decision"] == DECISION_BUY.strip()
         assert e["reflection"] == "Momentum confirmed."
-        assert e["raw"] == "+4.2%"
-        assert e["alpha"] == "+2.1%"
-        assert e["holding"] == "5d"
-        raw_text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
-        assert "[2026-01-10 | NVDA | Buy | +4.2% | +2.1% | 5d]\n\nDECISION:" in raw_text
+        assert abs(e["raw_return"] - 0.042) < 1e-9
+        assert abs(e["alpha_return"] - 0.021) < 1e-9
+        assert e["holding_days"] == 5
 
     # Reflector.reflect_on_final_decision
 
@@ -564,8 +578,8 @@ class TestDeferredReflection:
         assert len(entries) == 1
         assert entries[0]["pending"] is False
         assert entries[0]["reflection"] == "Momentum confirmed."
-        assert "+5.0%" in entries[0]["raw"]
-        assert "+2.0%" in entries[0]["alpha"]
+        assert abs(entries[0]["raw_return"] - 0.05) < 1e-9
+        assert abs(entries[0]["alpha_return"] - 0.02) < 1e-9
 
 
 # ---------------------------------------------------------------------------
@@ -735,10 +749,7 @@ class TestLegacyRemoval:
             "final_trade_decision": "Rating: Buy\nBuy NVDA.",
             "company_of_interest": "NVDA",
             "trade_date": "2026-01-10",
-            "market_report": "",
-            "sentiment_report": "",
-            "news_report": "",
-            "fundamentals_report": "",
+            "analyst_reports": {},
             "investment_debate_state": {
                 "bull_history": "", "bear_history": "", "history": "",
                 "current_response": "", "judge_decision": "",

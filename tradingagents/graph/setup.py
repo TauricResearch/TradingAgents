@@ -1,13 +1,22 @@
 # TradingAgents/graph/setup.py
 
-from typing import Any, Dict
+from typing import Any, List
+
 from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
+
+# Canonical analyst key → display name mapping.  A single source of truth
+# so that setup.py and conditional_logic.py never diverge.
+ANALYST_NODE_NAMES = {
+    "market": "Market Analyst",
+    "social": "Social Analyst",
+    "news": "News Analyst",
+    "fundamentals": "Fundamentals Analyst",
+}
 
 
 class GraphSetup:
@@ -17,123 +26,75 @@ class GraphSetup:
         self,
         quick_thinking_llm: Any,
         deep_thinking_llm: Any,
-        tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
     ):
-        """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
-        self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
 
-    def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
-    ):
+    def setup_graph(self, selected_analysts: List[str] = None):
         """Set up and compile the agent workflow graph.
 
+        Analysts run in parallel: all selected analyst nodes are fanned out from
+        START and converge at Bull Researcher once every analyst has finished.
+        Each analyst manages its own tool-calling loop internally, so no
+        ToolNode or message-clearing nodes are needed.
+
         Args:
-            selected_analysts (list): List of analyst types to include. Options are:
-                - "market": Market analyst
-                - "social": Social media analyst
-                - "news": News analyst
-                - "fundamentals": Fundamentals analyst
+            selected_analysts: Analyst types to include. Options:
+                "market", "social", "news", "fundamentals".
         """
-        if len(selected_analysts) == 0:
+        if selected_analysts is None:
+            selected_analysts = ["market", "social", "news", "fundamentals"]
+        if not selected_analysts:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
 
-        # Create analyst nodes
-        analyst_nodes = {}
-        delete_nodes = {}
-        tool_nodes = {}
-
-        if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
+        # Validate analyst keys early.
+        unknown = set(selected_analysts) - set(ANALYST_NODE_NAMES)
+        if unknown:
+            raise ValueError(
+                f"Unknown analyst type(s): {sorted(unknown)}. "
+                f"Valid options: {sorted(ANALYST_NODE_NAMES)}"
             )
-            delete_nodes["market"] = create_msg_delete()
-            tool_nodes["market"] = self.tool_nodes["market"]
 
-        if "social" in selected_analysts:
-            analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["social"] = create_msg_delete()
-            tool_nodes["social"] = self.tool_nodes["social"]
+        # Build analyst factory map.
+        analyst_factories = {
+            "market": create_market_analyst,
+            "social": create_social_media_analyst,
+            "news": create_news_analyst,
+            "fundamentals": create_fundamentals_analyst,
+        }
 
-        if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["news"] = create_msg_delete()
-            tool_nodes["news"] = self.tool_nodes["news"]
-
-        if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["fundamentals"] = create_msg_delete()
-            tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
-
-        # Create researcher and manager nodes
-        bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
-        bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
-        research_manager_node = create_research_manager(self.deep_thinking_llm)
-        trader_node = create_trader(self.quick_thinking_llm)
-
-        # Create risk analysis nodes
-        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
-
-        # Create workflow
         workflow = StateGraph(AgentState)
 
-        # Add analyst nodes to the graph
-        for analyst_type, node in analyst_nodes.items():
-            workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
-            workflow.add_node(
-                f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
-            )
-            workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+        # Add analyst nodes (parallel — each is self-contained).
+        for key in selected_analysts:
+            node_name = ANALYST_NODE_NAMES[key]
+            workflow.add_node(node_name, analyst_factories[key](self.quick_thinking_llm))
 
-        # Add other nodes
-        workflow.add_node("Bull Researcher", bull_researcher_node)
-        workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive Analyst", aggressive_analyst)
-        workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Conservative Analyst", conservative_analyst)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        # Add researcher + manager nodes.
+        workflow.add_node("Bull Researcher", create_bull_researcher(self.quick_thinking_llm))
+        workflow.add_node("Bear Researcher", create_bear_researcher(self.quick_thinking_llm))
+        workflow.add_node("Research Manager", create_research_manager(self.deep_thinking_llm))
+        workflow.add_node("Trader", create_trader(self.quick_thinking_llm))
 
-        # Define edges
-        # Start with the first analyst
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        # Add risk analysis nodes.
+        workflow.add_node("Aggressive Analyst", create_aggressive_debator(self.quick_thinking_llm))
+        workflow.add_node("Neutral Analyst", create_neutral_debator(self.quick_thinking_llm))
+        workflow.add_node("Conservative Analyst", create_conservative_debator(self.quick_thinking_llm))
+        workflow.add_node("Portfolio Manager", create_portfolio_manager(self.deep_thinking_llm))
 
-        # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
-            current_analyst = f"{analyst_type.capitalize()} Analyst"
-            current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
+        # Fan-out: START → all analysts in parallel.
+        for key in selected_analysts:
+            workflow.add_edge(START, ANALYST_NODE_NAMES[key])
 
-            # Add conditional edges for current analyst
-            workflow.add_conditional_edges(
-                current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                [current_tools, current_clear],
-            )
-            workflow.add_edge(current_tools, current_analyst)
+        # Fan-in: each analyst → Bull Researcher.
+        # LangGraph will not advance to Bull Researcher until every incoming
+        # edge (i.e. every analyst) has completed.
+        for key in selected_analysts:
+            workflow.add_edge(ANALYST_NODE_NAMES[key], "Bull Researcher")
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
-
-        # Add remaining edges
+        # Research debate loop.
         workflow.add_conditional_edges(
             "Bull Researcher",
             self.conditional_logic.should_continue_debate,
@@ -150,8 +111,11 @@ class GraphSetup:
                 "Research Manager": "Research Manager",
             },
         )
+
         workflow.add_edge("Research Manager", "Trader")
         workflow.add_edge("Trader", "Aggressive Analyst")
+
+        # Risk debate loop.
         workflow.add_conditional_edges(
             "Aggressive Analyst",
             self.conditional_logic.should_continue_risk_analysis,
