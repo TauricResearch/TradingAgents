@@ -1,5 +1,38 @@
 # TradingAgents Fork — TODOS
 
+## Next steps (recommended order)
+
+The pipeline is calibrated, secure (prompt-injection + rate-limited),
+and clean (single io_utils helper). Three open work items, in priority
+order:
+
+1. **Score the live Welsh/UK paper positions when they resolve.**
+   Zero new code. Run `python scripts/score_fills.py --verbose` once
+   the markets close in the next 24-72h and append the result to
+   `docs/PHASE_A_FINDINGS.md`. This is the only fully look-ahead-free
+   signal we can get without writing more code, since those events
+   resolve AFTER the LLM training cutoff.
+
+2. **Quote-prediction prompt fix** (Phase A polish).
+   Trader prompt addition for "will X say Y" markets — default to the
+   speaker's historical word frequency or HOLD. Re-run the same 10
+   cross-domain markets as the drama-bias A/B. Effort: ~15 min CC,
+   target: no regression on the 88.9% baseline + flip on Trump-Allah.
+   See "TODO: Investigate quote-prediction failure mode" below.
+
+3. **50-market balanced backtest** (Phase A statistical claim).
+   Current 30-market sample is class-imbalanced (28 NO / 2 YES). Need
+   a sample with at least 15-20 YES_WINS markets to claim BUY_YES
+   discrimination beyond drama-bias. Use `--end-date-max 2026-03-01`
+   and filter for `volume >= 5000` to avoid lottery-ticket markets.
+
+4. **Phase B Kelly criterion sizing** (only after #1-3 land).
+   See "Polymarket Phase B" section below. Blocked on regulatory call
+   for jurisdiction (US persons cannot trade on Polymarket directly)
+   and wallet integration via `py-clob-client`.
+
+---
+
 ## Polymarket Phase A
 
 ### DONE: Polymarket backtesting harness
@@ -15,16 +48,30 @@ so guaranteed-loser trades log "NEGATIVE_EV_BLOCKED" and don't persist.
 
 ---
 
-### TODO: Gamma API retry/backoff
-**What:** Add `tenacity` retry + exponential backoff to all Gamma REST calls
-in `tradingagents/dataflows/polymarket_data.py`.
-**Why:** Gamma rate limits are undocumented. Without retry logic, a 429 produces
-a silent empty result or an exception dump with no user-visible message.
-**Context:** `@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))`
-on transient failures only (network errors, 429, 5xx). Don't retry 4xx
-client errors.
-**Effort:** 15 min
-**Depends on:** nothing
+### DONE: Gamma API retry/backoff
+Shipped 2026-05-08. `_http_get_with_retry()` in
+`tradingagents/dataflows/polymarket_data.py` wraps Gamma REST calls with
+tenacity retry on transient failures (network errors, 429, 5xx). 4xx
+client errors are not retried.
+
+---
+
+### DONE: Prompt-injection sanitiser + daily call rate limiter
+Shipped 2026-05-08 (commit `a1e8748`). `tradingagents/agents/utils/sanitize.py`
+neutralises 7 classes of prompt-injection patterns in untrusted Exa news
+text before it reaches the bull/bear/trader prompts.
+`tradingagents/exchange/rate_limiter.py` caps daily LLM call volume
+(default 100, override via `POLYMARKET_DAILY_CALL_LIMIT`) to bound
+runaway-spend risk. State persisted at `~/.tradingagents/polymarket/rate_limit.json`.
+
+---
+
+### DONE: io_utils migration cleanup
+Shipped 2026-05-08 (commit `b750ac0`, PR #1). All three Polymarket
+scripts (`run_polymarket.py`, `score_fills.py`, `backtest.py`) now use
+`tradingagents.exchange.io_utils.POLYMARKET_OUTPUT_DIR` and `append_jsonl`
+instead of local copies. Net -15 lines, single source of truth for the
+output dir and JSONL format.
 
 ---
 
