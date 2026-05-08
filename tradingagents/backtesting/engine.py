@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Set, Tuple
+from typing import Set, Tuple
 
 import pandas as pd
 
@@ -20,7 +20,7 @@ FREQ_MAP: dict[str, str] = {
 
 
 def generate_dates(start_date: str, end_date: str, freq: str) -> list[str]:
-    """Return business-day-aligned ISO date strings for the backtest range."""
+    """Return ISO date strings for the backtest range; weekend dates are bumped to Monday."""
     pd_freq = FREQ_MAP.get(freq)
     if pd_freq is None:
         raise ValueError(f"Unsupported freq {freq!r}. Use: {list(FREQ_MAP)}")
@@ -46,7 +46,7 @@ def load_completed_pairs(output_file: str) -> Set[Tuple[str, str]]:
                 continue
             try:
                 obj = json.loads(line)
-                if obj.get("error") is None:
+                if obj.get("error") is None and "ticker" in obj and "trade_date" in obj:
                     completed.add((obj["ticker"], obj["trade_date"]))
             except json.JSONDecodeError:
                 continue
