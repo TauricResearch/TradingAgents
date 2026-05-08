@@ -18,6 +18,21 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.macro_tools import (
+    get_macro_data
+)
+from tradingagents.agents.utils.options_tools import (
+    get_options_data
+)
+from tradingagents.agents.utils.search_tools import (
+    search_web
+)
+from tradingagents.agents.utils.quant_tools import (
+    get_quant_data
+)
+from tradingagents.agents.utils.backtest_tools import (
+    run_strategy_backtest
+)
 
 
 def get_language_instruction() -> str:

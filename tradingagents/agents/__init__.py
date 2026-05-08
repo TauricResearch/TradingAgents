@@ -5,6 +5,10 @@ from .analysts.fundamentals_analyst import create_fundamentals_analyst
 from .analysts.market_analyst import create_market_analyst
 from .analysts.news_analyst import create_news_analyst
 from .analysts.social_media_analyst import create_social_media_analyst
+from .analysts.macro_analyst import create_macro_analyst
+from .analysts.options_analyst import create_options_analyst
+from .analysts.quant_analyst import create_quant_analyst
+from .analysts.earnings_analyst import create_earnings_analyst
 
 from .researchers.bear_researcher import create_bear_researcher
 from .researchers.bull_researcher import create_bull_researcher
@@ -35,4 +39,8 @@ __all__ = [
     "create_conservative_debator",
     "create_social_media_analyst",
     "create_trader",
+    "create_macro_analyst",
+    "create_options_analyst",
+    "create_quant_analyst",
+    "create_earnings_analyst",
 ]

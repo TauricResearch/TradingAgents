@@ -14,6 +14,8 @@ from tradingagents.agents.utils.structured import (
 )
 
 
+from tradingagents.agents.utils.backtest_tools import run_strategy_backtest
+
 def create_trader(llm):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
@@ -21,6 +23,10 @@ def create_trader(llm):
         company_name = state["company_of_interest"]
         instrument_context = build_instrument_context(company_name)
         investment_plan = state["investment_plan"]
+        
+        # Run historical backtests to inform the trader
+        macd_results = run_strategy_backtest.invoke({"ticker": company_name, "strategy_type": "macd_crossover"})
+        rsi_results = run_strategy_backtest.invoke({"ticker": company_name, "strategy_type": "rsi_oversold"})
 
         messages = [
             {
@@ -28,7 +34,7 @@ def create_trader(llm):
                 "content": (
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
+                    "Anchor your reasoning in the analysts' reports, the research plan, and the historical backtest results provided."
                 ),
             },
             {
@@ -37,7 +43,10 @@ def create_trader(llm):
                     f"Based on a comprehensive analysis by a team of analysts, here is an investment "
                     f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
                     f"insights from current technical market trends, macroeconomic indicators, and "
-                    f"social media sentiment. Use this plan as a foundation for evaluating your next "
+                    f"social media sentiment.\n\n"
+                    f"Additionally, here are the historical backtest results for two common strategies on this asset:\n"
+                    f"{macd_results}\n\n{rsi_results}\n\n"
+                    f"Use this plan and the quantitative backtest performance as a foundation for evaluating your next "
                     f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
                     f"Leverage these insights to make an informed and strategic decision."
                 ),

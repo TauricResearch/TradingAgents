@@ -36,7 +36,11 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_macro_data,
+    get_options_data,
+    get_quant_data,
+    search_web
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -184,6 +188,26 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                ]
+            ),
+            "macro": ToolNode(
+                [
+                    get_macro_data,
+                ]
+            ),
+            "options": ToolNode(
+                [
+                    get_options_data,
+                ]
+            ),
+            "quant": ToolNode(
+                [
+                    get_quant_data,
+                ]
+            ),
+            "earnings": ToolNode(
+                [
+                    search_web,
                 ]
             ),
         }
@@ -356,6 +380,10 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "macro_report": final_state.get("macro_report", ""),
+            "options_report": final_state.get("options_report", ""),
+            "quant_report": final_state.get("quant_report", ""),
+            "earnings_report": final_state.get("earnings_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

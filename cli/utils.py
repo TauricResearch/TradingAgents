@@ -15,13 +15,17 @@ ANALYST_ORDER = [
     ("Social Media Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Macro Analyst", AnalystType.MACRO),
+    ("Options Analyst", AnalystType.OPTIONS),
+    ("Quantitative Analyst", AnalystType.QUANT),
+    ("Earnings Analyst", AnalystType.EARNINGS),
 ]
 
 
-def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
-    ticker = questionary.text(
-        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
+def get_ticker() -> List[str]:
+    """Prompt the user to enter ticker symbol(s)."""
+    ticker_input = questionary.text(
+        f"Enter the exact ticker symbol(s) to analyze, separated by commas ({TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
@@ -31,12 +35,13 @@ def get_ticker() -> str:
         ),
     ).ask()
 
-    if not ticker:
+    if not ticker_input:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker)
-
+    # Split by comma and normalize
+    tickers = [normalize_ticker_symbol(t) for t in ticker_input.split(",") if t.strip()]
+    return tickers
 
 def normalize_ticker_symbol(ticker: str) -> str:
     """Normalize ticker input while preserving exchange suffixes."""

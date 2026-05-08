@@ -35,6 +35,14 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Super Portfolio Manager Prompt Configuration
+    "super_portfolio_manager_prompt": (
+        "You are a Super Portfolio Manager for a hedge fund. Your team of analysts and traders have analyzed multiple assets. "
+        "Your job is to allocate a $100,000 portfolio across these assets based on their reports. "
+        "Provide percentage allocations for each ticker (e.g., AAPL: 40%, MSFT: 60%). "
+        "You may choose to hold cash if none of the assets present a good risk/reward profile. "
+        "Write a detailed summary explaining your allocation strategy and the risks involved."
+    ),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
