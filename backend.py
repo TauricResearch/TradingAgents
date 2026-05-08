@@ -14,6 +14,7 @@ import concurrent.futures
 import io
 import json
 import os
+import queue
 import random
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -22,6 +23,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import uvicorn
+import yfinance as yf
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -119,7 +121,7 @@ async def _demo_analysis(ticker: str):
     }
 
 
-def _run_real_analysis(ticker: str, log_callback) -> dict:
+def _run_real_analysis(ticker: str, log_callback, node_callback) -> dict:
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = "anthropic"
     config["deep_think_llm"] = "claude-sonnet-4-6"
@@ -135,7 +137,7 @@ def _run_real_analysis(ticker: str, log_callback) -> dict:
     try:
         ta = TradingAgentsGraph(analyst_keys, debug=False, config=config)
         analysis_date = datetime.now().strftime("%Y-%m-%d")
-        _, decision_raw = ta.propagate(ticker, analysis_date)
+        _, decision_raw = ta.propagate(ticker, analysis_date, on_node=node_callback)
     finally:
         sys.stdout = old_stdout
 
@@ -176,31 +178,37 @@ async def analyse_ticker(ticker: str):
         if DEMO_MODE:
             result = await _demo_analysis(ticker)
         else:
-            pending_logs: List[str] = []
+            log_queue: queue.Queue = queue.Queue()
 
             def on_log(text: str):
-                print(f"[AGENT] {text}")
-                pending_logs.append(text)
+                log_queue.put({"type": "log", "message": text})
+
+            def on_node(node_name: str):
+                log_queue.put({"type": "agent_start", "agent": node_name})
+
+            async def drain_queue():
+                while not log_queue.empty():
+                    try:
+                        event = log_queue.get_nowait()
+                        if event["type"] == "agent_start":
+                            agent = event["agent"]
+                            watched_tickers[ticker]["current_agent"] = agent
+                            await broadcast({"type": "agent_start", "ticker": ticker, "agent": agent})
+                        elif event["type"] == "log":
+                            agent = watched_tickers[ticker].get("current_agent") or "Agent"
+                            await broadcast({"type": "agent_log", "ticker": ticker, "agent": agent, "message": event["message"]})
+                    except queue.Empty:
+                        break
 
             print(f"[INFO] Running TradingAgents for {ticker} in background thread...")
-            future = executor.submit(_run_real_analysis, ticker, on_log)
-            heartbeat_agents = iter(AGENT_SEQUENCE)
+            future = executor.submit(_run_real_analysis, ticker, on_log, on_node)
 
             while not future.done():
-                await asyncio.sleep(30)
-                if not future.done():
-                    agent = next(heartbeat_agents, "Portfolio Manager")
-                    watched_tickers[ticker]["current_agent"] = agent
-                    await broadcast({"type": "agent_start", "ticker": ticker, "agent": agent})
-                    await broadcast({
-                        "type": "agent_log", "ticker": ticker, "agent": agent,
-                        "message": f"[{agent}] Running analysis... (this takes a few minutes)"
-                    })
+                await asyncio.sleep(2)
+                await drain_queue()
 
             result = future.result()
-            print(f"[INFO] Thread complete for {ticker}. Flushing {len(pending_logs)} log lines.")
-            for log in pending_logs:
-                await broadcast({"type": "agent_log", "ticker": ticker, "agent": "Agent", "message": log})
+            await drain_queue()
 
         if result is None:
             raise ValueError("Analysis returned no result")
@@ -301,6 +309,22 @@ def get_status():
         "refresh_interval": refresh_interval,
         "watched_count": len(watched_tickers),
         "connected_clients": len(clients),
+    })
+
+
+@app.get("/api/tickers/{ticker}/chart")
+def get_chart(ticker: str):
+    t = ticker.upper()
+    try:
+        df = yf.Ticker(t).history(period="30d")
+    except Exception:
+        return JSONResponse({"error": "No data"}, status_code=404)
+    if df.empty:
+        return JSONResponse({"error": "No data"}, status_code=404)
+    return JSONResponse({
+        "dates": [d.strftime("%Y-%m-%d") for d in df.index],
+        "close": [round(float(v), 4) for v in df["Close"]],
+        "volume": [int(v) for v in df["Volume"]],
     })
 
 
