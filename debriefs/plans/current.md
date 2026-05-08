@@ -32,8 +32,6 @@
 - `td-dc35e0` [P2] CLI-PORTFOLIO: Style trading portfolio with Gum and add just recipe (impl: ses_02a5c6)
 - `td-3fda84` [P2] IG-HISTORY: Add trading ig history command for IG platform activity (impl: ses_02a5c6)
 - `td-68d979` [P2] ALERTS-PHASE1: Exit plan alerts from existing YAML plans + SQLite prices (impl: ses_02a5c6)
-
-**IN_REVIEW:**
 - `td-2be009` [P2] BUYLIST: Contingency playbook - watchlist items with fair value targets (impl: ses_02a5c6)
 
 **Awaiting prioritization:**
