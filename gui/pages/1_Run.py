@@ -446,7 +446,7 @@ if SS.run_id and SS.run_decision is not None:
         rt = charts.realised_returns_table(ticker_for_chart, date_for_chart)
         if rt is not None:
             st.markdown("**Realised return windows** (vs SPY, post-trade-date):")
-            st.dataframe(rt, use_container_width=True, hide_index=True)
+            st.dataframe(rt, width="stretch", hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Chat about this run — full Q&A panel.

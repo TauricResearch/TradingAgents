@@ -146,7 +146,7 @@ view = view.sort_values(["trade_date", "ticker"], ascending=[False, True])
 st.dataframe(
     view[["ticker", "trade_date", "run_ts", "decision", "provider", "deep_model",
           "tokens_in", "tokens_out", "status"]],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
 )
 
@@ -274,7 +274,7 @@ else:
 returns_df = charts.realised_returns_table(chosen["ticker"], chosen["trade_date"])
 if returns_df is not None:
     st.markdown("**Realised return windows** (vs SPY, post-trade-date):")
-    st.dataframe(returns_df, use_container_width=True, hide_index=True)
+    st.dataframe(returns_df, width="stretch", hide_index=True)
 else:
     st.caption(
         "Trade date is too recent for realised-return windows. "
@@ -325,7 +325,7 @@ def _file_row(label: str, ext: str, path: Path | None, *, helptext: str = "") ->
             mime={"json": "application/json", "md": "text/markdown",
                   "html": "text/html", "pdf": "application/pdf"}.get(ext, "application/octet-stream"),
             file_name=path.name,
-            use_container_width=True, key=f"dl_{ext}_file",
+            width="stretch", key=f"dl_{ext}_file",
             help=helptext or f"Download the {ext} file ({size_kb:.1f} KB)",
         )
         # Streamlit can't open the OS file manager from a button, but
