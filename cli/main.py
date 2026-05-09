@@ -500,7 +500,10 @@ def get_user_selections():
             "SPY",
         )
     )
-    selected_ticker = get_ticker()
+    while True:
+        selected_ticker = normalize_ticker_symbol(get_ticker())
+        if confirm_resolved_ticker(selected_ticker):
+            break
 
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -579,6 +582,76 @@ def get_user_selections():
 def get_ticker():
     """Get ticker symbol from user input."""
     return typer.prompt("", default="SPY")
+
+
+def confirm_resolved_ticker(ticker: str) -> bool:
+    """Show the company resolved from yfinance for `ticker` and ask the user to
+    confirm it. Returns True to proceed, False to re-prompt for the ticker.
+
+    Catches the common case where a model would otherwise hallucinate a wrong
+    company for an exchange-suffixed ticker (e.g. NPN.JO → Nornickel/Oslo
+    instead of Naspers/JSE).
+    """
+    from tradingagents.dataflows.y_finance import get_instrument_metadata
+
+    with console.status(f"[cyan]Looking up {ticker}...[/cyan]", spinner="dots"):
+        metadata = get_instrument_metadata(ticker)
+
+    if not metadata:
+        console.print(
+            Panel(
+                f"[yellow]Could not resolve company info for[/yellow] [bold]{ticker}[/bold]"
+                "\n[dim]The ticker may be invalid, delisted, or unavailable on yfinance."
+                " You can still proceed, but the analysis may be inaccurate.[/dim]",
+                title="Ticker not verified",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
+        return typer.confirm("Continue with this ticker anyway?", default=False)
+
+    name = metadata.get("name") or "(unknown company)"
+    exchange = metadata.get("exchange") or "(unknown exchange)"
+    currency = metadata.get("currency") or "(unknown currency)"
+    quote_type = metadata.get("quote_type") or "(unknown type)"
+
+    console.print(
+        Panel(
+            f"[bold]Ticker:[/bold] {ticker}\n"
+            f"[bold]Company:[/bold] {name}\n"
+            f"[bold]Exchange:[/bold] {exchange}\n"
+            f"[bold]Currency:[/bold] {currency}\n"
+            f"[bold]Type:[/bold] {quote_type}",
+            title="Resolved instrument",
+            border_style="green",
+            padding=(1, 2),
+        )
+    )
+    return typer.confirm("Proceed with this company?", default=True)
+
+
+def print_resolved_ticker_summary(ticker: str) -> None:
+    """Non-interactive counterpart to `confirm_resolved_ticker`: print the
+    resolved instrument so users running with --yes still see what's being
+    analyzed, without gating progress behind a prompt."""
+    from tradingagents.dataflows.y_finance import get_instrument_metadata
+
+    with console.status(f"[cyan]Looking up {ticker}...[/cyan]", spinner="dots"):
+        metadata = get_instrument_metadata(ticker)
+
+    if not metadata:
+        console.print(
+            f"[yellow]Could not resolve company info for {ticker}; proceeding anyway.[/yellow]"
+        )
+        return
+
+    name = metadata.get("name") or "(unknown company)"
+    exchange = metadata.get("exchange") or "(unknown exchange)"
+    currency = metadata.get("currency") or ""
+    suffix = f" ({currency})" if currency else ""
+    console.print(
+        f"[green]Analyzing[/green] [bold]{ticker}[/bold] — {name} on {exchange}{suffix}"
+    )
 
 
 def get_analysis_date():
@@ -967,8 +1040,11 @@ def build_cli_selections(
         warn_mlx_quick_deep_mismatch(qm, dm)
         verify_mlx_server_reachable(backend)
 
+    normalized_ticker = normalize_ticker_symbol(ticker)
+    print_resolved_ticker_summary(normalized_ticker)
+
     return {
-        "ticker": normalize_ticker_symbol(ticker),
+        "ticker": normalized_ticker,
         "analysis_date": date_ok,
         "analysts": analysts_list,
         "research_depth": depth_val,

@@ -1,11 +1,40 @@
 from datetime import datetime
-from typing import Annotated
+from functools import lru_cache
+from typing import Annotated, Optional
 
 import pandas as pd
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 
 from .stockstats_utils import StockstatsUtils, filter_financials_by_date, load_ohlcv, yf_retry
+
+
+@lru_cache(maxsize=512)
+def get_instrument_metadata(ticker: str) -> Optional[dict]:
+    """Look up basic identifying metadata for a ticker via yfinance.
+
+    Returns a dict with `name`, `exchange`, `quote_type`, `currency` (any of
+    which may be None), or None if the lookup fails or yields nothing usable.
+    Cached so the five analyst/manager agents in a single propagate() share one
+    network round-trip per ticker.
+    """
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        info = yf_retry(lambda: ticker_obj.info)
+        if not info:
+            return None
+        name = info.get("longName") or info.get("shortName")
+        exchange = info.get("fullExchangeName") or info.get("exchange")
+        if not name and not exchange:
+            return None
+        return {
+            "name": name,
+            "exchange": exchange,
+            "quote_type": info.get("quoteType"),
+            "currency": info.get("currency"),
+        }
+    except Exception:
+        return None
 
 
 def get_YFin_data_online(
