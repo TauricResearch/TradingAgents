@@ -4,11 +4,11 @@ import typer
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
 # Load environment variables
-load_dotenv()
-load_dotenv(".env.enterprise", override=False)
+load_dotenv(find_dotenv(usecwd=True))
+load_dotenv(find_dotenv(usecwd=True, filename=".env.enterprise"), override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -1017,7 +1017,7 @@ def run_analysis(checkpoint: bool = False):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=2, screen=True) as live:
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
