@@ -23,4 +23,4 @@ if [[ ! -x "${OSV}" ]]; then
   chmod +x "${OSV}"
 fi
 
-"${OSV}" scan source --recursive --skip-git "${ROOT}" "$@"
+"${OSV}" scan source --recursive "${ROOT}" "$@"
