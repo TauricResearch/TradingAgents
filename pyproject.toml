@@ -32,6 +32,11 @@ dependencies = [
     "yfinance>=0.2.63",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pip-audit>=2.6.0",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
 
