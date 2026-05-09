@@ -61,6 +61,10 @@ playbooks/ (project-specific)    canonicals/
 5. **Scripts are first-class.** `canonicals/scripts/` holds reusable scripts with
    project-agnostic interfaces.
 
+6. **Destination: just-silo.** The canonical registry framework (tools, schema,
+   conventions) is designed for lift-and-shift to the `just-silo` canonical
+   template project. TradingAgents is the proving ground.
+
 ## Proposed Directory Structure
 
 ```
@@ -159,9 +163,33 @@ scripts by portability level.
 | Script registry becomes unmaintained | Make it part of `just check` (warn on un-indexed scripts) |
 | Canonicals/ becomes a dumping ground | Require `reg-promote` review; no direct commits to canonicals/ |
 
+## The Lift-and-Shift Test
+
+The ultimate validation of this registry is a lift-and-shift to `just-silo`,
+the canonical silo template project. If the registry mechanism cannot export
+itself, it is not a real registry — it is a local convention pretending to be
+portable.
+
+**What moves to just-silo:**
+- Unified JSONL schema and registry concept (unified-registry-playbook.md)
+- Core registry tools: reg-check.ts, reg-sync.ts, reg-list.ts (project-agnostic logic)
+- The canonical/portable distinction and mining/promotion workflow
+- The script registry concept (portability levels)
+
+**What stays in TradingAgents:**
+- TradingAgents-specific playbook content (examples, paths, tickers)
+- Project-specific scripts (seed_database.ts, get_price.ts)
+- The actual canonical playbooks themselves (briefs-playbook, debriefs-playbook, etc.)
+
+**Why this matters for design:**
+- Registry tools must not hardcode "playbooks" or "TradingAgents" — they take a directory path
+- The unified schema must be truly generic — no registry-specific required fields
+- `reg-import.ts` must work against any project with a unified-schema INDEX.jsonl
+- The lift-and-shift is not a later task — it is the validation mechanism
+
 ## Non-Goals
 
-- External registry (separate repo) — out of scope for this epic
+- External registry (separate repo) — out of scope for this epic; lift-and-shift is a follow-up
 - Automated mining (no human review) — the diff must be reviewed
 - Versioning within canonicals/ — use git history
 - Cross-project sync — manual import/export for now
@@ -173,9 +201,18 @@ scripts by portability level.
 3. Script registry indexes all scripts with portability levels
 4. `just check` includes canonical index validation
 5. No regression in existing registry tools
+6. **Tools are project-agnostic** — no hardcoded "TradingAgents" or "playbooks" paths; accept directory arguments
+
+## Follow-Up Epic
+
+**LIFT-AND-SHIFT-001:** Move canonical registry framework from TradingAgents to just-silo
+- Extract registry tools and schema to just-silo repo
+- Validate reg-import.ts works in a fresh just-silo project
+- Update just-silo documentation with registry adoption guide
 
 ## Related
 
 - `playbooks/unified-registry-playbook.md` — existing registry system
 - `playbooks/playbooks-playbook.md` — meta-playbook about playbooks
-- `silo-conceptual-lexicon.jsonl` — terms: `barnacle`, `index-rot`
+- `playbooks/just-silo-playbook.md` — the silo template that is the destination
+- `silo-conceptual-lexicon.jsonl` — terms: `barnacle`, `index-rot`, `silo`, `facade`
