@@ -1,8 +1,8 @@
 """Append-only markdown decision log for TradingAgents."""
 
-from typing import List, Optional
-from pathlib import Path
 import re
+from pathlib import Path
+from typing import List, Optional
 
 from tradingagents.agents.utils.rating import parse_rating
 

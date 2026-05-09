@@ -1,5 +1,6 @@
 from .alpha_vantage_common import _make_api_request
 
+
 def get_indicator(
     symbol: str,
     indicator: str,
@@ -25,6 +26,7 @@ def get_indicator(
         String containing indicator values and description
     """
     from datetime import datetime
+
     from dateutil.relativedelta import relativedelta
 
     supported_indicators = {
