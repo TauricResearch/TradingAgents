@@ -1,0 +1,51 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 8 * * 1"  # every Monday at 08:00 UTC
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+          output: codeql-results
+
+      # CodeQL alerts upload to the Security tab regardless. To make CI block
+      # on findings (per project policy) we additionally fail the job here on
+      # any error-level result. Branch protection should also require the
+      # "Analyze (Python)" check to be green before merge.
+      - name: Fail on error-level findings
+        run: |
+          set -euo pipefail
+          SARIF=codeql-results/python.sarif
+          if [[ ! -f "$SARIF" ]]; then
+            echo "No SARIF output found at $SARIF — assuming clean run."
+            exit 0
+          fi
+          ERRORS=$(jq '[.runs[].results[]? | select(.level == "error")] | length' "$SARIF")
+          if [[ "${ERRORS:-0}" -gt 0 ]]; then
+            echo "CodeQL found ${ERRORS} error-level issue(s). See the Security tab for details."
+            exit 1
+          fi
+          echo "CodeQL: 0 error-level findings."

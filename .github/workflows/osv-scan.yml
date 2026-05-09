@@ -1,0 +1,31 @@
+name: OSV Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 8 * * 1"  # every Monday at 08:00 UTC
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    name: OSV Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Scans pyproject.toml, requirements.txt, and uv.lock against
+      # OSV.dev — broader advisory coverage than pip-audit alone.
+      # Default behavior: non-zero exit on any vulnerability, which
+      # fails the build per project policy.
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2.2.3
+        with:
+          scan-args: |-
+            --recursive
+            ./
