@@ -226,8 +226,7 @@ class SubprocessChatModel(BaseChatModel):
         """
         if not (isinstance(schema, type) and issubclass(schema, BaseModel)):
             raise NotImplementedError(
-                f"{type(self).__name__}.with_structured_output requires a "
-                "Pydantic BaseModel schema."
+                f"{type(self).__name__}.with_structured_output requires a Pydantic BaseModel schema."
             )
 
         json_schema = schema.model_json_schema()
@@ -264,10 +263,7 @@ class SubprocessChatModel(BaseChatModel):
                 tool_calls = getattr(msg, "tool_calls", None) or []
                 if tool_calls:
                     envelope = {
-                        "tool_calls": [
-                            {"name": tc.get("name"), "args": tc.get("args", {})}
-                            for tc in tool_calls
-                        ]
+                        "tool_calls": [{"name": tc.get("name"), "args": tc.get("args", {})} for tc in tool_calls]
                     }
                     rendered = (rendered + "\n" if rendered else "") + json.dumps(envelope)
                 body_parts.append(f"### assistant\n{rendered}")
@@ -295,8 +291,7 @@ class SubprocessChatModel(BaseChatModel):
         found = shutil.which(self._binary_name())
         if not found:
             raise RuntimeError(
-                f"`{self._binary_name()}` CLI not found on PATH. "
-                f"Install it or set {self._binary_env_var()}."
+                f"`{self._binary_name()}` CLI not found on PATH. Install it or set {self._binary_env_var()}."
             )
         return found
 
@@ -327,9 +322,7 @@ class SubprocessChatModel(BaseChatModel):
 
         if proc.returncode != 0:
             err = (proc.stderr or proc.stdout or "").strip()
-            raise RuntimeError(
-                f"`{self._binary_name()}` failed (rc={proc.returncode}): {err[:1000]}"
-            )
+            raise RuntimeError(f"`{self._binary_name()}` failed (rc={proc.returncode}): {err[:1000]}")
 
         return self._parse_response(proc.stdout, json_schema)
 

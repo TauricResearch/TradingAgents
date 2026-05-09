@@ -65,15 +65,21 @@ class ChatClaudeCode(SubprocessChatModel):
         effective_system = system_prompt or "You are a helpful AI assistant."
 
         cmd: List[str] = [
-            binary, "-p",
-            "--system-prompt", effective_system,
-            "--tools", "",
-            "--output-format", "json",
+            binary,
+            "-p",
+            "--system-prompt",
+            effective_system,
+            "--tools",
+            "",
+            "--output-format",
+            "json",
             "--no-session-persistence",
-            "--setting-sources", "",
+            "--setting-sources",
+            "",
             "--disable-slash-commands",
             "--strict-mcp-config",
-            "--model", self.model,
+            "--model",
+            self.model,
         ]
         if self.effort:
             cmd += ["--effort", self.effort]
@@ -96,9 +102,7 @@ class ChatClaudeCode(SubprocessChatModel):
         try:
             payload = json.loads(stdout)
         except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"`claude -p` returned non-JSON output: {stdout[:500]}"
-            ) from exc
+            raise RuntimeError(f"`claude -p` returned non-JSON output: {stdout[:500]}") from exc
 
         if payload.get("is_error"):
             err = payload.get("result") or payload.get("error") or ""
@@ -106,8 +110,7 @@ class ChatClaudeCode(SubprocessChatModel):
 
         if "result" not in payload and "structured_output" not in payload:
             raise RuntimeError(
-                f"`claude -p` JSON missing 'result'/'structured_output' field: "
-                f"{json.dumps(payload)[:500]}"
+                f"`claude -p` JSON missing 'result'/'structured_output' field: {json.dumps(payload)[:500]}"
             )
 
         text = payload.get("result", "") or ""

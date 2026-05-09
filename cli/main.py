@@ -22,6 +22,7 @@ from cli.announcements import display_announcements, fetch_announcements
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
     ask_anthropic_effort,
+    ask_claude_code_effort,
     ask_gemini_thinking_config,
     ask_openai_reasoning_effort,
     ask_output_language,
@@ -561,12 +562,7 @@ def get_user_selections():
         console.print(create_question_box("Step 8: Effort Level", "Configure Claude effort level"))
         anthropic_effort = ask_anthropic_effort()
     elif provider_lower == "claude_code":
-        console.print(
-            create_question_box(
-                "Step 8: Effort Level",
-                "Configure Claude Code effort level"
-            )
-        )
+        console.print(create_question_box("Step 8: Effort Level", "Configure Claude Code effort level"))
         claude_code_effort = ask_claude_code_effort()
 
     if provider_lower == "mlx":

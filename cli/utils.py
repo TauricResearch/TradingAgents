@@ -616,11 +616,13 @@ def ask_claude_code_effort() -> str | None:
             questionary.Choice("XHigh", "xhigh"),
             questionary.Choice("Max", "max"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 

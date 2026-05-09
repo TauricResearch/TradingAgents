@@ -53,10 +53,14 @@ class ChatGeminiCli(SubprocessChatModel):
     ) -> List[str]:
         cmd: List[str] = [
             binary,
-            "--prompt", "",       # actual prompt is sent on stdin
-            "--output-format", "json",
-            "--approval-mode", "plan",  # read-only — no edits, no shell, no writes
-            "--allowed-mcp-server-names", "",  # disable user-configured MCP servers
+            "--prompt",
+            "",  # actual prompt is sent on stdin
+            "--output-format",
+            "json",
+            "--approval-mode",
+            "plan",  # read-only — no edits, no shell, no writes
+            "--allowed-mcp-server-names",
+            "",  # disable user-configured MCP servers
         ]
         if self.model:
             cmd += ["--model", self.model]
@@ -68,14 +72,7 @@ class ChatGeminiCli(SubprocessChatModel):
         """Inline the system prompt into stdin since Gemini has no --system-prompt flag."""
         if not system_prompt:
             return user_prompt
-        return (
-            "<<SYSTEM>>\n"
-            f"{system_prompt}\n"
-            "<<END SYSTEM>>\n\n"
-            "<<USER>>\n"
-            f"{user_prompt}\n"
-            "<<END USER>>\n"
-        )
+        return f"<<SYSTEM>>\n{system_prompt}\n<<END SYSTEM>>\n\n<<USER>>\n{user_prompt}\n<<END USER>>\n"
 
     def _subprocess_env(self, parent_env: Dict[str, str]) -> Dict[str, str]:
         if self.force_subscription:
@@ -92,9 +89,7 @@ class ChatGeminiCli(SubprocessChatModel):
         try:
             payload = json.loads(stdout)
         except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"`gemini -p` returned non-JSON output: {stdout[:500]}"
-            ) from exc
+            raise RuntimeError(f"`gemini -p` returned non-JSON output: {stdout[:500]}") from exc
 
         if isinstance(payload, dict) and payload.get("error"):
             err = payload["error"]

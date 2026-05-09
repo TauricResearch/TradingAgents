@@ -109,9 +109,7 @@ class TestSubprocessChatModelMessageRendering(unittest.TestCase):
 @pytest.mark.unit
 class TestSubprocessChatModelToolEnvelope(unittest.TestCase):
     def test_pure_json_envelope(self):
-        env = SubprocessChatModel._extract_tool_envelope(
-            '{"tool_calls": [{"name": "f", "args": {"a": 1}}]}'
-        )
+        env = SubprocessChatModel._extract_tool_envelope('{"tool_calls": [{"name": "f", "args": {"a": 1}}]}')
         self.assertIsNotNone(env)
         self.assertEqual(env["tool_calls"][0]["name"], "f")
 
@@ -126,14 +124,10 @@ class TestSubprocessChatModelToolEnvelope(unittest.TestCase):
         self.assertEqual(env["tool_calls"][0]["args"]["id"], 42)
 
     def test_no_envelope_returns_none(self):
-        self.assertIsNone(
-            SubprocessChatModel._extract_tool_envelope("Just regular prose.")
-        )
+        self.assertIsNone(SubprocessChatModel._extract_tool_envelope("Just regular prose."))
 
     def test_parse_tool_calls_assigns_ids(self):
-        calls = SubprocessChatModel._parse_tool_calls(
-            {"tool_calls": [{"name": "f", "args": {"a": 1}}]}
-        )
+        calls = SubprocessChatModel._parse_tool_calls({"tool_calls": [{"name": "f", "args": {"a": 1}}]})
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["name"], "f")
         self.assertTrue(calls[0]["id"].startswith("call_"))
