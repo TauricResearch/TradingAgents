@@ -33,6 +33,7 @@ from .propagation import Propagator
 from .reflection import Reflector
 from .setup import GraphSetup
 from .signal_processing import SignalProcessor
+from .variations import VALID_VARIATIONS, build_variation_graph
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class TradingAgentsGraph:
         debug=False,
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
+        variation: str = "baseline",
     ):
         """Initialize the trading agents graph and components.
 
@@ -54,7 +56,13 @@ class TradingAgentsGraph:
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
+            variation: Graph variation to build. ``baseline`` (default) uses the
+                shipped pipeline; ``no_debate`` / ``risk_officer`` / ``quant_augmented``
+                are experimental builders defined in ``graph.variations``.
         """
+        if variation not in VALID_VARIATIONS:
+            raise ValueError(f"Unknown variation '{variation}'. Valid: {VALID_VARIATIONS}")
+        self.variation = variation
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
@@ -116,7 +124,14 @@ class TradingAgentsGraph:
         self.log_states_dict = {}  # date to full state dict
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = build_variation_graph(
+            self.variation,
+            self.quick_thinking_llm,
+            self.deep_thinking_llm,
+            self.tool_nodes,
+            self.conditional_logic,
+            selected_analysts,
+        )
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 

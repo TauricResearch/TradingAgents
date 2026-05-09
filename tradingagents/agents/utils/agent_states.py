@@ -52,3 +52,7 @@ class AgentState(MessagesState):
     past_context: Annotated[
         str, "Memory log context injected at run start (same-ticker decisions + cross-ticker lessons)"
     ]
+    risk_officer_veto: Annotated[
+        str,
+        "Hard-veto reason set by the Risk Officer variation (empty when no veto). When non-empty, downstream nodes cap any Buy/Overweight rating at Hold.",
+    ]
