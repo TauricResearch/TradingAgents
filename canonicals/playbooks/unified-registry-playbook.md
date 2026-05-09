@@ -44,6 +44,8 @@ All indexes use the same JSONL structure:
 | debriefs | `done` | `epic`, `adr`, `session` | `debriefs/INDEX.jsonl` |
 | decisions | `Accepted`, `Proposed`, `Superseded` | `supersedes`, `superseded_by` | `decisions/INDEX.jsonl` |
 | playbooks | `canonical`, `project` | `source`, `mining_candidate`, `mining_note`, `last_mined` | `playbooks/REGISTRY.jsonl` |
+| canonicals | `canonical`, `draft`, `deprecated` | `source`, `mining_candidate`, `mining_note`, `last_mined` | `canonicals/INDEX.jsonl` |
+| scripts | `portable`, `adaptable`, `project` | `lang` | `scripts/INDEX.jsonl` |
 | docs | `active`, `archived`, `draft` | `type`, `topic` | `docs/INDEX.jsonl` |
 
 ## Tools
@@ -57,6 +59,7 @@ bun scripts/reg-list.ts briefs
 bun scripts/reg-list.ts debriefs
 bun scripts/reg-list.ts decisions
 bun scripts/reg-list.ts playbooks
+bun scripts/reg-list.ts canonicals
 bun scripts/reg-list.ts docs
 ```
 
@@ -66,9 +69,57 @@ Justfile shortcuts:
 just reg-briefs
 just reg-debriefs
 just reg-decisions
-just reg-canonical      # playbooks
+just reg-canonicals
+just reg-scripts
 just reg-docs
 ```
+
+### Mining: `reg-mine.ts`
+
+Extract a proven project playbook to canonicals/ by stripping project-specific tokens:
+
+```bash
+bun scripts/reg-mine.ts lab-first-playbook.md        # dry run → stdout
+bun scripts/reg-mine.ts lab-first-playbook.md --apply # write to canonicals/playbooks/
+```
+
+**What gets stripped:** `TradingAgents` → `<PROJECT>`, `src/server/` → `<SRC-SERVER>/`,
+ticker symbols, session IDs, project env vars. Mining is stripping, not rewriting.
+
+### Promotion Review: `reg-promote.ts`
+
+Show what would be stripped before mining. Does not write unless `--apply`:
+
+```bash
+bun scripts/reg-promote.ts conventions-playbook.md       # summary of changes
+bun scripts/reg-promote.ts conventions-playbook.md --diff # line-by-line diff
+bun scripts/reg-promote.ts conventions-playbook.md --apply # delegate to reg-mine
+```
+
+### Import: `reg-import.ts`
+
+Pull a canonical playbook into a new project:
+
+```bash
+bun scripts/reg-import.ts gum-playbook.md        # dry-run preview
+bun scripts/reg-import.ts gum-playbook.md --apply # copy + register
+```
+
+Fails gracefully if playbook already exists.
+
+### Script Registry: `reg-sync-scripts.ts`
+
+Detect and index all scripts with portability classification:
+
+```bash
+bun scripts/reg-sync-scripts.ts        # check scripts/INDEX.jsonl
+bun scripts/reg-sync-scripts.ts --fix  # regenerate
+```
+
+Portability levels:
+- `portable` — No project dependencies (registry tools, `lib/`)
+- `adaptable` — Minor project deps, easy to generalise
+- `project` — TradingAgents-specific (lab, trading, IG, etc.)
 
 ### Validation: `reg-check.ts`
 
@@ -121,14 +172,15 @@ bun scripts/reg-migrate.ts --apply     # execute (creates .backup files)
 
 ## Commit Gate Integration
 
-`just check` now includes:
+`just check` includes:
 
 1. `bunx biome check .` — lint/format
 2. `tsc --project tsconfig.server.json --noEmit` — type check
 3. `bun scripts/check-database-usage.ts` — no raw Database() instances
-4. `bun scripts/reg-sync.ts --all` — indexes up to date
+4. `bun scripts/reg-sync.ts --all` — document indexes up to date
+5. `bun scripts/reg-sync-scripts.ts` — script index up to date
 
-All four must pass before commit.
+All must pass before commit.
 
 ## Conventions
 

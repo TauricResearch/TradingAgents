@@ -120,6 +120,31 @@ reg-sync:
 reg-sync-fix:
     bun scripts/reg-sync.ts --all --fix
 
+# Mine a playbook from project to canonicals (dry-run by default, --apply to confirm)
+[group("reg")]
+reg-mine FILE:
+    bun scripts/reg-mine.ts {{FILE}}
+
+# Import a canonical playbook into the project (dry-run: add --apply to confirm)
+[group("reg")]
+reg-import FILE:
+    bun scripts/reg-import.ts {{FILE}}
+
+# Promote a playbook — see what would be stripped (add --apply to delegate to reg-mine)
+[group("reg")]
+reg-promote FILE *FLAGS="":
+    bun scripts/reg-promote.ts {{FILE}} {{FLAGS}}
+
+# Sync script index: list all scripts with portability classification
+[group("reg")]
+reg-scripts:
+    bun scripts/reg-sync-scripts.ts
+
+# Sync script index — regenerate from disk
+[group("reg")]
+reg-scripts-fix:
+    bun scripts/reg-sync-scripts.ts --fix
+
 # Scan for barnacles (stale conventions, misdirecting docs)
 [group("reg")]
 barnacle-scan:

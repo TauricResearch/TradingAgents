@@ -64,23 +64,46 @@ If the playbook defines a *style* rather than a *process*, list the rules here.
 *   If a playbook fails, UPDATE IT. Do not just bypass it.
 *   **Deprecation:** If a playbook is obsolete, add a `> **DEPRECATED**` banner at the top and link to the successor.
 
+## The Canonical–Project Distinction
+
+Not all playbooks belong to one project. A proven playbook — free of project-specific
+paths, names, and tickers — is **canonical**: it can be adopted by any project.
+
+**Two directories, one lifecycle:**
+
+```
+playbooks/               canonicals/playbooks/
+  (project-specific)       (generic, reusable)
+    ig-api-playbook.md       lab-first-playbook.md
+    hledger-playbook.md      conventions-playbook.md
+    defuddle-playbook.md     defuddle-playbook.md
+```
+
+| Dimension | `playbooks/` | `canonicals/playbooks/` |
+|-----------|-------------|------------------------|
+| Status | `project` or `active` | `canonical` |
+| Content | Has project paths (e.g. `src/server/`, `tradingagents/`) | Generic (e.g. `<SRC-SERVER>/`, `<PROJECT>`) |
+| Can move to? | `canonicals/` via `reg-mine` | Any project via `reg-import` |
+| Status field | `status: "project"` | `status: "canonical"` |
+| Registry | `playbooks/REGISTRY.jsonl` | `canonicals/INDEX.jsonl` |
+
+**Workflow:**
+1. **Create** playbook in `playbooks/` (project-specific examples)
+2. **Mark** `mining_candidate: true` in `REGISTRY.jsonl` when it proves its worth
+3. **Mine** with `bun scripts/reg-mine.ts <playbook>.md` (dry-run review)
+4. **Apply** with `bun scripts/reg-mine.ts <playbook>.md --apply` → writes to `canonicals/`
+5. **Import** with `bun scripts/reg-import.ts <playbook>.md --apply` → pulls into new project
+
 ## The Knowledge System
 
-Playbooks are part of a three-tier knowledge architecture:
+Playbooks are part of a four-tier knowledge architecture:
 
 | Tier | Directory | Contains | Answers |
 |------|-----------|----------|---------|
 | **Decisions** | `decisions/` | Architecture Decision Records (ADRs) | "Why did we choose X over Y?" |
-| **Playbooks** | `playbooks/` | Repeatable patterns, conventions, how-to | "How do I do X correctly?" |
+| **Canonicals** | `canonicals/playbooks/` | Reusable, project-agnostic patterns | "How do I do X correctly?" |
+| **Playbooks** | `playbooks/` | Project-specific conventions and how-to | "How do we do X in this project?" |
 | **Registry** | `*.jsonl` | Machine-readable indexes of all knowledge | "Show me all canonical playbooks" |
-
-**The flow:**
-1. **Brief** (`briefs/`) — what we plan to build
-2. **Decision** (`decisions/`) — why we chose the approach we did (captured during implementation)
-3. **Debrief** (`debriefs/`) — what we built and what we learned (captured after)
-4. **Playbook** (`playbooks/`) — extracted patterns that can be reused (mined from debriefs + decisions)
-
-See `playbooks/decisions-playbook.md` for the ADR process.
 
 ## Location
 All playbooks reside in `playbooks/`.
