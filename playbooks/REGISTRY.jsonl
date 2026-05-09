@@ -12,3 +12,5 @@
 {"file":"research-bridge-playbook.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"services-playbook.md","date":"2026-05-08","status":"project","summary":"Server lifecycle management: PID files, log rotation, start/stop/status daemon pattern","meta":{"source":null,"mining_candidate":true,"mining_note":"PID-file lifecycle pattern is reusable; extract from TradingAgents server specifics","last_mined":"2026-05-09"}}
 {"file":"trade-calculator-testing-playbook.md","date":"2026-05-08","status":"project","summary":"Trade calculator testing: unit tests, integration tests, IG instrument validation","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"just-playbook.md","date":"2026-05-09","status":"canonical","summary":"Just Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"briefs-playbook.md","date":"2026-05-09","status":"canonical","summary":"Briefs Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
