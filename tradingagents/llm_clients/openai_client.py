@@ -117,6 +117,14 @@ _PROVIDER_CONFIG = {
     "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
+    # Apple-Silicon MLX via either:
+    #   * stock `mlx_lm.server` (no auth)
+    #   * oMLX (`omlx serve`, multi-model, requires an API key by default)
+    # Both expose an OpenAI-compatible API. Default port lines up with oMLX (8000);
+    # mlx_lm.server users can pass --port 8000 or override backend_url.
+    # OMLX_API_KEY is honoured when set; otherwise we fall back to a placeholder
+    # bearer ("local"), which is what mlx_lm.server expects.
+    "mlx": ("http://localhost:8000/v1", "OMLX_API_KEY"),
 }
 
 
@@ -150,12 +158,15 @@ class OpenAIClient(BaseLLMClient):
         if self.provider in _PROVIDER_CONFIG:
             default_base, api_key_env = _PROVIDER_CONFIG[self.provider]
             llm_kwargs["base_url"] = self.base_url or default_base
-            if api_key_env:
-                api_key = os.environ.get(api_key_env)
-                if api_key:
-                    llm_kwargs["api_key"] = api_key
-            else:
-                llm_kwargs["api_key"] = "ollama"
+            api_key = os.environ.get(api_key_env) if api_key_env else None
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            elif self.provider in ("ollama", "mlx"):
+                # Local OpenAI-compatible servers may not check auth (Ollama,
+                # stock mlx_lm.server), but the OpenAI SDK still requires a
+                # non-empty key to send the Authorization header. Real auth
+                # (oMLX) is handled by the env-var branch above.
+                llm_kwargs["api_key"] = "local"
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
