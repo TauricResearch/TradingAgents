@@ -1,0 +1,20 @@
+# OSV-Scanner configuration
+# https://google.github.io/osv-scanner/configuration/
+#
+# Findings ignored here MUST have a written rationale below. Re-evaluate at
+# every `ignoreUntil` expiry: if the underlying upgrade is still blocked,
+# extend with updated reasoning; otherwise remove the entry and bump the dep.
+
+[[IgnoredVulns]]
+id = "GHSA-g48c-2wqr-h844"
+ignoreUntil = 2026-11-09
+reason = """
+langgraph 0.4.8 is affected (CVSS 6.8 Medium). The fix is only available in
+langgraph 1.0.x, which is a major-version upgrade with breaking changes
+across the langchain-core / langgraph API surface (graph compile, ToolNode,
+checkpoint serializer). The TradingAgents pipeline depends on these APIs in
+graph/setup.py, graph/conditional_logic.py, and graph/trading_graph.py and
+will not run unmodified against 1.x. Migration is tracked separately; until
+then this Medium-severity finding is accepted with the same rationale we
+document in SECURITY.md.
+"""

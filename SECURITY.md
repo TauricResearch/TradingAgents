@@ -61,6 +61,25 @@ the official binary into `.venv/osv-scanner-bin/` (no PATH pollution).
 Both `pip-audit` and `osv-scanner` are kept on purpose. They overlap, but
 each finds advisories the other misses; running both is cheap insurance.
 
+#### Accepted findings (suppressions)
+
+`osv-scanner` is configured to fail on any reported vulnerability, but a
+small number of findings are explicitly suppressed via
+[`osv-scanner.toml`](osv-scanner.toml). Every entry in that file carries a
+written rationale and an `ignoreUntil` expiry; when the date passes, the
+finding re-surfaces and the rationale must be re-evaluated.
+
+Currently suppressed:
+
+| ID | Package | Severity | Rationale (short) | Re-evaluate by |
+|---|---|---|---|---|
+| [GHSA-g48c-2wqr-h844](https://osv.dev/GHSA-g48c-2wqr-h844) | `langgraph` 0.4.8 | Medium (6.8) | Fix exists only on `langgraph 1.0`, which is a breaking-API major upgrade affecting graph wiring, `ToolNode`, and checkpoint serialisation. Tracked as a separate migration; full rationale in `osv-scanner.toml`. | 2026-11-09 |
+
+Suppressing a finding is a deliberate accept-the-risk decision, not a
+"silenced because noisy" decision. Treat the table as an audit log: if you
+ever add an entry that you wouldn't be comfortable defending in a review,
+fix the dependency instead.
+
 ### Static security analysis (CodeQL)
 
 Defined in [`.github/workflows/codeql.yml`](.github/workflows/codeql.yml).
