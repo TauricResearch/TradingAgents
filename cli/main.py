@@ -640,18 +640,14 @@ def print_resolved_ticker_summary(ticker: str) -> None:
         metadata = get_instrument_metadata(ticker)
 
     if not metadata:
-        console.print(
-            f"[yellow]Could not resolve company info for {ticker}; proceeding anyway.[/yellow]"
-        )
+        console.print(f"[yellow]Could not resolve company info for {ticker}; proceeding anyway.[/yellow]")
         return
 
     name = metadata.get("name") or "(unknown company)"
     exchange = metadata.get("exchange") or "(unknown exchange)"
     currency = metadata.get("currency") or ""
     suffix = f" ({currency})" if currency else ""
-    console.print(
-        f"[green]Analyzing[/green] [bold]{ticker}[/bold] — {name} on {exchange}{suffix}"
-    )
+    console.print(f"[green]Analyzing[/green] [bold]{ticker}[/bold] — {name} on {exchange}{suffix}")
 
 
 def get_analysis_date():
