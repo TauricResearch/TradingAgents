@@ -21,10 +21,19 @@ results on your machine.
 | Scan | Tool | When it runs | Local equivalent |
 |---|---|---|---|
 | Dependency CVE scan | [`pip-audit`](https://github.com/pypa/pip-audit) | Push to `main`, every PR, weekly (Mon 08:00 UTC) | `bash scripts/cve_scan_local.sh` |
+| Broader dependency advisories | [`osv-scanner`](https://github.com/google/osv-scanner) `v2.2.3` | Push to `main`, every PR, weekly | `bash scripts/osv_scan_local.sh` |
+| Static security analysis | [CodeQL](https://codeql.github.com/) (Python, `security-extended`) | Push to `main`, every PR, weekly | CI only — CodeQL CLI is heavy; results show in the Security tab |
+| Container & Dockerfile scan | [`hadolint`](https://github.com/hadolint/hadolint) + [`trivy`](https://github.com/aquasecurity/trivy) (fs, CRITICAL/HIGH) | Push to `main`, every PR, weekly | `bash scripts/container_scan_local.sh` (requires Docker) |
 | Secrets scan (full history) | [`gitleaks`](https://github.com/gitleaks/gitleaks) `v8.27.2` | Push to `main`/`claude/**`/`feature/**`, PRs to `main`, weekly | `bash scripts/secrets_scan_local.sh` |
 | Secrets scan (staged files) | `gitleaks protect --staged` | Pre-commit git hook (opt-in) | Installed via `bash scripts/install_git_hooks.sh` |
 | Lint | [`ruff`](https://docs.astral.sh/ruff/) check + format | Push to `main`, every PR | `bash scripts/lint_local.sh` |
 | Unit tests | `pytest -m unit` | Push to `main`/`claude/**`/`feature/**`, PRs to `main`, Python 3.10/3.11/3.12 | `pytest -m unit` |
+
+All security scans **fail the build** on findings (CodeQL on `error`-level
+results; OSV / Trivy on any vulnerability at HIGH or above; Hadolint at
+warning or above; gitleaks on any leak; pip-audit on any CVE). Branch
+protection on `main` should require these checks before merge so the
+gates actually enforce policy.
 
 ### Dependency CVE scan (`pip-audit`)
 
@@ -38,6 +47,46 @@ branches.
 The local mirror in [`scripts/cve_scan_local.sh`](scripts/cve_scan_local.sh)
 deliberately uses `.venv/cve-scan/` rather than your active venv so results
 match CI.
+
+### Broader dependency advisories (`osv-scanner`)
+
+Defined in [`.github/workflows/osv-scan.yml`](.github/workflows/osv-scan.yml).
+Runs Google's `osv-scanner` against `pyproject.toml`, `requirements.txt`,
+and `uv.lock`. OSV.dev aggregates advisories from PyPI, GHSA, OSS-Fuzz, and
+language-specific databases, so it catches vulnerabilities pip-audit's
+narrower source list can miss. Run locally with
+[`scripts/osv_scan_local.sh`](scripts/osv_scan_local.sh) — this downloads
+the official binary into `.venv/osv-scanner-bin/` (no PATH pollution).
+
+Both `pip-audit` and `osv-scanner` are kept on purpose. They overlap, but
+each finds advisories the other misses; running both is cheap insurance.
+
+### Static security analysis (CodeQL)
+
+Defined in [`.github/workflows/codeql.yml`](.github/workflows/codeql.yml).
+Runs GitHub's CodeQL with the Python `security-extended` query suite, which
+includes checks for command injection, path traversal, unsafe deserialisation,
+SSRF, and a large catalogue of insecure-API patterns. Findings upload to the
+repository's **Security** tab. CI fails the job on any `error`-level result;
+configure branch protection to require the "Analyze (Python)" check before
+merge so this gate actually blocks merges. CodeQL runs in CI only — the CLI
+is heavy and slow, so there is no local mirror script.
+
+### Container & Dockerfile scan (`hadolint` + `trivy`)
+
+Defined in
+[`.github/workflows/container-scan.yml`](.github/workflows/container-scan.yml).
+Two parallel jobs:
+
+- **Hadolint** lints the `Dockerfile` for security and best-practice issues
+  (root user, missing `--no-cache`, unpinned base images, etc.). Fails on
+  warnings or higher.
+- **Trivy** scans the project filesystem for vulnerable packages and known
+  misconfigurations at `CRITICAL`/`HIGH` severity, ignoring unfixed CVEs.
+
+Run locally with
+[`scripts/container_scan_local.sh`](scripts/container_scan_local.sh), which
+runs both tools in containers (so you only need Docker, not the binaries).
 
 ### Secrets scan (`gitleaks`)
 
@@ -68,23 +117,25 @@ functional regression coverage. They will not catch insecure code patterns.
 
 ## What the scans do NOT cover
 
-Knowing the gaps matters more than knowing the coverage. The scans above
-will not catch any of the following:
+Knowing the remaining gaps matters more than knowing the coverage. The
+scans above still will not catch:
 
-- **Static analysis of project code.** No `bandit`, `semgrep`, CodeQL, or
-  similar. Insecure `eval`/`subprocess`/path-traversal patterns in this
-  repo's own source will not be flagged.
-- **Malicious or typosquatted dependencies.** `pip-audit` only knows about
-  CVEs filed against *legitimate* packages. A malicious package masquerading
-  as a real one is invisible to it.
-- **Container / Dockerfile scanning.** The `Dockerfile` and
-  `docker-compose.yml` are not scanned (no Trivy/Hadolint). Base-image CVEs
-  are not tracked.
+- **Malicious or typosquatted dependencies.** `pip-audit` and `osv-scanner`
+  both know about CVEs filed against *legitimate* packages. A malicious
+  package masquerading as a real one is invisible to advisory-based scans.
+  The mitigation is hash-pinned requirements (`pip-compile
+  --generate-hashes` + `pip install --require-hashes`); this project does
+  not use them today because the maintenance friction is high.
 - **License audit.** No SPDX scan; transitive licenses are not checked.
+  This is a legal-risk concern, not a hack-risk concern.
 - **LLM-specific risks.** TradingAgents pipes scraped news, social content,
   and tool output back into LLM context. Prompt-injection from that content,
   unintended tool calls, and exfiltration via tool arguments are not
-  covered by any automated scan.
+  covered by any automated scan, and are an open research problem in the
+  field. Mitigations are defensive code (treating tool output as untrusted,
+  bounded tool surfaces, output validation), not CI gates. **For an
+  individual TradingAgents user, this is the highest-likelihood realistic
+  attack vector.**
 - **Runtime / network behavior.** No egress monitoring. The agent talks to
   yfinance, Alpha Vantage, and whichever LLM provider you configured, using
   the API keys in your `.env`. If a dependency or a remote endpoint is
