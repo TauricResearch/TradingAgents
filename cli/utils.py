@@ -606,10 +606,11 @@ def ask_claude_code_effort() -> str | None:
     Mirrors the levels accepted by `claude --effort` in the headless CLI.
     Returning None lets the CLI use its default.
     """
-    return questionary.select(
+    _DEFAULT = "__default__"
+    answer = questionary.select(
         "Select Effort Level:",
         choices=[
-            questionary.Choice("Default (let `claude` decide)", None),
+            questionary.Choice("Default (let `claude` decide)", _DEFAULT),
             questionary.Choice("High", "high"),
             questionary.Choice("Medium", "medium"),
             questionary.Choice("Low (faster)", "low"),
@@ -624,6 +625,7 @@ def ask_claude_code_effort() -> str | None:
             ]
         ),
     ).ask()
+    return None if answer == _DEFAULT else answer
 
 
 def ask_anthropic_effort() -> str | None:
