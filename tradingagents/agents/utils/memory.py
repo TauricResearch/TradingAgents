@@ -1,8 +1,8 @@
 """Append-only markdown decision log for TradingAgents."""
 
-from typing import List, Optional
-from pathlib import Path
 import re
+from pathlib import Path
+from typing import List, Optional
 
 from tradingagents.agents.utils.rating import parse_rating
 
@@ -133,22 +133,13 @@ class TradingMemoryLog:
             lines = stripped.splitlines()
             tag_line = lines[0].strip()
 
-            if (
-                not updated
-                and tag_line.startswith(pending_prefix)
-                and tag_line.endswith("| pending]")
-            ):
+            if not updated and tag_line.startswith(pending_prefix) and tag_line.endswith("| pending]"):
                 # Parse rating from the existing pending tag
                 fields = [f.strip() for f in tag_line[1:-1].split("|")]
                 rating = fields[2]
-                new_tag = (
-                    f"[{trade_date} | {ticker} | {rating}"
-                    f" | {raw_pct} | {alpha_pct} | {holding_days}d]"
-                )
+                new_tag = f"[{trade_date} | {ticker} | {rating} | {raw_pct} | {alpha_pct} | {holding_days}d]"
                 rest = "\n".join(lines[1:])
-                new_blocks.append(
-                    f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}"
-                )
+                new_blocks.append(f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{reflection}")
                 updated = True
             else:
                 new_blocks.append(block)
@@ -195,14 +186,9 @@ class TradingMemoryLog:
                     rating = fields[2]
                     raw_pct = f"{upd['raw_return']:+.1%}"
                     alpha_pct = f"{upd['alpha_return']:+.1%}"
-                    new_tag = (
-                        f"[{trade_date} | {ticker} | {rating}"
-                        f" | {raw_pct} | {alpha_pct} | {upd['holding_days']}d]"
-                    )
+                    new_tag = f"[{trade_date} | {ticker} | {rating} | {raw_pct} | {alpha_pct} | {upd['holding_days']}d]"
                     rest = "\n".join(lines[1:])
-                    new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
-                    )
+                    new_blocks.append(f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}")
                     del update_map[(trade_date, ticker)]
                     matched = True
                     break
@@ -235,11 +221,7 @@ class TradingMemoryLog:
                 decisions.append((block, False))
                 continue
             tag_line = stripped.splitlines()[0].strip()
-            is_resolved = (
-                tag_line.startswith("[")
-                and tag_line.endswith("]")
-                and not tag_line.endswith("| pending]")
-            )
+            is_resolved = tag_line.startswith("[") and tag_line.endswith("]") and not tag_line.endswith("| pending]")
             decisions.append((block, is_resolved))
 
         resolved_count = sum(1 for _, r in decisions if r)

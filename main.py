@@ -1,7 +1,7 @@
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-
 from dotenv import load_dotenv
+
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,10 +14,10 @@ config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance, no extra API keys needed)
 config["data_vendors"] = {
-    "core_stock_apis": "yfinance",           # Options: alpha_vantage, yfinance
-    "technical_indicators": "yfinance",      # Options: alpha_vantage, yfinance
-    "fundamental_data": "yfinance",          # Options: alpha_vantage, yfinance
-    "news_data": "yfinance",                 # Options: alpha_vantage, yfinance
+    "core_stock_apis": "yfinance",  # Options: alpha_vantage, yfinance
+    "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
+    "fundamental_data": "yfinance",  # Options: alpha_vantage, yfinance
+    "news_data": "yfinance",  # Options: alpha_vantage, yfinance
 }
 
 # Initialize with custom config

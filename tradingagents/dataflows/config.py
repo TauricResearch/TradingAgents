@@ -1,5 +1,6 @@
-import tradingagents.default_config as default_config
 from typing import Dict, Optional
+
+import tradingagents.default_config as default_config
 
 # Use default config but allow it to be overridden
 _config: Optional[Dict] = None

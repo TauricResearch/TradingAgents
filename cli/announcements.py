@@ -1,4 +1,5 @@
 import getpass
+
 import requests
 from rich.console import Console
 from rich.panel import Panel

@@ -1,10 +1,10 @@
 import os
-import questionary
 import socket
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
+import questionary
 from rich.console import Console
 from rich.panel import Panel
 
@@ -58,9 +58,7 @@ def parse_research_depth_flag(value: str) -> int:
         "5": 5,
     }
     if v not in mapping:
-        raise ValueError(
-            f"Invalid research depth {value!r}; use shallow, medium, deep, or 1, 3, 5."
-        )
+        raise ValueError(f"Invalid research depth {value!r}; use shallow, medium, deep, or 1, 3, 5.")
     return mapping[v]
 
 
@@ -73,9 +71,7 @@ def parse_analysts_flag(value: str) -> List[AnalystType]:
     out: List[AnalystType] = []
     for p in parts:
         if p not in allowed:
-            raise ValueError(
-                f"Unknown analyst {p!r}; allowed: {', '.join(sorted(allowed))}"
-            )
+            raise ValueError(f"Unknown analyst {p!r}; allowed: {', '.join(sorted(allowed))}")
         out.append(AnalystType(p))
     return out
 
@@ -138,8 +134,7 @@ def get_analysis_date() -> str:
 
     date = questionary.text(
         "Enter the analysis date (YYYY-MM-DD):",
-        validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
+        validate=lambda x: validate_date(x.strip()) or "Please enter a valid date in YYYY-MM-DD format.",
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -159,10 +154,10 @@ def select_analysts() -> List[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
-        choices=[
-            questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
-        ],
-        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        choices=[questionary.Choice(display, value=value) for display, value in ANALYST_ORDER],
+        instruction=(
+            "\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done"
+        ),
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
             [
@@ -193,9 +188,7 @@ def select_research_depth() -> int:
 
     choice = questionary.select(
         "Select Your [Research Depth]:",
-        choices=[
-            questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -216,6 +209,7 @@ def select_research_depth() -> int:
 def _fetch_openrouter_models() -> List[Tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
     import requests
+
     try:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()
@@ -237,28 +231,38 @@ def select_openrouter_model() -> str:
         "Select OpenRouter Model (latest available):",
         choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style([
-            ("selected", "fg:magenta noinherit"),
-            ("highlighted", "fg:magenta noinherit"),
-            ("pointer", "fg:magenta noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:magenta noinherit"),
+                ("highlighted", "fg:magenta noinherit"),
+                ("pointer", "fg:magenta noinherit"),
+            ]
+        ),
     ).ask()
 
     if choice is None or choice == "custom":
-        return questionary.text(
-            "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
-            validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-        ).ask().strip()
+        return (
+            questionary.text(
+                "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
+                validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
+            )
+            .ask()
+            .strip()
+        )
 
     return choice
 
 
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
-    return questionary.text(
-        "Enter model ID:",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
-    ).ask().strip()
+    return (
+        questionary.text(
+            "Enter model ID:",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
+        )
+        .ask()
+        .strip()
+    )
 
 
 # Hugging Face orgs known to publish MLX-converted weights, plus repo-name
@@ -356,17 +360,18 @@ def _select_model(provider: str, mode: str) -> str:
         return select_openrouter_model()
 
     if provider.lower() == "azure":
-        return questionary.text(
-            f"Enter Azure deployment name ({mode}-thinking):",
-            validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
-        ).ask().strip()
+        return (
+            questionary.text(
+                f"Enter Azure deployment name ({mode}-thinking):",
+                validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
+            )
+            .ask()
+            .strip()
+        )
 
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
-        ],
+        choices=[questionary.Choice(display, value=value) for display, value in get_model_options(provider, mode)],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -398,6 +403,7 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
 
+
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
     # (display_name, provider_key, base_url)
@@ -417,10 +423,7 @@ def select_llm_provider() -> tuple[str, str | None]:
 
     choice = questionary.select(
         "Select your LLM Provider:",
-        choices=[
-            questionary.Choice(display, value=(provider_key, url))
-            for display, provider_key, url in PROVIDERS
-        ],
+        choices=[questionary.Choice(display, value=(provider_key, url)) for display, provider_key, url in PROVIDERS],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -430,7 +433,7 @@ def select_llm_provider() -> tuple[str, str | None]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
         console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
@@ -585,11 +588,13 @@ def ask_openai_reasoning_effort() -> str:
     return questionary.select(
         "Select Reasoning Effort:",
         choices=choices,
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -605,11 +610,13 @@ def ask_anthropic_effort() -> str | None:
             questionary.Choice("Medium (balanced)", "medium"),
             questionary.Choice("Low (faster, cheaper)", "low"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -625,11 +632,13 @@ def ask_gemini_thinking_config() -> str | None:
             questionary.Choice("Enable Thinking (recommended)", "high"),
             questionary.Choice("Minimal/Disable Thinking", "minimal"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:green noinherit"),
-            ("highlighted", "fg:green noinherit"),
-            ("pointer", "fg:green noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -651,17 +660,23 @@ def ask_output_language() -> str:
             questionary.Choice("Russian (Русский)", "Russian"),
             questionary.Choice("Custom language", "custom"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:yellow noinherit"),
-            ("highlighted", "fg:yellow noinherit"),
-            ("pointer", "fg:yellow noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:yellow noinherit"),
+                ("highlighted", "fg:yellow noinherit"),
+                ("pointer", "fg:yellow noinherit"),
+            ]
+        ),
     ).ask()
 
     if choice == "custom":
-        return questionary.text(
-            "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
-            validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
-        ).ask().strip()
+        return (
+            questionary.text(
+                "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
+                validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
+            )
+            .ask()
+            .strip()
+        )
 
     return choice

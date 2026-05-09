@@ -14,14 +14,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Factory routing
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestFactoryRouting(unittest.TestCase):
-
     def test_mlx_routes_to_openai_client(self):
         from tradingagents.llm_clients.factory import create_llm_client
         from tradingagents.llm_clients.openai_client import OpenAIClient
@@ -59,9 +58,9 @@ class TestFactoryRouting(unittest.TestCase):
 # OllamaClient
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestOllamaClient(unittest.TestCase):
-
     def _make_client(self, model="llama3", base_url=None):
         mock_chat_ollama_cls = MagicMock()
         mock_chat_ollama_cls.return_value = MagicMock()
@@ -70,7 +69,9 @@ class TestOllamaClient(unittest.TestCase):
             {"langchain_ollama": MagicMock(ChatOllama=mock_chat_ollama_cls)},
         ):
             from importlib import reload
+
             import tradingagents.llm_clients.ollama_client as mod
+
             reload(mod)
             client = mod.OllamaClient(model, base_url)
             return client, mock_chat_ollama_cls
@@ -79,7 +80,9 @@ class TestOllamaClient(unittest.TestCase):
         mock_module = MagicMock()
         with patch.dict("sys.modules", {"langchain_ollama": mock_module}):
             from importlib import reload
+
             import tradingagents.llm_clients.ollama_client as mod
+
             reload(mod)
             client = mod.OllamaClient("llama3")
 
@@ -91,7 +94,9 @@ class TestOllamaClient(unittest.TestCase):
         mock_module.ChatOllama = mock_chat_ollama_cls
         with patch.dict("sys.modules", {"langchain_ollama": mock_module}):
             from importlib import reload
+
             import tradingagents.llm_clients.ollama_client as mod
+
             reload(mod)
             client = mod.OllamaClient("llama3", base_url="http://myhost:11434/v1")
             client.get_llm()
@@ -105,7 +110,9 @@ class TestOllamaClient(unittest.TestCase):
         mock_module.ChatOllama = mock_chat_ollama_cls
         with patch.dict("sys.modules", {"langchain_ollama": mock_module}):
             from importlib import reload
+
             import tradingagents.llm_clients.ollama_client as mod
+
             reload(mod)
             client = mod.OllamaClient("llama3", base_url=None)
             client.get_llm()
@@ -120,7 +127,9 @@ class TestOllamaClient(unittest.TestCase):
         mock_module.ChatOllama = mock_chat_ollama_cls
         with patch.dict("sys.modules", {"langchain_ollama": mock_module}):
             from importlib import reload
+
             import tradingagents.llm_clients.ollama_client as mod
+
             reload(mod)
             client = mod.OllamaClient("llama3", base_url="http://localhost:11434/v1")
             client.get_llm()
@@ -132,7 +141,9 @@ class TestOllamaClient(unittest.TestCase):
         mock_module = MagicMock()
         with patch.dict("sys.modules", {"langchain_ollama": mock_module}):
             from importlib import reload
+
             import tradingagents.llm_clients.ollama_client as mod
+
             reload(mod)
             client = mod.OllamaClient("anything:latest")
 
@@ -142,6 +153,7 @@ class TestOllamaClient(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # OpenAIClient — MLX key handling
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 class TestOpenAIClientMlxAuth(unittest.TestCase):
@@ -160,6 +172,7 @@ class TestOpenAIClientMlxAuth(unittest.TestCase):
         ):
             with patch.dict(os.environ, env, clear=False):
                 from tradingagents.llm_clients.openai_client import OpenAIClient
+
                 client = OpenAIClient("mlx-community/Qwen2.5-7B-4bit", provider="mlx")
                 client.get_llm()
 
@@ -190,6 +203,7 @@ class TestOpenAIClientMlxAuth(unittest.TestCase):
             side_effect=fake_normalized,
         ):
             from tradingagents.llm_clients.openai_client import OpenAIClient
+
             client = OpenAIClient(
                 "mlx-community/Qwen2.5-7B-4bit",
                 base_url="http://192.168.1.5:8000/v1",
@@ -204,11 +218,12 @@ class TestOpenAIClientMlxAuth(unittest.TestCase):
 # model_catalog — mlx entries
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestMlxModelCatalog(unittest.TestCase):
-
     def setUp(self):
         from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
+
         self.mlx_options = MODEL_OPTIONS.get("mlx", {})
 
     def test_mlx_has_quick_models(self):
@@ -235,9 +250,9 @@ class TestMlxModelCatalog(unittest.TestCase):
 # validators — permissive for mlx / ollama
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestPermissiveProviders(unittest.TestCase):
-
     def test_mlx_accepts_arbitrary_model(self):
         from tradingagents.llm_clients.validators import validate_model
 

@@ -1,9 +1,9 @@
 import threading
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.outputs import LLMResult
 from langchain_core.messages import AIMessage
+from langchain_core.outputs import LLMResult
 
 
 class StatsCallbackHandler(BaseCallbackHandler):

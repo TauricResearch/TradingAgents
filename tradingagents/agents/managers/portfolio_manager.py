@@ -33,11 +33,7 @@ def create_portfolio_manager(llm):
         trader_plan = state["trader_investment_plan"]
 
         past_context = state.get("past_context", "")
-        lessons_line = (
-            f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
-            if past_context
-            else ""
-        )
+        lessons_line = f"- Lessons from prior decisions and outcomes:\n{past_context}\n" if past_context else ""
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 

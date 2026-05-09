@@ -1,12 +1,13 @@
-import time
 import logging
+import os
+import time
+from typing import Annotated
 
 import pandas as pd
 import yfinance as yf
-from yfinance.exceptions import YFRateLimitError
 from stockstats import wrap
-from typing import Annotated
-import os
+from yfinance.exceptions import YFRateLimitError
+
 from .config import get_config
 from .utils import safe_ticker_component
 
@@ -25,8 +26,10 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
             return func()
         except YFRateLimitError:
             if attempt < max_retries:
-                delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                delay = base_delay * (2**attempt)
+                logger.warning(
+                    f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(delay)
             else:
                 raise
@@ -74,14 +77,16 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     if os.path.exists(data_file):
         data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
     else:
-        data = yf_retry(lambda: yf.download(
-            symbol,
-            start=start_str,
-            end=end_str,
-            multi_level_index=False,
-            progress=False,
-            auto_adjust=True,
-        ))
+        data = yf_retry(
+            lambda: yf.download(
+                symbol,
+                start=start_str,
+                end=end_str,
+                multi_level_index=False,
+                progress=False,
+                auto_adjust=True,
+            )
+        )
         data = data.reset_index()
         data.to_csv(data_file, index=False, encoding="utf-8")
 
@@ -111,12 +116,8 @@ class StockstatsUtils:
     @staticmethod
     def get_stock_stats(
         symbol: Annotated[str, "ticker symbol for the company"],
-        indicator: Annotated[
-            str, "quantitative indicators based off of the stock data for the company"
-        ],
-        curr_date: Annotated[
-            str, "curr date for retrieving stock price data, YYYY-mm-dd"
-        ],
+        indicator: Annotated[str, "quantitative indicators based off of the stock data for the company"],
+        curr_date: Annotated[str, "curr date for retrieving stock price data, YYYY-mm-dd"],
     ):
         data = load_ohlcv(symbol, curr_date)
         df = wrap(data)
