@@ -256,7 +256,7 @@ lint:  # [alias: l]
 lint-fix:
     bunx biome check . --write
 
-# Start dashboard server (DEV mode, port 3000)
+# Start dashboard server (LIVE mode, port 3000)
 [group("bun")]
 serve:
     pkill -9 -f bun 2>/dev/null || true
@@ -378,7 +378,7 @@ buylist:
 research TICKER:
     bun run src/cli/main.ts research {{TICKER}}
 
-# Show portfolio holdings (DEV, uses hledger + SQLite via dashboard)
+# Show portfolio holdings (LIVE, uses hledger + SQLite via dashboard)
 [group("run")]
 portfolio-intel:
     bun scripts/portfolio-intel.ts
@@ -404,7 +404,7 @@ sync-prices-ticker:
     @if [ -z "${TICKER}" ]; then echo "Usage: TICKER=AAPL just sync-prices-ticker"; exit 1; fi
     bun scripts/sync-prices.ts --ticker "${TICKER}"
 
-# Seed DEV SQLite database (positions, signals, analyses, watchlist, prices)
+# Seed LIVE SQLite database (positions, signals, analyses, watchlist, prices)
 [group("run")]
 seed-db:
     bun scripts/seed_database.ts
@@ -472,17 +472,17 @@ db-reset-test:
 # ── Seed: database seeding variants ────────────────────────────────────────
 #   Partial seeding for focused reset. Less frequently used than run recipes.
 
-# Seed positions only (DEV)
+# Seed positions only (LIVE)
 [group("seed")]
 seed-db-positions:
     bun scripts/seed_database.ts --positions
 
-# Seed signals only (DEV)
+# Seed signals only (LIVE)
 [group("seed")]
 seed-db-signals:
     bun scripts/seed_database.ts --signals
 
-# Seed exit plans from YAML (DEV)
+# Seed exit plans from YAML (LIVE)
 [group("seed")]
 seed-db-exit-plans:
     bun scripts/seed_database.ts --exit-plans
@@ -527,21 +527,21 @@ test-seed:
 test-db-signal:
     bun scripts/seed_database.ts --db ./test_portfolio.db --signals
 
-# Show row counts for DEV and TEST DB
+# Show row counts for LIVE and TEST DB
 [group("test")]
 test-db-stats:
-    @echo "=== DEV portfolio.db ==="
+    @echo "=== LIVE portfolio.db ==="
     sqlite3 portfolio.db "SELECT 'positions', COUNT(*) FROM positions UNION ALL SELECT 'signals', COUNT(*) FROM signals UNION ALL SELECT 'analyses', COUNT(*) FROM analyses UNION ALL SELECT 'watchlist', COUNT(*) FROM watchlist"
     @echo ""
     @echo "=== TEST test_portfolio.db ==="
     sqlite3 test_portfolio.db "SELECT 'positions', COUNT(*) FROM positions UNION ALL SELECT 'signals', COUNT(*) FROM signals UNION ALL SELECT 'analyses', COUNT(*) FROM analyses UNION ALL SELECT 'watchlist', COUNT(*) FROM watchlist"
 
-# Copy TEST artefacts to DEV (dry-run, shows what would change)
+# Copy TEST artefacts to LIVE (dry-run, shows what would change)
 [group("test")]
 copy-test-to-dev:
     ./scripts/copy-test-to-dev.sh
 
-# Copy TEST artefacts to DEV (apply changes)
+# Copy TEST artefacts to LIVE (apply changes)
 [group("test")]
 copy-test-to-dev-apply:
     ./scripts/copy-test-to-dev.sh --apply
