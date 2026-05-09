@@ -35,6 +35,13 @@
 - `td-2be009` [P2] BUYLIST: Contingency playbook - watchlist items with fair value targets (impl: ses_02a5c6)
 
 **Awaiting prioritization:**
+- `td-cc1eb9` [P2] CANONICAL-REGISTRY: Build portable playbook and script registry
+  - S01: Create canonicals/ directory and seed with existing canonical playbooks
+  - S02: Build reg-mine.ts — extraction mechanism
+  - S03: Build reg-import.ts — import mechanism
+  - S04: Build reg-promote.ts — feedback mechanism
+  - S05: Script registry — index reusable scripts
+  - S06: Documentation and just recipes
 - Price alert system Phase 2: custom user-defined alerts (alerts table, CRUD CLI)
 - Price alert system Phase 3: continuous monitoring daemon + dashboard
 - Further dashboard UX improvements
