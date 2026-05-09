@@ -87,6 +87,7 @@ export default function RunPage() {
     llm_provider: "anthropic",
     deep_think_llm: "claude-sonnet-4-6",
     quick_think_llm: "claude-haiku-4-5",
+    backend_url: null,
     max_debate_rounds: 1,
     max_risk_discuss_rounds: 1,
     data_vendors: {
@@ -105,6 +106,7 @@ export default function RunPage() {
       llm_provider: defaults.llm_provider ?? f.llm_provider,
       deep_think_llm: defaults.deep_think_llm ?? f.deep_think_llm,
       quick_think_llm: defaults.quick_think_llm ?? f.quick_think_llm,
+      backend_url: defaults.backend_url || null,
       max_debate_rounds: defaults.max_debate_rounds ?? f.max_debate_rounds,
       max_risk_discuss_rounds: defaults.max_risk_discuss_rounds ?? f.max_risk_discuss_rounds,
       data_vendors: { ...f.data_vendors, ...(defaults.data_vendors ?? {}) },
@@ -266,6 +268,17 @@ export default function RunPage() {
           onChange={(v) => setForm({ ...form, quick_think_llm: v })}
           provider={form.llm_provider}
         />
+        <div className="col-span-full">
+          <label className="label">Custom base URL</label>
+          <input
+            className="input w-full"
+            placeholder="https://your-openai-compatible-endpoint/v1"
+            value={form.backend_url ?? ""}
+            onChange={(e) =>
+              setForm({ ...form, backend_url: e.target.value.trim() || null })
+            }
+          />
+        </div>
         <div>
           <label className="label">Bull/Bear rounds</label>
           <input

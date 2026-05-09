@@ -24,6 +24,7 @@ class RunCreateRequest(BaseModel):
     llm_provider: str = "openai"
     deep_think_llm: str
     quick_think_llm: str
+    backend_url: Optional[str] = None
     max_debate_rounds: int = 1
     max_risk_discuss_rounds: int = 1
     data_vendors: Dict[str, str] = Field(

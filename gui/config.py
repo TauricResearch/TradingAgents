@@ -68,6 +68,7 @@ def _empty_config() -> Dict[str, Any]:
         "data_vendors": dict(data_vendors),
         "output_language": DEFAULT_CONFIG["output_language"],
         "checkpoint_enabled": DEFAULT_CONFIG["checkpoint_enabled"],
+        "backend_url": DEFAULT_CONFIG.get("backend_url") or "",
         # Ollama base URL — empty means "use the framework default" which is
         # http://localhost:11434/v1 from inside the container (i.e. talking
         # to the container itself, which is wrong for most setups). Set to

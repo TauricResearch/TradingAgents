@@ -113,6 +113,15 @@ with st.form("defaults"):
         key=f"settings_quick_{provider}",
         help="Pick from the catalog or type any model id.",
     )
+    backend_url = st.text_input(
+        "Default custom base URL",
+        value=str(defaults.get("backend_url") or ""),
+        placeholder="https://your-openai-compatible-endpoint/v1",
+        help=(
+            "Optional OpenAI-compatible API base URL used by default for runs "
+            "and follow-up chat. Leave blank for provider defaults."
+        ),
+    ).strip()
 
     c4, c5 = st.columns(2)
     debate_rounds = c4.slider("Bull/Bear debate rounds", 1, 5,
@@ -145,6 +154,7 @@ with st.form("defaults"):
             "llm_provider": provider,
             "deep_think_llm": deep_model,
             "quick_think_llm": quick_model,
+            "backend_url": backend_url,
             "max_debate_rounds": debate_rounds,
             "max_risk_discuss_rounds": risk_rounds,
             "output_language": output_lang,

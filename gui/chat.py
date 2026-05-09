@@ -138,10 +138,11 @@ def _build_llm() -> Any:
     defaults = cfg.get("defaults", {})
     provider = defaults.get("llm_provider") or "openai"
     model = defaults.get("quick_think_llm") or "gpt-4o-mini"
+    backend_url = defaults.get("backend_url") or None
 
     from tradingagents.llm_clients import create_llm_client  # type: ignore
 
-    client = create_llm_client(provider=provider, model=model)
+    client = create_llm_client(provider=provider, model=model, base_url=backend_url)
     return client.get_llm()
 
 

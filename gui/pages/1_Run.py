@@ -179,6 +179,15 @@ def _config_form() -> Dict[str, Any] | None:
             key=f"run_quick_{provider}",
             help="Used for analysts and tool routing. Pick from catalog or type any id.",
         )
+        backend_url = st.text_input(
+            "Custom base URL",
+            value=str(defaults.get("backend_url") or ""),
+            placeholder="https://your-openai-compatible-endpoint/v1",
+            help=(
+                "Optional OpenAI-compatible API base URL for this run. "
+                "Use with provider OpenAI plus custom model ids, or with compatible providers."
+            ),
+        ).strip()
 
         c6, c7 = st.columns(2)
         debate_rounds = c6.slider("Bull/Bear debate rounds", 1, 5,
@@ -220,6 +229,7 @@ def _config_form() -> Dict[str, Any] | None:
             "llm_provider": provider,
             "deep_think_llm": deep_model,
             "quick_think_llm": quick_model,
+            "backend_url": backend_url or None,
             "max_debate_rounds": debate_rounds,
             "max_risk_discuss_rounds": risk_rounds,
             "data_vendors": {

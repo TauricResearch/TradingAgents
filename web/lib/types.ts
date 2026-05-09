@@ -123,6 +123,7 @@ export type RunCreateRequest = {
   llm_provider: string;
   deep_think_llm: string;
   quick_think_llm: string;
+  backend_url?: string | null;
   max_debate_rounds: number;
   max_risk_discuss_rounds: number;
   data_vendors: Record<string, string>;
