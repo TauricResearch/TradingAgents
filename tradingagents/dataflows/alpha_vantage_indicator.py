@@ -59,8 +59,8 @@ def get_indicator(
     }
 
     if indicator not in supported_indicators:
-        raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(supported_indicators.keys())}"
+        raise AlphaVantageUnsupportedIndicatorError(
+            f"{indicator.upper()} is not available from Alpha Vantage API"
         )
 
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
