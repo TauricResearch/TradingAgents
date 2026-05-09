@@ -4,9 +4,9 @@ MIX-16531: social_media_analyst was single-shot — if the LLM made tool calls,
 tool results were discarded and sentiment_report was left empty. This test
 verifies the multi-turn ToolNode loop pattern handles tool calls correctly.
 
-Strategy: patch llm.bind_tools to return a RunnableLambda that delegates to a
-mock callable we control. This bypasses LangChain's coerce-to-Message machinery
-and lets us return AIMessage objects directly from the chain.
+Strategy: patch langgraph.prebuilt.ToolNode before importing the analyst
+module. This is the canonical import site for the ToolNode that the node
+function uses at runtime (via `from langgraph.prebuilt import ToolNode`).
 """
 import unittest
 from unittest.mock import MagicMock, patch
@@ -26,8 +26,6 @@ class SocialMediaAnalystToolLoopTests(unittest.TestCase):
     def test_sentiment_report_populated_after_tool_loop(self):
         """Core regression: before the fix, sentiment_report was '' when
         tool_calls > 0 because tool results were never fed back to the LLM."""
-        from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
-
         call_count = [0]
 
         def chain_logic(messages):
@@ -46,30 +44,26 @@ class SocialMediaAnalystToolLoopTests(unittest.TestCase):
             content="[NVDA] Social sentiment: +0.8 on Monday, +0.6 on Tuesday."
         )
 
-        def make_analyst(llm):
-            # Patch ToolNode at the import location inside the module,
-            # not at its definition site (local import inside the node fn).
-            with patch(
-                "tradingagents.agents.analysts.social_media_analyst.ToolNode"
-            ) as MockTN:
-                mock_tn_instance = MagicMock()
-                mock_tn_instance.invoke.return_value = {
-                    "messages": [fake_tool_msg]
+        # Patch langgraph.prebuilt.ToolNode before the module imports it.
+        # The node function uses `from langgraph.prebuilt import ToolNode`.
+        mock_tn_instance = MagicMock()
+        mock_tn_instance.invoke.return_value = {"messages": [fake_tool_msg]}
+        with patch("langgraph.prebuilt.ToolNode", return_value=mock_tn_instance):
+            from tradingagents.agents.analysts.social_media_analyst import (
+                create_social_media_analyst,
+            )
+
+            mock_llm = MagicMock()
+            mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
+            mock_llm.invoke = chain_logic
+
+            analyst_node = create_social_media_analyst(mock_llm)(
+                {
+                    "trade_date": "2026-05-08",
+                    "company_of_interest": "NVDA",
+                    "messages": [HumanMessage(content="Analyze NVDA sentiment")],
                 }
-                MockTN.return_value = mock_tn_instance
-                return create_social_media_analyst(llm)
-
-        mock_llm = MagicMock()
-        mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
-        mock_llm.invoke = chain_logic
-
-        analyst_node = make_analyst(mock_llm)(
-            {
-                "trade_date": "2026-05-08",
-                "company_of_interest": "NVDA",
-                "messages": [HumanMessage(content="Analyze NVDA sentiment")],
-            }
-        )
+            )
 
         self.assertGreater(len(analyst_node["sentiment_report"]), 0)
         self.assertIn("bullish", analyst_node["sentiment_report"])
@@ -77,25 +71,27 @@ class SocialMediaAnalystToolLoopTests(unittest.TestCase):
 
     def test_direct_response_no_tool_calls(self):
         """When LLM responds without tool calls, report is the content on first call."""
-        from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
-
         call_count = [0]
 
         def chain_logic(messages):
             call_count[0] += 1
             return AIMessage(content="Direct report — no tools needed.")
 
-        mock_llm = MagicMock()
-        mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
+        with patch("langgraph.prebuilt.ToolNode", return_value=MagicMock()):
+            from tradingagents.agents.analysts.social_media_analyst import (
+                create_social_media_analyst,
+            )
 
-        create_analyst = create_social_media_analyst(mock_llm)
-        result = create_analyst(
-            {
-                "trade_date": "2026-05-08",
-                "company_of_interest": "TSLA",
-                "messages": [HumanMessage(content="Quick TSLA check")],
-            }
-        )
+            mock_llm = MagicMock()
+            mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
+
+            result = create_social_media_analyst(mock_llm)(
+                {
+                    "trade_date": "2026-05-08",
+                    "company_of_interest": "TSLA",
+                    "messages": [HumanMessage(content="Quick TSLA check")],
+                }
+            )
 
         self.assertGreater(len(result["sentiment_report"]), 0)
         self.assertIn("Direct report", result["sentiment_report"])
@@ -107,8 +103,6 @@ class NewsAnalystToolLoopTests(unittest.TestCase):
 
     def test_news_report_populated_after_tool_loop(self):
         """Same regression as MIX-16531 but for news_analyst."""
-        from tradingagents.agents.analysts.news_analyst import create_news_analyst
-
         call_count = [0]
 
         def chain_logic(messages):
@@ -124,30 +118,21 @@ class NewsAnalystToolLoopTests(unittest.TestCase):
                 )
 
         fake_tool_msg = HumanMessage(content="Global markets: S&P500 flat, yields rising.")
+        mock_tn_instance = MagicMock()
+        mock_tn_instance.invoke.return_value = {"messages": [fake_tool_msg]}
+        with patch("langgraph.prebuilt.ToolNode", return_value=mock_tn_instance):
+            from tradingagents.agents.analysts.news_analyst import create_news_analyst
 
-        def make_analyst(llm):
-            # Patch ToolNode at the import location inside the module,
-            # not at its definition site (local import inside the node fn).
-            with patch(
-                "tradingagents.agents.analysts.news_analyst.ToolNode"
-            ) as MockTN:
-                mock_tn_instance = MagicMock()
-                mock_tn_instance.invoke.return_value = {
-                    "messages": [fake_tool_msg]
+            mock_llm = MagicMock()
+            mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
+
+            analyst_node = create_news_analyst(mock_llm)(
+                {
+                    "trade_date": "2026-05-08",
+                    "company_of_interest": "SPY",
+                    "messages": [HumanMessage(content="Macro check for SPY")],
                 }
-                MockTN.return_value = mock_tn_instance
-                return create_news_analyst(llm)
-
-        mock_llm = MagicMock()
-        mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
-
-        analyst_node = make_analyst(mock_llm)(
-            {
-                "trade_date": "2026-05-08",
-                "company_of_interest": "SPY",
-                "messages": [HumanMessage(content="Macro check for SPY")],
-            }
-        )
+            )
 
         self.assertGreater(len(analyst_node["news_report"]), 0)
         self.assertIn("Macro outlook", analyst_node["news_report"])
@@ -155,8 +140,6 @@ class NewsAnalystToolLoopTests(unittest.TestCase):
 
     def test_messages_accumulate_across_turns(self):
         """The returned messages array should grow with each turn."""
-        from tradingagents.agents.analysts.news_analyst import create_news_analyst
-
         call_count = [0]
 
         def chain_logic(messages):
@@ -170,30 +153,21 @@ class NewsAnalystToolLoopTests(unittest.TestCase):
                 return AIMessage(content="Market news report complete.")
 
         fake_tool_msg = HumanMessage(content="News results here.")
+        mock_tn_instance = MagicMock()
+        mock_tn_instance.invoke.return_value = {"messages": [fake_tool_msg]}
+        with patch("langgraph.prebuilt.ToolNode", return_value=mock_tn_instance):
+            from tradingagents.agents.analysts.news_analyst import create_news_analyst
 
-        def make_analyst(llm):
-            # Patch ToolNode at the import location inside the module,
-            # not at its definition site (local import inside the node fn).
-            with patch(
-                "tradingagents.agents.analysts.news_analyst.ToolNode"
-            ) as MockTN:
-                mock_tn_instance = MagicMock()
-                mock_tn_instance.invoke.return_value = {
-                    "messages": [fake_tool_msg]
+            mock_llm = MagicMock()
+            mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
+
+            result = create_news_analyst(mock_llm)(
+                {
+                    "trade_date": "2026-05-08",
+                    "company_of_interest": "QQQ",
+                    "messages": [HumanMessage(content="QQQ analysis")],
                 }
-                MockTN.return_value = mock_tn_instance
-                return create_news_analyst(llm)
-
-        mock_llm = MagicMock()
-        mock_llm.bind_tools.return_value = RunnableLambda(chain_logic)
-
-        result = make_analyst(mock_llm)(
-            {
-                "trade_date": "2026-05-08",
-                "company_of_interest": "QQQ",
-                "messages": [HumanMessage(content="QQQ analysis")],
-            }
-        )
+            )
 
         self.assertGreaterEqual(len(result["messages"]), 3)
 
