@@ -37,6 +37,9 @@ dependencies = [
 test = [
     "pytest>=8.0",
 ]
+dev = [
+    "pip-audit>=2.6.0",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
