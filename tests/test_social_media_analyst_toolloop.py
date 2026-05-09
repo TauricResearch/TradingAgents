@@ -47,8 +47,16 @@ class SocialMediaAnalystToolLoopTests(unittest.TestCase):
         )
 
         def make_analyst(llm):
-            with patch("langgraph.prebuilt.ToolNode") as MockTN:
-                MockTN.return_value.invoke.return_value = {"messages": [fake_tool_msg]}
+            # Patch ToolNode at the import location inside the module,
+            # not at its definition site (local import inside the node fn).
+            with patch(
+                "tradingagents.agents.analysts.social_media_analyst.ToolNode"
+            ) as MockTN:
+                mock_tn_instance = MagicMock()
+                mock_tn_instance.invoke.return_value = {
+                    "messages": [fake_tool_msg]
+                }
+                MockTN.return_value = mock_tn_instance
                 return create_social_media_analyst(llm)
 
         mock_llm = MagicMock()
@@ -118,8 +126,16 @@ class NewsAnalystToolLoopTests(unittest.TestCase):
         fake_tool_msg = HumanMessage(content="Global markets: S&P500 flat, yields rising.")
 
         def make_analyst(llm):
-            with patch("langgraph.prebuilt.ToolNode") as MockTN:
-                MockTN.return_value.invoke.return_value = {"messages": [fake_tool_msg]}
+            # Patch ToolNode at the import location inside the module,
+            # not at its definition site (local import inside the node fn).
+            with patch(
+                "tradingagents.agents.analysts.news_analyst.ToolNode"
+            ) as MockTN:
+                mock_tn_instance = MagicMock()
+                mock_tn_instance.invoke.return_value = {
+                    "messages": [fake_tool_msg]
+                }
+                MockTN.return_value = mock_tn_instance
                 return create_news_analyst(llm)
 
         mock_llm = MagicMock()
@@ -156,8 +172,16 @@ class NewsAnalystToolLoopTests(unittest.TestCase):
         fake_tool_msg = HumanMessage(content="News results here.")
 
         def make_analyst(llm):
-            with patch("langgraph.prebuilt.ToolNode") as MockTN:
-                MockTN.return_value.invoke.return_value = {"messages": [fake_tool_msg]}
+            # Patch ToolNode at the import location inside the module,
+            # not at its definition site (local import inside the node fn).
+            with patch(
+                "tradingagents.agents.analysts.news_analyst.ToolNode"
+            ) as MockTN:
+                mock_tn_instance = MagicMock()
+                mock_tn_instance.invoke.return_value = {
+                    "messages": [fake_tool_msg]
+                }
+                MockTN.return_value = mock_tn_instance
                 return create_news_analyst(llm)
 
         mock_llm = MagicMock()
