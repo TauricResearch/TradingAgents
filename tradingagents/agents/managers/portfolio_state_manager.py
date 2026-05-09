@@ -1,7 +1,7 @@
 """Backtest-only Portfolio State Manager.
 
 State-first refactor of portfolio decision-making for backtest mode:
-- The LLM only emits a qualitative MarketState (regime + scores + thesis).
+- The LLM only emits a latent MarketState (orthogonal regimes + evidence consistency).
 - Deterministic Python policy converts MarketState into the existing
   PortfolioStrategy order schema using anchors and rule constraints.
 
@@ -16,12 +16,11 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from back_test.policy_config import (
     PortfolioStatePolicyConfig,
     coerce_portfolio_state_policy_config,
-    _DEFAULT_PHASE_MODIFIER,
     _DEFAULT_VOLUME_MULTIPLIER,
 )
 from tradingagents.agents.utils.agent_utils import (
@@ -72,54 +71,420 @@ def _apply_order_size_multiplier(strategy: dict, multiplier: float) -> dict:
     return strategy
 
 
+class ConfidenceComponents(BaseModel):
+    """Evidence-consistency inputs; not analyst rhetorical conviction."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    anchor_agreement: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Agreement among hard OHLCV/structure anchors.",
+    )
+    timeframe_consistency: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Agreement across higher/trading/lower timeframe reads.",
+    )
+    volatility_stability: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Lower when volatility is rapidly changing or shock-like.",
+    )
+    contradiction_absence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Lower when anchors materially conflict.",
+    )
+    event_certainty: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Lower when scheduled or unscheduled events dominate state estimation.",
+    )
+
+
+class TimeframeHierarchy(BaseModel):
+    """Separates persistent structure from lower-timeframe noise."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    higher_timeframe_trend: Literal["ascending", "descending", "sideways", "transition", "unclear"]
+    trading_timeframe_trend: Literal["ascending", "descending", "sideways", "transition", "unclear"]
+    lower_timeframe_trend: Literal["ascending", "descending", "sideways", "transition", "unclear"]
+    alignment: Literal[
+        "aligned",
+        "pullback_against_higher_timeframe",
+        "countertrend_move",
+        "higher_timeframe_transition",
+        "lower_timeframe_noise",
+        "conflicted",
+        "unclear",
+    ]
+    short_term_override: Literal[
+        "none",
+        "confirmed_structure_break",
+        "confirmed_structure_reclaim",
+        "volatility_shock",
+        "event_shock",
+        "liquidity_dislocation",
+    ] = "none"
+
+
+class InvalidationCondition(BaseModel):
+    """Machine-readable invalidation taxonomy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    invalidation_type: Literal[
+        "structure_break",
+        "volatility_expansion",
+        "failed_breakout",
+        "failed_breakdown",
+        "momentum_divergence",
+        "event_shock",
+        "liquidity_shift",
+        "timeframe_reclassification",
+        "data_revision",
+        "unclear",
+    ]
+    invalidation_detail: str
+    reference_timeframe: Literal["lower", "trading", "higher", "multi_timeframe", "event"] = (
+        "trading"
+    )
+
+
+class EvidenceAggregation(BaseModel):
+    """Three-stage evidence stack used to suppress narrative contamination."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hard_anchors: list[str] = Field(
+        default_factory=list,
+        description="Price structure, EMA hierarchy, ATR/RV, S/R, volume structure.",
+    )
+    event_modifiers: list[str] = Field(
+        default_factory=list,
+        description="Earnings, macro, filings, policy, or other concrete event modifiers.",
+    )
+    narrative_residual: list[str] = Field(
+        default_factory=list,
+        description="Low-weight residual narrative after anchor and event evidence.",
+    )
+    contradictory_signals: list[str] = Field(default_factory=list)
+
+
 class MarketState(BaseModel):
-    schema_version: Literal["state_v1"] = "state_v1"
+    """Latent market environment state, deliberately separated from trade intent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["state_v2"] = "state_v2"
     ticker: str
     as_of_date: str
 
-    regime: Literal[
-        "strong_uptrend",
-        "weak_uptrend",
-        "range",
-        "breakdown_risk",
-        "downtrend",
-        "event_driven",
+    trend_regime: Literal["ascending", "descending", "sideways", "transition", "unclear"]
+    volatility_regime: Literal[
+        "compressed", "normal", "expanding", "elevated", "shock", "unstable", "unavailable"
+    ]
+    momentum_regime: Literal[
+        "positive", "negative", "neutral", "divergent", "mean_reverting", "unclear"
+    ]
+    liquidity_regime: Literal[
+        "normal", "volume_expansion", "volume_contraction", "thin", "imbalanced", "unavailable"
+    ]
+    event_regime: Literal[
+        "none",
+        "scheduled_event",
+        "earnings_dominant",
+        "macro_dominant",
+        "policy_dominant",
+        "idiosyncratic_shock",
+        "multi_event",
         "unclear",
     ]
-
-    market_phase: Literal[
-        # Bull
-        "early_bull_reversal",
-        "healthy_bull_trend",
-        "accelerating_bull",
-        "overextended_bull",
-        "bull_pullback",
-        "late_bull_distribution",
-        # Bear
-        "early_bear_reversal",
-        "healthy_bear_trend",
-        "accelerating_bear",
-        "oversold_bear",
-        "bear_rally",
-        "late_bear_exhaustion",
-        # Neutral
-        "range_compression",
-        "high_volatility_range",
-        "macro_event_regime",
+    structure_quality: Literal[
+        "coherent",
+        "range_bound",
+        "fragmented",
+        "breakout_attempt",
+        "breakdown_attempt",
+        "damaged",
         "unclear",
     ]
+    exhaustion_state: Literal[
+        "none",
+        "positive_extension",
+        "negative_extension",
+        "two_sided_chop",
+        "late_trend_fatigue",
+        "unclear",
+    ] = "none"
+    breadth_state: Literal[
+        "broad_participation",
+        "narrow_participation",
+        "divergent",
+        "neutral",
+        "not_applicable",
+        "unavailable",
+    ] = "unavailable"
 
-    trend_score: float = Field(ge=-1.0, le=1.0)
-    risk_score: float = Field(ge=0.0, le=1.0)
-    momentum_score: float = Field(ge=-1.0, le=1.0)
-    event_score: float = Field(ge=-1.0, le=1.0)
+    trend_direction_score: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description="Signed directionality of the observed structure; not a trade signal.",
+    )
+    trend_strength: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Persistence/clarity of trend structure independent of direction.",
+    )
+    momentum_score_value: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description="Signed recent impulse; exhaustion is represented separately.",
+    )
+    risk_pressure_score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="State instability from structure, volatility, liquidity, and events.",
+    )
+    event_impact_score: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description="Signed event pressure on the observed state, not analyst opinion.",
+    )
     confidence: float = Field(ge=0.0, le=1.0)
+    confidence_components: ConfidenceComponents
 
     horizon_days: int = Field(ge=1, le=60)
 
-    thesis: str
-    invalidation_condition: str
-    key_risks: list[str]
+    timeframe_hierarchy: TimeframeHierarchy
+    invalidation: InvalidationCondition
+    evidence: EvidenceAggregation
+    state_summary: str
+    key_risks: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_state_v1(cls, value: Any) -> Any:
+        """Accept older saved/LLM v1 payloads, but normalize to state_v2."""
+        if not isinstance(value, dict):
+            return value
+        if value.get("schema_version") != "state_v1" and "market_phase" not in value:
+            return value
+
+        regime = value.get("regime", "unclear")
+        phase = value.get("market_phase", "unclear")
+        trend_score = float(value.get("trend_score") or 0.0)
+        momentum_score = float(value.get("momentum_score") or 0.0)
+        risk_score = float(value.get("risk_score") or 0.5)
+        event_score = float(value.get("event_score") or 0.0)
+        confidence = float(value.get("confidence") or 0.5)
+
+        if regime in {"strong_uptrend", "weak_uptrend"}:
+            trend_regime = "ascending"
+        elif regime in {"breakdown_risk", "downtrend"}:
+            trend_regime = "descending"
+        elif regime == "range":
+            trend_regime = "sideways"
+        elif regime == "event_driven":
+            trend_regime = "transition"
+        else:
+            trend_regime = "unclear"
+
+        if phase in {"range_compression"}:
+            volatility_regime = "compressed"
+        elif phase in {"high_volatility_range", "accelerating_bear"}:
+            volatility_regime = "elevated"
+        elif phase == "macro_event_regime":
+            volatility_regime = "unstable"
+        else:
+            volatility_regime = "normal"
+
+        if phase in {"accelerating_bull", "healthy_bull_trend"} or momentum_score > 0.15:
+            momentum_regime = "positive"
+        elif phase in {"accelerating_bear", "healthy_bear_trend"} or momentum_score < -0.15:
+            momentum_regime = "negative"
+        elif phase in {"bull_pullback", "bear_rally"}:
+            momentum_regime = "mean_reverting"
+        elif phase in {"late_bull_distribution"}:
+            momentum_regime = "divergent"
+        else:
+            momentum_regime = "neutral"
+
+        if phase in {"accelerating_bull", "accelerating_bear"}:
+            liquidity_regime = "volume_expansion"
+        elif phase in {"late_bull_distribution"}:
+            liquidity_regime = "imbalanced"
+        else:
+            liquidity_regime = "normal"
+
+        event_regime = "macro_dominant" if phase == "macro_event_regime" else "none"
+        if phase in {"early_bear_reversal", "healthy_bear_trend", "accelerating_bear"}:
+            structure_quality = "damaged" if regime == "downtrend" else "breakdown_attempt"
+        elif phase in {"range_compression", "high_volatility_range"}:
+            structure_quality = "range_bound"
+        elif phase in {"early_bull_reversal", "accelerating_bull"}:
+            structure_quality = "breakout_attempt"
+        elif phase in {"unclear"}:
+            structure_quality = "unclear"
+        else:
+            structure_quality = "coherent"
+
+        if phase == "overextended_bull":
+            exhaustion_state = "positive_extension"
+        elif phase == "oversold_bear":
+            exhaustion_state = "negative_extension"
+        elif phase in {"late_bull_distribution", "late_bear_exhaustion"}:
+            exhaustion_state = "late_trend_fatigue"
+        elif phase == "high_volatility_range":
+            exhaustion_state = "two_sided_chop"
+        else:
+            exhaustion_state = "none"
+
+        return {
+            "schema_version": "state_v2",
+            "ticker": value.get("ticker"),
+            "as_of_date": value.get("as_of_date"),
+            "trend_regime": trend_regime,
+            "volatility_regime": volatility_regime,
+            "momentum_regime": momentum_regime,
+            "liquidity_regime": liquidity_regime,
+            "event_regime": event_regime,
+            "structure_quality": structure_quality,
+            "exhaustion_state": exhaustion_state,
+            "breadth_state": "unavailable",
+            "trend_direction_score": trend_score,
+            "trend_strength": min(abs(trend_score) + 0.15, 1.0),
+            "momentum_score_value": momentum_score,
+            "risk_pressure_score": risk_score,
+            "event_impact_score": event_score,
+            "confidence": confidence,
+            "confidence_components": {
+                "anchor_agreement": confidence,
+                "timeframe_consistency": confidence,
+                "volatility_stability": max(0.0, 1.0 - risk_score * 0.5),
+                "contradiction_absence": confidence,
+                "event_certainty": max(0.0, 1.0 - abs(event_score) * 0.5),
+            },
+            "horizon_days": value.get("horizon_days", 5),
+            "timeframe_hierarchy": {
+                "higher_timeframe_trend": trend_regime,
+                "trading_timeframe_trend": trend_regime,
+                "lower_timeframe_trend": trend_regime,
+                "alignment": "aligned" if trend_regime not in {"transition", "unclear"} else "unclear",
+                "short_term_override": "none",
+            },
+            "invalidation": {
+                "invalidation_type": "timeframe_reclassification",
+                "invalidation_detail": value.get(
+                    "invalidation_condition",
+                    "Material anchor reclassification at the next review.",
+                ),
+                "reference_timeframe": "trading",
+            },
+            "evidence": {
+                "hard_anchors": ["Migrated from legacy state_v1 payload."],
+                "event_modifiers": [],
+                "narrative_residual": [value.get("thesis", "")] if value.get("thesis") else [],
+                "contradictory_signals": value.get("key_risks") or [],
+            },
+            "state_summary": value.get("thesis") or "Migrated legacy market state.",
+            "key_risks": value.get("key_risks") or [],
+        }
+
+    @property
+    def regime(self) -> str:
+        """Compatibility adapter for the existing deterministic policy."""
+        if self.event_regime != "none" and self.confidence_components.event_certainty < 0.45:
+            return "event_driven"
+        if self.trend_regime == "ascending":
+            if self.trend_strength >= 0.60 and self.structure_quality in {
+                "coherent",
+                "breakout_attempt",
+            }:
+                return "strong_uptrend"
+            return "weak_uptrend"
+        if self.trend_regime == "descending":
+            if self.trend_strength >= 0.70 and self.structure_quality == "damaged":
+                return "downtrend"
+            return "breakdown_risk"
+        if self.trend_regime == "sideways":
+            return "range"
+        return "unclear"
+
+    @property
+    def market_phase(self) -> str:
+        """Compatibility adapter; not part of the serialized state_v2 ontology."""
+        if self.event_regime != "none" and self.confidence_components.event_certainty < 0.50:
+            return "macro_event_regime"
+        if self.trend_regime == "ascending":
+            if self.exhaustion_state == "positive_extension":
+                return "overextended_bull"
+            if self.exhaustion_state == "late_trend_fatigue" or self.breadth_state in {
+                "narrow_participation",
+                "divergent",
+            }:
+                return "late_bull_distribution"
+            if self.timeframe_hierarchy.alignment == "pullback_against_higher_timeframe":
+                return "bull_pullback"
+            if self.momentum_regime == "mean_reverting":
+                return "bull_pullback"
+            if self.momentum_regime == "positive" and self.liquidity_regime == "volume_expansion":
+                return "accelerating_bull"
+            if self.structure_quality == "coherent":
+                return "healthy_bull_trend"
+            return "early_bull_reversal"
+        if self.trend_regime == "descending":
+            if self.exhaustion_state == "negative_extension":
+                return "oversold_bear"
+            if self.exhaustion_state == "late_trend_fatigue":
+                return "late_bear_exhaustion"
+            if self.timeframe_hierarchy.alignment == "countertrend_move" or self.momentum_regime == "mean_reverting":
+                return "bear_rally"
+            if self.momentum_regime == "negative" and self.volatility_regime in {
+                "elevated",
+                "shock",
+                "unstable",
+            }:
+                return "accelerating_bear"
+            if self.structure_quality == "damaged":
+                return "healthy_bear_trend"
+            return "early_bear_reversal"
+        if self.trend_regime == "sideways":
+            if self.volatility_regime == "compressed":
+                return "range_compression"
+            if self.volatility_regime in {"elevated", "shock", "unstable"}:
+                return "high_volatility_range"
+            return "unclear"
+        return "unclear"
+
+    @property
+    def trend_score(self) -> float:
+        return self.trend_direction_score
+
+    @property
+    def risk_score(self) -> float:
+        return self.risk_pressure_score
+
+    @property
+    def momentum_score(self) -> float:
+        return self.momentum_score_value
+
+    @property
+    def event_score(self) -> float:
+        return self.event_impact_score
+
+    @property
+    def thesis(self) -> str:
+        return self.state_summary
+
+    @property
+    def invalidation_condition(self) -> str:
+        return (
+            f"{self.invalidation.invalidation_type}: "
+            f"{self.invalidation.invalidation_detail}"
+        )
 
 
 def _find_market_state(value, seen: Optional[set[int]] = None) -> Optional[MarketState]:
@@ -206,7 +571,7 @@ def _market_state_response_to_model(response) -> MarketState:
 def _llm_disallows_structured_output(llm) -> bool:
     """Return True for known providers/modes that reject tool_choice."""
     model = (getattr(llm, "model_name", None) or getattr(llm, "model", "") or "").lower()
-    if model == "deepseek-reasoner":
+    if model.startswith("deepseek-") or model == "deepseek-chat":
         return True
 
     extra_body = getattr(llm, "extra_body", None) or {}
@@ -475,54 +840,133 @@ def _fallback_market_state(
     weak_uptrend = bool(above_ema10 and above_ema20)
     below_ema10 = ema10 is not None and current < float(ema10)
 
+    atr_pct = float(anchors.get("atr14_pct") or 0.0)
+    if atr_pct <= 0:
+        volatility_regime = "unavailable"
+    elif atr_pct < 1.0:
+        volatility_regime = "compressed"
+    elif atr_pct < 2.5:
+        volatility_regime = "normal"
+    elif atr_pct < 4.0:
+        volatility_regime = "elevated"
+    else:
+        volatility_regime = "unstable"
+
+    liquidity_regime = {
+        "expanding": "volume_expansion",
+        "normal": "normal",
+        "soft": "volume_contraction",
+        "shrinking": "volume_contraction",
+        "unavailable": "unavailable",
+    }.get(volume_regime, "unavailable")
+
     if strong_uptrend:
-        regime = "strong_uptrend"
-        market_phase = "healthy_bull_trend"
+        trend_regime = "ascending"
+        momentum_regime = "positive"
+        structure_quality = "coherent"
         trend_score = 0.65
         momentum_score = 0.55
+        risk_score = 0.30
+        exhaustion_state = "none"
         if ema5 is not None and current > float(ema5) + 2.0 * atr:
-            market_phase = "overextended_bull"
+            exhaustion_state = "positive_extension"
             risk_score = 0.45
         elif volume_ratio is not None and float(volume_ratio) >= 1.5:
-            market_phase = "accelerating_bull"
+            liquidity_regime = "volume_expansion"
             risk_score = 0.35
-        else:
-            risk_score = 0.30
     elif weak_uptrend:
-        regime = "weak_uptrend"
-        market_phase = "early_bull_reversal"
+        trend_regime = "ascending"
+        momentum_regime = "positive" if current > float(ema10) else "neutral"
+        structure_quality = "breakout_attempt"
         trend_score = 0.35
         momentum_score = 0.25
         risk_score = 0.45
+        exhaustion_state = "none"
     elif below_ema10:
-        regime = "breakdown_risk"
-        market_phase = "early_bear_reversal"
+        trend_regime = "descending"
+        momentum_regime = "negative"
+        structure_quality = "breakdown_attempt"
         trend_score = -0.35
         momentum_score = -0.25
         risk_score = 0.65
+        exhaustion_state = "none"
     else:
-        regime = "range"
-        market_phase = "range_compression" if volume_regime in {"soft", "shrinking"} else "unclear"
+        trend_regime = "sideways"
+        momentum_regime = "neutral"
+        structure_quality = "range_bound"
+        if volume_regime in {"soft", "shrinking"}:
+            volatility_regime = "compressed"
         trend_score = 0.0
         momentum_score = 0.0
         risk_score = 0.50
+        exhaustion_state = "none"
+
+    anchor_agreement = 0.70 if strong_uptrend or weak_uptrend or below_ema10 else 0.55
+    timeframe_consistency = 0.70 if strong_uptrend else 0.55
+    volatility_stability = 0.75 if volatility_regime in {"compressed", "normal"} else 0.45
+    contradiction_absence = 0.65 if structure_quality != "range_bound" else 0.50
+    event_certainty = 0.80
+    confidence = round(
+        (
+            anchor_agreement
+            + timeframe_consistency
+            + volatility_stability
+            + contradiction_absence
+            + event_certainty
+        )
+        / 5.0,
+        2,
+    )
 
     return MarketState(
         ticker=ticker,
         as_of_date=as_of_date,
-        regime=regime,
-        market_phase=market_phase,
-        trend_score=trend_score,
-        risk_score=risk_score,
-        momentum_score=momentum_score,
-        event_score=0.0,
-        confidence=0.50,
-        horizon_days=5,
-        thesis=(
-            "LLM MarketState JSON was unavailable; fallback classification was "
-            "derived from price, moving-average, ATR, support/resistance, and volume anchors."
+        trend_regime=trend_regime,
+        volatility_regime=volatility_regime,
+        momentum_regime=momentum_regime,
+        liquidity_regime=liquidity_regime,
+        event_regime="none",
+        structure_quality=structure_quality,
+        exhaustion_state=exhaustion_state,
+        breadth_state="unavailable",
+        trend_direction_score=trend_score,
+        trend_strength=round(min(abs(trend_score) + 0.15, 1.0), 2),
+        momentum_score_value=momentum_score,
+        risk_pressure_score=risk_score,
+        event_impact_score=0.0,
+        confidence=confidence,
+        confidence_components=ConfidenceComponents(
+            anchor_agreement=anchor_agreement,
+            timeframe_consistency=timeframe_consistency,
+            volatility_stability=volatility_stability,
+            contradiction_absence=contradiction_absence,
+            event_certainty=event_certainty,
         ),
-        invalidation_condition="Anchor structure changes materially at the next review.",
+        horizon_days=5,
+        timeframe_hierarchy=TimeframeHierarchy(
+            higher_timeframe_trend=trend_regime,
+            trading_timeframe_trend=trend_regime,
+            lower_timeframe_trend=trend_regime,
+            alignment="aligned" if trend_regime in {"ascending", "descending"} else "unclear",
+            short_term_override="none",
+        ),
+        invalidation=InvalidationCondition(
+            invalidation_type="timeframe_reclassification",
+            invalidation_detail="Anchor structure changes materially at the next review.",
+            reference_timeframe="trading",
+        ),
+        evidence=EvidenceAggregation(
+            hard_anchors=[
+                "Fallback state derived from price structure, moving averages, ATR, support/resistance, and volume anchors."
+            ],
+            event_modifiers=[],
+            narrative_residual=[],
+            contradictory_signals=[],
+        ),
+        state_summary=(
+            "LLM MarketState JSON was unavailable; fallback latent-state classification "
+            "was derived from hard OHLCV anchors."
+        ),
         key_risks=[
             "Fallback state excludes qualitative news/fundamental nuance",
             "Single-date technical classification may be noisy",
@@ -603,27 +1047,18 @@ _BEAR_FORCE_SELL_PHASES = {
     "early_bear_reversal", "healthy_bear_trend", "accelerating_bear",
 }
 
-# All bull-side phases for "was the prior state already bullish?" check.
+# Bull-side phase set for hysteresis checks.
 _ANY_BULL_PHASE = {
     "early_bull_reversal", "healthy_bull_trend", "accelerating_bull",
     "overextended_bull", "bull_pullback", "late_bull_distribution",
 }
 
-# All bear-side phases for "was the prior state already bearish?" check.
+# Bear-side phase set for hysteresis checks.
 _ANY_BEAR_PHASE = {
     "early_bear_reversal", "healthy_bear_trend", "accelerating_bear",
     "oversold_bear", "bear_rally", "late_bear_exhaustion",
 }
 
-
-def _market_state_bias(state: Optional[MarketState]) -> str:
-    if state is None:
-        return "unavailable"
-    if state.regime in {"strong_uptrend", "weak_uptrend"} or state.market_phase in _ANY_BULL_PHASE:
-        return "bullish"
-    if state.regime in {"breakdown_risk", "downtrend"} or state.market_phase in _ANY_BEAR_PHASE:
-        return "bearish"
-    return "neutral"
 
 # Project-root-relative path to saved per-ticker strategy JSONs.
 _STRATEGY_ROOT = Path(__file__).resolve().parents[3] / "back_test" / "strategy"
@@ -639,7 +1074,7 @@ def _load_recent_phases(ticker: str, trade_date: str, n: int = 2) -> list[str]:
     Used by policy_from_market_state to apply regime-change hysteresis: when
     today's phase is "healthy_bull_trend" / "accelerating_bull" / "bull_pullback"
     (which trigger a >=50% sizing floor) but the most recent N strategies were
-    NOT bullish, we treat today's claim as a single noisy flip rather than a
+    not already in a bull-side phase, we treat today's claim as a single noisy flip rather than a
     confirmed regime, and downgrade to "early_bull_reversal".
 
     Falls back to parsing market_phase out of rationale_summary when an older
@@ -668,6 +1103,11 @@ def _load_recent_phases(ticker: str, trade_date: str, n: int = 2) -> list[str]:
             continue
         ms = data.get("market_state") or {}
         phase = ms.get("market_phase")
+        if not phase and ms:
+            try:
+                phase = MarketState.model_validate(ms).market_phase
+            except Exception:
+                phase = None
         if not phase:
             rationale = data.get("rationale_summary") or ""
             match = _RATIONALE_PHASE_RE.search(rationale)
@@ -713,18 +1153,28 @@ def policy_from_market_state(
 
     has_position = float(holdings_info.get("quantity") or 0.0) > 0.0
     notes: list[str] = []
-    stock_bias = _market_state_bias(state)
-    market_context_bias = _market_state_bias(market_context_state)
     market_context_blocks_add = False
+    market_context_multiplier = 1.0
     if market_context_state is not None:
         context_name = market_context_ticker or market_context_state.ticker
+        context_trend = max(-1.0, min(1.0, market_context_state.trend_direction_score))
+        context_risk = max(0.0, min(1.0, market_context_state.risk_pressure_score))
+        trend_component = max(-0.10, min(0.10, context_trend * 0.10))
+        risk_component = -max(0.0, context_risk - 0.50) * 0.30
+        market_context_multiplier = max(
+            0.75,
+            min(1.10, 1.0 + trend_component + risk_component),
+        )
+        market_context_blocks_add = context_risk >= 0.70 or (
+            context_trend <= -0.40 and context_risk >= 0.55
+        )
         notes.append(
-            f"market_context={context_name}: bias={market_context_bias}, "
-            f"regime={market_context_state.regime}, "
-            f"phase={market_context_state.market_phase}, "
-            f"trend={market_context_state.trend_score:.2f}, "
-            f"momentum={market_context_state.momentum_score:.2f}, "
-            f"risk={market_context_state.risk_score:.2f}"
+            f"market_context={context_name}: continuous_multiplier={market_context_multiplier:.2f}, "
+            f"trend_regime={market_context_state.trend_regime}, "
+            f"volatility_regime={market_context_state.volatility_regime}, "
+            f"momentum_regime={market_context_state.momentum_regime}, "
+            f"trend_direction={context_trend:.2f}, "
+            f"risk_pressure={context_risk:.2f}"
         )
 
     # A. Cross-check: if LLM claims uptrend but short EMA structure disagrees, downgrade.
@@ -819,18 +1269,25 @@ def policy_from_market_state(
     def _rationale(extra: Optional[list[str]] = None) -> str:
         all_notes = notes + (extra or [])
         parts = [
-            state.thesis,
-            f"regime={state.regime}",
-            f"effective_regime={effective_regime}",
-            f"market_phase={state.market_phase}",
-            f"effective_phase={effective_phase}",
-            f"trend={state.trend_score:.2f}",
-            f"momentum={state.momentum_score:.2f}",
-            f"risk={state.risk_score:.2f}",
-            f"event={state.event_score:.2f}",
+            state.state_summary,
+            f"trend_regime={state.trend_regime}",
+            f"volatility_regime={state.volatility_regime}",
+            f"momentum_regime={state.momentum_regime}",
+            f"liquidity_regime={state.liquidity_regime}",
+            f"event_regime={state.event_regime}",
+            f"structure_quality={state.structure_quality}",
+            f"exhaustion_state={state.exhaustion_state}",
+            f"policy_adapter_regime={effective_regime}",
+            f"policy_adapter_phase={effective_phase}",
+            f"trend_direction={state.trend_direction_score:.2f}",
+            f"trend_strength={state.trend_strength:.2f}",
+            f"momentum={state.momentum_score_value:.2f}",
+            f"risk_pressure={state.risk_pressure_score:.2f}",
+            f"event_impact={state.event_impact_score:.2f}",
             f"confidence={state.confidence:.2f}",
             f"volume_regime={volume_regime}",
-            f"invalidation={state.invalidation_condition}",
+            f"invalidation_type={state.invalidation.invalidation_type}",
+            f"invalidation_detail={state.invalidation.invalidation_detail}",
             f"risks={'; '.join(state.key_risks) if state.key_risks else 'none'}",
         ]
         if all_notes:
@@ -913,40 +1370,9 @@ def policy_from_market_state(
             ),
         )
 
-    if market_context_bias == "bearish" and not has_position:
-        return PortfolioStrategy(
-            ticker=state.ticker,
-            as_of_date=state.as_of_date,
-            action="HOLD",
-            entry=PriceSizeBlock(),
-            add_position=PriceSizeBlock(),
-            take_profit=PriceSizeBlock(),
-            reduce_stop=PriceSizeBlock(),
-            stop_loss=StopLossBlock(price=None),
-            rationale_summary=_rationale(["market_context bearish blocks new entries."]),
-        )
-
-    if market_context_bias == "bearish" and has_position and stock_bias != "bullish":
-        return PortfolioStrategy(
-            ticker=state.ticker,
-            as_of_date=state.as_of_date,
-            action="SELL",
-            entry=PriceSizeBlock(),
-            add_position=PriceSizeBlock(),
-            take_profit=PriceSizeBlock(),
-            reduce_stop=PriceSizeBlock(),
-            stop_loss=StopLossBlock(price=None),
-            rationale_summary=_rationale(
-                ["market_context bearish plus non-bullish stock state forces SELL."]
-            ),
-        )
-
-    if market_context_bias == "bearish":
-        market_context_blocks_add = True
-
     # C. Linear signal + regime ceilings/floors.
-    # Bull/bear-leaning score weights are intentionally halved relative to v1:
-    # the LLM tends to amplify bullish/bearish advocacy from analyst reports
+    # Directional score weights are intentionally modest:
+    # the LLM tends to amplify directional advocacy from analyst reports
     # and risk-debate framing into score extremes, which then propagates into
     # target_weight. By halving these coefficients we keep the LLM's
     # qualitative judgment as a tilt, not a driver — regime/phase floors and
@@ -980,19 +1406,6 @@ def policy_from_market_state(
     if volume_regime == "unavailable":
         target_weight = min(target_weight, config.unavailable_volume_cap)
 
-    if market_context_bias == "bearish":
-        target_weight *= config.market_context_bearish_weight_multiplier
-        notes.append(
-            "market_context bearish: target_weight multiplied by "
-            f"{config.market_context_bearish_weight_multiplier:g} and adds blocked."
-        )
-    elif market_context_bias == "bullish" and stock_bias == "bullish":
-        target_weight *= config.market_context_bullish_weight_multiplier
-        notes.append(
-            "market_context bullish with stock bullish: target_weight multiplied by "
-            f"{config.market_context_bullish_weight_multiplier:g}."
-        )
-
     # D'. Phase floor/cap. Floor implements 核心持仓 (e.g. healthy_bull_trend
     # holds >=0.50 even when raw_signal is weak); cap enforces phase-specific
     # ceilings (e.g. overextended_bull caps at 0.30).
@@ -1002,6 +1415,11 @@ def policy_from_market_state(
         target_weight = max(target_weight, phase_floor)
     if phase_cap is not None:
         target_weight = min(target_weight, phase_cap)
+
+    if market_context_state is not None:
+        target_weight *= market_context_multiplier
+        if market_context_blocks_add:
+            notes.append("market_context risk is elevated: add_position blocked.")
 
     bearish_div = bool(constraints.get("bearish_volume_divergence"))
     if bearish_div:
@@ -1109,6 +1527,15 @@ def policy_from_market_state(
             else 0.0
         )
 
+    if add_size > 0 and effective_regime == "weak_uptrend" and volume_regime == "soft":
+        original_add_size = add_size
+        add_size = min(add_size, config.weak_uptrend_soft_volume_add_max_pct)
+        if add_size < original_add_size:
+            notes.append(
+                "weak uptrend with soft volume: cap add_position at "
+                f"{config.weak_uptrend_soft_volume_add_max_pct:g}%."
+            )
+
     # Stop loss: 2.5 ATR floor in trend regimes so normal volatility doesn't
     # whipsaw out. Use whichever (support or 2.5*ATR-below) is FURTHER, not closer.
     stop_base = support if support is not None else current - config.stop_loss_atr_multiple * atr
@@ -1184,7 +1611,7 @@ def _format_holdings_section(holdings_info: dict) -> str:
         "- Current simulated holdings: no open position"
         + (f", cash {float(cash):g}" if cash is not None else "")
         + (f", equity {float(equity):g}" if equity is not None else "")
-        + ". If the regime is favorable, prioritize establishing a starter position.\n"
+        + ". Holdings context is provided only to preserve state awareness; do not infer a trade action from it.\n"
     )
 
 
@@ -1299,11 +1726,10 @@ def create_portfolio_state_manager(
         constraints = _derive_short_term_rule_constraints(anchors, holdings_info, ticker)
         volume_regime = _classify_volume_regime(anchors.get("volume_ratio"))
         anchors_block = "\n\n" + _format_short_term_market_anchors(anchors)
-        constraints_block = _format_short_term_rule_constraints(constraints)
         as_of_date = anchors["as_of_close_date"]
         holdings_section = _format_holdings_section(holdings_info)
 
-        state_prompt = f"""You are the Portfolio Manager. In backtest mode your job is NOT to create executable orders. You only classify the market state.
+        state_prompt = f"""You are the MarketState classifier for a multi-agent quantitative trading architecture. In backtest mode your job is NOT to create executable orders. You only classify the latent market environment.
 
         {instrument_context}
 
@@ -1312,74 +1738,100 @@ def create_portfolio_state_manager(
         - position sizes
         - BUY / SELL / HOLD trade orders
         - target prices or allocation percentages
+        - labels whose meaning is equivalent to a trading instruction
 
-        Your only job: classify the market state and compress the analyst debate into stable, testable state variables.
+        Your only job: answer "what statistical environment currently exists?" and compress the evidence into stable, testable state variables.
 
         Return only a MarketState object through the configured schema. If schema/tool
         output is unavailable, return only a raw JSON object with these exact fields.
 
-        **Anti-advocacy directive — read this BEFORE scoring:**
+        **Evidence priority architecture:**
+        Phase 1 — hard anchors dominate:
+        price structure, EMA hierarchy, ATR / realized-volatility behavior, support/resistance location, and volume structure.
+        Phase 2 — event modifiers:
+        earnings, macro prints, filings, policy decisions, and identifiable shocks may modify the anchor-derived state.
+        Phase 3 — narrative residual:
+        analyst rhetoric, debate tone, headlines, and confidence language are low-weight residuals. They must never dominate anchor-derived structure.
+
+        **Anti-narrative contamination directive:**
         The inputs below contain three advocacy channels that you must NOT take at face value:
         (a) Bull / Bear researcher arguments embedded in the Research Manager's plan.
         (b) Aggressive / Conservative / Neutral analysts in the Risk Analysts Debate.
-        (c) Subjective adjectives like "bullish" / "bearish" / "strong upside" in news, sentiment, or fundamentals reports.
+        (c) Subjective adjectives in news, sentiment, or fundamentals reports.
         These channels are RHETORIC, not evidence. They are designed to take a side. Do NOT let the volume, intensity, or polarity of bullish or bearish framing decide your scores.
 
-        When scoring, base your judgment on:
-        1. Anchors (price structure, EMA5/10/20 hierarchy, 20-day volume ratio, ATR, support/resistance) — primary.
-        2. Concrete events (filings, earnings results, macro prints, policy decisions) — supporting.
-        3. Substantive analyst observations grounded in (1) or (2).
-        NOT on:
-        - How confidently the bull researcher / aggressive analyst phrased their case.
-        - Whether news headlines used the word "bullish" or "bearish".
-        - The number of paragraphs each side spent advocating.
+        Equal advocacy on both sides means contradictory narrative residuals, not a reason to choose the louder side.
 
-        If the anchors say "price < EMA10" or "EMA5 < EMA10 < EMA20", you must NOT label trend_score > 0 just because the bull researcher made a passionate case. If anchors say "EMA5 > EMA10 > EMA20 + volume normal", you must NOT label trend_score < 0 just because the bear researcher cited a tail-risk scenario.
+        **MarketState schema and ontology:**
+        - schema_version: always "state_v2".
+        - trend_regime: ascending / descending / sideways / transition / unclear.
+          Describes price-structure direction across the trading horizon. It is not a trade instruction.
+        - volatility_regime: compressed / normal / expanding / elevated / shock / unstable / unavailable.
+          Describes dispersion and stability of realized movement.
+        - momentum_regime: positive / negative / neutral / divergent / mean_reverting / unclear.
+          Describes recent impulse; do not mix with exhaustion.
+        - liquidity_regime: normal / volume_expansion / volume_contraction / thin / imbalanced / unavailable.
+          Describes participation and volume behavior.
+        - event_regime: none / scheduled_event / earnings_dominant / macro_dominant / policy_dominant / idiosyncratic_shock / multi_event / unclear.
+          Describes whether concrete events dominate state estimation.
+        - structure_quality: coherent / range_bound / fragmented / breakout_attempt / breakdown_attempt / damaged / unclear.
+          Describes whether anchors form a stable interpretable structure.
+        - exhaustion_state: none / positive_extension / negative_extension / two_sided_chop / late_trend_fatigue / unclear.
+          Describes extension/fatigue, separate from trend and momentum.
+        - breadth_state: broad_participation / narrow_participation / divergent / neutral / not_applicable / unavailable.
+          Use not_applicable for single names when no market/sector breadth data is present; use unavailable when relevant breadth evidence is missing.
+        - trend_direction_score [-1, 1]: signed directionality of observed structure.
+        - trend_strength [0, 1]: persistence/clarity of trend structure independent of direction.
+        - momentum_score_value [-1, 1]: signed recent impulse.
+        - risk_pressure_score [0, 1]: state instability from structure, volatility, liquidity, and events.
+        - event_impact_score [-1, 1]: signed event pressure on the observed state, not analyst opinion.
+        - confidence [0, 1]: evidence consistency only.
+        - confidence_components:
+            anchor_agreement, timeframe_consistency, volatility_stability,
+            contradiction_absence, event_certainty. The top-level confidence should be consistent with these components.
+        - timeframe_hierarchy:
+            higher_timeframe_trend, trading_timeframe_trend, lower_timeframe_trend,
+            alignment, short_term_override.
+        - invalidation:
+            invalidation_type must be one of structure_break, volatility_expansion, failed_breakout,
+            failed_breakdown, momentum_divergence, event_shock, liquidity_shift,
+            timeframe_reclassification, data_revision, unclear.
+            invalidation_detail must be specific and machine-readable enough for later study.
+        - evidence:
+            hard_anchors, event_modifiers, narrative_residual, contradictory_signals.
+            Put analyst rhetoric in narrative_residual only after extracting anchor-grounded content.
+        - state_summary: neutral description of the environment. Do not include trade recommendations.
+        - key_risks: short state-instability phrases, not execution advice.
 
-        Equal advocacy on both sides → that is evidence of "unclear" / "range", not a reason to pick the louder side.
+        **Timeframe hierarchy logic:**
+        Higher timeframe structure has precedence over lower timeframe noise.
+        A lower-timeframe move may override only when there is:
+        - confirmed_structure_break
+        - confirmed_structure_reclaim
+        - volatility_shock
+        - event_shock
+        - liquidity_dislocation
+        Distinguish pullback_against_higher_timeframe from countertrend_move:
+        a pullback preserves higher-timeframe structure; a countertrend move conflicts with it but has not yet reclassified it.
 
-        Definitions:
-        - regime: current 1-5 trading day market condition. Choose strong_uptrend / weak_uptrend only when EMA hierarchy and momentum agree; otherwise prefer range or unclear.
-        - market_phase: finer-grained phase within the regime. Choose ONE:
-            BULL phases:
-            - early_bull_reversal: early recovery after bearish period; trend damage stabilizing; first higher-highs/higher-lows; risk = fake breakout / dead-cat bounce.
-            - healthy_bull_trend: stable price > EMA5 > EMA10 > EMA20, shallow pullbacks, persistent short-term trend. STRONGEST short-term trend-following regime.
-            - accelerating_bull: rapid price expansion, momentum increasing fast, expanding volume. Risk = blow-off top.
-            - overextended_bull: trend intact but distance above EMA5 large, RSI elevated, weakening volume confirmation. Risk/reward deteriorated; NOT necessarily bearish.
-            - bull_pullback: healthy correction within intact bull trend, declining volume on pullback, structure still bullish. Favored re-entry/addition zone.
-            - late_bull_distribution: trend alive but breadth weakening, leadership narrowing, volume divergence. Possible transition.
-            BEAR phases:
-            - early_bear_reversal: support breakdown, failed rebounds, deteriorating breadth.
-            - healthy_bear_trend: stable downtrend, lower highs/lower lows, rallies fail quickly.
-            - accelerating_bear: panic-like acceleration, volatility spike, forced liquidation, heavy volume.
-            - oversold_bear: bearish regime intact but downside extension extreme. Oversold ≠ bottom.
-            - bear_rally: countertrend rally inside larger bear; TRAP for trend-followers. Do not buy.
-            - late_bear_exhaustion: selling pressure weakening, volatility stabilizing. Observation only.
-            NEUTRAL / SPECIAL phases:
-            - range_compression: low-vol sideways; trend-following fails here.
-            - high_volatility_range: sideways with high vol, fake breakouts, whipsaws. Hardest environment.
-            - macro_event_regime: dominated by FOMC / CPI / earnings / geopolitical / policy shocks; event risk > technicals.
-            - unclear: genuinely mixed evidence; use sparingly.
-        - trend_score [-1, 1]: directional trend strength.
-        - risk_score [0, 1]: downside, event, macro, technical, and liquidity risk combined.
-        - momentum_score [-1, 1]: recent price/volume momentum.
-        - event_score [-1, 1]: whether news, sentiment, and fundamentals support or hurt the long thesis.
-        - confidence [0, 1]: reliability of the state classification, NOT how much to buy.
-        - horizon_days: expected validity period of this state.
-        - invalidation_condition: qualitative ("loses EMA10 on closing basis"), not a precise stop price.
-        - key_risks: short bullet phrases.
+        **Confidence calculation philosophy:**
+        Confidence is high only when hard anchors agree, timeframe reads align, volatility is stable,
+        contradictory signals are limited, and event uncertainty is low.
+        Confidence is low when anchors conflict, lower timeframe noise contradicts higher timeframe structure,
+        volatility is unstable, or concrete event risk dominates.
+        Never increase confidence because language sounds certain.
 
         Use ticker exactly: {ticker}.
         Use as_of_date exactly: {as_of_date}.
 
-        Anchors and rule constraints below are CONTEXT for forming your thesis. DO NOT echo numbers as orders.
+        Anchors below are context for state classification. DO NOT echo numbers as orders.
 
         **Context:**
         - Research Manager's plan: {research_plan}
         - Trader's proposal: {trader_plan}
         {lessons_section}{holdings_section}**Risk Analysts Debate:**
         {history}
-        {anchors_block}{constraints_block}
+        {anchors_block}
 
         Do not output trading orders, prices, sizes, markdown, or fenced code blocks.
         Do not output text outside the schema/JSON object.{get_language_instruction()}"""
@@ -1406,9 +1858,9 @@ def create_portfolio_state_manager(
                         f"[portfolio_state_manager] market_context {context_ticker} "
                         f"trade_date={trade_date} "
                         f"as_of={context_anchors.get('as_of_close_date')} "
-                        f"bias={_market_state_bias(market_context_state)} "
-                        f"regime={market_context_state.regime} "
-                        f"phase={market_context_state.market_phase} "
+                        f"trend_regime={market_context_state.trend_regime} "
+                        f"volatility_regime={market_context_state.volatility_regime} "
+                        f"momentum_regime={market_context_state.momentum_regime} "
                         f"current={context_anchors.get('current_price')} "
                         f"ema5/10/20={context_anchors.get('ema5')}/"
                         f"{context_anchors.get('ema10')}/{context_anchors.get('ema20')} "
@@ -1443,12 +1895,13 @@ def create_portfolio_state_manager(
         if market_context_state is not None:
             market_context_text = (
                 f"MarketContext: ticker={resolved_policy_config.market_context_ticker}, "
-                f"bias={_market_state_bias(market_context_state)}, "
-                f"regime={market_context_state.regime}, "
-                f"phase={market_context_state.market_phase}, "
-                f"trend={market_context_state.trend_score:.2f}, "
-                f"momentum={market_context_state.momentum_score:.2f}, "
-                f"risk={market_context_state.risk_score:.2f}, "
+                f"trend_regime={market_context_state.trend_regime}, "
+                f"volatility_regime={market_context_state.volatility_regime}, "
+                f"momentum_regime={market_context_state.momentum_regime}, "
+                f"liquidity_regime={market_context_state.liquidity_regime}, "
+                f"structure_quality={market_context_state.structure_quality}, "
+                f"risk_pressure={market_context_state.risk_pressure_score:.2f}, "
+                f"confidence={market_context_state.confidence:.2f}, "
                 f"volume_regime={market_context_volume_regime}\n"
             )
         else:
@@ -1456,12 +1909,18 @@ def create_portfolio_state_manager(
 
         decision_text = (
             f"Decision: {strategy_dict['action']}\n"
-            f"MarketState: regime={market_state.regime}, "
-            f"phase={market_state.market_phase}, "
-            f"trend={market_state.trend_score:.2f}, "
-            f"momentum={market_state.momentum_score:.2f}, "
-            f"risk={market_state.risk_score:.2f}, "
-            f"event={market_state.event_score:.2f}, "
+            f"MarketState: trend_regime={market_state.trend_regime}, "
+            f"volatility_regime={market_state.volatility_regime}, "
+            f"momentum_regime={market_state.momentum_regime}, "
+            f"liquidity_regime={market_state.liquidity_regime}, "
+            f"event_regime={market_state.event_regime}, "
+            f"structure_quality={market_state.structure_quality}, "
+            f"exhaustion_state={market_state.exhaustion_state}, "
+            f"trend_direction={market_state.trend_direction_score:.2f}, "
+            f"trend_strength={market_state.trend_strength:.2f}, "
+            f"momentum={market_state.momentum_score_value:.2f}, "
+            f"risk_pressure={market_state.risk_pressure_score:.2f}, "
+            f"event_impact={market_state.event_impact_score:.2f}, "
             f"confidence={market_state.confidence:.2f}, "
             f"volume_regime={volume_regime}\n"
             f"{market_context_text}"
@@ -1489,5 +1948,5 @@ def create_market_aware_portfolio_state_manager(
     memory,
     policy_config: Optional[dict[str, Any] | PortfolioStatePolicyConfig] = None,
 ):
-    """Backtest PortfolioState manager with stock + index bullish/bearish context."""
+    """Backtest PortfolioState manager with continuous stock + index context."""
     return create_portfolio_state_manager(llm, memory, policy_config=policy_config)

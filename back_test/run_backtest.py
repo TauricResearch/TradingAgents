@@ -67,7 +67,7 @@ def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     effective_start = result.effective_start_date or args.start
     effective_end = result.effective_end_date or args.end
-    out_path = RESULTS_DIR / f"{args.ticker}_{effective_start}_{effective_end}.json"
+    out_path = RESULTS_DIR / f"{args.ticker}_{effective_start}_{effective_end}_B.json"
     payload = {
         "ticker": args.ticker,
         "requested_start_date": args.start,

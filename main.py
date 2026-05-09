@@ -3,7 +3,7 @@
 Examples:
     python main.py --ticker NVDA --date 2024-05-10
     python main.py --ticker SPY --date 2024-01-02 --trading-mode backtest \
-        --ps-strong-floor 0.50 --ps-stop-atr 3.0
+        --ps-profile conservative --ps-trade-frequency low
 """
 
 from __future__ import annotations

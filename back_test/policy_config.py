@@ -8,7 +8,8 @@ to be CLI-configured.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+import argparse
+from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Optional
 
 
@@ -29,7 +30,7 @@ _DEFAULT_VOLUME_MULTIPLIER = {
 # Keys not in dict default to no modification.
 _DEFAULT_PHASE_MODIFIER: dict[str, dict] = {
     # ----- Bull -----
-    "early_bull_reversal":    {"cap": 0.40, "tp_size": 30.0, "allow_add": False},
+    "early_bull_reversal":    {"cap": 0.40, "tp_size": 30.0, "allow_add": False, "trend_market_entry": True},
     "healthy_bull_trend":     {"floor": 0.50, "cap": 0.85, "tp_size": 15.0, "allow_add": True,  "trend_market_entry": True},
     "accelerating_bull":      {"floor": 0.40, "cap": 0.80, "tp_size": 20.0, "allow_add": False, "trend_market_entry": True},
     # overextended_bull: keep core, allow trimmed add. NOT block_new_position —
@@ -63,13 +64,13 @@ class PortfolioStatePolicyConfig:
 
     strong_uptrend_floor: float = 0.60
     strong_uptrend_cap: float = 0.90
-    weak_uptrend_floor: float = 0.35
-    weak_uptrend_cap: float = 0.70
-    range_cap: float = 0.35
+    weak_uptrend_floor: float = 0.25
+    weak_uptrend_cap: float = 0.55
+    range_cap: float = 0.45
     event_driven_cap: float = 0.50
     unavailable_volume_cap: float = 0.35
     max_target_weight: float = 0.90
-    min_trade_weight: float = 0.05
+    min_trade_weight: float = 0.02
     order_size_multiplier: float = 1.0
 
     volume_multipliers: dict[str, float] = field(
@@ -84,27 +85,26 @@ class PortfolioStatePolicyConfig:
     phase_modifiers: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     recent_phase_lookback: int = 3
-    hysteresis_confirmation_count: int = 2
+    hysteresis_confirmation_count: int = 0
     overextended_sma20_atr_threshold: float = 2.0
 
-    pullback_entry_add_max_pct: float = 40.0
+    pullback_entry_add_max_pct: float = 25.0
     pullback_entry_add_weight_multiplier: float = 60.0
-    default_add_max_pct: float = 30.0
+    default_add_max_pct: float = 25.0
     default_add_weight_multiplier: float = 50.0
+    weak_uptrend_soft_volume_add_max_pct: float = 15.0
 
     bearish_divergence_reduce_pct: float = 30.0
     bearish_divergence_stop_atr: float = 1.5
     bearish_divergence_fallback_stop_atr: float = 2.0
-    stop_loss_atr_multiple: float = 2.5
-    trend_take_profit_atr_multiple: float = 3.0
-    trend_take_profit_recent_high_multiplier: float = 1.05
-    default_take_profit_atr_multiple: float = 2.0
+    stop_loss_atr_multiple: float = 1.8
+    trend_take_profit_atr_multiple: float = 1.8
+    trend_take_profit_recent_high_multiplier: float = 1.01
+    default_take_profit_atr_multiple: float = 1.3
     strong_uptrend_take_profit_size_pct: float = 25.0
     default_take_profit_size_pct: float = 40.0
     market_context_enabled: bool = True
     market_context_ticker: str = "^GSPC"
-    market_context_bearish_weight_multiplier: float = 0.50
-    market_context_bullish_weight_multiplier: float = 1.10
 
     def merged_phase_modifiers(self) -> dict[str, dict[str, Any]]:
         merged = {phase: values.copy() for phase, values in _DEFAULT_PHASE_MODIFIER.items()}
@@ -119,78 +119,202 @@ def default_portfolio_state_policy_config() -> dict[str, Any]:
     return asdict(PortfolioStatePolicyConfig())
 
 
+_PROFILE_PRESETS: dict[str, dict[str, Any]] = {
+    "conservative": {
+        "trend_score_weight": 0.18,
+        "momentum_score_weight": 0.09,
+        "event_score_weight": 0.05,
+        "risk_score_weight": 0.55,
+        "strong_uptrend_floor": 0.45,
+        "strong_uptrend_cap": 0.70,
+        "weak_uptrend_floor": 0.10,
+        "weak_uptrend_cap": 0.30,
+        "range_cap": 0.20,
+        "event_driven_cap": 0.30,
+        "max_target_weight": 0.70,
+        "bearish_divergence_reduce_pct": 50.0,
+    },
+    "balanced": {},
+    "aggressive": {
+        "trend_score_weight": 0.35,
+        "momentum_score_weight": 0.20,
+        "event_score_weight": 0.10,
+        "risk_score_weight": 0.30,
+        "strong_uptrend_floor": 0.70,
+        "strong_uptrend_cap": 1.00,
+        "weak_uptrend_floor": 0.30,
+        "weak_uptrend_cap": 0.60,
+        "range_cap": 0.45,
+        "event_driven_cap": 0.65,
+        "max_target_weight": 1.00,
+        "bearish_divergence_reduce_pct": 25.0,
+    },
+}
+
+
+_TRADE_FREQUENCY_PRESETS: dict[str, dict[str, Any]] = {
+    "low": {
+        "min_trade_weight": 0.08,
+        "hysteresis_confirmation_count": 2,
+        "stop_loss_atr_multiple": 3.0,
+        "trend_take_profit_atr_multiple": 4.0,
+        "default_take_profit_atr_multiple": 2.5,
+        "trend_take_profit_recent_high_multiplier": 1.06,
+        "default_add_max_pct": 10.0,
+        "pullback_entry_add_max_pct": 15.0,
+        "weak_uptrend_soft_volume_add_max_pct": 5.0,
+    },
+    "normal": {},
+    "high": {
+        "min_trade_weight": 0.01,
+        "hysteresis_confirmation_count": 0,
+        "stop_loss_atr_multiple": 1.5,
+        "trend_take_profit_atr_multiple": 1.4,
+        "default_take_profit_atr_multiple": 1.1,
+        "trend_take_profit_recent_high_multiplier": 1.005,
+        "default_add_max_pct": 30.0,
+        "pullback_entry_add_max_pct": 40.0,
+        "weak_uptrend_soft_volume_add_max_pct": 20.0,
+    },
+}
+
+
+_INDEX_STRENGTH_PRESETS: dict[str, dict[str, Any]] = {
+    "off": {"market_context_enabled": False},
+    "soft": {"market_context_enabled": True},
+    "normal": {"market_context_enabled": True},
+    "hard": {"market_context_enabled": True},
+}
+
+
 def add_portfolio_state_policy_args(parser) -> None:
     """Attach PortfolioStatePolicyConfig argparse options to a parser."""
     group = parser.add_argument_group("组合状态策略参数")
-    group.add_argument("--ps-trend-weight", type=float, default=0.25,
-        dest="ps_trend_score_weight", help="趋势评分对目标仓位的影响权重；越大越追随趋势。默认 0.25。",)
-    group.add_argument("--ps-momentum-weight", type=float, default=0.125,
-        dest="ps_momentum_score_weight", help="动量评分对目标仓位的影响权重；越大越重视近期涨跌和量价动能。默认 0.125。",)
-    group.add_argument("--ps-event-weight", type=float, default=0.075,
-        dest="ps_event_score_weight", help="新闻、财报、宏观事件评分对目标仓位的影响权重。默认 0.075。",)
-    group.add_argument("--ps-risk-weight", type=float, default=0.40,
-        dest="ps_risk_score_weight", help="风险评分对目标仓位的扣减权重；越大越保守。默认 0.40。",)
-    group.add_argument("--ps-strong-floor", type=float, default=0.60,
-        dest="ps_strong_uptrend_floor", help="强上升趋势下的最低目标仓位，0.60 表示至少 60%%。默认 0.60。",)
-    group.add_argument("--ps-strong-cap", type=float, default=0.90,
-        dest="ps_strong_uptrend_cap", help="强上升趋势下的最高目标仓位，0.90 表示最多 90%%。默认 0.9。",)
-    group.add_argument("--ps-weak-floor", type=float, default=0.20,
-        dest="ps_weak_uptrend_floor", help="弱上升趋势下的最低目标仓位。默认 0.20。",)
-    group.add_argument("--ps-weak-cap", type=float, default=0.45,
-        dest="ps_weak_uptrend_cap", help="弱上升趋势下的最高目标仓位。默认 0.45。",)
-    group.add_argument("--ps-range-cap", type=float, default=0.35,
-        dest="ps_range_cap", help="震荡或方向不明行情下的最高目标仓位。默认 0.35。",)
-    group.add_argument("--ps-event-cap", type=float, default=0.50,
-        dest="ps_event_driven_cap", help="事件驱动行情下的最高目标仓位，用来限制财报、宏观事件等不确定性。默认 0.5。",)
-    group.add_argument("--ps-max-weight", type=float, default=0.90,
-        dest="ps_max_target_weight", help="任何情况下允许的全局最高目标仓位。默认 0.9。",)
-    group.add_argument("--ps-min-trade-weight", type=float, default=0.03,
-        dest="ps_min_trade_weight", help="低于该目标仓位时不新开仓，直接 HOLD；0.05 表示 5%%。默认 0.05。",)
-    
-    # ================ 决策放大倍数 ================
-    group.add_argument("--ps-order-size-mult", type=float, default=1.0,
-        dest="ps_order_size_multiplier", help="硬编码订单数量倍率；2.0 表示策略原本买/卖 N 股时改为 2N 股，最高封顶 100%%。默认 1.0。",)
-    # ===========================================
-
-    group.add_argument("--ps-recent-phase-lookback", type=int, default=3,
-        dest="ps_recent_phase_lookback", help="读取最近多少期市场阶段，用于判断趋势切换是否可靠。默认 3。",)
-    group.add_argument("--ps-hysteresis-confirm", type=int, default=1,
-        dest="ps_hysteresis_confirmation_count", help="趋势或熊市切换需要最近多少期确认；越大越防抖、越慢反应。默认 2。",)
-    group.add_argument("--ps-overextended-atr", type=float, default=2.0,
-        dest="ps_overextended_sma20_atr_threshold", help="价格高于 EMA5 多少个 ATR 才承认短线过度延伸。默认 2。",)
-    group.add_argument("--ps-stop-atr", type=float, default=2.5,
-        dest="ps_stop_loss_atr_multiple", help="止损距离的 ATR 倍数；越大止损越宽。默认 2.5。",)
-    group.add_argument("--ps-trend-tp-atr", type=float, default=3.0,
-        dest="ps_trend_take_profit_atr_multiple", help="趋势行情止盈目标距离，按 ATR 倍数计算。默认 3。",)
-    group.add_argument("--ps-default-tp-atr", type=float, default=2.0,
-        dest="ps_default_take_profit_atr_multiple", help="非趋势行情止盈目标距离，按 ATR 倍数计算。默认 2。",)
-    group.add_argument("--ps-trend-tp-high-mult", type=float, default=1.05,
-        dest="ps_trend_take_profit_recent_high_multiplier", help="趋势行情止盈价相对 20 日高点的最低倍数；1.05 表示高点上方 5%%。默认 1.05。",)
-    group.add_argument("--ps-default-add-max", type=float, default=20.0,
-        dest="ps_default_add_max_pct", help="普通情况下已有持仓时的单次最大加仓比例，单位是百分比。默认 20。",)
-    group.add_argument("--ps-pullback-add-max", type=float, default=25.0,
-        dest="ps_pullback_entry_add_max_pct", help="牛市回调阶段已有持仓时的单次最大加仓比例，单位是百分比。默认 25。",)
-    group.add_argument("--ps-bearish-div-reduce", type=float, default=30.0,
-        dest="ps_bearish_divergence_reduce_pct", help="出现看跌量价背离时的防御性减仓比例，单位是百分比。默认 30。",)
-    group.add_argument("--ps-soft-volume-mult", type=float, default=0.7,
-        dest="ps_volume_soft", help="成交量偏弱时的仓位折扣系数；0.7 表示目标仓位乘以 70%%。默认 0.7。")
-    group.add_argument("--ps-shrinking-volume-mult", type=float, default=0.5,
-        dest="ps_volume_shrinking", help="成交量萎缩时的仓位折扣系数。默认 0.5。",)
-    group.add_argument("--ps-unavailable-volume-mult", type=float, default=0.5,
-        dest="ps_volume_unavailable", help="成交量数据不可用时的仓位折扣系数。默认 0.5。",)
+    group.add_argument("--ps-trade-frequency", choices=sorted(_TRADE_FREQUENCY_PRESETS), default="normal",
+        help="交易频率档位：low 更少交易，normal 默认，high 更容易进出。默认 normal。")
     group.add_argument("--ps-index-context", default="^GSPC",
-        dest="ps_market_context_ticker", help="用于共同判断市场 bullish/bearish 的指数 ticker。默认 ^GSPC。",)
+        dest="ps_market_context_ticker", help="指数上下文 ticker；只做连续风险/趋势修正，不做 bull/bear 二元判断。默认 ^GSPC。",)
+    group.add_argument("--ps-max-weight", type=float, default=None,
+        dest="ps_max_target_weight", help="覆盖全局最高目标仓位，例如 0.8。默认使用策略档位。")
+    group.add_argument("--ps-add-max", type=float, default=None,
+        dest="ps_add_max_pct", help="覆盖单次加仓上限百分比，同时作用于普通、回调和弱趋势软量能加仓。")
+
+    _add_legacy_portfolio_state_policy_args(group)
+
+
+def _add_legacy_portfolio_state_policy_args(group) -> None:
+    """Keep old detailed flags working without showing them in --help."""
+    hidden = argparse.SUPPRESS
+    group.add_argument("--ps-profile", choices=sorted(_PROFILE_PRESETS), default=None,
+        help=hidden)
+    group.add_argument("--ps-signal-sensitivity", type=float, default=None,
+        help=hidden)
+    group.add_argument("--ps-index-strength", choices=sorted(_INDEX_STRENGTH_PRESETS), default=None,
+        help=hidden)
+    group.add_argument("--ps-trend-weight", type=float, default=None,
+        dest="ps_trend_score_weight", help=hidden)
+    group.add_argument("--ps-momentum-weight", type=float, default=None,
+        dest="ps_momentum_score_weight", help=hidden)
+    group.add_argument("--ps-event-weight", type=float, default=None,
+        dest="ps_event_score_weight", help=hidden)
+    group.add_argument("--ps-risk-weight", type=float, default=None,
+        dest="ps_risk_score_weight", help=hidden)
+    group.add_argument("--ps-strong-floor", type=float, default=None,
+        dest="ps_strong_uptrend_floor", help=hidden)
+    group.add_argument("--ps-strong-cap", type=float, default=None,
+        dest="ps_strong_uptrend_cap", help=hidden)
+    group.add_argument("--ps-weak-floor", type=float, default=None,
+        dest="ps_weak_uptrend_floor", help=hidden)
+    group.add_argument("--ps-weak-cap", type=float, default=None,
+        dest="ps_weak_uptrend_cap", help=hidden)
+    group.add_argument("--ps-range-cap", type=float, default=None,
+        dest="ps_range_cap", help=hidden)
+    group.add_argument("--ps-event-cap", type=float, default=None,
+        dest="ps_event_driven_cap", help=hidden)
+    group.add_argument("--ps-min-trade-weight", type=float, default=None,
+        dest="ps_min_trade_weight", help=hidden)
+    group.add_argument("--ps-order-size-mult", type=float, default=None,
+        dest="ps_order_size_multiplier", help=hidden)
+    group.add_argument("--ps-recent-phase-lookback", type=int, default=None,
+        dest="ps_recent_phase_lookback", help=hidden)
+    group.add_argument("--ps-hysteresis-confirm", type=int, default=None,
+        dest="ps_hysteresis_confirmation_count", help=hidden)
+    group.add_argument("--ps-overextended-atr", type=float, default=None,
+        dest="ps_overextended_sma20_atr_threshold", help=hidden)
+    group.add_argument("--ps-stop-atr", type=float, default=None,
+        dest="ps_stop_loss_atr_multiple", help=hidden)
+    group.add_argument("--ps-trend-tp-atr", type=float, default=None,
+        dest="ps_trend_take_profit_atr_multiple", help=hidden)
+    group.add_argument("--ps-default-tp-atr", type=float, default=None,
+        dest="ps_default_take_profit_atr_multiple", help=hidden)
+    group.add_argument("--ps-trend-tp-high-mult", type=float, default=None,
+        dest="ps_trend_take_profit_recent_high_multiplier", help=hidden)
+    group.add_argument("--ps-default-add-max", type=float, default=None,
+        dest="ps_default_add_max_pct", help=hidden)
+    group.add_argument("--ps-pullback-add-max", type=float, default=None,
+        dest="ps_pullback_entry_add_max_pct", help=hidden)
+    group.add_argument("--ps-bearish-div-reduce", type=float, default=None,
+        dest="ps_bearish_divergence_reduce_pct", help=hidden)
+    group.add_argument("--ps-soft-volume-mult", type=float, default=None,
+        dest="ps_volume_soft", help=hidden)
+    group.add_argument("--ps-shrinking-volume-mult", type=float, default=None,
+        dest="ps_volume_shrinking", help=hidden)
+    group.add_argument("--ps-unavailable-volume-mult", type=float, default=None,
+        dest="ps_volume_unavailable", help=hidden)
     group.add_argument("--ps-disable-index-context", action="store_true",
-        dest="ps_disable_market_context", help="关闭指数 bullish/bearish 上下文，只使用个股状态。",)
-    group.add_argument("--ps-index-bear-mult", type=float, default=0.50,
-        dest="ps_market_context_bearish_weight_multiplier", help="指数 bearish 时目标仓位折扣。默认 0.50。",)
-    group.add_argument("--ps-index-bull-mult", type=float, default=1.10,
-        dest="ps_market_context_bullish_weight_multiplier", help="指数 bullish 且个股 bullish 时目标仓位放大。默认 1.10。",)
+        dest="ps_disable_market_context", help=hidden)
+    group.add_argument("--ps-index-bear-mult", type=float, default=None,
+        dest="ps_market_context_bearish_weight_multiplier", help=hidden)
+    group.add_argument("--ps-index-bull-mult", type=float, default=None,
+        dest="ps_market_context_bullish_weight_multiplier", help=hidden)
 
 
 def portfolio_state_policy_config_from_args(args) -> dict[str, Any]:
     """Build a sparse portfolio_state_policy config dict from argparse args."""
-    mapping = {
+    config: dict[str, Any] = {}
+    profile = getattr(args, "ps_profile", None)
+    trade_frequency = getattr(args, "ps_trade_frequency", "normal")
+    index_strength = getattr(args, "ps_index_strength", None)
+
+    if profile:
+        config.update(_PROFILE_PRESETS[profile])
+    config.update(_TRADE_FREQUENCY_PRESETS[trade_frequency])
+    if index_strength:
+        config.update(_INDEX_STRENGTH_PRESETS[index_strength])
+
+    sensitivity = getattr(args, "ps_signal_sensitivity", None)
+    if sensitivity is not None:
+        if sensitivity <= 0:
+            raise ValueError("--ps-signal-sensitivity must be > 0")
+        defaults = asdict(PortfolioStatePolicyConfig())
+        for key in (
+            "trend_score_weight",
+            "momentum_score_weight",
+            "event_score_weight",
+            "risk_score_weight",
+        ):
+            base = float(config.get(key, defaults[key]))
+            config[key] = base * sensitivity
+
+    market_context_ticker = getattr(args, "ps_market_context_ticker", None)
+    if market_context_ticker is not None:
+        config["market_context_ticker"] = market_context_ticker
+
+    max_target_weight = getattr(args, "ps_max_target_weight", None)
+    if max_target_weight is not None:
+        config["max_target_weight"] = max_target_weight
+
+    stop_loss_atr_multiple = getattr(args, "ps_stop_loss_atr_multiple", None)
+    if stop_loss_atr_multiple is not None:
+        config["stop_loss_atr_multiple"] = stop_loss_atr_multiple
+
+    add_max_pct = getattr(args, "ps_add_max_pct", None)
+    if add_max_pct is not None:
+        config["default_add_max_pct"] = add_max_pct
+        config["pullback_entry_add_max_pct"] = add_max_pct
+        config["weak_uptrend_soft_volume_add_max_pct"] = add_max_pct
+
+    legacy_mapping = {
         "ps_trend_score_weight": "trend_score_weight",
         "ps_momentum_score_weight": "momentum_score_weight",
         "ps_event_score_weight": "event_score_weight",
@@ -217,15 +341,8 @@ def portfolio_state_policy_config_from_args(args) -> dict[str, Any]:
         "ps_pullback_entry_add_max_pct": "pullback_entry_add_max_pct",
         "ps_bearish_divergence_reduce_pct": "bearish_divergence_reduce_pct",
         "ps_market_context_ticker": "market_context_ticker",
-        "ps_market_context_bearish_weight_multiplier": (
-            "market_context_bearish_weight_multiplier"
-        ),
-        "ps_market_context_bullish_weight_multiplier": (
-            "market_context_bullish_weight_multiplier"
-        ),
     }
-    config: dict[str, Any] = {}
-    for arg_name, config_name in mapping.items():
+    for arg_name, config_name in legacy_mapping.items():
         value = getattr(args, arg_name, None)
         if value is not None:
             config[config_name] = value
@@ -257,7 +374,8 @@ def coerce_portfolio_state_policy_config(
 
     defaults = asdict(PortfolioStatePolicyConfig())
     merged = defaults.copy()
-    merged.update(value)
+    valid_keys = {item.name for item in fields(PortfolioStatePolicyConfig)}
+    merged.update({key: item for key, item in value.items() if key in valid_keys})
     volume_multipliers = defaults["volume_multipliers"].copy()
     volume_multipliers.update(value.get("volume_multipliers") or {})
     merged["volume_multipliers"] = volume_multipliers

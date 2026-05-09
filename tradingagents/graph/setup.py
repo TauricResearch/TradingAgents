@@ -1,5 +1,7 @@
 # TradingAgents/graph/setup.py
 
+from functools import wraps
+from time import perf_counter
 from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
@@ -45,6 +47,39 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
         self.trading_mode = trading_mode
         self.portfolio_state_policy_config = portfolio_state_policy_config
+
+    @staticmethod
+    def _timed_agent_node(node_name: str, node):
+        """Wrap an agent node with visible wall-clock timing logs."""
+
+        @wraps(node)
+        def wrapped(state):
+            ticker = state.get("company_of_interest", "?") if isinstance(state, dict) else "?"
+            trade_date = state.get("trade_date", "?") if isinstance(state, dict) else "?"
+            start = perf_counter()
+            print(
+                f"[agent_timing] START node={node_name} ticker={ticker} trade_date={trade_date}",
+                flush=True,
+            )
+            try:
+                result = node(state)
+            except Exception:
+                elapsed = perf_counter() - start
+                print(
+                    f"[agent_timing] ERROR node={node_name} ticker={ticker} "
+                    f"trade_date={trade_date} elapsed={elapsed:.3f}s",
+                    flush=True,
+                )
+                raise
+            elapsed = perf_counter() - start
+            print(
+                f"[agent_timing] END node={node_name} ticker={ticker} "
+                f"trade_date={trade_date} elapsed={elapsed:.3f}s",
+                flush=True,
+            )
+            return result
+
+        return wrapped
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -126,21 +161,43 @@ class GraphSetup:
 
         # Add analyst nodes to the graph
         for analyst_type, node in analyst_nodes.items():
-            workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
+            node_name = f"{analyst_type.capitalize()} Analyst"
+            workflow.add_node(node_name, self._timed_agent_node(node_name, node))
             workflow.add_node(
                 f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
             )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
-        workflow.add_node("Bull Researcher", bull_researcher_node)
-        workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive Analyst", aggressive_analyst)
-        workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Conservative Analyst", conservative_analyst)
-        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node(
+            "Bull Researcher",
+            self._timed_agent_node("Bull Researcher", bull_researcher_node),
+        )
+        workflow.add_node(
+            "Bear Researcher",
+            self._timed_agent_node("Bear Researcher", bear_researcher_node),
+        )
+        workflow.add_node(
+            "Research Manager",
+            self._timed_agent_node("Research Manager", research_manager_node),
+        )
+        workflow.add_node("Trader", self._timed_agent_node("Trader", trader_node))
+        workflow.add_node(
+            "Aggressive Analyst",
+            self._timed_agent_node("Aggressive Analyst", aggressive_analyst),
+        )
+        workflow.add_node(
+            "Neutral Analyst",
+            self._timed_agent_node("Neutral Analyst", neutral_analyst),
+        )
+        workflow.add_node(
+            "Conservative Analyst",
+            self._timed_agent_node("Conservative Analyst", conservative_analyst),
+        )
+        workflow.add_node(
+            "Portfolio Manager",
+            self._timed_agent_node("Portfolio Manager", portfolio_manager_node),
+        )
 
         # Define edges
         # Start with the first analyst

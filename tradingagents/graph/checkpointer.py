@@ -6,6 +6,7 @@ Per-ticker SQLite databases so concurrent tickers don't contend.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,16 +18,17 @@ from tradingagents.dataflows.utils import safe_ticker_component
 def _sqlite_saver_cls() -> type[Any]:
     """Import the optional SQLite checkpointer only when checkpointing is used."""
     try:
-        from langgraph.checkpoint.sqlite import SqliteSaver
+        module = importlib.import_module("langgraph.checkpoint.sqlite")
     except ModuleNotFoundError as exc:
         if exc.name != "langgraph.checkpoint.sqlite":
             raise
         raise ModuleNotFoundError(
             "SQLite checkpointing requires the optional "
             "'langgraph-checkpoint-sqlite' package. Install project dependencies "
+            "with `pip install langgraph-checkpoint-sqlite` or `uv sync`, "
             "or run without '--checkpoint'."
         ) from exc
-    return SqliteSaver
+    return module.SqliteSaver
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:

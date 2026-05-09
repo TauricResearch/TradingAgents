@@ -115,12 +115,12 @@ class TestDeepSeekReasoningContent:
 
 
 # ---------------------------------------------------------------------------
-# deepseek-reasoner: structured output unavailable, falls through to free-text
+# DeepSeek: structured output unavailable, falls through to free-text
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestDeepSeekReasonerStructuredOutput:
+class TestDeepSeekStructuredOutput:
     def test_with_structured_output_raises_for_reasoner(self):
         client = DeepSeekChatOpenAI(
             model="deepseek-reasoner",
@@ -150,8 +150,8 @@ class TestDeepSeekReasonerStructuredOutput:
         with pytest.raises(NotImplementedError):
             client.with_structured_output(_Sample)
 
-    def test_with_structured_output_works_for_v4(self):
-        """V4 models (non-reasoner) accept tool_choice; structured output works."""
+    def test_with_structured_output_raises_for_v4(self):
+        """V4 flash also falls back because tool_choice support is inconsistent."""
         client = DeepSeekChatOpenAI(
             model="deepseek-v4-flash",
             api_key="placeholder",
@@ -162,10 +162,8 @@ class TestDeepSeekReasonerStructuredOutput:
         class _Sample(BaseModel):
             answer: str
 
-        # Should return a Runnable, not raise. (The actual API call would
-        # require a real key; we only assert binding succeeds.)
-        wrapped = client.with_structured_output(_Sample)
-        assert wrapped is not None
+        with pytest.raises(NotImplementedError):
+            client.with_structured_output(_Sample)
 
 
 # ---------------------------------------------------------------------------

@@ -41,7 +41,7 @@ DATA_DIR = PROJECT_ROOT / "back_test" / "trade_route"
 RESULTS_DIR = PROJECT_ROOT / "back_test" / "results"
 PLOTS_DIR = RESULTS_DIR / "plots"
 METRICS_DIR = RESULTS_DIR / "metrics"
-BENCHMARKS = ["^GSPC"] # "^IXIC"
+BENCHMARKS = ["^GSPC", "^IXIC"] # "^IXIC"
 
 
 def _replace_nonfinite_numbers(value):

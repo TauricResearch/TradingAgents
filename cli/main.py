@@ -1042,6 +1042,18 @@ def _weekly_trading_dates(start: str, end: str, trading_dates) -> list[str]:
     return result
 
 
+def _previous_trading_date(trading_dates, date: str) -> str | None:
+    """Return the last available trading date strictly before `date`."""
+    target = pd.Timestamp(date)
+    prior = [
+        d for d in pd.to_datetime(trading_dates)
+        if d < target
+    ]
+    if not prior:
+        return None
+    return max(prior).strftime("%Y-%m-%d")
+
+
 def _simulate_backtest_holdings(
     ticker: str,
     start: str,
@@ -1180,14 +1192,25 @@ def run_backtest_analysis(selections: dict) -> None:
             console.print(f"  [green]✓[/green] decision=[bold]{decision}[/bold]  saved → {json_path}")
             console.print(f"  [dim]{step_metrics}[/dim]")
             if i < len(dates):
-                simulated_holdings = _simulate_backtest_holdings(
-                    selections["ticker"],
-                    effective_start,
-                    dates[i],
+                next_strategy_date = dates[i]
+                holdings_as_of = _previous_trading_date(
+                    price_data["Date"],
+                    next_strategy_date,
                 )
+                if holdings_as_of is None:
+                    simulated_holdings = selections.get("holdings_info") or {}
+                    simulated_holdings.setdefault("cash", 100_000.0)
+                    simulated_holdings["as_of_date"] = "pre-start"
+                else:
+                    simulated_holdings = _simulate_backtest_holdings(
+                        selections["ticker"],
+                        effective_start,
+                        holdings_as_of,
+                    )
+                as_of_label = simulated_holdings.get("as_of_date") or holdings_as_of or "pre-start"
                 if simulated_holdings.get("quantity", 0.0) > 0:
                     console.print(
-                        "  [dim]simulated holdings for next strategy: "
+                        f"  [dim]simulated holdings before next strategy open ({next_strategy_date}, as of {as_of_label} close): "
                         f"{int(simulated_holdings['quantity'])} shares, "
                         f"avg {simulated_holdings.get('avg_buy_price', 0.0):.2f}, "
                         f"cash {simulated_holdings.get('cash', 0.0):.2f}, "
@@ -1195,7 +1218,7 @@ def run_backtest_analysis(selections: dict) -> None:
                     )
                 else:
                     console.print(
-                        "  [dim]simulated holdings for next strategy: "
+                        f"  [dim]simulated holdings before next strategy open ({next_strategy_date}, as of {as_of_label} close): "
                         f"cash {simulated_holdings.get('cash', 0.0):.2f}, "
                         f"equity {simulated_holdings.get('equity', 0.0):.2f}, "
                         "no open position[/dim]"

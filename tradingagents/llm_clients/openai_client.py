@@ -76,12 +76,10 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
         return chat_result
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
-        if not self._structured_output_supported():
-            raise NotImplementedError(
-                "DeepSeek reasoning/thinking mode does not support tool_choice; "
-                "structured output is unavailable."
-            )
-        return super().with_structured_output(schema, method=method, **kwargs)
+        raise NotImplementedError(
+            "DeepSeek chat-compatible endpoints do not reliably support tool_choice; "
+            "structured output is disabled for DeepSeek."
+        )
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
