@@ -57,8 +57,10 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
     1. **Thinking-mode round-trip.** When DeepSeek's thinking models return
        a response with ``reasoning_content``, that field must be echoed
        back as part of the assistant message on the next turn or the API
-       fails with HTTP 400. ``_create_chat_result`` captures the field on
-       receive and ``_get_request_payload`` re-attaches it on send.
+       fails with HTTP 400. ``_create_chat_result`` captures it on the
+       non-streaming path, ``_convert_chunk_to_generation_chunk`` captures
+       it on the streaming path, and ``_get_request_payload`` re-attaches
+       it on send.
 
     2. **deepseek-reasoner has no tool_choice.** Structured output via
        function-calling is unavailable, so we raise NotImplementedError
@@ -76,6 +78,25 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
             if reasoning is not None:
                 message_dict["reasoning_content"] = reasoning
         return payload
+
+    def _convert_chunk_to_generation_chunk(self, chunk, default_chunk_class, base_generation_info):
+        # langchain-openai's stream path drops ``reasoning_content`` from
+        # deltas (see "are not extracted" in its docstring). We rescue it
+        # into ``additional_kwargs`` so the round-trip on the next turn —
+        # see ``_get_request_payload`` — has it. Chunk aggregation in
+        # langchain-core concatenates string additional_kwargs, yielding a
+        # complete reasoning_content on the final aggregated AIMessage.
+        gen_chunk = super()._convert_chunk_to_generation_chunk(
+            chunk, default_chunk_class, base_generation_info
+        )
+        if gen_chunk is None:
+            return None
+        choices = chunk.get("choices") or chunk.get("chunk", {}).get("choices") or []
+        if choices:
+            reasoning = (choices[0].get("delta") or {}).get("reasoning_content")
+            if reasoning:
+                gen_chunk.message.additional_kwargs["reasoning_content"] = reasoning
+        return gen_chunk
 
     def _create_chat_result(self, response, generation_info=None):
         chat_result = super()._create_chat_result(response, generation_info)
@@ -116,6 +137,7 @@ _PROVIDER_CONFIG = {
     "qwen": ("https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY"),
     "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+    "opencode-go": ("https://opencode.ai/zen/go/v1", "OPENCODE_GO_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
 }
 
@@ -169,9 +191,22 @@ class OpenAIClient(BaseLLMClient):
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
 
+        # OpenCode Go drops the connection on long non-streamed responses
+        # (~3 min idle timeout on the gateway). Streaming keeps the socket
+        # active. Aggregation back to a single AIMessage is transparent.
+        if self.provider == "opencode-go":
+            llm_kwargs.setdefault("streaming", True)
+
         # DeepSeek's thinking-mode quirks live in their own subclass so the
         # base NormalizedChatOpenAI stays free of provider-specific branches.
-        chat_cls = DeepSeekChatOpenAI if self.provider == "deepseek" else NormalizedChatOpenAI
+        # OpenCode Go's gateway proxies DeepSeek backends and inherits the
+        # same reasoning_content round-trip requirement, so it reuses the
+        # same subclass.
+        reasoning_providers = {"deepseek", "opencode-go"}
+        chat_cls = (
+            DeepSeekChatOpenAI if self.provider in reasoning_providers
+            else NormalizedChatOpenAI
+        )
         return chat_cls(**llm_kwargs)
 
     def validate_model(self) -> bool:

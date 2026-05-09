@@ -101,6 +101,24 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "opencode-go": {
+        "quick": [
+            ("DeepSeek V4 Flash via OpenCode Go", "deepseek-v4-flash"),
+            ("Kimi K2.5 via OpenCode Go", "kimi-k2.5"),
+            ("GLM-5 via OpenCode Go", "glm-5"),
+            ("Qwen 3.5 Plus via OpenCode Go", "qwen3.5-plus"),
+            ("MiniMax M2.5 via OpenCode Go", "minimax-m2.5"),
+            ("MiMo V2.5 via OpenCode Go", "mimo-v2.5"),
+        ],
+        "deep": [
+            ("DeepSeek V4 Pro via OpenCode Go", "deepseek-v4-pro"),
+            ("Kimi K2.6 via OpenCode Go", "kimi-k2.6"),
+            ("GLM-5.1 via OpenCode Go", "glm-5.1"),
+            ("Qwen 3.6 Plus via OpenCode Go", "qwen3.6-plus"),
+            ("MiniMax M2.7 via OpenCode Go", "minimax-m2.7"),
+            ("MiMo V2.5 Pro via OpenCode Go", "mimo-v2.5-pro"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [
