@@ -28,7 +28,10 @@ interface CurrentRegistryEntry {
 
 function loadCurrentRegistry(): CurrentRegistryEntry[] {
   const raw = readFileSync("playbooks/REGISTRY.jsonl", "utf-8")
-  return raw.trim().split("\n").map((line) => JSON.parse(line))
+  return raw
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
 }
 
 // ── Analyze current registry ───────────────────────────────────────────────
