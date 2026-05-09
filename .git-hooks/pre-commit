@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Scans staged changes for secrets via gitleaks before each commit.
+# Install: bash scripts/install_git_hooks.sh
+set -euo pipefail
+
+if ! command -v gitleaks &>/dev/null; then
+  echo "WARNING: gitleaks not found in PATH — secrets scan skipped."
+  echo "  Install gitleaks: https://github.com/gitleaks/gitleaks#installing"
+  echo "  Or run the full scan manually: bash scripts/secrets_scan_local.sh"
+  exit 0
+fi
+
+gitleaks protect --staged --log-level warn
