@@ -10,9 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import yfinance as yf
 from langgraph.prebuilt import ToolNode
 
-logger = logging.getLogger(__name__)
-
-# Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
     get_cashflow,
@@ -36,6 +33,8 @@ from .propagation import Propagator
 from .reflection import Reflector
 from .setup import GraphSetup
 from .signal_processing import SignalProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class TradingAgentsGraph:
@@ -89,7 +88,7 @@ class TradingAgentsGraph:
 
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
-        
+
         self.memory_log = TradingMemoryLog(self.config)
 
         # Create tool nodes
@@ -200,20 +199,16 @@ class TradingAgentsGraph:
                 return None, None, None
 
             actual_days = min(holding_days, len(stock) - 1, len(spy) - 1)
-            raw = float(
-                (stock["Close"].iloc[actual_days] - stock["Close"].iloc[0])
-                / stock["Close"].iloc[0]
-            )
-            spy_ret = float(
-                (spy["Close"].iloc[actual_days] - spy["Close"].iloc[0])
-                / spy["Close"].iloc[0]
-            )
+            raw = float((stock["Close"].iloc[actual_days] - stock["Close"].iloc[0]) / stock["Close"].iloc[0])
+            spy_ret = float((spy["Close"].iloc[actual_days] - spy["Close"].iloc[0]) / spy["Close"].iloc[0])
             alpha = raw - spy_ret
             return raw, alpha, actual_days
         except Exception as e:
             logger.warning(
                 "Could not resolve outcome for %s on %s (will retry next run): %s",
-                ticker, trade_date, e,
+                ticker,
+                trade_date,
+                e,
             )
             return None, None, None
 
@@ -241,14 +236,16 @@ class TradingAgentsGraph:
                 raw_return=raw,
                 alpha_return=alpha,
             )
-            updates.append({
-                "ticker": ticker,
-                "trade_date": entry["date"],
-                "raw_return": raw,
-                "alpha_return": alpha,
-                "holding_days": days,
-                "reflection": reflection,
-            })
+            updates.append(
+                {
+                    "ticker": ticker,
+                    "trade_date": entry["date"],
+                    "raw_return": raw,
+                    "alpha_return": alpha,
+                    "holding_days": days,
+                    "reflection": reflection,
+                }
+            )
 
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
@@ -267,19 +264,13 @@ class TradingAgentsGraph:
 
         # Recompile with a checkpointer if the user opted in.
         if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
-            )
+            self._checkpointer_ctx = get_checkpointer(self.config["data_cache_dir"], company_name)
             saver = self._checkpointer_ctx.__enter__()
             self.graph = self.workflow.compile(checkpointer=saver)
 
-            step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date)
-            )
+            step = checkpoint_step(self.config["data_cache_dir"], company_name, str(trade_date))
             if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
+                logger.info("Resuming from step %d for %s on %s", step, company_name, trade_date)
             else:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
@@ -295,9 +286,7 @@ class TradingAgentsGraph:
         """Execute the graph and write the resulting state to disk and memory log."""
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
-        init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date, past_context=past_context
-        )
+        init_agent_state = self.propagator.create_initial_state(company_name, trade_date, past_context=past_context)
         args = self.propagator.get_graph_args()
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
@@ -332,9 +321,7 @@ class TradingAgentsGraph:
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
-            clear_checkpoint(
-                self.config["data_cache_dir"], company_name, str(trade_date)
-            )
+            clear_checkpoint(self.config["data_cache_dir"], company_name, str(trade_date))
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
@@ -351,12 +338,8 @@ class TradingAgentsGraph:
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
                 "history": final_state["investment_debate_state"]["history"],
-                "current_response": final_state["investment_debate_state"][
-                    "current_response"
-                ],
-                "judge_decision": final_state["investment_debate_state"][
-                    "judge_decision"
-                ],
+                "current_response": final_state["investment_debate_state"]["current_response"],
+                "judge_decision": final_state["investment_debate_state"]["judge_decision"],
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
             "risk_debate_state": {

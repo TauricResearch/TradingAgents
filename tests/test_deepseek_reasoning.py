@@ -22,7 +22,6 @@ from tradingagents.llm_clients.openai_client import (
     _input_to_messages,
 )
 
-
 # ---------------------------------------------------------------------------
 # _input_to_messages — the helper that handles list / ChatPromptValue / other
 # (Gemini bot review note: non-list inputs must also work)
@@ -164,6 +163,5 @@ class TestBaseClassIsolation:
         """The general-purpose NormalizedChatOpenAI must not carry
         DeepSeek-specific behaviour. Only the subclass does."""
         assert not hasattr(NormalizedChatOpenAI, "_get_request_payload") or (
-            NormalizedChatOpenAI._get_request_payload
-            is NormalizedChatOpenAI.__bases__[0]._get_request_payload
+            NormalizedChatOpenAI._get_request_payload is NormalizedChatOpenAI.__bases__[0]._get_request_payload
         )

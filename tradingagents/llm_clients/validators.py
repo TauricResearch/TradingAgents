@@ -2,15 +2,12 @@
 
 from .model_catalog import get_known_models
 
-
 # Providers where any model name is accepted (local runtimes with
 # user-pulled models, dynamic catalogs, etc.).
 _PERMISSIVE_PROVIDERS = ("ollama", "openrouter", "mlx")
 
 VALID_MODELS = {
-    provider: models
-    for provider, models in get_known_models().items()
-    if provider not in _PERMISSIVE_PROVIDERS
+    provider: models for provider, models in get_known_models().items() if provider not in _PERMISSIVE_PROVIDERS
 }
 
 

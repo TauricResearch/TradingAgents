@@ -20,17 +20,13 @@ from rich.table import Table
 from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
-from cli.models import AnalystType
 from cli.stats_handler import StatsCallbackHandler
 from cli.utils import (
-    ANALYST_ORDER,
     ask_anthropic_effort,
     ask_gemini_thinking_config,
     ask_openai_reasoning_effort,
     ask_output_language,
     default_backend_url_for_provider,
-    get_analysis_date,
-    get_ticker,
     normalize_ticker_symbol,
     parse_analysts_flag,
     parse_research_depth_flag,
@@ -186,7 +182,7 @@ class MessageBuffer:
             if content is not None:
                 latest_section = section
                 latest_content = content
-               
+
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
@@ -198,9 +194,7 @@ class MessageBuffer:
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
             }
-            self.current_report = (
-                f"### {section_titles[latest_section]}\n{latest_content}"
-            )
+            self.current_report = f"### {section_titles[latest_section]}\n{latest_content}"
 
         # Update the final complete report
         self._update_final_report()
@@ -213,21 +207,13 @@ class MessageBuffer:
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
-                report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
-                )
+                report_parts.append(f"### Market Analysis\n{self.report_sections['market_report']}")
             if self.report_sections.get("sentiment_report"):
-                report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
-                )
+                report_parts.append(f"### Social Sentiment\n{self.report_sections['sentiment_report']}")
             if self.report_sections.get("news_report"):
-                report_parts.append(
-                    f"### News Analysis\n{self.report_sections['news_report']}"
-                )
+                report_parts.append(f"### News Analysis\n{self.report_sections['news_report']}")
             if self.report_sections.get("fundamentals_report"):
-                report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
-                )
+                report_parts.append(f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}")
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
@@ -257,19 +243,15 @@ def create_layout():
         Layout(name="main"),
         Layout(name="footer", size=3),
     )
-    layout["main"].split_column(
-        Layout(name="upper", ratio=3), Layout(name="analysis", ratio=5)
-    )
-    layout["upper"].split_row(
-        Layout(name="progress", ratio=2), Layout(name="messages", ratio=3)
-    )
+    layout["main"].split_column(Layout(name="upper", ratio=3), Layout(name="analysis", ratio=5))
+    layout["upper"].split_row(Layout(name="progress", ratio=2), Layout(name="messages", ratio=3))
     return layout
 
 
 def format_tokens(n):
     """Format token count for display."""
     if n >= 1000:
-        return f"{n/1000:.1f}k"
+        return f"{n / 1000:.1f}k"
     return str(n)
 
 
@@ -326,9 +308,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         first_agent = agents[0]
         status = message_buffer.agent_status.get(first_agent, "pending")
         if status == "in_progress":
-            spinner = Spinner(
-                "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-            )
+            spinner = Spinner("dots", text="[blue]in_progress[/blue]", style="bold cyan")
             status_cell = spinner
         else:
             status_color = {
@@ -343,9 +323,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         for agent in agents[1:]:
             status = message_buffer.agent_status.get(agent, "pending")
             if status == "in_progress":
-                spinner = Spinner(
-                    "dots", text="[blue]in_progress[/blue]", style="bold cyan"
-                )
+                spinner = Spinner("dots", text="[blue]in_progress[/blue]", style="bold cyan")
                 status_cell = spinner
             else:
                 status_color = {
@@ -359,9 +337,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         # Add horizontal line after each team
         progress_table.add_row("─" * 20, "─" * 20, "─" * 20, style="dim")
 
-    layout["progress"].update(
-        Panel(progress_table, title="Progress", border_style="cyan", padding=(1, 2))
-    )
+    layout["progress"].update(Panel(progress_table, title="Progress", border_style="cyan", padding=(1, 2)))
 
     # Messages panel showing recent messages and tool calls
     messages_table = Table(
@@ -375,9 +351,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     )
     messages_table.add_column("Time", style="cyan", width=8, justify="center")
     messages_table.add_column("Type", style="green", width=10, justify="center")
-    messages_table.add_column(
-        "Content", style="white", no_wrap=False, ratio=1
-    )  # Make content column expand
+    messages_table.add_column("Content", style="white", no_wrap=False, ratio=1)  # Make content column expand
 
     # Combine tool calls and messages
     all_messages = []
@@ -440,9 +414,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 
     # Footer with statistics
     # Agent progress - derived from agent_status dict
-    agents_completed = sum(
-        1 for status in message_buffer.agent_status.values() if status == "completed"
-    )
+    agents_completed = sum(1 for status in message_buffer.agent_status.values() if status == "completed")
     agents_total = len(message_buffer.agent_status)
 
     # Report progress - based on agent completion (not just content existence)
@@ -493,9 +465,7 @@ def get_user_selections():
     welcome_content += (
         "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
     )
-    welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
-    )
+    welcome_content += "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
 
     # Create and center the welcome box
     welcome_box = Panel(
@@ -545,48 +515,27 @@ def get_user_selections():
 
     # Step 3: Output language
     console.print(
-        create_question_box(
-            "Step 3: Output Language",
-            "Select the language for analyst reports and final decision"
-        )
+        create_question_box("Step 3: Output Language", "Select the language for analyst reports and final decision")
     )
     output_language = ask_output_language()
 
     # Step 4: Select analysts
-    console.print(
-        create_question_box(
-            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
-        )
-    )
+    console.print(create_question_box("Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"))
     selected_analysts = select_analysts()
-    console.print(
-        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
-    )
+    console.print(f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}")
 
     # Step 5: Research depth
-    console.print(
-        create_question_box(
-            "Step 5: Research Depth", "Select your research depth level"
-        )
-    )
+    console.print(create_question_box("Step 5: Research Depth", "Select your research depth level"))
     selected_research_depth = select_research_depth()
 
     # Step 6: LLM Provider
-    console.print(
-        create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
-        )
-    )
+    console.print(create_question_box("Step 6: LLM Provider", "Select your LLM provider"))
     selected_llm_provider, backend_url = select_llm_provider()
     if selected_llm_provider.lower() == "mlx":
         print_mlx_setup_reminder(backend_url)
 
     # Step 7: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
-        )
-    )
+    console.print(create_question_box("Step 7: Thinking Agents", "Select your thinking agents for analysis"))
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
     if selected_llm_provider.lower() == "mlx":
@@ -599,28 +548,13 @@ def get_user_selections():
 
     provider_lower = selected_llm_provider.lower()
     if provider_lower == "google":
-        console.print(
-            create_question_box(
-                "Step 8: Thinking Mode",
-                "Configure Gemini thinking mode"
-            )
-        )
+        console.print(create_question_box("Step 8: Thinking Mode", "Configure Gemini thinking mode"))
         thinking_level = ask_gemini_thinking_config()
     elif provider_lower == "openai":
-        console.print(
-            create_question_box(
-                "Step 8: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
-            )
-        )
+        console.print(create_question_box("Step 8: Reasoning Effort", "Configure OpenAI reasoning effort level"))
         reasoning_effort = ask_openai_reasoning_effort()
     elif provider_lower == "anthropic":
-        console.print(
-            create_question_box(
-                "Step 8: Effort Level",
-                "Configure Claude effort level"
-            )
-        )
+        console.print(create_question_box("Step 8: Effort Level", "Configure Claude effort level"))
         anthropic_effort = ask_anthropic_effort()
 
     if provider_lower == "mlx":
@@ -650,9 +584,7 @@ def get_ticker():
 def get_analysis_date():
     """Get the analysis date from user input."""
     while True:
-        date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
-        )
+        date_str = typer.prompt("", default=datetime.datetime.now().strftime("%Y-%m-%d"))
         try:
             # Validate date format and ensure it's not in the future
             analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
@@ -661,9 +593,7 @@ def get_analysis_date():
                 continue
             return date_str
         except ValueError:
-            console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
-            )
+            console.print("[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]")
 
 
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
@@ -751,7 +681,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
     # Write consolidated report
-    generated = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    generated = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {generated}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"
@@ -795,10 +725,14 @@ def display_complete_report(final_state):
     # III. Trading Team
     if final_state.get("trader_investment_plan"):
         console.print(Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow"))
-        console.print(Panel(
-            Markdown(final_state["trader_investment_plan"]),
-            title="Trader", border_style="blue", padding=(1, 2),
-        ))
+        console.print(
+            Panel(
+                Markdown(final_state["trader_investment_plan"]),
+                title="Trader",
+                border_style="blue",
+                padding=(1, 2),
+            )
+        )
 
     # IV. Risk Management Team
     if final_state.get("risk_debate_state"):
@@ -818,10 +752,14 @@ def display_complete_report(final_state):
         # V. Portfolio Manager Decision
         if risk.get("judge_decision"):
             console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
-            console.print(Panel(
-                Markdown(risk["judge_decision"]),
-                title="Portfolio Manager", border_style="blue", padding=(1, 2),
-            ))
+            console.print(
+                Panel(
+                    Markdown(risk["judge_decision"]),
+                    title="Portfolio Manager",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+            )
 
 
 def update_research_team_status(status):
@@ -888,6 +826,7 @@ def update_analyst_statuses(message_buffer, chunk):
         if message_buffer.agent_status.get("Bull Researcher") == "pending":
             message_buffer.update_agent_status("Bull Researcher", "in_progress")
 
+
 def extract_content_string(content):
     """Extract string content from various message formats.
     Returns None if no meaningful text content is found.
@@ -896,7 +835,7 @@ def extract_content_string(content):
 
     def is_empty(val):
         """Check if value is empty using Python's truthiness."""
-        if val is None or val == '':
+        if val is None or val == "":
             return True
         if isinstance(val, str):
             s = val.strip()
@@ -915,16 +854,17 @@ def extract_content_string(content):
         return content.strip()
 
     if isinstance(content, dict):
-        text = content.get('text', '')
+        text = content.get("text", "")
         return text.strip() if not is_empty(text) else None
 
     if isinstance(content, list):
         text_parts = [
-            item.get('text', '').strip() if isinstance(item, dict) and item.get('type') == 'text'
-            else (item.strip() if isinstance(item, str) else '')
+            item.get("text", "").strip()
+            if isinstance(item, dict) and item.get("type") == "text"
+            else (item.strip() if isinstance(item, str) else "")
             for item in content
         ]
-        result = ' '.join(t for t in text_parts if t and not is_empty(t))
+        result = " ".join(t for t in text_parts if t and not is_empty(t))
         return result if result else None
 
     return str(content).strip() if not is_empty(content) else None
@@ -939,7 +879,7 @@ def classify_message_type(message) -> tuple[str, str | None]:
     """
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-    content = extract_content_string(getattr(message, 'content', None))
+    content = extract_content_string(getattr(message, "content", None))
 
     if isinstance(message, HumanMessage):
         if content and content.strip() == "Continue":
@@ -960,7 +900,7 @@ def format_tool_args(args, max_length=80) -> str:
     """Format tool arguments for terminal display."""
     result = str(args)
     if len(result) > max_length:
-        return result[:max_length - 3] + "..."
+        return result[: max_length - 3] + "..."
     return result
 
 
@@ -994,18 +934,12 @@ def build_cli_selections(
         qm = dm = model.strip()
     else:
         if not quick_model or not deep_model:
-            console.print(
-                "[red]Provide --model, or both --quick-model and --deep-model.[/red]"
-            )
+            console.print("[red]Provide --model, or both --quick-model and --deep-model.[/red]")
             raise typer.Exit(1)
         qm = quick_model.strip()
         dm = deep_model.strip()
 
-    backend = (
-        backend_url.strip()
-        if backend_url and backend_url.strip()
-        else default_backend_url_for_provider(prov)
-    )
+    backend = backend_url.strip() if backend_url and backend_url.strip() else default_backend_url_for_provider(prov)
 
     g_think = None
     o_effort = None
@@ -1013,25 +947,19 @@ def build_cli_selections(
     if prov == "google":
         g = (google_thinking_level or "high").strip().lower()
         if g not in ("high", "minimal"):
-            console.print(
-                "[red]--google-thinking must be 'high' or 'minimal'.[/red]"
-            )
+            console.print("[red]--google-thinking must be 'high' or 'minimal'.[/red]")
             raise typer.Exit(1)
         g_think = g
     elif prov == "openai":
         o = (openai_reasoning_effort or "medium").strip().lower()
         if o not in ("low", "medium", "high"):
-            console.print(
-                "[red]--openai-reasoning must be 'low', 'medium', or 'high'.[/red]"
-            )
+            console.print("[red]--openai-reasoning must be 'low', 'medium', or 'high'.[/red]")
             raise typer.Exit(1)
         o_effort = o
     elif prov == "anthropic":
         a = (anthropic_effort or "high").strip().lower()
         if a not in ("low", "medium", "high"):
-            console.print(
-                "[red]--anthropic-effort must be 'low', 'medium', or 'high'.[/red]"
-            )
+            console.print("[red]--anthropic-effort must be 'low', 'medium', or 'high'.[/red]")
             raise typer.Exit(1)
         a_effort = a
 
@@ -1109,6 +1037,7 @@ def run_analysis(
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -1116,10 +1045,12 @@ def run_analysis(
             content = content.replace("\n", " ")  # Replace newlines with spaces
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
+
         return wrapper
-    
+
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -1127,10 +1058,12 @@ def run_analysis(
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+
         return wrapper
 
     def save_report_section_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(section_name, content):
             func(section_name, content)
@@ -1141,6 +1074,7 @@ def run_analysis(
                     text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
                     with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(text)
+
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
@@ -1156,9 +1090,7 @@ def run_analysis(
 
         # Add initial messages
         message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
-        message_buffer.add_message(
-            "System", f"Analysis date: {selections['analysis_date']}"
-        )
+        message_buffer.add_message("System", f"Analysis date: {selections['analysis_date']}")
         message_buffer.add_message(
             "System",
             f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
@@ -1171,15 +1103,11 @@ def run_analysis(
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Create spinner text
-        spinner_text = (
-            f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
-        )
+        spinner_text = f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
         # Initialize state and get graph args with callbacks
-        init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"], selections["analysis_date"]
-        )
+        init_agent_state = graph.propagator.create_initial_state(selections["ticker"], selections["analysis_date"])
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
         args = graph.propagator.get_graph_args(callbacks=[stats_handler])
@@ -1228,17 +1156,13 @@ def run_analysis(
                         "investment_plan", f"### Bear Researcher Analysis\n{bear_hist}"
                     )
                 if judge:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### Research Manager Decision\n{judge}"
-                    )
+                    message_buffer.update_report_section("investment_plan", f"### Research Manager Decision\n{judge}")
                     update_research_team_status("completed")
                     message_buffer.update_agent_status("Trader", "in_progress")
 
             # Trading Team
             if chunk.get("trader_investment_plan"):
-                message_buffer.update_report_section(
-                    "trader_investment_plan", chunk["trader_investment_plan"]
-                )
+                message_buffer.update_report_section("trader_investment_plan", chunk["trader_investment_plan"])
                 if message_buffer.agent_status.get("Trader") != "completed":
                     message_buffer.update_agent_status("Trader", "completed")
                     message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
@@ -1291,9 +1215,7 @@ def run_analysis(
         for agent in message_buffer.agent_status:
             message_buffer.update_agent_status(agent, "completed")
 
-        message_buffer.add_message(
-            "System", f"Completed analysis for {selections['analysis_date']}"
-        )
+        message_buffer.add_message("System", f"Completed analysis for {selections['analysis_date']}")
 
         # Update final report sections
         for section in message_buffer.report_sections.keys():
@@ -1304,10 +1226,7 @@ def run_analysis(
 
     if non_interactive:
         rdir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
-        console.print(
-            f"\n[bold cyan]Analysis complete.[/bold cyan] "
-            f"Artifacts: [dim]{rdir.resolve()}[/dim]"
-        )
+        console.print(f"\n[bold cyan]Analysis complete.[/bold cyan] Artifacts: [dim]{rdir.resolve()}[/dim]")
         return
 
     # Post-analysis prompts (outside Live context for clean interaction)
@@ -1318,10 +1237,7 @@ def run_analysis(
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
+        save_path_str = typer.prompt("Save path (press Enter for default)", default=str(default_path)).strip()
         save_path = Path(save_path_str)
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
@@ -1353,7 +1269,10 @@ def analyze(
         "--yes",
         "-y",
         "--non-interactive",
-        help="Skip the wizard; requires --ticker, --date, --analysts, --depth, --provider, and --model (or --quick-model + --deep-model).",
+        help=(
+            "Skip the wizard; requires --ticker, --date, --analysts, --depth, "
+            "--provider, and --model (or --quick-model + --deep-model)."
+        ),
     ),
     ticker: Optional[str] = typer.Option(
         None,
@@ -1470,11 +1389,7 @@ def analyze(
         if not model and (not quick_model or not deep_model):
             missing.append("--model (or --quick-model and --deep-model)")
         if missing:
-            console.print(
-                "[red]Non-interactive mode requires: "
-                + ", ".join(missing)
-                + "[/red]"
-            )
+            console.print("[red]Non-interactive mode requires: " + ", ".join(missing) + "[/red]")
             raise typer.Exit(1)
         cli_selections = build_cli_selections(
             ticker=ticker,

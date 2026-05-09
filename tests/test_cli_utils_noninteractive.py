@@ -18,16 +18,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # parse_research_depth_flag
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestParseResearchDepthFlag(unittest.TestCase):
-
     def _parse(self, value):
         from cli.utils import parse_research_depth_flag
+
         return parse_research_depth_flag(value)
 
     def test_shallow_returns_1(self):
@@ -68,20 +68,23 @@ class TestParseResearchDepthFlag(unittest.TestCase):
 # parse_analysts_flag
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestParseAnalystsFlag(unittest.TestCase):
-
     def _parse(self, value):
         from cli.utils import parse_analysts_flag
+
         return parse_analysts_flag(value)
 
     def test_single_analyst(self):
         from cli.models import AnalystType
+
         result = self._parse("market")
         self.assertEqual(result, [AnalystType.MARKET])
 
     def test_all_four_analysts(self):
         from cli.models import AnalystType
+
         result = self._parse("market,social,news,fundamentals")
         self.assertEqual(len(result), 4)
         self.assertIn(AnalystType.MARKET, result)
@@ -89,12 +92,14 @@ class TestParseAnalystsFlag(unittest.TestCase):
 
     def test_whitespace_around_commas(self):
         from cli.models import AnalystType
+
         result = self._parse(" market , news ")
         self.assertIn(AnalystType.MARKET, result)
         self.assertIn(AnalystType.NEWS, result)
 
     def test_case_insensitive(self):
         from cli.models import AnalystType
+
         result = self._parse("MARKET")
         self.assertEqual(result, [AnalystType.MARKET])
 
@@ -115,11 +120,12 @@ class TestParseAnalystsFlag(unittest.TestCase):
 # validate_analysis_date_cli
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestValidateAnalysisDateCli(unittest.TestCase):
-
     def _validate(self, value):
         from cli.utils import validate_analysis_date_cli
+
         return validate_analysis_date_cli(value)
 
     def test_valid_past_date(self):
@@ -153,29 +159,34 @@ class TestValidateAnalysisDateCli(unittest.TestCase):
 # default_backend_url_for_provider
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestDefaultBackendUrl(unittest.TestCase):
-
     def test_mlx_returns_localhost_8000(self):
         from cli.utils import default_backend_url_for_provider
+
         url = default_backend_url_for_provider("mlx")
         self.assertIn("localhost:8000", url)
 
     def test_ollama_returns_localhost_11434(self):
         from cli.utils import default_backend_url_for_provider
+
         url = default_backend_url_for_provider("ollama")
         self.assertIn("11434", url)
 
     def test_google_returns_none(self):
         from cli.utils import default_backend_url_for_provider
+
         self.assertIsNone(default_backend_url_for_provider("google"))
 
     def test_unknown_provider_returns_none(self):
         from cli.utils import default_backend_url_for_provider
+
         self.assertIsNone(default_backend_url_for_provider("unknown_provider_xyz"))
 
     def test_case_insensitive(self):
         from cli.utils import default_backend_url_for_provider
+
         self.assertEqual(
             default_backend_url_for_provider("MLX"),
             default_backend_url_for_provider("mlx"),
@@ -186,15 +197,15 @@ class TestDefaultBackendUrl(unittest.TestCase):
 # verify_mlx_server_reachable
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestVerifyMlxServerReachable(unittest.TestCase):
-
     def _call(self, url="http://localhost:8000/v1"):
         from cli.utils import verify_mlx_server_reachable
+
         return verify_mlx_server_reachable(url)
 
     def test_connection_refused_calls_exit(self):
-        import socket
         with patch("socket.create_connection", side_effect=OSError("refused")):
             with self.assertRaises(SystemExit):
                 self._call()
@@ -238,7 +249,6 @@ class TestVerifyMlxServerReachable(unittest.TestCase):
 
     def test_none_url_uses_default_port(self):
         """None backend_url should fall back to localhost:8000 (not raise)."""
-        import socket as _socket
         calls = []
 
         def record_connect(address, timeout=None):
@@ -259,9 +269,9 @@ class TestVerifyMlxServerReachable(unittest.TestCase):
 # warn_mlx_quick_deep_mismatch
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestWarnMlxQuickDeepMismatch(unittest.TestCase):
-
     def test_same_model_prints_nothing(self):
         from cli.utils import warn_mlx_quick_deep_mismatch
 
@@ -281,9 +291,9 @@ class TestWarnMlxQuickDeepMismatch(unittest.TestCase):
 # _scan_hf_cache_mlx_models
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 class TestScanHfCacheMlxModels(unittest.TestCase):
-
     def test_missing_cache_returns_empty(self):
         from cli.utils import _scan_hf_cache_mlx_models
 

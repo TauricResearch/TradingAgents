@@ -1,5 +1,3 @@
-
-
 def create_bull_researcher(llm):
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]

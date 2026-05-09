@@ -14,8 +14,11 @@ def normalize_content(response):
     content = response.content
     if isinstance(content, list):
         texts = [
-            item.get("text", "") if isinstance(item, dict) and item.get("type") == "text"
-            else item if isinstance(item, str) else ""
+            item.get("text", "")
+            if isinstance(item, dict) and item.get("type") == "text"
+            else item
+            if isinstance(item, str)
+            else ""
             for item in content
         ]
         response.content = "\n".join(t for t in texts if t)

@@ -21,7 +21,6 @@ added, plus the heuristic SignalProcessor.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
@@ -29,7 +28,6 @@ from tradingagents.agents.managers.research_manager import create_research_manag
 from tradingagents.agents.trader.trader import create_trader
 from tradingagents.graph.signal_processing import SignalProcessor
 from tradingagents.llm_clients import create_llm_client
-
 
 PROVIDER_DEFAULTS = {
     "openai": ("gpt-5.4-mini", None),
@@ -153,7 +151,7 @@ def main() -> int:
     #    saved reports) keep working.
     checks = [
         ("Research Manager", investment_plan, ["**Recommendation**:"]),
-        ("Trader",           trader_plan,     ["**Action**:", "FINAL TRANSACTION PROPOSAL:"]),
+        ("Trader", trader_plan, ["**Action**:", "FINAL TRANSACTION PROPOSAL:"]),
         ("Portfolio Manager", final_decision, ["**Rating**:", "**Executive Summary**:", "**Investment Thesis**:"]),
     ]
     print("\n" + "=" * 70 + "\nStructure checks\n" + "=" * 70)

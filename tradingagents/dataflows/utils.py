@@ -29,9 +29,7 @@ def safe_ticker_component(value: str, *, max_len: int = 32) -> str:
     if len(value) > max_len:
         raise ValueError(f"ticker exceeds {max_len} chars: {value!r}")
     if not _TICKER_PATH_RE.fullmatch(value):
-        raise ValueError(
-            f"ticker contains characters not allowed in a filesystem path: {value!r}"
-        )
+        raise ValueError(f"ticker contains characters not allowed in a filesystem path: {value!r}")
     # The regex above allows '.', so values like '.', '..', '...' would pass,
     # and as a path component they traverse the parent directory. Reject any
     # value that's only dots.

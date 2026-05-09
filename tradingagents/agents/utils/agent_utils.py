@@ -39,6 +39,7 @@ def get_language_instruction() -> str:
     Internal debate agents stay in English for reasoning quality.
     """
     from tradingagents.dataflows.config import get_config
+
     lang = get_config().get("output_language", "English")
     if lang.strip().lower() == "english":
         return ""
@@ -52,6 +53,7 @@ def build_instrument_context(ticker: str) -> str:
         "Use this exact ticker in every tool call, report, and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
+
 
 def create_msg_delete():
     def delete_messages(state):
@@ -67,6 +69,3 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
-
-        

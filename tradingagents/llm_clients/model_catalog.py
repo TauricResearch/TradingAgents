@@ -159,12 +159,6 @@ def get_model_options(provider: str, mode: str) -> List[ModelOption]:
 def get_known_models() -> Dict[str, List[str]]:
     """Build known model names from the shared CLI catalog."""
     return {
-        provider: sorted(
-            {
-                value
-                for options in mode_options.values()
-                for _, value in options
-            }
-        )
+        provider: sorted({value for options in mode_options.values() for _, value in options})
         for provider, mode_options in MODEL_OPTIONS.items()
     }
