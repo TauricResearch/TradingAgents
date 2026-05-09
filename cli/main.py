@@ -1017,7 +1017,7 @@ def run_analysis(checkpoint: bool = False):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=2,screen=True) as live:
+    with Live(layout, refresh_per_second=2, screen=True) as live:
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
