@@ -22,7 +22,7 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_global_news as get_alpha_vantage_global_news,
 )
-from .alpha_vantage_common import AlphaVantageRateLimitError
+from .alpha_vantage_common import AlphaVantageRateLimitError, AlphaVantageUnsupportedIndicatorError
 
 # Configuration and routing logic
 from .config import get_config
@@ -156,7 +156,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+        except (AlphaVantageRateLimitError, AlphaVantageUnsupportedIndicatorError):
+            continue
 
     raise RuntimeError(f"No available vendor for '{method}'")
