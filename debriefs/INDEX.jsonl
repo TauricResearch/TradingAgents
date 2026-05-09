@@ -23,6 +23,7 @@
 {"file":"debrief-session-2026-05-08-silo-infrastructure.md","date":"2026-05-08","status":"done","summary":"Comprehensive silo infrastructure: unified registry, conceptual lexicon v2 with CTX tag taxonomy, barnacle detection daemon, justfile facade, silo template, CTX lexicon integration","meta":{"epic":"UNIFIED-CLI-001","session":"ses_f5f225"}}
 {"file":"debrief-session-2026-05-08-status.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"debrief-session-2026-05-08-unified-cli-completion.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"debrief-session-2026-05-09-s01-canonicals.md","date":"2026-05-09","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"debrief-settings-and-script-extraction-2026-05-05.md","date":"2026-05-05","status":"done","summary":"Settings centralised: settings.ts + settings.json as single source of truth for all env vars and paths","meta":{"epic":"td-1cb416","adr":null,"session":null}}
 {"file":"debrief-static-assets-oklch-color-2026-05-06.md","date":"2026-05-06","status":"done","summary":"Static assets fix: 404 resolution, oklch color palette conversion, language preference directive","meta":{"epic":null,"adr":null,"session":null}}
 {"file":"debrief-static-scripts-htmx-partials-2026-05-05.md","date":"2026-05-05","status":"done","summary":"Static scripts and HTMX partials: external JS files extracted, type check passes","meta":{"epic":"td-ca0e7c","adr":null,"session":"ses_6119d0"}}
