@@ -34,9 +34,11 @@
 - `td-68d979` [P2] ALERTS-PHASE1: Exit plan alerts from existing YAML plans + SQLite prices (impl: ses_02a5c6)
 - `td-2be009` [P2] BUYLIST: Contingency playbook - watchlist items with fair value targets (impl: ses_02a5c6)
 
+**IN_REVIEW:**
+- `td-2fbfbe` [P2] S01: Create canonicals/ directory and seed with existing canonical playbooks (impl: ses_0dd889)
+
 **Awaiting prioritization:**
 - `td-cc1eb9` [P2] CANONICAL-REGISTRY: Build portable playbook and script registry
-  - S01: Create canonicals/ directory and seed with existing canonical playbooks
   - S02: Build reg-mine.ts — extraction mechanism
   - S03: Build reg-import.ts — import mechanism
   - S04: Build reg-promote.ts — feedback mechanism
