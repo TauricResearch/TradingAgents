@@ -111,7 +111,7 @@ When implementing a brief:
 - If you discover a constraint that changes the design, write an ADR
 - If you adopt a new tool or pattern, write an ADR
 
-See `playbooks/decisions-playbook.md` for the ADR format and process.
+See `./decisions-playbook.md` for the ADR format and process.
 
 ## Review Checklist
 

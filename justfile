@@ -73,13 +73,17 @@ reg-debriefs:
 
 # List canonical playbooks (reusable across projects)
 [group("reg")]
-reg-canonical:
-    bun scripts/reg-list.ts playbooks
+reg-canonicals:
+    bun scripts/reg-list.ts canonicals
 
-# List playbooks that are mining candidates (portable patterns to extract)
+# List project playbooks that are mining candidates (portable patterns to extract)
 [group("reg")]
 reg-mining:
+    @echo "=== Project playbooks ==="
     @jq -r 'select(.mining_candidate == true) | "\(.file) — \(.mining_note)"' playbooks/REGISTRY.jsonl
+    @echo ""
+    @echo "=== Canonicals (already mined) ==="
+    @jq -r 'select(.meta.mining_candidate == true) | "\(.file) — \(.meta.mining_note)"' canonicals/INDEX.jsonl
 
 # List all docs (human-readable)
 [group("reg")]

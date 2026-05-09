@@ -19,7 +19,7 @@ A debrief is a retrospective document created after the completion of a signific
 
 **Critical:** Debriefs are **MANDATORY** for all significant changes per the **Change Management Protocol (CMP)**. A debrief documents what actually happened, not what was planned. It includes verification proof that changes work as intended.
 
-**Reference:** See `playbooks/change-management-protocol.md` for the full Plan → Execute → Verify → Debrief cycle.
+**Reference:** The full Plan → Execute → Verify → Debrief cycle is documented in your project's change-management playbook.
 
 ## Agent Designation & Operating Environment
 
@@ -193,7 +193,7 @@ During implementation, you will make choices between alternatives. These decisio
 - Reference the ADR in the debrief's "Lessons Learned" section
 - The ADR captures the decision; the debrief captures the context in which it was made
 
-See `playbooks/decisions-playbook.md` for the full ADR format and process.
+See `./decisions-playbook.md` for the full ADR format and process.
 
 ## Post-Debrief Checklist
 - [ ] **Archive Brief:** Move the completed brief from `briefs/` to `briefs/archive/` (or use date-prefix naming).

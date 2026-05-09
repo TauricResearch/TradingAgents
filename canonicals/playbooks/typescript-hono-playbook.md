@@ -79,7 +79,7 @@ el.innerHTML = '<table>' + rows.map(...).join('') + '</table>';
 <script dangerouslySetInnerHTML={{ __html: someScript() }} />
 ```
 
-**No exceptions for `<script>` blocks.** If a view needs client-side behaviour, use an external `.js` file. See `playbooks/htmx-playbook.md` → "Client-Side JS: External Files, Not Inline".
+**No exceptions for `<script>` blocks.** If a view needs client-side behaviour, use an external `.js` file. See `./htmx-playbook.md` → "Client-Side JS: External Files, Not Inline".
 
 ---
 

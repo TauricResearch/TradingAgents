@@ -165,4 +165,4 @@ During tidy phase:
 
 - `AGENTS.md` — Experimental tiers
 - `scripts/lab/README.md` — Lab rules
-- `playbooks/justfile-design-playbook.md` — Simplicity rule
+- Just playbook in your project's `playbooks/` directory — Simplicity rule
