@@ -36,6 +36,35 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
         ],
     },
+    # Routes through the local `claude -p` CLI under the user's subscription —
+    # no API key. Aliases (sonnet/opus/haiku) and full IDs are both accepted by
+    # the CLI's --model flag, so both shapes are listed here for validate_model().
+    "claude_code": {
+        "quick": [
+            ("Sonnet (latest) - Best speed/intelligence balance", "sonnet"),
+            ("Haiku (latest) - Fast, near-instant", "haiku"),
+            ("Claude Sonnet 4.6 - Pin to specific version", "claude-sonnet-4-6"),
+            ("Claude Haiku 4.5 - Pin to specific version", "claude-haiku-4-5"),
+        ],
+        "deep": [
+            ("Opus (latest) - Most intelligent", "opus"),
+            ("Sonnet (latest) - Best speed/intelligence balance", "sonnet"),
+            ("Claude Opus 4.6 - Pin to specific version", "claude-opus-4-6"),
+            ("Claude Sonnet 4.6 - Pin to specific version", "claude-sonnet-4-6"),
+        ],
+    },
+    # Google Gemini CLI subprocess provider — routes through `gemini -p`,
+    # auth via the user's `gemini auth` OAuth login.
+    "gemini_cli": {
+        "quick": [
+            ("Gemini 2.5 Flash - Balanced, fast", "gemini-2.5-flash"),
+            ("Gemini 2.5 Flash Lite - Fastest", "gemini-2.5-flash-lite"),
+        ],
+        "deep": [
+            ("Gemini 2.5 Pro - Most capable", "gemini-2.5-pro"),
+            ("Gemini 2.5 Flash - Balanced, fast", "gemini-2.5-flash"),
+        ],
+    },
     "google": {
         "quick": [
             ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
