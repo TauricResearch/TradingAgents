@@ -228,28 +228,29 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
 
+# (display_name, provider_key, base_url)
+LLM_PROVIDERS: list[tuple[str, str, str | None]] = [
+    ("OpenAI", "openai", "https://api.openai.com/v1"),
+    ("Google", "google", None),
+    ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+    ("xAI", "xai", "https://api.x.ai/v1"),
+    ("DeepSeek", "deepseek", "https://api.deepseek.com"),
+    ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+    ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
+    ("OpenCode Go", "opencode-go", "https://opencode.ai/zen/go/v1"),
+    ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+    ("Azure OpenAI", "azure", None),
+    ("Ollama", "ollama", "http://localhost:11434/v1"),
+]
+
+
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
-    # (display_name, provider_key, base_url)
-    PROVIDERS = [
-        ("OpenAI", "openai", "https://api.openai.com/v1"),
-        ("Google", "google", None),
-        ("Anthropic", "anthropic", "https://api.anthropic.com/"),
-        ("xAI", "xai", "https://api.x.ai/v1"),
-        ("DeepSeek", "deepseek", "https://api.deepseek.com"),
-        ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-        ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
-        ("OpenCode Go", "opencode-go", "https://opencode.ai/zen/go/v1"),
-        ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
-        ("Azure OpenAI", "azure", None),
-        ("Ollama", "ollama", "http://localhost:11434/v1"),
-    ]
-
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
             questionary.Choice(display, value=(provider_key, url))
-            for display, provider_key, url in PROVIDERS
+            for display, provider_key, url in LLM_PROVIDERS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(

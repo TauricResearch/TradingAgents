@@ -86,16 +86,8 @@ class OpenCodeGoCatalogTests(unittest.TestCase):
 @pytest.mark.unit
 class OpenCodeGoCLIRegistrationTests(unittest.TestCase):
     def test_cli_providers_list_includes_opencode_go(self):
-        from cli.utils import select_llm_provider
+        from cli.utils import LLM_PROVIDERS
 
-        rows = [
-            row
-            for const in select_llm_provider.__code__.co_consts
-            if isinstance(const, tuple)
-            for row in const
-            if isinstance(row, tuple)
-            and len(row) == 3
-            and row[0:2] == ("OpenCode Go", "opencode-go")
-        ]
+        rows = [row for row in LLM_PROVIDERS if row[1] == "opencode-go"]
         self.assertEqual(len(rows), 1, f"expected exactly one OpenCode Go row, found {rows}")
-        self.assertEqual(rows[0][2], "https://opencode.ai/zen/go/v1")
+        self.assertEqual(rows[0], ("OpenCode Go", "opencode-go", "https://opencode.ai/zen/go/v1"))
