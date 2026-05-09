@@ -494,8 +494,18 @@ if SS.run_id and SS.run_decision is not None:
 if SS.run_id and SS.run_decision is not None:
     st.divider()
     st.subheader("Chat about this run")
+    chat_meta = {
+        "ticker": (SS.run_meta or {}).get("ticker"),
+        "trade_date": (SS.run_meta or {}).get("trade_date"),
+        "decision": SS.run_decision,
+        "provider": (SS.run_meta or {}).get("llm_provider"),
+        "deep_model": (SS.run_meta or {}).get("deep_think_llm"),
+        "quick_model": (SS.run_meta or {}).get("quick_think_llm"),
+        "backend_url": (SS.run_meta or {}).get("backend_url"),
+        "run_id": SS.run_id,
+    }
     st.caption(
-        f"Asks the **quick-think** model ({chat.quick_think_label()}) with the full "
+        f"Asks the **quick-think** model ({chat.quick_think_label(chat_meta)}) with the full "
         "analysis as context. Saved per-run; pick this run up later from **History**."
     )
 
@@ -517,17 +527,6 @@ if SS.run_id and SS.run_decision is not None:
             "neutral_history": SS.run_debates["neutral"][-1] if SS.run_debates.get("neutral") else "",
         },
     }
-    chat_meta = {
-        "ticker": (SS.run_meta or {}).get("ticker"),
-        "trade_date": (SS.run_meta or {}).get("trade_date"),
-        "decision": SS.run_decision,
-        "provider": (SS.run_meta or {}).get("llm_provider"),
-        "deep_model": (SS.run_meta or {}).get("deep_think_llm"),
-        "quick_model": (SS.run_meta or {}).get("quick_think_llm"),
-        "backend_url": (SS.run_meta or {}).get("backend_url"),
-        "run_id": SS.run_id,
-    }
-
     hist_key = f"chat_hist_{SS.run_id}"
     if hist_key not in SS:
         SS[hist_key] = []
@@ -549,7 +548,7 @@ if SS.run_id and SS.run_decision is not None:
         SS[hist_key].append({"role": "assistant", "content": response_text})
         storage.add_chat_message(run_id=SS.run_id, role="assistant",
                                  content=response_text,
-                                 model=chat.quick_think_label())
+                                 model=chat.quick_think_label(chat_meta))
 
 # ---------------------------------------------------------------------------
 # Quick note attach.

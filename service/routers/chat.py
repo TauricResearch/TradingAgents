@@ -70,6 +70,7 @@ async def stream_chat(ws: WebSocket, run_id: str) -> None:
             "provider": row.get("provider"),
             "deep_model": row.get("deep_model"),
             "quick_model": row.get("quick_model"),
+            "backend_url": row.get("backend_url"),
             "started_at": row.get("started_at"),
             "completed_at": row.get("completed_at"),
             "run_id": run_id,
@@ -93,7 +94,7 @@ async def stream_chat(ws: WebSocket, run_id: str) -> None:
             await ws.send_text(json.dumps({"type": "error", "message": str(e)}))
             return
 
-        model_label = chat_mod.quick_think_label()
+        model_label = chat_mod.quick_think_label(meta)
         storage.add_chat_message(run_id=run_id, role="assistant", content=full_text, model=model_label)
         await ws.send_text(json.dumps({"type": "done", "model": model_label, "content": full_text}))
     except WebSocketDisconnect:

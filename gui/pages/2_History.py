@@ -413,7 +413,7 @@ chat_key = chosen.get("run_id") or f"legacy-{abs(hash(log_path))}"
 st.divider()
 st.subheader("Chat about this run")
 st.caption(
-    f"Asks the **quick-think** model ({chat.quick_think_label()}) with the full "
+    f"Asks the **quick-think** model ({chat.quick_think_label(export_meta)}) with the full "
     "analysis as context. Conversation is saved per-run."
 )
 
@@ -461,7 +461,7 @@ if question:
         from gui import chat as _chat_mod
         storage.add_chat_message(run_id=chat_key, role="assistant",
                                  content=response_text,
-                                 model=_chat_mod.quick_think_label())
+                                 model=_chat_mod.quick_think_label(meta_for_chat))
 
 # Manage controls.
 mc1, mc2 = st.columns([1, 5])

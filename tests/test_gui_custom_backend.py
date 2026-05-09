@@ -1,6 +1,6 @@
 from gui.config import _empty_config
 from gui import storage
-from gui.chat import _llm_settings
+from gui.chat import _llm_settings, quick_think_label
 from service.schemas import RunCreateRequest
 
 
@@ -70,3 +70,26 @@ def test_llm_settings_prefers_run_backend_url(monkeypatch):
     assert provider == "openai"
     assert model == "run-quick"
     assert backend_url == "https://run.example.com/v1"
+
+
+def test_quick_think_label_uses_run_model(monkeypatch):
+    monkeypatch.setattr(
+        "gui.chat.load_config",
+        lambda: {
+            "defaults": {
+                "llm_provider": "openai",
+                "quick_think_llm": "default-quick",
+                "backend_url": "https://default.example.com/v1",
+            }
+        },
+    )
+
+    label = quick_think_label(
+        {
+            "provider": "openai",
+            "quick_model": "run-quick",
+            "backend_url": "https://run.example.com/v1",
+        }
+    )
+
+    assert label == "openai · run-quick"

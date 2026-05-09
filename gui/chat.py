@@ -199,7 +199,7 @@ def stream_response(state: Dict[str, Any], meta: Dict[str, Any],
     return full
 
 
-def quick_think_label() -> str:
+def quick_think_label(meta: Optional[Dict[str, Any]] = None) -> str:
     """Human-readable label for the model that will answer."""
-    provider, model, _ = _llm_settings()
+    provider, model, _ = _llm_settings(meta)
     return f"{provider} · {model}"
