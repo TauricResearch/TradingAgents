@@ -192,7 +192,7 @@ def generate_brief(state: Dict[str, Any], meta: Dict[str, Any]) -> Brief:
     Doesn't touch any cache. Callers should normally use ``get_brief``.
     """
     bootstrap_env()
-    llm = _build_llm()
+    llm = _build_llm(meta)
     structured = llm.with_structured_output(Brief)
 
     user_prompt = (

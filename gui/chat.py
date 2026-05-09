@@ -125,7 +125,18 @@ def system_prompt(state: Dict[str, Any], meta: Dict[str, Any],
 # LLM client + streaming
 # ---------------------------------------------------------------------------
 
-def _build_llm() -> Any:
+def _llm_settings(meta: Optional[Dict[str, Any]] = None) -> tuple[str, str, Optional[str]]:
+    cfg = load_config()
+    defaults = cfg.get("defaults", {})
+    run_meta = meta or {}
+    provider = str(run_meta.get("provider") or defaults.get("llm_provider") or "openai")
+    model = str(run_meta.get("quick_model") or defaults.get("quick_think_llm") or "gpt-4o-mini")
+    backend_url_value = run_meta.get("backend_url") or defaults.get("backend_url") or None
+    backend_url = str(backend_url_value) if backend_url_value else None
+    return provider, model, backend_url
+
+
+def _build_llm(meta: Optional[Dict[str, Any]] = None) -> Any:
     """Create the quick-think LLM the user has configured.
 
     Reads provider + quick_think_llm from the GUI config defaults; falls
@@ -134,11 +145,7 @@ def _build_llm() -> Any:
     google thinking_level, etc.) as a real run.
     """
     bootstrap_env()
-    cfg = load_config()
-    defaults = cfg.get("defaults", {})
-    provider = defaults.get("llm_provider") or "openai"
-    model = defaults.get("quick_think_llm") or "gpt-4o-mini"
-    backend_url = defaults.get("backend_url") or None
+    provider, model, backend_url = _llm_settings(meta)
 
     from tradingagents.llm_clients import create_llm_client  # type: ignore
 
@@ -158,7 +165,7 @@ def stream_response(state: Dict[str, Any], meta: Dict[str, Any],
     """
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage  # type: ignore
 
-    llm = _build_llm()
+    llm = _build_llm(meta)
     msgs: List[Any] = [SystemMessage(content=system_prompt(state, meta, tool_trace))]
     for h in history:
         role = h.get("role")
@@ -194,8 +201,5 @@ def stream_response(state: Dict[str, Any], meta: Dict[str, Any],
 
 def quick_think_label() -> str:
     """Human-readable label for the model that will answer."""
-    cfg = load_config()
-    defaults = cfg.get("defaults", {})
-    provider = defaults.get("llm_provider") or "openai"
-    model = defaults.get("quick_think_llm") or "gpt-4o-mini"
+    provider, model, _ = _llm_settings()
     return f"{provider} · {model}"

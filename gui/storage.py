@@ -38,6 +38,7 @@ def init_db() -> None:
                 provider TEXT,
                 deep_model TEXT,
                 quick_model TEXT,
+                backend_url TEXT,
                 debate_rounds INTEGER,
                 risk_rounds INTEGER,
                 vendors_json TEXT,
@@ -111,6 +112,7 @@ def init_db() -> None:
             """
         )
         _ensure_column(c, "runs", "error_log_path", "TEXT")
+        _ensure_column(c, "runs", "backend_url", "TEXT")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -146,18 +148,19 @@ def create_run(
     debate_rounds: int,
     risk_rounds: int,
     vendors: Dict[str, str],
+    backend_url: Optional[str] = None,
 ) -> None:
     with _conn() as c:
         c.execute(
             """
             INSERT INTO runs(run_id, ticker, trade_date, provider, deep_model,
-                             quick_model, debate_rounds, risk_rounds, vendors_json,
+                             quick_model, backend_url, debate_rounds, risk_rounds, vendors_json,
                              status, started_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?)
             """,
             (
                 run_id, ticker, trade_date, provider, deep_model, quick_model,
-                debate_rounds, risk_rounds, json.dumps(vendors), _now(),
+                backend_url, debate_rounds, risk_rounds, json.dumps(vendors), _now(),
             ),
         )
 

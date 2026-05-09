@@ -45,6 +45,7 @@ class RunSummary(BaseModel):
     provider: Optional[str] = None
     deep_model: Optional[str] = None
     quick_model: Optional[str] = None
+    backend_url: Optional[str] = None
     debate_rounds: Optional[int] = None
     risk_rounds: Optional[int] = None
     status: str

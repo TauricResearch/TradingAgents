@@ -49,6 +49,10 @@ def generate_brief(run_id: str, force: bool = False) -> BriefResponse:
         "ticker": row["ticker"],
         "trade_date": row["trade_date"],
         "decision": row.get("decision"),
+        "provider": row.get("provider"),
+        "deep_model": row.get("deep_model"),
+        "quick_model": row.get("quick_model"),
+        "backend_url": row.get("backend_url"),
         "run_id": run_id,
     }
     try:

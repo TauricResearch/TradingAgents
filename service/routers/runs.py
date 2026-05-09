@@ -36,6 +36,7 @@ def create_run(req: RunCreateRequest) -> RunSummary:
         provider=req.llm_provider,
         deep_model=req.deep_think_llm,
         quick_model=req.quick_think_llm,
+        backend_url=req.backend_url,
         debate_rounds=req.max_debate_rounds,
         risk_rounds=req.max_risk_discuss_rounds,
         vendors=req.data_vendors,

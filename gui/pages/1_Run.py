@@ -252,6 +252,7 @@ def _start_run(job: Dict[str, Any]) -> None:
         provider=job["llm_provider"],
         deep_model=job["deep_think_llm"],
         quick_model=job["quick_think_llm"],
+        backend_url=job.get("backend_url"),
         debate_rounds=job["max_debate_rounds"],
         risk_rounds=job["max_risk_discuss_rounds"],
         vendors=job["data_vendors"],
@@ -431,6 +432,10 @@ if SS.run_id and SS.run_decision is not None:
         "ticker": (SS.run_meta or {}).get("ticker"),
         "trade_date": (SS.run_meta or {}).get("trade_date"),
         "decision": SS.run_decision,
+        "provider": (SS.run_meta or {}).get("llm_provider"),
+        "deep_model": (SS.run_meta or {}).get("deep_think_llm"),
+        "quick_model": (SS.run_meta or {}).get("quick_think_llm"),
+        "backend_url": (SS.run_meta or {}).get("backend_url"),
         "run_id": SS.run_id,
     }
 
@@ -519,6 +524,7 @@ if SS.run_id and SS.run_decision is not None:
         "provider": (SS.run_meta or {}).get("llm_provider"),
         "deep_model": (SS.run_meta or {}).get("deep_think_llm"),
         "quick_model": (SS.run_meta or {}).get("quick_think_llm"),
+        "backend_url": (SS.run_meta or {}).get("backend_url"),
         "run_id": SS.run_id,
     }
 

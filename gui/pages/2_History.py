@@ -192,6 +192,7 @@ export_meta = {
     "provider": chosen.get("provider"),
     "deep_model": chosen.get("deep_model"),
     "quick_model": (db_row or {}).get("quick_model"),
+    "backend_url": (db_row or {}).get("backend_url"),
     "started_at": (db_row or {}).get("started_at"),
     "completed_at": (db_row or {}).get("completed_at"),
     "tokens_in": chosen.get("tokens_in", 0),
