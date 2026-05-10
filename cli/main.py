@@ -638,8 +638,19 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
-    """Save complete analysis report to disk with organized subfolders."""
+def save_report_to_disk(
+    final_state,
+    ticker: str,
+    save_path: Path,
+    selections: dict | None = None,
+    config: dict | None = None,
+):
+    """Save complete analysis report to disk with organized subfolders.
+
+    When ``selections`` and ``config`` are both provided, also writes a
+    ``run_config.md`` capturing the run parameters (Issue #752). Backwards
+    compatible: callers that omit them get the original behaviour.
+    """
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
 
@@ -725,6 +736,19 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+
+    # Run configuration report (Issue #752)
+    if selections is not None and config is not None:
+        from tradingagents import __version__ as _ta_version
+        from cli.run_config_report import build_run_config_markdown
+
+        run_config_md = build_run_config_markdown(
+            selections=selections,
+            config=config,
+            version=_ta_version,
+        )
+        (save_path / "run_config.md").write_text(run_config_md, encoding="utf-8")
+
     return save_path / "complete_report.md"
 
 
@@ -1187,9 +1211,16 @@ def run_analysis(checkpoint: bool = False):
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state,
+                selections["ticker"],
+                save_path,
+                selections=selections,
+                config=config,
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            console.print(f"  [dim]Run config:[/dim] run_config.md")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
