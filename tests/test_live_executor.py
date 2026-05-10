@@ -38,7 +38,7 @@ def test_default_call_is_disabled():
     """Calling without confirm_real_money is the safest possible mistake."""
     r = place_order(
         _decision(),
-        budget_usd=100.0,
+        capital_usd=100.0,
         yes_token_id="850149...",
         no_token_id="294612...",
     )
@@ -52,7 +52,7 @@ def test_confirm_flag_alone_is_not_enough():
     """confirm_real_money=True without env vars must still be blocked."""
     r = place_order(
         _decision(),
-        budget_usd=100.0,
+        capital_usd=100.0,
         yes_token_id="850149...",
         no_token_id="294612...",
         confirm_real_money=True,
@@ -67,7 +67,7 @@ def test_polymarket_live_alone_is_not_enough(monkeypatch):
     monkeypatch.setenv("POLYMARKET_LIVE", "1")
     r = place_order(
         _decision(),
-        budget_usd=100.0,
+        capital_usd=100.0,
         yes_token_id="850149...",
         no_token_id="294612...",
         confirm_real_money=True,
@@ -96,7 +96,7 @@ def test_all_env_gates_pass_then_blocked_by_dependency_or_stub(monkeypatch):
         with pytest.raises(LiveExecutionDisabled):
             place_order(
                 _decision(),
-                budget_usd=100.0,
+                capital_usd=100.0,
                 yes_token_id="850149...",
                 no_token_id="294612...",
                 confirm_real_money=True,
@@ -104,7 +104,7 @@ def test_all_env_gates_pass_then_blocked_by_dependency_or_stub(monkeypatch):
     else:
         r = place_order(
             _decision(),
-            budget_usd=100.0,
+            capital_usd=100.0,
             yes_token_id="850149...",
             no_token_id="294612...",
             confirm_real_money=True,
@@ -118,7 +118,7 @@ def test_hold_decision_is_skipped_not_disabled():
     """HOLD never tries to place an order; should return LIVE_SKIPPED."""
     r = place_order(
         _decision(direction="HOLD"),
-        budget_usd=100.0,
+        capital_usd=100.0,
         yes_token_id="850149...",
         no_token_id="294612...",
         confirm_real_money=True,

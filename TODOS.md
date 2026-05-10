@@ -28,10 +28,12 @@ order:
    domain filter that excludes award nominations and targets sports finals +
    O/U lines for a near-50% YES rate. See PHASE_A_FINDINGS #8.
 
-4. **Phase B Kelly criterion sizing** (only after #1-3 land).
-   See "Polymarket Phase B" section below. Blocked on regulatory call
-   for jurisdiction (US persons cannot trade on Polymarket directly)
-   and wallet integration via `py-clob-client`.
+4. ~~**Phase B Kelly criterion sizing**~~ **DONE 2026-05-11.**
+   `tradingagents/exchange/binary_risk.py` — `kelly_fraction()` + `size_order()`
+   with half-Kelly (0.5x), 20% cap, 55% min-confidence gate. Wired into
+   `live_executor.place_order()` (renamed `budget_usd` → `capital_usd`).
+   11 tests pass. Remaining blockers before real execution:
+   py-clob-client install + wallet infra + regulatory review (US blocked).
 
 ---
 

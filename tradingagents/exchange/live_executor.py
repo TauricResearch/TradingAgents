@@ -31,6 +31,7 @@ import os
 from typing import Any
 
 from tradingagents.agents.schemas import PolymarketDecision, PolymarketDirection
+from tradingagents.exchange.binary_risk import size_order as _kelly_size
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ def _check_safety_gates(confirm_real_money: bool) -> str | None:
 
 def place_order(
     decision: PolymarketDecision,
-    budget_usd: float,
+    capital_usd: float,
     yes_token_id: str | None,
     no_token_id: str | None,
     confirm_real_money: bool = False,
@@ -72,7 +73,8 @@ def place_order(
 
     Args:
         decision: PolymarketDecision from the research engine.
-        budget_usd: USDC budget for this order.
+        capital_usd: total available USDC capital; Kelly sizing determines
+            the fraction to bet (capped at 20%, half-Kelly by default).
         yes_token_id: Polymarket CLOB token id for YES side.
         no_token_id: Polymarket CLOB token id for NO side.
         confirm_real_money: explicit opt-in. Must be True even with env vars set.
@@ -82,6 +84,7 @@ def place_order(
         reason: explanation if disabled or skipped
         order_id: Polymarket order id if placed (otherwise None)
         decision: echo of the input decision
+        sizing: Kelly sizing breakdown (fraction, usd, reason) if computed
     """
     if decision.direction == PolymarketDirection.HOLD:
         return {
@@ -89,6 +92,19 @@ def place_order(
             "reason": "decision is HOLD; no order to place",
             "order_id": None,
             "decision": decision.model_dump(mode="json"),
+            "sizing": None,
+        }
+
+    # Kelly sizing — computed before safety gates so the caller can inspect
+    # the sizing even in LIVE_DISABLED mode (useful for paper-trade logging).
+    sizing = _kelly_size(decision, capital_usd)
+    if sizing["fraction"] == 0.0:
+        return {
+            "status": "LIVE_SKIPPED",
+            "reason": f"Kelly sizing: {sizing['reason']}",
+            "order_id": None,
+            "decision": decision.model_dump(mode="json"),
+            "sizing": sizing,
         }
 
     gate_reason = _check_safety_gates(confirm_real_money)
@@ -99,6 +115,7 @@ def place_order(
             "reason": gate_reason,
             "order_id": None,
             "decision": decision.model_dump(mode="json"),
+            "sizing": sizing,
         }
 
     token_id = (
@@ -110,13 +127,19 @@ def place_order(
             "reason": f"no token_id for direction {decision.direction.value}",
             "order_id": None,
             "decision": decision.model_dump(mode="json"),
+            "sizing": sizing,
         }
 
-    # The actual order placement is deliberately a stub. The remaining work
-    # to make this a real submission is captured in TODOS.md (Phase B).
+    # Remaining Phase B work before this stub can be removed:
+    #   - Install py-clob-client and add to pyproject deps
+    #   - Wallet management (key storage, USDC balance check)
+    #   - Polymarket account creation flow (sign-in tx)
+    #   - Slippage caps and order-book sanity checks before submission
+    #   - Regulatory review for the operator's jurisdiction (US users blocked)
     raise LiveExecutionDisabled(
-        "All safety gates passed but real order placement is intentionally not "
-        "implemented in Phase A. Wire py_clob_client.create_order + post_order "
-        "here, but only after the binary risk model (Kelly sizing), wallet "
-        "infrastructure, and regulatory review are complete. See TODOS.md."
+        f"All safety gates passed and Kelly sizing computed "
+        f"({sizing['fraction']:.1%} of capital = ${sizing['usd']:.2f}) "
+        f"but real order placement is not implemented. "
+        f"Wire py_clob_client.create_order + post_order here once wallet "
+        f"infrastructure and regulatory review are complete. See TODOS.md."
     )
