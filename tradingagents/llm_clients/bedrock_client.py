@@ -1,5 +1,6 @@
 import os
 import warnings
+from botocore.config import Config as BotoConfig
 from typing import Any, Optional
 
 from langchain_aws import ChatBedrockConverse
@@ -8,6 +9,14 @@ from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = ("timeout", "max_retries", "callbacks", "max_tokens", "temperature")
+
+# Prevent AWS_BEARER_TOKEN_BEDROCK from hijacking Bedrock authentication.
+# This env var (e.g. set for Claude Code) causes ChatBedrockConverse to use
+# bearer token auth instead of the standard credential chain. Since the boto3
+# client is created lazily (on first invoke), we must remove the var BEFORE
+# any client is instantiated and keep it removed for the process lifetime.
+# Other tools (Claude Code) that need this var should run in a separate process.
+_BEARER_TOKEN_REMOVED = os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
 
 
 class NormalizedChatBedrockConverse(ChatBedrockConverse):
@@ -43,9 +52,16 @@ class BedrockClient(BaseLLMClient):
 
         region = os.environ.get("AWS_BEDROCK_REGION", "us-east-1")
 
+        # Bedrock LLM calls with bound tools (agentic workflows) routinely
+        # exceed botocore's default 60s read timeout. Default to 300s;
+        # override via BEDROCK_TIMEOUT env var.
+        timeout = int(os.environ.get("BEDROCK_TIMEOUT", "300"))
+        boto_config = BotoConfig(read_timeout=timeout, connect_timeout=10)
+
         llm_kwargs: dict[str, Any] = {
             "model_id": self.model,
             "region_name": region,
+            "config": boto_config,
         }
 
         if self.base_url:
