@@ -10,14 +10,6 @@ from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = ("timeout", "max_retries", "callbacks", "max_tokens", "temperature")
 
-# Prevent AWS_BEARER_TOKEN_BEDROCK from hijacking Bedrock authentication.
-# This env var (e.g. set for Claude Code) causes ChatBedrockConverse to use
-# bearer token auth instead of the standard credential chain. Since the boto3
-# client is created lazily (on first invoke), we must remove the var BEFORE
-# any client is instantiated and keep it removed for the process lifetime.
-# Other tools (Claude Code) that need this var should run in a separate process.
-_BEARER_TOKEN_REMOVED = os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
-
 
 class NormalizedChatBedrockConverse(ChatBedrockConverse):
     """ChatBedrockConverse with normalized content output."""
@@ -34,11 +26,33 @@ class BedrockClient(BaseLLMClient):
     AWS_PROFILE are explicitly read.
     """
 
+    # Class-level flag to ensure bearer token removal happens only once,
+    # and only when BedrockClient is actually used (not on module import).
+    _bearer_token_cleared = False
+
     def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
         super().__init__(model, base_url, **kwargs)
 
+    @classmethod
+    def _clear_bearer_token(cls) -> None:
+        """Remove AWS_BEARER_TOKEN_BEDROCK from the environment once.
+
+        This env var (e.g. set for Claude Code) causes ChatBedrockConverse
+        to use bearer token auth instead of the standard credential chain.
+        Since boto3 creates the underlying client lazily (on first invoke),
+        the var must be removed before instantiation AND stay removed for
+        the process lifetime. This only runs once, and only when a
+        BedrockClient is actually used.
+        """
+        if not cls._bearer_token_cleared:
+            os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
+            cls._bearer_token_cleared = True
+
     def get_llm(self) -> Any:
         self.warn_if_unknown_model()
+
+        # Clear bearer token on first use (not on import)
+        self._clear_bearer_token()
 
         # Warn if model doesn't look like a Bedrock model ID
         if "." not in self.model and not self.model.startswith("arn:"):
@@ -55,7 +69,11 @@ class BedrockClient(BaseLLMClient):
         # Bedrock LLM calls with bound tools (agentic workflows) routinely
         # exceed botocore's default 60s read timeout. Default to 300s;
         # override via BEDROCK_TIMEOUT env var.
-        timeout = int(os.environ.get("BEDROCK_TIMEOUT", "300"))
+        try:
+            timeout = int(os.environ.get("BEDROCK_TIMEOUT", "300"))
+        except (ValueError, TypeError):
+            timeout = 300
+
         boto_config = BotoConfig(read_timeout=timeout, connect_timeout=10)
 
         llm_kwargs: dict[str, Any] = {
