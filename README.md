@@ -152,6 +152,54 @@ For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
 
+### AWS Bedrock Setup
+
+TradingAgents supports AWS Bedrock as an LLM provider, giving access to Claude models (Opus 4.7, Sonnet 4.6, etc.) via AWS infrastructure.
+
+**Install with Bedrock support:**
+```bash
+pip install ".[bedrock]"
+```
+
+**Authentication** uses the standard AWS credential chain — no separate API key needed:
+
+| Method | Setup |
+|--------|-------|
+| Default profile | `~/.aws/credentials` (via `aws configure`) |
+| Named profile | `export AWS_PROFILE=your-profile` |
+| Access keys | `export AWS_ACCESS_KEY_ID=...` and `export AWS_SECRET_ACCESS_KEY=...` |
+| IAM Role | Auto-detected on EC2/ECS/Lambda |
+| SSO | Run `aws sso login` first |
+
+**Region** (optional, defaults to `us-east-1`):
+```bash
+export AWS_BEDROCK_REGION=us-east-1
+```
+
+**Python usage:**
+```python
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "bedrock"
+config["deep_think_llm"] = "us.anthropic.claude-opus-4-7"
+config["quick_think_llm"] = "us.anthropic.claude-sonnet-4-6"
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2025-05-07")
+```
+
+**Available models (US Cross-Region Inference):**
+
+| Model | ID |
+|-------|-----|
+| Claude Opus 4.7 | `us.anthropic.claude-opus-4-7` |
+| Claude Sonnet 4.6 | `us.anthropic.claude-sonnet-4-6` |
+| Claude Sonnet 4 | `us.anthropic.claude-sonnet-4-20250514-v1:0` |
+| Claude Haiku 4.5 | `anthropic.claude-3-5-haiku-20241022-v1:0` |
+
+> **Note:** If you have `AWS_BEARER_TOKEN_BEDROCK` set in your environment (e.g. for Claude Code), TradingAgents automatically ignores it to prevent authentication conflicts.
+
+> **Timeout:** Bedrock read timeout defaults to 300s (configurable via `BEDROCK_TIMEOUT` env var).
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
@@ -184,7 +232,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), OpenRouter, Ollama for local models, AWS Bedrock, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
