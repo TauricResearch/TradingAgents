@@ -10,6 +10,21 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### Added
 
+- **Look-ahead protection for tool calls.** Analysts call data tools through
+  `@tool` wrappers whose date params are LLM-controlled, and `ToolNode`s are
+  built once and shared across runs — so without server-side enforcement the
+  model could pass `end_date=today` and read post-trade-date data. A new
+  `agents/utils/_date_clamp.py` exposes a `ContextVar` that `propagate()` sets
+  to the as-of `trade_date`; every wrapper now caps any LLM-supplied date to
+  it before calling `route_to_vendor` and prepends a one-line `Note: <param>
+  capped at as-of trade date <date>.` to the tool result so the agent sees
+  why its window shrank. `get_insider_transactions` (no LLM date param) reads
+  the contextvar and passes `as_of=` to the vendor; the yfinance vendor
+  filters rows with `Start Date > as_of`, the Alpha Vantage variant accepts
+  the kwarg as a no-op for interface uniformity. Behaviour outside
+  `propagate()` is unchanged (contextvar unset → wrappers pass through).
+  When adding a new tool that takes a date, run every LLM-supplied date
+  through `clamp(...)` and prepend `maybe_note(...)` to the result.
 - **Apple MLX provider.** New `llm_provider: "mlx"` routes through the existing
   `OpenAIClient` (provider discriminator) and defaults to
   `http://localhost:8000/v1`. Works with both [oMLX](https://omlx.ai)
