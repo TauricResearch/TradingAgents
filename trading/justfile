@@ -9,6 +9,11 @@ set working-directory := "/Users/petersmith/Dev/GitHub/TradingAgents"
 cli := "src/cli/main.ts"
 server := "src/server/index.tsx"
 
+# Skate keys for IG demo credentials
+ig_api_key := `skate get ig-demo-api-key 2>/dev/null`
+ig_username := `skate get ig-demo-username 2>/dev/null`
+ig_password := `skate get ig-demo-password 2>/dev/null`
+
 # ── Default: show help ───────────────────────────────────────────────────
 default:
     @just --list
@@ -109,43 +114,43 @@ trades:
 # List IG accounts with balances
 [group("ig")]
 ig-accounts:
-    bun run {{cli}} ig accounts
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig accounts
 
 # Search IG markets by name
 [group("ig")]
 ig-search query:
-    bun run {{cli}} ig search {{query}}
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig search {{query}}
 
 # Fetch historical prices for an IG EPIC
 [group("ig")]
 ig-prices epic:
-    bun run {{cli}} ig prices {{epic}}
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig prices {{epic}}
 
 # List open IG positions
 [group("ig")]
 ig-positions:
-    bun run {{cli}} ig positions
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig positions
 
 # IG activity/transaction history
 [group("ig")]
 ig-history:
-    bun run {{cli}} ig history
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig history
 
 # Place a market buy order on IG
 # Usage: just ig-buy EPIC SIZE [STOP] [LIMIT]
 [group("ig")]
 ig-buy epic size stop="" limit="" :
-    bun run {{cli}} ig buy {{epic}} --size {{size}} --stop {{stop}} --limit {{limit}}
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig buy {{epic}} --size {{size}} --stop {{stop}} --limit {{limit}}
 
 # Close an open IG position
 [group("ig")]
 ig-sell deal_id:
-    bun run {{cli}} ig sell {{deal_id}}
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig sell {{deal_id}}
 
-# Authenticate with IG
+# Authenticate with IG and show session details
 [group("ig")]
 ig-login:
-    bun run {{cli}} ig login
+    IG_DEMO_API_KEY={{ig_api_key}} IG_DEMO_USERNAME={{ig_username}} IG_DEMO_PASSWORD={{ig_password}} bun run {{cli}} ig login
 
 # ── Data ─────────────────────────────────────────────────────────────────
 
