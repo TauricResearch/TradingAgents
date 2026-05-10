@@ -20,19 +20,31 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
             ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),
             ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
-            ("GPT-5.4 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.4-pro"),
+            (
+                "GPT-5.4 Pro - Most capable, expensive ($30/$180 per 1M tokens)",
+                "gpt-5.4-pro",
+            ),
         ],
     },
     "anthropic": {
         "quick": [
-            ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
+            (
+                "Claude Sonnet 4.6 - Best speed and intelligence balance",
+                "claude-sonnet-4-6",
+            ),
             ("Claude Haiku 4.5 - Fast, near-instant responses", "claude-haiku-4-5"),
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
         ],
         "deep": [
-            ("Claude Opus 4.6 - Most intelligent, agents and coding", "claude-opus-4-6"),
+            (
+                "Claude Opus 4.6 - Most intelligent, agents and coding",
+                "claude-opus-4-6",
+            ),
             ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
-            ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
+            (
+                "Claude Sonnet 4.6 - Best speed and intelligence balance",
+                "claude-sonnet-4-6",
+            ),
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
         ],
     },
@@ -40,11 +52,17 @@ MODEL_OPTIONS: ProviderModeOptions = {
         "quick": [
             ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
             ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
-            ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite-preview"),
+            (
+                "Gemini 3.1 Flash Lite - Most cost-efficient",
+                "gemini-3.1-flash-lite-preview",
+            ),
             ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
         ],
         "deep": [
-            ("Gemini 3.1 Pro - Reasoning-first, complex workflows", "gemini-3.1-pro-preview"),
+            (
+                "Gemini 3.1 Pro - Reasoning-first, complex workflows",
+                "gemini-3.1-pro-preview",
+            ),
             ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
             ("Gemini 2.5 Pro - Stable pro model", "gemini-2.5-pro"),
             ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
@@ -52,15 +70,30 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "xai": {
         "quick": [
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-            ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+            (
+                "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                "grok-4-1-fast-non-reasoning",
+            ),
+            (
+                "Grok 4 Fast (Non-Reasoning) - Speed optimized",
+                "grok-4-fast-non-reasoning",
+            ),
+            (
+                "Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx",
+                "grok-4-1-fast-reasoning",
+            ),
         ],
         "deep": [
             ("Grok 4 - Flagship model", "grok-4-0709"),
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+            (
+                "Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx",
+                "grok-4-1-fast-reasoning",
+            ),
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+            (
+                "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                "grok-4-1-fast-non-reasoning",
+            ),
         ],
     },
     "deepseek": {
@@ -114,6 +147,26 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
     },
+    "minimax": {
+        "quick": [
+            ("MiniMax-M2.7 - 60 TPS", "MiniMax-M2.7"),
+            ("MiniMax-M2.5 - 60 TPS", "MiniMax-M2.5"),
+            ("MiniMax-M2.1 - 60 TPS", "MiniMax-M2.1"),
+            ("MiniMax-M2.7-highspeed - 100 TPS", "MiniMax-M2.7-highspeed"),
+            ("MiniMax-M2.5-highspeed - 100 TPS", "MiniMax-M2.5-highspeed"),
+            ("MiniMax-M2.1-highspeed - 100 TPS", "MiniMax-M2.1-highspeed"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("MiniMax-M2.7 - 204K context", "MiniMax-M2.7"),
+            ("MiniMax-M2.5 - 204K context", "MiniMax-M2.5"),
+            ("MiniMax-M2.1 - 204K context", "MiniMax-M2.1"),
+            ("MiniMax-M2.7-highspeed - Fast", "MiniMax-M2.7-highspeed"),
+            ("MiniMax-M2.5-highspeed - Fast", "MiniMax-M2.5-highspeed"),
+            ("MiniMax-M2.1-highspeed - Fast", "MiniMax-M2.1-highspeed"),
+            ("Custom model ID", "custom"),
+        ],
+    },
 }
 
 
@@ -126,11 +179,7 @@ def get_known_models() -> Dict[str, List[str]]:
     """Build known model names from the shared CLI catalog."""
     return {
         provider: sorted(
-            {
-                value
-                for options in mode_options.values()
-                for _, value in options
-            }
+            {value for options in mode_options.values() for _, value in options}
         )
         for provider, mode_options in MODEL_OPTIONS.items()
     }
