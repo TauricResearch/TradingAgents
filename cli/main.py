@@ -4,11 +4,13 @@ import typer
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-# Load environment variables
-load_dotenv()
-load_dotenv(".env.enterprise", override=False)
+# Search starts from the user's CWD so the installed `tradingagents`
+# console script picks up the project's .env instead of walking up from
+# site-packages.
+load_dotenv(find_dotenv(usecwd=True))
+load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
