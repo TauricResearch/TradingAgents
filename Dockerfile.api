@@ -1,0 +1,56 @@
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /build
+COPY pyproject.toml ./
+COPY tradingagents/ ./tradingagents/
+COPY cli/ ./cli/
+
+# Install the core package
+RUN pip install --no-cache-dir .
+
+# Install API-specific extras
+RUN pip install --no-cache-dir \
+    fastapi>=0.115.0 \
+    "uvicorn[standard]>=0.32.0" \
+    aiosqlite>=0.21.0 \
+    langchain-ollama>=0.2.0
+
+# ── Runtime image ───────────────────────────────────────────────────────────
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Default Ollama endpoint (override via env / docker-compose)
+    OLLAMA_HOST=http://host.docker.internal:11434 \
+    LLM_PROVIDER=ollama \
+    DEEP_THINK_MODEL=qwen3.5:4b \
+    QUICK_THINK_MODEL=qwen3.5:4b \
+    API_DEBUG_MODE=true \
+    MAX_WORKERS=1
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN useradd --create-home appuser && \
+    mkdir -p /data/analysis /data/cache /data/logs /data/memory /data/db && \
+    chown -R appuser:appuser /data
+
+USER appuser
+WORKDIR /app
+
+COPY --chown=appuser:appuser tradingagents/ ./tradingagents/
+COPY --chown=appuser:appuser cli/ ./cli/
+COPY --chown=appuser:appuser api/ ./api/
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:9000/healthz')"
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "9000"]

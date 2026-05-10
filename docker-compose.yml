@@ -8,6 +8,36 @@ services:
     tty: true
     stdin_open: true
 
+  # ── TradingAgents REST API ────────────────────────────────────────────────
+  tradingagents-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: vkdocker/tradingagents-api:latest
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - LLM_PROVIDER=ollama
+      - DEEP_THINK_MODEL=qwen3.5:4b
+      - QUICK_THINK_MODEL=qwen3.5:4b
+      - TRADINGAGENTS_API_DB_PATH=/data/db/tradingagents_api.db
+      - API_DEBUG_MODE=true
+      - MAX_WORKERS=1
+    ports:
+      - "9000:9000"
+    volumes:
+      - tradingagents_api_data:/data
+      - tradingagents_api_db:/data/db
+      - tradingagents_data:/home/appuser/.tradingagents
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
   ollama:
     image: ollama/ollama:latest
     volumes:
@@ -32,4 +62,6 @@ services:
 
 volumes:
   tradingagents_data:
+  tradingagents_api_data:
+  tradingagents_api_db:
   ollama_data:

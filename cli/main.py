@@ -1266,9 +1266,9 @@ def run_analysis(checkpoint: bool = False):
 @app.command()
 def analyze(
     checkpoint: bool = typer.Option(
-        False,
-        "--checkpoint",
-        help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
+        True,
+        "--checkpoint/--no-checkpoint",
+        help="Enable (default) or disable checkpoint/resume. When enabled, state is saved after each node so a crashed run can resume.",
     ),
     clear_checkpoints: bool = typer.Option(
         False,
@@ -1281,6 +1281,73 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     run_analysis(checkpoint=checkpoint)
+
+
+@app.command()
+def cleanup_db(
+    confirm: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation and proceed with cleanup.",
+    ),
+):
+    """Clean all incomplete analysis records from the database.
+    
+    Removes all analysis requests with status: pending, running, failed, or canceled.
+    Only keeps successfully completed analyses. This is a one-time operation.
+    """
+    import asyncio
+    from api.db import delete_incomplete_requests, DB_PATH, list_requests
+    
+    # Show what will be deleted
+    async def preview():
+        incomplete = await list_requests(status_filter="open")
+        failed = await list_requests(None)
+        failed = [r for r in failed if r["status"] in ("failed", "canceled")]
+        
+        if not incomplete and not failed:
+            console.print("[green]No incomplete records found. Database is clean.[/green]")
+            return 0
+        
+        total = len(incomplete) + len(failed)
+        console.print(f"\n[yellow]Found {total} incomplete record(s) to delete:[/yellow]")
+        
+        if incomplete:
+            console.print(f"  • Pending/Running: {len(incomplete)}")
+            for req in incomplete[:3]:
+                console.print(f"    - {req['ticker']} ({req['status']}) submitted at {req['submitted_at']}")
+            if len(incomplete) > 3:
+                console.print(f"    ... and {len(incomplete)-3} more")
+        
+        if failed:
+            console.print(f"  • Failed/Canceled: {len(failed)}")
+            for req in failed[:3]:
+                console.print(f"    - {req['ticker']} ({req['status']}) at {req['completed_at']}")
+            if len(failed) > 3:
+                console.print(f"    ... and {len(failed)-3} more")
+        
+        return total
+    
+    total = asyncio.run(preview())
+    
+    if total == 0:
+        return
+    
+    # Ask for confirmation if not auto-confirmed
+    if not confirm:
+        response = typer.prompt("\n[bold red]WARNING:[/bold red] This will permanently delete these records. Continue? (yes/no)", default="no")
+        if response.lower() not in ("yes", "y"):
+            console.print("[yellow]Cleanup cancelled.[/yellow]")
+            return
+    
+    # Perform the cleanup
+    async def do_cleanup():
+        deleted = await delete_incomplete_requests(DB_PATH)
+        console.print(f"\n[green]Successfully deleted {deleted} incomplete record(s).[/green]")
+        console.print("[green]Database cleanup complete.[/green]")
+    
+    asyncio.run(do_cleanup())
 
 
 if __name__ == "__main__":

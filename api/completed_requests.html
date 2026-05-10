@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completed Analysis Requests</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .top-nav {
+            margin: 1rem auto 0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .top-nav a {
+            text-decoration: none;
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: #374151;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+
+        thead {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #667eea;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            color: #666;
+        }
+
+        tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: #f5f7fa;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .ticker-cell {
+            font-weight: 600;
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .ticker-cell:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 90px;
+        }
+
+        .status-completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-canceled {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+
+        .recommendation-text {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cost-badge {
+            display: inline-block;
+            background-color: #e7f3ff;
+            color: #0066cc;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .action-links {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-link {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            background-color: #e7f3ff;
+            color: #0066cc;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            border: 1px solid #0066cc;
+        }
+
+        .action-link:hover {
+            background-color: #0066cc;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 50px auto;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 1rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .close-btn {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .agent-section {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .agent-section:last-child {
+            border-bottom: none;
+        }
+
+        .agent-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .agent-icon {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #667eea;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .agent-content {
+            color: #666;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding-left: 1rem;
+            border-left: 3px solid #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .no-data {
+            color: #999;
+            font-style: italic;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1rem;
+            }
+
+            table {
+                font-size: 0.9rem;
+            }
+
+            th, td {
+                padding: 0.7rem;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .modal-content {
+                margin: 20px;
+                max-height: 90vh;
+            }
+
+            .recommendation-text {
+                max-width: 150px;
+            }
+
+            .action-links {
+                flex-direction: column;
+            }
+
+            .action-link {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Completed Analysis Requests</h1>
+            <p>View all your completed stock analysis requests and detailed agent recommendations</p>
+            <div class="top-nav">
+                <a href="/ui" style="background:#374151">Operations</a>
+                <a href="/batching" style="background:#0f766e">Batching</a>
+                <a href="/completed" style="background:#111827">Completed</a>
+                <a href="/requests/closed?format=html" style="background:#7c3aed">Closed</a>
+                <a href="/settings" style="background:#1d4ed8">Settings</a>
+                <a href="/api-definition" style="background:#0f766e">API Definition</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                Analysis Results
+            </div>
+            <div class="card-body">
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    Loading completed requests...
+                </div>
+                <div id="content" style="display: none;">
+                    <div class="table-wrapper">
+                        <table id="requestsTable">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th>Analysis Date</th>
+                                    <th>Completed At</th>
+                                    <th>Status</th>
+                                    <th>Recommendation</th>
+                                    <th>Cost</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No Completed Requests</h3>
+                        <p>There are no completed analysis requests yet. Submit a new analysis to get started!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent Details Modal -->
+    <div id="agentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Agent Recommendations</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value" id="modalStatus">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Analysis Date</div>
+                    <div class="stat-value" id="modalDate">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">LLM Provider</div>
+                    <div class="stat-value" id="modalProvider">—</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Cost</div>
+                    <div class="stat-value" id="modalCost">—</div>
+                </div>
+            </div>
+
+            <div id="agentDetails">
+                <!-- Agent details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch and display completed requests
+        async function loadCompletedRequests() {
+            try {
+                const response = await fetch('/requests/completed');
+                const data = await response.json();
+
+                const tableBody = document.getElementById('tableBody');
+                const emptyState = document.getElementById('emptyState');
+                const loadingDiv = document.getElementById('loading');
+                const contentDiv = document.getElementById('content');
+
+                loadingDiv.style.display = 'none';
+                contentDiv.style.display = 'block';
+
+                if (!data.requests || data.requests.length === 0) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
+                tableBody.innerHTML = '';
+
+                data.requests.forEach(request => {
+                    const row = document.createElement('tr');
+                    const completedAt = request.completed_at ? new Date(request.completed_at).toLocaleString() : '—';
+                    const cost = request.estimated_cost_usd ? `$${request.estimated_cost_usd.toFixed(4)}` : 'Free';
+                    const recommendation = (request.recommendation || '—').substring(0, 50);
+                    const statusClass = `status-${request.status}`;
+
+                    row.innerHTML = `
+                        <td><span class="ticker-cell" onclick="showAgentDetails('${request.request_id}')">${request.ticker}</span></td>
+                        <td>${request.analysis_date}</td>
+                        <td>${completedAt}</td>
+                        <td><span class="status-badge ${statusClass}">${request.status}</span></td>
+                        <td><div class="recommendation-text">${recommendation}...</div></td>
+                        <td><span class="cost-badge">${cost}</span></td>
+                        <td>
+                            <div class="action-links">
+                                <a href="${request.debug_log_url}" class="action-link" target="_blank">View Logs</a>
+                                ${request.analysis_url ? `<a href="${request.analysis_url}" class="action-link" target="_blank">Full Analysis</a>` : ''}
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading requests:', error);
+                document.getElementById('loading').innerHTML = '<p>Error loading requests. Please try again.</p>';
+            }
+        }
+
+        // Show agent details in modal
+        async function showAgentDetails(requestId) {
+            try {
+                const response = await fetch(`/status/${requestId}`);
+                const request = await response.json();
+
+                document.getElementById('modalTitle').textContent = `${request.ticker} - Agent Recommendations`;
+                document.getElementById('modalStatus').textContent = request.status;
+                document.getElementById('modalDate').textContent = request.analysis_date;
+                document.getElementById('modalProvider').textContent = request.llm_provider || 'Unknown';
+                document.getElementById('modalCost').textContent = request.estimated_cost_usd ? `$${request.estimated_cost_usd.toFixed(4)}` : 'Free';
+
+                const agentDetails = document.getElementById('agentDetails');
+                agentDetails.innerHTML = '';
+
+                const agents = request.agent_recommendations || {};
+
+                if (!agents || Object.keys(agents).length === 0) {
+                    agentDetails.innerHTML = '<div class="no-data">No agent recommendations available</div>';
+                } else {
+                    // Define agent display order and formatting
+                    const agentOrder = [
+                        { key: 'market_analyst', label: '📈 Market Analyst' },
+                        { key: 'social_media_analyst', label: '📱 Social Media Analyst' },
+                        { key: 'news_analyst', label: '📰 News Analyst' },
+                        { key: 'fundamentals_analyst', label: '📊 Fundamentals Analyst' },
+                        { key: 'bull_researcher', label: '🐂 Bull Researcher' },
+                        { key: 'bear_researcher', label: '🐻 Bear Researcher' },
+                        { key: 'investment_judge', label: '⚖️ Investment Judge' },
+                        { key: 'trader', label: '🎯 Trader' },
+                        { key: 'aggressive_analyst', label: '⚡ Aggressive Risk Analyst' },
+                        { key: 'neutral_analyst', label: '⚖️ Neutral Risk Analyst' },
+                        { key: 'conservative_analyst', label: '🛡️ Conservative Risk Analyst' },
+                        { key: 'risk_judge', label: '⚖️ Risk Judge' },
+                        { key: 'portfolio_manager', label: '💼 Portfolio Manager' },
+                    ];
+
+                    agentOrder.forEach(agent => {
+                        const item = agents[agent.key];
+                        if (item && item.recommendation) {
+                            const section = document.createElement('div');
+                            section.className = 'agent-section';
+
+                            const title = document.createElement('div');
+                            title.className = 'agent-title';
+                            title.innerHTML = `<span class="agent-icon"></span>${agent.label} <span style="margin-left:0.6rem;color:#999;font-weight:500">(${item.weight}% weight)</span>`;
+
+                            const contentDiv = document.createElement('div');
+                            contentDiv.className = 'agent-content';
+
+                            // Format content based on type
+                            contentDiv.textContent = item.recommendation;
+
+                            section.appendChild(title);
+                            section.appendChild(contentDiv);
+                            agentDetails.appendChild(section);
+                        }
+                    });
+                }
+
+                document.getElementById('agentModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading agent details:', error);
+                alert('Error loading agent details');
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('agentModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('agentModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Load data on page load
+        loadCompletedRequests();
+    </script>
+</body>
+</html>

@@ -36,7 +36,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_options_chain,
+    calculate_put_call_ratio
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -117,9 +119,7 @@ class TradingAgentsGraph:
             analyst_concurrency_limit=self.config.get("analyst_concurrency_limit", 1),
         )
 
-        self.propagator = Propagator(
-            max_recur_limit=self.config.get("max_recur_limit", 100),
-        )
+        self.propagator = Propagator(max_recur_limit=self.config.get("max_recur_limit", 100))
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
@@ -164,6 +164,9 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Options chain and put/call ratio analysis
+                    get_options_chain,
+                    calculate_put_call_ratio,
                 ]
             ),
             "social": ToolNode(
@@ -349,12 +352,24 @@ class TradingAgentsGraph:
 
         if self.debug:
             trace = []
+            step = 0
+            _prev: dict = {}
             for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
-                    chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+                msgs = chunk.get("messages", [])
+                if not msgs:
+                    continue
+                step += 1
+                last_msg = msgs[-1]
+                # LangGraph sets .name on AI messages to the node/agent name
+                node_name = getattr(last_msg, "name", None) or chunk.get("sender", "")
+                stage_hint = _stage_from_state(chunk, _prev)
+                label = node_name or stage_hint or "Processing"
+                print(f"\n{'─' * 62}")
+                print(f"[Step {step}] ▶  {label}{('  (' + stage_hint + ')') if stage_hint and stage_hint != label else ''}")
+                print(f"{'─' * 62}")
+                last_msg.pretty_print()
+                trace.append(chunk)
+                _prev = chunk
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}
@@ -415,7 +430,6 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
         }
-
         # Save to file. Reject ticker values that would escape the
         # results directory when joined as a path component.
         safe_ticker = safe_ticker_component(self.ticker)
@@ -429,3 +443,31 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+
+def _stage_from_state(state: dict, prev: dict) -> str:
+    """Infer which major pipeline stage just completed from newly populated state fields."""
+
+    def _new(key: str) -> bool:
+        return bool(state.get(key)) and not bool(prev.get(key))
+
+    def _new_nested(k1: str, k2: str) -> bool:
+        return bool((state.get(k1) or {}).get(k2)) and not bool((prev.get(k1) or {}).get(k2))
+
+    if _new("final_trade_decision"):
+        return "Portfolio Manager - Final Decision"
+    if _new_nested("risk_debate_state", "judge_decision"):
+        return "Risk Debate Complete"
+    if _new("trader_investment_plan"):
+        return "Trader - Plan Ready"
+    if _new_nested("investment_debate_state", "judge_decision"):
+        return "Research Manager - Debate Concluded"
+    if _new("fundamentals_report"):
+        return "Fundamentals Analyst - Done"
+    if _new("news_report"):
+        return "News Analyst - Done"
+    if _new("sentiment_report"):
+        return "Social Media Analyst - Done"
+    if _new("market_report"):
+        return "Market Analyst - Done"
+    return ""
