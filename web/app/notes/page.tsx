@@ -93,14 +93,14 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form
-      className="card grid grid-cols-3 gap-3"
+      className="card grid grid-cols-1 md:grid-cols-3 gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!title.trim() || !body.trim()) return;
         create.mutate();
       }}
     >
-      <div className="col-span-2">
+      <div className="md:col-span-2">
         <label className="label">Title</label>
         <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} required />
       </div>
@@ -108,15 +108,15 @@ function NewNoteForm({ onDone }: { onDone: () => void }) {
         <label className="label">Ticker (optional)</label>
         <input className="input w-full" value={ticker} onChange={(e) => setTicker(e.target.value)} />
       </div>
-      <div className="col-span-3">
+      <div className="md:col-span-3">
         <label className="label">Body (markdown)</label>
         <textarea className="input w-full h-40" value={body} onChange={(e) => setBody(e.target.value)} required />
       </div>
-      <div className="col-span-2">
+      <div className="md:col-span-2">
         <label className="label">Tags (comma-separated)</label>
         <input className="input w-full" value={tags} onChange={(e) => setTags(e.target.value)} />
       </div>
-      <div className="col-span-3 flex justify-end">
+      <div className="md:col-span-3 flex justify-end">
         <button type="submit" className="btn btn-primary" disabled={create.isPending}>
           {create.isPending ? "Saving…" : "Save"}
         </button>

@@ -117,14 +117,22 @@ export default function SettingsPage() {
         <p className="text-xs text-muted mb-3">
           Pre-fills the <strong>Run</strong> page form. Override per-run there.
         </p>
-        <div className="card grid grid-cols-3 gap-3">
+        <div className="card grid grid-cols-1 md:grid-cols-3 gap-3">
           <DefaultField name="llm_provider" label="Provider" defaults={defaults} setDefaults={setDefaults} />
           <DefaultField name="deep_think_llm" label="Deep-think model" defaults={defaults} setDefaults={setDefaults} />
           <DefaultField name="quick_think_llm" label="Quick-think model" defaults={defaults} setDefaults={setDefaults} />
+          <DefaultField
+            name="backend_url"
+            label="Custom base URL"
+            placeholder="https://your-openai-compatible-endpoint/v1"
+            className="md:col-span-3"
+            defaults={defaults}
+            setDefaults={setDefaults}
+          />
           <NumberField name="max_debate_rounds" label="Bull/Bear rounds" min={1} max={5} defaults={defaults} setDefaults={setDefaults} />
           <NumberField name="max_risk_discuss_rounds" label="Risk rounds" min={1} max={5} defaults={defaults} setDefaults={setDefaults} />
           <DefaultField name="output_language" label="Output language" defaults={defaults} setDefaults={setDefaults} />
-          <div className="col-span-3 flex justify-end">
+          <div className="md:col-span-3 flex justify-end">
             <button className="btn btn-primary" onClick={() => saveDefaults.mutate()} disabled={saveDefaults.isPending}>
               {saveDefaults.isPending ? "Saving…" : "Save defaults"}
             </button>
@@ -136,13 +144,14 @@ export default function SettingsPage() {
 }
 
 function DefaultField({
-  name, label, defaults, setDefaults,
-}: { name: string; label: string; defaults: Record<string, any>; setDefaults: (d: Record<string, any>) => void }) {
+  name, label, placeholder, className, defaults, setDefaults,
+}: { name: string; label: string; placeholder?: string; className?: string; defaults: Record<string, any>; setDefaults: (d: Record<string, any>) => void }) {
   return (
-    <div>
+    <div className={className}>
       <label className="label">{label}</label>
       <input
         className="input w-full"
+        placeholder={placeholder}
         value={defaults[name] ?? ""}
         onChange={(e) => setDefaults({ ...defaults, [name]: e.target.value })}
       />

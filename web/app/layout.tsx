@@ -32,23 +32,25 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Providers>
-          <div className="min-h-screen flex">
-            <aside className="w-56 shrink-0 border-r border-border p-4 sticky top-0 h-screen">
-              <div className="text-lg font-semibold mb-1">TradingAgents</div>
-              <div className="text-xs text-muted mb-6">Recommendations, not orders</div>
-              <nav className="space-y-1">
+          <div className="app-shell">
+            <aside className="app-sidebar">
+              <div className="app-brand">
+                <div className="text-lg font-semibold">TradingAgents</div>
+                <div className="text-xs text-muted">Recommendations, not orders</div>
+              </div>
+              <nav className="app-nav" aria-label="Primary navigation">
                 {NAV.map((n) => (
                   <Link
                     key={n.href}
                     href={n.href}
-                    className="block px-2 py-1.5 rounded text-sm hover:bg-surface"
+                    className="app-nav-link"
                   >
                     {n.label}
                   </Link>
                 ))}
               </nav>
             </aside>
-            <main className="flex-1 px-6 py-6 max-w-[1400px] mx-auto w-full">
+            <main className="app-main">
               {children}
             </main>
           </div>

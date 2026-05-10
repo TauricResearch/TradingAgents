@@ -161,7 +161,7 @@ function NewPositionForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form
-      className="card grid grid-cols-2 md:grid-cols-3 gap-3"
+      className="card grid grid-cols-1 md:grid-cols-3 gap-3"
       onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
     >
       <div>
@@ -176,15 +176,15 @@ function NewPositionForm({ onDone }: { onDone: () => void }) {
         <label className="label">Cost / share</label>
         <input className="input w-full" type="number" step="any" value={costBasis} onChange={(e) => setCostBasis(e.target.value)} required />
       </div>
-      <div className="col-span-2">
+      <div className="md:col-span-2">
         <label className="label">Account (optional)</label>
         <input className="input w-full" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="Brokerage / IRA / 401k" />
       </div>
-      <div className="col-span-3">
+      <div className="md:col-span-3">
         <label className="label">Notes</label>
         <input className="input w-full" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
-      <div className="col-span-3 flex justify-end">
+      <div className="md:col-span-3 flex justify-end">
         <button className="btn btn-primary" type="submit" disabled={create.isPending}>
           {create.isPending ? "Saving…" : "Open position"}
         </button>

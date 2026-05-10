@@ -26,6 +26,7 @@ export type RunSummary = {
   provider?: string | null;
   deep_model?: string | null;
   quick_model?: string | null;
+  backend_url?: string | null;
   debate_rounds?: number | null;
   risk_rounds?: number | null;
   status: string;
@@ -38,6 +39,7 @@ export type RunSummary = {
   tokens_out: number;
   log_path?: string | null;
   error_message?: string | null;
+  error_log_path?: string | null;
 };
 
 export type RunDetail = RunSummary & {

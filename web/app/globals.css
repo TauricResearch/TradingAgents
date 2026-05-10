@@ -38,6 +38,24 @@ html, body {
 }
 
 @layer components {
+  .app-shell {
+    @apply min-h-screen flex flex-col;
+  }
+  .app-sidebar {
+    @apply sticky top-0 z-20 w-full border-b border-border bg-bg px-4 py-3;
+  }
+  .app-brand {
+    @apply mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1;
+  }
+  .app-nav {
+    @apply flex flex-wrap gap-1;
+  }
+  .app-nav-link {
+    @apply inline-flex items-center rounded px-2 py-1.5 text-sm hover:bg-surface;
+  }
+  .app-main {
+    @apply w-full max-w-[1400px] flex-1 px-4 py-4;
+  }
   .card {
     @apply bg-surface border border-border rounded-lg p-4;
   }
@@ -65,5 +83,26 @@ html, body {
   }
   .pill {
     @apply inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    @apply flex-row;
+  }
+  .app-sidebar {
+    @apply h-screen w-56 shrink-0 border-b-0 border-r p-4;
+  }
+  .app-brand {
+    @apply mb-6 block;
+  }
+  .app-nav {
+    @apply flex-col gap-1;
+  }
+  .app-nav-link {
+    @apply w-full;
+  }
+  .app-main {
+    @apply mx-auto px-6 py-6;
   }
 }

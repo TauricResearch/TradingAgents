@@ -5,9 +5,29 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Runs } from "@/lib/api";
 import { decisionColor, fmtDate, fmtTokens, statusColor } from "@/lib/format";
+import type { RunSummary } from "@/lib/types";
+
+function backendLabel(run: RunSummary) {
+  if (!run.backend_url) return null;
+  try {
+    return new URL(run.backend_url).host;
+  } catch {
+    return run.backend_url;
+  }
+}
+
+function errorPreview(message?: string | null) {
+  if (!message) return null;
+  return message.length > 90 ? `${message.slice(0, 87)}...` : message;
+}
 
 export default function HistoryPage() {
-  const q = useQuery({ queryKey: ["runs"], queryFn: () => Runs.list() });
+  const q = useQuery({
+    queryKey: ["runs"],
+    queryFn: () => Runs.list(),
+    refetchInterval: (query) =>
+      query.state.data?.some((run) => run.status === "running") ? 5_000 : false,
+  });
   const [tickerFilter, setTickerFilter] = useState("");
   const [decisionFilter, setDecisionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -109,14 +129,31 @@ export default function HistoryPage() {
                 <td className={`py-2 px-3 font-semibold ${decisionColor(r.decision)}`}>
                   {r.decision ?? "—"}
                 </td>
-                <td className="py-2 px-3 text-muted">
-                  {r.provider ?? "—"} / {r.deep_model ?? "—"}
+                <td
+                  className="py-2 px-3 text-muted"
+                  title={[
+                    `Provider: ${r.provider ?? "-"}`,
+                    `Deep: ${r.deep_model ?? "-"}`,
+                    `Quick: ${r.quick_model ?? "-"}`,
+                    r.backend_url ? `Backend: ${r.backend_url}` : null,
+                  ].filter(Boolean).join("\n")}
+                >
+                  <div>{r.provider ?? "—"} / {r.deep_model ?? "—"}</div>
+                  <div className="text-xs">
+                    quick {r.quick_model ?? "—"}
+                    {backendLabel(r) ? ` · ${backendLabel(r)}` : ""}
+                  </div>
                 </td>
                 <td className="py-2 px-3 text-right text-muted">
                   {fmtTokens(r.tokens_in)}↑ / {fmtTokens(r.tokens_out)}↓
                 </td>
                 <td className="py-2 px-3">
                   <span className={`pill ${statusColor(r.status)}`}>{r.status}</span>
+                  {r.status === "error" && errorPreview(r.error_message) && (
+                    <div className="mt-1 max-w-xs truncate text-xs text-danger" title={r.error_message ?? undefined}>
+                      {errorPreview(r.error_message)}
+                    </div>
+                  )}
                 </td>
                 <td className="py-2 px-3 text-muted">{fmtDate(r.started_at)}</td>
                 <td className="py-2 px-3 text-right">

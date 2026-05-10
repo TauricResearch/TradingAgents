@@ -53,7 +53,7 @@ export default function SimulationPage() {
 
       {/* ---- Scenario builder ---- */}
       <div className="card space-y-3">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label className="label">Scenario name</label>
             <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="optional" />
@@ -75,8 +75,8 @@ export default function SimulationPage() {
           </div>
           <div className="space-y-2">
             {trades.map((t, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-3">
+              <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                <div className="md:col-span-3">
                   <label className="label">Ticker</label>
                   <input
                     className="input w-full"
@@ -84,19 +84,19 @@ export default function SimulationPage() {
                     onChange={(e) => updateTrade(i, "ticker", e.target.value.toUpperCase())}
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <label className="label">Shares</label>
                   <input className="input w-full" type="number" step="any" value={t.shares} onChange={(e) => updateTrade(i, "shares", parseFloat(e.target.value) || 0)} />
                 </div>
-                <div className="col-span-3">
+                <div className="md:col-span-3">
                   <label className="label">Entry price ($)</label>
                   <input className="input w-full" type="number" step="any" value={t.entry_price} onChange={(e) => updateTrade(i, "entry_price", parseFloat(e.target.value) || 0)} />
                 </div>
-                <div className="col-span-3">
+                <div className="md:col-span-3">
                   <label className="label">Hold (days)</label>
                   <input className="input w-full" type="number" min={1} max={1095} value={t.hold_days} onChange={(e) => updateTrade(i, "hold_days", parseInt(e.target.value) || 1)} />
                 </div>
-                <div className="col-span-1 text-right">
+                <div className="md:col-span-1 text-right">
                   <button className="btn btn-danger text-xs" onClick={() => removeTrade(i)}>✕</button>
                 </div>
               </div>

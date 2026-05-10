@@ -81,8 +81,11 @@ class RunnerPool:
         managed = self.get(run_id)
         if not managed:
             return False
+        with managed._lock:
+            if managed.finished:
+                return False
         managed.handle.cancel()
-        managed.error = "Cancelled by user."
+        self._ingest(managed, {"type": "error", "message": "Cancelled by user."})
         self._mark_finished(managed)
         return True
 

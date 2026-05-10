@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Runs, SettingsApi } from "@/lib/api";
 import { runStreamUrl } from "@/lib/ws";
 import type { RunCreateRequest, RunEvent } from "@/lib/types";
@@ -22,6 +23,8 @@ const PROVIDERS = [
   { id: "openrouter", label: "OpenRouter" },
   { id: "ollama", label: "Ollama (local)" },
 ] as const;
+
+const DATA_VENDORS = ["yfinance", "alpha_vantage"] as const;
 
 type SectionKey =
   | "market_report"
@@ -77,9 +80,19 @@ function todayIso(): string {
 }
 
 export default function RunPage() {
+  return (
+    <Suspense fallback={<div className="text-muted">Loading run form...</div>}>
+      <RunPageContent />
+    </Suspense>
+  );
+}
+
+function RunPageContent() {
   const qc = useQueryClient();
+  const searchParams = useSearchParams();
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => SettingsApi.get() });
   const defaults = settings.data?.defaults ?? {};
+  const initializedFromDefaults = useRef(false);
 
   const [form, setForm] = useState<RunCreateRequest>({
     ticker: "NVDA",
@@ -100,9 +113,12 @@ export default function RunPage() {
 
   // Pull saved defaults once they load.
   useEffect(() => {
-    if (!settings.data) return;
+    if (!settings.data || initializedFromDefaults.current) return;
+    initializedFromDefaults.current = true;
+    const tickerFromUrl = searchParams.get("ticker")?.trim().toUpperCase();
     setForm((f) => ({
       ...f,
+      ticker: tickerFromUrl || f.ticker,
       llm_provider: defaults.llm_provider ?? f.llm_provider,
       deep_think_llm: defaults.deep_think_llm ?? f.deep_think_llm,
       quick_think_llm: defaults.quick_think_llm ?? f.quick_think_llm,
@@ -115,6 +131,7 @@ export default function RunPage() {
   }, [settings.data]);
 
   const [runId, setRunId] = useState<string | null>(null);
+  const [activeRun, setActiveRun] = useState<RunCreateRequest | null>(null);
   const [ui, setUi] = useState<RunUiState>(EMPTY_UI);
   const [activeTab, setActiveTab] = useState<SectionKey | "debate" | "risk" | "log">(
     "market_report",
@@ -123,9 +140,24 @@ export default function RunPage() {
 
   const create = useMutation({
     mutationFn: (req: RunCreateRequest) => Runs.create(req),
-    onSuccess: (r) => {
+    onMutate: (req) => {
       setUi(EMPTY_UI);
+      setRunId(null);
+      setActiveRun(req);
+      setActiveTab("market_report");
+    },
+    onSuccess: (r, req) => {
+      setActiveRun(req);
       setRunId(r.run_id);
+      qc.invalidateQueries({ queryKey: ["runs"] });
+    },
+  });
+
+  const cancel = useMutation({
+    mutationFn: () => (runId ? Runs.cancel(runId) : Promise.resolve({ cancelled: false })),
+    onSuccess: () => {
+      wsRef.current?.close();
+      setUi((u) => ({ ...u, error: "Cancelled by user." }));
       qc.invalidateQueries({ queryKey: ["runs"] });
     },
   });
@@ -205,6 +237,7 @@ export default function RunPage() {
   }
 
   const isStreaming = !!runId && !ui.done && !ui.error;
+  const displayedRun = activeRun ?? form;
 
   return (
     <div className="space-y-6">
@@ -217,7 +250,7 @@ export default function RunPage() {
 
       {/* ---- Form ---- */}
       <form
-        className="card grid grid-cols-2 md:grid-cols-3 gap-4"
+        className="card grid grid-cols-1 md:grid-cols-3 gap-4"
         onSubmit={(e) => {
           e.preventDefault();
           create.mutate(form);
@@ -229,6 +262,7 @@ export default function RunPage() {
             className="input w-full"
             value={form.ticker}
             onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
+            disabled={isStreaming}
             required
           />
         </div>
@@ -239,6 +273,7 @@ export default function RunPage() {
             className="input w-full"
             value={form.trade_date}
             onChange={(e) => setForm({ ...form, trade_date: e.target.value })}
+            disabled={isStreaming}
             required
           />
         </div>
@@ -248,6 +283,7 @@ export default function RunPage() {
             className="input w-full"
             value={form.llm_provider}
             onChange={(e) => setForm({ ...form, llm_provider: e.target.value })}
+            disabled={isStreaming}
           >
             {PROVIDERS.map((p) => (
               <option key={p.id} value={p.id}>
@@ -261,12 +297,14 @@ export default function RunPage() {
           value={form.deep_think_llm}
           onChange={(v) => setForm({ ...form, deep_think_llm: v })}
           provider={form.llm_provider}
+          disabled={isStreaming}
         />
         <ModelField
           label="Quick-think model"
           value={form.quick_think_llm}
           onChange={(v) => setForm({ ...form, quick_think_llm: v })}
           provider={form.llm_provider}
+          disabled={isStreaming}
         />
         <div className="col-span-full">
           <label className="label">Custom base URL</label>
@@ -277,6 +315,7 @@ export default function RunPage() {
             onChange={(e) =>
               setForm({ ...form, backend_url: e.target.value.trim() || null })
             }
+            disabled={isStreaming}
           />
         </div>
         <div>
@@ -290,6 +329,7 @@ export default function RunPage() {
             onChange={(e) =>
               setForm({ ...form, max_debate_rounds: Number(e.target.value) })
             }
+            disabled={isStreaming}
           />
         </div>
         <div>
@@ -303,9 +343,69 @@ export default function RunPage() {
             onChange={(e) =>
               setForm({ ...form, max_risk_discuss_rounds: Number(e.target.value) })
             }
+            disabled={isStreaming}
           />
         </div>
-        <div className="col-span-full flex justify-end">
+        <div className="col-span-full">
+          <div className="text-sm font-semibold mb-2">Data vendors</div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <VendorField
+              label="Stock data"
+              value={form.data_vendors.core_stock_apis}
+              disabled={isStreaming}
+              onChange={(v) =>
+                setForm({
+                  ...form,
+                  data_vendors: { ...form.data_vendors, core_stock_apis: v },
+                })
+              }
+            />
+            <VendorField
+              label="Technical"
+              value={form.data_vendors.technical_indicators}
+              disabled={isStreaming}
+              onChange={(v) =>
+                setForm({
+                  ...form,
+                  data_vendors: { ...form.data_vendors, technical_indicators: v },
+                })
+              }
+            />
+            <VendorField
+              label="Fundamentals"
+              value={form.data_vendors.fundamental_data}
+              disabled={isStreaming}
+              onChange={(v) =>
+                setForm({
+                  ...form,
+                  data_vendors: { ...form.data_vendors, fundamental_data: v },
+                })
+              }
+            />
+            <VendorField
+              label="News"
+              value={form.data_vendors.news_data}
+              disabled={isStreaming}
+              onChange={(v) =>
+                setForm({
+                  ...form,
+                  data_vendors: { ...form.data_vendors, news_data: v },
+                })
+              }
+            />
+          </div>
+        </div>
+        <div className="col-span-full flex justify-end gap-2">
+          {isStreaming && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => cancel.mutate()}
+              disabled={cancel.isPending}
+            >
+              {cancel.isPending ? "Cancelling..." : "Cancel run"}
+            </button>
+          )}
           <button
             type="submit"
             className="btn btn-primary"
@@ -317,6 +417,11 @@ export default function RunPage() {
         {create.isError && (
           <div className="col-span-full text-sm text-danger">
             {(create.error as Error).message}
+          </div>
+        )}
+        {cancel.isError && (
+          <div className="col-span-full text-sm text-danger">
+            {(cancel.error as Error).message}
           </div>
         )}
       </form>
@@ -332,7 +437,7 @@ export default function RunPage() {
                 ✓ Decision: <strong>{ui.decision ?? "—"}</strong>
               </span>
             ) : (
-              <span className="text-accent">● Streaming {form.ticker} …</span>
+              <span className="text-accent">● Streaming {displayedRun.ticker} …</span>
             )}
             {ui.warning && (
               <span className="ml-3 text-warning">{ui.warning}</span>
@@ -426,7 +531,7 @@ export default function RunPage() {
 
           <section>
             <h2 className="text-lg font-semibold mb-3">vs S&amp;P 500 / Nasdaq-100</h2>
-            <ChartComparison ticker={form.ticker} tradeDate={form.trade_date} />
+            <ChartComparison ticker={displayedRun.ticker} tradeDate={displayedRun.trade_date} />
           </section>
 
           <section>
@@ -455,11 +560,13 @@ function ModelField({
   value,
   onChange,
   provider,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   provider: string;
+  disabled?: boolean;
 }) {
   const isOllama = provider === "ollama";
   const ollamaModels = useQuery({
@@ -483,6 +590,7 @@ function ModelField({
           className="input w-full"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
         >
           {value && !list.find((m) => m.name === value) && (
             <option value={value}>{value} (not installed)</option>
@@ -507,8 +615,39 @@ function ModelField({
         className="input w-full"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
         required
       />
+    </div>
+  );
+}
+
+function VendorField({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <select
+        className="input w-full"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {DATA_VENDORS.map((vendor) => (
+          <option key={vendor} value={vendor}>
+            {vendor}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
