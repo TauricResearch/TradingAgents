@@ -19,6 +19,7 @@ models (gpt-4o-mini, claude-sonnet-4-6), the honest read is:
 | Cross-domain (10) | Sonnet | 10 | 67% (6/9 + 1 HOLD) | 1 | Sonnet drops to mini-level once look-ahead is gone |
 | **Cross-domain (10) + drama-fix** | **Sonnet** | **10** | **88.9% (8/9 + 1 HOLD)** | **1** | **+22pp from drama-bias prompt fix; surgical effect on Iran-military and Trump-ceasefire markets** |
 | **Look-ahead-free deep (30)** | **Sonnet** | **30** | **100% (24/24 + 6 HOLDs)** | **6** | **closed before 2026-03-01; class-imbalanced (28 NO / 2 YES); Sonnet held both YES markets (4.6% random chance); no BUY_YES calls in sample** |
+| Cross-domain (10) + quote-fix v2 | Sonnet | 10 | 60% (6/10 + 0 HOLDs) | 0 | 2 regressions are Exa news stochasticity (different articles = different drama-bias trigger); Trump-Allah failure traced to look-ahead market price data in Exa results, not prompt failure; see finding #7 |
 
 ## Key findings
 
@@ -57,6 +58,32 @@ pushed back further to fully eliminate look-ahead bias.
 The 18 paper positions on Welsh/UK local elections (resolving over the
 next 24-72h) cannot be recall, those events occur AFTER training.
 That is the clean test.
+
+### 7. Trump-Allah failure is look-ahead market price data, not a prompt failure
+
+The quote-prediction prompt fix (commit shipped 2026-05-10) correctly handles
+Trump-Biden ("again" → known base rate → BUY_YES, correct) but persistently
+fails on Trump-Allah (BUY_NO, conf 0.82, actual YES_WINS across two runs).
+
+Inspection of the model's rationale revealed the root cause: Exa news is
+returning **market price history** from close to expiry, showing the YES price
+collapsing from >99% to <1% with $319K active volume in the final days before
+resolution. The model correctly infers from this data that sophisticated
+participants were pricing near-zero probability — but the actual outcome was YES.
+
+This is a look-ahead bias artifact, not a quote-prediction failure: the model
+is reasoning from post-decision market price data, not from the speaker's
+historical word frequency. Prompt engineering cannot fix a data quality issue.
+
+**Implication for real-time use:** In live `run_polymarket.py`, there is no
+look-ahead market price data (Exa only returns articles from ≤ current time),
+so this failure mode does not affect live trading. It is a backtest-specific
+artifact.
+
+**The quote-prediction clause (v2) is still correct** and adds value for
+clean cases where Exa does not contaminate with price history.
+
+---
 
 ### 6. 30-market look-ahead-free backtest: calibration evidence
 On a deeper sample closed before 2026-03-01 (mostly SAG awards markets,

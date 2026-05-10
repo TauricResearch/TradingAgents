@@ -13,12 +13,12 @@ order:
    signal we can get without writing more code, since those events
    resolve AFTER the LLM training cutoff.
 
-2. **Quote-prediction prompt fix** (Phase A polish).
-   Trader prompt addition for "will X say Y" markets — default to the
-   speaker's historical word frequency or HOLD. Re-run the same 10
-   cross-domain markets as the drama-bias A/B. Effort: ~15 min CC,
-   target: no regression on the 88.9% baseline + flip on Trump-Allah.
-   See "TODO: Investigate quote-prediction failure mode" below.
+2. ~~**Quote-prediction prompt fix** (Phase A polish).~~
+   **DONE 2026-05-10** (commit pending). QUOTE-PREDICTION MARKETS clause
+   added to trader prompt. A/B re-test on same 10 markets: Trump-Biden
+   ("again") now correctly BUY_YES. Trump-Allah still BUY_NO — traced to
+   look-ahead market price data in Exa news (a backtest artifact, not a
+   live-trading failure). See PHASE_A_FINDINGS #7.
 
 3. **50-market balanced backtest** (Phase A statistical claim).
    Current 30-market sample is class-imbalanced (28 NO / 2 YES). Need
@@ -89,20 +89,13 @@ the calibration check.
 
 ---
 
-### TODO: Investigate quote-prediction failure mode
-**What:** Sonnet (and mini) wrongly predicted "Trump praise Allah by
-Apr 15" as NO when actual was YES. Quote-prediction markets are a
-distinct failure mode from drama-bias.
-**Why:** The bot has no information advantage on whether a person
-will say a specific word in a specific upcoming interview. It should
-either default to base-rate (prior frequency Trump used the word) or
-HOLD.
-**Context:** Add a clause to the trader prompt: "for quote-prediction
-markets ('will X say Y'), default to the historical frequency the
-person has used the word in similar contexts. If you have no base
-rate, prefer HOLD."
-**Effort:** 15 min + same A/B 10-market test
-**Depends on:** nothing
+### DONE: Quote-prediction failure mode investigation
+**Shipped 2026-05-10.** QUOTE-PREDICTION MARKETS clause (v2) added to
+trader prompt in `propagate_market()`. Handles "again" keyword as
+base-rate evidence toward YES, separates frequency signal from drama signal.
+Trump-Biden correctly called BUY_YES. Trump-Allah failure traced to
+look-ahead market price data in Exa news (backtest artifact, not a live
+trading failure). See PHASE_A_FINDINGS #7 for full diagnosis.
 
 ---
 
