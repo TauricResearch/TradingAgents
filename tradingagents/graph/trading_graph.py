@@ -203,7 +203,9 @@ class TradingAgentsGraph:
             end_str = end.strftime("%Y-%m-%d")
 
             stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            spy = yf.Ticker("SPY").history(start=trade_date, end=end_str)
+            # Use Ibovespa (^BVSP) for Brazilian stocks, otherwise SPY
+            benchmark_symbol = "^BVSP" if ticker.upper().endswith(".SA") else "SPY"
+            spy = yf.Ticker(benchmark_symbol).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(spy) < 2:
                 return None, None, None

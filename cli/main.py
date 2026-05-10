@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 import datetime
 import typer
@@ -501,40 +502,51 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
+    # Step 1: Target Market
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
-            "SPY",
+            "Step 1: Target Market",
+            "Select the target market for analysis (US/Global or B3/Brazil)",
+            "US/Global",
         )
     )
-    selected_ticker = get_ticker()
+    selected_market = select_market()
 
-    # Step 2: Analysis date
+    # Step 2: Ticker symbol
+    default_ticker = "SPY" if selected_market == "US" else "PETR4"
+    console.print(
+        create_question_box(
+            "Step 2: Ticker Symbol",
+            f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES})",
+            default_ticker,
+        )
+    )
+    selected_ticker = get_ticker(default_ticker=default_ticker)
+
+    # Step 3: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
-            "Step 2: Analysis Date",
+            "Step 3: Analysis Date",
             "Enter the analysis date (YYYY-MM-DD)",
             default_date,
         )
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Output language
+    # Step 4: Output language
     console.print(
         create_question_box(
-            "Step 3: Output Language",
+            "Step 4: Output Language",
             "Select the language for analyst reports and final decision"
         )
     )
     output_language = ask_output_language()
 
-    # Step 4: Select analysts
+    # Step 5: Select analysts
     console.print(
         create_question_box(
-            "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+            "Step 5: Analysts Team", "Select your LLM analyst agents for the analysis"
         )
     )
     selected_analysts = select_analysts()
@@ -542,32 +554,32 @@ def get_user_selections():
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
-    # Step 5: Research depth
+    # Step 6: Research depth
     console.print(
         create_question_box(
-            "Step 5: Research Depth", "Select your research depth level"
+            "Step 6: Research Depth", "Select your research depth level"
         )
     )
     selected_research_depth = select_research_depth()
 
-    # Step 6: LLM Provider
+    # Step 7: LLM Provider
     console.print(
         create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+            "Step 7: LLM Provider", "Select your LLM provider"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
 
-    # Step 7: Thinking agents
+    # Step 8: Thinking agents
     console.print(
         create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 8: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
-    # Step 8: Provider-specific thinking configuration
+    # Step 9: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
     anthropic_effort = None
@@ -576,7 +588,7 @@ def get_user_selections():
     if provider_lower == "google":
         console.print(
             create_question_box(
-                "Step 8: Thinking Mode",
+                "Step 9: Thinking Mode",
                 "Configure Gemini thinking mode"
             )
         )
@@ -584,7 +596,7 @@ def get_user_selections():
     elif provider_lower == "openai":
         console.print(
             create_question_box(
-                "Step 8: Reasoning Effort",
+                "Step 9: Reasoning Effort",
                 "Configure OpenAI reasoning effort level"
             )
         )
@@ -592,13 +604,14 @@ def get_user_selections():
     elif provider_lower == "anthropic":
         console.print(
             create_question_box(
-                "Step 8: Effort Level",
+                "Step 9: Effort Level",
                 "Configure Claude effort level"
             )
         )
         anthropic_effort = ask_anthropic_effort()
 
     return {
+        "market": selected_market,
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
@@ -612,30 +625,6 @@ def get_user_selections():
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
-
-
-def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
-
-
-def get_analysis_date():
-    """Get the analysis date from user input."""
-    while True:
-        date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
-        )
-        try:
-            # Validate date format and ensure it's not in the future
-            analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            if analysis_date.date() > datetime.datetime.now().date():
-                console.print("[red]Error: Analysis date cannot be in the future[/red]")
-                continue
-            return date_str
-        except ValueError:
-            console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
-            )
 
 
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
@@ -947,6 +936,20 @@ def run_analysis(checkpoint: bool = False):
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
 
+    # Auto-detect B3 stocks and use specialized dataflow
+    ticker_upper = selections["ticker"].upper()
+    if selections.get("market") == "B3" or ticker_upper.endswith(".SA") or re.match(r'^[A-Z]{4}[0-9]{1,2}F?$', ticker_upper):
+        if not ticker_upper.endswith(".SA"):
+            selections["ticker"] = f"{ticker_upper}.SA"
+        
+        # Set all data vendors to b3 for Brazilian stocks
+        config["data_vendors"] = {
+            "core_stock_apis": "b3",
+            "technical_indicators": "b3",
+            "fundamental_data": "b3",
+            "news_data": "b3",
+        }
+
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
 
@@ -969,7 +972,8 @@ def run_analysis(checkpoint: bool = False):
     start_time = time.time()
 
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"] / run_timestamp
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -1007,7 +1011,11 @@ def run_analysis(checkpoint: bool = False):
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
+                    if isinstance(content, list):
+                        text = "\n".join(extract_content_string(item) or "" for item in content)
+                    else:
+                        text = extract_content_string(content) or ""
+                    
                     with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(text)
         return wrapper

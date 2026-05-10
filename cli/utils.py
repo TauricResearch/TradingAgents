@@ -8,7 +8,7 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+TICKER_INPUT_EXAMPLES = "Examples: SPY, PETR4, VALE3, CNC.TO, 7203.T, 0700.HK"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -18,10 +18,11 @@ ANALYST_ORDER = [
 ]
 
 
-def get_ticker() -> str:
+def get_ticker(default_ticker: str = "SPY") -> str:
     """Prompt the user to enter a ticker symbol."""
     ticker = questionary.text(
         f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
+        default=default_ticker,
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
@@ -36,6 +37,22 @@ def get_ticker() -> str:
         exit(1)
 
     return normalize_ticker_symbol(ticker)
+
+
+def select_market() -> str:
+    """Select the target market."""
+    return questionary.select(
+        "Select Target Market:",
+        choices=[
+            questionary.Choice([("fg:red", "US/Global (S&P 500, etc.)")], "US"),
+            questionary.Choice([("fg:green", "B3 (Brazilian Stock Exchange)")], "B3"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:blue noinherit"),
+            ("highlighted", "fg:blue noinherit"),
+            ("pointer", "fg:blue noinherit"),
+        ]),
+    ).ask()
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
