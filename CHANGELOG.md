@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+- **Run configuration report.** Each saved analysis now includes `run_config.md`
+  alongside `complete_report.md`, capturing the tradingagents version, ticker,
+  analysis date, selected analysts, research depth, LLM provider and models,
+  debate/risk round counts, and any provider-specific reasoning parameters
+  (OpenAI reasoning effort, Google thinking level, Anthropic effort) that are
+  set. Useful for comparing runs across providers, models, and tradingagents
+  versions. Also exposes `tradingagents.__version__` via `importlib.metadata`. (#752)
+
 ## [0.2.4] — 2026-04-25
 
 ### Added
