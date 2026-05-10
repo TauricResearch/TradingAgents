@@ -25,7 +25,7 @@ def get_stock(symbol: str, start_date: str, end_date: str) -> str:
 
     data = _make_api_request("time_series", params)
 
-    if "values" not in data:
+    if not data.get("values"):
         return f"# No stock data available for {symbol}"
 
     # Convert to DataFrame for CSV output

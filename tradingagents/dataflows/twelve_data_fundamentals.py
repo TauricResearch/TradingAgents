@@ -35,7 +35,7 @@ def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str = 
 
 def _filter_statements_by_date(result: dict, curr_date: str) -> dict:
     """Filter financial statements to exclude future-dated entries."""
-    if not curr_date or not isinstance(result, dict):
+    if not curr_date or not isinstance(result, (dict, list)):
         return result
     for key in ("statements", "balance_sheet", "cash_flow", "income_statement"):
         if key in result and isinstance(result[key], list):

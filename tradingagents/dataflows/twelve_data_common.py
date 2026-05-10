@@ -86,13 +86,15 @@ def _make_api_request(endpoint: str, params: dict = None) -> dict:
     _rate_limit_throttle(api_key)
 
     url = f"{API_BASE_URL}/{endpoint}"
-    response = requests.get(url, params=params)
+    response = requests.get(url, params=params, timeout=10)
 
     # 404 means endpoint not available on this plan
     if response.status_code == 404:
         raise TwelveDataRateLimitError(
             f"Twelve Data endpoint '{endpoint}' not available. Falling back."
         )
+    if response.status_code == 429:
+        raise TwelveDataRateLimitError("Twelve Data rate limit exceeded (429).")
 
     response.raise_for_status()
 

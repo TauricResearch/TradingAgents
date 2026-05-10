@@ -63,7 +63,7 @@ def get_indicator(
 
     try:
         api_type = config["type"]
-        cache_key = f"{symbol}_{api_type}_{interval}"
+        cache_key = f"{symbol}_{api_type}_{interval}_{curr_date}_{look_back_days}"
 
         # Check cache for multi-value indicators
         if cache_key in _indicator_cache:
