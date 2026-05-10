@@ -17,9 +17,13 @@ def initialize_config():
 def set_config(config: Dict):
     """Update the configuration with custom values."""
     global _config
-    if _config is None:
-        _config = deepcopy(default_config.DEFAULT_CONFIG)
-    _config.update(deepcopy(config))
+    initialize_config()
+    incoming = deepcopy(config)
+    for key, value in incoming.items():
+        if isinstance(value, dict) and isinstance(_config.get(key), dict):
+            _config[key].update(value)
+        else:
+            _config[key] = value
 
 
 def get_config() -> Dict:
