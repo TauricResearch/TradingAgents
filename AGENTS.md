@@ -232,6 +232,40 @@ TradingAgents/
 
 ## Working Principles
 
+### Git Branching — Always Branch Before Editing
+
+**Never commit directly to `main`.** Before starting any epic or multi-commit work:
+
+```bash
+# Check current state first
+git branch -v
+
+# If on main with clean state and about to start new work:
+git checkout -b feat/<epic-name>
+
+# If on main with uncommitted changes:
+# → commit or stash first, then branch
+```
+
+**Rules:**
+- If on `main` and about to write code → create a branch first
+- If on a feature branch → you're good, keep working
+- If on main with no uncommitted changes but also no branch → you're about to break protocol
+- One epic = one feature branch. Stack if you have dependent epics.
+- Merge via PR (even if you're the only reviewer — it forces the pre-PR checklist)
+
+**Session start checklist:**
+```bash
+git status && git branch -v   # confirm branch
+just check                    # must be green
+td usage --new-session        # new identity
+td ws current                 # any active work to resume?
+```
+
+If `git branch -v` shows `* main` and you have a brief to implement → create a branch before touching any files.
+
+---
+
 ### Refactor Heuristic
 
 **Commit cadence:** One logical change per commit. "Logical" means: all files that must change together to achieve one goal, no more.
