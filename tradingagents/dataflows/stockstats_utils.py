@@ -13,6 +13,21 @@ from .utils import safe_ticker_component
 logger = logging.getLogger(__name__)
 
 
+def normalize_ticker_for_yfinance(ticker: str) -> str:
+    """Translate exchange suffix variants yfinance does not accept.
+
+    Different platforms use ``.SH`` or ``.SS`` interchangeably for the
+    Shanghai exchange; yfinance only accepts ``.SS``. We normalise here
+    so user input from any source resolves to a fetchable symbol.
+    """
+    if not ticker or "." not in ticker:
+        return ticker
+    code, suffix = ticker.rsplit(".", 1)
+    if suffix.upper() == "SH":
+        return f"{code}.SS"
+    return ticker
+
+
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
 

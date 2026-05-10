@@ -7,7 +7,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
-from .stockstats_utils import yf_retry
+from .stockstats_utils import yf_retry, normalize_ticker_for_yfinance
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -69,7 +69,7 @@ def get_news_yfinance(
     """
     article_limit = get_config()["news_article_limit"]
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(normalize_ticker_for_yfinance(ticker))
         news = yf_retry(lambda: stock.get_news(count=article_limit))
 
         if not news:
