@@ -43,6 +43,37 @@ def normalize_ticker_symbol(ticker: str) -> str:
     return ticker.strip().upper()
 
 
+def get_batch_tickers() -> List[str]:
+    """Prompt the user to enter multiple ticker symbols (comma-separated)."""
+    tickers_input = questionary.text(
+        f"Enter tickers separated by commas ({TICKER_INPUT_EXAMPLES}):",
+        validate=lambda x: len(x.strip()) > 0 or "Please enter at least one ticker symbol.",
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if not tickers_input:
+        console.print("\n[red]No tickers provided. Exiting...[/red]")
+        exit(1)
+
+    raw_tickers = [t.strip() for t in tickers_input.split(",") if t.strip()]
+    if not raw_tickers:
+        console.print("\n[red]No valid tickers found. Exiting...[/red]")
+        exit(1)
+
+    normalized = [normalize_ticker_symbol(t) for t in raw_tickers]
+    unique_tickers = list(dict.fromkeys(normalized))
+
+    if len(unique_tickers) < len(normalized):
+        console.print(f"[yellow]Removed duplicate tickers. {len(unique_tickers)} unique ticker(s) to analyze.[/yellow]")
+
+    return unique_tickers
+
+
 def get_analysis_date() -> str:
     """Prompt the user to enter a date in YYYY-MM-DD format."""
     import re
