@@ -20,11 +20,13 @@ order:
    look-ahead market price data in Exa news (a backtest artifact, not a
    live-trading failure). See PHASE_A_FINDINGS #7.
 
-3. **50-market balanced backtest** (Phase A statistical claim).
-   Current 30-market sample is class-imbalanced (28 NO / 2 YES). Need
-   a sample with at least 15-20 YES_WINS markets to claim BUY_YES
-   discrimination beyond drama-bias. Use `--end-date-max 2026-03-01`
-   and filter for `volume >= 5000` to avoid lottery-ticket markets.
+3. ~~**50-market balanced backtest** (Phase A statistical claim).~~
+   **DONE 2026-05-10** but filter produced wrong domain mix. 85.4% accuracy
+   (35/41, 9 HOLDs) on 44 NO / 6 YES sample — always-NO bot scores 87.8%,
+   so the headline number doesn't prove edge. Real signal: Gen.G LCK Cup
+   and Red Wings O/U correctly called BUY_YES. Next step: re-run with a
+   domain filter that excludes award nominations and targets sports finals +
+   O/U lines for a near-50% YES rate. See PHASE_A_FINDINGS #8.
 
 4. **Phase B Kelly criterion sizing** (only after #1-3 land).
    See "Polymarket Phase B" section below. Blocked on regulatory call

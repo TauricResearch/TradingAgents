@@ -20,6 +20,7 @@ models (gpt-4o-mini, claude-sonnet-4-6), the honest read is:
 | **Cross-domain (10) + drama-fix** | **Sonnet** | **10** | **88.9% (8/9 + 1 HOLD)** | **1** | **+22pp from drama-bias prompt fix; surgical effect on Iran-military and Trump-ceasefire markets** |
 | **Look-ahead-free deep (30)** | **Sonnet** | **30** | **100% (24/24 + 6 HOLDs)** | **6** | **closed before 2026-03-01; class-imbalanced (28 NO / 2 YES); Sonnet held both YES markets (4.6% random chance); no BUY_YES calls in sample** |
 | Cross-domain (10) + quote-fix v2 | Sonnet | 10 | 60% (6/10 + 0 HOLDs) | 0 | 2 regressions are Exa news stochasticity (different articles = different drama-bias trigger); Trump-Allah failure traced to look-ahead market price data in Exa results, not prompt failure; see finding #7 |
+| **50-market balanced attempt (pre-2026-03-01)** | **Sonnet** | **50** | **85.4% (35/41 + 9 HOLDs)** | **9** | **44 NO / 6 YES (88% NO rate); always-NO bot scores 87.8% on same set — model is 2pp below; real signal is 2 correct BUY_YES (Gen.G LCK, Red Wings O/U) + 1 smart HOLD (XRP 5-min binary); see finding #8** |
 
 ## Key findings
 
@@ -58,6 +59,37 @@ pushed back further to fully eliminate look-ahead bias.
 The 18 paper positions on Welsh/UK local elections (resolving over the
 next 24-72h) cannot be recall, those events occur AFTER training.
 That is the clean test.
+
+### 8. 50-market run: still class-imbalanced; YES discrimination exists but sample is too small
+
+Run: 50 markets closed before 2026-03-01, ≥$5K volume, Sonnet.
+Result: 85.4% accuracy (35/41 decisions, 9 HOLDs).
+
+**The class imbalance problem persists.** The sample is 44 NO_WINS / 6 YES_WINS
+(88% NO rate). An always-NO bot scores 36/41 = 87.8% on non-HOLD decisions.
+The model at 85.4% is **2pp below the always-NO baseline**, so the headline
+number does not demonstrate edge over a trivial strategy.
+
+**What the run does show:**
+- **HOLD discipline is reliable.** 9 HOLDs including XRP and Ethereum 5-minute
+  binaries (coin flips), the uncallable US-forces-Iran drama, and tight award
+  races. The model correctly abstains where it has no information advantage.
+- **BUY_YES discrimination exists but is weak at n=5.** Out of 6 YES_WINS
+  markets (1 HOLDed), the model scored 2/5 correct BUY_YES calls:
+  - **Gen.G wins LCK Cup 2026** (BUY_YES, conf 0.82) ✓ — requires esports knowledge
+  - **Red Wings vs Hurricanes O/U 4.5** (BUY_YES, conf 0.62) ✓ — requires hockey context
+  - Ethereum 5-min binary (BUY_NO) ✗ — coin flip, unpredictable
+  - Trump "SAVE America Act" on Truth Social (BUY_NO) ✗ — quote-prediction failure
+  - DC Metro median home value range (BUY_NO) ✗ — real estate range market
+
+**Why the filter failed to produce balanced data.** Markets closed before
+2026-03-01 with volume ≥$5K are dominated by SAG awards (all NO — most
+nominees lose), 5-minute crypto binaries, and esports head-to-head bets.
+To get 15-20 YES_WINS markets in a 50-market sample, need a different query
+strategy: filter by domain (exclude pure awards, include sports O/U and
+head-to-head finals) or use a YES_WINS fraction target directly.
+
+---
 
 ### 7. Trump-Allah failure is look-ahead market price data, not a prompt failure
 
