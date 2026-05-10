@@ -61,8 +61,15 @@ def _write(key: str, value: str) -> None:
         return
     try:
         os.makedirs(_cache_dir(), exist_ok=True)
-        with open(_path_for(key), "w", encoding="utf-8") as f:
+        # Atomic write: stream to ``<path>.tmp`` first, then rename. A crash
+        # mid-write leaves the prior cache file untouched instead of writing
+        # a half-finished one; concurrent writers race on the rename only,
+        # which ``os.replace`` resolves cleanly on POSIX and Windows.
+        path = _path_for(key)
+        tmp_path = f"{path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(value)
+        os.replace(tmp_path, path)
     except OSError as e:
         logger.warning("dataflow cache write failed for %s: %s", key, e)
 
