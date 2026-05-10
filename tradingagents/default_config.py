@@ -94,7 +94,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        # ``auto``: dispatches news by ticker suffix — Eastmoney / CLS for
+        # HK / SS / SZ counters (Chinese-language sources), Cninfo
+        # disclosures additionally for SS / SZ, yfinance otherwise.
+        # Set to ``yfinance`` or ``alpha_vantage`` to force a single vendor.
+        "news_data": "auto",
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
