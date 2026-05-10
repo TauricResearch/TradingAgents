@@ -418,7 +418,10 @@ def get_income_statement(
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
 
-def get_insider_transactions(ticker: Annotated[str, "ticker symbol of the company"]):
+def get_insider_transactions(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    as_of: Annotated[Optional[str], "drop rows with Start Date > as_of (yyyy-mm-dd)"] = None,
+):
     """Get insider transactions data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -426,6 +429,19 @@ def get_insider_transactions(ticker: Annotated[str, "ticker symbol of the compan
 
         if data is None or data.empty:
             return f"No insider transactions data found for symbol '{ticker}'"
+
+        if as_of:
+            try:
+                cutoff = pd.Timestamp(as_of)
+                # yfinance uses "Start Date" for filing date.
+                date_col = "Start Date" if "Start Date" in data.columns else None
+                if date_col:
+                    data = data[pd.to_datetime(data[date_col], errors="coerce") <= cutoff]
+            except Exception:
+                pass
+
+        if data.empty:
+            return f"No insider transactions data found for symbol '{ticker}' on or before {as_of}"
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()

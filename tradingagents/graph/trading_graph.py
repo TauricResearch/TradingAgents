@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yfinance as yf
 from langgraph.prebuilt import ToolNode
 
+from tradingagents.agents.utils._date_clamp import reset_trade_date, set_trade_date
 from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
     get_cashflow,
@@ -305,9 +306,12 @@ class TradingAgentsGraph:
             else:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
+        # Bind trade_date so tool wrappers can clamp LLM-supplied dates.
+        clamp_token = set_trade_date(str(trade_date))
         try:
             return self._run_graph(company_name, trade_date)
         finally:
+            reset_trade_date(clamp_token)
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None

@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.agents.utils._date_clamp import clamp, maybe_note
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -23,13 +24,14 @@ def get_indicators(
     Returns:
         str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
     """
+    cd, was_clamped = clamp(curr_date, "curr_date")
     # LLMs sometimes pass multiple indicators as a comma-separated string;
     # split and process each individually.
     indicators = [i.strip().lower() for i in indicator.split(",") if i.strip()]
     results = []
     for ind in indicators:
         try:
-            results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
+            results.append(route_to_vendor("get_indicators", symbol, ind, cd, look_back_days))
         except ValueError as e:
             results.append(str(e))
-    return "\n\n".join(results)
+    return maybe_note(was_clamped, "curr_date") + "\n\n".join(results)

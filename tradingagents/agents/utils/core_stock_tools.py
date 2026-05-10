@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.agents.utils._date_clamp import clamp, maybe_note
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -21,4 +22,7 @@ def get_stock_data(
     Returns:
         str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
     """
-    return route_to_vendor("get_stock_data", symbol, start_date, end_date)
+    s, _ = clamp(start_date, "start_date")
+    e, e_clamped = clamp(end_date, "end_date")
+    result = route_to_vendor("get_stock_data", symbol, s, e)
+    return maybe_note(e_clamped, "end_date") + result

@@ -2,6 +2,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.agents.utils._date_clamp import clamp, get_trade_date, maybe_note
 from tradingagents.dataflows.interface import route_to_vendor
 
 
@@ -21,7 +22,10 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    return route_to_vendor("get_news", ticker, start_date, end_date)
+    s, _ = clamp(start_date, "start_date")
+    e, e_clamped = clamp(end_date, "end_date")
+    result = route_to_vendor("get_news", ticker, s, e)
+    return maybe_note(e_clamped, "end_date") + result
 
 
 @tool
@@ -40,7 +44,9 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
-    return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    cd, was_clamped = clamp(curr_date, "curr_date")
+    result = route_to_vendor("get_global_news", cd, look_back_days, limit)
+    return maybe_note(was_clamped, "curr_date") + result
 
 
 @tool
@@ -55,4 +61,5 @@ def get_insider_transactions(
     Returns:
         str: A report of insider transaction data
     """
-    return route_to_vendor("get_insider_transactions", ticker)
+    asof = get_trade_date()
+    return route_to_vendor("get_insider_transactions", ticker, as_of=asof)
