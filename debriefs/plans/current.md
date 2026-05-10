@@ -1,73 +1,84 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-07
-**State:** All epics from May 6-7 sessions are complete. Open for next prioritization.
+**Last updated:** 2026-05-10
+**State:** Open for next prioritization.
 
 ---
 
-## Completed (Previous Sessions)
+## Completed
+
+### Epic DEMO-EXEC-001 DONE ✓ — Demo Execution Pipeline (ses_a9b880)
+- S01: `--yes` flag for non-interactive execution
+- S02: `--dry-run` for plan preview without order placement
+- S03: Stop/limit distances use plan values (`entry - stopLoss`, `target1 - entry`)
+- S04: `analysis_id` column added to `trades` table + `--analysis-id` arg
+- S05: `trading analyze --execute` chains analysis → IG execution
+- Commit: `c6fcf00`
+
+### Epic CANONICAL-REGISTRY DONE ✓ — Portable playbook + script registry
+- S01: `canonicals/` created, seeded with 15 playbooks (ses_0dd889)
+- S02: `reg-mine.ts` — extraction mechanism
+- S03: `reg-import.ts` — import mechanism
+- S04: `reg-promote.ts` — promotion review
+- S05: Script registry `reg-sync-scripts.ts`
+- S06: Just recipes + canonical docs updated
+- Commits: `50e46c2` → `c707c4f`
 
 ### Epic UNIFIED-CLI-001 DONE ✓ — Unified Trading CLI
-- S01-S04: Framework, platform config, shares calc, spreadbet calc
-- S05: Script wrappers (seed, sync, backup, summarize)
-- S06: Config management (~/.tradingagents/config.json)
-- Entry point: `trading <command>` with 9 subcommands
-
-### Epic DEBATE-001 DONE ✓ — Debate Mechanism Fix
-- S01: Counter safety (.get("count", 0))
-- S02/S03: Adversarial prompt strengthening
-- S04: Debate quality metrics (rounds, stance extraction, contested flag)
-
-### PR #9 MERGED ✓ (88 commits, 12,897 additions)
-- Tiered directory restructure (src/, scripts/lab/)
-- Unicode fixes, IG API client, trade calculator with tests
-- Registry system, silo template, conceptual lexicon v2
+- S01-S06 complete. Entry: `trading <command>` with 12+ subcommands.
 
 ---
 
-## Current TD Status
+## TD Status (ses_a9b880)
 
-**IN_REVIEW:**
-- `td-a67291` [P1] DOCS-CLEANUP-2: Fix remaining path drift from review of td-f42750 (impl: ses_02a5c6)
-- `td-dc35e0` [P2] CLI-PORTFOLIO: Style trading portfolio with Gum and add just recipe (impl: ses_02a5c6)
-- `td-3fda84` [P2] IG-HISTORY: Add trading ig history command for IG platform activity (impl: ses_02a5c6)
-- `td-68d979` [P2] ALERTS-PHASE1: Exit plan alerts from existing YAML plans + SQLite prices (impl: ses_02a5c6)
-- `td-2be009` [P2] BUYLIST: Contingency playbook - watchlist items with fair value targets (impl: ses_02a5c6)
+**In review:**
+- `td-030156` DEMO-EXEC-001-S01 (approved, pending merge)
+- `td-31d9b2` DEMO-EXEC-001-S03 (approved, pending merge)
+- `td-53f14e` DEMO-EXEC-001-S05 (approved, pending merge)
 
-**IN_REVIEW:**
-- `td-2fbfbe` [P2] S01: Create canonicals/ directory and seed with existing canonical playbooks (impl: ses_0dd889)
-
-**Awaiting prioritization:**
-- `td-cc1eb9` [P2] CANONICAL-REGISTRY: Build portable playbook and script registry
-  - S02: Build reg-mine.ts — extraction mechanism
-  - S03: Build reg-import.ts — import mechanism
-  - S04: Build reg-promote.ts — feedback mechanism
-  - S05: Script registry — index reusable scripts
-  - S06: Documentation and just recipes
-- Price alert system Phase 2: custom user-defined alerts (alerts table, CRUD CLI)
-- Price alert system Phase 3: continuous monitoring daemon + dashboard
-- Further dashboard UX improvements
+**Closed this session:**
+- `td-a237a5` DEMO-EXEC-001-S02 (dry-run) ✓
+- `td-ceded2` DEMO-EXEC-001-S04 (analysis_id column) ✓
 
 ---
 
-## Mandatory Before/After
+## Open Epics — Next Prioritization
 
-**Every session starts:**
+| Epic | Description | Priority |
+|------|-------------|----------|
+| **ALERTS-PHASE2** | Custom user-defined alerts (alerts table, CRUD CLI, dashboard view) | P1 |
+| **ALERTS-PHASE3** | Continuous monitoring daemon + dashboard alert feed | P2 |
+| Dashboard UX | Further UI improvements | P3 |
+
+---
+
+## Mandatory Protocol
+
+**Session start:**
 ```bash
-just check                 # tsc + lint — must be green
+git status && git branch -v   # confirm on feature branch, not main
+just check                    # must be green
+td usage --new-session        # new identity
+td ws current                 # any active work to resume?
+td reviewable                 # what needs your review?
 ```
+
+**Branching rule:**
+- On `main` with code to write → `git checkout -b feat/<name>` first
+- Never commit directly to `main` (even if you're the only reviewer)
+- Merge via PR → forces pre-PR checklist
 
 **Every change:**
 ```bash
-just check                 # clean before touching
+just check   # clean before touching
 # ... make change ...
-just check                 # must pass before commit
+just check   # must pass before commit
 git commit -m "type(scope): what"
 ```
 
 ---
 
-## What to Avoid (Updated Failure Modes)
+## What to Avoid
 
 | Pattern | Fix |
 |---------|-----|
@@ -76,3 +87,12 @@ git commit -m "type(scope): what"
 | Extracting JSX before data layer | Always extract `lib/{route}-data.ts` first |
 | Forward-fix on broken state | Revert to last known-good, then diagnose |
 | `server/` paths in tests/docs | Use `src/server/` |
+| Working on `main` directly | Always branch first |
+
+---
+
+## Active Branches
+
+- `main` — current (clean, two commits ahead of origin)
+- `ses_a9b880` — current work session (DEMO-EXEC-001 complete)
+- `ses_0dd889` — previous work session (CANONICAL-REGISTRY complete)
