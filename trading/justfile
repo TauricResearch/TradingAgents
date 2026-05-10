@@ -1,0 +1,211 @@
+# TradingOperations — IG demo trading CLI
+# Usage: just -f trading/justfile <recipe>
+# Requires: bun, uv
+
+# Set working directory to project root for all recipes
+set working-directory := "/Users/petersmith/Dev/GitHub/TradingAgents"
+
+# Common paths
+cli := "src/cli/main.ts"
+server := "src/server/index.tsx"
+
+# ── Default: show help ───────────────────────────────────────────────────
+default:
+    @just --list
+
+# ── Analyze ──────────────────────────────────────────────────────────────
+
+# Run TradingAgents LLM analysis
+[group("analyze")]
+analyze ticker="SPY" debates="1":
+    bun run {{cli}} analyze {{ticker}} --debates {{debates}}
+
+# Run analysis + save to debriefs/
+[group("analyze")]
+analyze-debrief ticker="SPY" debates="1":
+    bun run {{cli}} analyze {{ticker}} --debates {{debates}} --debrief
+
+# Run analysis + auto-execute on BUY/SELL signal
+[group("analyze")]
+analyze-exec ticker="SPY" debates="1":
+    bun run {{cli}} analyze {{ticker}} --debates {{debates}} --execute
+
+# Run analysis + auto-execute without confirmation
+[group("analyze")]
+analyze-exec-yes ticker="SPY" debates="1":
+    bun run {{cli}} analyze {{ticker}} --debates {{debates}} --execute --yes
+
+# Run research pipeline (analyze + write fair_value to watchlist)
+[group("analyze")]
+research ticker="SPY" debates="1":
+    bun run {{cli}} research {{ticker}} --debates {{debates}}
+
+# Fetch price for research
+[group("analyze")]
+research-fetch ticker="SPY" debates="1":
+    bun run {{cli}} research {{ticker}} --debates {{debates}} --fetch
+
+# ── Plan & Execute ────────────────────────────────────────────────────────
+
+# Generate trade plan (ATR, stop, targets, position size)
+[group("plan")]
+plan ticker="SPY" account="75000" risk="0.03":
+    bun run {{cli}} plan {{ticker}} --account {{account}} --risk {{risk}}
+
+# Dry-run: show plan + IG validation, no order
+[group("plan")]
+plan-dry ticker="SPY" account="75000" risk="0.03":
+    bun run {{cli}} execute {{ticker}} --account {{account}} --risk {{risk}} --dry-run
+
+# Execute on IG demo (prompts for confirmation)
+[group("plan")]
+execute ticker="SPY" account="75000" risk="0.03":
+    bun run {{cli}} execute {{ticker}} --account {{account}} --risk {{risk}}
+
+# Execute without confirmation
+[group("plan")]
+execute-yes ticker="SPY" account="75000" risk="0.03":
+    bun run {{cli}} execute {{ticker}} --account {{account}} --risk {{risk}} --yes
+
+# ── Portfolio ────────────────────────────────────────────────────────────
+
+# Holdings, P&L, cash summary
+[group("portfolio")]
+portfolio:
+    bun run {{cli}} portfolio
+
+# Exit plan alerts for all positions
+[group("portfolio")]
+alerts:
+    bun run {{cli}} alerts
+
+# Watchlist with fair value targets
+[group("portfolio")]
+buylist:
+    bun run {{cli}} buylist
+
+# Fetch prices for buylist items
+[group("portfolio")]
+buylist-fetch:
+    bun run {{cli}} buylist --fetch
+
+# Prospect watchlist
+[group("portfolio")]
+watchlist:
+    bun run {{cli}} watchlist
+
+# AI trading signals (all or specific ticker)
+[group("portfolio")]
+signals ticker="":
+    bun run {{cli}} signals {{ticker}}
+
+# Trade history
+[group("portfolio")]
+trades:
+    bun run {{cli}} trades
+
+# ── IG Trading (Demo) ────────────────────────────────────────────────────
+
+# List IG accounts with balances
+[group("ig")]
+ig-accounts:
+    bun run {{cli}} ig accounts
+
+# Search IG markets by name
+[group("ig")]
+ig-search query:
+    bun run {{cli}} ig search {{query}}
+
+# Fetch historical prices for an IG EPIC
+[group("ig")]
+ig-prices epic:
+    bun run {{cli}} ig prices {{epic}}
+
+# List open IG positions
+[group("ig")]
+ig-positions:
+    bun run {{cli}} ig positions
+
+# IG activity/transaction history
+[group("ig")]
+ig-history:
+    bun run {{cli}} ig history
+
+# Place a market buy order on IG
+# Usage: just ig-buy EPIC SIZE [STOP] [LIMIT]
+[group("ig")]
+ig-buy epic size stop="" limit="" :
+    bun run {{cli}} ig buy {{epic}} --size {{size}} --stop {{stop}} --limit {{limit}}
+
+# Close an open IG position
+[group("ig")]
+ig-sell deal_id:
+    bun run {{cli}} ig sell {{deal_id}}
+
+# Authenticate with IG
+[group("ig")]
+ig-login:
+    bun run {{cli}} ig login
+
+# ── Data ─────────────────────────────────────────────────────────────────
+
+# Sync prices for a ticker
+[group("data")]
+sync ticker="AAPL":
+    bun run {{cli}} sync --ticker {{ticker}}
+
+# Sync prices for all open positions
+[group("data")]
+sync-all:
+    bun run {{cli}} sync --all
+
+# Quick price lookup
+[group("data")]
+price ticker="AAPL":
+    bun run {{cli}} prices {{ticker}}
+
+# Backup SQLite database
+[group("data")]
+backup:
+    bun run {{cli}} backup
+
+# ── Config ───────────────────────────────────────────────────────────────
+
+# Show all config defaults
+[group("config")]
+config:
+    bun run {{cli}} config list
+
+# Get a config value
+[group("config")]
+config-get key:
+    bun run {{cli}} config get {{key}}
+
+# Set a config value
+[group("config")]
+config-set key value:
+    bun run {{cli}} config set {{key}} {{value}}
+
+# ── Status ───────────────────────────────────────────────────────────────
+
+# System status overview
+[group("status")]
+status:
+    bun run {{cli}} status
+
+# ── Dashboard ────────────────────────────────────────────────────────────
+
+# Start the web dashboard → http://localhost:3000
+[group("dashboard")]
+serve:
+    bun run {{server}}
+
+# Start dashboard in test mode (uses test_portfolio.db)
+[group("dashboard")]
+serve-test:
+    TEST_MODE=1 bun run {{server}}
+
+# Kill stale dashboard processes
+[group("dashboard")]
+serve-stop:
+    pkill -9 -f "bun.*index.tsx" 2>/dev/null || true
