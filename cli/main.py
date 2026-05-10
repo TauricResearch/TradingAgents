@@ -8,7 +8,7 @@ from typing import Any, TypedDict, cast
 import textwrap
 
 import typer
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from markdown_it import MarkdownIt
 from rich import box
 from rich.align import Align
@@ -48,9 +48,11 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.execution import DryRunExecutor, ExecutionAction, ExecutionOrder
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
-# Load environment variables
-load_dotenv()
-load_dotenv(".env.enterprise", override=False)
+# Search starts from the user's CWD so the installed `tradingagents`
+# console script picks up the project's .env instead of walking up from
+# site-packages.
+load_dotenv(find_dotenv(usecwd=True))
+load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
 
 console = Console()
 

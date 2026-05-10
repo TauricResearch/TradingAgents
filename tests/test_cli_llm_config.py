@@ -10,6 +10,15 @@ from typer.testing import CliRunner
 from cli.main import app
 
 
+def test_cli_loads_dotenv_from_user_cwd():
+    with open("cli/main.py", encoding="utf-8") as f:
+        source = f.read()
+
+    assert "from dotenv import find_dotenv, load_dotenv" in source
+    assert "load_dotenv(find_dotenv(usecwd=True))" in source
+    assert 'load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)' in source
+
+
 LLM_CONFIG_ENV_VARS = (
     "TRADINGAGENTS_LLM_PROVIDER",
     "TRADINGAGENTS_QUICK_MODEL",
