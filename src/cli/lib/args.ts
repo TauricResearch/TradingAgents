@@ -46,3 +46,19 @@ export const entryArg = {
   description: "Manual entry price override",
   alias: "e",
 }
+
+export const yesArg = {
+  type: "boolean" as const,
+  description: "Skip confirmation prompt and execute immediately",
+  alias: "y",
+}
+
+export const dryRunArg = {
+  type: "boolean" as const,
+  description: "Show plan + IG validation but do not place order",
+}
+
+export const analysisIdArg = {
+  type: "string" as const,
+  description: "Analysis UUID to link this execution to a prior analysis",
+}

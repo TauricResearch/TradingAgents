@@ -7,14 +7,26 @@
  *
  * Usage:
  *   trading execute AAPL
- *   trading execute AAPL --platform ig --account 50000 --risk 0.02
+ *   trading execute AAPL --account 50000 --risk 0.02
+ *   trading execute AAPL --yes --dry-run  # validate without executing
+ *   trading execute AAPL --analysis-id <uuid>  # link to analysis
  */
 
 import { defineCommand } from "citty"
 import { DatabaseFactory } from "../../lib/db.ts"
 import { IGClient } from "../../lib/ig-client.ts"
 import { calculateTradePlan, type PriceBar } from "../../lib/trade-calculator.ts"
-import { accountArg, entryArg, modeArg, platformArg, riskArg, tickerArg } from "../lib/args.ts"
+import {
+  accountArg,
+  analysisIdArg,
+  dryRunArg,
+  entryArg,
+  modeArg,
+  platformArg,
+  riskArg,
+  tickerArg,
+  yesArg,
+} from "../lib/args.ts"
 import { getIGInstrument, validateIGPlan } from "../lib/ig-instruments.ts"
 import { getPlatform, type TradeMode, validateMode } from "../lib/platforms.ts"
 
@@ -73,6 +85,21 @@ function fmt(n: number): string {
   return n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function printPlan(plan: ReturnType<typeof calculateTradePlan>): void {
+  console.log(`Ticker:          ${plan.ticker}`)
+  console.log(`Entry:           $${fmt(plan.entry)}`)
+  console.log(`Stop Loss:       $${fmt(plan.stopLoss)}`)
+  console.log(`Target 1:        $${fmt(plan.target1)}`)
+  console.log(`Target 2:        $${fmt(plan.target2)}`)
+  console.log(`Position Size:   ${plan.positionSize}`)
+  console.log(`ATR-14:          ${fmt(plan.atr14)}`)
+  console.log(`Confidence:      ${plan.confidenceLevel}`)
+  const stopPts = Math.max(1, Math.round(plan.entry - plan.stopLoss))
+  const limitPts = Math.max(1, Math.round(plan.target1 - plan.entry))
+  console.log(`Stop Distance:   ${stopPts} points`)
+  console.log(`Limit Distance: ${limitPts} points`)
+}
+
 export const executeCommand = defineCommand({
   meta: {
     name: "execute",
@@ -85,6 +112,9 @@ export const executeCommand = defineCommand({
     account: accountArg,
     risk: riskArg,
     entry: entryArg,
+    yes: yesArg,
+    "dry-run": dryRunArg,
+    "analysis-id": analysisIdArg,
   },
   run: async ({ args }) => {
     const ticker = args.ticker
@@ -93,6 +123,9 @@ export const executeCommand = defineCommand({
     const accountBalance = parseFloat(args.account)
     const riskPerTrade = parseFloat(args.risk)
     const entryPrice = args.entry ? parseFloat(args.entry) : undefined
+    const yes = args.yes as boolean
+    const dryRun = (args["dry-run"] as boolean) ?? false
+    const analysisId = args["analysis-id"] as string | undefined
 
     // 1. Validate platform
     const platform = getPlatform(platformName)
@@ -133,7 +166,7 @@ export const executeCommand = defineCommand({
       entryPrice,
     })
 
-    // 6. IG instrument validation
+    // 6. IG instrument validation (warnings only, non-fatal)
     const instrument = getIGInstrument(ticker)
     if (instrument) {
       const igValidation = validateIGPlan(plan, mode)
@@ -145,36 +178,53 @@ export const executeCommand = defineCommand({
       }
     }
 
-    // 7. Display plan
+    // 7a. Dry-run: validate with IG but do not execute
+    if (dryRun) {
+      console.log(`\n=== Dry Run: ${ticker} ===`)
+      printPlan(plan)
+
+      if (plan.concentrationFlag) {
+        console.warn(`⚠️  Position exceeds 5% of portfolio`)
+      }
+
+      // IG instrument validation (no order placement)
+      const igWarnings = instrument ? validateIGPlan(plan, mode).warnings : []
+      if (igWarnings.length > 0) {
+        console.warn(`⚠️  IG validation warnings:`)
+        for (const w of igWarnings) console.warn(`   ${w}`)
+      }
+
+      console.log(`\nDry run complete. No order placed.`)
+      return
+    }
+
+    // 7b. Display plan
     console.log(`\n=== Trade Plan ===`)
-    console.log(`Ticker:          ${plan.ticker}`)
-    console.log(`Entry:           $${fmt(plan.entry)}`)
-    console.log(`Stop Loss:       $${fmt(plan.stopLoss)}`)
-    console.log(`Target 1:        $${fmt(plan.target1)}`)
-    console.log(`Target 2:        $${fmt(plan.target2)}`)
-    console.log(`Position Size:   ${plan.positionSize}`)
-    console.log(`ATR-14:          ${fmt(plan.atr14)}`)
-    console.log(`Confidence:      ${plan.confidenceLevel}`)
+    printPlan(plan)
 
     if (plan.concentrationFlag) {
       console.warn(`⚠️  Position exceeds 5% of portfolio`)
     }
 
-    // 8. Confirm execution
-    process.stdout.write(`\nExecute this trade on IG? [y/N] `)
-    const answer = await new Promise<string>((resolve) => {
-      process.stdin.once("data", (data: Buffer) => {
-        resolve(data.toString().trim().toLowerCase())
+    // 8. Confirm execution (skip if --yes)
+    if (!yes) {
+      process.stdout.write(`\nExecute this trade on IG? [y/N] `)
+      const answer = await new Promise<string>((resolve) => {
+        process.stdin.once("data", (data: Buffer) => {
+          resolve(data.toString().trim().toLowerCase())
+        })
       })
-    })
 
-    if (answer !== "y" && answer !== "yes") {
-      console.log("Aborted.")
-      process.exit(0)
+      if (answer !== "y" && answer !== "yes") {
+        console.log("Aborted.")
+        process.exit(0)
+      }
+    } else {
+      console.log(`\nExecuting (--yes specified)...`)
     }
 
     // 9. Authenticate with IG
-    console.log(`\nAuthenticating with IG...`)
+    console.log(`Authenticating with IG...`)
     const client = getIGClient()
     const session = await client.login()
     console.log(`  Logged in: ${session.clientId}`)
@@ -192,7 +242,13 @@ export const executeCommand = defineCommand({
     const isSpreadBet = mode === "spreadbet"
     const size = isSpreadBet ? plan.positionSize : Math.round(plan.positionSize)
 
-    console.log(`\nPlacing ${mode} order: ${epic} | size: ${size}`)
+    // Use plan values for stop/limit distances
+    const stopDistance = Math.max(1, Math.round(plan.entry - plan.stopLoss))
+    const limitDistance = Math.max(1, Math.round(plan.target1 - plan.entry))
+
+    console.log(
+      `\nPlacing ${mode} order: ${epic} | size: ${size} | stop: ${stopDistance} | limit: ${limitDistance}`,
+    )
 
     const order = await client.createPosition({
       epic,
@@ -203,10 +259,8 @@ export const executeCommand = defineCommand({
       currencyCode: instrument?.currency ?? "GBP",
       forceOpen: true,
       guaranteedStop: false,
-      stopDistance: Math.round(plan.atr14 * 1.5),
-      limitDistance: Math.round(
-        ((plan.target1 - plan.entry) / (isSpreadBet ? 1 : plan.entry)) * 100,
-      ),
+      stopDistance,
+      limitDistance,
     })
 
     console.log(`  Order ref: ${order.dealReference}`)
@@ -221,27 +275,24 @@ export const executeCommand = defineCommand({
       console.log(`  Size: ${confirmation.size}`)
 
       // 12. Record in database
-      try {
-        const dbPath = process.env.PORTFOLIO_DB ?? "./portfolio.db"
-        DatabaseFactory.connect(dbPath)
-        const db = DatabaseFactory.get()
+      const dbPath = process.env.PORTFOLIO_DB ?? "./portfolio.db"
+      DatabaseFactory.connect(dbPath)
+      const db = DatabaseFactory.get()
 
-        db.query(
-          `INSERT INTO trades (ticker, action, quantity, price, date, reason, fees)
-           VALUES (?, ?, ?, ?, date('now'), ?, ?)`,
-          [
-            ticker,
-            "buy",
-            Math.round(size),
-            plan.entry,
-            `IG order: ${confirmation.dealId} | stop: ${plan.stopLoss} | target: ${plan.target1}`,
-            0,
-          ],
-        )
-        console.log(`  Recorded in database`)
-      } catch (e) {
-        console.warn(`  DB record failed: ${e instanceof Error ? e.message : String(e)}`)
-      }
+      db.query(
+        `INSERT INTO trades (ticker, action, quantity, price, date, reason, fees, analysis_id)
+         VALUES (?, ?, ?, ?, date('now'), ?, ?, ?)`,
+        [
+          ticker,
+          "buy",
+          Math.round(size),
+          plan.entry,
+          `IG order: ${confirmation.dealId} | stop: ${plan.stopLoss} | target: ${plan.target1}`,
+          0,
+          analysisId ?? null,
+        ],
+      )
+      console.log(`  Recorded in database${analysisId ? ` (linked to ${analysisId})` : ""}`)
 
       console.log(`\n✅ Trade executed: ${confirmation.dealId}`)
     } else {
