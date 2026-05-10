@@ -1,6 +1,7 @@
 from typing import Optional
 import datetime
 import typer
+import questionary
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
@@ -615,8 +616,26 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    """Get ticker symbol from user input, preserving exchange suffixes."""
+    # typer.prompt strips trailing dot-suffixes on some shells (e.g. 000404.SH
+    # collapses to 000404). questionary.text reads the raw line.
+    ticker = questionary.text(
+        "",
+        validate=lambda value: (
+            not value.strip()
+            or (
+                all(ch.isalnum() or ch in "._-^" for ch in value.strip())
+                and len(value.strip()) <= 32
+            )
+        )
+        or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK.",
+    ).ask()
+
+    if ticker is None:
+        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+        raise typer.Exit(1)
+
+    return (ticker.strip() or "SPY").upper()
 
 
 def get_analysis_date():
