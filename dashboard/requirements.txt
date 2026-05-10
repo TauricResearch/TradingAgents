@@ -1,0 +1,7 @@
+"""
+Requirements for TradingAgents Dashboard
+"""
+streamlit>=1.57.0
+plotly>=6.7.0
+pandas>=2.3.0
+numpy>=1.26.0
