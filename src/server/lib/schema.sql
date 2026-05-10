@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS trades (
     date        TEXT NOT NULL,
     reason      TEXT,
     fees        REAL DEFAULT 0,
+    analysis_id TEXT,                             -- links to analysis UUID
     created_at  TEXT DEFAULT (datetime('now'))
 );
 
