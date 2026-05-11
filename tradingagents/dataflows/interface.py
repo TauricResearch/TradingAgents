@@ -11,6 +11,14 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .yfinance_etf import (
+    get_etf_profile as get_yfinance_etf_profile,
+    get_etf_holdings as get_yfinance_etf_holdings,
+)
+from .alpha_vantage_etf import (
+    get_etf_profile as get_alpha_vantage_etf_profile,
+    get_etf_holdings as get_alpha_vantage_etf_holdings,
+)
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -23,6 +31,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .etf_utils import ETF_PROTECTED_METHODS, etf_placeholder
 
 # Configuration and routing logic
 from .config import get_config
@@ -56,6 +65,13 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+        ]
+    },
+    "etf_data": {
+        "description": "ETF-specific profile and holdings",
+        "tools": [
+            "get_etf_profile",
+            "get_etf_holdings",
         ]
     }
 }
@@ -107,7 +123,40 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
+    # etf_data — yfinance covers US and HK ETFs; Alpha Vantage covers any
+    # symbol Alpha Vantage tracks (mostly US). A-share ETF support arrives
+    # with the AKShare vendor in a separate change.
+    "get_etf_profile": {
+        "yfinance": get_yfinance_etf_profile,
+        "alpha_vantage": get_alpha_vantage_etf_profile,
+    },
+    "get_etf_holdings": {
+        "yfinance": get_yfinance_etf_holdings,
+        "alpha_vantage": get_alpha_vantage_etf_holdings,
+    },
 }
+
+
+def _apply_etf_placeholders() -> None:
+    """Wrap every registered vendor impl of a company-financial method with
+    the ETF placeholder.
+
+    Done at the dispatch layer (not on each vendor function) because the
+    placeholder is a *tool-level* semantic — ETF tickers should be
+    redirected to ETF tools — not a vendor concern. Centralizing here means
+    new vendors get ETF protection automatically and the vendor modules
+    stay vendor-pure. Direct calls into vendor modules (bypassing
+    ``route_to_vendor``) intentionally do NOT trigger the placeholder —
+    they remain thin wrappers over the upstream API.
+    """
+    for method, label in ETF_PROTECTED_METHODS.items():
+        for vendor in list(VENDOR_METHODS[method]):
+            VENDOR_METHODS[method][vendor] = etf_placeholder(label)(
+                VENDOR_METHODS[method][vendor]
+            )
+
+
+_apply_etf_placeholders()
 
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""

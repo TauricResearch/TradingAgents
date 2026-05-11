@@ -35,6 +35,17 @@ def _dummy_api_keys(monkeypatch):
         monkeypatch.setenv(env_var, os.environ.get(env_var, "placeholder"))
 
 
+@pytest.fixture(autouse=True)
+def _reset_etf_quote_cache():
+    """ETF detection caches yfinance quoteType in an LRU. Clear between tests
+    so a mock from one test cannot bleed into another that exercises the same
+    ticker with a different quote type."""
+    from tradingagents.dataflows.etf_utils import clear_etf_cache
+    clear_etf_cache()
+    yield
+    clear_etf_cache()
+
+
 @pytest.fixture()
 def mock_llm_client():
     client = MagicMock()
