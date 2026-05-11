@@ -5,6 +5,7 @@ from rich.console import Console
 
 from cli.models import AnalystType
 from tradingagents.dataflows.ticker_utils import normalize_ticker_symbol
+from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -236,6 +237,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Xiaomi MiMo", "mimo", "https://token-plan-sgp.xiaomimimo.com/anthropic"),
         ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://api.z.ai/api/paas/v4/"),
+        ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),

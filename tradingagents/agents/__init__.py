@@ -4,7 +4,10 @@ from .utils.agent_states import AgentState, InvestDebateState, RiskDebateState
 from .analysts.fundamentals_analyst import create_fundamentals_analyst
 from .analysts.market_analyst import create_market_analyst
 from .analysts.news_analyst import create_news_analyst
-from .analysts.social_media_analyst import create_social_media_analyst
+from .analysts.sentiment_analyst import (
+    create_sentiment_analyst,
+    create_social_media_analyst,  # deprecated alias kept for back-compat
+)
 
 from .researchers.bear_researcher import create_bear_researcher
 from .researchers.bull_researcher import create_bull_researcher
@@ -33,6 +36,7 @@ __all__ = [
     "create_aggressive_debator",
     "create_portfolio_manager",
     "create_conservative_debator",
-    "create_social_media_analyst",
+    "create_sentiment_analyst",
+    "create_social_media_analyst",  # deprecated; will be removed in a future version
     "create_trader",
 ]
