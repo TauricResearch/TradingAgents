@@ -116,7 +116,9 @@ class TradingAgentsGraph:
             self.conditional_logic,
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(
+            max_recur_limit=self.config.get("max_recur_limit", 100),
+        )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
@@ -322,7 +324,11 @@ class TradingAgentsGraph:
                 else:
                     chunk["messages"][-1].pretty_print()
                     trace.append(chunk)
-            final_state = trace[-1]
+            # Streamed chunks are per-node deltas. Merge them so the returned
+            # state matches what graph.invoke() yields in the non-debug path.
+            final_state = {}
+            for chunk in trace:
+                final_state.update(chunk)
         else:
             final_state = self.graph.invoke(init_agent_state, **args)
 

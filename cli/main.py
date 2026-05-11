@@ -1,14 +1,10 @@
 from typing import Optional
 import datetime
 import typer
+import questionary
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-load_dotenv(".env.enterprise", override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -53,7 +49,7 @@ class MessageBuffer:
     # Analyst name mapping
     ANALYST_MAPPING = {
         "market": "Market Analyst",
-        "social": "Social Analyst",
+        "social": "Sentiment Analyst",
         "news": "News Analyst",
         "fundamentals": "Fundamentals Analyst",
     }
@@ -63,7 +59,7 @@ class MessageBuffer:
     # finalizing_agent: which agent must be "completed" for this report to count as done
     REPORT_SECTIONS = {
         "market_report": ("market", "Market Analyst"),
-        "sentiment_report": ("social", "Social Analyst"),
+        "sentiment_report": ("social", "Sentiment Analyst"),
         "news_report": ("news", "News Analyst"),
         "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
         "investment_plan": (None, "Research Manager"),
@@ -284,7 +280,7 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     all_teams = {
         "Analyst Team": [
             "Market Analyst",
-            "Social Analyst",
+            "Sentiment Analyst",
             "News Analyst",
             "Fundamentals Analyst",
         ],
@@ -560,6 +556,21 @@ def get_user_selections():
     )
     selected_llm_provider, backend_url = select_llm_provider()
 
+    # Providers with regional endpoints prompt for the region as a secondary
+    # step so the main dropdown stays clean (mainland China and international
+    # accounts cannot share API keys).
+    if selected_llm_provider == "qwen":
+        selected_llm_provider, backend_url = ask_qwen_region()
+    elif selected_llm_provider == "minimax":
+        selected_llm_provider, backend_url = ask_minimax_region()
+    elif selected_llm_provider == "glm":
+        selected_llm_provider, backend_url = ask_glm_region()
+
+    # Confirm the provider's API key is present; prompt the user to paste
+    # one and persist it to .env if it's missing, so the analysis run
+    # doesn't fail later at the first API call.
+    ensure_api_key(selected_llm_provider)
+
     # Step 7: Thinking agents
     console.print(
         create_question_box(
@@ -618,8 +629,26 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    """Get ticker symbol from user input, preserving exchange suffixes."""
+    # typer.prompt strips trailing dot-suffixes on some shells (e.g. 000404.SH
+    # collapses to 000404). questionary.text reads the raw line.
+    ticker = questionary.text(
+        "",
+        validate=lambda value: (
+            not value.strip()
+            or (
+                all(ch.isalnum() or ch in "._-^" for ch in value.strip())
+                and len(value.strip()) <= 32
+            )
+        )
+        or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK.",
+    ).ask()
+
+    if ticker is None:
+        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+        raise typer.Exit(1)
+
+    return (ticker.strip() or "SPY").upper()
 
 
 def get_analysis_date():
@@ -656,7 +685,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     if final_state.get("sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
-        analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
+        analyst_parts.append(("Sentiment Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
@@ -741,7 +770,7 @@ def display_complete_report(final_state):
     if final_state.get("market_report"):
         analysts.append(("Market Analyst", final_state["market_report"]))
     if final_state.get("sentiment_report"):
-        analysts.append(("Social Analyst", final_state["sentiment_report"]))
+        analysts.append(("Sentiment Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts.append(("News Analyst", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
@@ -803,7 +832,7 @@ def update_research_team_status(status):
 ANALYST_ORDER = ["market", "social", "news", "fundamentals"]
 ANALYST_AGENT_NAMES = {
     "market": "Market Analyst",
-    "social": "Social Analyst",
+    "social": "Sentiment Analyst",
     "news": "News Analyst",
     "fundamentals": "Fundamentals Analyst",
 }
@@ -1160,8 +1189,11 @@ def run_analysis(checkpoint: bool = False):
 
             trace.append(chunk)
 
-        # Get final state and decision
-        final_state = trace[-1]
+        # Streamed chunks are per-node deltas, not full state. Merge them
+        # so every report field populated across the run is present.
+        final_state = {}
+        for chunk in trace:
+            final_state.update(chunk)
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
