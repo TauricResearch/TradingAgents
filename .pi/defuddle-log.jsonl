@@ -4,3 +4,17 @@
 {"domain":"github.com","url":"https://github.com/honojs/examples/blob/main/bun/jsx.tsx","ok":true,"words":176,"ts":1778002830647}
 {"domain":"github.com","url":"https://github.com/pjsvis/TradingAgents/pull/8","ok":true,"words":5273,"ts":1778087424614}
 {"domain":"labs.ig.com","url":"https://labs.ig.com/rest-trading-api-guide.html","ok":true,"words":807,"ts":1778144924244}
+{"domain":"github.com","url":"https://github.com/Swatto/td","ok":true,"words":267,"ts":1778484420462}
+{"domain":"marcus.github.io","url":"https://marcus.github.io/sidecar/docs/workspaces-plugin","ok":true,"words":4670,"ts":1778484420609}
+{"domain":"marcus.github.io","url":"https://marcus.github.io/sidecar/docs/td","ok":true,"words":1781,"ts":1778484452821}
+{"domain":"td.haplab.com","url":"https://td.haplab.com/docs/getting-started","ok":false,"reason":"http_error","status":502,"ts":1778484460097}
+{"domain":"td.haplab.com","url":"https://td.haplab.com/","ok":true,"words":299,"ts":1778484460508}
+{"domain":"td.haplab.com","url":"https://td.haplab.com/docs/workflows","ok":false,"reason":"http_error","status":502,"ts":1778484475926}
+{"domain":"td.haplab.com","url":"https://td.haplab.com/docs/install","ok":false,"reason":"http_error","status":502,"ts":1778484543590}
+{"domain":"github.com","url":"https://github.com/marcus/td","ok":true,"words":2749,"ts":1778484550943}
+{"domain":"docs.browserbase.com","url":"https://docs.browserbase.com/welcome/getting-started","ok":true,"words":587,"ts":1778485075929}
+{"domain":"github.com","url":"https://github.com/marcus/sidecar/issues/229","ok":true,"words":75,"ts":1778485229977}
+{"domain":"github.com","url":"https://github.com/marcus/sidecar/issues/221","ok":true,"words":206,"ts":1778485229979}
+{"domain":"github.com","url":"https://github.com/marcus/td/discussions","ok":false,"reason":"http_error","status":502,"ts":1778485281667}
+{"domain":"github.com","url":"https://github.com/marcus/td/issues/94","ok":true,"words":166,"ts":1778485402400}
+{"domain":"github.com","url":"https://github.com/marcus/td/discussions","ok":false,"reason":"http_error","status":502,"ts":1778492119006}

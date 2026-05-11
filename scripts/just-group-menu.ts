@@ -95,6 +95,11 @@ const GROUPS: Record<string, { title: string; description: string; common: strin
     description: "Track issues, epics, work sessions",
     common: ["td-new", "td-next", "td-status"],
   },
+  agent: {
+    title: "Agent — Multi-Agent Coordination",
+    description: "Session startup, task claiming, progress logging, handoffs",
+    common: ["agent-orient", "agent-claim", "agent-sync", "agent-handoff"],
+  },
   test: {
     title: "Test — Development Tools",
     description: "Test DB, seeding, reset, copy",
