@@ -656,10 +656,13 @@ async function executeTrade(ticker, side) {
     if (sellBtn) { sellBtn.disabled = false; sellBtn.textContent = origSellText; }
   }, 10000);
 
-  function unlock() {
+  function unlock(restoreSell = true) {
     clearTimeout(lockoutTimer);
     if (buyBtn) { buyBtn.disabled = false; buyBtn.textContent = origBuyText; }
-    if (sellBtn) { sellBtn.disabled = false; sellBtn.textContent = origSellText; }
+    if (sellBtn) {
+      if (restoreSell) sellBtn.disabled = false;
+      sellBtn.textContent = origSellText;
+    }
     input.value = '';
   }
 
@@ -675,10 +678,9 @@ async function executeTrade(ticker, side) {
       unlock();
       return;
     }
-    // Success: portfolio_update WebSocket event will fire handlePortfolioUpdate
-    // which updates positions. Unlock is triggered by the WS event arriving.
-    // The lockout timer serves as fallback if WS drops.
-    unlock();
+    // Success: unlock buttons immediately; the WS portfolio_update event
+    // will arrive shortly and update card positions via handlePortfolioUpdate.
+    unlock(false);  // SELL disabled state owned by updateCardPosition
   } catch (e) {
     console.warn('[executeTrade]', e);
     toast('Cannot reach backend', 'error');
@@ -875,6 +877,7 @@ function handleEvent(ev) {
 function initTicker(ticker) {
   state[ticker] = { status: 'pending', currentAgent: null, result: null, logs: [], completedAgents: new Set() };
   renderCard(ticker);
+  updateCardPosition(ticker);
   updateEmptyState();
   updateFooter();
 }
