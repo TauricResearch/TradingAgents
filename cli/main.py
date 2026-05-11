@@ -1217,15 +1217,51 @@ def run_analysis(checkpoint: bool = False):
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
     # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
+    #
+    # Past UX problem: a single prompt "Save path (press Enter for default)"
+    # was misread as a yes/no question and users typed "y", which became the
+    # literal directory name (./y/). Split into a two-step flow so the path
+    # prompt only appears when the user explicitly opts out of the default,
+    # and guard against single-character yes/no responses landing in Path().
+    save_choice = typer.prompt("Save full consolidated report? [Y/n]", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
+        from tradingagents.dataflows.utils import safe_ticker_component
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
-        save_path = Path(save_path_str)
+        safe_ticker = safe_ticker_component(selections["ticker"]).upper()
+        # Default lives under the framework's results_dir so per-agent logs
+        # and the consolidated report end up colocated for one analysis run.
+        # Respects TRADINGAGENTS_RESULTS_DIR env var via DEFAULT_CONFIG.
+        results_dir = Path(DEFAULT_CONFIG["results_dir"])
+        default_path = (
+            results_dir
+            / safe_ticker
+            / selections["analysis_date"]
+            / f"full_report_{timestamp}"
+        )
+
+        console.print()
+        console.print(f"  [dim]Default save location:[/dim] [cyan]{default_path}[/cyan]")
+        use_default = typer.prompt(
+            "Use this path? [Y/n]", default="Y"
+        ).strip().upper()
+
+        if use_default in ("Y", "YES", ""):
+            save_path = default_path
+        else:
+            save_path_str = typer.prompt(
+                "Enter custom save path (absolute or relative)"
+            ).strip()
+            # Guard against a confused yes/no response landing here.
+            if save_path_str.lower() in ("y", "n", "yes", "no", ""):
+                console.print(
+                    f"[yellow]'{save_path_str}' doesn't look like a path — "
+                    f"falling back to the default location.[/yellow]"
+                )
+                save_path = default_path
+            else:
+                save_path = Path(save_path_str).expanduser()
+
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
