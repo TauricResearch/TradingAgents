@@ -155,6 +155,22 @@ _PROVIDER_BASE_URL = {
 }
 
 
+def _resolve_provider_base_url(provider: str) -> Optional[str]:
+    """Default base URL for ``provider``, with env-var overrides where defined.
+
+    Currently only Ollama supports an env-var override (``OLLAMA_BASE_URL``),
+    matching the convention in the broader Ollama tooling ecosystem so users
+    can point at a remote ollama-serve without editing code. The check is
+    call-time, not import-time, so tests that monkeypatch the env after
+    import behave correctly.
+    """
+    if provider == "ollama":
+        env_url = os.environ.get("OLLAMA_BASE_URL")
+        if env_url:
+            return env_url
+    return _PROVIDER_BASE_URL.get(provider)
+
+
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
 
@@ -183,7 +199,7 @@ class OpenAIClient(BaseLLMClient):
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
         if self.provider in _PROVIDER_BASE_URL:
-            llm_kwargs["base_url"] = self.base_url or _PROVIDER_BASE_URL[self.provider]
+            llm_kwargs["base_url"] = self.base_url or _resolve_provider_base_url(self.provider)
             api_key_env = get_api_key_env(self.provider)
             if api_key_env:
                 api_key = os.environ.get(api_key_env)

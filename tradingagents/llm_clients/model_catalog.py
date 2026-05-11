@@ -154,16 +154,21 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
+    # Ollama display labels intentionally omit a "local" marker — the
+    # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
+    # apply whether the user runs ollama-serve on localhost or against a
+    # remote host. The actual resolved endpoint is surfaced separately by
+    # cli.utils.confirm_ollama_endpoint() right after provider selection.
     "ollama": {
         "quick": [
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+            ("Qwen3:latest (8B)", "qwen3:latest"),
+            ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
+            ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
         ],
         "deep": [
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
+            ("GLM-4.7-Flash:latest (30B)", "glm-4.7-flash:latest"),
+            ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
+            ("Qwen3:latest (8B)", "qwen3:latest"),
         ],
     },
 }

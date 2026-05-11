@@ -234,6 +234,10 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
+    # Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
+    # (convention from the broader Ollama ecosystem); falls back to the
+    # localhost default when unset.
+    ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
@@ -246,7 +250,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
-        ("Ollama", "ollama", "http://localhost:11434/v1"),
+        ("Ollama", "ollama", ollama_url),
     ]
 
     choice = questionary.select(
@@ -411,6 +415,36 @@ def ask_minimax_region() -> tuple[str, str]:
             ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
+
+
+def confirm_ollama_endpoint(url: str) -> None:
+    """Show the resolved Ollama endpoint after provider selection.
+
+    Surfaces three things the user benefits from seeing before model
+    selection: which URL we'll actually hit, where it came from
+    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    missing the scheme/port that ollama-serve expects. The warning is
+    advisory only — we don't reject malformed input, since the user may
+    be doing something deliberately unusual (e.g. a reverse-proxy path).
+    """
+    from_env = os.environ.get("OLLAMA_BASE_URL")
+    origin = " (from OLLAMA_BASE_URL)" if from_env and from_env == url else ""
+    console.print(f"[green]✓ Using Ollama at {url}{origin}[/green]")
+
+    if not url.startswith(("http://", "https://")):
+        console.print(
+            f"[yellow]Note: {url!r} is missing a scheme. "
+            f"Ollama-serve typically expects a URL like "
+            f"http://<host>:11434/v1.[/yellow]"
+        )
+    elif ":11434" not in url and "://localhost" not in url and "://127.0.0.1" not in url:
+        # Soft hint when the port differs from the ollama-serve default
+        # and the host isn't local (where users sometimes proxy on :80).
+        console.print(
+            f"[yellow]Note: {url!r} doesn't include port 11434. "
+            f"Make sure your remote ollama-serve listens on the port "
+            f"shown above.[/yellow]"
+        )
 
 
 def ensure_api_key(provider: str) -> Optional[str]:
