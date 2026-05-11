@@ -16,6 +16,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
+    "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
 }
 
 
@@ -99,5 +100,22 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
+    },
+    # Benchmark for alpha calculation in the reflection layer.
+    # ``benchmark_ticker`` (when set) overrides the suffix map for all
+    # tickers; leave it None to use ``benchmark_map`` for auto-detection
+    # based on the ticker's exchange suffix. SPY remains the US default
+    # so the reflection label keeps reading "Alpha vs SPY" for US tickers
+    # while non-US tickers get their regional index automatically.
+    "benchmark_ticker": None,
+    "benchmark_map": {
+        ".NS":  "^NSEI",    # NSE India (Nifty 50)
+        ".BO":  "^BSESN",   # BSE India (Sensex)
+        ".T":   "^N225",    # Tokyo (Nikkei 225)
+        ".HK":  "^HSI",     # Hong Kong (Hang Seng)
+        ".L":   "^FTSE",    # London (FTSE 100)
+        ".TO":  "^GSPTSE",  # Toronto (TSX Composite)
+        ".AX":  "^AXJO",    # Australia (ASX 200)
+        "":     "SPY",      # default for US-listed tickers (no suffix)
     },
 })
