@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.3.0] — 2026-05-11
+
+### Added
+
+- **Kelly criterion position sizing** (`tradingagents/exchange/binary_risk.py`). New
+  `kelly_fraction()` and `size_order()` functions implement half-Kelly sizing (0.5×
+  multiplier, 20% cap per trade, 55% min-confidence gate) for Polymarket binary
+  contracts. Replaces the inapplicable stop-loss formula for YES/NO markets.
+- **Live executor integration.** `place_order()` now computes Kelly sizing before the
+  safety gate check. Zero-size decisions (low confidence, negative EV) return
+  `LIVE_SKIPPED` with the sizing rationale. Renamed `budget_usd` → `capital_usd`.
+- **Quote-prediction prompt clause.** Trader synthesis prompt separates word-frequency
+  signal from drama signal. The "again" keyword is treated as base-rate evidence toward
+  YES; market price is used as the prior rather than the bull researcher's argument.
+- **`--market-ids` flag for backtest.** `scripts/backtest.py` accepts
+  `--market-ids ID [ID ...]` for reproducible A/B re-tests on specific market IDs.
+
+### Changed
+
+- `_fetch_markets_by_id` warns and continues on per-ID HTTP errors and non-JSON
+  responses rather than aborting the entire backtest run.
+- `_net_odds()` raises `ValueError` for boundary `yes_price` values (≤ 0 or ≥ 1).
+- `place_order` catches `ValueError` from degenerate prices and returns `LIVE_DISABLED`.
+
+### Fixed
+
+- Phase A 50-market backtest: 85.4% accuracy (35/41 decisions, 9 HOLDs). Sample is
+  88% NO-skewed; class imbalance and domain-filter next step documented in
+  `docs/PHASE_A_FINDINGS.md` #8.
+- Trump-Allah persistent failure diagnosed as look-ahead market price data in Exa news
+  (backtest artifact, not live-trading failure). See `docs/PHASE_A_FINDINGS.md` #7.
+
 ## [0.2.4] — 2026-04-25
 
 ### Added
