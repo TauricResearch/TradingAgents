@@ -14,6 +14,17 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
     def setUp(self):
         set_config(copy.deepcopy(default_config.DEFAULT_CONFIG))
 
+    def tearDown(self):
+        # Restore defaults so subsequent test files see a clean config.
+        # set_config merges nested dicts (data_vendors / tool_vendors), so
+        # plain set_config(DEFAULT_CONFIG) does NOT clear tool_vendors
+        # entries set by earlier tests in this class — they survive the
+        # update. Replace the whole _config object directly to defeat the
+        # merge and prevent leakage into other test files that read
+        # tool-level routing.
+        import tradingagents.dataflows.config as _cfg
+        _cfg._config = copy.deepcopy(default_config.DEFAULT_CONFIG)
+
     def test_get_config_returns_deep_copy(self):
         cfg = get_config()
         cfg["data_vendors"]["core_stock_apis"] = "alpha_vantage"
@@ -50,7 +61,11 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         self.assertEqual(fresh["data_vendors"]["core_stock_apis"], "alpha_vantage")
         self.assertEqual(fresh["data_vendors"]["technical_indicators"], "yfinance")
         self.assertEqual(fresh["data_vendors"]["fundamental_data"], "yfinance")
-        self.assertEqual(fresh["data_vendors"]["news_data"], "yfinance")
+        # ``news_data`` default is ``"auto"`` so the multi-source merge
+        # (Eastmoney + CLS + Cninfo for HK / SH / SZ; yfinance otherwise)
+        # is on out of the box; the test asserts the merge defaults rather
+        # than a single legacy vendor.
+        self.assertEqual(fresh["data_vendors"]["news_data"], "auto")
 
     def test_nested_dict_updates_merge_one_level_deep(self):
         set_config({"tool_vendors": {"get_stock_data": "alpha_vantage"}})
