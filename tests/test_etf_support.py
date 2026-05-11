@@ -549,3 +549,77 @@ class EtfDoesNotLeakToNewsTests(unittest.TestCase):
         # And the result is the regular news path (empty-news message), not
         # the ETF placeholder.
         self.assertNotIn("get_etf_profile", out)
+
+
+# ---------------------------------------------------------------------------
+# ETF-aware build_instrument_context
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class BuildInstrumentContextEtfTests(unittest.TestCase):
+    def test_etf_ticker_gets_etf_block(self):
+        from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+        with patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="ETF",
+        ):
+            ctx = build_instrument_context("SPY")
+        self.assertIn("ETF", ctx)
+        self.assertIn("get_etf_profile", ctx)
+        self.assertIn("get_etf_holdings", ctx)
+        # Redirects the LLM away from the company-financial tools that would
+        # otherwise return placeholders.
+        self.assertIn("get_fundamentals", ctx)
+
+    def test_stock_ticker_unaffected(self):
+        from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+        with patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="EQUITY",
+        ):
+            ctx = build_instrument_context("AAPL")
+        self.assertNotIn("ETF", ctx)
+        self.assertNotIn("get_etf_profile", ctx)
+
+    def test_non_string_input_does_not_raise(self):
+        """``state["company_of_interest"]`` should always be a string in
+        practice, but the helper must not crash on a non-string sentinel."""
+        from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+        # Should not raise; the f-string can format None / ints / etc.
+        ctx = build_instrument_context(None)
+        self.assertIn("None", ctx)
+        self.assertNotIn("ETF", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Analyst + ToolNode wiring
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class FundamentalsAnalystEtfToolsWiringTests(unittest.TestCase):
+    def test_etf_tools_imported_into_agent_utils_namespace(self):
+        """``from tradingagents.agents.utils.agent_utils import get_etf_profile``
+        must resolve so the analyst and trading_graph can pull them from the
+        same place as the other tools."""
+        from tradingagents.agents.utils import agent_utils
+
+        self.assertTrue(hasattr(agent_utils, "get_etf_profile"))
+        self.assertTrue(hasattr(agent_utils, "get_etf_holdings"))
+
+    def test_trading_graph_fundamentals_toolnode_registers_etf_tools(self):
+        """ToolNode must list every tool the analyst can bind — otherwise the
+        LLM's tool call fails with "not a valid tool" at runtime."""
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        # _create_tool_nodes is an instance method but doesn't depend on
+        # __init__ state; bind it through a lightweight proxy to avoid
+        # construction cost.
+        tg = TradingAgentsGraph.__new__(TradingAgentsGraph)
+        nodes = TradingAgentsGraph._create_tool_nodes(tg)
+
+        registered = {t.name for t in nodes["fundamentals"].tools_by_name.values()}
+        self.assertIn("get_etf_profile", registered)
+        self.assertIn("get_etf_holdings", registered)

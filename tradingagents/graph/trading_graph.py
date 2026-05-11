@@ -36,7 +36,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_etf_profile,
+    get_etf_holdings,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -186,6 +188,11 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    # ETF-specific tools — must be registered here too because
+                    # ToolNode validates the entire bound toolset, not just
+                    # the methods the analyst chooses to call.
+                    get_etf_profile,
+                    get_etf_holdings,
                 ]
             ),
         }
