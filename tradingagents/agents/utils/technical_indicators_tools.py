@@ -22,7 +22,7 @@ def get_indicators(
     """
     # LLMs sometimes pass multiple indicators as a comma-separated string;
     # split and process each individually.
-    indicators = [i.strip() for i in indicator.split(",") if i.strip()]
+    indicators = [i.strip().lower() for i in indicator.split(",") if i.strip()]
     results = []
     for ind in indicators:
         try:
