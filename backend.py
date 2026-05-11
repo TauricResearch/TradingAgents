@@ -339,6 +339,8 @@ def get_chart(ticker: str):
 
 @app.get("/api/portfolio")
 def get_portfolio():
+    today = datetime.now().strftime("%Y-%m-%d")
+    portfolio.check_day_reset(today)
     prices = {}
     for t in portfolio.positions:
         try:
@@ -360,6 +362,8 @@ def get_price(ticker: str):
 
 @app.post("/api/trade")
 async def post_trade(payload: TradePayload):
+    today = datetime.now().strftime("%Y-%m-%d")
+    portfolio.check_day_reset(today)
     t = payload.ticker.upper()
     side = payload.side.upper()
     amount_usd = payload.amount_usd
