@@ -456,6 +456,48 @@
   .trade-position { font-family: var(--mono); font-size: 11px; margin-top: 4px; }
   .trade-position.pnl-positive { color: var(--green); }
   .trade-position.pnl-negative { color: var(--red); }
+#portfolio-panel {
+  background: var(--bg-card, #111);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
+}
+#portfolio-stats {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.pstat-label { color: var(--text-dim); letter-spacing: 0.08em; margin-right: 4px; }
+.pstat-value { color: var(--text); }
+.pstat-value.pos { color: var(--green); }
+.pstat-value.neg { color: var(--red); }
+.pstat-value.zero { color: var(--text-dim); }
+#portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+#portfolio-table th {
+  color: var(--text-dim);
+  text-align: right;
+  padding: 2px 8px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+}
+#portfolio-table th:first-child { text-align: left; }
+#portfolio-table td {
+  text-align: right;
+  padding: 3px 8px;
+  color: var(--text);
+}
+#portfolio-table td:first-child { text-align: left; }
+#portfolio-table td.pos { color: var(--green); }
+#portfolio-table td.neg { color: var(--red); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -500,6 +542,20 @@
         <option value="3600">1 hr</option>
       </select>
     </div>
+  </div>
+
+  <!-- ── Portfolio panel ───────────────────────────────────── -->
+  <div id="portfolio-panel" style="display:none">
+    <div id="portfolio-stats"></div>
+    <table id="portfolio-table" style="display:none">
+      <thead>
+        <tr>
+          <th>TICKER</th><th>SHARES</th><th>AVG COST</th><th>PRICE</th>
+          <th>P&amp;L $</th><th>P&amp;L %</th><th>MKT VALUE</th><th>% PORT</th>
+        </tr>
+      </thead>
+      <tbody id="portfolio-tbody"></tbody>
+    </table>
   </div>
 
   <!-- ── Main grid ─────────────────────────────────────────── -->
@@ -569,6 +625,62 @@ const BACKEND = `ws://${location.host}/ws`;
 const API = `http://${location.host}/api`;
 
 // ── Portfolio ─────────────────────────────────────────────────────────────
+function updatePortfolioPanel() {
+  const panel = document.getElementById('portfolio-panel');
+  const table = document.getElementById('portfolio-table');
+  const tbody = document.getElementById('portfolio-tbody');
+  const statsEl = document.getElementById('portfolio-stats');
+  if (!panel) return;
+
+  const ps = portfolioState;
+  const positions = ps.positions || {};
+  const totalValue = ps.total_value || 100000;
+  const cash = ps.cash || 100000;
+  const hasPositions = Object.keys(positions).length > 0;
+
+  // Hide panel in starting state (no positions and total_value ≈ cash)
+  const isStartingState =
+    !hasPositions && Math.abs(totalValue - cash) < 0.01;
+  panel.style.display = isStartingState ? 'none' : 'block';
+  if (isStartingState) return;
+
+  function fmtUsd(n) {
+    return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function pnlClass(n) {
+    return n > 0 ? 'pos' : n < 0 ? 'neg' : 'zero';
+  }
+  function pnlSign(n) { return n >= 0 ? '+' : '-'; }
+
+  const dailyPnl = ps.daily_pnl || 0;
+  const returnPct = (totalValue - 100000) / 100000 * 100;
+  statsEl.innerHTML = `
+    <span><span class="pstat-label">PORTFOLIO</span><span class="pstat-value">${fmtUsd(totalValue)}</span></span>
+    <span><span class="pstat-label">CASH</span><span class="pstat-value">${fmtUsd(cash)}</span></span>
+    <span><span class="pstat-label">DAY</span><span class="pstat-value ${pnlClass(dailyPnl)}">${pnlSign(dailyPnl)}${fmtUsd(dailyPnl)}</span></span>
+    <span><span class="pstat-label">RETURN</span><span class="pstat-value ${pnlClass(returnPct)}">${pnlSign(returnPct)}${Math.abs(returnPct).toFixed(2)}%</span></span>
+  `;
+
+  if (!hasPositions) {
+    table.style.display = 'none';
+    return;
+  }
+  table.style.display = '';
+  tbody.innerHTML = Object.entries(positions).map(([ticker, pos]) => {
+    const mktValue = pos.shares * pos.current_price;
+    return `<tr>
+      <td>${ticker}</td>
+      <td>${pos.shares.toFixed(2)}</td>
+      <td>$${pos.avg_cost.toFixed(2)}</td>
+      <td>$${pos.current_price.toFixed(2)}</td>
+      <td class="${pnlClass(pos.unrealised_pnl)}">${pnlSign(pos.unrealised_pnl)}${fmtUsd(pos.unrealised_pnl)}</td>
+      <td class="${pnlClass(pos.unrealised_pnl_pct)}">${pnlSign(pos.unrealised_pnl_pct)}${Math.abs(pos.unrealised_pnl_pct).toFixed(2)}%</td>
+      <td>${fmtUsd(mktValue)}</td>
+      <td>${(pos.pct_of_portfolio || 0).toFixed(2)}%</td>
+    </tr>`;
+  }).join('');
+}
+
 async function loadPortfolio() {
   try {
     const r = await fetch(`${API}/portfolio`);
@@ -600,6 +712,7 @@ function updateCardPosition(ticker) {
 
 function handlePortfolioUpdate(ev) {
   portfolioState = ev;
+  updatePortfolioPanel();
   for (const ticker of Object.keys(state)) {
     updateCardPosition(ticker);
   }
