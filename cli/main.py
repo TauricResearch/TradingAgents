@@ -5,13 +5,6 @@ import questionary
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
-from dotenv import find_dotenv, load_dotenv
-
-# Search starts from the user's CWD so the installed `tradingagents`
-# console script picks up the project's .env instead of walking up from
-# site-packages.
-load_dotenv(find_dotenv(usecwd=True))
-load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -568,6 +561,11 @@ def get_user_selections():
         selected_llm_provider, backend_url = ask_minimax_region()
     elif selected_llm_provider == "glm":
         selected_llm_provider, backend_url = ask_glm_region()
+
+    # Confirm the provider's API key is present; prompt the user to paste
+    # one and persist it to .env if it's missing, so the analysis run
+    # doesn't fail later at the first API call.
+    ensure_api_key(selected_llm_provider)
 
     # Step 7: Thinking agents
     console.print(
