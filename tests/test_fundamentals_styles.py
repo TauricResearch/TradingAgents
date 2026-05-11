@@ -113,6 +113,63 @@ def test_buffett_prompt_mentions_required_concepts():
     assert "intrinsic value" in msg
 
 
+def test_buffett_prompt_includes_skill_derived_framework():
+    """Concepts pulled from the Anthropic skills bundle (buffett-analysis,
+    moat-analysis, financial-metrics) — locking these guards against a future
+    prompt edit silently regressing the framework to a thinner version."""
+    msg = BuffettValueStyle().system_message().lower()
+
+    # Seven cornerstones — the foundational filters
+    assert "seven cornerstones" in msg
+    assert "circle of competence" in msg
+    assert "contrarian" in msg
+
+    # Five-moat scoring rubric with specific anchors
+    assert "brand power" in msg
+    assert "switching cost" in msg
+    assert "network effect" in msg
+    assert "regulatory" in msg
+
+    # Three-scenario DCF and Owner Earnings formula
+    assert "pessimistic" in msg
+    assert "10-year forecast" in msg or "10 year forecast" in msg or "10-year" in msg
+    assert "d&a" in msg  # Owner Earnings formula reference
+    assert "maintenance capex" in msg
+
+    # The Three Terminal Questions
+    assert "terminal question" in msg
+    # Confirm all three terminal questions are mentioned
+    assert "circle of competence" in msg  # Q1
+    assert "10 years" in msg or "10-year" in msg  # Q2
+    assert "5 years" in msg or "five years" in msg or "closed for 5" in msg  # Q3
+
+    # Earnings-quality test markers
+    assert "earnings-quality" in msg or "earnings quality" in msg
+    assert "operating cf" in msg
+    assert "accounts receivable" in msg
+
+    # Margin-of-safety bands with explicit thresholds
+    assert "≥25%" in msg or ">=25%" in msg or "25%" in msg
+    assert "sweet spot" in msg or "30%" in msg
+
+
+def test_buffett_prompt_has_output_format():
+    """The committee-memo output table makes downstream parsing more reliable."""
+    msg = BuffettValueStyle().system_message()
+    # The required output format section
+    assert "OUTPUT FORMAT" in msg or "output format" in msg.lower()
+    # Markdown table column headers we rely on
+    assert "Verdict" in msg
+    assert "BUY / HOLD / SKIP" in msg or "BUY/HOLD/SKIP" in msg
+
+
+def test_buffett_prompt_length_is_substantive_but_not_runaway():
+    """Sanity bound: a prompt shorter than 4k chars probably lost content;
+    longer than 12k chars probably duplicates or bloats and should be trimmed."""
+    msg = BuffettValueStyle().system_message()
+    assert 4000 < len(msg) < 12000, f"Buffett prompt is {len(msg)} chars"
+
+
 def test_growth_prompt_mentions_required_concepts():
     """Lock the Growth prompt to its key Lynch/Fisher concepts."""
     msg = GrowthStyle().system_message().lower()
