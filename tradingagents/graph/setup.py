@@ -5,6 +5,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
+from tradingagents.agents.risk_mgmt.market_gate import create_market_gate
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
@@ -19,8 +20,10 @@ class GraphSetup:
         deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
+        config: dict = None,
     ):
         """Initialize with required components."""
+        self.config = config or {}
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
@@ -151,13 +154,24 @@ class GraphSetup:
             },
         )
         workflow.add_edge("Research Manager", "Trader")
+        # Market state verification gate (optional, enabled by default)
+        # When enabled, checks if the target exchange is open before the
+        # Portfolio Manager approves execution.
+        if self.config.get("use_market_gate", True):
+            market_gate_node = create_market_gate()
+            workflow.add_node("Market Gate", market_gate_node)
+            workflow.add_edge("Market Gate", "Portfolio Manager")
+            portfolio_entry = "Market Gate"
+        else:
+            portfolio_entry = "Portfolio Manager"
+
         workflow.add_edge("Trader", "Aggressive Analyst")
         workflow.add_conditional_edges(
             "Aggressive Analyst",
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Conservative Analyst": "Conservative Analyst",
-                "Portfolio Manager": "Portfolio Manager",
+                "Portfolio Manager": portfolio_entry,
             },
         )
         workflow.add_conditional_edges(
@@ -165,7 +179,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Neutral Analyst": "Neutral Analyst",
-                "Portfolio Manager": "Portfolio Manager",
+                "Portfolio Manager": portfolio_entry,
             },
         )
         workflow.add_conditional_edges(
@@ -173,7 +187,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
-                "Portfolio Manager": "Portfolio Manager",
+                "Portfolio Manager": portfolio_entry,
             },
         )
 

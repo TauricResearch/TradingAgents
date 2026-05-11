@@ -35,6 +35,13 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Market state verification gate (pre-trade safety check)
+    # When enabled, verifies the target exchange is open before the
+    # Portfolio Manager approves execution. Uses the free Headless Oracle
+    # demo endpoint (no API key required). Covers 28 global exchanges.
+    # See: https://github.com/TauricResearch/TradingAgents/issues/514
+    "use_market_gate": True,
+
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
