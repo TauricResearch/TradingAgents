@@ -45,16 +45,16 @@
   /* ── Header ─────────────────────────────────────────────────── */
   header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 28px; height: 60px;
+    padding: 0 28px; height: 80px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 100;
   }
   .logo {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 14px;
   }
   .logo-mark {
-    width: 32px; height: 32px;
+    width: 48px; height: 48px;
     background: var(--amber);
     clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     animation: pulse-mark 3s ease-in-out infinite;
@@ -63,7 +63,7 @@
     0%, 100% { opacity: 1; } 50% { opacity: 0.6; }
   }
   .logo-text {
-    font-family: var(--display); font-weight: 800; font-size: 20px;
+    font-family: var(--display); font-weight: 800; font-size: 35px;
     letter-spacing: 0.08em; color: #fff;
     text-transform: uppercase;
   }
@@ -73,34 +73,34 @@
     display: flex; align-items: center; gap: 20px;
   }
   .status-dot {
-    width: 8px; height: 8px; border-radius: 50%;
+    width: 12px; height: 12px; border-radius: 50%;
     background: var(--text-dim);
     transition: background 0.3s;
   }
-  .status-dot.connected { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 10px var(--green); }
   .status-dot.connecting { background: var(--amber); animation: blink 1s infinite; }
   @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
 
   .status-label {
-    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    font-family: var(--mono); font-size: 19px; color: var(--text-dim);
     text-transform: uppercase; letter-spacing: 0.1em;
   }
   .demo-badge {
     display: none;
-    font-family: var(--mono); font-size: 10px; color: var(--amber);
-    border: 1px solid var(--amber-dim); padding: 2px 8px; border-radius: 2px;
+    font-family: var(--mono); font-size: 18px; color: var(--amber);
+    border: 1px solid var(--amber-dim); padding: 3px 10px; border-radius: 2px;
     letter-spacing: 0.1em;
   }
   .demo-badge.visible { display: block; }
 
   .time-display {
-    font-family: var(--mono); font-size: 13px; color: var(--text-mid);
+    font-family: var(--mono); font-size: 23px; color: var(--text-mid);
   }
 
   /* ── Controls Bar ────────────────────────────────────────────── */
   .controls {
     display: flex; align-items: center; gap: 12px;
-    padding: 16px 28px;
+    padding: 24px 28px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
   }
@@ -111,15 +111,15 @@
   }
   .ticker-input-wrap input {
     background: var(--surface2); border: none; outline: none;
-    padding: 8px 14px; color: #fff;
-    font-family: var(--mono); font-size: 14px; letter-spacing: 0.12em;
-    width: 120px; text-transform: uppercase;
+    padding: 10px 16px; color: #fff;
+    font-family: var(--mono); font-size: 25px; letter-spacing: 0.12em;
+    width: 160px; text-transform: uppercase;
   }
   .ticker-input-wrap input::placeholder { color: var(--text-dim); text-transform: uppercase; }
   .btn {
-    font-family: var(--display); font-weight: 700; font-size: 13px;
+    font-family: var(--display); font-weight: 700; font-size: 23px;
     letter-spacing: 0.08em; text-transform: uppercase;
-    border: none; cursor: pointer; padding: 8px 18px;
+    border: none; cursor: pointer; padding: 10px 22px;
     transition: all 0.15s;
   }
   .btn-add {
@@ -129,11 +129,11 @@
   .btn-add:active { transform: scale(0.97); }
 
   .presets {
-    display: flex; gap: 6px; flex-wrap: wrap;
+    display: flex; gap: 8px; flex-wrap: wrap;
   }
   .preset-chip {
-    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
-    border: 1px solid var(--border); padding: 4px 10px; border-radius: 2px;
+    font-family: var(--mono); font-size: 19px; color: var(--text-dim);
+    border: 1px solid var(--border); padding: 6px 14px; border-radius: 2px;
     cursor: pointer; transition: all 0.15s;
     text-transform: uppercase; letter-spacing: 0.08em;
   }
@@ -141,13 +141,13 @@
 
   .controls-right {
     margin-left: auto;
-    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
-    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 19px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 10px;
   }
   .refresh-select {
     background: var(--surface2); border: 1px solid var(--border);
-    color: var(--text-mid); font-family: var(--mono); font-size: 11px;
-    padding: 4px 8px; border-radius: 2px; cursor: pointer;
+    color: var(--text-mid); font-family: var(--mono); font-size: 19px;
+    padding: 6px 10px; border-radius: 2px; cursor: pointer;
   }
   .refresh-select:focus { outline: none; border-color: var(--amber); }
 
@@ -155,8 +155,8 @@
   main {
     flex: 1; padding: 24px 28px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    gap: 24px;
     align-content: start;
   }
 
@@ -176,16 +176,16 @@
     border-radius: 2px;
   }
   .empty-title {
-    font-family: var(--display); font-size: 28px; font-weight: 700;
+    font-family: var(--display); font-size: 49px; font-weight: 700;
     color: var(--text-dim); text-align: center; letter-spacing: 0.05em;
     text-transform: uppercase;
   }
   .empty-sub {
-    font-size: 14px; color: var(--text-dim); text-align: center;
-    line-height: 1.6; max-width: 360px;
+    font-size: 25px; color: var(--text-dim); text-align: center;
+    line-height: 1.6; max-width: 560px;
   }
   .empty-sub code {
-    font-family: var(--mono); color: var(--amber); font-size: 12px;
+    font-family: var(--mono); color: var(--amber); font-size: 21px;
   }
 
   /* ── Ticker Card ─────────────────────────────────────────────── */
@@ -208,10 +208,10 @@
   .ticker-card.done-SELL { border-color: rgba(255,61,74,0.25); }
   .ticker-card.done-HOLD { border-color: rgba(240,165,0,0.2); }
 
-  /* scanning line when analyzing */
+  /* scanning line when analyzing — 2px for visibility */
   .ticker-card.analyzing::before {
     content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, transparent, var(--amber), transparent);
     animation: scan 2s linear infinite;
   }
@@ -223,21 +223,21 @@
   /* ── Card Header ─────────────────────────────────────────────── */
   .card-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 10px;
+    padding: 21px 24px 15px;
     border-bottom: 1px solid var(--border);
   }
   .card-ticker-name {
-    font-family: var(--display); font-weight: 800; font-size: 26px;
+    font-family: var(--display); font-weight: 800; font-size: 45px;
     letter-spacing: 0.06em; color: #fff;
   }
-  .card-actions { display: flex; align-items: center; gap: 8px; }
+  .card-actions { display: flex; align-items: center; gap: 10px; }
 
   .btn-refresh, .btn-remove {
-    width: 28px; height: 28px; border-radius: 3px;
+    width: 40px; height: 40px; border-radius: 3px;
     border: 1px solid var(--border);
     background: transparent; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 13px; color: var(--text-dim);
+    font-size: 23px; color: var(--text-dim);
     transition: all 0.15s;
   }
   .btn-refresh:hover { border-color: var(--cyan); color: var(--cyan); }
@@ -246,38 +246,38 @@
 
   /* ── Decision Badge ──────────────────────────────────────────── */
   .decision-badge {
-    font-family: var(--display); font-weight: 800; font-size: 15px;
-    letter-spacing: 0.14em; padding: 4px 14px; border-radius: 3px;
+    font-family: var(--display); font-weight: 800; font-size: 26px;
+    letter-spacing: 0.14em; padding: 6px 20px; border-radius: 3px;
     text-transform: uppercase;
   }
   .badge-BUY  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,255,157,0.3); }
   .badge-SELL { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,61,74,0.3); }
   .badge-HOLD { background: rgba(240,165,0,0.12); color: var(--amber); border: 1px solid var(--amber-dim); }
-  .badge-pending { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); font-size: 11px; letter-spacing: 0.06em; }
+  .badge-pending { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); font-size: 19px; letter-spacing: 0.06em; }
 
   /* ── Agent Progress ──────────────────────────────────────────── */
   .card-agent-bar {
-    padding: 8px 16px;
+    padding: 12px 24px;
     border-bottom: 1px solid var(--border);
-    min-height: 36px;
-    display: flex; align-items: center; gap: 10px;
+    min-height: 54px;
+    display: flex; align-items: center; gap: 12px;
   }
   .agent-label {
-    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    font-family: var(--mono); font-size: 19px; color: var(--text-dim);
     text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
   }
   .agent-name {
-    font-family: var(--mono); font-size: 12px; color: var(--amber);
+    font-family: var(--mono); font-size: 21px; color: var(--amber);
     animation: flicker 2s ease-in-out infinite;
   }
   @keyframes flicker {
     0%,100% { opacity: 1; } 50% { opacity: 0.65; }
   }
   .progress-dots {
-    display: flex; gap: 4px; margin-left: auto;
+    display: flex; gap: 5px; margin-left: auto;
   }
   .progress-dots span {
-    width: 5px; height: 5px; border-radius: 50%;
+    width: 7px; height: 7px; border-radius: 50%;
     background: var(--amber-dim);
   }
   .progress-dots span.active { background: var(--amber); animation: dot-pulse 1s infinite; }
@@ -287,12 +287,12 @@
 
   /* Agent progress pills row */
   .agent-pills {
-    display: flex; gap: 4px; padding: 8px 16px;
+    display: flex; gap: 6px; padding: 12px 24px;
     flex-wrap: wrap; border-bottom: 1px solid var(--border);
   }
   .agent-pill {
-    font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em;
-    text-transform: uppercase; padding: 3px 7px; border-radius: 2px;
+    font-family: var(--mono); font-size: 16px; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 6px 12px; border-radius: 2px;
     border: 1px solid var(--border); color: var(--text-dim);
     transition: all 0.3s;
     white-space: nowrap;
@@ -302,13 +302,13 @@
 
   /* ── Log Terminal ────────────────────────────────────────────── */
   .card-log {
-    flex: 1; height: 160px; overflow-y: auto;
-    padding: 10px 14px; background: #070a14;
-    font-family: var(--mono); font-size: 11px; line-height: 1.7;
+    flex: 1; height: 200px; overflow-y: auto;
+    padding: 15px 21px; background: #070a14;
+    font-family: var(--mono); font-size: 19px; line-height: 1.7;
     border-bottom: 1px solid var(--border);
   }
   .log-line {
-    display: flex; gap: 8px;
+    display: flex; gap: 10px;
     animation: log-in 0.2s ease;
   }
   @keyframes log-in {
@@ -331,70 +331,70 @@
 
   /* ── Decision Footer ─────────────────────────────────────────── */
   .card-decision {
-    padding: 12px 16px;
+    padding: 18px 24px;
   }
   .decision-row {
-    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
   }
   .confidence-bar-wrap {
-    flex: 1; height: 3px; background: var(--surface2);
-    border-radius: 2px; overflow: hidden; margin: 0 12px;
+    flex: 1; height: 6px; background: var(--surface2);
+    border-radius: 3px; overflow: hidden; margin: 0 16px;
   }
   .confidence-bar {
-    height: 100%; border-radius: 2px;
+    height: 100%; border-radius: 3px;
     transition: width 1s cubic-bezier(0.16,1,0.3,1);
   }
   .bar-BUY  { background: var(--green); }
   .bar-SELL { background: var(--red); }
   .bar-HOLD { background: var(--amber); }
   .confidence-pct {
-    font-family: var(--mono); font-size: 12px; color: var(--text-mid);
+    font-family: var(--mono); font-size: 21px; color: var(--text-mid);
     white-space: nowrap;
   }
   .decision-reasoning {
-    font-size: 12px; color: var(--text-dim); line-height: 1.5;
-    border-left: 2px solid var(--border2); padding-left: 10px;
+    font-size: 21px; color: var(--text-dim); line-height: 1.5;
+    border-left: 2px solid var(--border2); padding-left: 14px;
     font-style: italic;
   }
   .last-updated {
-    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
-    margin-top: 8px;
+    font-family: var(--mono); font-size: 18px; color: var(--text-dim);
+    margin-top: 10px;
   }
 
   /* ── Overlay states ──────────────────────────────────────────── */
   .card-overlay {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 12px;
+    align-items: center; justify-content: center; gap: 14px;
     background: rgba(6,8,16,0.88);
-    font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em;
+    font-family: var(--mono); font-size: 23px; letter-spacing: 0.08em;
   }
   .card-overlay.hidden { display: none; }
   .spinner {
-    width: 32px; height: 32px;
-    border: 2px solid var(--border2);
+    width: 44px; height: 44px;
+    border: 3px solid var(--border2);
     border-top-color: var(--amber);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .overlay-label { color: var(--amber); text-transform: uppercase; }
-  .error-icon { font-size: 24px; }
-  .error-msg { color: var(--red); font-size: 11px; text-align: center; max-width: 260px; }
+  .error-icon { font-size: 36px; }
+  .error-msg { color: var(--red); font-size: 19px; text-align: center; max-width: 320px; }
   .btn-retry {
-    margin-top: 4px; background: transparent; border: 1px solid var(--red);
-    color: var(--red); font-family: var(--mono); font-size: 11px;
-    padding: 5px 14px; cursor: pointer; letter-spacing: 0.08em; border-radius: 2px;
+    margin-top: 6px; background: transparent; border: 1px solid var(--red);
+    color: var(--red); font-family: var(--mono); font-size: 19px;
+    padding: 8px 20px; cursor: pointer; letter-spacing: 0.08em; border-radius: 2px;
   }
   .btn-retry:hover { background: rgba(255,61,74,0.1); }
 
   /* ── Footer ─────────────────────────────────────────────────── */
   footer {
-    padding: 10px 28px;
+    padding: 12px 28px;
     border-top: 1px solid var(--border);
     display: flex; align-items: center; gap: 20px;
     background: var(--surface);
-    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    font-family: var(--mono); font-size: 18px; color: var(--text-dim);
     text-transform: uppercase; letter-spacing: 0.06em;
   }
   footer a { color: var(--text-dim); text-decoration: none; }
@@ -407,12 +407,12 @@
     display: flex; flex-direction: column; gap: 8px; z-index: 999;
   }
   .toast {
-    font-family: var(--mono); font-size: 12px;
+    font-family: var(--mono); font-size: 21px;
     background: var(--surface2); border: 1px solid var(--border2);
-    padding: 10px 16px; border-radius: 4px;
+    padding: 12px 20px; border-radius: 4px;
     color: var(--text);
     animation: toast-in 0.25s ease;
-    max-width: 320px;
+    max-width: 420px;
   }
   @keyframes toast-in {
     from { opacity: 0; transform: translateX(16px); }
@@ -422,82 +422,84 @@
   .toast.error   { border-left: 3px solid var(--red); }
   .toast.info    { border-left: 3px solid var(--amber); }
   .chart-container {
-    margin-top: 8px;
-    padding: 0 4px;
+    margin-top: 10px;
+    padding: 0 6px;
     width: 100%;
   }
   .chart-container canvas {
     width: 100% !important;
-    height: 120px !important;
+    height: 140px !important;
     display: block;
   }
   .chart-no-data {
-    height: 120px;
+    height: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 19px;
     color: var(--text-dim);
     font-family: var(--mono);
     letter-spacing: 0.05em;
   }
 
   /* ── Trade bar ───────────────────────────────────────────────────── */
-  .trade-bar { padding: 6px 8px; border-top: 1px solid var(--border); }
-  .trade-controls { display: flex; align-items: center; gap: 6px; }
-  .trade-currency { color: var(--text-dim); font-family: var(--mono); font-size: 12px; }
-  .trade-input { width: 90px; background: var(--bg-input, #1a1a1a); border: 1px solid var(--border);
-                 color: var(--text); font-family: var(--mono); font-size: 12px; padding: 3px 6px; }
-  .btn-buy  { background: #00c853; color: #000; font-size: 11px; font-weight: 700;
-              padding: 3px 10px; border: none; cursor: pointer; letter-spacing: 0.08em; }
-  .btn-sell { background: #d50000; color: #fff; font-size: 11px; font-weight: 700;
-              padding: 3px 10px; border: none; cursor: pointer; letter-spacing: 0.08em; }
+  .trade-bar { padding: 9px 12px; border-top: 1px solid var(--border); }
+  .trade-controls { display: flex; align-items: center; gap: 8px; }
+  .trade-currency { color: var(--text-dim); font-family: var(--mono); font-size: 21px; }
+  .trade-input { width: 130px; background: var(--bg-input, #1a1a1a); border: 1px solid var(--border2);
+                 color: var(--text); font-family: var(--mono); font-size: 21px; padding: 8px 12px; }
+  .btn-buy  { background: #00ff9d; color: #000; font-size: 19px; font-weight: 700;
+              padding: 8px 18px; border: none; cursor: pointer; letter-spacing: 0.08em; }
+  .btn-sell { background: #ff3d4a; color: #fff; font-size: 19px; font-weight: 700;
+              padding: 8px 18px; border: none; cursor: pointer; letter-spacing: 0.08em; }
   .btn-buy:disabled, .btn-sell:disabled { opacity: 0.35; cursor: not-allowed; }
-  .trade-position { font-family: var(--mono); font-size: 11px; margin-top: 4px; }
+  .trade-position { font-family: var(--mono); font-size: 19px; margin-top: 6px; }
   .trade-position.pnl-positive { color: var(--green); }
   .trade-position.pnl-negative { color: var(--red); }
-#portfolio-panel {
-  background: var(--bg-card, #111);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 16px;
-}
-#portfolio-stats {
-  display: flex;
-  gap: 24px;
-  align-items: center;
-  font-family: var(--mono);
-  font-size: 12px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-.pstat-label { color: var(--text-dim); letter-spacing: 0.08em; margin-right: 4px; }
-.pstat-value { color: var(--text); }
-.pstat-value.pos { color: var(--green); }
-.pstat-value.neg { color: var(--red); }
-.pstat-value.zero { color: var(--text-dim); }
-#portfolio-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--mono);
-  font-size: 11px;
-}
-#portfolio-table th {
-  color: var(--text-dim);
-  text-align: right;
-  padding: 2px 8px;
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--border);
-}
-#portfolio-table th:first-child { text-align: left; }
-#portfolio-table td {
-  text-align: right;
-  padding: 3px 8px;
-  color: var(--text);
-}
-#portfolio-table td:first-child { text-align: left; }
-#portfolio-table td.pos { color: var(--green); }
-#portfolio-table td.neg { color: var(--red); }
+
+  /* ── Portfolio panel ─────────────────────────────────────────────── */
+  #portfolio-panel {
+    background: var(--bg-card, #111);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+  }
+  #portfolio-stats {
+    display: flex;
+    gap: 42px;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 21px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .pstat-label { color: var(--text-dim); letter-spacing: 0.08em; margin-right: 6px; }
+  .pstat-value { color: var(--text); }
+  .pstat-value.pos { color: var(--green); }
+  .pstat-value.neg { color: var(--red); }
+  .pstat-value.zero { color: var(--text-dim); }
+  #portfolio-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 19px;
+  }
+  #portfolio-table th {
+    color: var(--text-dim);
+    text-align: right;
+    padding: 4px 14px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+  }
+  #portfolio-table th:first-child { text-align: left; }
+  #portfolio-table td {
+    text-align: right;
+    padding: 6px 14px;
+    color: var(--text);
+  }
+  #portfolio-table td:first-child { text-align: left; }
+  #portfolio-table td.pos { color: var(--green); }
+  #portfolio-table td.neg { color: var(--red); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
