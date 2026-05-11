@@ -128,6 +128,27 @@ function fileCollisions() {
 
 // ── Open PRs ─────────────────────────────────────────────────────────────
 
+const REVIEWS_DIR = join(process.cwd(), "debriefs", "reviews")
+
+/** Write a note file to debriefs/reviews/ — used when we can't determine state. */
+function writeReviewNote(filename: string, message: string) {
+  try {
+    mkdirSync(REVIEWS_DIR, { recursive: true })
+    const notePath = join(REVIEWS_DIR, filename)
+    const ts = new Date().toISOString().replace(/T/, " ").slice(0, 19)
+    execSync(
+      `cat > "${notePath}" << 'NOTE'
+# ${filename.replace(/\.md$/, "")}
+
+**Fetched:** ${ts}
+**State:** UNKNOWN — ${message}
+
+NOTE`,
+      { shell: "/bin/bash", timeout: 5000 },
+    )
+  } catch {}
+}
+
 function openPRs() {
   if (mode === "compact") {
     const raw = sh("gh pr list --state open --json number,title --jq .[] 2>/dev/null")
@@ -140,24 +161,53 @@ function openPRs() {
     }
   }
 
+  // Try to get open PRs from GitHub
   const raw = sh("gh pr list --state open --json number,title,url --jq .[] 2>/dev/null")
-  if (!raw) return "  No open PRs (gh unauthenticated or none exist)."
+  if (!raw) {
+    writeReviewNote(
+      "pr-state-unknown.md",
+      "gh pr list returned no output (unauthenticated or network error).",
+    )
+    return "  PR state unknown (gh unavailable). Note written to debriefs/reviews/pr-state-unknown.md"
+  }
 
   let prs: { number: number; title: string; url: string }[]
   try {
-    prs = JSON.parse(raw || "[]")
+    prs = JSON.parse(raw)
   } catch {
-    return "  Failed to parse gh pr list output."
+    writeReviewNote("pr-state-unknown.md", "gh pr list output could not be parsed as JSON.")
+    return "  PR state unknown (parse error). Note written to debriefs/reviews/pr-state-unknown.md"
   }
 
   if (prs.length === 0) return "  No open PRs."
 
-  // Ensure debriefs/reviews/ directory exists
-  const reviewsDir = join(process.cwd(), "debriefs", "reviews")
+  // Ensure directory exists
   try {
-    mkdirSync(reviewsDir, { recursive: true })
+    mkdirSync(REVIEWS_DIR, { recursive: true })
   } catch {}
 
+  // Clean up stale PR docs — PRs that are no longer open
+  const openNumbers = new Set(prs.map((p) => p.number))
+  try {
+    const existing = execSync(`ls "${REVIEWS_DIR}"/pr-*.md 2>/dev/null`, {
+      encoding: "utf8",
+      shell: "/bin/bash",
+    })
+      .split("\n")
+      .filter((f) => f.trim() && !f.includes("pr-state-unknown"))
+    let cleaned = 0
+    for (const f of existing) {
+      const base = f.replace(/^.*\//, "")
+      const numMatch = base.match(/^pr-(\d+)-/)
+      if (numMatch && !openNumbers.has(parseInt(numMatch[1], 10))) {
+        execSync(`rm "${REVIEWS_DIR}/${base}" 2>/dev/null`, { timeout: 5000 })
+        cleaned++
+      }
+    }
+    if (cleaned > 0) console.log(`  (cleaned ${cleaned} stale PR doc(s))\n`)
+  } catch {}
+
+  // Fetch each open PR
   let fetched = 0
   for (const pr of prs) {
     const slug = pr.title
@@ -165,7 +215,7 @@ function openPRs() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 60)
-    const dest = join(reviewsDir, `pr-${pr.number}-${slug}.md`)
+    const dest = join(REVIEWS_DIR, `pr-${pr.number}-${slug}.md`)
     try {
       execSync(`defuddle parse -o "${dest}" --md "${pr.url}" 2>/dev/null`, {
         timeout: 30_000,
@@ -178,13 +228,10 @@ function openPRs() {
           `gh pr view ${pr.number} --json title,body,state,author,createdAt,url --jq . 2>/dev/null`,
         )
         if (ghData) {
-          try {
-            const gh = JSON.parse(ghData)
-            const md = `# PR #${gh.number}: ${gh.title}\n\n**State:** ${gh.state}\n**Author:** ${gh.author?.login ?? "unknown"}\n**Created:** ${gh.createdAt}\n\n${gh.body ?? ""}`
-            // writeFileSync not imported; use execSync cat heredoc
-            execSync(`cat > "${dest}" << 'GHMD'\n${md}\nGHMD`, { shell: "/bin/bash" })
-            fetched++
-          } catch {}
+          const gh = JSON.parse(ghData)
+          const md = `# PR #${gh.number}: ${gh.title}\n\n**State:** ${gh.state}\n**Author:** ${gh.author?.login ?? "unknown"}\n**Created:** ${gh.createdAt}\n\n${gh.body ?? ""}`
+          execSync(`cat > "${dest}" << 'GHMD'\n${md}\nGHMD`, { shell: "/bin/bash" })
+          fetched++
         }
       } catch {}
     }
