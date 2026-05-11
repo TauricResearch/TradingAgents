@@ -1,0 +1,27 @@
+{
+  "api_keys": {
+    "MIMO_API_KEY": "",
+    "TAVILY_API_KEY": "",
+    "TUSHARE_TOKEN": "",
+    "TUSHARE_API_KEY": ""
+  },
+  "llm": {
+    "provider": "mimo",
+    "backend_url": "https://token-plan-sgp.xiaomimimo.com/anthropic",
+    "quick_think_llm": "mimo-v2.5",
+    "deep_think_llm": "mimo-v2.5-pro"
+  },
+  "run": {
+    "analysts": ["market", "social", "news", "fundamentals"],
+    "research_depth": 1,
+    "output_language": "Chinese",
+    "checkpoint_enabled": false,
+    "save_report": true,
+    "display_report": false
+  },
+  "data_vendors": {
+    "news_data": "tavily,yfinance,alpha_vantage",
+    "core_stock_apis": "yfinance,tushare,akshare,alpha_vantage",
+    "fundamental_data": "yfinance,tushare,akshare,alpha_vantage"
+  }
+}

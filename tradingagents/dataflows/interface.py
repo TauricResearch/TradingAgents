@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from io import StringIO
 
 import pandas as pd
+import requests
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -46,6 +47,11 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from yfinance.exceptions import YFRateLimitError
+
+try:
+    from curl_cffi.requests.exceptions import RequestException as CurlCffiRequestException
+except Exception:  # pragma: no cover - curl_cffi is an indirect yfinance dependency
+    CurlCffiRequestException = ()
 
 # Configuration and routing logic
 from .config import get_config
@@ -242,13 +248,16 @@ def route_to_vendor(method: str, *args, **kwargs):
         return result
 
     if incomplete_primary:
-        return _format_incomplete_primary_result(
+        message = _format_incomplete_primary_result(
             method=method,
             primary_vendor=incomplete_primary[0],
             primary_result=incomplete_primary[1],
             reason=incomplete_primary[2],
             errors=recoverable_errors,
         )
+        if _should_halt_on_missing_data(method):
+            raise DataUnavailableError(message)
+        return message
 
     if recoverable_errors:
         message = _format_vendor_unavailable_message(method, recoverable_errors)
@@ -774,6 +783,13 @@ def _should_halt_on_missing_data(method: str) -> bool:
 
 def _is_recoverable_vendor_error(vendor: str, exc: Exception) -> bool:
     """Return True when another configured vendor should be tried."""
+    request_errors = (requests.RequestException,)
+    if CurlCffiRequestException:
+        request_errors = (*request_errors, CurlCffiRequestException)
+
+    if vendor in {"alpha_vantage", "tavily", "yfinance"} and isinstance(exc, request_errors):
+        return True
+
     if isinstance(
         exc,
         (

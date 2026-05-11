@@ -28,6 +28,7 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
+- [2026-05] **David fork sync** preserves local China-market and domestic-provider behavior while adapting upstream v0.2.5. Fork-specific changes are tracked in [docs/roadmap/CHANGELOG.md](docs/roadmap/CHANGELOG.md).
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix.
 - [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.
@@ -101,6 +102,23 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
 
 ## Installation and CLI
 
+### David Fork Additions
+
+This fork keeps upstream TradingAgents compatible while adding a China-market
+workflow layer:
+
+- Chinese/config-first CLI defaults via `tradingagents.config.example.json`.
+- Domestic-provider defaults and compatibility for DeepSeek, Xiaomi MiMo, Qwen,
+  GLM, MiniMax, OpenRouter, Ollama, Azure, OpenAI, Google, Anthropic, and xAI.
+- A-share ticker normalization, Yahoo Finance primary routing, and
+  Tushare/AkShare/Alpha Vantage fallback or supplementation for required data.
+- Tavily-first curated market news in the dataflow layer.
+- Evidence Steward gate before downstream debate when A-share evidence is thin,
+  contradictory, or identity-ambiguous.
+
+The upstream changelog remains in [CHANGELOG.md](CHANGELOG.md). Fork-specific
+changes are recorded in [docs/roadmap/CHANGELOG.md](docs/roadmap/CHANGELOG.md).
+
 ### Installation
 
 Clone TradingAgents:
@@ -160,6 +178,13 @@ For local models, configure Ollama with `llm_provider: "ollama"`. The default en
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
+```
+
+For this fork's config-first workflow, copy the local JSON example and fill in
+the provider/data preferences you use most often:
+
+```bash
+cp tradingagents.config.example.json tradingagents.local.json
 ```
 
 ### CLI Usage

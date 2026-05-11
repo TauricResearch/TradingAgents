@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import typer
 
 from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV, get_api_key_env
 
@@ -62,6 +63,18 @@ def test_unknown_provider_returns_none():
 def test_case_insensitive_lookup():
     assert get_api_key_env("OpenAI") == "OPENAI_API_KEY"
     assert get_api_key_env("QWEN-CN") == "DASHSCOPE_CN_API_KEY"
+
+
+def test_cli_provider_validation_uses_canonical_mapping(monkeypatch):
+    from cli.main import validate_provider_api_key
+
+    monkeypatch.delenv("ZHIPU_API_KEY", raising=False)
+    monkeypatch.setenv("ZAI_API_KEY", "legacy-alias-only")
+
+    with pytest.raises(typer.BadParameter) as exc:
+        validate_provider_api_key("glm")
+
+    assert "ZHIPU_API_KEY" in str(exc.value)
 
 
 # ---- ensure_api_key behavior ---------------------------------------------

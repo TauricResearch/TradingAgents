@@ -30,6 +30,7 @@ from rich.rule import Rule
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.dataflows.progress import progress_sink
+from tradingagents.llm_clients.api_key_env import get_api_key_env
 from cli.models import AnalystType
 from cli.utils import *
 from cli.config import (
@@ -42,19 +43,6 @@ from cli.stats_handler import StatsCallbackHandler
 
 console = Console()
 
-PROVIDER_KEY_ENVS = {
-    "openai": ("OPENAI_API_KEY",),
-    "google": ("GOOGLE_API_KEY",),
-    "anthropic": ("ANTHROPIC_API_KEY",),
-    "xai": ("XAI_API_KEY",),
-    "deepseek": ("DEEPSEEK_API_KEY",),
-    "mimo": ("MIMO_API_KEY",),
-    "qwen": ("DASHSCOPE_API_KEY",),
-    "glm": ("ZAI_API_KEY", "ZHIPU_API_KEY"),
-    "openrouter": ("OPENROUTER_API_KEY",),
-    "azure": ("AZURE_OPENAI_API_KEY",),
-}
-
 app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
@@ -65,16 +53,13 @@ app = typer.Typer(
 def validate_provider_api_key(provider: str) -> None:
     """Fail early when the selected hosted LLM provider has no loaded API key."""
     provider = provider.lower()
-    if provider == "ollama":
+    env_name = get_api_key_env(provider)
+    if not env_name:
         return
-    env_names = PROVIDER_KEY_ENVS.get(provider, ())
-    if not env_names:
+    if os.getenv(env_name):
         return
-    if any(os.getenv(name) for name in env_names):
-        return
-    joined = " or ".join(env_names)
     raise typer.BadParameter(
-        f"未加载 provider '{provider}' 的 API key。请在 {PROJECT_ROOT / '.env'} 或本地 JSON 配置中设置 {joined}。"
+        f"未加载 provider '{provider}' 的 API key。请在 {PROJECT_ROOT / '.env'} 或本地 JSON 配置中设置 {env_name}。"
     )
 
 
@@ -642,6 +627,20 @@ def get_user_selections(cli_config: dict | None = None):
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
+
+    # Providers with regional endpoints prompt for the region as a secondary
+    # step so mainland China and international accounts do not get mixed.
+    if selected_llm_provider == "qwen":
+        selected_llm_provider, backend_url = ask_qwen_region()
+    elif selected_llm_provider == "minimax":
+        selected_llm_provider, backend_url = ask_minimax_region()
+    elif selected_llm_provider == "glm":
+        selected_llm_provider, backend_url = ask_glm_region()
+
+    if selected_llm_provider == "ollama":
+        confirm_ollama_endpoint(backend_url)
+
+    ensure_api_key(selected_llm_provider)
 
     # Step 7: Thinking agents
     console.print(

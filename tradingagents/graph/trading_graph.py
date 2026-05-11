@@ -189,8 +189,24 @@ class TradingAgentsGraph:
             ),
         }
 
+    def _resolve_benchmark(self, ticker: str) -> str:
+        """Pick the benchmark ticker for alpha calculation against ``ticker``."""
+        explicit = self.config.get("benchmark_ticker")
+        if explicit:
+            return explicit
+        benchmark_map = self.config.get("benchmark_map", {})
+        ticker_upper = ticker.upper()
+        for suffix, benchmark in benchmark_map.items():
+            if suffix and ticker_upper.endswith(suffix.upper()):
+                return benchmark
+        return benchmark_map.get("", "SPY")
+
     def _fetch_returns(
-        self, ticker: str, trade_date: str, holding_days: int = 5
+        self,
+        ticker: str,
+        trade_date: str,
+        holding_days: int = 5,
+        benchmark: str = "SPY",
     ) -> Tuple[Optional[float], Optional[float], Optional[int]]:
         """Fetch raw and alpha return for ticker over holding_days from trade_date.
 
@@ -206,21 +222,21 @@ class TradingAgentsGraph:
             stock = yf.Ticker(to_yfinance_symbol(ticker)).history(
                 start=trade_date, end=end_str
             )
-            spy = yf.Ticker("SPY").history(start=trade_date, end=end_str)
+            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
 
-            if len(stock) < 2 or len(spy) < 2:
+            if len(stock) < 2 or len(bench) < 2:
                 return None, None, None
 
-            actual_days = min(holding_days, len(stock) - 1, len(spy) - 1)
+            actual_days = min(holding_days, len(stock) - 1, len(bench) - 1)
             raw = float(
                 (stock["Close"].iloc[actual_days] - stock["Close"].iloc[0])
                 / stock["Close"].iloc[0]
             )
-            spy_ret = float(
-                (spy["Close"].iloc[actual_days] - spy["Close"].iloc[0])
-                / spy["Close"].iloc[0]
+            benchmark_ret = float(
+                (bench["Close"].iloc[actual_days] - bench["Close"].iloc[0])
+                / bench["Close"].iloc[0]
             )
-            alpha = raw - spy_ret
+            alpha = raw - benchmark_ret
             return raw, alpha, actual_days
         except Exception as e:
             logger.warning(
@@ -244,14 +260,16 @@ class TradingAgentsGraph:
             return
 
         updates = []
+        benchmark = self._resolve_benchmark(ticker)
         for entry in pending:
-            raw, alpha, days = self._fetch_returns(ticker, entry["date"])
+            raw, alpha, days = self._fetch_returns(ticker, entry["date"], benchmark=benchmark)
             if raw is None:
                 continue  # price not available yet — try again next run
             reflection = self.reflector.reflect_on_final_decision(
                 final_decision=entry.get("decision", ""),
                 raw_return=raw,
                 alpha_return=alpha,
+                benchmark_name=benchmark,
             )
             updates.append({
                 "ticker": ticker,

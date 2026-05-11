@@ -7,6 +7,12 @@ import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
 from .ticker_utils import to_yfinance_symbol
 
+try:
+    from curl_cffi.requests.exceptions import RequestException as CurlCffiRequestException
+except Exception:  # pragma: no cover - curl_cffi is an indirect yfinance dependency
+    CurlCffiRequestException = ()
+
+
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -21,7 +27,19 @@ def get_YFin_data_online(
     ticker = yf.Ticker(symbol)
 
     # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    source = "yfinance"
+    try:
+        data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    except CurlCffiRequestException:
+        data = load_ohlcv(symbol, end_date)
+        if "Date" in data.columns:
+            data = data.copy()
+            data["Date"] = pd.to_datetime(data["Date"])
+            start_dt = pd.to_datetime(start_date)
+            end_dt = pd.to_datetime(end_date)
+            data = data[(data["Date"] >= start_dt) & (data["Date"] <= end_dt)]
+            data = data.set_index("Date")
+        source = "yfinance cache"
 
     # Check if data is empty
     if data.empty:
@@ -44,6 +62,8 @@ def get_YFin_data_online(
 
     # Add header information
     header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    if source != "yfinance":
+        header += f"# Source: {source}\n"
     header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 

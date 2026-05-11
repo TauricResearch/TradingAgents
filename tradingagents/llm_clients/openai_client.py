@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from typing import Any, Optional
 
 from langchain_core.messages import AIMessage
@@ -63,6 +64,40 @@ def _input_to_messages(input_: Any) -> list:
     if hasattr(input_, "to_messages"):
         return input_.to_messages()
     return []
+
+
+_RETIRED_DEEPSEEK_MODELS = {
+    "deepseek-chat": "deepseek-v4-flash",
+    "deepseek-reasoner": "deepseek-v4-pro",
+}
+
+
+def reject_retired_deepseek_model(model: str) -> None:
+    """Reject retired DeepSeek model names in this fork's runtime path."""
+    replacement = _RETIRED_DEEPSEEK_MODELS.get(model)
+    if replacement:
+        raise ValueError(
+            f"{model} is retired for this workflow. Use deepseek-v4-flash "
+            f"or deepseek-v4-pro instead. Suggested replacement: {replacement}."
+        )
+
+
+def strip_deepseek_reasoning_content(messages: list[Any]) -> list[Any]:
+    """Return a copy of messages without DeepSeek reasoning_content fields."""
+    cleaned = []
+    for message in messages:
+        if isinstance(message, AIMessage):
+            cloned = message.model_copy(deep=True)
+            cloned.additional_kwargs.pop("reasoning_content", None)
+            cleaned.append(cloned)
+            continue
+        if isinstance(message, dict):
+            cloned = deepcopy(message)
+            cloned.pop("reasoning_content", None)
+            cleaned.append(cloned)
+            continue
+        cleaned.append(message)
+    return cleaned
 
 
 class DeepSeekChatOpenAI(NormalizedChatOpenAI):
@@ -192,8 +227,13 @@ class OpenAIClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance."""
+        if self.provider == "deepseek":
+            reject_retired_deepseek_model(self.model)
         self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
+
+        if self.provider == "deepseek":
+            llm_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
 
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
