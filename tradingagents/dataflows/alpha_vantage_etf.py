@@ -100,3 +100,31 @@ def get_etf_holdings(ticker: str, top_n: int = 10) -> str:
         for row in rows
     )
     return header + body + "\n"
+
+
+def get_top_holding_tickers(
+    etf_ticker: str, top_n: int = 3
+) -> list[tuple[str, str, float]]:
+    """Structured top-N holdings: ``[(ticker, name, weight_pct), ...]``.
+
+    Alpha Vantage emits weight as a decimal string (``"0.092"`` = 9.2%).
+    Returns ``[]`` when the endpoint returns no payload so the
+    orchestrator can degrade gracefully.
+    """
+    data = _fetch_etf_profile_raw(etf_ticker)
+    holdings = (data or {}).get("holdings") or []
+    if not holdings:
+        return []
+
+    out: list[tuple[str, str, float]] = []
+    for row in holdings[:top_n]:
+        symbol = str(row.get("symbol") or "").strip()
+        if not symbol:
+            continue
+        name = str(row.get("description") or symbol)
+        try:
+            weight_pct = float(row.get("weight") or 0.0) * 100
+        except (TypeError, ValueError):
+            weight_pct = 0.0
+        out.append((symbol, name, weight_pct))
+    return out

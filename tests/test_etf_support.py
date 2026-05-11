@@ -623,3 +623,259 @@ class FundamentalsAnalystEtfToolsWiringTests(unittest.TestCase):
         registered = {t.name for t in nodes["fundamentals"].tools_by_name.values()}
         self.assertIn("get_etf_profile", registered)
         self.assertIn("get_etf_holdings", registered)
+        self.assertIn("get_etf_top_holdings_drilldown", registered)
+
+
+# ---------------------------------------------------------------------------
+# Top-holdings extractors — structured (vendor → list of tuples)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class YfinanceTopHoldingTickersTests(unittest.TestCase):
+    def _ticker_with_top_holdings(self, df):
+        m = MagicMock()
+        funds_data = MagicMock()
+        funds_data.top_holdings = df
+        m.funds_data = funds_data
+        return m
+
+    def test_returns_normalized_tuples_with_percent_weights(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        df = pd.DataFrame(
+            {"Name": ["Apple Inc.", "Microsoft Corp."], "Holding Percent": [0.072, 0.065]},
+            index=["AAPL", "MSFT"],
+        )
+        with patch.object(
+            yfinance_etf.yf, "Ticker",
+            return_value=self._ticker_with_top_holdings(df),
+        ):
+            out = yfinance_etf.get_top_holding_tickers("SPY", top_n=2)
+        self.assertEqual(out[0][0], "AAPL")
+        self.assertEqual(out[0][1], "Apple Inc.")
+        # 0.072 decimal must be converted to 7.2 percent for downstream display.
+        self.assertAlmostEqual(out[0][2], 7.2, places=2)
+        self.assertEqual(out[1][0], "MSFT")
+
+    def test_normalizes_bare_hk_codes_to_dot_hk(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        df = pd.DataFrame(
+            {"Name": ["Alibaba", "Tencent"], "Holding Percent": [0.10, 0.09]},
+            index=["09988", "00700"],
+        )
+        with patch.object(
+            yfinance_etf.yf, "Ticker",
+            return_value=self._ticker_with_top_holdings(df),
+        ):
+            out = yfinance_etf.get_top_holding_tickers("2800.HK", top_n=2)
+        # 5-digit numeric → ".HK" suffix appended
+        self.assertEqual(out[0][0], "09988.HK")
+        self.assertEqual(out[1][0], "00700.HK")
+
+    def test_returns_empty_when_funds_data_missing(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        m = MagicMock()
+        m.funds_data = None
+        with patch.object(yfinance_etf.yf, "Ticker", return_value=m):
+            out = yfinance_etf.get_top_holding_tickers("WEIRD", top_n=3)
+        self.assertEqual(out, [])
+
+    def test_handles_yfinance_already_percent_weight(self):
+        """yfinance is inconsistent: usually returns decimal but sometimes
+        the value is already in percent form (e.g. 7.2). The 1.5 threshold
+        treats >=1.5 as already-percent."""
+        from tradingagents.dataflows import yfinance_etf
+
+        df = pd.DataFrame(
+            {"Name": ["X Co"], "Holding Percent": [7.2]},
+            index=["XYZ"],
+        )
+        with patch.object(
+            yfinance_etf.yf, "Ticker",
+            return_value=self._ticker_with_top_holdings(df),
+        ):
+            out = yfinance_etf.get_top_holding_tickers("SOMEONE", top_n=1)
+        self.assertAlmostEqual(out[0][2], 7.2, places=2)  # not 720
+
+
+@pytest.mark.unit
+class AlphaVantageTopHoldingTickersTests(unittest.TestCase):
+    _SAMPLE = {
+        "symbol": "QQQ",
+        "holdings": [
+            {"symbol": "AAPL", "description": "Apple Inc", "weight": "0.092"},
+            {"symbol": "MSFT", "description": "Microsoft Corp", "weight": "0.085"},
+            {"symbol": "NVDA", "description": "Nvidia Corp", "weight": "0.064"},
+        ],
+    }
+
+    def test_returns_top_n_tuples_with_percent_weights(self):
+        from tradingagents.dataflows import alpha_vantage_etf
+
+        with patch.object(alpha_vantage_etf, "_make_api_request", return_value=self._SAMPLE):
+            out = alpha_vantage_etf.get_top_holding_tickers("QQQ", top_n=2)
+        self.assertEqual([t[0] for t in out], ["AAPL", "MSFT"])
+        self.assertAlmostEqual(out[0][2], 9.2, places=2)  # 0.092 → 9.2%
+        self.assertAlmostEqual(out[1][2], 8.5, places=2)
+
+    def test_returns_empty_on_missing_holdings(self):
+        from tradingagents.dataflows import alpha_vantage_etf
+
+        with patch.object(alpha_vantage_etf, "_make_api_request", return_value={"symbol": "X"}):
+            out = alpha_vantage_etf.get_top_holding_tickers("X", top_n=3)
+        self.assertEqual(out, [])
+
+
+# ---------------------------------------------------------------------------
+# Drill-down orchestration
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class EtfDrilldownTests(unittest.TestCase):
+    def _patch_etf_yes(self):
+        return patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="ETF",
+        )
+
+    def test_non_etf_ticker_returns_redirect_message(self):
+        """Drill-down should refuse non-ETF tickers without paying the
+        constituent API calls."""
+        from tradingagents.dataflows import etf_drilldown
+
+        with patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="EQUITY",
+        ):
+            out = etf_drilldown.get_etf_top_holdings_drilldown(
+                "AAPL", "2025-01-01", "2025-01-31"
+            )
+        self.assertIn("regular stock", out)
+        self.assertIn("get_fundamentals", out)
+
+    def test_renders_one_section_per_constituent(self):
+        from tradingagents.dataflows import etf_drilldown, interface
+
+        def fake_route(method, *args, **kwargs):
+            if method == "get_top_holding_tickers":
+                return [
+                    ("AAPL", "Apple Inc.", 7.2),
+                    ("MSFT", "Microsoft Corp.", 6.5),
+                ]
+            if method == "get_fundamentals":
+                return f"FUNDAMENTALS_FOR_{args[0]}"
+            if method == "get_news":
+                return f"NEWS_FOR_{args[0]}"
+            raise AssertionError(f"unexpected method {method}")
+
+        with self._patch_etf_yes(), \
+             patch.object(interface, "route_to_vendor", side_effect=fake_route):
+            out = etf_drilldown.get_etf_top_holdings_drilldown(
+                "SPY", "2025-01-01", "2025-01-31", top_n=2
+            )
+        self.assertIn("Top-2 holdings drill-down for ETF SPY", out)
+        self.assertIn("## Apple Inc. (AAPL) — weight: 7.20%", out)
+        self.assertIn("FUNDAMENTALS_FOR_AAPL", out)
+        self.assertIn("NEWS_FOR_AAPL", out)
+        self.assertIn("## Microsoft Corp. (MSFT) — weight: 6.50%", out)
+        self.assertIn("FUNDAMENTALS_FOR_MSFT", out)
+        self.assertIn("\n\n---\n\n", out)  # blocks separated by horizontal rule
+
+    def test_empty_holdings_returns_friendly_message(self):
+        from tradingagents.dataflows import etf_drilldown, interface
+
+        with self._patch_etf_yes(), \
+             patch.object(interface, "route_to_vendor", return_value=[]):
+            out = etf_drilldown.get_etf_top_holdings_drilldown(
+                "WEIRD", "2025-01-01", "2025-01-31"
+            )
+        self.assertIn("No top holdings could be resolved", out)
+
+    def test_per_constituent_exception_does_not_kill_report(self):
+        """If one constituent's fundamentals call blows up, the rest of
+        the report must still render — surface the failure inline."""
+        from tradingagents.dataflows import etf_drilldown, interface
+
+        def fake_route(method, *args, **kwargs):
+            if method == "get_top_holding_tickers":
+                return [
+                    ("BAD", "Bad Co", 5.0),
+                    ("GOOD", "Good Co", 3.0),
+                ]
+            if method == "get_fundamentals" and args[0] == "BAD":
+                raise RuntimeError("API exploded")
+            if method == "get_fundamentals":
+                return f"FUNDAMENTALS_FOR_{args[0]}"
+            if method == "get_news":
+                return f"NEWS_FOR_{args[0]}"
+
+        with self._patch_etf_yes(), \
+             patch.object(interface, "route_to_vendor", side_effect=fake_route):
+            out = etf_drilldown.get_etf_top_holdings_drilldown(
+                "SPY", "2025-01-01", "2025-01-31", top_n=2
+            )
+        self.assertIn("BAD", out)
+        self.assertIn("API exploded", out)
+        self.assertIn("FUNDAMENTALS_FOR_GOOD", out)
+        self.assertIn("NEWS_FOR_GOOD", out)
+
+    def test_truncates_long_fundamentals_and_news_blocks(self):
+        """Each constituent section caps fundamentals at 1500 and news at
+        1200 chars to keep the LLM's context window manageable."""
+        from tradingagents.dataflows import etf_drilldown, interface
+
+        big_fund = "F" * 5000
+        big_news = "N" * 5000
+
+        def fake_route(method, *args, **kwargs):
+            if method == "get_top_holding_tickers":
+                return [("AAPL", "Apple Inc.", 7.2)]
+            if method == "get_fundamentals":
+                return big_fund
+            if method == "get_news":
+                return big_news
+
+        with self._patch_etf_yes(), \
+             patch.object(interface, "route_to_vendor", side_effect=fake_route):
+            out = etf_drilldown.get_etf_top_holdings_drilldown(
+                "SPY", "2025-01-01", "2025-01-31", top_n=1
+            )
+        self.assertIn("…(truncated, full length 5000)", out)
+        self.assertNotIn(big_fund, out)
+        self.assertNotIn(big_news, out)
+
+
+# ---------------------------------------------------------------------------
+# Drill-down routing
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TopHoldingTickersRoutingTests(unittest.TestCase):
+    def test_routes_to_yfinance_by_default(self):
+        from tradingagents.dataflows import interface
+
+        sentinel = [("AAPL", "Apple", 7.2)]
+        with patch.dict(
+            interface.VENDOR_METHODS["get_top_holding_tickers"],
+            {"yfinance": MagicMock(return_value=sentinel)},
+        ):
+            out = interface.route_to_vendor("get_top_holding_tickers", "SPY", 3)
+        self.assertEqual(out, sentinel)
+
+    def test_routes_to_alpha_vantage_when_configured(self):
+        from tradingagents.dataflows import interface
+        from tradingagents.dataflows.config import get_config, set_config
+
+        cfg = get_config()
+        cfg["data_vendors"]["etf_data"] = "alpha_vantage"
+        set_config(cfg)
+
+        sentinel = [("AAPL", "Apple", 9.2)]
+        with patch.dict(
+            interface.VENDOR_METHODS["get_top_holding_tickers"],
+            {"alpha_vantage": MagicMock(return_value=sentinel)},
+        ):
+            out = interface.route_to_vendor("get_top_holding_tickers", "QQQ", 3)
+        self.assertEqual(out, sentinel)

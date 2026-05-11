@@ -14,10 +14,12 @@ from .yfinance_news import get_news_yfinance, get_global_news_yfinance
 from .yfinance_etf import (
     get_etf_profile as get_yfinance_etf_profile,
     get_etf_holdings as get_yfinance_etf_holdings,
+    get_top_holding_tickers as get_yfinance_top_holding_tickers,
 )
 from .alpha_vantage_etf import (
     get_etf_profile as get_alpha_vantage_etf_profile,
     get_etf_holdings as get_alpha_vantage_etf_holdings,
+    get_top_holding_tickers as get_alpha_vantage_top_holding_tickers,
 )
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
@@ -72,6 +74,10 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_etf_profile",
             "get_etf_holdings",
+            # Structured top-holdings extractor used internally by the
+            # drill-down tool. Same vendor pool as the other etf_data
+            # methods; never exposed to the LLM directly.
+            "get_top_holding_tickers",
         ]
     }
 }
@@ -133,6 +139,13 @@ VENDOR_METHODS = {
     "get_etf_holdings": {
         "yfinance": get_yfinance_etf_holdings,
         "alpha_vantage": get_alpha_vantage_etf_holdings,
+    },
+    # Structured top-holdings extractor — returns ``[(ticker, name, weight_pct)]``
+    # for use by the drill-down orchestrator. Routed like the other ETF methods,
+    # so fallback works the same way (yfinance ↔ alpha_vantage).
+    "get_top_holding_tickers": {
+        "yfinance": get_yfinance_top_holding_tickers,
+        "alpha_vantage": get_alpha_vantage_top_holding_tickers,
     },
 }
 

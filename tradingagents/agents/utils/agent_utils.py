@@ -21,6 +21,7 @@ from tradingagents.agents.utils.news_data_tools import (
 from tradingagents.agents.utils.etf_tools import (
     get_etf_profile,
     get_etf_holdings,
+    get_etf_top_holdings_drilldown,
 )
 # Re-export so analyst modules don't have to reach into dataflows for the
 # detection helper — keeps the agent-layer import surface in one place.

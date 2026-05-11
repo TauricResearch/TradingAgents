@@ -137,3 +137,51 @@ def get_etf_holdings(
 
     except Exception as e:
         return f"Error retrieving ETF holdings for {ticker}: {str(e)}"
+
+
+def get_top_holding_tickers(
+    etf_ticker: str, top_n: int = 3
+) -> list[tuple[str, str, float]]:
+    """Structured top-N holdings for an ETF: ``[(ticker, name, weight_pct), ...]``.
+
+    The drill-down tool feeds these tuples back through ``route_to_vendor``
+    to fetch per-constituent fundamentals and news. Symbol formatting in
+    yfinance is inconsistent (``9988.HK`` canonical, ``00939`` bare HK,
+    ``HSBA.L`` London cross-listing), so we normalize bare 5-digit numerics
+    to ``.HK`` and pass anything else through unchanged.
+
+    Returns ``[]`` rather than raising when ``funds_data`` is unavailable
+    so the orchestrator can emit a friendly "no constituents resolved"
+    message instead of a stack trace.
+    """
+    try:
+        ticker_obj = yf.Ticker(etf_ticker.upper())
+        fd = getattr(ticker_obj, "funds_data", None)
+        if fd is None:
+            return []
+        df = getattr(fd, "top_holdings", None)
+        if df is None or (hasattr(df, "empty") and df.empty):
+            return []
+    except Exception:  # noqa: BLE001
+        return []
+
+    out: list[tuple[str, str, float]] = []
+    for sym, row in df.head(top_n).iterrows():
+        raw = str(sym).strip()
+        # Bare 5-digit code (HK convention with leading zeros) → append .HK
+        if raw.isdigit() and len(raw) <= 5:
+            normalized = f"{raw.zfill(5)}.HK"
+        else:
+            normalized = raw
+        name = str(row.get("Name", raw))
+        weight = row.get("Holding Percent", 0.0)
+        # yfinance is inconsistent: usually decimal (0.062) but occasionally
+        # already percent (6.2). 1.5 is a safe threshold — no single holding
+        # in a diversified fund exceeds 150%, and no decimal weight reaches 1.5.
+        try:
+            value = float(weight)
+            weight_pct = value * 100 if value < 1.5 else value
+        except (TypeError, ValueError):
+            weight_pct = 0.0
+        out.append((normalized, name, weight_pct))
+    return out

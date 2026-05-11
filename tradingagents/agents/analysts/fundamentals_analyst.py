@@ -5,6 +5,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_cashflow,
     get_etf_holdings,
     get_etf_profile,
+    get_etf_top_holdings_drilldown,
     get_fundamentals,
     get_income_statement,
     get_insider_transactions,
@@ -29,13 +30,14 @@ def create_fundamentals_analyst(llm):
             get_income_statement,
             get_etf_profile,
             get_etf_holdings,
+            get_etf_top_holdings_drilldown,
         ]
 
         if is_etf_ticker(ticker):
             system_message = (
                 "You are a researcher tasked with analyzing an ETF over the past week. ETFs are funds, not companies — write a comprehensive report covering the ETF's tracking strategy, top-holding concentration, sector / asset-class breakdown, AUM, expense ratio, and any premium / discount to NAV. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
                 + " Make sure to append a Markdown table at the end of the report to organize key points, organized and easy to read."
-                + " Use the available tools: `get_etf_profile` for the ETF's profile and sector weightings, and `get_etf_holdings` for the top constituents. The company-financial tools (`get_fundamentals`, `get_balance_sheet`, `get_cashflow`, `get_income_statement`) will return ETF-not-applicable placeholders — do not rely on them for ETF tickers."
+                + " Use the available tools: `get_etf_profile` for the ETF's profile and sector weightings, and `get_etf_holdings` for the top constituents. When name-level catalysts matter, call `get_etf_top_holdings_drilldown` to fetch fundamentals + recent news for the top constituents (keep top_n ≤ 5 — each holding costs one fundamentals call plus one news call). The company-financial tools (`get_fundamentals`, `get_balance_sheet`, `get_cashflow`, `get_income_statement`) will return ETF-not-applicable placeholders — do not rely on them for ETF tickers."
                 + get_language_instruction(),
             )
         else:
