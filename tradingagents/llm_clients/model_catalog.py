@@ -8,6 +8,31 @@ ModelOption = Tuple[str, str]
 ProviderModeOptions = Dict[str, Dict[str, List[ModelOption]]]
 
 
+# Shared model list for Qwen's global (dashscope-intl) and CN (dashscope) endpoints.
+# Source: modelstudio.console.alibabacloud.com (Featured Models — Flagship + Cost-optimized).
+#
+# Only versioned IDs are exposed in the dropdown. The version-less aliases
+# (qwen-plus, qwen-flash) are documented by Alibaba as auto-upgrading
+# pointers ("backbone, latest, and snapshot ... have been upgraded to the
+# Qwen3 series"), which means their behavior shifts when Alibaba rotates
+# the backing model. Users who want a specific generation pick it
+# explicitly; users who really want auto-latest can enter the alias via
+# "Custom model ID".
+_QWEN_MODELS: Dict[str, List[ModelOption]] = {
+    "quick": [
+        ("Qwen 3.6 Flash - Latest fast, agentic coding + vision-language", "qwen3.6-flash"),
+        ("Qwen 3.5 Flash - Previous-gen fast", "qwen3.5-flash"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("Qwen 3.6 Plus - Flagship vision-language, agentic coding SOTA", "qwen3.6-plus"),
+        ("Qwen 3.5 Plus - Previous-gen flagship", "qwen3.5-plus"),
+        ("Qwen 3 Max - Specialized for agent programming + tool use", "qwen3-max"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 # Shared model list for MiniMax's global and CN endpoints (same IDs).
 # Full official lineup per platform.minimax.io/docs/api-reference/text-openai-api.
 # All M2.x models share a 204,800-token context window.
@@ -97,19 +122,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
-    "qwen": {
-        "quick": [
-            ("Qwen 3.5 Flash", "qwen3.5-flash"),
-            ("Qwen Plus", "qwen-plus"),
-            ("Custom model ID", "custom"),
-        ],
-        "deep": [
-            ("Qwen 3.6 Plus", "qwen3.6-plus"),
-            ("Qwen 3.5 Plus", "qwen3.5-plus"),
-            ("Qwen 3 Max", "qwen3-max"),
-            ("Custom model ID", "custom"),
-        ],
-    },
+    # Qwen: same model IDs across global (dashscope-intl) and China
+    # (dashscope) endpoints, so the two provider keys share one model list.
+    "qwen": _QWEN_MODELS,
+    "qwen-cn": _QWEN_MODELS,
     "glm": {
         "quick": [
             ("GLM-4.7", "glm-4.7"),

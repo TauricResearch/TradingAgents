@@ -237,10 +237,9 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
-        ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
-        ("MiniMax CN", "minimax-cn", "https://api.minimaxi.com/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", "http://localhost:11434/v1"),
@@ -326,6 +325,60 @@ def ask_gemini_thinking_config() -> str | None:
             ("selected", "fg:green noinherit"),
             ("highlighted", "fg:green noinherit"),
             ("pointer", "fg:green noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_qwen_region() -> tuple[str, str]:
+    """Ask which Qwen region (international vs China) to use.
+
+    Alibaba DashScope exposes two endpoints with separate accounts —
+    a key from one region does NOT authenticate against the other
+    (fixes #758). Returns (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select Qwen region:",
+        choices=[
+            questionary.Choice(
+                "International — dashscope-intl.aliyuncs.com (uses DASHSCOPE_API_KEY)",
+                value=("qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
+            ),
+            questionary.Choice(
+                "China — dashscope.aliyuncs.com (uses DASHSCOPE_CN_API_KEY)",
+                value=("qwen-cn", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_minimax_region() -> tuple[str, str]:
+    """Ask which MiniMax region (global vs China) to use.
+
+    MiniMax exposes two endpoints with separate accounts — a key from
+    one region does NOT authenticate against the other. Returns
+    (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select MiniMax region:",
+        choices=[
+            questionary.Choice(
+                "Global — api.minimax.io (uses MINIMAX_API_KEY)",
+                value=("minimax", "https://api.minimax.io/v1"),
+            ),
+            questionary.Choice(
+                "China — api.minimaxi.com (uses MINIMAX_CN_API_KEY)",
+                value=("minimax-cn", "https://api.minimaxi.com/v1"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
 
