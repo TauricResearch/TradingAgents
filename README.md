@@ -179,6 +179,19 @@ export TRADINGAGENTS_QUICK_THINK_LLM=gpt-5.4-mini
 This adapter runs Codex in ephemeral read-only mode and captures the final
 assistant message. TradingAgents still executes its own LangGraph tools.
 
+If `tradingagents` was installed before switching to a branch or local checkout
+with these providers, reinstall it from the checkout so the CLI command loads
+the current adapter code:
+
+```bash
+python3 -m pip install --user -e .
+python3 -c "import tradingagents, tradingagents.llm_clients.codex_client as c; print(tradingagents.__file__); print(c.__file__)"
+```
+
+Both printed paths should point at your current TradingAgents checkout. If they
+still point into `site-packages`, the installed command can keep running stale
+provider code and old Codex CLI flags.
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
