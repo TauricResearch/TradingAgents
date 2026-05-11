@@ -166,6 +166,7 @@ class TestChartCreation:
     
     def test_create_price_chart(self):
         """Test price chart creation."""
+        # pyrefly: ignore [missing-import]
         from dashboard.app import generate_sample_trade_data, create_price_chart
         
         df = generate_sample_trade_data("AAPL", days=30)
