@@ -86,6 +86,68 @@ def _extract_json_object(text: str) -> Optional[dict[str, Any]]:
         return None
 
 
+def _format_messages_for_local_agent(
+    messages: Iterable[BaseMessage],
+    bound_tools: Sequence[Any],
+    *,
+    agent_name: str,
+) -> str:
+    chunks: list[str] = []
+    for message in messages:
+        role = _message_role(message)
+        content = _message_content(message)
+        if isinstance(message, ToolMessage):
+            tool_id = getattr(message, "tool_call_id", "")
+            chunks.append(f"{role} result ({tool_id}):\n{content}")
+            continue
+        tool_calls = getattr(message, "tool_calls", None)
+        if tool_calls:
+            chunks.append(
+                f"{role}:\n{content}\nTool calls: "
+                f"{json.dumps(tool_calls, ensure_ascii=False, default=str)}"
+            )
+        else:
+            chunks.append(f"{role}:\n{content}")
+
+    prompt = "\n\n".join(chunks)
+    if not bound_tools:
+        return prompt
+
+    tools = [_tool_schema(tool) for tool in bound_tools]
+    tool_instruction = (
+        f"You are being used as a chat model inside TradingAgents via {agent_name}. "
+        "You may request TradingAgents tool calls, but you must not claim "
+        "that you already executed a tool yourself.\n"
+        "Return exactly one JSON object and no markdown.\n"
+        "For a final answer: {\"content\":\"...\"}\n"
+        "For tool calls: {\"content\":\"\",\"tool_calls\":["
+        "{\"name\":\"tool_name\",\"args\":{...}}]}\n"
+        f"Available tools:\n{json.dumps(tools, ensure_ascii=False, default=str)}"
+    )
+    return f"{tool_instruction}\n\nConversation:\n{prompt}"
+
+
+def _message_from_tool_json(parsed: dict[str, Any], *, id_prefix: str) -> AIMessage:
+    raw_calls = parsed.get("tool_calls") or []
+    tool_calls = []
+    for raw_call in raw_calls:
+        if not isinstance(raw_call, dict):
+            continue
+        name = raw_call.get("name")
+        if not name:
+            continue
+        args = raw_call.get("args") if isinstance(raw_call.get("args"), dict) else {}
+        tool_calls.append(
+            {
+                "name": name,
+                "args": args,
+                "id": raw_call.get("id") or f"{id_prefix}_{uuid.uuid4().hex}",
+            }
+        )
+
+    return AIMessage(content=str(parsed.get("content") or ""), tool_calls=tool_calls)
+
+
 class ClaudeCodeChatModel(BaseChatModel):
     """LangChain chat model that shells out to ``claude -p``."""
 
@@ -118,39 +180,11 @@ class ClaudeCodeChatModel(BaseChatModel):
         )
 
     def _format_prompt(self, messages: Iterable[BaseMessage]) -> str:
-        chunks: list[str] = []
-        for message in messages:
-            role = _message_role(message)
-            content = _message_content(message)
-            if isinstance(message, ToolMessage):
-                tool_id = getattr(message, "tool_call_id", "")
-                chunks.append(f"{role} result ({tool_id}):\n{content}")
-                continue
-            tool_calls = getattr(message, "tool_calls", None)
-            if tool_calls:
-                chunks.append(
-                    f"{role}:\n{content}\nTool calls: "
-                    f"{json.dumps(tool_calls, ensure_ascii=False, default=str)}"
-                )
-            else:
-                chunks.append(f"{role}:\n{content}")
-
-        prompt = "\n\n".join(chunks)
-        if not self.bound_tools:
-            return prompt
-
-        tools = [_tool_schema(tool) for tool in self.bound_tools]
-        tool_instruction = (
-            "You are being used as a chat model inside TradingAgents. "
-            "You may request TradingAgents tool calls, but you must not claim "
-            "that you already executed a tool yourself.\n"
-            "Return exactly one JSON object and no markdown.\n"
-            "For a final answer: {\"content\":\"...\"}\n"
-            "For tool calls: {\"content\":\"\",\"tool_calls\":["
-            "{\"name\":\"tool_name\",\"args\":{...}}]}\n"
-            f"Available tools:\n{json.dumps(tools, ensure_ascii=False, default=str)}"
+        return _format_messages_for_local_agent(
+            messages,
+            self.bound_tools,
+            agent_name="Claude Code",
         )
-        return f"{tool_instruction}\n\nConversation:\n{prompt}"
 
     def _run_claude(self, prompt: str) -> str:
         args = [
@@ -191,24 +225,7 @@ class ClaudeCodeChatModel(BaseChatModel):
         if not parsed:
             return AIMessage(content=output)
 
-        raw_calls = parsed.get("tool_calls") or []
-        tool_calls = []
-        for raw_call in raw_calls:
-            if not isinstance(raw_call, dict):
-                continue
-            name = raw_call.get("name")
-            if not name:
-                continue
-            args = raw_call.get("args") if isinstance(raw_call.get("args"), dict) else {}
-            tool_calls.append(
-                {
-                    "name": name,
-                    "args": args,
-                    "id": raw_call.get("id") or f"claude_code_{uuid.uuid4().hex}",
-                }
-            )
-
-        return AIMessage(content=str(parsed.get("content") or ""), tool_calls=tool_calls)
+        return _message_from_tool_json(parsed, id_prefix="claude_code")
 
     def _generate(
         self,

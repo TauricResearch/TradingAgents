@@ -4,7 +4,7 @@ import subprocess
 
 from langchain_core.messages import HumanMessage
 
-from tradingagents.llm_clients.claude_code_client import ClaudeCodeClient
+from tradingagents.llm_clients.codex_client import CodexClient
 from tradingagents.llm_clients.factory import create_llm_client
 
 
@@ -14,12 +14,12 @@ class DummyTool:
     args = {"ticker": {"type": "string"}}
 
 
-def test_factory_creates_claude_code_client():
-    client = create_llm_client("claude-code", "sonnet")
-    assert isinstance(client, ClaudeCodeClient)
+def test_factory_creates_codex_client():
+    client = create_llm_client("codex", "gpt-5.5")
+    assert isinstance(client, CodexClient)
 
 
-def test_claude_code_chat_model_invokes_print_mode(monkeypatch):
+def test_codex_chat_model_invokes_exec_read_only_mode(monkeypatch):
     calls = []
 
     def fake_run(args, **kwargs):
@@ -28,19 +28,21 @@ def test_claude_code_chat_model_invokes_print_mode(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    llm = ClaudeCodeClient("sonnet", command="claude-test", timeout=12).get_llm()
+    llm = CodexClient("gpt-5.5", command="codex-test", timeout=12).get_llm()
     result = llm.invoke([HumanMessage(content="hello")])
 
     assert result.content == "answer"
     args, kwargs = calls[0]
-    assert args[:4] == ["claude-test", "-p", "--output-format", "text"]
-    assert "--no-session-persistence" in args
-    assert "--tools" in args
+    assert args[:2] == ["codex-test", "exec"]
+    assert "--ephemeral" in args
+    assert "read-only" in args
+    assert "never" in args
+    assert "--output-last-message" in args
     assert kwargs["timeout"] == 12
     assert "Human:\nhello" in kwargs["input"]
 
 
-def test_claude_code_tool_call_json_becomes_langchain_tool_call(monkeypatch):
+def test_codex_tool_call_json_becomes_langchain_tool_call(monkeypatch):
     payload = (
         'result:\n{"content":"","tool_calls":'
         '[{"name":"get_stock_data","args":{"ticker":"NVDA"}}]}'
@@ -51,7 +53,7 @@ def test_claude_code_tool_call_json_becomes_langchain_tool_call(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    llm = ClaudeCodeClient("sonnet").get_llm().bind_tools([DummyTool()])
+    llm = CodexClient("gpt-5.5").get_llm().bind_tools([DummyTool()])
     result = llm.invoke([HumanMessage(content="fetch NVDA")])
 
     assert result.content == ""

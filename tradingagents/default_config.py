@@ -14,6 +14,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_LLM_BACKEND_URL":      "backend_url",
     "TRADINGAGENTS_CLAUDE_CODE_COMMAND":  "claude_code_command",
     "TRADINGAGENTS_CLAUDE_CODE_TIMEOUT":  "claude_code_timeout",
+    "TRADINGAGENTS_CODEX_COMMAND":        "codex_command",
+    "TRADINGAGENTS_CODEX_TIMEOUT":        "codex_timeout",
     "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
     "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
@@ -68,6 +70,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "anthropic_effort": None,           # "high", "medium", "low"
     "claude_code_command": "claude",    # local Claude Code CLI executable
     "claude_code_timeout": 600,         # seconds per Claude Code subprocess call
+    "codex_command": "codex",           # local Codex CLI executable
+    "codex_timeout": 600,               # seconds per Codex subprocess call
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

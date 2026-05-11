@@ -113,6 +113,18 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom Claude Code model/alias", "custom"),
         ],
     },
+    "codex": {
+        "quick": [
+            ("Codex GPT-5.4 Mini - local Codex CLI", "gpt-5.4-mini"),
+            ("Codex GPT-5.5 - local Codex CLI", "gpt-5.5"),
+            ("Custom Codex model/profile model", "custom"),
+        ],
+        "deep": [
+            ("Codex GPT-5.5 - local Codex CLI", "gpt-5.5"),
+            ("Codex GPT-5.4 - local Codex CLI", "gpt-5.4"),
+            ("Custom Codex model/profile model", "custom"),
+        ],
+    },
     "google": {
         "quick": [
             ("Gemini 3 Flash - Next-gen fast (preview)", "gemini-3-flash-preview"),
