@@ -39,6 +39,7 @@ from cli.models import AnalystType
 from cli.utils import (
     ANALYST_ORDER,
     ask_anthropic_effort,
+    ask_fundamentals_style,
     ask_gemini_thinking_config,
     ask_openai_reasoning_effort,
     ask_output_language,
@@ -562,6 +563,20 @@ def get_user_selections():
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
+    # Step 4b: Fundamentals analysis style — only ask if the fundamentals
+    # analyst is actually in the selected set. Skipping this prompt when
+    # the user didn't pick fundamentals keeps the wizard short for the
+    # common case while letting power users override the lens when it matters.
+    fundamentals_style = None
+    if AnalystType.FUNDAMENTALS in selected_analysts:
+        console.print(
+            create_question_box(
+                "Step 4b: Fundamentals Analysis Style",
+                "Choose which investment lens the Fundamentals analyst applies",
+            )
+        )
+        fundamentals_style = ask_fundamentals_style()
+
     # Step 5: Research depth
     console.print(
         create_question_box(
@@ -631,6 +646,7 @@ def get_user_selections():
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        "fundamentals_style": fundamentals_style,
     }
 
 
@@ -965,6 +981,10 @@ def run_analysis(checkpoint: bool = False):
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
+    # Selection is None when the user didn't pick Fundamentals analyst —
+    # the analyst module falls back to the default style in that case,
+    # so threading None through here is the right shape.
+    config["fundamentals_style"] = selections.get("fundamentals_style")
     config["checkpoint_enabled"] = checkpoint
 
     # Create stats callback handler for tracking LLM/tool calls

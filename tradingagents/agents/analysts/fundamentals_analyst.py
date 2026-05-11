@@ -1,14 +1,39 @@
+"""Fundamentals analyst node.
+
+The analytical framework is pluggable: the runtime config key
+``fundamentals_style`` selects a registered style (see
+``tradingagents.agents.analysts.fundamentals_styles``). The style
+contributes both the system-prompt body and any extra tools beyond
+the four default fundamental-data tools. Falls back to the default
+style when the config value is missing or unknown so a typo can't
+crash a run.
+"""
+
+from __future__ import annotations
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from tradingagents.agents.analysts.fundamentals_styles import resolve_style
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
     get_cashflow,
     get_fundamentals,
     get_income_statement,
-    get_insider_transactions,
     get_language_instruction,
 )
-from tradingagents.dataflows.config import get_config
+from tradingagents.runtime import get_runtime_config
+
+
+# Tools every fundamentals style gets unconditionally. Styles can add more
+# via their `extra_tools()` method but cannot subtract from this set —
+# the four core financial statements are the irreducible inputs.
+_BASE_TOOLS = [
+    get_fundamentals,
+    get_balance_sheet,
+    get_cashflow,
+    get_income_statement,
+]
 
 
 def create_fundamentals_analyst(llm):
@@ -16,18 +41,14 @@ def create_fundamentals_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
-        tools = [
-            get_fundamentals,
-            get_balance_sheet,
-            get_cashflow,
-            get_income_statement,
-        ]
+        # Resolve style from runtime config; missing or unknown keys fall
+        # back to the comprehensive default rather than raising.
+        style = resolve_style(get_runtime_config().get("fundamentals_style"))
+        tools = list(_BASE_TOOLS) + list(style.extra_tools())
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
-            + get_language_instruction(),
+            style.system_message()
+            + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -53,11 +74,9 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-
         result = chain.invoke(state["messages"])
 
         report = ""
-
         if len(result.tool_calls) == 0:
             report = result.content
 

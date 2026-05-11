@@ -456,3 +456,41 @@ def ask_output_language() -> str:
         ).ask().strip()
 
     return choice
+
+
+def ask_fundamentals_style() -> str:
+    """Ask which analytical lens the Fundamentals analyst should apply.
+
+    Returns a style key (e.g. ``"buffett_value"``) suitable for writing
+    into ``config["fundamentals_style"]``. Callers should only invoke
+    this when the Fundamentals analyst is actually in the selected set —
+    otherwise we add a useless step to the wizard.
+    """
+    # Imported lazily so importing cli.utils doesn't drag in the full
+    # agents package (which depends on langchain).
+    from tradingagents.agents.analysts.fundamentals_styles import STYLES
+
+    choices = [
+        questionary.Choice(
+            title=f"{style.label}\n    {style.description}",
+            value=style.key,
+        )
+        for style in STYLES.values()
+    ]
+
+    choice = questionary.select(
+        "Select Fundamentals Analysis Style:",
+        choices=choices,
+        instruction="\n- Each style applies a different investment lens",
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No style selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
