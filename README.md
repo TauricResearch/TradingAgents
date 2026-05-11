@@ -48,7 +48,7 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 🧠 [Self-Learning Memory](#self-learning-memory-system) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -160,6 +160,65 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+## Self-Learning Memory System
+
+TradingAgents includes a built-in **self-learning AI mechanism** that enables every trading bot to improve over time by remembering past decisions and learning from their outcomes. This is one of the most powerful features of the framework.
+
+### How It Works
+
+After each trade cycle, you can call `reflect_and_remember(returns_losses)` with the realized profit or loss. The framework will:
+
+1. **Reflect** – each agent (Bull Researcher, Bear Researcher, Trader, Investment Judge, Portfolio Manager) uses an LLM to analyse its own previous reasoning against the actual outcome.
+2. **Extract lessons** – key insights and corrective actions are distilled into a concise summary.
+3. **Store in memory** – the lesson is saved to that agent's `FinancialSituationMemory` store (backed by BM25 retrieval).
+4. **Recall on the next run** – when a new, similar market situation is encountered, the relevant past lessons are automatically injected into each agent's prompt, steering future decisions with accumulated experience.
+
+```
+Trade → Outcome
+         ↓
+  reflect_and_remember(P&L)
+         ↓
+  Agent reflects with LLM
+         ↓
+  Lesson stored in BM25 memory
+         ↓
+  Next similar trade → lesson recalled → better decision
+```
+
+### Self-Learning Quick Start
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+
+# --- Run 1: make a trading decision ---
+_, decision = ta.propagate("NVDA", "2026-01-10")
+print("Decision:", decision)   # e.g. "BUY"
+
+# --- Simulate outcome: position gained $1,500 ---
+ta.reflect_and_remember(1500)
+
+# --- Run 2: agents now recall lessons from Run 1 ---
+_, decision = ta.propagate("NVDA", "2026-01-17")
+print("Decision (with memory):", decision)
+```
+
+The more trades are run through `reflect_and_remember`, the richer each agent's memory becomes, allowing the bots to self-promote winning strategies and avoid repeating costly mistakes.
+
+### Memory Architecture
+
+| Component | Role |
+|---|---|
+| `FinancialSituationMemory` | Per-agent BM25 store – no external API needed, works with any LLM provider |
+| `Reflector` | LLM-driven post-trade analysis generating actionable lessons |
+| Agent prompts | Each agent automatically injects its most relevant past memories into every new analysis |
+
+Five independent memories are maintained (one per decision-making role), so bull researchers, bear researchers, traders, investment judges, and portfolio managers each develop their own specialised knowledge base.
+
+---
+
 ## TradingAgents Package
 
 ### Implementation Details
@@ -196,6 +255,9 @@ config["max_debate_rounds"] = 2
 ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
+
+# After you know the outcome, let every agent learn from it:
+# ta.reflect_and_remember(500)   # pass realized P&L (positive = profit, negative = loss)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.

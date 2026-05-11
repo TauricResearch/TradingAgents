@@ -23,9 +23,16 @@ config["data_vendors"] = {
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
+# --- Run 1: forward propagate ---
 _, decision = ta.propagate("NVDA", "2024-05-10")
-print(decision)
+print("Decision:", decision)
 
-# Memorize mistakes and reflect
-# ta.reflect_and_remember(1000) # parameter is the position returns
+# --- Self-learning: reflect on the outcome and update agent memories ---
+# Pass the realized profit/loss from the trade (positive = profit, negative = loss).
+# Each agent (Bull Researcher, Bear Researcher, Trader, Investment Judge,
+# Portfolio Manager) will analyse its own reasoning against the actual outcome,
+# extract actionable lessons, and store them in its BM25 memory so that future
+# decisions on similar market conditions are informed by past experience.
+#
+# Uncomment and adjust the P&L value to enable the self-learning cycle:
+# ta.reflect_and_remember(1000)  # e.g. position returned +$1 000
