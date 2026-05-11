@@ -28,6 +28,9 @@ DEFAULT_CONFIG = {
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
+    # Hard caps on per-run LLM spend. Enforced by webapp BudgetCallbackHandler.
+    "max_tokens_total": 1_500_000,
+    "max_llm_calls": 200,
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
