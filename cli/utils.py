@@ -329,6 +329,32 @@ def ask_gemini_thinking_config() -> str | None:
     ).ask()
 
 
+def ask_glm_region() -> tuple[str, str]:
+    """Ask which GLM platform (Z.AI international vs BigModel China) to use.
+
+    Zhipu serves the same GLM models under two brands with separate
+    accounts; keys aren't interchangeable. Returns (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select GLM platform:",
+        choices=[
+            questionary.Choice(
+                "Z.AI — api.z.ai (international, uses ZHIPU_API_KEY)",
+                value=("glm", "https://api.z.ai/api/paas/v4/"),
+            ),
+            questionary.Choice(
+                "BigModel — open.bigmodel.cn (China, uses ZHIPU_CN_API_KEY)",
+                value=("glm-cn", "https://open.bigmodel.cn/api/paas/v4/"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
 def ask_qwen_region() -> tuple[str, str]:
     """Ask which Qwen region (international vs China) to use.
 

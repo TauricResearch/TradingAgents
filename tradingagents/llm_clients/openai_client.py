@@ -139,8 +139,16 @@ _PASSTHROUGH_KWARGS = (
 _PROVIDER_CONFIG = {
     "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
     "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
+    # DashScope exposes two regional endpoints with separate accounts; an
+    # international key won't authenticate against the China endpoint and
+    # vice versa (fixes issue #758).
     "qwen": ("https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY"),
+    "qwen-cn": ("https://dashscope.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_CN_API_KEY"),
+    # Zhipu exposes the same GLM models under two brands with separate
+    # accounts: Z.AI (international, api.z.ai) and BigModel
+    # (open.bigmodel.cn, China). Keys aren't interchangeable across them.
     "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
+    "glm-cn": ("https://open.bigmodel.cn/api/paas/v4/", "ZHIPU_CN_API_KEY"),
     # MiniMax exposes two regional endpoints with separate keys; mainland
     # Chinese users hit .com while global users hit .io.
     "minimax": ("https://api.minimax.io/v1", "MINIMAX_API_KEY"),

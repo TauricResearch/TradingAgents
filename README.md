@@ -142,8 +142,10 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export DEEPSEEK_API_KEY=...        # DeepSeek
-export DASHSCOPE_API_KEY=...       # Qwen (Alibaba DashScope)
-export ZHIPU_API_KEY=...           # GLM (Zhipu)
+export DASHSCOPE_API_KEY=...       # Qwen — International (dashscope-intl.aliyuncs.com)
+export DASHSCOPE_CN_API_KEY=...    # Qwen — China (dashscope.aliyuncs.com)
+export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
+export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io, M2.x, 204K ctx)
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com, M2.x, 204K ctx)
 export OPENROUTER_API_KEY=...      # OpenRouter
@@ -186,7 +188,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope, international and China endpoints), GLM (Zhipu), MiniMax (global + China), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
@@ -210,7 +212,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, minimax, minimax-cn, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
