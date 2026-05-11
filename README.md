@@ -170,6 +170,27 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+#### Non-interactive Usage (Predefined Parameters)
+You can also run the CLI with predefined parameters to skip interactive prompts. This is useful for automation or batch processing:
+
+```bash
+# Example: Run analysis for SPY with specific analysts and research depth
+tradingagents analyze --ticker SPY --date 2024-05-10 --analyst market --analyst news --depth 3 --provider openai --shallow-thinker gpt-4o-mini --deep-thinker gpt-4o
+```
+
+**Available Options:**
+- `--ticker`, `-t`: Ticker symbol to analyze.
+- `--date`, `-d`: Analysis date (YYYY-MM-DD).
+- `--analyst`, `-a`: Analyst type to include (can be specified multiple times: `market`, `social`, `news`, `fundamentals`).
+- `--depth`: Research depth (1, 3, or 5).
+- `--provider`: LLM provider (e.g., `openai`, `google`, `anthropic`, `openrouter`).
+- `--backend-url`: Custom backend URL for the LLM provider.
+- `--shallow-thinker`: Model ID for shallow thinking tasks.
+- `--deep-thinker`: Model ID for deep thinking tasks.
+- `--language`, `-l`: Output language for reports (e.g., `English`, `Chinese`).
+- `--checkpoint`: Enable checkpoint/resume.
+- `--clear-checkpoints`: Clear all checkpoints before running.
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
