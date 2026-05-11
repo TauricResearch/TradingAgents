@@ -652,7 +652,7 @@ function updatePortfolioPanel() {
   }
   function pnlSign(n) { return n >= 0 ? '+' : '-'; }
 
-  const dailyPnl = ps.daily_pnl || 0;
+  const dailyPnl = ps.daily_pnl ?? 0;
   const returnPct = (totalValue - 100000) / 100000 * 100;
   statsEl.innerHTML = `
     <span><span class="pstat-label">PORTFOLIO</span><span class="pstat-value">${fmtUsd(totalValue)}</span></span>
@@ -676,7 +676,7 @@ function updatePortfolioPanel() {
       <td class="${pnlClass(pos.unrealised_pnl)}">${pnlSign(pos.unrealised_pnl)}${fmtUsd(pos.unrealised_pnl)}</td>
       <td class="${pnlClass(pos.unrealised_pnl_pct)}">${pnlSign(pos.unrealised_pnl_pct)}${Math.abs(pos.unrealised_pnl_pct).toFixed(2)}%</td>
       <td>${fmtUsd(mktValue)}</td>
-      <td>${(pos.pct_of_portfolio || 0).toFixed(2)}%</td>
+      <td>${(pos.pct_of_portfolio ?? 0).toFixed(2)}%</td>
     </tr>`;
   }).join('');
 }
