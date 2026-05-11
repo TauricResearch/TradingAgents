@@ -92,6 +92,48 @@ def _extract_ticker_arg(args: tuple, kwargs: dict) -> object:
     return None
 
 
+def concentration_summary(weights_pct: list[float]) -> str:
+    """Render a concentration block from per-holding weights (in percent).
+
+    Given the top-N holding weights as percentages (e.g. ``[6.2, 5.8, 4.1]``
+    for a 6.20% / 5.80% / 4.10% top-3), produce three signals the analyst
+    can use to distinguish a thematic ETF from a broad index:
+
+    - **Largest single holding** — quick glance at single-name risk.
+    - **Top-N aggregate weight** — reveals "top 10 holds 95%" thematic
+      ETFs vs "top 10 holds 25%" broad indices.
+    - **Herfindahl index across the top-N** — sum of squared decimal
+      weights. Higher = more concentrated. For an N-holding equal-weight
+      slice this equals ``1/N``; a single-name slice would equal 1.0.
+
+    The Herfindahl is computed across the *shown* top-N rather than the
+    full universe (which we don't have), so it's a relative concentration
+    indicator within the visible slice — not the textbook market HHI.
+    Returns an empty string for empty / unparseable input.
+    """
+    cleaned: list[float] = []
+    for w in weights_pct:
+        try:
+            value = float(w)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0:
+            continue
+        cleaned.append(value)
+    if not cleaned:
+        return ""
+
+    largest = max(cleaned)
+    aggregate = sum(cleaned)
+    herfindahl = sum((w / 100) ** 2 for w in cleaned)
+    return (
+        f"\n## Concentration metrics (top-{len(cleaned)} positions shown)\n"
+        f"- Largest single holding: {largest:.2f}%\n"
+        f"- Top-{len(cleaned)} aggregate weight: {aggregate:.2f}%\n"
+        f"- Herfindahl index (top-{len(cleaned)}): {herfindahl:.4f}\n"
+    )
+
+
 def etf_placeholder(report_type: str) -> Callable:
     """Decorator: short-circuit a vendor function to an ETF placeholder.
 

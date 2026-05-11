@@ -879,3 +879,180 @@ class TopHoldingTickersRoutingTests(unittest.TestCase):
         ):
             out = interface.route_to_vendor("get_top_holding_tickers", "QQQ", 3)
         self.assertEqual(out, sentinel)
+
+
+# ---------------------------------------------------------------------------
+# Concentration metrics (etf_utils.concentration_summary)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class ConcentrationSummaryTests(unittest.TestCase):
+    def test_basic_render_includes_all_three_metrics(self):
+        from tradingagents.dataflows.etf_utils import concentration_summary
+
+        # 3 holdings at 6%, 4%, 2% → largest 6.00%, sum 12.00%,
+        # Herfindahl = 0.06² + 0.04² + 0.02² = 0.0036 + 0.0016 + 0.0004 = 0.0056
+        out = concentration_summary([6.0, 4.0, 2.0])
+        self.assertIn("Largest single holding: 6.00%", out)
+        self.assertIn("Top-3 aggregate weight: 12.00%", out)
+        self.assertIn("Herfindahl index (top-3): 0.0056", out)
+
+    def test_empty_input_returns_empty_string(self):
+        from tradingagents.dataflows.etf_utils import concentration_summary
+
+        self.assertEqual(concentration_summary([]), "")
+
+    def test_filters_invalid_and_zero_weights(self):
+        """NaN / None / 0 / negative weights should be silently dropped so a
+        partial-data ETF still renders the metrics from the valid rows."""
+        from tradingagents.dataflows.etf_utils import concentration_summary
+
+        out = concentration_summary([5.0, None, 3.0, 0, -1, "garbage"])
+        # Only 5.0 and 3.0 survive
+        self.assertIn("Top-2 aggregate weight: 8.00%", out)
+        self.assertIn("Largest single holding: 5.00%", out)
+
+    def test_high_concentration_thematic_etf(self):
+        """A concentrated thematic ETF (top-1 = 25%) shows it in the metric."""
+        from tradingagents.dataflows.etf_utils import concentration_summary
+
+        out = concentration_summary([25.0, 10.0, 5.0])
+        self.assertIn("Largest single holding: 25.00%", out)
+        # 0.25² + 0.1² + 0.05² = 0.0625 + 0.01 + 0.0025 = 0.075
+        self.assertIn("0.0750", out)
+
+
+@pytest.mark.unit
+class HoldingsRendererIncludesConcentrationTests(unittest.TestCase):
+    """End-to-end: get_etf_holdings must surface the concentration block."""
+
+    def test_yfinance_holdings_includes_concentration(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        df = pd.DataFrame(
+            {"Name": ["Apple", "Microsoft", "Nvidia"], "Holding Percent": [0.06, 0.05, 0.04]},
+            index=["AAPL", "MSFT", "NVDA"],
+        )
+        funds_data = MagicMock()
+        funds_data.top_holdings = df
+        ticker_obj = MagicMock(funds_data=funds_data)
+        with patch.object(yfinance_etf.yf, "Ticker", return_value=ticker_obj):
+            out = yfinance_etf.get_etf_holdings("SPY", top_n=3)
+        self.assertIn("Concentration metrics", out)
+        self.assertIn("Largest single holding: 6.00%", out)
+        self.assertIn("Top-3 aggregate weight: 15.00%", out)
+
+    def test_alpha_vantage_holdings_includes_concentration(self):
+        from tradingagents.dataflows import alpha_vantage_etf
+
+        payload = {
+            "holdings": [
+                {"symbol": "AAPL", "description": "Apple", "weight": "0.092"},
+                {"symbol": "MSFT", "description": "Microsoft", "weight": "0.085"},
+            ]
+        }
+        with patch.object(alpha_vantage_etf, "_make_api_request", return_value=payload):
+            out = alpha_vantage_etf.get_etf_holdings("QQQ", top_n=2)
+        self.assertIn("Concentration metrics", out)
+        self.assertIn("Largest single holding: 9.20%", out)
+        self.assertIn("Top-2 aggregate weight: 17.70%", out)
+
+
+# ---------------------------------------------------------------------------
+# ETF risk-debate dimension (build_etf_risk_block + 3 debators)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class BuildEtfRiskBlockTests(unittest.TestCase):
+    def test_returns_block_for_etf_ticker(self):
+        from tradingagents.agents.utils.agent_utils import build_etf_risk_block
+
+        with patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="ETF",
+        ):
+            block = build_etf_risk_block("SPY")
+        # Spot-check the axes that matter for each debator role.
+        self.assertIn("ETF-specific risk dimensions", block)
+        self.assertIn("Liquidity", block)        # conservative
+        self.assertIn("Concentration", block)    # neutral
+        self.assertIn("Structure risk", block)   # aggressive (leveraged)
+        self.assertIn("Premium/discount to NAV", block)
+
+    def test_returns_empty_for_stock_ticker(self):
+        from tradingagents.agents.utils.agent_utils import build_etf_risk_block
+
+        with patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="EQUITY",
+        ):
+            self.assertEqual(build_etf_risk_block("AAPL"), "")
+
+    def test_returns_empty_for_empty_input(self):
+        from tradingagents.agents.utils.agent_utils import build_etf_risk_block
+
+        # Empty / non-string input must short-circuit to "" so debators
+        # never inject a stale ETF block when state["company_of_interest"]
+        # is missing.
+        self.assertEqual(build_etf_risk_block(""), "")
+        self.assertEqual(build_etf_risk_block(None), "")
+
+
+@pytest.mark.unit
+class RiskDebatorsInjectEtfBlockTests(unittest.TestCase):
+    """Each of the 3 debators must inject the ETF block into the prompt
+    sent to the LLM. We mock the LLM and inspect the call-args to confirm."""
+
+    def _state(self, ticker: str) -> dict:
+        return {
+            "risk_debate_state": {"history": "", "count": 0},
+            "market_report": "M",
+            "sentiment_report": "S",
+            "news_report": "N",
+            "fundamentals_report": "F",
+            "trader_investment_plan": "PLAN",
+            "company_of_interest": ticker,
+        }
+
+    def _run(self, factory, ticker: str, is_etf: bool):
+        llm = MagicMock()
+        llm.invoke.return_value = MagicMock(content="reply")
+        node = factory(llm)
+        with patch(
+            "tradingagents.dataflows.etf_utils._yfinance_quote_type",
+            return_value="ETF" if is_etf else "EQUITY",
+        ):
+            node(self._state(ticker))
+        return llm.invoke.call_args[0][0]
+
+    def test_aggressive_debator_includes_etf_block_for_etf(self):
+        from tradingagents.agents.risk_mgmt.aggressive_debator import (
+            create_aggressive_debator,
+        )
+
+        prompt = self._run(create_aggressive_debator, "SPY", is_etf=True)
+        self.assertIn("ETF-specific risk dimensions", prompt)
+
+    def test_conservative_debator_includes_etf_block_for_etf(self):
+        from tradingagents.agents.risk_mgmt.conservative_debator import (
+            create_conservative_debator,
+        )
+
+        prompt = self._run(create_conservative_debator, "SPY", is_etf=True)
+        self.assertIn("ETF-specific risk dimensions", prompt)
+
+    def test_neutral_debator_includes_etf_block_for_etf(self):
+        from tradingagents.agents.risk_mgmt.neutral_debator import (
+            create_neutral_debator,
+        )
+
+        prompt = self._run(create_neutral_debator, "SPY", is_etf=True)
+        self.assertIn("ETF-specific risk dimensions", prompt)
+
+    def test_debators_omit_etf_block_for_stock(self):
+        from tradingagents.agents.risk_mgmt.aggressive_debator import (
+            create_aggressive_debator,
+        )
+
+        prompt = self._run(create_aggressive_debator, "AAPL", is_etf=False)
+        self.assertNotIn("ETF-specific risk dimensions", prompt)

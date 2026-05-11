@@ -72,6 +72,42 @@ def build_instrument_context(ticker: str) -> str:
         )
     return base
 
+def build_etf_risk_block(ticker: str) -> str:
+    """Risk-debate-specific ETF axes, returned as a markdown block.
+
+    The three risk debators (aggressive / conservative / neutral) consume
+    the analyst reports but otherwise have no ETF awareness — without this
+    block they argue about "company financials" of a fund. Each axis below
+    matters to a different debator:
+
+    - liquidity / structure → conservative emphasis
+    - leverage / sector momentum → aggressive emphasis
+    - concentration / diversification fit → neutral emphasis
+
+    Returns an empty string for non-ETF tickers so debators can append
+    unconditionally without branching.
+    """
+    if not is_etf_ticker(ticker):
+        return ""
+    return (
+        "\n\n**ETF-specific risk dimensions** (this instrument is an exchange-traded "
+        "fund, not a company — weigh these axes alongside the analyst reports):\n"
+        "- **Liquidity**: AUM size and daily turnover; small-AUM ETFs slip on "
+        "moderate sizes and can trade at persistent discounts to NAV.\n"
+        "- **Concentration**: top-10 aggregate weight and Herfindahl index "
+        "(see the holdings report). High concentration means the ETF inherits "
+        "single-name risk from a few large positions.\n"
+        "- **Tracking risk**: expense-ratio drag and tracking error vs the stated "
+        "benchmark erode long-horizon returns.\n"
+        "- **Structure risk**: leveraged or inverse ETFs decay daily — long-term "
+        "framing is inappropriate. Synthetic / swap-based ETFs add counterparty risk.\n"
+        "- **Premium/discount to NAV**: persistent divergence signals "
+        "authorized-participant or arbitrage friction.\n"
+        "- **Underlying-name catalysts**: see the drill-down section in the "
+        "fundamentals report (if present) for top-constituent news and fundamentals."
+    )
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""

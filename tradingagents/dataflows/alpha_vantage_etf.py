@@ -99,7 +99,16 @@ def get_etf_holdings(ticker: str, top_n: int = 10) -> str:
         f"{row.get('symbol', '')},{row.get('description', '')},{row.get('weight', '')}"
         for row in rows
     )
-    return header + body + "\n"
+
+    # Alpha Vantage emits weight as a decimal string (``"0.092"`` = 9.2%).
+    weights_pct: list[float] = []
+    for row in rows:
+        try:
+            weights_pct.append(float(row.get("weight") or 0.0) * 100)
+        except (TypeError, ValueError):
+            continue
+    from .etf_utils import concentration_summary
+    return header + body + "\n" + concentration_summary(weights_pct)
 
 
 def get_top_holding_tickers(

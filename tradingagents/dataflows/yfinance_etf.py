@@ -120,12 +120,17 @@ def get_etf_holdings(
 
         top = holdings.head(top_n).copy()
         # Convert decimal weight (0.062) → "6.20%" for analyst readability.
+        # Capture the numeric percent values *before* stringifying so the
+        # concentration block can compute its metrics from them.
+        weights_pct: list[float] = []
         weight_col = next(
             (c for c in top.columns if "weight" in c.lower() or "percent" in c.lower()),
             None,
         )
         if weight_col:
-            top[weight_col] = (top[weight_col].astype(float) * 100).round(2).astype(str) + "%"
+            numeric = top[weight_col].astype(float) * 100
+            weights_pct = numeric.tolist()
+            top[weight_col] = numeric.round(2).astype(str) + "%"
 
         header = (
             f"# ETF Holdings for {ticker.upper()}\n"
@@ -133,7 +138,8 @@ def get_etf_holdings(
             f"# Top {len(top)} positions\n"
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
-        return header + top.to_csv()
+        from .etf_utils import concentration_summary
+        return header + top.to_csv() + concentration_summary(weights_pct)
 
     except Exception as e:
         return f"Error retrieving ETF holdings for {ticker}: {str(e)}"
