@@ -192,6 +192,14 @@ Both printed paths should point at your current TradingAgents checkout. If they
 still point into `site-packages`, the installed command can keep running stale
 provider code and old Codex CLI flags.
 
+If Codex reports that the access token could not be refreshed or returns a
+`401 Unauthorized` websocket error, refresh the local Codex subscription login:
+
+```bash
+codex logout
+codex login
+```
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import subprocess
-
 from langchain_core.messages import HumanMessage
 
+import tradingagents.llm_clients.codex_client as codex_module
 from tradingagents.llm_clients.codex_client import CodexClient
 from tradingagents.llm_clients.factory import create_llm_client
 
@@ -76,6 +76,65 @@ def test_codex_error_uses_stdout_when_stderr_empty(monkeypatch):
         assert "stdout failure" in str(exc)
     else:
         raise AssertionError("Expected RuntimeError")
+
+
+def test_codex_auth_error_explains_relogin(monkeypatch):
+    def fake_run(args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=1,
+            stdout="",
+            stderr=(
+                "ERROR: Your access token could not be refreshed because your "
+                "refresh token was already used."
+            ),
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    llm = CodexClient("gpt-5.5").get_llm()
+
+    try:
+        llm.invoke([HumanMessage(content="hello")])
+    except RuntimeError as exc:
+        message = str(exc)
+        assert "codex logout" in message
+        assert "codex login" in message
+        assert "already-invalid Codex refresh token" in message
+    else:
+        raise AssertionError("Expected RuntimeError")
+
+
+def test_codex_exec_uses_process_lock(monkeypatch):
+    class RecordingLock:
+        def __init__(self):
+            self.entered = False
+            self.exited = False
+
+        def __enter__(self):
+            self.entered = True
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            self.exited = True
+            return False
+
+    lock = RecordingLock()
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="answer", stderr="")
+
+    monkeypatch.setattr(codex_module, "_CODEX_EXEC_LOCK", lock)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    llm = CodexClient("gpt-5.5").get_llm()
+    llm.invoke([HumanMessage(content="hello")])
+
+    assert calls
+    assert lock.entered is True
+    assert lock.exited is True
 
 
 def test_codex_extra_args_use_tradingagents_env(monkeypatch):

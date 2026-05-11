@@ -6,6 +6,7 @@ import os
 import shlex
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Iterable, Optional, Sequence
 
@@ -22,6 +23,27 @@ from .claude_code_client import (
     _format_messages_for_local_agent,
     _message_from_tool_json,
 )
+
+
+_CODEX_EXEC_LOCK = threading.Lock()
+
+
+def _codex_error_message(completed: subprocess.CompletedProcess[str]) -> str:
+    error_msg = completed.stderr.strip() or completed.stdout.strip()
+    auth_markers = (
+        "refresh token was already used",
+        "401 Unauthorized",
+        "could not be refreshed",
+    )
+    if any(marker in error_msg for marker in auth_markers):
+        return (
+            f"{error_msg}\n\n"
+            "Codex CLI authentication failed. Run `codex logout` and then "
+            "`codex login` in your shell, then rerun TradingAgents. The Codex "
+            "provider serializes local `codex exec` calls, but it cannot repair "
+            "an already-invalid Codex refresh token."
+        )
+    return error_msg
 
 
 class CodexChatModel(BaseChatModel):
@@ -80,18 +102,19 @@ class CodexChatModel(BaseChatModel):
         args.extend(self.extra_args)
 
         try:
-            completed = subprocess.run(
-                args,
-                input=prompt,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout,
-                check=False,
-            )
+            with _CODEX_EXEC_LOCK:
+                completed = subprocess.run(
+                    args,
+                    input=prompt,
+                    text=True,
+                    capture_output=True,
+                    timeout=self.timeout,
+                    check=False,
+                )
             if completed.returncode != 0:
-                error_msg = completed.stderr.strip() or completed.stdout.strip()
                 raise RuntimeError(
-                    f"codex command failed with exit code {completed.returncode}: {error_msg}"
+                    "codex command failed with exit code "
+                    f"{completed.returncode}: {_codex_error_message(completed)}"
                 )
             if output_path.exists():
                 output = output_path.read_text(encoding="utf-8").strip()
