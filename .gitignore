@@ -235,6 +235,7 @@ scratchpad/
 .td-root
 
 # Bun
+.pi/
 node_modules/
 !src/lib/
 !src/server/lib/
@@ -257,3 +258,6 @@ AGENTS.md
 /Justfile
 # Drydock barnacle archive (quarantined content — not part of the project)
 decisions/drydock/
+
+.pi/defuddle-log.jsonl
+.pi/defuddle-whitelist.json
