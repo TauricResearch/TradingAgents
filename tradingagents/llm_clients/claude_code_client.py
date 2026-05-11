@@ -187,8 +187,7 @@ class ClaudeCodeChatModel(BaseChatModel):
         )
 
     def _run_claude(self, prompt: str) -> str:
-        args = [
-            self.command,
+        args = shlex.split(self.command) + [
             "-p",
             "--output-format",
             "text",
@@ -211,9 +210,9 @@ class ClaudeCodeChatModel(BaseChatModel):
             check=False,
         )
         if completed.returncode != 0:
-            stderr = completed.stderr.strip()
+            error_msg = completed.stderr.strip() or completed.stdout.strip()
             raise RuntimeError(
-                f"claude-code command failed with exit code {completed.returncode}: {stderr}"
+                f"claude-code command failed with exit code {completed.returncode}: {error_msg}"
             )
         return completed.stdout.strip()
 
@@ -248,13 +247,13 @@ class ClaudeCodeClient(BaseLLMClient):
     """Client for routing TradingAgents calls through Claude Code CLI."""
 
     def get_llm(self) -> Any:
-        command = self.kwargs.get("command") or os.environ.get("CLAUDE_CODE_COMMAND", "claude")
-        timeout = self.kwargs.get("timeout")
-        if timeout is None:
-            timeout = _coerce_timeout(os.environ.get("CLAUDE_CODE_TIMEOUT_SECONDS"), 600)
+        command = self.kwargs.get("command") or "claude"
+        timeout = self.kwargs.get("timeout") or 600
         extra_args = self.kwargs.get("extra_args")
         if extra_args is None:
-            extra_args = tuple(shlex.split(os.environ.get("CLAUDE_CODE_EXTRA_ARGS", "")))
+            extra_args = tuple(
+                shlex.split(os.environ.get("TRADINGAGENTS_CLAUDE_CODE_EXTRA_ARGS", ""))
+            )
         return ClaudeCodeChatModel(
             model=self.model,
             command=command,

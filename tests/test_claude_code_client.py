@@ -40,6 +40,60 @@ def test_claude_code_chat_model_invokes_print_mode(monkeypatch):
     assert "Human:\nhello" in kwargs["input"]
 
 
+def test_claude_code_command_supports_multi_word_wrapper(monkeypatch):
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="answer", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    llm = ClaudeCodeClient("sonnet", command="npx claude", timeout=12).get_llm()
+    llm.invoke([HumanMessage(content="hello")])
+
+    assert calls[0][:3] == ["npx", "claude", "-p"]
+
+
+def test_claude_code_error_uses_stdout_when_stderr_empty(monkeypatch):
+    def fake_run(args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=2,
+            stdout="stdout failure",
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    llm = ClaudeCodeClient("sonnet").get_llm()
+
+    try:
+        llm.invoke([HumanMessage(content="hello")])
+    except RuntimeError as exc:
+        assert "stdout failure" in str(exc)
+    else:
+        raise AssertionError("Expected RuntimeError")
+
+
+def test_claude_code_extra_args_use_tradingagents_env(monkeypatch):
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="answer", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv("TRADINGAGENTS_CLAUDE_CODE_EXTRA_ARGS", "--verbose --permission-mode plan")
+
+    llm = ClaudeCodeClient("sonnet").get_llm()
+    llm.invoke([HumanMessage(content="hello")])
+
+    assert "--verbose" in calls[0]
+    assert "--permission-mode" in calls[0]
+    assert "plan" in calls[0]
+
+
 def test_claude_code_tool_call_json_becomes_langchain_tool_call(monkeypatch):
     payload = (
         'result:\n{"content":"","tool_calls":'

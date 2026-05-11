@@ -18,7 +18,6 @@ from pydantic import Field
 from .base_client import BaseLLMClient
 from .claude_code_client import (
     _clone_model,
-    _coerce_timeout,
     _extract_json_object,
     _format_messages_for_local_agent,
     _message_from_tool_json,
@@ -65,8 +64,7 @@ class CodexChatModel(BaseChatModel):
         with tempfile.NamedTemporaryFile(prefix="tradingagents-codex-", delete=False) as tmp:
             output_path = Path(tmp.name)
 
-        args = [
-            self.command,
+        args = shlex.split(self.command) + [
             "exec",
             "--ephemeral",
             "--sandbox",
@@ -91,9 +89,9 @@ class CodexChatModel(BaseChatModel):
                 check=False,
             )
             if completed.returncode != 0:
-                stderr = completed.stderr.strip()
+                error_msg = completed.stderr.strip() or completed.stdout.strip()
                 raise RuntimeError(
-                    f"codex command failed with exit code {completed.returncode}: {stderr}"
+                    f"codex command failed with exit code {completed.returncode}: {error_msg}"
                 )
             if output_path.exists():
                 output = output_path.read_text(encoding="utf-8").strip()
@@ -137,13 +135,11 @@ class CodexClient(BaseLLMClient):
     """Client for routing TradingAgents calls through Codex CLI."""
 
     def get_llm(self) -> Any:
-        command = self.kwargs.get("command") or os.environ.get("CODEX_COMMAND", "codex")
-        timeout = self.kwargs.get("timeout")
-        if timeout is None:
-            timeout = _coerce_timeout(os.environ.get("CODEX_TIMEOUT_SECONDS"), 600)
+        command = self.kwargs.get("command") or "codex"
+        timeout = self.kwargs.get("timeout") or 600
         extra_args = self.kwargs.get("extra_args")
         if extra_args is None:
-            extra_args = tuple(shlex.split(os.environ.get("CODEX_EXTRA_ARGS", "")))
+            extra_args = tuple(shlex.split(os.environ.get("TRADINGAGENTS_CODEX_EXTRA_ARGS", "")))
         return CodexChatModel(
             model=self.model,
             command=command,
