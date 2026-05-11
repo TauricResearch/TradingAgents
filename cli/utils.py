@@ -1,9 +1,13 @@
-import questionary
+import os
+from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 
+import questionary
+from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType
+from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -407,6 +411,49 @@ def ask_minimax_region() -> tuple[str, str]:
             ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
+
+
+def ensure_api_key(provider: str) -> Optional[str]:
+    """Make sure the API key for `provider` is available in the environment.
+
+    If the env var is already set, returns its value untouched. Otherwise
+    interactively prompts the user, persists the value to the project's
+    .env file via python-dotenv's set_key (creating .env if needed), and
+    exports it into os.environ so the current process picks it up.
+
+    Returns None for providers that do not require a key (e.g. ollama)
+    and for providers not found in the canonical mapping.
+    """
+    env_var = get_api_key_env(provider)
+    if env_var is None:
+        return None  # ollama / unknown — no key check possible
+
+    existing = os.environ.get(env_var)
+    if existing:
+        return existing
+
+    console.print(
+        f"\n[yellow]{env_var} is not set in your environment.[/yellow]"
+    )
+    key = questionary.password(
+        f"Paste your {env_var} (will be saved to .env):",
+        style=questionary.Style([
+            ("text", "fg:cyan"),
+            ("highlighted", "noinherit"),
+        ]),
+    ).ask()
+    if not key:
+        console.print(
+            f"[red]Skipped. API calls will fail until {env_var} is set.[/red]"
+        )
+        return None
+
+    env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
+    Path(env_path).touch(exist_ok=True)
+    set_key(env_path, env_var, key)
+    os.environ[env_var] = key
+    console.print(f"[green]Saved {env_var} to {env_path}[/green]")
+    return key
 
 
 def ask_output_language() -> str:
