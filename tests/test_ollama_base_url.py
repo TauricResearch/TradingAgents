@@ -154,3 +154,14 @@ def test_ollama_model_labels_no_local_suffix():
     for mode in ("quick", "deep"):
         labels = [label for label, _ in get_model_options("ollama", mode)]
         assert all("local" not in label for label in labels), labels
+
+
+def test_ollama_offers_custom_model_id():
+    """Ollama users with custom-pulled models can pick 'Custom model ID'."""
+    from tradingagents.llm_clients.model_catalog import get_model_options
+    for mode in ("quick", "deep"):
+        entries = get_model_options("ollama", mode)
+        values = [v for _, v in entries]
+        assert "custom" in values, f"Ollama {mode!r} missing 'custom' option: {entries}"
+        # Custom option is last so it doesn't push the curated defaults off-screen
+        assert values[-1] == "custom", f"'custom' should be last entry: {values}"
