@@ -10,6 +10,8 @@ from tradingagents.dataflows.config import get_config
 
 def create_news_analyst(llm):
     def news_analyst_node(state):
+        from langgraph.prebuilt import ToolNode
+
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -47,15 +49,22 @@ def create_news_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
 
-        report = ""
+        # Multi-turn loop: invoke LLM, execute tools, feed results back.
+        messages = list(state["messages"])
+        tool_node = ToolNode(tools)
 
-        if len(result.tool_calls) == 0:
-            report = result.content
+        while True:
+            result = chain.invoke(messages)
+            messages.append(result)
+            if not result.tool_calls:
+                break
+            tool_results = tool_node.invoke({"messages": messages})
+            messages.extend(tool_results.get("messages", []))
 
+        report = result.content if not result.tool_calls else ""
         return {
-            "messages": [result],
+            "messages": messages,
             "news_report": report,
         }
 

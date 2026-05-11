@@ -5,6 +5,8 @@ from tradingagents.dataflows.config import get_config
 
 def create_social_media_analyst(llm):
     def social_media_analyst_node(state):
+        from langgraph.prebuilt import ToolNode
+
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -42,15 +44,25 @@ def create_social_media_analyst(llm):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        # Multi-turn loop: invoke LLM, execute tools, feed results back.
+        # Single-shot invoke() discards tool results when tool_calls > 0, leaving
+        # sentiment_report empty. This loop performs tool execution and
+        # re-invokes the LLM with tool results until it produces a final answer.
+        messages = list(state["messages"])
+        tool_node = ToolNode(tools)
 
-        report = ""
+        while True:
+            result = chain.invoke(messages)
+            messages.append(result)
+            if not result.tool_calls:
+                break
+            # Execute tools and append results to messages for next pass
+            tool_results = tool_node.invoke({"messages": messages})
+            messages.extend(tool_results.get("messages", []))
 
-        if len(result.tool_calls) == 0:
-            report = result.content
-
+        report = result.content if not result.tool_calls else ""
         return {
-            "messages": [result],
+            "messages": messages,
             "sentiment_report": report,
         }
 
