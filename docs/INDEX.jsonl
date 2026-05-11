@@ -12,3 +12,4 @@
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
 {"file":"runbook.md","date":"2026-05-10","status":"active","summary":"Operations manual: CLI reference, E2E workflows, IG demo trading, dashboard, config, troubleshooting","meta":{"type":"manual","topic":"operations"}}
+{"file":"interstitium.md","date":"2026-05-11","status":"active","summary":"Third circulatory system (interstitium): anatomy, acupuncture evidence, cancer metastasis, diabetes, evolutionary significance","meta":{"type":"article","topic":"medicine,anatomy,acupuncture"}}
