@@ -1,9 +1,13 @@
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
+from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
-load_dotenv(find_dotenv(usecwd=True))
+_env = find_dotenv(usecwd=True) or find_dotenv(
+    filename=str(Path(__file__).resolve().parent / ".env")
+)
+load_dotenv(_env)
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()

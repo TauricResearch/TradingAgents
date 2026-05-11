@@ -7,10 +7,11 @@ from functools import wraps
 from rich.console import Console
 from dotenv import find_dotenv, load_dotenv
 
-# Search starts from the user's CWD so the installed `tradingagents`
-# console script picks up the project's .env instead of walking up from
-# site-packages.
-load_dotenv(find_dotenv(usecwd=True))
+# Try CWD first, then fall back to the project root (installed or source).
+_env = find_dotenv(usecwd=True) or find_dotenv(
+    filename=str(Path(__file__).resolve().parent.parent / ".env")
+)
+load_dotenv(_env)
 load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
 from rich.panel import Panel
 from rich.spinner import Spinner
