@@ -22,6 +22,8 @@ import AgentMonitor from './dashboard/AgentMonitor';
 import TradeHistory from './dashboard/TradeHistory';
 import LogConsole from './dashboard/LogConsole';
 import Analytics from './dashboard/Analytics';
+import Reports from './dashboard/Reports';
+import Prompts from './dashboard/Prompts';
 
 // Sidebar Navigation Component
 function Sidebar() {
@@ -31,8 +33,10 @@ function Sidebar() {
     { path: '/', icon: LayoutDashboard, label: 'Overview' },
     { path: '/agents', icon: Users, label: 'Agent Monitor' },
     { path: '/trades', icon: Briefcase, label: 'Trade History' },
-    { path: '/logs', icon: FileText, label: 'Logs' },
+    { path: '/reports', icon: FileText, label: 'Intelligence Reports' },
+    { path: '/logs', icon: Clock, label: 'Logs' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { path: '/prompts', icon: MessageSquare, label: 'Prompts' },
   ];
 
   return (
@@ -74,8 +78,10 @@ function App() {
             <Route path="/" element={<Overview />} />
             <Route path="/agents" element={<AgentMonitor />} />
             <Route path="/trades" element={<TradeHistory />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/logs" element={<LogConsole />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/prompts" element={<Prompts />} />
           </Routes>
         </div>
       </div>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Filter, Search, Calendar, ChevronRight } from 'lucide-react';
-import { generateMockData } from '../utils/mockData';
+import reportsData from '../data/reports.json';
 
 function Reports() {
-  const [reports, setReports] = useState([]);
+  const [reports, setReports] = useState(reportsData);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedReport, setSelectedReport] = useState(null);
 
   useEffect(() => {
-    const data = generateMockData();
-    setReports(data.reports);
+    setReports(reportsData);
   }, []);
 
   const filteredReports = reports.filter(report => 
@@ -16,6 +16,45 @@ function Reports() {
     report.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
     report.summary.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (selectedReport) {
+    return (
+      <div className="fade-in">
+        <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <button 
+              onClick={() => setSelectedReport(null)}
+              className="btn btn-secondary" 
+              style={{ marginBottom: 15, display: 'flex', alignItems: 'center', gap: 5 }}
+            >
+              <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+              Back to Reports
+            </button>
+            <h1 className="dashboard-title">{selectedReport.title}</h1>
+            <p className="dashboard-subtitle">{selectedReport.date} • By {selectedReport.author} • Rating: <span style={{ color: selectedReport.rating === 'Sell' ? '#f56565' : selectedReport.rating === 'Buy' ? '#48bb78' : '#ed8936' }}>{selectedReport.rating}</span></p>
+          </div>
+          <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Download size={18} />
+            Export PDF
+          </button>
+        </div>
+
+        <div className="card report-content" style={{ padding: '40px', lineHeight: 1.6 }}>
+          <pre style={{ 
+            whiteSpace: 'pre-wrap', 
+            fontFamily: 'inherit', 
+            color: '#e2e8f0',
+            fontSize: '1rem',
+            background: 'transparent',
+            border: 'none',
+            padding: 0
+          }}>
+            {selectedReport.content}
+          </pre>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fade-in">
@@ -79,7 +118,11 @@ function Reports() {
                 <button className="btn btn-secondary" style={{ padding: '8px 12px' }} title="Download PDF">
                   <Download size={18} />
                 </button>
-                <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 16px' }}>
+                <button 
+                  onClick={() => setSelectedReport(report)}
+                  className="btn btn-primary" 
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 16px' }}
+                >
                   View Report
                   <ChevronRight size={16} />
                 </button>
