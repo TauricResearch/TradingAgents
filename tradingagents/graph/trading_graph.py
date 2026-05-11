@@ -25,6 +25,7 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.stockstats_utils import yf_retry
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -202,8 +203,8 @@ class TradingAgentsGraph:
             end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
             end_str = end.strftime("%Y-%m-%d")
 
-            stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            spy = yf.Ticker("SPY").history(start=trade_date, end=end_str)
+            stock = yf_retry(lambda: yf.Ticker(ticker).history(start=trade_date, end=end_str))
+            spy = yf_retry(lambda: yf.Ticker("SPY").history(start=trade_date, end=end_str))
 
             if len(stock) < 2 or len(spy) < 2:
                 return None, None, None
@@ -245,11 +246,18 @@ class TradingAgentsGraph:
             raw, alpha, days = self._fetch_returns(ticker, entry["date"])
             if raw is None:
                 continue  # price not available yet — try again next run
-            reflection = self.reflector.reflect_on_final_decision(
-                final_decision=entry.get("decision", ""),
-                raw_return=raw,
-                alpha_return=alpha,
-            )
+            try:
+                reflection = self.reflector.reflect_on_final_decision(
+                    final_decision=entry.get("decision", ""),
+                    raw_return=raw,
+                    alpha_return=alpha,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to reflect on pending entry for %s on %s (will retry next run)",
+                    ticker, entry["date"], exc_info=True,
+                )
+                continue
             updates.append({
                 "ticker": ticker,
                 "trade_date": entry["date"],
