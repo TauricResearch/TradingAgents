@@ -29,6 +29,18 @@ class GrowthStyle:
             "growth narratives without numbers are how investors fool "
             "themselves. If a number isn't available, say so explicitly.\n\n"
 
+            "**CURRENCY CHECK — DO FIRST**\n"
+            "Compare 'Financial Statement Currency' to 'Trading Currency' "
+            "in the fundamentals output. For ADRs of CN/JP/EU/HK/KR "
+            "companies these typically differ — financial-statement "
+            "absolute values are in the reporting currency while price / "
+            "P/E / EPS-per-ADR are in the trading currency. Convert one "
+            "side before computing any per-share USD figure or "
+            "cross-currency multiple (P/E and PEG specifically). State "
+            "the FX rate used and the converted numbers explicitly. "
+            "Skipping this step produces 7×-overstated PEG ratios on "
+            "Chinese ADRs.\n\n"
+
             "**Lens 1 — Revenue & Earnings Trajectory (成長軌跡)**\n"
             "  - 3-5 year revenue CAGR. Sustained >15% qualifies as growth.\n"
             "  - Earnings (or operating income, for unprofitable growers) "

@@ -165,9 +165,13 @@ def test_buffett_prompt_has_output_format():
 
 def test_buffett_prompt_length_is_substantive_but_not_runaway():
     """Sanity bound: a prompt shorter than 4k chars probably lost content;
-    longer than 12k chars probably duplicates or bloats and should be trimmed."""
+    longer than 14k chars probably duplicates or bloats and should be trimmed.
+
+    Cap was raised from 12k → 14k when Lens 0 (currency sanity check) was
+    added — the section is small but pushes the total above the old bound.
+    """
     msg = BuffettValueStyle().system_message()
-    assert 4000 < len(msg) < 12000, f"Buffett prompt is {len(msg)} chars"
+    assert 4000 < len(msg) < 14000, f"Buffett prompt is {len(msg)} chars"
 
 
 def test_growth_prompt_mentions_required_concepts():

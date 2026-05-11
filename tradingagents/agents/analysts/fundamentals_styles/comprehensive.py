@@ -39,6 +39,14 @@ class ComprehensiveStyle:
             " Use the available tools: `get_fundamentals` for comprehensive "
             "company analysis, `get_balance_sheet`, `get_cashflow`, and "
             "`get_income_statement` for specific financial statements."
+            "\n\nCURRENCY CHECK: Before reporting any per-share figure, "
+            "compare the 'Financial Statement Currency' to the 'Trading "
+            "Currency' from the fundamentals tool. If they differ (common "
+            "for ADRs of CN/JP/EU/HK/KR companies), absolute values on the "
+            "balance sheet / income statement / cash flow are in the "
+            "reporting currency, NOT in the trading currency — you must "
+            "convert before computing per-share USD or any cross-currency "
+            "multiple. State the FX rate and converted figures explicitly."
         )
 
     def extra_tools(self) -> List[BaseTool]:

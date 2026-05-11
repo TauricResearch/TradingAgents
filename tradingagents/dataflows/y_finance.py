@@ -269,8 +269,35 @@ def get_fundamentals(
         if not info:
             return f"No fundamentals data found for symbol '{ticker}'"
 
+        # Currency disclosure (critical for ADRs / non-US stocks).
+        # For Chinese / Japanese / European companies listed on US exchanges,
+        # financial-statement absolute values come back in the home reporting
+        # currency (CNY, JPY, EUR, ...) while price and market-cap data are
+        # in the trading currency (typically USD). The LLM has historically
+        # not noticed and treated everything as USD, producing 7x overstated
+        # net-cash-per-share figures for PDD-style ADRs. Surface both
+        # currencies explicitly so downstream analysis can detect the mismatch.
+        financial_currency = info.get("financialCurrency")
+        trading_currency = info.get("currency")
+        currency_warning = ""
+        if (
+            financial_currency
+            and trading_currency
+            and financial_currency != trading_currency
+        ):
+            currency_warning = (
+                f"\n# ⚠️ Currency mismatch — financial statements are in "
+                f"{financial_currency}; price / market cap are in {trading_currency}. "
+                f"All absolute values below (cash, debt, revenue, net income, etc.) "
+                f"are in {financial_currency}. You MUST convert before computing "
+                f"per-share USD intrinsic value, net cash per share, or any "
+                f"per-ADR multiple.\n"
+            )
+
         fields = [
             ("Name", info.get("longName")),
+            ("Financial Statement Currency", financial_currency),
+            ("Trading Currency", trading_currency),
             ("Sector", info.get("sector")),
             ("Industry", info.get("industry")),
             ("Market Cap", info.get("marketCap")),
@@ -306,7 +333,8 @@ def get_fundamentals(
                 lines.append(f"{label}: {value}")
 
         header = f"# Company Fundamentals for {ticker.upper()}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header += currency_warning + "\n"
 
         return header + "\n".join(lines)
 
@@ -335,11 +363,17 @@ def get_balance_sheet(
             
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
-        # Add header information
+
+        # Add header information, including the reporting currency so
+        # downstream analysis can spot ADR currency mismatches before
+        # computing per-share USD figures.
+        info = yf_retry(lambda: ticker_obj.info) or {}
+        fin_ccy = info.get("financialCurrency")
         header = f"# Balance Sheet data for {ticker.upper()} ({freq})\n"
+        if fin_ccy:
+            header += f"# Reporting Currency: {fin_ccy} (all values below are in {fin_ccy})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
         
     except Exception:
@@ -367,13 +401,17 @@ def get_cashflow(
             
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
-        # Add header information
+
+        # Add header information with reporting currency (see balance sheet).
+        info = yf_retry(lambda: ticker_obj.info) or {}
+        fin_ccy = info.get("financialCurrency")
         header = f"# Cash Flow data for {ticker.upper()} ({freq})\n"
+        if fin_ccy:
+            header += f"# Reporting Currency: {fin_ccy} (all values below are in {fin_ccy})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except Exception:
         return f"Error retrieving cash flow for {ticker}: data unavailable"
 
@@ -399,13 +437,17 @@ def get_income_statement(
             
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
-        # Add header information
+
+        # Add header information with reporting currency (see balance sheet).
+        info = yf_retry(lambda: ticker_obj.info) or {}
+        fin_ccy = info.get("financialCurrency")
         header = f"# Income Statement data for {ticker.upper()} ({freq})\n"
+        if fin_ccy:
+            header += f"# Reporting Currency: {fin_ccy} (all values below are in {fin_ccy})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except Exception:
         return f"Error retrieving income statement for {ticker}: data unavailable"
 
