@@ -230,15 +230,38 @@ help:
 | Working dir | `invocation_directory()` |
 ---
 
+## The `check` Recipe — Your Pre-Commit Gate
+
+The `check` recipe is the **last line of defence** before any commit. It must
+pass. The order matters:
+
+```just
+check:
+    just --unstable --fmt --check   # 1. Parse/syntax check (FAILS if broken)
+    bunx biome check .             # 2. Format + lint
+    tsc --project tsconfig.server.json --noEmit  # 3. Type check
+    bun scripts/check-database-usage.ts          # 4. DB usage gate
+    bun scripts/reg-sync.ts --all               # 5. Registry sync
+```
+
+**Why `just --unstable --fmt --check` first?** If the justfile has a structural
+error — a recipe with no body, a duplicate declaration, a parse error — it would
+silently pass biome and tsc (they don't read the justfile), and the bad state
+would only surface at runtime. Running `just --unstable --fmt --check` first
+catches this: `just` will exit 1 if the file is malformed.
+
+**Justfile editing rule:** After every edit, run `just --list | grep <recipe>`
+and `just --dry-run <recipe>` to verify the recipe looks correct. Then run
+`just --unstable --fmt --check` to confirm the file is parseable.
+
 ## Convention Hygiene
 
 **Rule:** The justfile is named `justfile` (lowercase). No exceptions.
 
 **Why:** `just` accepts both `justfile` and `Justfile`, but the built-in
 formatter (`just --unstable --fmt`) writes to `justfile`. Fighting the tool
-creates friction. We previously maintained `Justfile` (capitalized) as a
-"convention" — it served no purpose, created duplicate-file bugs on macOS, and
-forced manual renaming after every format. It was a barnacle. We scraped it off.
+default creates friction. We scraped `Justfile` (capitalized) because it was
+a barnacle.
 
 **General principle for conventions:**
 1. If it fights the tool default, suspect it.
