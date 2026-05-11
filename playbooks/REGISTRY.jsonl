@@ -29,3 +29,4 @@
 {"file":"tsconfig-tiered-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"typescript-hono-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"unified-registry-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"search-playbook.md","date":"2026-05-11","status":"project","summary":"Code search conventions: rg primary, ag specialist (--ackmate/--search-zip/-p .ignore), GitNexus for semantic search","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}

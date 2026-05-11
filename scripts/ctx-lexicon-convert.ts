@@ -1,20 +1,28 @@
 #!/usr/bin/env bun
 /**
- * Convert CTX conceptual lexicon (JSON array) to merged schema (JSONL).
+ * Convert CTX conceptual-lexicon-example.json to JSONL.
  *
- * CTX format:
- *   { id, title, description, type, category, tags[], source }
+ * Input:  docs/conceptual-lexicon-example.json (JSON array, 161 entries)
+ * Output: debriefs/lexicon-ctx.jsonl (JSONL, one entry per line)
  *
- * Merged format:
- *   { file, id, date, status, type, summary, meta: { category, origin, heuristic?, usage?, tags, related, coined_by } }
+ * Transformation:
+ *   title  → file  (slugified)
+ *   description → summary
+ *   source → meta.origin (cleaned)
+ *   + date (from today), status (active/draft), id (preserved), type (preserved)
+ *   + meta.heuristic (empty), meta.usage (empty), meta.coined_by (inferred from source)
+ *   + tags (preserved)
  *
  * Usage:
- *   bun scripts/ctx-lexicon-convert.ts --dry-run
- *   bun scripts/ctx-lexicon-convert.ts --apply
+ *   bun scripts/ctx-lexicon-convert.ts
  */
 
-import { readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
+
+const INPUT_JSON = join(process.cwd(), "docs/conceptual-lexicon-example.json")
+const OUTPUT_JSONL = join(process.cwd(), "debriefs/lexicon-ctx.jsonl")
+const MIGRATION_DATE = "2026-05-08"
 
 interface CtxEntry {
   id: string
@@ -26,90 +34,105 @@ interface CtxEntry {
   source: string
 }
 
-function convertEntry(entry: CtxEntry): Record<string, unknown> {
-  // Infer status from tags
-  let status = "active"
-  const statusTag = entry.tags.find((t) => t.includes("Status:"))
-  if (statusTag) {
-    if (statusTag.includes("proposed")) status = "draft"
-    if (statusTag.includes("deprecated")) status = "superseded"
-  }
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+}
 
-  // Normalize tags: keep bracket notation, add origin
-  const tags = [...entry.tags]
-  if (entry.source && entry.source !== "cl") {
-    tags.push(`[Origin: ${entry.source}]`)
-  }
+function inferCoinedBy(source: string): string {
+  // "cl" = collaborative (human-agent dialogue), "agent" = agent-authored, "manual" = human
+  if (source === "cl") return "human" // collaborative
+  if (source === "agent") return "agent"
+  if (source === "manual") return "human"
+  return "human" // default
+}
 
+function inferOrigin(source: string): string {
+  const map: Record<string, string> = {
+    cl: "AGENTS.md (Edinburgh Protocol, collaborative)",
+    agent: "LLM agent session",
+    manual: "Manual documentation",
+  }
+  return map[source] ?? `Source: ${source}`
+}
+
+function inferStatus(entry: CtxEntry): string {
+  // Entries with "draft" in title or type, or known draft IDs
+  if (entry.type.toLowerCase().includes("draft")) return "draft"
+  return "active"
+}
+
+// Normalize type (fix case inconsistencies)
+function normalizeType(t: string): string {
+  const map: Record<string, string> = {
+    "Operational Heuristic": "operational-heuristic",
+    "operational-heuristic": "operational-heuristic",
+    "operational heuristic": "operational-heuristic",
+    term: "term",
+    pattern: "pattern",
+  }
+  return map[t] ?? t
+}
+
+function convert(entry: CtxEntry) {
+  const status = inferStatus(entry)
   return {
-    file: entry.title
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, ""),
+    file: slugify(entry.title),
     id: entry.id,
-    date: "2026-05-08",
+    date: MIGRATION_DATE,
     status,
-    type: entry.type.toLowerCase().replace(/\s+/g, "-"),
+    type: normalizeType(entry.type),
     summary: entry.description,
     meta: {
       category: entry.category,
-      origin: entry.source === "cl" ? "CTX conceptual lexicon" : entry.source,
+      origin: inferOrigin(entry.source),
       heuristic: "",
       usage: "",
-      tags,
-      related: [],
-      coined_by: "agent",
+      tags: entry.tags,
+      coined_by: inferCoinedBy(entry.source),
     },
   }
 }
 
 function main() {
-  const dryRun = Bun.argv.includes("--dry-run")
-  const apply = Bun.argv.includes("--apply")
+  const raw = readFileSync(INPUT_JSON, "utf-8")
+  const data = JSON.parse(raw) as CtxEntry[]
 
-  if (!dryRun && !apply) {
-    console.error("Usage: bun scripts/ctx-lexicon-convert.ts --dry-run | --apply")
-    process.exit(1)
-  }
+  const lines = data.map((entry) => JSON.stringify(convert(entry)))
+  const output = `${lines.join("\n")}\n`
 
-  const inputPath = join(process.cwd(), "docs/conceptual-lexicon-example.json")
-  const outputPath = join(process.cwd(), "debriefs/lexicon-ctx.jsonl")
+  mkdirSync(dirname(OUTPUT_JSONL), { recursive: true })
+  writeFileSync(OUTPUT_JSONL, output, "utf-8")
 
-  const raw: CtxEntry[] = JSON.parse(readFileSync(inputPath, "utf-8"))
-  const converted = raw.map(convertEntry)
-
-  console.log(`── CTX LEXICON CONVERSION ──`)
-  console.log(`  input: ${raw.length} entries`)
+  console.log(`✓ Converted ${data.length} entries`)
+  console.log(`  → ${OUTPUT_JSONL}`)
 
   // Stats
-  const typeCounts = new Map<string, number>()
-  const statusCounts = new Map<string, number>()
-  for (const e of converted) {
-    typeCounts.set(e.type as string, (typeCounts.get(e.type as string) ?? 0) + 1)
-    statusCounts.set(e.status as string, (statusCounts.get(e.status as string) ?? 0) + 1)
+  const byType: Record<string, number> = {}
+  const byStatus: Record<string, number> = {}
+  const byCategory: Record<string, number> = {}
+
+  for (const e of data) {
+    const t = normalizeType(e.type)
+    byType[t] = (byType[t] ?? 0) + 1
+    const s = inferStatus(e)
+    byStatus[s] = (byStatus[s] ?? 0) + 1
+    byCategory[e.category] = (byCategory[e.category] ?? 0) + 1
   }
 
-  console.log(`\n  Type distribution:`)
-  for (const [t, n] of typeCounts) {
-    console.log(`    ${t}: ${n}`)
+  console.log("\n── Type distribution ──")
+  for (const [k, v] of Object.entries(byType).sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${v.toString().padStart(4)}  ${k}`)
   }
-
-  console.log(`\n  Status distribution:`)
-  for (const [s, n] of statusCounts) {
-    console.log(`    ${s}: ${n}`)
+  console.log("\n── Status distribution ──")
+  for (const [k, v] of Object.entries(byStatus).sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${v.toString().padStart(4)}  ${k}`)
   }
-
-  console.log(`\n  Sample (first):`)
-  console.log(JSON.stringify(converted[0], null, 2))
-  console.log(`\n  Sample (last):`)
-  console.log(JSON.stringify(converted[converted.length - 1], null, 2))
-
-  if (apply) {
-    const lines = converted.map((e) => JSON.stringify(e)).join("\n")
-    writeFileSync(outputPath, `${lines}\n`)
-    console.log(`\n  → written: ${outputPath}`)
-  } else {
-    console.log(`\n  Run with --apply to write ${outputPath}`)
+  console.log("\n── Category distribution ──")
+  for (const [k, v] of Object.entries(byCategory).sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${v.toString().padStart(4)}  ${k}`)
   }
 }
 
