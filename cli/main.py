@@ -505,7 +505,7 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, 600519.SS, 000001.SZ, CNC.TO, 7203.T, 0700.HK, 贵州茅台)",
             "SPY",
         )
     )
@@ -615,8 +615,23 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    """Get ticker symbol from user input, resolving Chinese names."""
+    raw = typer.prompt("", default="SPY")
+    from tradingagents.dataflows.akshare_data import _is_chinese_name, resolve_ticker_name
+    if _is_chinese_name(raw):
+        try:
+            resolved = resolve_ticker_name(raw)
+            console.print(f"[green]Resolved: {raw} -> {resolved}[/green]")
+            confirmed = typer.prompt("Confirm?", default="Y").strip().upper()
+            if confirmed in ("Y", "YES", ""):
+                return resolved
+            else:
+                console.print("[yellow]Please re-enter the ticker.[/yellow]")
+                return get_ticker()
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+            return get_ticker()
+    return raw
 
 
 def get_analysis_date():

@@ -269,6 +269,15 @@ class TradingAgentsGraph:
         with a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
         """
+        # Resolve Chinese stock names before running the pipeline
+        from tradingagents.dataflows.akshare_data import _is_chinese_name, resolve_ticker_name
+        if _is_chinese_name(company_name):
+            try:
+                company_name = resolve_ticker_name(company_name)
+                logger.info("Resolved Chinese name to ticker: %s", company_name)
+            except ValueError:
+                logger.warning("Could not resolve Chinese name: %s", company_name)
+
         self.ticker = company_name
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
