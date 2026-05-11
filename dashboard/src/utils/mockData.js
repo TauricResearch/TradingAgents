@@ -50,7 +50,21 @@ const generateMockData = () => {
     };
   });
 
-  return { agents, trades, performanceData, logs };
+  const reports = [
+    { id: 'rep-001', title: 'Weekly Market Analysis - Tech Sector', date: '2024-01-14', type: 'Weekly', author: 'Research Manager', summary: 'Deep dive into tech sector performance and agent consensus.' },
+    { id: 'rep-002', title: 'AAPL Earnings Deep Dive', date: '2024-01-12', type: 'Flash', author: 'Market Analyst', summary: 'Detailed breakdown of Apple Q4 results and forward-looking guidance.' },
+    { id: 'rep-003', title: 'Monthly Performance Review - Dec 2023', date: '2024-01-05', type: 'Monthly', author: 'Portfolio Manager', summary: 'Analysis of last month\'s trading performance and alpha generation.' },
+    { id: 'rep-004', title: 'AI Ethics and Compliance Report', date: '2024-01-02', type: 'Special', author: 'Risk Manager', summary: 'Evaluation of agent compliance with ethical trading guidelines.' },
+  ];
+
+  const prompts = [
+    { id: 'p-1', name: 'Market Analysis System Prompt', category: 'Phase 1', lastUpdated: '2024-01-10', version: '2.4.1', description: 'Core prompt for analyzing market data and technical indicators.' },
+    { id: 'p-2', name: 'Debate Facilitator Prompt', category: 'Phase 2', lastUpdated: '2024-01-08', version: '1.2.0', description: 'Manages the dialectic process between bull and bear agents.' },
+    { id: 'p-3', name: 'Risk Assessment Framework', category: 'Phase 4', lastUpdated: '2024-01-12', version: '3.0.5', description: 'Defines risk parameters and loss mitigation strategies.' },
+    { id: 'p-4', name: 'Trade Execution Planner', category: 'Phase 3', lastUpdated: '2024-01-11', version: '2.1.0', description: 'Translates research findings into actionable trade plans.' },
+  ];
+
+  return { agents, trades, performanceData, logs, reports, prompts };
 };
 
 export { generateMockData };

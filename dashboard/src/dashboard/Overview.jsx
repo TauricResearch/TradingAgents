@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, TrendingUp, Users, CheckCircle } from 'lucide-react';
+import { Activity, TrendingUp, Users, CheckCircle, Briefcase } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { generateMockData } from '../utils/mockData';
 

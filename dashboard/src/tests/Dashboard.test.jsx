@@ -89,9 +89,9 @@ describe('Dashboard UI Tests', () => {
     it('should display trade table with headers', async () => {
       renderWithRouter(<TradeHistory />);
       await new Promise(resolve => setTimeout(resolve, 100));
-      expect(screen.getByText(/Ticker/i)).toBeInTheDocument();
-      expect(screen.getByText(/Rating/i)).toBeInTheDocument();
-      expect(screen.getByText(/Confidence/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Ticker/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Rating/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Confidence/i).length).toBeGreaterThan(0);
     });
   });
 
