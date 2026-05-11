@@ -2,6 +2,7 @@ import pytest
 from tradingagents.dataflows.akshare_data import (
     _normalize_akshare_ticker,
     _is_chinese_name,
+    resolve_ticker_name,
 )
 
 
@@ -211,3 +212,22 @@ class TestAkshareNews:
         })
         result = get_akshare_global_news("2024-06-01", 7, 10)
         assert "央行降准" in result
+
+
+class TestAkshareIntegration:
+    @pytest.mark.integration
+    def test_resolve_chinese_name_live(self):
+        result = resolve_ticker_name("贵州茅台")
+        assert result == "600519.SS"
+
+    @pytest.mark.integration
+    def test_stock_data_live(self):
+        result = get_akshare_stock_data("600519", "2024-06-01", "2024-06-07")
+        assert "Stock data" in result
+        assert "600519" in result
+        assert len(result.split("\n")) > 3
+
+    @pytest.mark.integration
+    def test_fundamentals_live(self):
+        result = get_akshare_fundamentals("600519")
+        assert "总市值" in result or "Company Fundamentals" in result
