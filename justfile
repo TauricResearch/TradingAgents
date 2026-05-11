@@ -116,6 +116,11 @@ ctx-lexicon-stats:
 ctx-lexicon-convert:
     bun scripts/ctx-lexicon-convert.ts
 
+# Incorporate 7 CTX terms into silo-conceptual-lexicon.jsonl (with heuristic + usage)
+[group("reg")]
+ctx-lexicon-incorporate:
+    bun scripts/ctx-lexicon-incorporate.ts
+
 # Show consolidated project state (briefs, debriefs, tasks, docs)
 [group("reg")]
 reg-state:
