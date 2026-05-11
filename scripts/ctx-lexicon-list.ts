@@ -119,23 +119,13 @@ function printStats(entries: LexiconEntry[]): void {
 const args = process.argv.slice(2)
 
 function getFlagValue(flag: string): string | null {
-  // just passes "--flag value" as "--flag=value" in a single token.
-  // Extract the value after the flag prefix.
-  // For --type=type=term: just prepended the param name, strip it so we get "term".
-  // For --search=query=humility: just prepended "query=", keep as-is (search expects free text).
-  const eqPrefix = `--${flag}=`
-  const eqArg = args.find((a) => a.startsWith(eqPrefix))
-  if (!eqArg) return null
-
-  const raw = eqArg.slice(eqPrefix.length)
+  const raw = args.find((a) => a.startsWith(`--${flag}=`))?.slice(`--${flag}=`.length) ?? null
   if (!raw) return null
-
-  // For non-search flags, strip any leading "paramName=" that just prepended
-  if (flag !== "search") {
-    const paramEq = `${flag}=`
-    if (raw.startsWith(paramEq)) return raw.slice(paramEq.length)
-  }
-  return raw
+  // just prepends the param name: "--flag=param=value" → strip first "word=" prefix
+  // e.g. "--type=type=term" → "type=term" → "term"
+  // e.g. "--search=query=humility" → "query=humility" → "humility"
+  const eq = raw.indexOf("=")
+  return eq > 0 ? raw.slice(eq + 1) : raw
 }
 
 const search = getFlagValue("--search")?.toLowerCase() ?? null
