@@ -152,6 +152,14 @@ class TradingAgentsGraph:
             if effort:
                 kwargs["effort"] = effort
 
+        elif provider == "claude-code":
+            command = self.config.get("claude_code_command")
+            if command:
+                kwargs["command"] = command
+            timeout = self.config.get("claude_code_timeout")
+            if timeout:
+                kwargs["timeout"] = timeout
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:

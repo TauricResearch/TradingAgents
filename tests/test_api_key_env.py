@@ -21,6 +21,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
     # are reached via the secondary region prompt, so they must also be present.
     expected = {
         "openai", "google", "anthropic", "xai", "deepseek",
+        "claude-code",
         "qwen", "qwen-cn",
         "glm", "glm-cn",
         "minimax", "minimax-cn",
@@ -55,6 +56,10 @@ def test_ollama_has_no_key():
     assert get_api_key_env("ollama") is None
 
 
+def test_claude_code_has_no_key():
+    assert get_api_key_env("claude-code") is None
+
+
 def test_unknown_provider_returns_none():
     assert get_api_key_env("not-a-real-provider") is None
 
@@ -86,6 +91,13 @@ def test_ensure_api_key_no_op_for_ollama(monkeypatch, cli_utils):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with patch.object(cli_utils, "questionary") as mock_q:
         result = cli_utils.ensure_api_key("ollama")
+    assert result is None
+    mock_q.password.assert_not_called()
+
+
+def test_ensure_api_key_no_op_for_claude_code(monkeypatch, cli_utils):
+    with patch.object(cli_utils, "questionary") as mock_q:
+        result = cli_utils.ensure_api_key("claude-code")
     assert result is None
     mock_q.password.assert_not_called()
 

@@ -153,6 +153,20 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
+Claude Code users can also pick the experimental `claude-code` provider to
+route LLM calls through the local `claude` CLI instead of an API key. This
+requires Claude Code to already be installed and authenticated:
+
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=claude-code
+export TRADINGAGENTS_DEEP_THINK_LLM=opus
+export TRADINGAGENTS_QUICK_THINK_LLM=sonnet
+```
+
+This adapter runs `claude -p` as a subprocess and disables Claude Code tools;
+TradingAgents still executes its own LangGraph tools. Use the Anthropic API
+provider for the most reliable production path.
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
@@ -213,7 +227,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, claude-code, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
