@@ -124,7 +124,12 @@ def _fetch_markets_by_id(market_ids: list[str]) -> list[dict]:
         except (httpx.HTTPStatusError, httpx.RequestError) as e:
             print(f"  WARNING: market {mid} fetch failed ({e}), skipping", file=sys.stderr)
             continue
-        m = _normalise_market(resp.json())
+        try:
+            body = resp.json()
+        except Exception as e:  # noqa: BLE001
+            print(f"  WARNING: market {mid} returned non-JSON body ({e}), skipping", file=sys.stderr)
+            continue
+        m = _normalise_market(body)
         if m is None:
             print(f"  WARNING: market {mid} could not be normalised, skipping", file=sys.stderr)
             continue

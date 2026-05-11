@@ -74,6 +74,9 @@ def size_order(
         usd: dollar amount to bet (fraction * capital_usd).
         reason: human-readable explanation of the sizing decision.
     """
+    if capital_usd <= 0:
+        raise ValueError(f"capital_usd must be positive, got {capital_usd}")
+
     zero: dict[str, float | str] = {"fraction": 0.0, "usd": 0.0}
 
     if decision.direction == PolymarketDirection.HOLD:

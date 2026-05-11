@@ -17,7 +17,6 @@ Phase B work that still needs to happen before real execution is sane:
   - Install py-clob-client and add to pyproject deps
   - Wallet management (key storage, USDC balance check, gas)
   - Polymarket account creation flow (sign-in tx)
-  - Binary risk model (Kelly criterion sizing) - see TODOS.md item 3
   - Slippage caps and order-book sanity checks before submission
   - Regulatory review for the operator's jurisdiction (US users blocked)
 
@@ -97,7 +96,16 @@ def place_order(
 
     # Kelly sizing — computed before safety gates so the caller can inspect
     # the sizing even in LIVE_DISABLED mode (useful for paper-trade logging).
-    sizing = _kelly_size(decision, capital_usd)
+    try:
+        sizing = _kelly_size(decision, capital_usd)
+    except ValueError as e:
+        return {
+            "status": "LIVE_DISABLED",
+            "reason": f"Kelly sizing error: {e}",
+            "order_id": None,
+            "decision": decision.model_dump(mode="json"),
+            "sizing": None,
+        }
     if sizing["fraction"] == 0.0:
         return {
             "status": "LIVE_SKIPPED",
