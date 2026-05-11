@@ -125,3 +125,28 @@ def test_hold_decision_is_skipped_not_disabled():
     )
     assert r["status"] == "LIVE_SKIPPED"
     assert "HOLD" in r["reason"]
+
+
+@pytest.mark.unit
+def test_kelly_zero_size_is_skipped_not_disabled():
+    """Non-HOLD decision that Kelly sizes to zero returns LIVE_SKIPPED, not LIVE_DISABLED."""
+    # confidence=0.50 is below the default min_confidence=0.55 → Kelly returns 0
+    low_conf = PolymarketDecision(
+        market_id="540816",
+        question="Will X happen?",
+        direction=PolymarketDirection("BUY_YES"),
+        confidence=0.50,
+        rationale="synthetic",
+        yes_price_at_analysis=0.40,
+        cycle_ts=12345,
+    )
+    r = place_order(
+        low_conf,
+        capital_usd=1000.0,
+        yes_token_id="850149...",
+        no_token_id="294612...",
+    )
+    assert r["status"] == "LIVE_SKIPPED"
+    assert r["order_id"] is None
+    assert r["sizing"] is not None
+    assert r["sizing"]["fraction"] == 0.0

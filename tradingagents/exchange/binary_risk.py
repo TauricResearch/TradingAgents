@@ -41,6 +41,10 @@ def kelly_fraction(p: float, b: float) -> float:
 def _net_odds(decision: PolymarketDecision) -> float:
     """Net odds b for the direction in decision."""
     yes_price = decision.yes_price_at_analysis
+    if yes_price <= 0.0 or yes_price >= 1.0:
+        raise ValueError(
+            f"yes_price_at_analysis must be strictly between 0 and 1, got {yes_price}"
+        )
     if decision.direction == PolymarketDirection.BUY_YES:
         return (1.0 / yes_price) - 1.0
     # BUY_NO: bet on the NO contract priced at (1 - yes_price)

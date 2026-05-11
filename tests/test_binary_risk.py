@@ -144,3 +144,18 @@ def test_usd_scales_with_capital():
     r_large = size_order(_decision(), capital_usd=2000.0)
     if r_small["fraction"] > 0:
         assert r_large["usd"] == pytest.approx(r_small["usd"] * 4, rel=0.01)
+
+
+@pytest.mark.unit
+def test_degenerate_yes_price_raises():
+    """yes_price 0.0 or 1.0 would cause division by zero — must raise ValueError."""
+    from tradingagents.exchange.binary_risk import _net_odds
+
+    d = _decision(direction="BUY_YES")
+    object.__setattr__(d, "yes_price_at_analysis", 0.0)
+    with pytest.raises(ValueError, match="strictly between 0 and 1"):
+        _net_odds(d)
+
+    object.__setattr__(d, "yes_price_at_analysis", 1.0)
+    with pytest.raises(ValueError, match="strictly between 0 and 1"):
+        _net_odds(d)

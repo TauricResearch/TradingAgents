@@ -122,7 +122,8 @@ def _fetch_markets_by_id(market_ids: list[str]) -> list[dict]:
                 f"{GAMMA_BASE}/markets/{mid}", params={}, timeout=DEFAULT_TIMEOUT
             )
         except (httpx.HTTPStatusError, httpx.RequestError) as e:
-            raise GammaAPIError(f"Gamma /markets/{mid} failed: {e}") from e
+            print(f"  WARNING: market {mid} fetch failed ({e}), skipping", file=sys.stderr)
+            continue
         m = _normalise_market(resp.json())
         if m is None:
             print(f"  WARNING: market {mid} could not be normalised, skipping", file=sys.stderr)
