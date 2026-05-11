@@ -441,6 +441,21 @@
     font-family: var(--mono);
     letter-spacing: 0.05em;
   }
+
+  /* ── Trade bar ───────────────────────────────────────────────────── */
+  .trade-bar { padding: 6px 8px; border-top: 1px solid var(--border); }
+  .trade-controls { display: flex; align-items: center; gap: 6px; }
+  .trade-currency { color: var(--text-dim); font-family: var(--mono); font-size: 12px; }
+  .trade-input { width: 90px; background: var(--bg-input, #1a1a1a); border: 1px solid var(--border);
+                 color: var(--text); font-family: var(--mono); font-size: 12px; padding: 3px 6px; }
+  .btn-buy  { background: #00c853; color: #000; font-size: 11px; font-weight: 700;
+              padding: 3px 10px; border: none; cursor: pointer; letter-spacing: 0.08em; }
+  .btn-sell { background: #d50000; color: #fff; font-size: 11px; font-weight: 700;
+              padding: 3px 10px; border: none; cursor: pointer; letter-spacing: 0.08em; }
+  .btn-buy:disabled, .btn-sell:disabled { opacity: 0.35; cursor: not-allowed; }
+  .trade-position { font-family: var(--mono); font-size: 11px; margin-top: 4px; }
+  .trade-position.pnl-positive { color: var(--green); }
+  .trade-position.pnl-negative { color: var(--red); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -547,6 +562,7 @@ function agentClass(name) {
 const state = {};     // ticker -> { status, currentAgent, result, logs, completedAgents }
 const chartInstances = {};        // ticker → Chart instance
 const chartsLoaded = new Set();   // tickers whose chart data has been fetched
+let portfolioState = { cash: 100000, positions: {}, total_value: 100000 };
 let ws = null;
 let wsReconnectTimer = null;
 const BACKEND = `ws://${location.host}/ws`;
@@ -730,6 +746,9 @@ function handleEvent(ev) {
       updateCardStatus(ev.ticker);
       toast(`Error analyzing ${ev.ticker}`, 'error');
       break;
+    case 'portfolio_update':
+      handlePortfolioUpdate(ev);
+      break;
   }
 }
 
@@ -877,6 +896,18 @@ function renderCard(ticker) {
     <!-- Price chart -->
     <div class="chart-container" id="chart-container-${ticker}">
       <canvas id="chart-${ticker}"></canvas>
+    </div>
+
+    <!-- Trade bar -->
+    <div class="trade-bar" id="trade-bar-${ticker}">
+      <div class="trade-controls">
+        <span class="trade-currency">$</span>
+        <input type="number" class="trade-input" id="trade-input-${ticker}"
+               placeholder="Amount" min="1" step="1" />
+        <button class="btn-buy" id="btn-buy-${ticker}" onclick="executeTrade('${ticker}','BUY')">BUY</button>
+        <button class="btn-sell" id="btn-sell-${ticker}" onclick="executeTrade('${ticker}','SELL')" disabled>SELL</button>
+      </div>
+      <div class="trade-position" id="trade-position-${ticker}" style="display:none"></div>
     </div>
 
     <!-- Log terminal -->
