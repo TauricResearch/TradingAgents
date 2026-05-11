@@ -28,6 +28,7 @@ dependencies = [
     "setuptools>=80.9.0",
     "stockstats>=0.6.5",
     "tqdm>=4.67.1",
+    "tushare>=1.4.0",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]

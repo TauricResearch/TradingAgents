@@ -1,3 +1,4 @@
+import re
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -23,6 +24,17 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .tushare_data import (
+    get_tushare_stock,
+    get_tushare_indicators,
+    get_tushare_fundamentals,
+    get_tushare_balance_sheet,
+    get_tushare_cashflow,
+    get_tushare_income_statement,
+    get_tushare_insider_transactions,
+    get_tushare_news,
+    get_tushare_global_news,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -63,6 +75,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "tushare",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -71,43 +84,85 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "tushare": get_tushare_stock,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "tushare": get_tushare_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "tushare": get_tushare_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "tushare": get_tushare_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "tushare": get_tushare_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "tushare": get_tushare_income_statement,
     },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "tushare": get_tushare_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "tushare": get_tushare_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+        "tushare": get_tushare_insider_transactions,
     },
 }
+
+def detect_vendor_for_ticker(symbol: str) -> str | None:
+    """
+    Detect the appropriate vendor based on ticker symbol format.
+    Returns "tushare" for A-share/HK tickers, None for others (use config default).
+    """
+    if not symbol or not isinstance(symbol, str):
+        return None
+
+    s = symbol.strip().upper()
+
+    # A股格式: 600000.SH, 600000.SS, 000001.SZ
+    if re.match(r'^\d{6}\.(SH|SS|SZ)$', s):
+        return "tushare"
+
+    # A股格式: SH600000, SS600000, SZ000001
+    if re.match(r'^(SH|SS|SZ)\d{6}$', s):
+        return "tushare"
+
+    # 纯6位数字（A股）
+    if re.match(r'^\d{6}$', s):
+        return "tushare"
+
+    # 港股格式: 0700.HK, 00700.HK
+    if re.match(r'^\d{4,5}\.HK$', s):
+        return "tushare"
+
+    # 港股格式: HK0700, HK00700
+    if re.match(r'^HK\d{4,5}$', s):
+        return "tushare"
+
+    return None
+
 
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""
@@ -134,13 +189,31 @@ def get_vendor(category: str, method: str = None) -> str:
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
-    vendor_config = get_vendor(category, method)
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
 
-    # Build fallback chain: primary vendors first, then remaining available vendors
+    # Auto-detect vendor based on ticker format
+    auto_vendor = None
+    if method != "get_global_news" and args:
+        # First arg is typically the ticker/symbol
+        auto_vendor = detect_vendor_for_ticker(str(args[0]))
+
+    # Get config-based vendor preferences
+    vendor_config = get_vendor(category, method)
+    config_vendors = [v.strip() for v in vendor_config.split(',')]
+
+    # Build fallback chain
+    if auto_vendor and auto_vendor in VENDOR_METHODS.get(method, {}):
+        # Auto-detected vendor goes first, then config-based, then remaining
+        primary_vendors = [auto_vendor]
+        for v in config_vendors:
+            if v not in primary_vendors:
+                primary_vendors.append(v)
+    else:
+        primary_vendors = config_vendors
+
+    # Append remaining available vendors not yet in the chain
     all_available_vendors = list(VENDOR_METHODS[method].keys())
     fallback_vendors = primary_vendors.copy()
     for vendor in all_available_vendors:
@@ -158,5 +231,9 @@ def route_to_vendor(method: str, *args, **kwargs):
             return impl_func(*args, **kwargs)
         except AlphaVantageRateLimitError:
             continue  # Only rate limits trigger fallback
+        except Exception:
+            if vendor == auto_vendor:
+                continue  # Auto-detected vendor failed, fall through to next
+            raise
 
     raise RuntimeError(f"No available vendor for '{method}'")
