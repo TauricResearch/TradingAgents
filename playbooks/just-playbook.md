@@ -123,6 +123,36 @@ watch patterns...:
     watchexec -e {{patterns}} -- just build
 ```
 
+### ⚠ Parameter Passing Gotcha
+
+just passes a parameter to a script as `--flag=value` in a **single token** when the value has no spaces. Crucially, it also **prepends the param name** to the value:
+
+```bash
+just ctx-lexicon-type type=term        # → script receives: --type=type=term
+just ctx-lexicon-search query=humility # → script receives: --search=query=humility
+```
+
+So the script receives `--flag=paramname=value`, not `--flag value`.
+
+**Script-side fix — strip the first `word=` prefix from the value:**
+
+```typescript
+function getFlagValue(flag: string): string | null {
+  const raw = args.find((a) => a.startsWith(`--${flag}=`))
+    ?.slice(`--${flag}=`.length) ?? null
+  if (!raw) return null
+  // just prepended the param name: "--flag=param=value" → strip first "word=" prefix
+  // e.g. "--type=type=term" → "type=term" → "term"
+  // e.g. "--search=query=humility" → "query=humility" → "humility"
+  const eq = raw.indexOf("=")
+  return eq > 0 ? raw.slice(eq + 1) : raw
+}
+```
+
+**Why `indexOf("=")` and not a named strip:** The first `word=` in the value is always just's prepended param name. A real search value containing `=` (e.g. `--search foo=bar`) becomes `foo=bar` after stripping `foo=`. This is correct.
+
+**This is a universal problem** for any script called by just with parameters. Add this pattern to every such script.
+
 ---
 
 ## Aliases
