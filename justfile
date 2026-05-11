@@ -341,7 +341,6 @@ td-reset:
     rm -rf .todos
     td init
 
-<<<<<<< feat/multi-agent-worktree
 # ── Worktree: git worktree management ──────────────────────────────────────
 #   Creates worktree + writes .td-root → shared .todos/ at repo root.
 #   Each worktree uses the same td database (no copies, no merge needed).
@@ -372,7 +371,7 @@ wt-list:
 [group("worktree")]
 wt-delete NAME:
     bun scripts/worktree-init.ts {{NAME}} --delete
-=======
+
 # ── Agent: Multi-Agent Coordination ─────────────────────────────────────────
 #   Scripts live in scripts/agent-*.ts. These just recipes are the thin facade.
 #   Full protocol: playbooks/td-playbook.md
@@ -449,7 +448,6 @@ agent-end:
     @echo ""
     @echo "Run handoffs manually, then: td ws handoff && td ws end"
     @echo "Full guide: playbooks/td-playbook.md"
->>>>>>> main
 
 # ── Run: business operations ────────────────────────────────────────────────
 #   Core day-to-day operations. Ordered by frequency of use.

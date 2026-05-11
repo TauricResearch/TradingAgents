@@ -7,7 +7,11 @@
 {"file":"2026-05-09-brief-canonical-registry.md","date":"2026-05-09","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-11-brief-barnacle-scraper-prompt.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-11-brief-brnacle-scraper-prompt.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-11-brief-reintegration-protocol.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-11-td-worktree-feature-request.md","date":"2026-05-11","status":"draft","summary":"Feature request for td worktree integration: create/list/delete/switch worktrees with td session awareness","meta":{"epic":null}}
+{"file":"2026-05-11-td-worktree-issue-draft.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-11-td-worktree-test-results.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"alerts-phase2.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"barnacle-scrubber-plan.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"brief-dashboard-2026-05-02.md","date":"2026-05-02","status":"done","summary":"Dashboard v1 foundation: Bun/Hono server, HTMX frontend, SQLite persistence","meta":{"epic":null}}
@@ -24,6 +28,5 @@
 {"file":"epic-ig-api-validation.md","date":"2026-05-07","status":"done","summary":"IG API validation: test real order placement, connectivity config, instrument data","meta":{"epic":null}}
 {"file":"epic-trade-calculator.md","date":"2026-05-07","status":"done","summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders","meta":{"epic":null}}
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
-{"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{"template":true}}
-{"file":"2026-05-11-td-worktree-feature-request.md","date":"2026-05-11","status":"draft","summary":"Feature request for td worktree integration: create/list/delete/switch worktrees with td session awareness","meta":{"epic":null}}
+{"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
