@@ -86,10 +86,35 @@ reg-docs:
 reg-lexicon:
     bun scripts/reg-list.ts lexicon
 
-# List CTX conceptual lexicon (converted to merged schema)
+# List CTX conceptual lexicon in dedicated table format
 [group("reg")]
-reg-lexicon-ctx:
-    bun scripts/reg-list.ts lexicon-ctx
+ctx-lexicon:
+    bun scripts/ctx-lexicon-list.ts
+
+# Filter CTX lexicon by type (term | operational-heuristic)
+[group("reg")]
+ctx-lexicon-type type="term":
+    bun scripts/ctx-lexicon-list.ts --type={{type}}
+
+# Filter CTX lexicon by status (active | draft)
+[group("reg")]
+ctx-lexicon-status stat="active":
+    bun scripts/ctx-lexicon-list.ts --status={{stat}}
+
+# Full-text search CTX lexicon
+[group("reg")]
+ctx-lexicon-search query:
+    bun scripts/ctx-lexicon-list.ts --search={{query}}
+
+# Show CTX lexicon distribution stats
+[group("reg")]
+ctx-lexicon-stats:
+    bun scripts/ctx-lexicon-list.ts --stats
+
+# Re-export CTX lexicon (run after editing docs/conceptual-lexicon-example.json)
+[group("reg")]
+ctx-lexicon-convert:
+    bun scripts/ctx-lexicon-convert.ts
 
 # Show consolidated project state (briefs, debriefs, tasks, docs)
 [group("reg")]

@@ -115,12 +115,32 @@ function printStats(entries: LexiconEntry[]): void {
   }
 }
 
-// CLI
+// CLI — robust flag extraction: handle both "--flag value" and "--flag=value" formats
 const args = process.argv.slice(2)
-const flags = args.filter((a) => a.startsWith("--"))
-const search = flags.includes("--search") ? args[args.indexOf("--search") + 1]?.toLowerCase() : null
-const typeFilter = flags.includes("--type") ? args[args.indexOf("--type") + 1] : null
-const statusFilter = flags.includes("--status") ? args[args.indexOf("--status") + 1] : null
+
+function getFlagValue(flag: string): string | null {
+  // just passes "--flag value" as "--flag=value" in a single token.
+  // Extract the value after the flag prefix.
+  // For --type=type=term: just prepended the param name, strip it so we get "term".
+  // For --search=query=humility: just prepended "query=", keep as-is (search expects free text).
+  const eqPrefix = `--${flag}=`
+  const eqArg = args.find((a) => a.startsWith(eqPrefix))
+  if (!eqArg) return null
+
+  const raw = eqArg.slice(eqPrefix.length)
+  if (!raw) return null
+
+  // For non-search flags, strip any leading "paramName=" that just prepended
+  if (flag !== "search") {
+    const paramEq = `${flag}=`
+    if (raw.startsWith(paramEq)) return raw.slice(paramEq.length)
+  }
+  return raw
+}
+
+const search = getFlagValue("--search")?.toLowerCase() ?? null
+const typeFilter = getFlagValue("--type")
+const statusFilter = getFlagValue("--status")
 
 let entries = loadEntries()
 if (typeFilter) entries = entries.filter((e) => e.type === typeFilter)
@@ -134,9 +154,9 @@ if (search) {
   )
 }
 
-if (flags.includes("--json")) {
+if (args.includes("--json")) {
   printJson(entries)
-} else if (flags.includes("--stats")) {
+} else if (args.includes("--stats")) {
   printStats(entries)
 } else {
   printTable(entries)
