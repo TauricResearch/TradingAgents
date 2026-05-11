@@ -199,24 +199,31 @@ def get_akshare_stock_data(symbol: str, start_date: str, end_date: str) -> str:
                 end_date=end_date.replace('-', ''),
                 adjust="qfq",
             )
+            existing = {k: v for k, v in _COL_MAP.items() if k in df.columns}
+            df = df.rename(columns=existing)
+            output_cols = [c for c in existing.values() if c in df.columns]
+            df = df[output_cols]
         else:
-            df = ak.stock_zh_a_hist(
-                symbol=code,
-                period="daily",
+            # Use Sina (not East Money) to avoid proxy/VPN blocks
+            df = ak.stock_zh_a_daily(
+                symbol=_sina_stock_code(code, exchange),
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', ''),
                 adjust="qfq",
             )
+            col_sina = {
+                'date': 'Date', 'open': 'Open', 'high': 'High',
+                'low': 'Low', 'close': 'Close', 'volume': 'Volume',
+            }
+            existing = {k: v for k, v in col_sina.items() if k in df.columns}
+            df = df.rename(columns=existing)
+            output_cols = [c for c in existing.values() if c in df.columns]
+            df = df[output_cols]
     except Exception as e:
         return f"Error retrieving stock data for {symbol}: {str(e)}"
 
     if df is None or df.empty:
         return f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
-
-    existing = {k: v for k, v in _COL_MAP.items() if k in df.columns}
-    df = df.rename(columns=existing)
-    output_cols = [c for c in existing.values() if c in df.columns]
-    df = df[output_cols]
 
     for col in ['Open', 'High', 'Low', 'Close']:
         if col in df.columns:
@@ -232,31 +239,45 @@ def get_akshare_stock_data(symbol: str, start_date: str, end_date: str) -> str:
 
 
 def get_akshare_fundamentals(ticker: str, curr_date: str = None) -> str:
-    """Get company fundamentals from AKShare (East Money)."""
+    """Get company fundamentals from AKShare (TongHuaShun financial abstract)."""
     ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
 
     if exchange == 'hongkong':
         return f"No fundamentals data available for HK stock '{code}' via AKShare"
 
+    # Try THS financial abstract first (works reliably), fall back to East Money
     try:
-        df = ak.stock_individual_info_em(symbol=code)
-    except Exception as e:
-        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+        df = ak.stock_financial_abstract_ths(symbol=code)
+    except Exception:
+        df = None
 
-    if df is None or df.empty:
-        return f"No fundamentals data found for symbol '{ticker}'"
+    if df is not None and not df.empty:
+        # Get the most recent row (latest fiscal period)
+        latest = df.iloc[-1]
+        lines = [f"{col}: {latest[col]}" for col in df.columns
+                 if col not in ('报告期', '净利润同比增长率') and latest[col] and str(latest[col]) != 'False']
+    else:
+        # Fallback: try East Money individual info
+        try:
+            df = ak.stock_individual_info_em(symbol=code)
+        except Exception as e:
+            return f"Error retrieving fundamentals for {ticker}: {str(e)}"
 
-    lines = []
-    for _, row in df.iterrows():
-        item = str(row.iloc[0]) if len(row) > 0 else ""
-        value = str(row.iloc[1]) if len(row) > 1 else ""
-        lines.append(f"{item}: {value}")
+        if df is None or df.empty:
+            return f"No fundamentals data found for symbol '{ticker}'"
+
+        lines = []
+        for _, row in df.iterrows():
+            item = str(row.iloc[0]) if len(row) > 0 else ""
+            value = str(row.iloc[1]) if len(row) > 1 else ""
+            lines.append(f"{item}: {value}")
 
     header = (
         f"# Company Fundamentals for {ticker.upper()}\n"
         f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     )
+    return header + "\n".join(lines)
     return header + "\n".join(lines)
 
 
@@ -278,13 +299,21 @@ def _hk_unsupported(ticker: str, data_type: str) -> str:
     return f"No {data_type} data available for HK stock '{code}' via AKShare"
 
 
+def _sina_stock_code(code: str, exchange: str) -> str:
+    """Convert to Sina-format stock code: sh688222 or sz000001."""
+    prefix = 'sh' if exchange == 'shanghai' else 'sz'
+    return f'{prefix}{code}'
+
+
 def get_akshare_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
     ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
     if exchange == 'hongkong':
         return _hk_unsupported(ticker, "balance sheet")
     try:
-        df = ak.stock_balance_sheet_by_report_em(symbol=code)
+        df = ak.stock_financial_report_sina(
+            stock=_sina_stock_code(code, exchange), symbol='资产负债表'
+        )
     except Exception as e:
         return f"Error retrieving balance sheet for {ticker}: {str(e)}"
     return _financial_csv(ticker, freq, "Balance Sheet", df)
@@ -296,7 +325,9 @@ def get_akshare_income_statement(ticker: str, freq: str = "quarterly", curr_date
     if exchange == 'hongkong':
         return _hk_unsupported(ticker, "income statement")
     try:
-        df = ak.stock_profit_sheet_by_report_em(symbol=code)
+        df = ak.stock_financial_report_sina(
+            stock=_sina_stock_code(code, exchange), symbol='利润表'
+        )
     except Exception as e:
         return f"Error retrieving income statement for {ticker}: {str(e)}"
     return _financial_csv(ticker, freq, "Income Statement", df)
@@ -308,7 +339,9 @@ def get_akshare_cashflow(ticker: str, freq: str = "quarterly", curr_date: str = 
     if exchange == 'hongkong':
         return _hk_unsupported(ticker, "cash flow")
     try:
-        df = ak.stock_cash_flow_sheet_by_report_em(symbol=code)
+        df = ak.stock_financial_report_sina(
+            stock=_sina_stock_code(code, exchange), symbol='现金流量表'
+        )
     except Exception as e:
         return f"Error retrieving cash flow for {ticker}: {str(e)}"
     return _financial_csv(ticker, freq, "Cash Flow", df)
