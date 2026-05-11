@@ -832,18 +832,8 @@ ANALYST_REPORT_MAP = {
 
 
 def update_analyst_statuses(message_buffer, chunk):
-    """Update analyst statuses based on accumulated report state.
-
-    Logic:
-    - Store new report content from the current chunk if present
-    - Check accumulated report_sections (not just current chunk) for status
-    - Analysts with reports = completed
-    - First analyst without report = in_progress
-    - Remaining analysts without reports = pending
-    - When all analysts done, set Bull Researcher to in_progress
-    """
     selected = message_buffer.selected_analysts
-    found_active = False
+    all_completed = True
 
     for analyst_key in ANALYST_ORDER:
         if analyst_key not in selected:
@@ -852,23 +842,18 @@ def update_analyst_statuses(message_buffer, chunk):
         agent_name = ANALYST_AGENT_NAMES[analyst_key]
         report_key = ANALYST_REPORT_MAP[analyst_key]
 
-        # Capture new report content from current chunk
         if chunk.get(report_key):
             message_buffer.update_report_section(report_key, chunk[report_key])
 
-        # Determine status from accumulated sections, not just current chunk
         has_report = bool(message_buffer.report_sections.get(report_key))
 
         if has_report:
             message_buffer.update_agent_status(agent_name, "completed")
-        elif not found_active:
-            message_buffer.update_agent_status(agent_name, "in_progress")
-            found_active = True
         else:
-            message_buffer.update_agent_status(agent_name, "pending")
+            message_buffer.update_agent_status(agent_name, "in_progress")
+            all_completed = False
 
-    # When all analysts complete, transition research team to in_progress
-    if not found_active and selected:
+    if all_completed and selected:
         if message_buffer.agent_status.get("Bull Researcher") == "pending":
             message_buffer.update_agent_status("Bull Researcher", "in_progress")
 
@@ -1053,9 +1038,9 @@ def run_analysis(checkpoint: bool = False):
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-        # Update agent status to in_progress for the first analyst
-        first_analyst = f"{selections['analysts'][0].value.capitalize()} Analyst"
-        message_buffer.update_agent_status(first_analyst, "in_progress")
+        for analyst in selections["analysts"]:
+            analyst_name = ANALYST_AGENT_NAMES.get(analyst.value.lower(), f"{analyst.value.capitalize()} Analyst")
+            message_buffer.update_agent_status(analyst_name, "in_progress")
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Create spinner text
