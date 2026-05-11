@@ -61,6 +61,21 @@ _DEEPSEEK_CHAT = ModelCapabilities(
     preferred_structured_method="function_calling",
 )
 
+# MiniMax M2.x reasoning models accept the tools array, but their
+# tool_choice parameter is restricted to the enum {"none", "auto"}
+# (platform.minimax.io/docs/api-reference/text-post). Langchain's
+# function_calling path sends tool_choice as a function-spec dict, which
+# MiniMax 400s — same shape as the DeepSeek bug. supports_tool_choice=False
+# makes the dispatch in NormalizedChatOpenAI suppress the kwarg; the schema
+# still ships as a tool. json_mode response_format is only for
+# MiniMax-Text-01, not M2.x.
+_MINIMAX_THINKING = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=False,
+    supports_json_schema=False,
+    preferred_structured_method="function_calling",
+)
+
 _DEFAULT = ModelCapabilities(
     supports_tool_choice=True,
     supports_json_mode=True,
@@ -75,13 +90,23 @@ _BY_ID: dict[str, ModelCapabilities] = {
     "deepseek-reasoner": _DEEPSEEK_THINKING,
     "deepseek-v4-flash": _DEEPSEEK_THINKING,
     "deepseek-v4-pro": _DEEPSEEK_THINKING,
+    # MiniMax — full official model lineup per
+    # platform.minimax.io/docs/api-reference/text-openai-api
+    "MiniMax-M2.7": _MINIMAX_THINKING,
+    "MiniMax-M2.7-highspeed": _MINIMAX_THINKING,
+    "MiniMax-M2.5": _MINIMAX_THINKING,
+    "MiniMax-M2.5-highspeed": _MINIMAX_THINKING,
+    "MiniMax-M2.1": _MINIMAX_THINKING,
+    "MiniMax-M2.1-highspeed": _MINIMAX_THINKING,
+    "MiniMax-M2": _MINIMAX_THINKING,
 }
 
-# Forward-compat patterns. A new ``deepseek-v5-*`` or ``deepseek-reasoner-*``
-# variant inherits the thinking-mode quirks automatically.
+# Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``
+# or ``MiniMax-M3*`` variants inherit the thinking-mode quirks automatically.
 _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
+    (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
 ]
 
 

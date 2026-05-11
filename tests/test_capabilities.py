@@ -32,7 +32,7 @@ class TestExactIdMatches:
 
 @pytest.mark.unit
 class TestPatternMatches:
-    """Forward-compat regex patterns catch unknown DeepSeek variants."""
+    """Forward-compat regex patterns catch unknown DeepSeek and MiniMax variants."""
 
     def test_future_deepseek_v5_inherits_thinking_quirks(self):
         caps = get_capabilities("deepseek-v5-flash")
@@ -46,6 +46,34 @@ class TestPatternMatches:
     def test_reasoner_variant_inherits_thinking_quirks(self):
         caps = get_capabilities("deepseek-reasoner-pro")
         assert caps.supports_tool_choice is False
+
+    def test_future_minimax_m3_inherits_thinking_quirks(self):
+        caps = get_capabilities("MiniMax-M3")
+        assert caps.supports_tool_choice is False
+
+    def test_future_minimax_m4_highspeed_inherits_thinking_quirks(self):
+        caps = get_capabilities("MiniMax-M4-highspeed")
+        assert caps.supports_tool_choice is False
+
+
+@pytest.mark.unit
+class TestMinimaxExactMatches:
+    """MiniMax M2.x models reject langchain's function-spec dict tool_choice
+    (official API enum: none/auto only)."""
+
+    def test_m2_7_rejects_tool_choice(self):
+        caps = get_capabilities("MiniMax-M2.7")
+        assert caps.supports_tool_choice is False
+        assert caps.supports_json_mode is False  # only MiniMax-Text-01 supports json_object
+
+    def test_m2_7_highspeed_rejects_tool_choice(self):
+        assert get_capabilities("MiniMax-M2.7-highspeed").supports_tool_choice is False
+
+    def test_m2_1_rejects_tool_choice(self):
+        assert get_capabilities("MiniMax-M2.1").supports_tool_choice is False
+
+    def test_m2_base_rejects_tool_choice(self):
+        assert get_capabilities("MiniMax-M2").supports_tool_choice is False
 
 
 @pytest.mark.unit

@@ -107,6 +107,28 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
                 generation.message.additional_kwargs["reasoning_content"] = reasoning
         return chat_result
 
+
+class MinimaxChatOpenAI(NormalizedChatOpenAI):
+    """MiniMax-specific overrides on top of the OpenAI-compatible client.
+
+    M2.x reasoning models embed ``<think>...</think>`` blocks directly in
+    ``message.content`` by default, which would pollute saved reports.
+    Per platform.minimax.io/docs/api-reference/text-openai-api, setting
+    ``reasoning_split=True`` in the request body redirects the thinking
+    block into ``reasoning_details`` so ``content`` stays clean.
+
+    Tool-choice handling for M2.x — those models accept only the string
+    enum ``{"none", "auto"}`` and reject langchain's function-spec dict —
+    is handled by the capability dispatch in
+    ``NormalizedChatOpenAI.with_structured_output``, not here.
+    """
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        payload.setdefault("reasoning_split", True)
+        return payload
+
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
@@ -183,9 +205,14 @@ class OpenAIClient(BaseLLMClient):
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
 
-        # DeepSeek's thinking-mode quirks live in their own subclass so the
-        # base NormalizedChatOpenAI stays free of provider-specific branches.
-        chat_cls = DeepSeekChatOpenAI if self.provider == "deepseek" else NormalizedChatOpenAI
+        # Provider-specific quirks live in their own subclasses so the
+        # base NormalizedChatOpenAI stays free of provider branches.
+        if self.provider == "deepseek":
+            chat_cls = DeepSeekChatOpenAI
+        elif self.provider in ("minimax", "minimax-cn"):
+            chat_cls = MinimaxChatOpenAI
+        else:
+            chat_cls = NormalizedChatOpenAI
         return chat_cls(**llm_kwargs)
 
     def validate_model(self) -> bool:

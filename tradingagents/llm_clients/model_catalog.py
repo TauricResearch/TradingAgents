@@ -8,17 +8,22 @@ ModelOption = Tuple[str, str]
 ProviderModeOptions = Dict[str, Dict[str, List[ModelOption]]]
 
 
-# Shared model list for MiniMax's global and CN endpoints (same model IDs).
+# Shared model list for MiniMax's global and CN endpoints (same IDs).
+# Full official lineup per platform.minimax.io/docs/api-reference/text-openai-api.
+# All M2.x models share a 204,800-token context window.
 _MINIMAX_MODELS: Dict[str, List[ModelOption]] = {
     "quick": [
-        ("MiniMax M2.7 Highspeed — Fast, 204K ctx", "MiniMax-M2.7-highspeed"),
-        ("MiniMax M2.5 Highspeed — Previous-gen fast", "MiniMax-M2.5-highspeed"),
+        ("MiniMax-M2.7-highspeed - Faster M2.7, 204K ctx, ~100 TPS", "MiniMax-M2.7-highspeed"),
+        ("MiniMax-M2.5-highspeed - Previous-gen highspeed, 204K ctx", "MiniMax-M2.5-highspeed"),
+        ("MiniMax-M2.1-highspeed - M2.1 highspeed, 204K ctx", "MiniMax-M2.1-highspeed"),
         ("Custom model ID", "custom"),
     ],
     "deep": [
-        ("MiniMax M2.7 — Flagship, 204K ctx", "MiniMax-M2.7"),
-        ("MiniMax M2.5 — Previous-gen flagship", "MiniMax-M2.5"),
-        ("MiniMax M2.7 Highspeed — Faster M2.7, 204K ctx", "MiniMax-M2.7-highspeed"),
+        ("MiniMax-M2.7 - Flagship, SOTA on coding/agent benchmarks, 204K ctx", "MiniMax-M2.7"),
+        ("MiniMax-M2.7-highspeed - Same quality as M2.7, ~100 TPS", "MiniMax-M2.7-highspeed"),
+        ("MiniMax-M2.5 - Previous-gen flagship, 204K ctx", "MiniMax-M2.5"),
+        ("MiniMax-M2.1 - Earlier M2 line, 204K ctx", "MiniMax-M2.1"),
+        ("MiniMax-M2 - Base M2, 204K ctx", "MiniMax-M2"),
         ("Custom model ID", "custom"),
     ],
 }
