@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import builtins
 import subprocess
+
 from langchain_core.messages import HumanMessage
 
 import tradingagents.llm_clients.codex_client as codex_module
@@ -101,6 +103,75 @@ def test_codex_auth_error_explains_relogin(monkeypatch):
         assert "codex logout" in message
         assert "codex login" in message
         assert "already-invalid Codex refresh token" in message
+    else:
+        raise AssertionError("Expected RuntimeError")
+
+
+def test_codex_auth_error_waits_for_reauth_and_retries_once(monkeypatch):
+    class TtyInput:
+        @staticmethod
+        def isatty():
+            return True
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            return subprocess.CompletedProcess(
+                args=args,
+                returncode=1,
+                stdout="",
+                stderr=(
+                    "ERROR: Your access token could not be refreshed because your "
+                    "refresh token was already used."
+                ),
+            )
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="answer", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_module.sys, "stdin", TtyInput())
+    monkeypatch.setattr(builtins, "input", lambda prompt: "")
+
+    llm = CodexClient("gpt-5.5").get_llm()
+    result = llm.invoke([HumanMessage(content="hello")])
+
+    assert result.content == "answer"
+    assert len(calls) == 2
+
+
+def test_codex_auth_retry_can_be_disabled(monkeypatch):
+    class TtyInput:
+        @staticmethod
+        def isatty():
+            return True
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=1,
+            stdout="",
+            stderr=(
+                "ERROR: Your access token could not be refreshed because your "
+                "refresh token was already used."
+            ),
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(codex_module.sys, "stdin", TtyInput())
+    monkeypatch.setattr(builtins, "input", lambda prompt: "")
+    monkeypatch.setenv("TRADINGAGENTS_CODEX_AUTH_RETRY", "0")
+
+    llm = CodexClient("gpt-5.5").get_llm()
+
+    try:
+        llm.invoke([HumanMessage(content="hello")])
+    except RuntimeError as exc:
+        assert "codex logout" in str(exc)
+        assert len(calls) == 1
     else:
         raise AssertionError("Expected RuntimeError")
 

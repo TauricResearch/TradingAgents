@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -28,22 +29,107 @@ from .claude_code_client import (
 _CODEX_EXEC_LOCK = threading.Lock()
 
 
-def _codex_error_message(completed: subprocess.CompletedProcess[str]) -> str:
-    error_msg = completed.stderr.strip() or completed.stdout.strip()
+def _codex_raw_error(completed: subprocess.CompletedProcess[str]) -> str:
+    return completed.stderr.strip() or completed.stdout.strip()
+
+
+def _is_codex_auth_error(error_msg: str) -> bool:
     auth_markers = (
         "refresh token was already used",
         "401 Unauthorized",
         "could not be refreshed",
     )
-    if any(marker in error_msg for marker in auth_markers):
-        return (
-            f"{error_msg}\n\n"
-            "Codex CLI authentication failed. Run `codex logout` and then "
-            "`codex login` in your shell, then rerun TradingAgents. The Codex "
-            "provider serializes local `codex exec` calls, but it cannot repair "
-            "an already-invalid Codex refresh token."
-        )
+    return any(marker in error_msg for marker in auth_markers)
+
+
+def _codex_error_message(completed: subprocess.CompletedProcess[str]) -> str:
+    error_msg = _codex_raw_error(completed)
+    if _is_codex_auth_error(error_msg):
+        return _codex_auth_guidance(error_msg)
     return error_msg
+
+
+def _codex_auth_guidance(error_msg: str) -> str:
+    return (
+        f"{error_msg}\n\n"
+        "Codex CLI authentication failed. Run `codex logout` and then "
+        "`codex login` in your shell, then rerun TradingAgents. The Codex "
+        "provider serializes local `codex exec` calls, but it cannot repair "
+        "an already-invalid Codex refresh token."
+    )
+
+
+def _codex_auth_retry_enabled() -> bool:
+    return os.environ.get("TRADINGAGENTS_CODEX_AUTH_RETRY", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def _maybe_wait_for_codex_reauth(error_msg: str) -> bool:
+    if not _codex_auth_retry_enabled() or not sys.stdin.isatty():
+        return False
+
+    print(
+        "\nCodex CLI authentication failed.\n"
+        "To switch the global Codex account, open another terminal and run:\n"
+        "  codex logout\n"
+        "  codex login\n\n"
+        "After the new account is authenticated, return here and press Enter "
+        "to retry this TradingAgents model call once.\n"
+        "Set TRADINGAGENTS_CODEX_AUTH_RETRY=0 to disable this pause.\n",
+        file=sys.stderr,
+    )
+    if error_msg:
+        print(error_msg, file=sys.stderr)
+
+    try:
+        input("Press Enter to continue after Codex login is refreshed...")
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return True
+
+
+def _run_codex_subprocess(
+    args: list[str],
+    *,
+    prompt: str,
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    with _CODEX_EXEC_LOCK:
+        return subprocess.run(
+            args,
+            input=prompt,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+
+
+def _codex_completed_or_raise(
+    completed: subprocess.CompletedProcess[str],
+    *,
+    args: list[str],
+    prompt: str,
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    if completed.returncode == 0:
+        return completed
+
+    error_msg = completed.stderr.strip() or completed.stdout.strip()
+    if _is_codex_auth_error(error_msg) and _maybe_wait_for_codex_reauth(error_msg):
+        retried = _run_codex_subprocess(args, prompt=prompt, timeout=timeout)
+        if retried.returncode == 0:
+            return retried
+        completed = retried
+
+    raise RuntimeError(
+        "codex command failed with exit code "
+        f"{completed.returncode}: {_codex_error_message(completed)}"
+    )
 
 
 class CodexChatModel(BaseChatModel):
@@ -102,20 +188,13 @@ class CodexChatModel(BaseChatModel):
         args.extend(self.extra_args)
 
         try:
-            with _CODEX_EXEC_LOCK:
-                completed = subprocess.run(
-                    args,
-                    input=prompt,
-                    text=True,
-                    capture_output=True,
-                    timeout=self.timeout,
-                    check=False,
-                )
-            if completed.returncode != 0:
-                raise RuntimeError(
-                    "codex command failed with exit code "
-                    f"{completed.returncode}: {_codex_error_message(completed)}"
-                )
+            completed = _run_codex_subprocess(args, prompt=prompt, timeout=self.timeout)
+            completed = _codex_completed_or_raise(
+                completed,
+                args=args,
+                prompt=prompt,
+                timeout=self.timeout,
+            )
             if output_path.exists():
                 output = output_path.read_text(encoding="utf-8").strip()
                 if output:
