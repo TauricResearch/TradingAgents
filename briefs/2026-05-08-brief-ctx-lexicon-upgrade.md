@@ -1,7 +1,7 @@
 # Brief: CTX Conceptual Lexicon Upgrade
 
 **Date**: 2026-05-08
-**Status**: open
+**Status**: Closed — implemented in `debriefs/lexicon-ctx.jsonl`, `silo-conceptual-lexicon.jsonl`
 **Epic**: UNIFIED-CLI-001
 
 ## Problem
