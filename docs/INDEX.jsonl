@@ -15,3 +15,4 @@
 {"file":"schema/unified-registry.md","date":"2026-05-08","status":"active","summary":"Unified JSONL schema for all document indexes in the repository","meta":{"type":"schema","topic":"registry"}}
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
+{"file":"agent-silo-value-proposition.md","date":"2026-05-11","status":"active","summary":"Corporate value prop: blast radius containment, bounded economics, auditability — the silo as product not constraint","meta":{"type":"argument","topic":"agent-silo","tags":["agent-silo","corporate-security","product-argument","blast-radius"]}}
