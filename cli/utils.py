@@ -291,7 +291,9 @@ def ask_openai_reasoning_effort() -> str:
 def ask_anthropic_effort() -> str | None:
     """Ask for Anthropic effort level.
 
-    Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
+    Controls token usage and response thoroughness on Claude 4.5 / 4.6 / 4.7
+    models. The API also accepts "max"; we expose low/medium/high as the
+    common selection range.
     """
     return questionary.select(
         "Select Effort Level:",
