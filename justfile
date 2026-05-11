@@ -86,37 +86,30 @@ reg-docs:
 reg-lexicon:
     bun scripts/reg-list.ts lexicon
 
-# List CTX conceptual lexicon in dedicated table format
 [group("reg")]
 ctx-lexicon:
     bun scripts/ctx-lexicon-list.ts
 
-# Filter CTX lexicon by type (term | operational-heuristic)
 [group("reg")]
 ctx-lexicon-type type="term":
-    bun scripts/ctx-lexicon-list.ts --type={{type}}
+    bun scripts/ctx-lexicon-list.ts --type={{ type }}
 
-# Filter CTX lexicon by status (active | draft)
 [group("reg")]
 ctx-lexicon-status stat="active":
-    bun scripts/ctx-lexicon-list.ts --status={{stat}}
+    bun scripts/ctx-lexicon-list.ts --status={{ stat }}
 
-# Full-text search CTX lexicon
 [group("reg")]
 ctx-lexicon-search query:
-    bun scripts/ctx-lexicon-list.ts --search={{query}}
+    bun scripts/ctx-lexicon-list.ts --search={{ query }}
 
-# Show CTX lexicon distribution stats
 [group("reg")]
 ctx-lexicon-stats:
     bun scripts/ctx-lexicon-list.ts --stats
 
-# Re-export CTX lexicon (run after editing docs/conceptual-lexicon-example.json)
 [group("reg")]
 ctx-lexicon-convert:
     bun scripts/ctx-lexicon-convert.ts
 
-# Incorporate 7 CTX terms into silo-conceptual-lexicon.jsonl (with heuristic + usage)
 [group("reg")]
 ctx-lexicon-incorporate:
     bun scripts/ctx-lexicon-incorporate.ts
@@ -144,17 +137,17 @@ reg-sync-fix:
 # Mine a playbook from project to canonicals (dry-run by default, --apply to confirm)
 [group("reg")]
 reg-mine FILE:
-    bun scripts/reg-mine.ts {{FILE}}
+    bun scripts/reg-mine.ts {{ FILE }}
 
 # Import a canonical playbook into the project (dry-run: add --apply to confirm)
 [group("reg")]
 reg-import FILE:
-    bun scripts/reg-import.ts {{FILE}}
+    bun scripts/reg-import.ts {{ FILE }}
 
 # Promote a playbook — see what would be stripped (add --apply to delegate to reg-mine)
 [group("reg")]
 reg-promote FILE *FLAGS="":
-    bun scripts/reg-promote.ts {{FILE}} {{FLAGS}}
+    bun scripts/reg-promote.ts {{ FILE }} {{ FLAGS }}
 
 # Sync script index: list all scripts with portability classification
 [group("reg")]
@@ -174,18 +167,18 @@ barnacle-scan:
 # Watch for barnacles (runs scan every N minutes, logs to ~/.tradingagents/barnacle-watch.log)
 [group("reg")]
 barnacle-watch MINUTES="60":
-    @echo "{{YELLOW}}⏱{{NORMAL}} Starting barnacle watcher (interval: {{MINUTES}} min)"
-    @echo "{{YELLOW}}⏱{{NORMAL}} Press Ctrl+C to stop. Logs: ~/.tradingagents/barnacle-watch.log"
+    @echo "{{ YELLOW }}⏱{{ NORMAL }} Starting barnacle watcher (interval: {{ MINUTES }} min)"
+    @echo "{{ YELLOW }}⏱{{ NORMAL }} Press Ctrl+C to stop. Logs: ~/.tradingagents/barnacle-watch.log"
     while true; do \
         echo "[$(date -Iseconds)] Scanning..." >> ~/.tradingagents/barnacle-watch.log; \
         bun scripts/barnacle-scan.ts --mechanical >> ~/.tradingagents/barnacle-watch.log 2>&1; \
         echo "---" >> ~/.tradingagents/barnacle-watch.log; \
-        sleep $(({{MINUTES}} * 60)); \
+        sleep $(({{ MINUTES }} * 60)); \
     done
 
 set shell := ["bash", "-o", "pipefail", "-c"]
-set positional-arguments := true
-set dotenv-load := true
+set positional-arguments
+set dotenv-load
 
 # ── Modules ────────────────────────────────────────────────────────────────
 mod hledger
@@ -193,51 +186,51 @@ mod hledger
 # Group navigation shortcuts — just <letter> to list that group's recipes
 # Uses scripts/just-group-menu.ts for formatted output with common-marker indicators.
 [group("nav")]
-b:  # Bun — TypeScript server tooling
+b:
     @bun scripts/just-group-menu.ts bun
 
 [group("nav")]
-p:  # Python — tradingagents package, tests, analysis
+p:
     @bun scripts/just-group-menu.ts python
 
 [group("nav")]
-h:  # hLedger — plain-text accounting
+h:
     @just hledger::default
 
 [group("nav")]
-t:  # td — task management
+t:
     @bun scripts/just-group-menu.ts td
 
 [group("nav")]
-db:  # Database — backup, stats, maintenance
+db:
     @bun scripts/just-group-menu.ts db
 
 [group("nav")]
-m:  # Meta — project info, help, state
+m:
     @bun scripts/just-group-menu.ts meta
 
 [group("nav")]
-r:  # Run — business operations (analyze, portfolio, sync, seed)
+r:
     @bun scripts/just-group-menu.ts run
 
 [group("nav")]
-s:  # Seed — database seeding and partial resets
+s:
     @bun scripts/just-group-menu.ts seed
 
 [group("nav")]
-x:  # Test — test DB and development tools
+x:
     @bun scripts/just-group-menu.ts test
 
 [group("nav")]
-d:  # Diagrams — render .dot / .mmd to .svg
+d:
     @bun scripts/just-group-menu.ts diagrams
 
 [group("nav")]
-pr:  # PR — GitHub pull request helpers
+pr:
     @bun scripts/just-group-menu.ts pr
 
 [group("nav")]
-hk:  # Hooks — git workflow automation
+hk:
     @bun scripts/just-group-menu.ts hooks
 
 # Aliases for common hledger recipes (backward compat)
@@ -249,9 +242,10 @@ alias hl-register := hledger::hl-register
 alias hl-net-worth := hledger::hl-net-worth
 
 # Type-check + lint + custom gates
-[group("bun")]
 [doc("Run biome + tsc + db-usage gate. Must pass before commits.")]
+[group("bun")]
 check:
+    just --unstable --fmt --check
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
@@ -269,7 +263,7 @@ format:
 
 # Lint code with Biome (exit 0 = clean)
 [group("bun")]
-lint:  # [alias: l]
+lint:
     bunx biome check .
 
 # Lint and auto-fix errors
@@ -306,13 +300,13 @@ run-cli:
 
 # Run analysis on a ticker
 [group("python")]
-analyze TICKER="SPY" DATE="today" DEBATES="1":  # [alias: a]
-    source .venv/bin/activate && python scripts/py/analyze.py '{{TICKER}}' --date '{{DATE}}' --debates {{DEBATES}}
+analyze TICKER="SPY" DATE="today" DEBATES="1":
+    source .venv/bin/activate && python scripts/py/analyze.py '{{ TICKER }}' --date '{{ DATE }}' --debates {{ DEBATES }}
 
 # Generate LLM summary for a ticker (or all analyses)
 [group("python")]
 summarize TICKER="":
-    {{if TICKER != '' { 'bun run scripts/summarize_analyses.ts --ticker ' + TICKER } else { 'bun run scripts/summarize_analyses.ts' }}}
+    {{ if TICKER != '' { 'bun run scripts/summarize_analyses.ts --ticker ' + TICKER } else { 'bun run scripts/summarize_analyses.ts' } }}
 
 # Regenerate all LLM summaries
 [group("python")]
@@ -342,7 +336,7 @@ test-cli:
 # Quick smoke test for structured output (openai, google, anthropic, deepseek)
 [group("python")]
 test-quick PROVIDER="openai":
-    .venv/bin/python scripts/py/smoke_structured_output.py {{PROVIDER}}
+    .venv/bin/python scripts/py/smoke_structured_output.py {{ PROVIDER }}
 
 # Start new td session
 [group("td")]
@@ -363,7 +357,7 @@ td-next:
 # Get full context for a td issue
 [group("td")]
 td-context ID:
-    td context {{ID}}
+    td context {{ ID }}
 
 # Reset td database
 [group("td")]
@@ -379,17 +373,17 @@ td-reset:
 # Usage: just wt-create my-branch [base-branch] [task-id]
 [group("worktree")]
 wt-create NAME BASE="main":
-    bun scripts/worktree-init.ts {{NAME}} --base {{BASE}}
+    bun scripts/worktree-init.ts {{ NAME }} --base {{ BASE }}
 
 # Create a worktree linked to a TD task
 [group("worktree")]
 wt-create-task NAME BASE="main" TASK="":
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -n "{{TASK}}" ]; then
-        bun scripts/worktree-init.ts {{NAME}} --base {{BASE}} --task {{TASK}}
+    if [ -n "{{ TASK }}" ]; then
+        bun scripts/worktree-init.ts {{ NAME }} --base {{ BASE }} --task {{ TASK }}
     else
-        bun scripts/worktree-init.ts {{NAME}} --base {{BASE}}
+        bun scripts/worktree-init.ts {{ NAME }} --base {{ BASE }}
     fi
 
 # List all worktrees (git worktree list + .td-root status)
@@ -400,7 +394,7 @@ wt-list:
 # Delete a worktree (removes dir + branch)
 [group("worktree")]
 wt-delete NAME:
-    bun scripts/worktree-init.ts {{NAME}} --delete
+    bun scripts/worktree-init.ts {{ NAME }} --delete
 
 # ── Agent: Multi-Agent Coordination ─────────────────────────────────────────
 #   Scripts live in scripts/agent-*.ts. These just recipes are the thin facade.
@@ -424,27 +418,27 @@ agent-next:
 # Claim a task before touching any files (checks collision, labels session)
 [group("agent")]
 agent-claim ID:
-    bun scripts/agent-claim.ts {{ID}}
+    bun scripts/agent-claim.ts {{ ID }}
 
 # Force-claim (bypass collision check — use when taking over from another agent)
 [group("agent")]
 agent-claim-force ID:
-    bun scripts/agent-claim.ts {{ID}} --force
+    bun scripts/agent-claim.ts {{ ID }} --force
 
 # Log progress to a task
 [group("agent")]
 agent-log ID *MSG:
-    bun scripts/agent-log.ts {{ID}} {{MSG}}
+    bun scripts/agent-log.ts {{ ID }} {{ MSG }}
 
 # Log a blocker
 [group("agent")]
 agent-blocked ID *MSG:
-    bun scripts/agent-log.ts {{ID}} {{MSG}} --blocked
+    bun scripts/agent-log.ts {{ ID }} {{ MSG }} --blocked
 
 # Structured handoff: done/remaining/decisions captured before closing
 [group("agent")]
 agent-handoff ID *MSG="handoff":
-    bun scripts/agent-handoff.ts {{ID}} --note "{{MSG}}"
+    bun scripts/agent-handoff.ts {{ ID }} --note "{{ MSG }}"
 
 # Full handoff with explicit done/remaining
 [group("agent")]
@@ -457,7 +451,7 @@ agent-handoff-full ID:
     echo "Enter remaining items (one per line, empty to finish):"
     remaining_file=$(mktemp)
     while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$remaining_file"; done
-    bun scripts/agent-handoff.ts {{ID}} --done @"$done_file" --remaining @"$remaining_file"
+    bun scripts/agent-handoff.ts {{ ID }} --done @"$done_file" --remaining @"$remaining_file"
     rm -f "$done_file" "$remaining_file"
 
 # Sync state: git vs main + file collisions
@@ -485,7 +479,7 @@ agent-end:
 # Run analysis on TKA.DE (default test ticker)
 [group("run")]
 analyze-tka DEBATES="1":
-    just analyze TKA.DE today {{DEBATES}}
+    just analyze TKA.DE today {{ DEBATES }}
 
 # Show portfolio holdings via CLI (SQLite only, no server required)
 [group("run")]
@@ -498,8 +492,7 @@ alerts:
     bun run src/cli/main.ts alerts
 
 check-alerts FIRE="":
-    bun scripts/check-alerts.ts {{FIRE}}
-
+    bun scripts/check-alerts.ts {{ FIRE }}
 
 # Show contingency buylist — watchlist items with fair value targets
 [group("run")]
@@ -509,7 +502,7 @@ buylist:
 # Run TradingAgents research pipeline and extract buylist values
 [group("run")]
 research TICKER:
-    bun run src/cli/main.ts research {{TICKER}}
+    bun run src/cli/main.ts research {{ TICKER }}
 
 # Show portfolio holdings (LIVE, uses hledger + SQLite via dashboard)
 [group("run")]
@@ -545,7 +538,7 @@ seed-db:
 # Unified trading CLI — generate trade plan for a ticker
 [group("run")]
 trading TICKER:
-    bun run trading plan {{TICKER}} --platform ig --account 50000 --risk 0.02
+    bun run trading plan {{ TICKER }} --platform ig --account 50000 --risk 0.02
 
 # ── Database ───────────────────────────────────────────────────────────────
 #   Backup, restore, and maintenance.
@@ -568,7 +561,7 @@ backups-list:
 # Prune backups older than N days (default: 30)
 [group("db")]
 backups-prune DAYS="30":
-    bun scripts/db-backup.ts --prune {{DAYS}}
+    bun scripts/db-backup.ts --prune {{ DAYS }}
 
 # Show which database is currently active (LIVE vs TEST)
 [group("db")]
@@ -598,9 +591,9 @@ db-stats-test:
 [confirm("Destroy and recreate test_portfolio.db?")]
 [group("db")]
 db-reset-test:
-    @echo "{{RED}}⚠{{NORMAL}}  Resetting test_portfolio.db..."
+    @echo "{{ RED }}⚠{{ NORMAL }}  Resetting test_portfolio.db..."
     TEST_MODE=1 bash scripts/init-test-db.sh --reset
-    @echo "{{GREEN}}✓{{NORMAL}} TEST database reset. Run: just seed-db-test"
+    @echo "{{ GREEN }}✓{{ NORMAL }} TEST database reset. Run: just seed-db-test"
 
 # ── Seed: database seeding variants ────────────────────────────────────────
 #   Partial seeding for focused reset. Less frequently used than run recipes.
@@ -633,7 +626,7 @@ test-seed-db:
 # Generate test hLedger journal with 3 platforms
 [group("seed")]
 seed-test-journal JOURNAL="${HOME}/.hledger.journal":
-    bash scripts/seed_test_journal.sh "{{JOURNAL}}"
+    bash scripts/seed_test_journal.sh "{{ JOURNAL }}"
 
 # ── Test: development and test DB tools ─────────────────────────────────
 #   Test DB lifecycle, diagnostics, and cross-environment copying.
@@ -709,18 +702,18 @@ regen-diagrams:
 # by deleting their files; the next `just pr-fetch-all` will skip them.
 
 [group("pr")]
-prs:  # list open PRs
+prs:
     gh pr list --repo pjsvis/TradingAgents \
       --json number,title,updatedAt,reviewDecision,mergeStateStatus \
       --state open --limit 20
 
 [group("pr")]
-pr-fetch NUM:  # fetch PR #NUM as markdown via defuddle
+pr-fetch NUM:
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p debriefs/reviews
-    url="https://github.com/pjsvis/TradingAgents/pull/{{NUM}}"
-    file="debriefs/reviews/pr-{{NUM}}.md"
+    url="https://github.com/pjsvis/TradingAgents/pull/{{ NUM }}"
+    file="debriefs/reviews/pr-{{ NUM }}.md"
     tmp="$(mktemp)"
     trap 'rm -f "$tmp"' EXIT
     defuddle parse --markdown "$url" > "$tmp"
@@ -729,12 +722,12 @@ pr-fetch NUM:  # fetch PR #NUM as markdown via defuddle
     echo "Saved: $file"
 
 [group("pr")]
-pr-fetch-all:  # fetch all open PRs as markdown
+pr-fetch-all:
     bash scripts/pr-fetch-all.sh
 
 [group("pr")]
-pr-summarize NUM:  # summarize cached PR #NUM via LLM, prepend to file
-    bun scripts/pr-summarize.ts {{NUM}} --write
+pr-summarize NUM:
+    bun scripts/pr-summarize.ts {{ NUM }} --write
 
 # ── GitNexus: code knowledge graph ──────────────────────────────────────
 #   Structural analysis via the indexed knowledge graph.
@@ -743,22 +736,22 @@ pr-summarize NUM:  # summarize cached PR #NUM via LLM, prepend to file
 # 360-degree view of a symbol: callers, callees, processes
 [group("gn")]
 gn-context SYM:
-    gitnexus context "{{SYM}}" --repo TradingAgents
+    gitnexus context "{{ SYM }}" --repo TradingAgents
 
 # Blast radius: what breaks if you change a symbol
 [group("gn")]
 gn-impact SYM DIRECTION="upstream":
-    gitnexus impact "{{SYM}}" --direction {{DIRECTION}} --repo TradingAgents
+    gitnexus impact "{{ SYM }}" --direction {{ DIRECTION }} --repo TradingAgents
 
 # Map uncommitted changes to affected symbols and flows
 [group("gn")]
 gn-changes SCOPE="unstaged":
-    gitnexus detect-changes --scope {{SCOPE}} --repo TradingAgents
+    gitnexus detect-changes --scope {{ SCOPE }} --repo TradingAgents
 
 # Raw Cypher query against the knowledge graph
 [group("gn")]
 gn-cypher QUERY:
-    gitnexus cypher "{{QUERY}}" --repo TradingAgents
+    gitnexus cypher "{{ QUERY }}" --repo TradingAgents
 
 # Re-index the repo (run after significant code changes)
 [group("gn")]
@@ -768,12 +761,12 @@ gn-analyze:
 # Export symbol impact graph to DOT/SVG (writes docs/diagrams/gn-impact-<SYM>.dot)
 [group("gn")]
 gn-graph-symbol SYM:
-    bun scripts/gitnexus-to-dot.ts --symbol {{SYM}} --depth 1 --render
+    bun scripts/gitnexus-to-dot.ts --symbol {{ SYM }} --depth 1 --render
 
 # Export file module graph to DOT/SVG (writes docs/diagrams/gn-file-<FILE>.dot)
 [group("gn")]
 gn-graph-file FILE:
-    bun scripts/gitnexus-to-dot.ts --file {{FILE}} --render
+    bun scripts/gitnexus-to-dot.ts --file {{ FILE }} --render
 
 # Generate key GitNexus graphs for the project (impact graphs for hotspots)
 [group("gn")]
@@ -805,43 +798,43 @@ gn-status:
     gitnexus list
 
 [group("nav")]
-gn:  # GitNexus — code knowledge graph
+gn:
     @bun scripts/just-group-menu.ts gn
 
 [group("nav")]
-srv:  # Server — lifecycle management
+srv:
     @bun scripts/just-group-menu.ts srv
 
 # ── Server lifecycle ────────────────────────────────────────────────────────
 #   Start, stop, restart, and monitor the dashboard server.
 
 # Show all service status
-[group("srv")]
 [doc("Gum-formatted status table for Dashboard, SQLite, GitNexus.")]
+[group("srv")]
 status:
-    @echo "{{CYAN}}●{{NORMAL}} Checking service status..."
+    @echo "{{ CYAN }}●{{ NORMAL }} Checking service status..."
     bun scripts/server-lifecycle.ts status
 
 # Start dashboard server (background daemon)
-[group("srv")]
 [doc("Start dashboard as daemon. Writes PID to ~/.tradingagents/server.pid")]
+[group("srv")]
 start:
-    @echo "{{GREEN}}▶{{NORMAL}} Starting dashboard server..."
+    @echo "{{ GREEN }}▶{{ NORMAL }} Starting dashboard server..."
     bun scripts/server-lifecycle.ts start
 
 # Stop dashboard server
 [confirm("Stop the dashboard server?")]
-[group("srv")]
 [doc("Graceful stop (SIGTERM → wait → SIGKILL fallback).")]
+[group("srv")]
 stop:
-    @echo "{{RED}}■{{NORMAL}} Stopping dashboard server..."
+    @echo "{{ RED }}■{{ NORMAL }} Stopping dashboard server..."
     bun scripts/server-lifecycle.ts stop
 
 # Restart dashboard server
-[group("srv")]
 [doc("Rotate logs, stop, start.")]
+[group("srv")]
 restart:
-    @echo "{{YELLOW}}↻{{NORMAL}} Restarting dashboard server..."
+    @echo "{{ YELLOW }}↻{{ NORMAL }} Restarting dashboard server..."
     bun scripts/server-lifecycle.ts restart
 
 # Show listening ports
@@ -868,7 +861,7 @@ lab-gum:
     bun scripts/lab/gum.ts
 
 [group("nav")]
-lab:  # Lab — terminal experiments
+lab:
     @bun scripts/just-group-menu.ts lab
 
 # ── Hooks: git workflow automation ─────────────────────────────────────────
