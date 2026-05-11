@@ -21,12 +21,15 @@ See: https://github.com/TauricResearch/TradingAgents/issues/557
 
 from datetime import datetime, timedelta
 
+from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from tradingagents.agents.schemas import SentimentReport, render_sentiment_report
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_language_instruction,
     get_news,
 )
+from tradingagents.agents.utils.structured import bind_structured, invoke_structured_or_freetext
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 
@@ -39,9 +42,11 @@ def create_sentiment_analyst(llm):
     """Create a sentiment analyst node for the trading graph.
 
     Pre-fetches news + StockTwits + Reddit data, injects them into the
-    prompt as structured blocks, and produces a sentiment report in a
-    single LLM call.
+    prompt as structured blocks, and produces a structured sentiment report
+    in a single LLM call. Falls back to free-text when the provider does
+    not support structured output.
     """
+    structured_llm = bind_structured(llm, SentimentReport, "Sentiment Analyst")
 
     def sentiment_analyst_node(state):
         ticker = state["company_of_interest"]
@@ -51,7 +56,7 @@ def create_sentiment_analyst(llm):
 
         # Pre-fetch all three sources. Each fetcher degrades gracefully and
         # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
+        # always sees something - either real data or a clear placeholder.
         news_block = get_news.func(ticker, start_date, end_date)
         stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
         reddit_block = fetch_reddit_posts(ticker)
@@ -83,14 +88,20 @@ def create_sentiment_analyst(llm):
         prompt = prompt.partial(current_date=end_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        # No bind_tools — the data is already in the prompt; a single LLM
-        # call produces the report directly.
-        chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        # No bind_tools - the data is already in the prompt. Use structured
+        # output directly since there is no tool-calling phase to work around.
+        formatted = prompt.format_messages(messages=state["messages"])
+        report = invoke_structured_or_freetext(
+            structured_llm,
+            llm,
+            formatted,
+            render_sentiment_report,
+            "Sentiment Analyst",
+        )
 
         return {
-            "messages": [result],
-            "sentiment_report": result.content,
+            "messages": [AIMessage(content=report)],
+            "sentiment_report": report,
         }
 
     return sentiment_analyst_node

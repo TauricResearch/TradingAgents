@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
+from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
     PortfolioRating,
@@ -308,39 +308,32 @@ class TestRenderSentimentReport:
 
 
 # ---------------------------------------------------------------------------
-# Social Media Analyst node
+# Sentiment Analyst node
 # ---------------------------------------------------------------------------
 
 
-def _make_analyst_state(tool_calls=None):
-    from langchain_core.messages import AIMessage, HumanMessage
-    msgs = [HumanMessage(content="Analyze TSLA sentiment.")]
-    if tool_calls is not None:
-        msgs.append(AIMessage(content="", tool_calls=tool_calls))
+def _make_analyst_state():
+    from langchain_core.messages import HumanMessage
     return {
-        "messages": msgs,
+        "messages": [HumanMessage(content="Analyze TSLA sentiment.")],
         "company_of_interest": "TSLA",
         "trade_date": "2024-01-15",
     }
 
 
-def _structured_analyst_llm(structured_result):
-    """LLM mock that returns no tool calls on final call, then structured result on extraction.
+def _make_analyst_llm(structured_result):
+    """LLM mock for the sentiment analyst.
 
-    LangChain coerces the bound LLM into a RunnableLambda and calls it as a
-    callable (not .invoke()), so we set .return_value on the bound mock.
+    The analyst uses format_messages then invoke_structured_or_freetext, which
+    calls structured_llm.invoke(formatted_messages) directly.
     """
-    from langchain_core.messages import AIMessage
-    tool_response = AIMessage(content="Full prose report about TSLA.", tool_calls=[])
     llm = MagicMock()
     llm.with_structured_output.return_value.invoke.return_value = structured_result
-    # LangChain calls bound_llm(input), not bound_llm.invoke(input)
-    llm.bind_tools.return_value.return_value = tool_response
     return llm
 
 
 @pytest.mark.unit
-class TestSocialMediaAnalystStructured:
+class TestSentimentAnalystStructured:
     def test_structured_output_populates_sentiment_report(self):
         structured = SentimentReport(
             overall_score=7.2,
@@ -348,35 +341,30 @@ class TestSocialMediaAnalystStructured:
             confidence="high",
             narrative="Retail very bullish on TSLA this week.",
         )
-        llm = _structured_analyst_llm(structured)
-        analyst = create_social_media_analyst(llm)
+        llm = _make_analyst_llm(structured)
+        analyst = create_sentiment_analyst(llm)
         result = analyst(_make_analyst_state())
         assert "Score: 7.2/10" in result["sentiment_report"]
         assert "Bullish" in result["sentiment_report"]
         assert "Retail very bullish" in result["sentiment_report"]
 
-    def test_tool_calls_return_empty_report(self):
-        """During the tool loop (tool_calls present), sentiment_report stays empty."""
-        from langchain_core.messages.tool import ToolCall
-        from langchain_core.messages import AIMessage
-        tool_response = AIMessage(
-            content="",
-            tool_calls=[ToolCall(name="get_news", args={}, id="1")],
+    def test_sentiment_report_in_messages(self):
+        """The rendered report should also appear in the messages state."""
+        structured = SentimentReport(
+            overall_score=5.0,
+            overall_band=SentimentBand.NEUTRAL,
+            confidence="medium",
+            narrative="Mixed signals this week.",
         )
-        llm = MagicMock()
-        llm.with_structured_output.return_value = MagicMock()
-        llm.bind_tools.return_value.return_value = tool_response
-        analyst = create_social_media_analyst(llm)
+        llm = _make_analyst_llm(structured)
+        analyst = create_sentiment_analyst(llm)
         result = analyst(_make_analyst_state())
-        assert result["sentiment_report"] == ""
+        assert result["messages"][-1].content == result["sentiment_report"]
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
-        from langchain_core.messages import AIMessage
-        tool_response = AIMessage(content="Raw prose fallback report.", tool_calls=[])
         llm = MagicMock()
         llm.with_structured_output.side_effect = NotImplementedError("unsupported")
-        llm.bind_tools.return_value.return_value = tool_response
         llm.invoke.return_value = MagicMock(content="Raw prose fallback report.")
-        analyst = create_social_media_analyst(llm)
+        analyst = create_sentiment_analyst(llm)
         result = analyst(_make_analyst_state())
         assert "Raw prose fallback report." in result["sentiment_report"]
