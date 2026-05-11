@@ -30,8 +30,7 @@ Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
-{get_language_instruction()}
-"""
+""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 
