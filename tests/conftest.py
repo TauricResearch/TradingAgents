@@ -1,9 +1,14 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# Add project root to path so backend can be imported
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 def pytest_configure(config):

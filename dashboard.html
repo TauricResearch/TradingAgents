@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradingAgents · Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;800&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────── */
+  :root {
+    --bg:        #060810;
+    --surface:   #0c0f1a;
+    --surface2:  #111527;
+    --border:    #1e2540;
+    --border2:   #2a3260;
+    --amber:     #f0a500;
+    --amber-dim: #7a5200;
+    --cyan:      #00d4ff;
+    --cyan-dim:  #004d5e;
+    --green:     #00ff9d;
+    --green-dim: #004d2e;
+    --red:       #ff3d4a;
+    --red-dim:   #5e000a;
+    --text:      #c8d0e8;
+    --text-dim:  #5a6380;
+    --text-mid:  #8892b0;
+    --mono:      'Share Tech Mono', monospace;
+    --display:   'Barlow Condensed', sans-serif;
+    --body:      'Barlow', sans-serif;
+  }
+
+  /* ── Reset ──────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--body); }
+
+  /* ── Scrollbar ───────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 60px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--amber);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    animation: pulse-mark 3s ease-in-out infinite;
+  }
+  @keyframes pulse-mark {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.6; }
+  }
+  .logo-text {
+    font-family: var(--display); font-weight: 800; font-size: 20px;
+    letter-spacing: 0.08em; color: #fff;
+    text-transform: uppercase;
+  }
+  .logo-text span { color: var(--amber); }
+
+  .header-right {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+  }
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-dot.connecting { background: var(--amber); animation: blink 1s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+  .status-label {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .demo-badge {
+    display: none;
+    font-family: var(--mono); font-size: 10px; color: var(--amber);
+    border: 1px solid var(--amber-dim); padding: 2px 8px; border-radius: 2px;
+    letter-spacing: 0.1em;
+  }
+  .demo-badge.visible { display: block; }
+
+  .time-display {
+    font-family: var(--mono); font-size: 13px; color: var(--text-mid);
+  }
+
+  /* ── Controls Bar ────────────────────────────────────────────── */
+  .controls {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .ticker-input-wrap {
+    display: flex; align-items: center; gap: 0;
+    border: 1px solid var(--border2); border-radius: 4px;
+    overflow: hidden;
+  }
+  .ticker-input-wrap input {
+    background: var(--surface2); border: none; outline: none;
+    padding: 8px 14px; color: #fff;
+    font-family: var(--mono); font-size: 14px; letter-spacing: 0.12em;
+    width: 120px; text-transform: uppercase;
+  }
+  .ticker-input-wrap input::placeholder { color: var(--text-dim); text-transform: uppercase; }
+  .btn {
+    font-family: var(--display); font-weight: 700; font-size: 13px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border: none; cursor: pointer; padding: 8px 18px;
+    transition: all 0.15s;
+  }
+  .btn-add {
+    background: var(--amber); color: #000;
+  }
+  .btn-add:hover { background: #ffc22a; }
+  .btn-add:active { transform: scale(0.97); }
+
+  .presets {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .preset-chip {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    border: 1px solid var(--border); padding: 4px 10px; border-radius: 2px;
+    cursor: pointer; transition: all 0.15s;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .preset-chip:hover { border-color: var(--amber); color: var(--amber); }
+
+  .controls-right {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .refresh-select {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-mid); font-family: var(--mono); font-size: 11px;
+    padding: 4px 8px; border-radius: 2px; cursor: pointer;
+  }
+  .refresh-select:focus { outline: none; border-color: var(--amber); }
+
+  /* ── Main grid ───────────────────────────────────────────────── */
+  main {
+    flex: 1; padding: 24px 28px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 20px;
+    align-content: start;
+  }
+
+  /* ── Empty state ─────────────────────────────────────────────── */
+  .empty-state {
+    grid-column: 1 / -1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 360px; gap: 20px;
+  }
+  .empty-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+    opacity: 0.08;
+  }
+  .empty-grid-cell {
+    width: 60px; height: 40px;
+    border: 1px solid var(--amber);
+    border-radius: 2px;
+  }
+  .empty-title {
+    font-family: var(--display); font-size: 28px; font-weight: 700;
+    color: var(--text-dim); text-align: center; letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .empty-sub {
+    font-size: 14px; color: var(--text-dim); text-align: center;
+    line-height: 1.6; max-width: 360px;
+  }
+  .empty-sub code {
+    font-family: var(--mono); color: var(--amber); font-size: 12px;
+  }
+
+  /* ── Ticker Card ─────────────────────────────────────────────── */
+  .ticker-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    position: relative;
+    transition: border-color 0.3s;
+    animation: card-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes card-enter {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .ticker-card.analyzing { border-color: var(--amber-dim); }
+  .ticker-card.done-BUY  { border-color: rgba(0,255,157,0.25); }
+  .ticker-card.done-SELL { border-color: rgba(255,61,74,0.25); }
+  .ticker-card.done-HOLD { border-color: rgba(240,165,0,0.2); }
+
+  /* scanning line when analyzing */
+  .ticker-card.analyzing::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
+    animation: scan 2s linear infinite;
+  }
+  @keyframes scan {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* ── Card Header ─────────────────────────────────────────────── */
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-ticker-name {
+    font-family: var(--display); font-weight: 800; font-size: 26px;
+    letter-spacing: 0.06em; color: #fff;
+  }
+  .card-actions { display: flex; align-items: center; gap: 8px; }
+
+  .btn-refresh, .btn-remove {
+    width: 28px; height: 28px; border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .btn-refresh:hover { border-color: var(--cyan); color: var(--cyan); }
+  .btn-remove:hover  { border-color: var(--red); color: var(--red); }
+  .btn-refresh:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── Decision Badge ──────────────────────────────────────────── */
+  .decision-badge {
+    font-family: var(--display); font-weight: 800; font-size: 15px;
+    letter-spacing: 0.14em; padding: 4px 14px; border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .badge-BUY  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,255,157,0.3); }
+  .badge-SELL { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,61,74,0.3); }
+  .badge-HOLD { background: rgba(240,165,0,0.12); color: var(--amber); border: 1px solid var(--amber-dim); }
+  .badge-pending { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); font-size: 11px; letter-spacing: 0.06em; }
+
+  /* ── Agent Progress ──────────────────────────────────────────── */
+  .card-agent-bar {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    min-height: 36px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .agent-label {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+  }
+  .agent-name {
+    font-family: var(--mono); font-size: 12px; color: var(--amber);
+    animation: flicker 2s ease-in-out infinite;
+  }
+  @keyframes flicker {
+    0%,100% { opacity: 1; } 50% { opacity: 0.65; }
+  }
+  .progress-dots {
+    display: flex; gap: 4px; margin-left: auto;
+  }
+  .progress-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--amber-dim);
+  }
+  .progress-dots span.active { background: var(--amber); animation: dot-pulse 1s infinite; }
+  @keyframes dot-pulse {
+    0%,100% { transform: scale(1); } 50% { transform: scale(1.6); }
+  }
+
+  /* Agent progress pills row */
+  .agent-pills {
+    display: flex; gap: 4px; padding: 8px 16px;
+    flex-wrap: wrap; border-bottom: 1px solid var(--border);
+  }
+  .agent-pill {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 2px;
+    border: 1px solid var(--border); color: var(--text-dim);
+    transition: all 0.3s;
+    white-space: nowrap;
+  }
+  .agent-pill.active  { border-color: var(--amber); color: var(--amber); background: rgba(240,165,0,0.08); }
+  .agent-pill.done    { border-color: var(--border2); color: var(--text-mid); }
+
+  /* ── Log Terminal ────────────────────────────────────────────── */
+  .card-log {
+    flex: 1; height: 160px; overflow-y: auto;
+    padding: 10px 14px; background: #070a14;
+    font-family: var(--mono); font-size: 11px; line-height: 1.7;
+    border-bottom: 1px solid var(--border);
+  }
+  .log-line {
+    display: flex; gap: 8px;
+    animation: log-in 0.2s ease;
+  }
+  @keyframes log-in {
+    from { opacity: 0; transform: translateX(-4px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .log-time { color: var(--text-dim); flex-shrink: 0; }
+  .log-agent { flex-shrink: 0; }
+  .log-agent.Fundamentals  { color: #7dd3fc; }
+  .log-agent.Sentiment     { color: #c4b5fd; }
+  .log-agent.News          { color: #86efac; }
+  .log-agent.Technical     { color: #fde68a; }
+  .log-agent.Bull          { color: var(--green); }
+  .log-agent.Bear          { color: var(--red); }
+  .log-agent.Trader        { color: var(--amber); }
+  .log-agent.Risk          { color: #fb923c; }
+  .log-agent.Portfolio     { color: var(--cyan); }
+  .log-agent.Agent         { color: var(--text-mid); }
+  .log-msg { color: var(--text); }
+
+  /* ── Decision Footer ─────────────────────────────────────────── */
+  .card-decision {
+    padding: 12px 16px;
+  }
+  .decision-row {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+  }
+  .confidence-bar-wrap {
+    flex: 1; height: 3px; background: var(--surface2);
+    border-radius: 2px; overflow: hidden; margin: 0 12px;
+  }
+  .confidence-bar {
+    height: 100%; border-radius: 2px;
+    transition: width 1s cubic-bezier(0.16,1,0.3,1);
+  }
+  .bar-BUY  { background: var(--green); }
+  .bar-SELL { background: var(--red); }
+  .bar-HOLD { background: var(--amber); }
+  .confidence-pct {
+    font-family: var(--mono); font-size: 12px; color: var(--text-mid);
+    white-space: nowrap;
+  }
+  .decision-reasoning {
+    font-size: 12px; color: var(--text-dim); line-height: 1.5;
+    border-left: 2px solid var(--border2); padding-left: 10px;
+    font-style: italic;
+  }
+  .last-updated {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  /* ── Overlay states ──────────────────────────────────────────── */
+  .card-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    background: rgba(6,8,16,0.88);
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em;
+  }
+  .card-overlay.hidden { display: none; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .overlay-label { color: var(--amber); text-transform: uppercase; }
+  .error-icon { font-size: 24px; }
+  .error-msg { color: var(--red); font-size: 11px; text-align: center; max-width: 260px; }
+  .btn-retry {
+    margin-top: 4px; background: transparent; border: 1px solid var(--red);
+    color: var(--red); font-family: var(--mono); font-size: 11px;
+    padding: 5px 14px; cursor: pointer; letter-spacing: 0.08em; border-radius: 2px;
+  }
+  .btn-retry:hover { background: rgba(255,61,74,0.1); }
+
+  /* ── Footer ─────────────────────────────────────────────────── */
+  footer {
+    padding: 10px 28px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 20px;
+    background: var(--surface);
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  footer a { color: var(--text-dim); text-decoration: none; }
+  footer a:hover { color: var(--amber); }
+  .footer-right { margin-left: auto; }
+
+  /* ── Notification toast ──────────────────────────────────────── */
+  #toast-container {
+    position: fixed; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 999;
+  }
+  .toast {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    padding: 10px 16px; border-radius: 4px;
+    color: var(--text);
+    animation: toast-in 0.25s ease;
+    max-width: 320px;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error   { border-left: 3px solid var(--red); }
+  .toast.info    { border-left: 3px solid var(--amber); }
+  .chart-container {
+    margin-top: 8px;
+    padding: 0 4px;
+    width: 100%;
+  }
+  .chart-container canvas {
+    width: 100% !important;
+    height: 120px !important;
+    display: block;
+  }
+  .chart-no-data {
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    letter-spacing: 0.05em;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <div class="logo-text">Trading<span>Agents</span></div>
+    </div>
+    <div class="header-right">
+      <div class="demo-badge" id="demo-badge">DEMO MODE</div>
+      <div class="status-dot connecting" id="status-dot"></div>
+      <div class="status-label" id="status-label">Connecting…</div>
+      <div class="time-display" id="time-display">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- ── Controls ─────────────────────────────────────────── -->
+  <div class="controls">
+    <div class="ticker-input-wrap">
+      <input type="text" id="ticker-input" placeholder="TICKER" maxlength="6" spellcheck="false" />
+      <button class="btn btn-add" onclick="addTicker()">+ Watch</button>
+    </div>
+    <div class="presets">
+      <div class="preset-chip" onclick="addPreset('NVDA')">NVDA</div>
+      <div class="preset-chip" onclick="addPreset('AAPL')">AAPL</div>
+      <div class="preset-chip" onclick="addPreset('MSFT')">MSFT</div>
+      <div class="preset-chip" onclick="addPreset('TSLA')">TSLA</div>
+      <div class="preset-chip" onclick="addPreset('GOOGL')">GOOGL</div>
+      <div class="preset-chip" onclick="addPreset('META')">META</div>
+      <div class="preset-chip" onclick="addPreset('AMD')">AMD</div>
+    </div>
+    <div class="controls-right">
+      REFRESH:
+      <select class="refresh-select" id="refresh-select" onchange="updateRefresh()">
+        <option value="60">1 min</option>
+        <option value="300" selected>5 min</option>
+        <option value="600">10 min</option>
+        <option value="1800">30 min</option>
+        <option value="3600">1 hr</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ── Main grid ─────────────────────────────────────────── -->
+  <main id="grid">
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-grid">
+        <div class="empty-grid-cell"></div><div class="empty-grid-cell"></div>
+        <div class="empty-grid-cell"></div><div class="empty-grid-cell"></div>
+        <div class="empty-grid-cell"></div>
+      </div>
+      <div class="empty-title">No tickers watched</div>
+      <div class="empty-sub">
+        Add tickers above or click a preset to start the multi-agent analysis pipeline.<br/>
+        Each card runs <code>Fundamentals → Sentiment → News → Technical → Researcher → Trader → Risk → Portfolio</code>.
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Footer ────────────────────────────────────────────── -->
+  <footer>
+    <span>TradingAgents v0.2.0</span>
+    <span>·</span>
+    <a href="https://github.com/TauricResearch/TradingAgents" target="_blank">GitHub</a>
+    <span>·</span>
+    <a href="https://arxiv.org/abs/2412.20138" target="_blank">Paper</a>
+    <span class="footer-right" id="footer-count">0 tickers watched</span>
+  </footer>
+</div>
+
+<!-- ── Toast container ──────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────
+const AGENT_SEQUENCE = [
+  "Fundamentals Analyst","Sentiment Analyst","News Analyst","Technical Analyst",
+  "Bull Researcher","Bear Researcher","Trader","Risk Manager","Portfolio Manager"
+];
+const AGENT_SHORT = {
+  "Fundamentals Analyst":"FUND","Sentiment Analyst":"SENT","News Analyst":"NEWS",
+  "Technical Analyst":"TECH","Bull Researcher":"BULL","Bear Researcher":"BEAR",
+  "Trader":"TRADE","Risk Manager":"RISK","Portfolio Manager":"PORT"
+};
+function agentClass(name) {
+  if (!name) return 'Agent';
+  if (name.startsWith('Fund')) return 'Fundamentals';
+  if (name.startsWith('Sent')) return 'Sentiment';
+  if (name.startsWith('News')) return 'News';
+  if (name.startsWith('Tech')) return 'Technical';
+  if (name.startsWith('Bull')) return 'Bull';
+  if (name.startsWith('Bear')) return 'Bear';
+  if (name.startsWith('Trad')) return 'Trader';
+  if (name.startsWith('Risk')) return 'Risk';
+  if (name.startsWith('Port')) return 'Portfolio';
+  return 'Agent';
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {};     // ticker -> { status, currentAgent, result, logs, completedAgents }
+const chartInstances = {};        // ticker → Chart instance
+const chartsLoaded = new Set();   // tickers whose chart data has been fetched
+let ws = null;
+let wsReconnectTimer = null;
+const BACKEND = `ws://${location.host}/ws`;
+const API = `http://${location.host}/api`;
+
+// ── Charts ─────────────────────────────────────────────────────────────────
+function _signalDataset(decision, closeValues) {
+  if (!decision || decision === 'PENDING') return null;
+  const priceAtSignal = closeValues[closeValues.length - 1];
+  const color = decision === 'BUY' ? '#00e676' : decision === 'SELL' ? '#ff1744' : '#888888';
+  const style = decision === 'HOLD' ? 'circle' : 'triangle';
+  const rotation = decision === 'SELL' ? 180 : 0;
+  return {
+    type: 'line',
+    label: 'Signal',
+    data: closeValues.map((_, i) => i === closeValues.length - 1 ? priceAtSignal : null),
+    yAxisID: 'y',
+    pointStyle: style,
+    rotation: rotation,
+    backgroundColor: color,
+    borderColor: color,
+    pointRadius: 8,
+    pointHoverRadius: 8,
+    spanGaps: false,
+  };
+}
+
+async function loadChart(ticker) {
+  const container = document.getElementById('chart-container-' + ticker);
+  if (!container) return;
+
+  let data;
+  try {
+    const r = await fetch(`${API}/tickers/${ticker}/chart`);
+    if (!r.ok) throw new Error('no data');
+    data = await r.json();
+  } catch (e) {
+    console.warn('[loadChart]', ticker, e);
+    container.innerHTML = '<div class="chart-no-data">NO CHART DATA</div>';
+    return;
+  }
+
+  const canvas = document.getElementById('chart-' + ticker);
+  if (!canvas) return;
+  canvas.style.height = '120px';
+
+  const s = state[ticker];
+  const decision = s && s.result ? s.result.decision : null;
+  const signalDs = _signalDataset(decision, data.close);
+
+  const datasets = [
+    {
+      type: 'line',
+      label: 'Close',
+      data: data.close,
+      yAxisID: 'y',
+      borderColor: 'rgba(255,255,255,0.85)',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.3,
+      fill: false,
+    },
+    {
+      type: 'bar',
+      label: 'Volume',
+      data: data.volume,
+      yAxisID: 'y2',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      borderWidth: 0,
+    },
+  ];
+  if (signalDs) datasets.push(signalDs);
+
+  if (chartInstances[ticker]) {
+    chartInstances[ticker].destroy();
+    delete chartInstances[ticker];
+  }
+
+  chartInstances[ticker] = new Chart(canvas, {
+    type: 'bar',
+    data: { labels: data.dates, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { display: false },
+        y: { display: false, position: 'left' },
+        y2: { display: false, position: 'right', grid: { drawOnChartArea: false } },
+      },
+    },
+  });
+}
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.getElementById('time-display').textContent =
+    new Date().toLocaleTimeString('en-US', {hour12: false});
+}, 1000);
+
+// ── WebSocket ──────────────────────────────────────────────────────────────
+function connect() {
+  setStatus('connecting');
+  ws = new WebSocket(BACKEND);
+
+  ws.onopen = () => {
+    setStatus('connected');
+    clearTimeout(wsReconnectTimer);
+  };
+
+  ws.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    handleEvent(ev);
+  };
+
+  ws.onclose = () => {
+    setStatus('disconnected');
+    wsReconnectTimer = setTimeout(connect, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function setStatus(s) {
+  const dot = document.getElementById('status-dot');
+  const label = document.getElementById('status-label');
+  dot.className = 'status-dot ' + s;
+  label.textContent = {
+    connected: 'Live', connecting: 'Connecting…', disconnected: 'Reconnecting…'
+  }[s] || s;
+}
+
+// ── Event handler ──────────────────────────────────────────────────────────
+function handleEvent(ev) {
+  switch (ev.type) {
+    case 'init':
+      if (ev.demo_mode) document.getElementById('demo-badge').classList.add('visible');
+      // Hydrate from server state
+      for (const [t, s] of Object.entries(ev.tickers || {})) {
+        if (!state[t]) initTicker(t);
+        if (s.last_result) applyResult(t, s.last_result, s.last_updated);
+        if (s.status === 'analyzing') {
+          state[t].status = 'analyzing';
+          updateCardStatus(t);
+        }
+      }
+      break;
+    case 'ticker_added':
+      if (!state[ev.ticker]) initTicker(ev.ticker);
+      toast(`Watching ${ev.ticker}`, 'info');
+      break;
+    case 'ticker_removed':
+      removeTicker(ev.ticker);
+      break;
+    case 'ticker_status':
+      if (!state[ev.ticker]) return;
+      state[ev.ticker].status = ev.status;
+      updateCardStatus(ev.ticker);
+      break;
+    case 'agent_start':
+      if (!state[ev.ticker]) return;
+      state[ev.ticker].currentAgent = ev.agent;
+      updateAgentBar(ev.ticker);
+      updateAgentPills(ev.ticker);
+      break;
+    case 'agent_log':
+      if (!state[ev.ticker]) return;
+      appendLog(ev.ticker, ev.agent, ev.message);
+      break;
+    case 'analysis_complete':
+      if (!state[ev.ticker]) return;
+      applyResult(ev.ticker, ev.result, ev.last_updated);
+      toast(`${ev.ticker}: ${ev.result.decision} (${ev.result.confidence}%)`, 
+            ev.result.decision === 'BUY' ? 'success' : ev.result.decision === 'SELL' ? 'error' : 'info');
+      break;
+    case 'ticker_error':
+      if (!state[ev.ticker]) return;
+      state[ev.ticker].status = 'error';
+      state[ev.ticker].error = ev.error;
+      updateCardStatus(ev.ticker);
+      toast(`Error analyzing ${ev.ticker}`, 'error');
+      break;
+  }
+}
+
+// ── Ticker management ──────────────────────────────────────────────────────
+function initTicker(ticker) {
+  state[ticker] = { status: 'pending', currentAgent: null, result: null, logs: [], completedAgents: new Set() };
+  renderCard(ticker);
+  updateEmptyState();
+  updateFooter();
+}
+
+function removeTicker(ticker) {
+  if (chartInstances[ticker]) {
+    chartInstances[ticker].destroy();
+    delete chartInstances[ticker];
+  }
+  chartsLoaded.delete(ticker);
+  delete state[ticker];
+  const card = document.getElementById('card-' + ticker);
+  if (card) {
+    card.style.animation = 'card-enter 0.3s reverse forwards';
+    setTimeout(() => card.remove(), 300);
+  }
+  updateEmptyState();
+  updateFooter();
+}
+
+function applyResult(ticker, result, lastUpdated) {
+  const s = state[ticker];
+  if (!s) return;
+  s.status = 'done';
+  s.currentAgent = null;
+  s.result = result;
+  s.completedAgents = new Set(AGENT_SEQUENCE);
+  updateCardDecision(ticker);
+  updateAgentBar(ticker);
+  updateAgentPills(ticker);
+  updateCardStatus(ticker);
+  if (lastUpdated) {
+    const el = document.getElementById('last-updated-' + ticker);
+    if (el) el.textContent = 'Updated ' + new Date(lastUpdated).toLocaleTimeString();
+  }
+  // Update signal overlay if chart already loaded
+  const chart = chartInstances[ticker];
+  if (chart && result) {
+    const labels = chart.data.labels;
+    const closeDs = chart.data.datasets.find(d => d.label === 'Close');
+    const closeValues = closeDs ? closeDs.data : [];
+    chart.data.datasets = chart.data.datasets.filter(d => d.label !== 'Signal');
+    const signalDs = _signalDataset(result.decision, closeValues);
+    if (signalDs) chart.data.datasets.push(signalDs);
+    chart.update();
+  }
+}
+
+// ── Add / remove ───────────────────────────────────────────────────────────
+async function addTicker() {
+  const input = document.getElementById('ticker-input');
+  const t = input.value.trim().toUpperCase();
+  if (!t) return;
+  input.value = '';
+  if (state[t]) { toast(t + ' already watched', 'info'); return; }
+  try {
+    const r = await fetch(`${API}/tickers`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ticker: t})
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      toast(err.error || 'Error', 'error');
+    }
+  } catch { toast('Cannot reach backend', 'error'); }
+}
+
+async function removeTicker_api(ticker) {
+  try {
+    await fetch(`${API}/tickers/${ticker}`, {method:'DELETE'});
+  } catch { toast('Cannot reach backend', 'error'); }
+}
+
+async function refreshTicker(ticker) {
+  try {
+    const r = await fetch(`${API}/tickers/${ticker}/refresh`, {method:'POST'});
+    if (!r.ok) { const e = await r.json(); toast(e.error || 'Error', 'error'); }
+  } catch { toast('Cannot reach backend', 'error'); }
+}
+
+async function updateRefresh() {
+  const val = document.getElementById('refresh-select').value;
+  try {
+    await fetch(`${API}/config`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({refresh_interval: parseInt(val)})
+    });
+  } catch {}
+}
+
+function addPreset(t) {
+  if (state[t]) { toast(t + ' already watched', 'info'); return; }
+  document.getElementById('ticker-input').value = t;
+  addTicker();
+}
+
+// ── Card rendering ─────────────────────────────────────────────────────────
+function renderCard(ticker) {
+  const grid = document.getElementById('grid');
+  const card = document.createElement('div');
+  card.id = 'card-' + ticker;
+  card.className = 'ticker-card';
+  card.innerHTML = `
+    <!-- Overlay (initial pending) -->
+    <div class="card-overlay" id="overlay-${ticker}">
+      <div class="spinner"></div>
+      <div class="overlay-label">Initializing…</div>
+    </div>
+
+    <!-- Header -->
+    <div class="card-header">
+      <div class="card-ticker-name">${ticker}</div>
+      <div class="card-actions">
+        <div class="decision-badge badge-pending" id="badge-${ticker}">PENDING</div>
+        <button class="btn-refresh" id="btn-refresh-${ticker}"
+          onclick="refreshTicker('${ticker}')" title="Re-run analysis"
+          disabled>↻</button>
+        <button class="btn-remove" onclick="removeTicker_api('${ticker}')" title="Remove">✕</button>
+      </div>
+    </div>
+
+    <!-- Agent bar -->
+    <div class="card-agent-bar" id="agent-bar-${ticker}">
+      <span class="agent-label">AGENT —</span>
+      <span class="agent-name" id="agent-name-${ticker}">Initializing pipeline…</span>
+      <div class="progress-dots" id="dots-${ticker}">
+        <span></span><span></span><span class="active"></span>
+      </div>
+    </div>
+
+    <!-- Agent pills -->
+    <div class="agent-pills" id="pills-${ticker}">
+      ${AGENT_SEQUENCE.map(a => `
+        <div class="agent-pill" id="pill-${ticker}-${a.replace(/\s+/g,'-')}">${AGENT_SHORT[a]}</div>
+      `).join('')}
+    </div>
+
+    <!-- Price chart -->
+    <div class="chart-container" id="chart-container-${ticker}">
+      <canvas id="chart-${ticker}"></canvas>
+    </div>
+
+    <!-- Log terminal -->
+    <div class="card-log" id="log-${ticker}">
+      <div class="log-line">
+        <span class="log-time">${ts()}</span>
+        <span class="log-agent Agent">[SYS]</span>
+        <span class="log-msg">Pipeline queued for ${ticker}…</span>
+      </div>
+    </div>
+
+    <!-- Decision -->
+    <div class="card-decision" id="decision-${ticker}">
+      <div class="decision-row">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;">Awaiting analysis…</span>
+      </div>
+    </div>
+  `;
+  grid.appendChild(card);
+  if (!chartsLoaded.has(ticker)) {
+    chartsLoaded.add(ticker);
+    loadChart(ticker);
+  }
+}
+
+function updateCardStatus(ticker) {
+  const s = state[ticker];
+  if (!s) return;
+  const card = document.getElementById('card-' + ticker);
+  if (!card) return;
+  card.className = 'ticker-card';
+  const overlay = document.getElementById('overlay-' + ticker);
+  const refreshBtn = document.getElementById('btn-refresh-' + ticker);
+
+  if (s.status === 'analyzing') {
+    card.classList.add('analyzing');
+    overlay.classList.add('hidden');
+    if (refreshBtn) refreshBtn.disabled = true;
+  } else if (s.status === 'done' && s.result) {
+    card.classList.add('done-' + s.result.decision);
+    overlay.classList.add('hidden');
+    if (refreshBtn) refreshBtn.disabled = false;
+  } else if (s.status === 'error') {
+    overlay.classList.remove('hidden');
+    overlay.innerHTML = `
+      <div class="error-icon">⚠</div>
+      <div class="overlay-label" style="color:var(--red)">Analysis Failed</div>
+      <div class="error-msg">${s.error || 'Unknown error'}</div>
+      <button class="btn-retry" onclick="refreshTicker('${ticker}')">RETRY</button>
+    `;
+    if (refreshBtn) refreshBtn.disabled = false;
+  } else if (s.status === 'pending') {
+    // keep spinner overlay
+  }
+}
+
+function updateAgentBar(ticker) {
+  const s = state[ticker];
+  if (!s) return;
+  const nameEl = document.getElementById('agent-name-' + ticker);
+  const dotsEl = document.getElementById('dots-' + ticker);
+  if (!nameEl) return;
+  if (s.currentAgent) {
+    nameEl.textContent = s.currentAgent;
+    if (dotsEl) dotsEl.style.display = 'flex';
+  } else if (s.status === 'done') {
+    nameEl.textContent = 'Analysis complete';
+    if (dotsEl) dotsEl.style.display = 'none';
+  }
+}
+
+function updateAgentPills(ticker) {
+  const s = state[ticker];
+  if (!s) return;
+  AGENT_SEQUENCE.forEach(a => {
+    const id = `pill-${ticker}-${a.replace(/\s+/g,'-')}`;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'agent-pill';
+    if (a === s.currentAgent) {
+      el.classList.add('active');
+      s.completedAgents.add(a); // mark as started
+    } else if (s.completedAgents.has(a) && a !== s.currentAgent) {
+      el.classList.add('done');
+    }
+  });
+}
+
+function appendLog(ticker, agent, message) {
+  const logEl = document.getElementById('log-' + ticker);
+  if (!logEl) return;
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  const cls = agentClass(agent);
+  const short = agent ? agent.split(' ')[0].toUpperCase().slice(0,4) : 'SYS';
+  line.innerHTML = `
+    <span class="log-time">${ts()}</span>
+    <span class="log-agent ${cls}">[${short}]</span>
+    <span class="log-msg">${escHtml(message)}</span>
+  `;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+  // keep log bounded
+  while (logEl.children.length > 120) logEl.removeChild(logEl.firstChild);
+}
+
+function updateCardDecision(ticker) {
+  const s = state[ticker];
+  if (!s || !s.result) return;
+  const { decision, confidence, reasoning } = s.result;
+  const badge = document.getElementById('badge-' + ticker);
+  if (badge) {
+    badge.className = `decision-badge badge-${decision}`;
+    badge.textContent = decision;
+  }
+  const decEl = document.getElementById('decision-' + ticker);
+  if (!decEl) return;
+  decEl.innerHTML = `
+    <div class="decision-row">
+      <div class="decision-badge badge-${decision}" style="font-size:12px">${decision}</div>
+      <div class="confidence-bar-wrap">
+        <div class="confidence-bar bar-${decision}" style="width:${confidence}%"></div>
+      </div>
+      <div class="confidence-pct">${confidence}%</div>
+    </div>
+    <div class="decision-reasoning">${escHtml(reasoning)}</div>
+    <div class="last-updated" id="last-updated-${ticker}"></div>
+  `;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function updateEmptyState() {
+  const empty = document.getElementById('empty-state');
+  empty.style.display = Object.keys(state).length === 0 ? 'flex' : 'none';
+}
+
+function updateFooter() {
+  const n = Object.keys(state).length;
+  document.getElementById('footer-count').textContent =
+    `${n} ticker${n !== 1 ? 's' : ''} watched`;
+}
+
+function ts() {
+  return new Date().toLocaleTimeString('en-US', {hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(16px)';
+    t.style.transition = 'all 0.25s';
+    setTimeout(() => t.remove(), 280);
+  }, 3500);
+}
+
+// ── Keyboard shortcut ──────────────────────────────────────────────────────
+document.getElementById('ticker-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTicker();
+});
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+connect();
+</script>
+</body>
+</html>
