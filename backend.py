@@ -54,6 +54,22 @@ watched_tickers: Dict[str, dict] = {}
 clients: List[WebSocket] = []
 refresh_interval: int = 300
 
+
+def seed_watched_tickers() -> None:
+    """Seed watched_tickers from portfolio.positions on startup so held tickers appear on page load."""
+    for ticker in portfolio.positions:
+        if ticker not in watched_tickers:
+            watched_tickers[ticker] = {
+                "status": "pending",
+                "current_agent": None,
+                "last_result": None,
+                "last_updated": None,
+                "logs": [],
+            }
+
+
+seed_watched_tickers()
+
 AGENT_SEQUENCE = [
     "Fundamentals Analyst", "Sentiment Analyst", "News Analyst", "Technical Analyst",
     "Bull Researcher", "Bear Researcher", "Trader", "Risk Manager", "Portfolio Manager",

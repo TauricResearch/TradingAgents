@@ -942,6 +942,12 @@ function handleEvent(ev) {
         if (s.status === 'analyzing') {
           state[t].status = 'analyzing';
           updateCardStatus(t);
+        } else if (s.status === 'pending') {
+          // Restored ticker (e.g. seeded from portfolio) — hide spinner, enable refresh
+          const overlay = document.getElementById('overlay-' + t);
+          if (overlay) overlay.classList.add('hidden');
+          const refreshBtn = document.getElementById('btn-refresh-' + t);
+          if (refreshBtn) refreshBtn.disabled = false;
         }
       }
       break;

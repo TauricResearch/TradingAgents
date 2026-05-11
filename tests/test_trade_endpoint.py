@@ -150,3 +150,34 @@ class TestDailyPnlInTradeResponse:
         assert data["positions"]["NVDA"]["pct_of_portfolio"] == pytest.approx(
             1_000.0 / 91_000.0 * 100, abs=0.01
         )
+
+
+class TestSeedWatchedTickers:
+    def test_seeds_positions_into_watched_tickers(self):
+        import backend
+        backend.watched_tickers.clear()
+        backend.portfolio.positions = {
+            "NVDA": {"shares": 10.0, "avg_cost": 100.0},
+            "AAPL": {"shares": 5.0, "avg_cost": 180.0},
+        }
+        backend.seed_watched_tickers()
+        assert "NVDA" in backend.watched_tickers
+        assert "AAPL" in backend.watched_tickers
+        assert backend.watched_tickers["NVDA"]["status"] == "pending"
+        assert backend.watched_tickers["NVDA"]["last_result"] is None
+
+    def test_does_not_overwrite_existing_watched_ticker(self):
+        import backend
+        backend.watched_tickers.clear()
+        backend.watched_tickers["NVDA"] = {"status": "analyzing", "current_agent": "Trader",
+                                            "last_result": None, "last_updated": None, "logs": []}
+        backend.portfolio.positions = {"NVDA": {"shares": 10.0, "avg_cost": 100.0}}
+        backend.seed_watched_tickers()
+        assert backend.watched_tickers["NVDA"]["status"] == "analyzing"  # unchanged
+
+    def test_empty_when_no_positions(self):
+        import backend
+        backend.watched_tickers.clear()
+        backend.portfolio.positions = {}
+        backend.seed_watched_tickers()
+        assert backend.watched_tickers == {}
