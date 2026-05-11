@@ -83,6 +83,60 @@ _SIMPLIFIED_CHINESE_INSTRUCTION = (
 )
 
 
+# Structured-output label translations.
+# Enum *values* (Buy/Hold/Sell/Overweight/Underweight) stay English because
+# the rating parser greps for them as canonical tokens. Only the section
+# headers get translated.
+_LABELS_TRADITIONAL_CHINESE = {
+    "Recommendation": "建議評等",
+    "Rationale": "理由",
+    "Strategic Actions": "策略行動",
+    "Action": "交易動作",
+    "Reasoning": "決策依據",
+    "Entry Price": "進場價",
+    "Stop Loss": "停損價",
+    "Position Sizing": "倉位配置",
+    "Rating": "評等",
+    "Executive Summary": "執行摘要",
+    "Investment Thesis": "投資論述",
+    "Price Target": "目標價",
+    "Time Horizon": "投資期限",
+}
+
+_LABELS_SIMPLIFIED_CHINESE = {
+    "Recommendation": "建议评级",
+    "Rationale": "理由",
+    "Strategic Actions": "策略行动",
+    "Action": "交易动作",
+    "Reasoning": "决策依据",
+    "Entry Price": "进场价",
+    "Stop Loss": "止损价",
+    "Position Sizing": "仓位配置",
+    "Rating": "评级",
+    "Executive Summary": "执行摘要",
+    "Investment Thesis": "投资论述",
+    "Price Target": "目标价",
+    "Time Horizon": "投资期限",
+}
+
+
+def get_localized_label(key: str) -> str:
+    """Return the section-header label in the currently configured language.
+
+    Falls back to the English key when the language is English, unrecognized,
+    or the key isn't in the translation map — so renderers stay safe even if
+    a new field is added without updating every language map immediately.
+    """
+    from tradingagents.runtime import get_runtime_config
+    lang = get_runtime_config().get("output_language", "English").strip().lower()
+
+    if lang in _TRADITIONAL_CHINESE_ALIASES or lang in ("chinese", "中文"):
+        return _LABELS_TRADITIONAL_CHINESE.get(key, key)
+    if lang in _SIMPLIFIED_CHINESE_ALIASES:
+        return _LABELS_SIMPLIFIED_CHINESE.get(key, key)
+    return key
+
+
 def get_language_instruction() -> str:
     """Return a prompt instruction for the configured output language.
 

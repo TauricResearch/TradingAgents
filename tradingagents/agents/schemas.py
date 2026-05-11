@@ -91,13 +91,19 @@ class ResearchPlan(BaseModel):
 
 
 def render_research_plan(plan: ResearchPlan) -> str:
-    """Render a ResearchPlan to markdown for storage and the trader's prompt context."""
+    """Render a ResearchPlan to markdown for storage and the trader's prompt context.
+
+    Section headers are localized to the configured output language while
+    Enum values (Buy/Overweight/Hold/Underweight/Sell) stay English so the
+    rating parser keeps working across runs.
+    """
+    from tradingagents.agents.utils.agent_utils import get_localized_label
     return "\n".join([
-        f"**Recommendation**: {plan.recommendation.value}",
+        f"**{get_localized_label('Recommendation')}**: {plan.recommendation.value}",
         "",
-        f"**Rationale**: {plan.rationale}",
+        f"**{get_localized_label('Rationale')}**: {plan.rationale}",
         "",
-        f"**Strategic Actions**: {plan.strategic_actions}",
+        f"**{get_localized_label('Strategic Actions')}**: {plan.strategic_actions}",
     ])
 
 
@@ -141,21 +147,24 @@ class TraderProposal(BaseModel):
 def render_trader_proposal(proposal: TraderProposal) -> str:
     """Render a TraderProposal to markdown.
 
-    The trailing ``FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**`` line is
-    preserved for backward compatibility with the analyst stop-signal text
-    and any external code that greps for it.
+    Section headers are localized to the configured output language while
+    Enum values stay English. The trailing
+    ``FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**`` line is preserved
+    verbatim in English for backward compatibility with the analyst
+    stop-signal grep used elsewhere in the framework.
     """
+    from tradingagents.agents.utils.agent_utils import get_localized_label
     parts = [
-        f"**Action**: {proposal.action.value}",
+        f"**{get_localized_label('Action')}**: {proposal.action.value}",
         "",
-        f"**Reasoning**: {proposal.reasoning}",
+        f"**{get_localized_label('Reasoning')}**: {proposal.reasoning}",
     ]
     if proposal.entry_price is not None:
-        parts.extend(["", f"**Entry Price**: {proposal.entry_price}"])
+        parts.extend(["", f"**{get_localized_label('Entry Price')}**: {proposal.entry_price}"])
     if proposal.stop_loss is not None:
-        parts.extend(["", f"**Stop Loss**: {proposal.stop_loss}"])
+        parts.extend(["", f"**{get_localized_label('Stop Loss')}**: {proposal.stop_loss}"])
     if proposal.position_sizing:
-        parts.extend(["", f"**Position Sizing**: {proposal.position_sizing}"])
+        parts.extend(["", f"**{get_localized_label('Position Sizing')}**: {proposal.position_sizing}"])
     parts.extend([
         "",
         f"FINAL TRANSACTION PROPOSAL: **{proposal.action.value.upper()}**",
@@ -209,20 +218,21 @@ class PortfolioDecision(BaseModel):
 def render_pm_decision(decision: PortfolioDecision) -> str:
     """Render a PortfolioDecision back to the markdown shape the rest of the system expects.
 
-    Memory log, CLI display, and saved report files all read this markdown,
-    so the rendered output preserves the exact section headers (``**Rating**``,
-    ``**Executive Summary**``, ``**Investment Thesis**``) that downstream
-    parsers and the report writers already handle.
+    Memory log, CLI display, and saved report files all read this markdown.
+    Section headers are localized to the configured output language while
+    Enum values stay English so ``parse_rating`` keeps matching the
+    canonical 5-tier tokens (Buy/Overweight/Hold/Underweight/Sell).
     """
+    from tradingagents.agents.utils.agent_utils import get_localized_label
     parts = [
-        f"**Rating**: {decision.rating.value}",
+        f"**{get_localized_label('Rating')}**: {decision.rating.value}",
         "",
-        f"**Executive Summary**: {decision.executive_summary}",
+        f"**{get_localized_label('Executive Summary')}**: {decision.executive_summary}",
         "",
-        f"**Investment Thesis**: {decision.investment_thesis}",
+        f"**{get_localized_label('Investment Thesis')}**: {decision.investment_thesis}",
     ]
     if decision.price_target is not None:
-        parts.extend(["", f"**Price Target**: {decision.price_target}"])
+        parts.extend(["", f"**{get_localized_label('Price Target')}**: {decision.price_target}"])
     if decision.time_horizon:
-        parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
+        parts.extend(["", f"**{get_localized_label('Time Horizon')}**: {decision.time_horizon}"])
     return "\n".join(parts)
