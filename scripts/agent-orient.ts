@@ -13,6 +13,8 @@
  */
 
 import { execSync } from "node:child_process"
+import { mkdirSync } from "node:fs"
+import { join } from "node:path"
 
 const mode = Bun.argv.includes("--compact")
   ? "compact"
@@ -124,6 +126,78 @@ function fileCollisions() {
   return collisions.map(([file, ids]) => `  ⚠ ${file}: claimed by ${ids.join(", ")}`).join("\n")
 }
 
+// ── Open PRs ─────────────────────────────────────────────────────────────
+
+function openPRs() {
+  if (mode === "compact") {
+    const raw = sh("gh pr list --state open --json number,title --jq .[] 2>/dev/null")
+    if (!raw) return "PRs: none"
+    try {
+      const prs = JSON.parse(raw || "[]") as { number: number; title: string }[]
+      return prs.length ? `PRs: ${prs.map((p) => `#${p.number}`).join(", ")}` : "PRs: none"
+    } catch {
+      return "PRs: gh parse error"
+    }
+  }
+
+  const raw = sh("gh pr list --state open --json number,title,url --jq .[] 2>/dev/null")
+  if (!raw) return "  No open PRs (gh unauthenticated or none exist)."
+
+  let prs: { number: number; title: string; url: string }[]
+  try {
+    prs = JSON.parse(raw || "[]")
+  } catch {
+    return "  Failed to parse gh pr list output."
+  }
+
+  if (prs.length === 0) return "  No open PRs."
+
+  // Ensure debriefs/reviews/ directory exists
+  const reviewsDir = join(process.cwd(), "debriefs", "reviews")
+  try {
+    mkdirSync(reviewsDir, { recursive: true })
+  } catch {}
+
+  let fetched = 0
+  for (const pr of prs) {
+    const slug = pr.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 60)
+    const dest = join(reviewsDir, `pr-${pr.number}-${slug}.md`)
+    try {
+      execSync(`defuddle parse -o "${dest}" --md "${pr.url}" 2>/dev/null`, {
+        timeout: 30_000,
+      })
+      fetched++
+    } catch {
+      // defuddle failed — fall back to gh for basic metadata
+      try {
+        const ghData = sh(
+          `gh pr view ${pr.number} --json title,body,state,author,createdAt,url --jq . 2>/dev/null`,
+        )
+        if (ghData) {
+          try {
+            const gh = JSON.parse(ghData)
+            const md = `# PR #${gh.number}: ${gh.title}\n\n**State:** ${gh.state}\n**Author:** ${gh.author?.login ?? "unknown"}\n**Created:** ${gh.createdAt}\n\n${gh.body ?? ""}`
+            // writeFileSync not imported; use execSync cat heredoc
+            execSync(`cat > "${dest}" << 'GHMD'\n${md}\nGHMD`, { shell: "/bin/bash" })
+            fetched++
+          } catch {}
+        }
+      } catch {}
+    }
+  }
+
+  return [
+    `  ${prs.length} open PR(s):`,
+    ...prs.map((p) => `    #${p.number}: ${p.title}`),
+    "",
+    `  Reviews cached to debriefs/reviews/pr-{num}.md (${fetched}/${prs.length} fetched)`,
+  ].join("\n")
+}
+
 // ── Output ────────────────────────────────────────────────────────────────
 
 console.log("")
@@ -133,6 +207,8 @@ console.log("\x1b═════════════════════
 console.log("")
 
 console.log(section("Git:", gitState()))
+console.log("")
+console.log(section("Open PRs:", openPRs()))
 console.log("")
 console.log(section("Session:", tdState()))
 console.log("")
