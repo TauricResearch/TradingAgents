@@ -5,30 +5,45 @@ from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
+from .capabilities import get_capabilities
 from .validators import validate_model
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
-    """ChatOpenAI with normalized content output.
+    """ChatOpenAI with normalized content output and capability-aware binding.
 
     The Responses API returns content as a list of typed blocks
     (reasoning, text, etc.). ``invoke`` normalizes to string for
-    consistent downstream handling. ``with_structured_output`` defaults
-    to function-calling so the Responses-API parse path is avoided
-    (langchain-openai's parse path emits noisy
-    PydanticSerializationUnexpectedValue warnings per call without
-    affecting correctness).
+    consistent downstream handling.
 
-    Provider-specific quirks (e.g. DeepSeek's thinking mode) live in
-    purpose-built subclasses below so this base class stays small.
+    ``with_structured_output`` consults the per-model capability table
+    (``capabilities.get_capabilities``) to pick the method and to decide
+    whether ``tool_choice`` may be sent. Models that reject ``tool_choice``
+    (e.g. DeepSeek V4 and reasoner — per their official tool-calling
+    guide) still bind the schema as a tool, but no ``tool_choice``
+    parameter is sent.
+
+    Provider-specific quirks beyond structured-output (e.g. DeepSeek's
+    reasoning_content roundtrip) live in subclasses so this base class
+    stays small.
     """
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
-        if method is None:
-            method = "function_calling"
+        caps = get_capabilities(self.model_name)
+        if caps.preferred_structured_method == "none":
+            raise NotImplementedError(
+                f"{self.model_name} has no structured-output method available; "
+                f"agent factories will fall back to free-text generation."
+            )
+        method = method or caps.preferred_structured_method
+        # When the model rejects tool_choice, suppress langchain's hardcoded
+        # value. The schema is still bound as a tool — exactly what
+        # DeepSeek's official tool-calling examples do.
+        if method == "function_calling" and not caps.supports_tool_choice:
+            kwargs.setdefault("tool_choice", None)
         return super().with_structured_output(schema, method=method, **kwargs)
 
 
@@ -52,18 +67,16 @@ def _input_to_messages(input_: Any) -> list:
 class DeepSeekChatOpenAI(NormalizedChatOpenAI):
     """DeepSeek-specific overrides on top of the OpenAI-compatible client.
 
-    Two quirks that don't apply to other OpenAI-compatible providers:
+    Thinking-mode round-trip is the only DeepSeek-specific behavior that
+    stays here. When DeepSeek's thinking models return a response with
+    ``reasoning_content``, that field must be echoed back as part of the
+    assistant message on the next turn or the API fails with HTTP 400.
+    ``_create_chat_result`` captures it on receive and
+    ``_get_request_payload`` re-attaches it on send.
 
-    1. **Thinking-mode round-trip.** When DeepSeek's thinking models return
-       a response with ``reasoning_content``, that field must be echoed
-       back as part of the assistant message on the next turn or the API
-       fails with HTTP 400. ``_create_chat_result`` captures the field on
-       receive and ``_get_request_payload`` re-attaches it on send.
-
-    2. **deepseek-reasoner has no tool_choice.** Structured output via
-       function-calling is unavailable, so we raise NotImplementedError
-       and let the agent factories fall back to free-text generation
-       (see ``tradingagents/agents/utils/structured.py``).
+    Tool-choice handling for V4 and reasoner — those models reject the
+    ``tool_choice`` parameter — is handled by the capability dispatch in
+    ``NormalizedChatOpenAI.with_structured_output``, not here.
     """
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
@@ -94,15 +107,6 @@ class DeepSeekChatOpenAI(NormalizedChatOpenAI):
                 generation.message.additional_kwargs["reasoning_content"] = reasoning
         return chat_result
 
-    def with_structured_output(self, schema, *, method=None, **kwargs):
-        if self.model_name == "deepseek-reasoner":
-            raise NotImplementedError(
-                "deepseek-reasoner does not support tool_choice; structured "
-                "output is unavailable. Agent factories fall back to "
-                "free-text generation automatically."
-            )
-        return super().with_structured_output(schema, method=method, **kwargs)
-
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
@@ -115,6 +119,10 @@ _PROVIDER_CONFIG = {
     "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
     "qwen": ("https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY"),
     "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
+    # MiniMax exposes two regional endpoints with separate keys; mainland
+    # Chinese users hit .com while global users hit .io.
+    "minimax": ("https://api.minimax.io/v1", "MINIMAX_API_KEY"),
+    "minimax-cn": ("https://api.minimaxi.com/v1", "MINIMAX_CN_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
 }
@@ -154,6 +162,12 @@ class OpenAIClient(BaseLLMClient):
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
+                else:
+                    raise ValueError(
+                        f"API key for provider '{self.provider}' is not set. "
+                        f"Please set the {api_key_env} environment variable "
+                        f"(e.g. add {api_key_env}=your_key to your .env file)."
+                    )
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:

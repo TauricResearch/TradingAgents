@@ -1,6 +1,7 @@
 from typing import Optional
 import datetime
 import typer
+import questionary
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
@@ -615,8 +616,28 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input, resolving Chinese names."""
-    raw = typer.prompt("", default="SPY")
+    """Get ticker symbol from user input, resolving Chinese names and preserving exchange suffixes."""
+    # typer.prompt strips trailing dot-suffixes on some shells (e.g. 000404.SH
+    # collapses to 000404). questionary.text reads the raw line.
+    ticker = questionary.text(
+        "",
+        validate=lambda value: (
+            not value.strip()
+            or (
+                all(ch.isalnum() or ch in "._-^" for ch in value.strip())
+                and len(value.strip()) <= 32
+            )
+        )
+        or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK, 贵州茅台.",
+    ).ask()
+
+    if ticker is None:
+        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+        raise typer.Exit(1)
+
+    raw = ticker.strip() or "SPY"
+
+    # Resolve Chinese stock names
     from tradingagents.dataflows.akshare_data import _is_chinese_name, resolve_ticker_name
     if _is_chinese_name(raw):
         try:
@@ -631,7 +652,8 @@ def get_ticker():
         except ValueError as e:
             console.print(f"[red]{e}[/red]")
             return get_ticker()
-    return raw
+
+    return raw.upper()
 
 
 def get_analysis_date():
@@ -1169,8 +1191,11 @@ def run_analysis(checkpoint: bool = False):
 
             trace.append(chunk)
 
-        # Get final state and decision
-        final_state = trace[-1]
+        # Streamed chunks are per-node deltas, not full state. Merge them
+        # so every report field populated across the run is present.
+        final_state = {}
+        for chunk in trace:
+            final_state.update(chunk)
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
