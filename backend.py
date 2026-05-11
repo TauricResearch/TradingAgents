@@ -28,6 +28,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+from portfolio import Portfolio
 
 DEMO_MODE = False
 try:
@@ -47,6 +48,8 @@ app = FastAPI(title="TradingAgents Dashboard", version="1.0.0", lifespan=lifespa
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 executor = ThreadPoolExecutor(max_workers=4)
+portfolio = Portfolio()
+portfolio.load()
 watched_tickers: Dict[str, dict] = {}
 clients: List[WebSocket] = []
 refresh_interval: int = 300
@@ -249,6 +252,12 @@ class ConfigPayload(BaseModel):
     refresh_interval: Optional[int] = None
 
 
+class TradePayload(BaseModel):
+    ticker: str
+    side: str
+    amount_usd: float
+
+
 @app.get("/api/tickers")
 def get_tickers():
     return JSONResponse(watched_tickers)
@@ -326,6 +335,68 @@ def get_chart(ticker: str):
         "close": [round(float(v), 4) for v in df["Close"]],
         "volume": [int(v) for v in df["Volume"]],
     })
+
+
+@app.get("/api/portfolio")
+def get_portfolio():
+    prices = {}
+    for t in portfolio.positions:
+        try:
+            prices[t] = float(yf.Ticker(t).fast_info["last_price"])
+        except Exception:
+            pass
+    return JSONResponse(portfolio.get_state(prices))
+
+
+@app.get("/api/price/{ticker}")
+def get_price(ticker: str):
+    t = ticker.upper()
+    try:
+        price = float(yf.Ticker(t).fast_info["last_price"])
+        return JSONResponse({"ticker": t, "price": price})
+    except Exception:
+        return JSONResponse({"error": "Price unavailable"}, status_code=404)
+
+
+@app.post("/api/trade")
+async def post_trade(payload: TradePayload):
+    t = payload.ticker.upper()
+    side = payload.side.upper()
+    amount_usd = payload.amount_usd
+
+    if side not in ("BUY", "SELL"):
+        return JSONResponse({"error": "side must be BUY or SELL"}, status_code=400)
+    if amount_usd <= 0:
+        return JSONResponse({"error": "amount_usd must be positive"}, status_code=400)
+
+    try:
+        price = float(yf.Ticker(t).fast_info["last_price"])
+    except Exception:
+        return JSONResponse({"error": "Price unavailable"}, status_code=503)
+
+    if side == "BUY":
+        if amount_usd > portfolio.cash:
+            return JSONResponse({"error": "Insufficient cash"}, status_code=400)
+        portfolio.buy(t, amount_usd, price)
+    else:
+        if t not in portfolio.positions:
+            return JSONResponse({"error": "No position"}, status_code=400)
+        portfolio.sell(t, amount_usd, price)
+
+    portfolio.save()
+
+    prices = {}
+    for ticker in portfolio.positions:
+        try:
+            prices[ticker] = float(yf.Ticker(ticker).fast_info["last_price"])
+        except Exception:
+            pass
+    state = portfolio.get_state(prices)
+    last_trade = portfolio.trades[-1] if portfolio.trades else None
+    update_payload = {"type": "portfolio_update", **state, "last_trade": last_trade}
+
+    await broadcast(update_payload)
+    return JSONResponse(update_payload)
 
 
 @app.websocket("/ws")
