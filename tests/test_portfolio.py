@@ -142,7 +142,8 @@ class TestCheckDayReset:
         p.check_day_reset("2026-05-11")
         assert p.day_start_value == pytest.approx(50_000.0)  # unchanged
 
-    def test_resets_on_new_date(self, p):
+    def test_resets_on_new_date(self, p, monkeypatch):
+        monkeypatch.setattr(p, "save", lambda: None)
         p.day_start_date = "2026-05-10"
         p.day_start_value = 80_000.0
         # cash is 100_000 from fixture, no positions → total_value = 100_000
@@ -150,7 +151,8 @@ class TestCheckDayReset:
         assert p.day_start_value == pytest.approx(100_000.0)
         assert p.day_start_date == "2026-05-11"
 
-    def test_resets_with_position_uses_avg_cost_fallback(self, p):
+    def test_resets_with_position_uses_avg_cost_fallback(self, p, monkeypatch):
+        monkeypatch.setattr(p, "save", lambda: None)
         p.day_start_date = "2026-05-10"
         p.buy("NVDA", 1_000.0, 100.0)   # cash=99_000, 10 shares @ avg 100
         p.check_day_reset("2026-05-11")  # get_state({}) uses avg_cost → total_value=100_000

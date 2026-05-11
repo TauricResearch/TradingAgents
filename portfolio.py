@@ -12,12 +12,13 @@ class Portfolio:
         self.day_start_date: str = datetime.now().strftime("%Y-%m-%d")
 
     def load(self, path: str = "portfolio.json") -> None:
+        today = datetime.now().strftime("%Y-%m-%d")
         if not os.path.exists(path):
             self.cash = 100_000.0
             self.positions = {}
             self.trades = []
             self.day_start_value = 100_000.0
-            self.day_start_date = datetime.now().strftime("%Y-%m-%d")
+            self.day_start_date = today
             return
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -25,7 +26,7 @@ class Portfolio:
         self.positions = data.get("positions", {})
         self.trades = data.get("trades", [])
         self.day_start_value = float(data.get("day_start_value", 100_000.0))
-        self.day_start_date = data.get("day_start_date", datetime.now().strftime("%Y-%m-%d"))
+        self.day_start_date = data.get("day_start_date", today)
 
     def save(self, path: str = "portfolio.json") -> None:
         tmp = path + ".tmp"
