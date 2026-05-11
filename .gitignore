@@ -218,5 +218,6 @@ __marimo__/
 # Cache
 **/data_cache/
 .gitnexus
+.claude
 node_modules/
 **/node_modules/
