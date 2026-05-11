@@ -572,7 +572,7 @@ const API = `http://${location.host}/api`;
 async function loadPortfolio() {
   try {
     const r = await fetch(`${API}/portfolio`);
-    if (!r.ok) return;
+    if (!r.ok) { console.warn('[loadPortfolio] HTTP error', r.status); return; }
     const data = await r.json();
     handlePortfolioUpdate(data);
   } catch (e) {
@@ -659,7 +659,7 @@ async function executeTrade(ticker, side) {
   function unlock() {
     clearTimeout(lockoutTimer);
     if (buyBtn) { buyBtn.disabled = false; buyBtn.textContent = origBuyText; }
-    if (sellBtn) sellBtn.textContent = origSellText;
+    if (sellBtn) { sellBtn.disabled = false; sellBtn.textContent = origSellText; }
     input.value = '';
   }
 
