@@ -568,6 +568,124 @@ let wsReconnectTimer = null;
 const BACKEND = `ws://${location.host}/ws`;
 const API = `http://${location.host}/api`;
 
+// ── Portfolio ─────────────────────────────────────────────────────────────
+async function loadPortfolio() {
+  try {
+    const r = await fetch(`${API}/portfolio`);
+    if (!r.ok) return;
+    const data = await r.json();
+    handlePortfolioUpdate(data);
+  } catch (e) {
+    console.warn('[loadPortfolio]', e);
+  }
+}
+
+function updateCardPosition(ticker) {
+  const pos = portfolioState.positions && portfolioState.positions[ticker];
+  const el = document.getElementById('trade-position-' + ticker);
+  const sellBtn = document.getElementById('btn-sell-' + ticker);
+  if (!el) return;
+  if (!pos || pos.shares <= 0) {
+    el.style.display = 'none';
+    if (sellBtn) sellBtn.disabled = true;
+    return;
+  }
+  const sign = pos.unrealised_pnl >= 0 ? '+' : '';
+  const pnlClass = pos.unrealised_pnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+  el.className = 'trade-position ' + pnlClass;
+  el.style.display = 'block';
+  el.textContent = `${pos.shares.toFixed(2)} shares · avg $${pos.avg_cost.toFixed(2)} · ${sign}$${pos.unrealised_pnl.toFixed(2)} (${sign}${pos.unrealised_pnl_pct.toFixed(1)}%)`;
+  if (sellBtn) sellBtn.disabled = false;
+}
+
+function handlePortfolioUpdate(ev) {
+  portfolioState = ev;
+  for (const ticker of Object.keys(state)) {
+    updateCardPosition(ticker);
+  }
+  if (ev.last_trade) {
+    const t = ev.last_trade;
+    const kind = t.side === 'BUY' ? 'success' : 'error';
+    toast(`${t.side} ${t.shares.toFixed(2)} ${t.ticker} @ $${t.price.toFixed(2)}`, kind);
+  }
+}
+
+async function executeTrade(ticker, side) {
+  const input = document.getElementById('trade-input-' + ticker);
+  const buyBtn = document.getElementById('btn-buy-' + ticker);
+  const sellBtn = document.getElementById('btn-sell-' + ticker);
+
+  let amount_usd = parseFloat(input.value);
+
+  // SELL with empty input → use full position value
+  if (side === 'SELL' && (!input.value || isNaN(amount_usd))) {
+    const pos = portfolioState.positions && portfolioState.positions[ticker];
+    if (pos) amount_usd = pos.shares * pos.current_price;
+  }
+
+  if (!amount_usd || amount_usd <= 0) {
+    toast('Enter an amount', 'error');
+    return;
+  }
+
+  // Client-side cash validation
+  if (side === 'BUY' && amount_usd > portfolioState.cash) {
+    toast('Insufficient cash', 'error');
+    return;
+  }
+
+  // 30% concentration warning
+  if (side === 'BUY') {
+    const pos = portfolioState.positions && portfolioState.positions[ticker];
+    const existing = pos ? pos.shares * pos.current_price : 0;
+    const projected = (existing + amount_usd) / (portfolioState.total_value || 1);
+    if (projected > 0.30) {
+      if (!confirm(`${ticker} would exceed 30% of portfolio. Proceed?`)) return;
+    }
+  }
+
+  // Button lockout
+  const origBuyText = buyBtn ? buyBtn.textContent : 'BUY';
+  const origSellText = sellBtn ? sellBtn.textContent : 'SELL';
+  if (buyBtn) { buyBtn.disabled = true; buyBtn.textContent = '…'; }
+  if (sellBtn) { sellBtn.disabled = true; sellBtn.textContent = '…'; }
+
+  // 10s timeout fallback to re-enable buttons
+  const lockoutTimer = setTimeout(() => {
+    if (buyBtn) { buyBtn.disabled = false; buyBtn.textContent = origBuyText; }
+    if (sellBtn) { sellBtn.disabled = false; sellBtn.textContent = origSellText; }
+  }, 10000);
+
+  function unlock() {
+    clearTimeout(lockoutTimer);
+    if (buyBtn) { buyBtn.disabled = false; buyBtn.textContent = origBuyText; }
+    if (sellBtn) sellBtn.textContent = origSellText;
+    input.value = '';
+  }
+
+  try {
+    const r = await fetch(`${API}/trade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, side, amount_usd }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      toast(data.error || 'Trade failed', 'error');
+      unlock();
+      return;
+    }
+    // Success: portfolio_update WebSocket event will fire handlePortfolioUpdate
+    // which updates positions. Unlock is triggered by the WS event arriving.
+    // The lockout timer serves as fallback if WS drops.
+    unlock();
+  } catch (e) {
+    console.warn('[executeTrade]', e);
+    toast('Cannot reach backend', 'error');
+    unlock();
+  }
+}
+
 // ── Charts ─────────────────────────────────────────────────────────────────
 function _signalDataset(decision, closeValues) {
   if (!decision || decision === 'PENDING') return null;
@@ -672,6 +790,7 @@ function connect() {
   ws.onopen = () => {
     setStatus('connected');
     clearTimeout(wsReconnectTimer);
+    loadPortfolio();
   };
 
   ws.onmessage = (e) => {
