@@ -48,6 +48,7 @@ class TestSave:
         p2.load(path)
         assert p2.cash == 42_000.0
         assert p2.positions["AAPL"]["shares"] == 5.0
+        assert not os.path.exists(path + ".tmp")
 
 
 class TestBuy:
@@ -101,6 +102,10 @@ class TestSell:
         p.sell("NVDA", 500.0, 110.0)
         assert len(p.trades) == 2
         assert p.trades[1]["side"] == "SELL"
+
+    def test_sell_nonexistent_raises(self, p):
+        with pytest.raises(KeyError):
+            p.sell("MISSING", 100.0, 50.0)
 
 
 class TestGetState:
