@@ -71,8 +71,6 @@ class CodexChatModel(BaseChatModel):
             "--ephemeral",
             "--sandbox",
             "read-only",
-            "--ask-for-approval",
-            "never",
             "--color",
             "never",
             "--output-last-message",

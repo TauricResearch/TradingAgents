@@ -36,7 +36,7 @@ def test_codex_chat_model_invokes_exec_read_only_mode(monkeypatch):
     assert args[:2] == ["codex-test", "exec"]
     assert "--ephemeral" in args
     assert "read-only" in args
-    assert "never" in args
+    assert "--ask-for-approval" not in args
     assert "--output-last-message" in args
     assert kwargs["timeout"] == 12
     assert "Human:\nhello" in kwargs["input"]
