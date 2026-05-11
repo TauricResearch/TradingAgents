@@ -450,16 +450,24 @@ def get_akshare_indicators(symbol: str, indicator: str, curr_date: str, look_bac
         if exchange == 'hongkong':
             df = ak.stock_hk_hist(symbol=code, period="daily",
                                   start_date=start_str, end_date=end_str, adjust="qfq")
+            existing = {k: v for k, v in _COL_MAP.items() if k in df.columns}
         else:
-            df = ak.stock_zh_a_hist(symbol=code, period="daily",
-                                    start_date=start_str, end_date=end_str, adjust="qfq")
+            # Use Sina to avoid proxy/VPN blocks on East Money
+            df = ak.stock_zh_a_daily(
+                symbol=_sina_stock_code(code, exchange),
+                start_date=start_str, end_date=end_str, adjust="qfq",
+            )
+            col_sina = {
+                'date': 'Date', 'open': 'Open', 'high': 'High',
+                'low': 'Low', 'close': 'Close', 'volume': 'Volume',
+            }
+            existing = {k: v for k, v in col_sina.items() if k in df.columns}
     except Exception as e:
         return f"Error fetching data for indicator '{indicator}': {str(e)}"
 
     if df is None or df.empty:
         return ""
 
-    existing = {k: v for k, v in _COL_MAP.items() if k in df.columns}
     df = df.rename(columns=existing)
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df = df.dropna(subset=['Date'])
