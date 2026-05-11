@@ -132,6 +132,14 @@ def resolve_ticker_name(name: str) -> str:
 
 # --- AKShare data tool functions ---
 
+import os
+
+# AKShare fetches data from Chinese sources (East Money, Sina, etc.) which
+# can be blocked by HTTP proxies. Clear proxy settings before importing.
+for _env_var in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY",
+                 "ALL_PROXY", "all_proxy"):
+    os.environ.pop(_env_var, None)
+
 import pandas as pd
 from datetime import datetime
 
