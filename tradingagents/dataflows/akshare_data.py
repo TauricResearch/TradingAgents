@@ -44,7 +44,7 @@ def _normalize_akshare_ticker(ticker: str) -> Tuple[str, str]:
         if ticker.startswith(('0', '3', '8')):
             return (ticker, 'shenzhen')
 
-    raise ValueError(f"Cannot normalize ticker: {ticker!r}")
+    return (ticker, 'unknown')
 
 
 # Cache for name-to-code mappings, populated lazily
@@ -104,10 +104,24 @@ def resolve_ticker_name(name: str) -> str:
                 return f"{code}.SS"
             else:
                 return f"{code}.SZ"
+        # Fuzzy match: try substring matching (e.g. '茅台' matches '贵州茅台')
+        if _name_cache:
+            matches = [n for n in _name_cache if name in n]
+            if len(matches) == 1:
+                code = _name_cache[matches[0]]
+                if code.startswith('6'):
+                    return f"{code}.SS"
+                else:
+                    return f"{code}.SZ"
         _ensure_hk_name_cache()
         if _hk_name_cache and name in _hk_name_cache:
             code = _hk_name_cache[name].zfill(5)
             return f"{code}.HK"
+        if _hk_name_cache:
+            matches = [n for n in _hk_name_cache if name in n]
+            if len(matches) == 1:
+                code = _hk_name_cache[matches[0]].zfill(5)
+                return f"{code}.HK"
         raise ValueError(f"Cannot resolve Chinese name: {name!r}")
 
     # Plain numeric code — auto-suffix
@@ -130,11 +144,32 @@ _COL_MAP = {
 }
 
 
+def _resolve_any_ticker(symbol: str) -> str:
+    """Resolve a ticker that may be a Chinese name, plain code, or suffixed code.
+
+    Returns the AKShare-compatible code string, or the original symbol
+    if it cannot be resolved (caller handles the error downstream).
+    """
+    if _is_chinese_name(symbol):
+        try:
+            return resolve_ticker_name(symbol)
+        except ValueError:
+            return symbol
+    # Try normalization to detect invalid tickers early — if it fails,
+    # pass the symbol through so the downstream AKShare call returns
+    # a clean "No data found" error instead of a ValueError crash.
+    try:
+        _normalize_akshare_ticker(symbol)
+    except ValueError:
+        return symbol
+    return symbol
+
+
 def get_akshare_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     """Get OHLCV stock data from AKShare.
 
     Args:
-        symbol: Ticker symbol (e.g. '600000', '600000.SS', '0700.HK')
+        symbol: Ticker symbol (e.g. '600000', '600000.SS', '0700.HK', '贵州茅台')
         start_date: Start date in yyyy-mm-dd format
         end_date: End date in yyyy-mm-dd format
 
@@ -144,6 +179,7 @@ def get_akshare_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
+    symbol = _resolve_any_ticker(symbol)
     code, exchange = _normalize_akshare_ticker(symbol)
 
     try:
@@ -189,6 +225,7 @@ def get_akshare_stock_data(symbol: str, start_date: str, end_date: str) -> str:
 
 def get_akshare_fundamentals(ticker: str, curr_date: str = None) -> str:
     """Get company fundamentals from AKShare (East Money)."""
+    ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
 
     if exchange == 'hongkong':
@@ -234,6 +271,7 @@ def _hk_unsupported(ticker: str, data_type: str) -> str:
 
 
 def get_akshare_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
+    ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
     if exchange == 'hongkong':
         return _hk_unsupported(ticker, "balance sheet")
@@ -245,6 +283,7 @@ def get_akshare_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: s
 
 
 def get_akshare_income_statement(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
+    ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
     if exchange == 'hongkong':
         return _hk_unsupported(ticker, "income statement")
@@ -256,6 +295,7 @@ def get_akshare_income_statement(ticker: str, freq: str = "quarterly", curr_date
 
 
 def get_akshare_cashflow(ticker: str, freq: str = "quarterly", curr_date: str = None) -> str:
+    ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
     if exchange == 'hongkong':
         return _hk_unsupported(ticker, "cash flow")
@@ -268,6 +308,7 @@ def get_akshare_cashflow(ticker: str, freq: str = "quarterly", curr_date: str = 
 
 def get_akshare_news(ticker: str, start_date: str, end_date: str) -> str:
     """Get stock-specific news from AKShare (East Money)."""
+    ticker = _resolve_any_ticker(ticker)
     code, exchange = _normalize_akshare_ticker(ticker)
 
     try:
@@ -355,6 +396,7 @@ def get_akshare_indicators(symbol: str, indicator: str, curr_date: str, look_bac
     from stockstats import wrap
     from dateutil.relativedelta import relativedelta
 
+    symbol = _resolve_any_ticker(symbol)
     code, exchange = _normalize_akshare_ticker(symbol)
 
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
