@@ -133,3 +133,59 @@ class TestGetState:
         state = p.get_state({})  # no price provided
         assert state["positions"]["NVDA"]["unrealised_pnl"] == pytest.approx(0.0)
         assert state["total_value"] == pytest.approx(100_000.0)
+
+
+class TestCheckDayReset:
+    def test_no_reset_when_date_unchanged(self, p):
+        p.day_start_value = 50_000.0
+        p.day_start_date = "2026-05-11"
+        p.check_day_reset("2026-05-11")
+        assert p.day_start_value == pytest.approx(50_000.0)  # unchanged
+
+    def test_resets_on_new_date(self, p):
+        p.day_start_date = "2026-05-10"
+        p.day_start_value = 80_000.0
+        # cash is 100_000 from fixture, no positions → total_value = 100_000
+        p.check_day_reset("2026-05-11")
+        assert p.day_start_value == pytest.approx(100_000.0)
+        assert p.day_start_date == "2026-05-11"
+
+    def test_resets_with_position_uses_avg_cost_fallback(self, p):
+        p.day_start_date = "2026-05-10"
+        p.buy("NVDA", 1_000.0, 100.0)   # cash=99_000, 10 shares @ avg 100
+        p.check_day_reset("2026-05-11")  # get_state({}) uses avg_cost → total_value=100_000
+        assert p.day_start_value == pytest.approx(100_000.0)
+
+    def test_no_reset_does_not_mutate_date(self, p):
+        p.day_start_date = "2026-05-11"
+        p.check_day_reset("2026-05-11")
+        assert p.day_start_date == "2026-05-11"
+
+
+class TestGetStateDailyPnlAndPct:
+    def test_daily_pnl_zero_at_start(self, p):
+        state = p.get_state({})
+        assert state["daily_pnl"] == pytest.approx(0.0)
+
+    def test_daily_pnl_positive_when_value_above_start(self, p):
+        p.day_start_value = 99_000.0
+        state = p.get_state({})
+        # cash=100_000, no positions → total_value=100_000, daily_pnl=1_000
+        assert state["daily_pnl"] == pytest.approx(1_000.0)
+
+    def test_daily_pnl_negative(self, p):
+        p.day_start_value = 101_000.0
+        state = p.get_state({})
+        assert state["daily_pnl"] == pytest.approx(-1_000.0)
+
+    def test_pct_of_portfolio_correct(self, p):
+        p.buy("NVDA", 10_000.0, 100.0)   # 100 shares; cash=90_000
+        state = p.get_state({"NVDA": 100.0})
+        # total_value = 90_000 + 100*100 = 100_000; mkt_val = 10_000 → 10%
+        assert state["positions"]["NVDA"]["pct_of_portfolio"] == pytest.approx(10.0)
+
+    def test_pct_of_portfolio_zero_when_total_value_zero(self, p):
+        p.cash = 0.0
+        p.positions = {"NVDA": {"shares": 0.0, "avg_cost": 100.0}}
+        state = p.get_state({})
+        assert state["positions"]["NVDA"]["pct_of_portfolio"] == 0.0
