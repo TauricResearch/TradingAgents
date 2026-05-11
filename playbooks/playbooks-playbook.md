@@ -1,5 +1,6 @@
 ---
 date: 2026-02-01
+updated: 2026-05-11
 tags:
   - playbook
   - meta
@@ -28,6 +29,7 @@ Standard YAML metadata.
 ```yaml
 ---
 date: YYYY-MM-DD
+updated: YYYY-MM-DD
 tags: [playbook, topic, subtopic]
 agent: (optional)
 environment: (optional)
@@ -64,35 +66,22 @@ If the playbook defines a *style* rather than a *process*, list the rules here.
 *   If a playbook fails, UPDATE IT. Do not just bypass it.
 *   **Deprecation:** If a playbook is obsolete, add a `> **DEPRECATED**` banner at the top and link to the successor.
 
-## The Canonical–Project Distinction
+## The Registry Model
 
-Not all playbooks belong to one project. A proven playbook — free of project-specific
-paths, names, and tickers — is **canonical**: it can be adopted by any project.
+All playbooks live in `playbooks/`. The registry tracks their state via `REGISTRY.jsonl`.
 
-**Two directories, one lifecycle:**
+**Lifecycle:**
+1. **Create** — playbook in `playbooks/` (project-specific or generic)
+2. **Register** — entry added to `playbooks/REGISTRY.jsonl`
+3. **Maintain** — update in place as conventions evolve
+4. **Promote** — for external sharing, submit to an external registry; that registry owns the canonical version
 
+The project does not maintain a parallel canonical store. The registry is the source of truth.
+
+```jsonl
+{"file":"defuddle-playbook.md","date":"2026-05-03","status":"canonical","summary":"defuddle content extraction via defuddle.md API","meta":{"source":"project","mining_candidate":false}}
+{"file":"gitnexus-playbook.md","date":"2026-05-09","status":"canonical","summary":"GitNexus code knowledge graph integration","meta":{"source":"project","mining_candidate":false}}
 ```
-playbooks/               canonicals/playbooks/
-  (project-specific)       (generic, reusable)
-    ig-api-playbook.md       lab-first-playbook.md
-    hledger-playbook.md      conventions-playbook.md
-    defuddle-playbook.md     defuddle-playbook.md
-```
-
-| Dimension | `playbooks/` | `canonicals/playbooks/` |
-|-----------|-------------|------------------------|
-| Status | `project` or `active` | `canonical` |
-| Content | Has project paths (e.g. `src/server/`, `tradingagents/`) | Generic (e.g. `<SRC-SERVER>/`, `<PROJECT>`) |
-| Can move to? | `canonicals/` via `reg-mine` | Any project via `reg-import` |
-| Status field | `status: "project"` | `status: "canonical"` |
-| Registry | `playbooks/REGISTRY.jsonl` | `canonicals/INDEX.jsonl` |
-
-**Workflow:**
-1. **Create** playbook in `playbooks/` (project-specific examples)
-2. **Mark** `mining_candidate: true` in `REGISTRY.jsonl` when it proves its worth
-3. **Mine** with `bun scripts/reg-mine.ts <playbook>.md` (dry-run review)
-4. **Apply** with `bun scripts/reg-mine.ts <playbook>.md --apply` → writes to `canonicals/`
-5. **Import** with `bun scripts/reg-import.ts <playbook>.md --apply` → pulls into new project
 
 ## The Knowledge System
 
@@ -101,9 +90,9 @@ Playbooks are part of a four-tier knowledge architecture:
 | Tier | Directory | Contains | Answers |
 |------|-----------|----------|---------|
 | **Decisions** | `decisions/` | Architecture Decision Records (ADRs) | "Why did we choose X over Y?" |
-| **Canonicals** | `canonicals/playbooks/` | Reusable, project-agnostic patterns | "How do I do X correctly?" |
-| **Playbooks** | `playbooks/` | Project-specific conventions and how-to | "How do we do X in this project?" |
-| **Registry** | `*.jsonl` | Machine-readable indexes of all knowledge | "Show me all canonical playbooks" |
+| **Briefs** | `briefs/` | Work proposals and requirements | "What should we build?" |
+| **Debriefs** | `debriefs/` | Retrospectives and lessons learned | "What happened and why?" |
+| **Playbooks** | `playbooks/` | Project-specific and generic conventions | "How do we do X?" |
 
 ## Location
 All playbooks reside in `playbooks/`.

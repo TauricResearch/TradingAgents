@@ -145,3 +145,26 @@ CREATE INDEX IF NOT EXISTS idx_trades_position ON trades(position_id);
 CREATE INDEX IF NOT EXISTS idx_sb_account ON spreadbet_positions(account_id);
 CREATE INDEX IF NOT EXISTS idx_sb_status ON spreadbet_positions(status);
 CREATE INDEX IF NOT EXISTS idx_ab_account ON account_balances(account_id);
+
+-- Alert rules (user-defined custom alerts)
+CREATE TABLE IF NOT EXISTS alerts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    ticker          TEXT,                              -- NULL = cross-ticker / portfolio-level
+    condition       TEXT NOT NULL,                     -- JSON: {type, threshold, direction?}
+    platform        TEXT DEFAULT 'all',                -- 'all' or specific platform
+    severity        TEXT DEFAULT 'warning'
+                     CHECK(severity IN ('critical','warning','info')),
+    message         TEXT,                              -- custom message template
+    channel         TEXT DEFAULT 'telegram'
+                     CHECK(channel IN ('telegram','email','webhook','none')),
+    enabled         INTEGER DEFAULT 1,
+    last_checked    TEXT,
+    last_triggered  TEXT,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now')),
+    UNIQUE(name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_ticker ON alerts(ticker);
+CREATE INDEX IF NOT EXISTS idx_alerts_enabled ON alerts(enabled);

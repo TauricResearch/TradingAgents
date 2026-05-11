@@ -2,9 +2,6 @@
 /**
  * reg-import.ts — Import a canonical playbook into the current project.
  *
- * Copies a playbook from canonicals/ to the project's playbooks/ directory
- * and adds a tracked entry to playbooks/REGISTRY.jsonl.
- *
  * By default prints what would be imported (dry run).
  * With --apply, copies the file and updates the registry.
  *
@@ -65,8 +62,7 @@ function main(): void {
   const sourceDirFlag = args.indexOf("--source-dir")
   const targetDirFlag = args.indexOf("--target-dir")
 
-  const sourceDir =
-    sourceDirFlag >= 0 ? args[sourceDirFlag + 1] || "canonicals/playbooks" : "canonicals/playbooks"
+  const sourceDir = sourceDirFlag >= 0 ? args[sourceDirFlag + 1] || "playbooks" : "playbooks"
   const targetDir = targetDirFlag >= 0 ? args[targetDirFlag + 1] || "playbooks" : "playbooks"
 
   const fileArg = args.find((a) => !a.startsWith("--"))
@@ -77,7 +73,7 @@ function main(): void {
     console.error("")
     console.error("  playbook-file    Name of playbook in --source-dir (e.g. gum-playbook.md)")
     console.error("  --apply          Copy to --target-dir and register")
-    console.error("  --source-dir     Source directory (default: canonicals/playbooks)")
+    console.error("  --source-dir     Source directory (default: playbooks)")
     console.error("  --target-dir     Target directory (default: playbooks)")
     process.exit(1)
   }

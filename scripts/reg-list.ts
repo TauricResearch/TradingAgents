@@ -117,7 +117,6 @@ const FILE_MAP: Record<string, string> = {
   debriefs: "debriefs/INDEX.jsonl",
   decisions: "decisions/INDEX.jsonl",
   playbooks: "playbooks/REGISTRY.jsonl",
-  canonicals: "canonicals/INDEX.jsonl",
   docs: "docs/INDEX.jsonl",
   lexicon: "silo-conceptual-lexicon.jsonl",
   "lexicon-ctx": "debriefs/lexicon-ctx.jsonl",

@@ -1,3 +1,15 @@
+---
+date: 2026-05-08
+updated: 2026-05-11
+tags:
+  - playbook
+  - registry
+  - meta
+  - documentation
+agent: antigravity
+environment: local
+---
+
 # Unified Registry Playbook
 
 Every document directory in the repository carries an `INDEX.jsonl` that
@@ -44,9 +56,10 @@ All indexes use the same JSONL structure:
 | debriefs | `done` | `epic`, `adr`, `session` | `debriefs/INDEX.jsonl` |
 | decisions | `Accepted`, `Proposed`, `Superseded` | `supersedes`, `superseded_by` | `decisions/INDEX.jsonl` |
 | playbooks | `canonical`, `project` | `source`, `mining_candidate`, `mining_note`, `last_mined` | `playbooks/REGISTRY.jsonl` |
-| canonicals | `canonical`, `draft`, `deprecated` | `source`, `mining_candidate`, `mining_note`, `last_mined` | `canonicals/INDEX.jsonl` |
-| scripts | `portable`, `adaptable`, `project` | `lang` | `scripts/INDEX.jsonl` |
 | docs | `active`, `archived`, `draft` | `type`, `topic` | `docs/INDEX.jsonl` |
+
+> **2026-05-11:** The `canonicals/` directory was removed. Playbooks live in `playbooks/` only.
+> The registry tracks `meta.source` to indicate origin. External registries own canonical versions.
 
 ## Tools
 
@@ -59,7 +72,6 @@ bun scripts/reg-list.ts briefs
 bun scripts/reg-list.ts debriefs
 bun scripts/reg-list.ts decisions
 bun scripts/reg-list.ts playbooks
-bun scripts/reg-list.ts canonicals
 bun scripts/reg-list.ts docs
 ```
 
@@ -69,18 +81,18 @@ Justfile shortcuts:
 just reg-briefs
 just reg-debriefs
 just reg-decisions
-just reg-canonicals
 just reg-scripts
 just reg-docs
 ```
 
 ### Mining: `reg-mine.ts`
 
-Extract a proven project playbook to canonicals/ by stripping project-specific tokens:
+Extract project-specific tokens to produce a cleaner, more portable version.
+Writes to `playbooks/` and updates `last_mined` in the registry.
 
 ```bash
 bun scripts/reg-mine.ts lab-first-playbook.md        # dry run → stdout
-bun scripts/reg-mine.ts lab-first-playbook.md --apply # write to canonicals/playbooks/
+bun scripts/reg-mine.ts lab-first-playbook.md --apply # write to playbooks/
 ```
 
 **What gets stripped:** `TradingAgents` → `<PROJECT>`, `src/server/` → `<SRC-SERVER>/`,
@@ -98,7 +110,7 @@ bun scripts/reg-promote.ts conventions-playbook.md --apply # delegate to reg-min
 
 ### Import: `reg-import.ts`
 
-Pull a canonical playbook into a new project:
+Pull a playbook from another source into `playbooks/`:
 
 ```bash
 bun scripts/reg-import.ts gum-playbook.md        # dry-run preview
@@ -106,20 +118,6 @@ bun scripts/reg-import.ts gum-playbook.md --apply # copy + register
 ```
 
 Fails gracefully if playbook already exists.
-
-### Script Registry: `reg-sync-scripts.ts`
-
-Detect and index all scripts with portability classification:
-
-```bash
-bun scripts/reg-sync-scripts.ts        # check scripts/INDEX.jsonl
-bun scripts/reg-sync-scripts.ts --fix  # regenerate
-```
-
-Portability levels:
-- `portable` — No project dependencies (registry tools, `lib/`)
-- `adaptable` — Minor project deps, easy to generalise
-- `project` — TradingAgents-specific (lab, trading, IG, etc.)
 
 ### Validation: `reg-check.ts`
 
@@ -148,28 +146,6 @@ Reports:
 
 Run as part of `just check` (commit gate).
 
-### Migration: `reg-migrate.ts`
-
-One-time migration tool for converting legacy schemas to unified:
-
-```bash
-bun scripts/reg-migrate.ts --dry-run   # preview
-bun scripts/reg-migrate.ts --apply     # execute (creates .backup files)
-```
-
-## Adding a New Registry
-
-1. Create `NEWTYPE/INDEX.jsonl` with unified schema entries
-2. Add to `scripts/reg-check.ts` `REGISTRIES` map
-3. Add to `scripts/reg-list.ts` `FILE_MAP`
-4. Add to `scripts/reg-sync.ts` `REGISTRIES` map
-5. Add just recipes:
-   ```just
-   reg-newtype:
-       bun scripts/reg-list.ts newtype
-   ```
-6. Document in this playbook
-
 ## Commit Gate Integration
 
 `just check` includes:
@@ -178,7 +154,6 @@ bun scripts/reg-migrate.ts --apply     # execute (creates .backup files)
 2. `tsc --project tsconfig.server.json --noEmit` — type check
 3. `bun scripts/check-database-usage.ts` — no raw Database() instances
 4. `bun scripts/reg-sync.ts --all` — document indexes up to date
-5. `bun scripts/reg-sync-scripts.ts` — script index up to date
 
 All must pass before commit.
 
@@ -211,30 +186,3 @@ to match ADR convention.
 
 Put registry-specific data in `meta`, not at top level. This keeps the
 schema uniform and tools generic.
-
-## War Story: Why Four Schemas Became One
-
-Originally each document type invented its own index format:
-
-- briefs: `{ file, status, date, summary, epic }`
-- debriefs: `{ file, date, decision, epic, adr, session }`
-- decisions: `{ file, date, status, summary, supersedes }`
-- playbooks: `{ file, canonical, covers, mining_candidate }`
-
-This required `reg-list.ts` to carry a switch statement with four branches
-and `reg-check.ts` to validate four different schemas. Adding a fifth
-document type meant inventing a fifth schema and adding a fifth branch
-to every tool.
-
-The unified schema eliminated all special cases. One format function,
-one validation schema, one sync check. New registries slot in without
-modifying tool code.
-
-## Failure Mode: Index Rot
-
-Without `reg-sync`, indexes silently drift from the filesystem. Files get
-added, deleted, renamed. The index becomes a lie that misleads agents and
-humans alike.
-
-The fix is mechanical: run `just reg-sync` periodically. It reports
-drift in seconds. Fix with `--fix` or manually. No guesswork.

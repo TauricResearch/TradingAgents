@@ -127,6 +127,14 @@ export function Layout(props: LayoutProps) {
               Feedback
             </button>
             <button
+              hx-get="/alerts"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Alerts
+            </button>
+            <button
               hx-get="/about"
               hx-target="#content"
               hx-push-url="true"

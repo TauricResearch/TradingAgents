@@ -71,19 +71,10 @@ reg-briefs:
 reg-debriefs:
     bun scripts/reg-list.ts debriefs
 
-# List canonical playbooks (reusable across projects)
-[group("reg")]
-reg-canonicals:
-    bun scripts/reg-list.ts canonicals
-
 # List project playbooks that are mining candidates (portable patterns to extract)
 [group("reg")]
 reg-mining:
-    @echo "=== Project playbooks ==="
-    @jq -r 'select(.mining_candidate == true) | "\(.file) — \(.mining_note)"' playbooks/REGISTRY.jsonl
-    @echo ""
-    @echo "=== Canonicals (already mined) ==="
-    @jq -r 'select(.meta.mining_candidate == true) | "\(.file) — \(.meta.mining_note)"' canonicals/INDEX.jsonl
+    @jq -r 'select(.meta.mining_candidate == true) | "\(.file) — \(.meta.mining_note)"' playbooks/REGISTRY.jsonl
 
 # List all docs (human-readable)
 [group("reg")]
@@ -350,6 +341,83 @@ td-reset:
     rm -rf .todos
     td init
 
+# ── Agent: Multi-Agent Coordination ─────────────────────────────────────────
+#   Scripts live in scripts/agent-*.ts. These just recipes are the thin facade.
+#   Full protocol: playbooks/td-playbook.md
+
+# Full session startup: git state + td session + what's in flight
+[group("agent")]
+agent-orient:
+    bun scripts/agent-orient.ts
+
+# Compact orientation: one line per section
+[group("agent")]
+agent-orient-c:
+    bun scripts/agent-orient.ts --compact
+
+# What should I work on next?
+[group("agent")]
+agent-next:
+    bun scripts/agent-orient.ts --next
+
+# Claim a task before touching any files (checks collision, labels session)
+[group("agent")]
+agent-claim ID:
+    bun scripts/agent-claim.ts {{ID}}
+
+# Force-claim (bypass collision check — use when taking over from another agent)
+[group("agent")]
+agent-claim-force ID:
+    bun scripts/agent-claim.ts {{ID}} --force
+
+# Log progress to a task
+[group("agent")]
+agent-log ID *MSG:
+    bun scripts/agent-log.ts {{ID}} {{MSG}}
+
+# Log a blocker
+[group("agent")]
+agent-blocked ID *MSG:
+    bun scripts/agent-log.ts {{ID}} {{MSG}} --blocked
+
+# Structured handoff: done/remaining/decisions captured before closing
+[group("agent")]
+agent-handoff ID *MSG="handoff":
+    bun scripts/agent-handoff.ts {{ID}} --note "{{MSG}}"
+
+# Full handoff with explicit done/remaining
+[group("agent")]
+agent-handoff-full ID:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Enter done items (one per line, empty to finish):"
+    done_file=$(mktemp)
+    while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$done_file"; done
+    echo "Enter remaining items (one per line, empty to finish):"
+    remaining_file=$(mktemp)
+    while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$remaining_file"; done
+    bun scripts/agent-handoff.ts {{ID}} --done @"$done_file" --remaining @"$remaining_file"
+    rm -f "$done_file" "$remaining_file"
+
+# Sync state: git vs main + file collisions
+[group("agent")]
+agent-sync:
+    bun scripts/agent-sync.ts
+
+# Show file collisions only
+[group("agent")]
+agent-collisions:
+    bun scripts/agent-sync.ts --collisions
+
+# End session cleanly: handoff all in-progress tasks, clear claims
+[group("agent")]
+agent-end:
+    @echo "Checking in-progress tasks..."
+    @td list --status in_progress 2>/dev/null | head -20
+    @echo ""
+    @echo "Run handoffs manually, then: td ws handoff && td ws end"
+    @echo "Full guide: playbooks/td-playbook.md"
+
 # ── Run: business operations ────────────────────────────────────────────────
 #   Core day-to-day operations. Ordered by frequency of use.
 
@@ -367,6 +435,10 @@ portfolio:
 [group("run")]
 alerts:
     bun run src/cli/main.ts alerts
+
+check-alerts FIRE="":
+    bun scripts/check-alerts.ts {{FIRE}}
+
 
 # Show contingency buylist — watchlist items with fair value targets
 [group("run")]

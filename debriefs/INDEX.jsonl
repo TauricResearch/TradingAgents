@@ -35,3 +35,5 @@
 {"file":"reviews/pr-9.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"reviews/review-td-f42750.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"session-prompt-holdings-jsx.md","date":"2026-05-05","status":"done","summary":"Next session prompt: complete Holdings JSX refactor with external script extraction","meta":{"epic":"td-8dd762","adr":null,"session":null}}
+{"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{"template":true}}
+{"file":"debrief-session-2026-05-11-canonicals-removal.md","date":"2026-05-11","status":"done","summary":"canonicals/ removed, templates created, self-inflicted complexity debrief","meta":{"epic":null,"adr":null,"session":"ses_134041"}}

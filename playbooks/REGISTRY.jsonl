@@ -1,16 +1,30 @@
+{"file":"briefs-playbook.md","date":"2026-05-09","status":"canonical","summary":"Briefs Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"ci-cd-playbook.md","date":"2026-05-08","status":"project","summary":"CI/CD pipeline: pre-push hooks, diagram auto-generation, just check gate","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"cli-design-playbook.md","date":"2026-05-08","status":"project","summary":"CLI design patterns: citty framework, argument definitions, output formatting","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"conventions-playbook.md","date":"2026-05-08","status":"project","summary":"Active conventions, barnacle concept and detection, PR size discipline, inspection prompt","meta":{"source":null,"mining_candidate":true,"mining_note":"Barnacle concept (detecting and removing stale conventions) is highly portable","last_mined":"2026-05-09"}}
 {"file":"database-lifecycle-playbook.md","date":"2026-05-08","status":"project","summary":"Database lifecycle: backup/restore, TEST vs LIVE mode switching, schema migration","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"datatype-playbook.md","date":"2026-05-08","status":"project","summary":"Datatype variable font: inline chart ligatures (sparklines, bars, pies), CSS configuration","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"debriefs-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"decisions-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"defuddle-playbook.md","date":"2026-05-08","status":"project","summary":"Defuddle: extract webpage content as clean Markdown via hosted API","meta":{"source":null,"mining_candidate":true,"mining_note":"Defuddle usage pattern (fetch → parse → review) is portable across projects","last_mined":"2026-05-09"}}
+{"file":"git-workflow-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"gitnexus-playbook.md","date":"2026-05-08","status":"project","summary":"GitNexus code intelligence: impact analysis, Cypher queries, symbol context","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"gitnexus-usage-guide.md","date":"2026-05-08","status":"project","summary":"GitNexus usage guide: CLI commands, batch generation, DOT export pipeline","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"gum-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"hledger-playbook.md","date":"2026-05-08","status":"project","summary":"hLedger plain-text accounting: subprocess wrapper, journal format, balance queries","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"htmx-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"ig-api-playbook.md","date":"2026-05-08","status":"project","summary":"IG REST API integration: connectivity, order placement, instrument configuration","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"just-playbook.md","date":"2026-05-09","status":"canonical","summary":"Just Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"just-silo-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"lab-first-playbook.md","date":"2026-05-08","status":"project","summary":"Lab-first development: experiment in scripts/lab/, graduate proven patterns to production","meta":{"source":null,"mining_candidate":true,"mining_note":"Lab-first pattern (isolated experimentation → production graduation) is portable","last_mined":"2026-05-09"}}
+{"file":"mmdr-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"playbooks-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"research-bridge-playbook.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"services-playbook.md","date":"2026-05-08","status":"project","summary":"Server lifecycle management: PID files, log rotation, start/stop/status daemon pattern","meta":{"source":null,"mining_candidate":true,"mining_note":"PID-file lifecycle pattern is reusable; extract from TradingAgents server specifics","last_mined":"2026-05-09"}}
+{"file":"sqlite-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"td-playbook.md","date":"2026-05-11","status":"project","summary":"Multi-agent coordination protocol: claim-before-touch, session startup, handoff, TD labels convention","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"TEMPLATE.md","date":"2025-05-02","status":"project","summary":"Playbook template with frontmatter schema (file, date, status, summary, meta)","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"trade-calculator-testing-playbook.md","date":"2026-05-08","status":"project","summary":"Trade calculator testing: unit tests, integration tests, IG instrument validation","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
-{"file":"just-playbook.md","date":"2026-05-09","status":"canonical","summary":"Just Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
-{"file":"briefs-playbook.md","date":"2026-05-09","status":"canonical","summary":"Briefs Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
+{"file":"tsconfig-tiered-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"typescript-hono-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"unified-registry-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}

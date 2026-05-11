@@ -5,3 +5,5 @@
 {"file":"005-subprocess-bridge.md","date":"2026-05-02","status":"Accepted","summary":"Subprocess bridge (analyze_stream.py) for Python core; never fork tradingagents/ package","meta":{"supersedes":null,"superseded_by":null}}
 {"file":"006-jsonl-over-sqlite-knowledge.md","date":"2026-05-08","status":"Accepted","summary":"JSONL indexes for knowledge management; SQLite reserved for operational data only","meta":{"supersedes":null,"superseded_by":null}}
 {"file":"TEMPLATE.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"008-defuddle-web-content.md","date":"2026-05-11","status":"Accepted","summary":"defuddle for all web content extraction; no Browserbase or headless browser integration","meta":{"supersedes":null,"superseded_by":null}}
+{"file":"007-barnacle-drydock-location.md","date":"2026-05-11","status":"Accepted","summary":"Drydock as barnacle archive: decisions/ for persistent records, traceability over new directories","meta":{"supersedes":null,"superseded_by":null}}

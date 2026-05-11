@@ -255,3 +255,5 @@ AGENTS.md
 .deepseek/
 # Root justfile only (not subdirectory justfiles)
 /Justfile
+# Drydock barnacle archive (quarantined content — not part of the project)
+decisions/drydock/

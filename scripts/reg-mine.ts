@@ -4,17 +4,17 @@
  * reg-mine.ts — Extract canonical playbook from project-specific playbook.
  *
  * Strips project-specific content and produces a clean, portable version
- * suitable for canonicals/. By default prints to stdout (dry run).
- * With --apply, writes to canonicals/playbooks/ and updates last_mined.
+ * suitable for the registry. By default prints to stdout (dry run).
+ * With --apply, writes to playbooks/ and updates last_mined.
  *
  * Usage:
  *   bun scripts/reg-mine.ts lab-first-playbook.md            # dry run → stdout
- *   bun scripts/reg-mine.ts lab-first-playbook.md --apply    # write to canonicals/
+ *   bun scripts/reg-mine.ts lab-first-playbook.md --apply    # write to playbooks/
  *   bun scripts/reg-mine.ts conventions-playbook.md --apply  # mine another
  *
  * Options:
  *   --source-dir DIR    Source playbooks directory (default: playbooks)
- *   --target-dir DIR    Target canonicals directory (default: canonicals/playbooks)
+ *   --target-dir DIR    Target directory (default: playbooks)
  *   --apply             Write output to target directory
  *
  * What gets stripped:
@@ -69,9 +69,9 @@ function updateRegistryLastMined(playbookFile: string): void {
 }
 
 function runRegSyncCanonicals(): void {
-  console.log("  → syncing canonicals index...")
+  console.log("  → syncing playbooks index...")
   const proc = Bun.spawnSync({
-    cmd: ["bun", "scripts/reg-sync.ts", "canonicals", "--fix"],
+    cmd: ["bun", "scripts/reg-sync.ts", "playbooks", "--fix"],
     stdout: "pipe",
     stderr: "pipe",
   })
@@ -100,8 +100,7 @@ function main(): void {
   const targetDirFlag = args.indexOf("--target-dir")
 
   const sourceDir = sourceDirFlag >= 0 ? args[sourceDirFlag + 1] || "playbooks" : "playbooks"
-  const targetDir =
-    targetDirFlag >= 0 ? args[targetDirFlag + 1] || "canonicals/playbooks" : "canonicals/playbooks"
+  const targetDir = targetDirFlag >= 0 ? args[targetDirFlag + 1] || "playbooks" : "playbooks"
 
   const fileArg = args.find((a) => !a.startsWith("--"))
   if (!fileArg) {
@@ -114,7 +113,7 @@ function main(): void {
     )
     console.error("  --apply          Write cleaned output to --target-dir (default: stdout)")
     console.error("  --source-dir     Source directory (default: playbooks)")
-    console.error("  --target-dir     Target directory (default: canonicals/playbooks)")
+    console.error("  --target-dir     Target directory (default: playbooks)")
     process.exit(1)
   }
 

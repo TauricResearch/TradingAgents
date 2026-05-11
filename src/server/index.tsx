@@ -23,6 +23,8 @@ import { intelligenceRouter } from "./routes/portfolio-intelligence.tsx";
 import { portfolioBalanceRouter } from "./routes/portfolio-balance.ts";
 import { tradePlanRouter } from "./routes/trade-plan.tsx";
 import labCurrencyRouter from "./routes/lab-currency.tsx";
+import { alertsRouter } from "./routes/alerts.tsx";
+import { AlertsView } from "./views/alerts-view.tsx";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
 import { AnalysisView } from "./views/analysis.tsx";
@@ -138,6 +140,7 @@ app.get("/prospects", (c) => pageOrPartial(c, <ProspectsView />));
 app.get("/governance", (c) => pageOrPartial(c, <GovernanceView />));
 app.get("/benchmark", (c) => pageOrPartial(c, <BenchmarkView />));
 app.get("/feedback", (c) => pageOrPartial(c, <FeedbackView />));
+app.get("/alerts", (c) => pageOrPartial(c, <AlertsView />));
 app.get("/about", (c) => pageOrPartial(c, <AboutView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
 app.route("/lab/currency", labCurrencyRouter);
@@ -171,6 +174,7 @@ app.route("/api/workflow", workflowRouter);
 app.route("/api/portfolio/intelligence", intelligenceRouter);
 app.route("/api/portfolio/balance", portfolioBalanceRouter);
 app.route("/api/trade-plan", tradePlanRouter);
+app.route("/api/alerts", alertsRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
 import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.tsx";

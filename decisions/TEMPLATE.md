@@ -1,7 +1,14 @@
+---
+date: YYYY-MM-DD
+updated_by: [pi|human|agent-id]
+status: [Proposed | Accepted | Superseded]
+---
+
 # Decision: [Title]
 
 **Date:** YYYY-MM-DD
-**Status:** [Proposed | Accepted | Superseded]
+**Updated by:** updated_by
+**Status:** status
 
 ## Context
 
@@ -35,3 +42,4 @@ What did we choose? One sentence. Be specific — name the technology, the patte
 - Brief: `briefs/brief-*.md`
 - Playbook: `playbooks/*.md`
 - ADR: `decisions/NNN-*.md` (supersedes / superseded by)
+- **Updated by:** Git history records author of each change; `updated_by` in frontmatter tracks last modifier.

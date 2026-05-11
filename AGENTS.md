@@ -6,13 +6,9 @@ This codebase is collaborative. Multiple agents and the user share the same bran
 
 ```bash
 td usage --new-session     # new identity
-td ws current              # any active work session to resume?
-td list                    # what's open / in_progress
-td reviewable              # what can I review?
-# Sync: compare td list against debriefs/plans/current.md.
-# If current.md lists tasks as "open" that td shows as closed, update it.
-# If tasks are in_review but the PR is merged, approve/close them.
-# Stale planning docs are process barnacles — scrape them immediately.
+bun scripts/agent-orient.ts   # orientation: branch + td + in-flight
+bun scripts/agent-sync.ts     # sync: git state + file collisions
+# → Full protocol: playbooks/td-playbook.md
 ```
 
 ### Core Rule: Always Use a Work Session
@@ -31,13 +27,35 @@ td start <id1>
 td handoff <id1>
 ```
 
-**Read `playbooks/td-playbook.md` for the full multi-agent protocol.**
+### Agent Coordination Protocol
 
-**Before starting any work:** read `debriefs/plans/current.md`. It contains the current work plan, priority order, mandatory protocol, and known failure modes. Always start there.
+**Rule 0 — Claim before touch.** Never edit a file until you have:
+1. Run `bun scripts/agent-claim.ts <id>` on the owning task
+2. Verified no other session has claimed it
+3. Checked `bun scripts/agent-sync.ts --collisions` for file conflicts
+
+**Rule 1 — One epic per session.** Tag relevant tasks to your workspace:
+```bash
+td ws start "Epic: Description"
+td ws tag <id1> <id2> ...
+```
+
+**Rule 2 — Log progress.** `bun scripts/agent-log.ts <id> "did X"` after every substantive change.
+
+**Rule 3 — Handoff on close.** Always run `bun scripts/agent-handoff.ts <id> --done X --remaining Y` before `td close`.
+
+**Rule 4 — Broadcast on collision risk.** If you need a file another agent is working on:
+```bash
+td comment <id> "@<session>: requesting handover"
+```
+
+**Rule 5 — Sync before start.** When resuming: `bun scripts/agent-sync.ts` to verify you haven't drifted from main.
+
+**Full protocol:** `playbooks/td-playbook.md`
 
 ---
 
-## MANDATORY: Language Preference
+### Language Selection — TypeScript First
 
 This codebase is **primarily a Bun/TypeScript house.**
 

@@ -3,12 +3,12 @@
  * reg-promote.ts — Show what would be stripped to make a playbook canonical.
  *
  * Given a project playbook, displays project-specific content that would be
- * removed by reg-mine.ts. Does not write to canonicals/ by default.
+ * removed by reg-mine.ts. Does not write to the registry by default.
  *
  * Modes:
  *   default      Summary of changes (counts, excerpts, placeholders)
  *   --diff       Line-by-line diff between original and sanitized
- *   --apply      Write to canonicals/playbooks/ (delegates to reg-mine logic)
+ *   --apply      Write to playbooks/ (delegates to reg-mine logic)
  *
  * Usage:
  *   bun scripts/reg-promote.ts lab-first-playbook.md
@@ -17,7 +17,7 @@
  *
  * Options:
  *   --source-dir DIR    Source directory (default: playbooks)
- *   --target-dir DIR    Target directory (default: canonicals/playbooks)
+ *   --target-dir DIR    Target directory (default: playbooks)
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -110,8 +110,7 @@ function main(): void {
   const targetDirFlag = args.indexOf("--target-dir")
 
   const sourceDir = sourceDirFlag >= 0 ? args[sourceDirFlag + 1] || "playbooks" : "playbooks"
-  const _targetDir =
-    targetDirFlag >= 0 ? args[targetDirFlag + 1] || "canonicals/playbooks" : "canonicals/playbooks"
+  const _targetDir = targetDirFlag >= 0 ? args[targetDirFlag + 1] || "playbooks" : "playbooks"
 
   const fileArg = args.find((a) => !a.startsWith("--"))
   if (!fileArg) {
@@ -123,9 +122,9 @@ function main(): void {
       "  playbook-file    Name of playbook in --source-dir (e.g. lab-first-playbook.md)",
     )
     console.error("  --diff           Show line-by-line diff")
-    console.error("  --apply          Promote to canonicals/ (same as reg-mine --apply)")
+    console.error("  --apply          Write to playbooks/ (same as reg-mine --apply)")
     console.error("  --source-dir     Source directory (default: playbooks)")
-    console.error("  --target-dir     Target directory (default: canonicals/playbooks)")
+    console.error("  --target-dir     Target directory (default: playbooks)")
     process.exit(1)
   }
 

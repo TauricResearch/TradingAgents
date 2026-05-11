@@ -49,12 +49,6 @@ const REGISTRIES: Record<string, RegistryDef> = {
     filePattern: /\.md$/,
     exclude: [/REGISTRY\.jsonl/, /README\.md/],
   },
-  canonicals: {
-    indexPath: "canonicals/INDEX.jsonl",
-    dirPath: "canonicals/playbooks",
-    filePattern: /\.md$/,
-    exclude: [/INDEX\.jsonl/, /README\.md/],
-  },
   docs: {
     indexPath: "docs/INDEX.jsonl",
     dirPath: "docs",

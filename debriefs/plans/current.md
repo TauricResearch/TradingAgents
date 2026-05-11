@@ -1,54 +1,74 @@
 # Current Work Plan
 
-**Last updated:** 2026-05-10
-**State:** Open for next prioritization.
+**Last updated:** 2026-05-11
+**State:** BARNACLE-SCRUBBER next, awaiting multi-agent ops conventions (ses_134041)
+**Session:** ses_134041
 
 ---
 
-## Completed
+## Completed (This Session — ses_a9b880)
 
-### Epic DEMO-EXEC-001 DONE ✓ — Demo Execution Pipeline (ses_a9b880)
+### DEMO-EXEC-001 ✓ — Demo Execution Pipeline
 - S01: `--yes` flag for non-interactive execution
 - S02: `--dry-run` for plan preview without order placement
-- S03: Stop/limit distances use plan values (`entry - stopLoss`, `target1 - entry`)
-- S04: `analysis_id` column added to `trades` table + `--analysis-id` arg
+- S03: Stop/limit distances use plan values
+- S04: `analysis_id` column added to `trades` table
 - S05: `trading analyze --execute` chains analysis → IG execution
 - Commit: `c6fcf00`
 
-### Epic CANONICAL-REGISTRY DONE ✓ — Portable playbook + script registry
-- S01: `canonicals/` created, seeded with 15 playbooks (ses_0dd889)
-- S02: `reg-mine.ts` — extraction mechanism
-- S03: `reg-import.ts` — import mechanism
-- S04: `reg-promote.ts` — promotion review
-- S05: Script registry `reg-sync-scripts.ts`
-- S06: Just recipes + canonical docs updated
-- Commits: `50e46c2` → `c707c4f`
+### Runbook + Ops Infrastructure ✓ — ses_a9b880
+- `trading/justfile` — dedicated ops CLI with IG credentials from skate
+- `docs/runbook.md` — full operations manual
+- `trading/README.md` — quick reference card
+- `.gitignore` — fixed `/Justfile` pattern
+- AGENTS.md — branching protocol added
+- All committed to `main` (0101eaa)
 
-### Epic UNIFIED-CLI-001 DONE ✓ — Unified Trading CLI
-- S01-S06 complete. Entry: `trading <command>` with 12+ subcommands.
+### Registry Infrastructure ✓ — ses_0dd889
+- Playbook registry scripts: `reg-mine.ts`, `reg-import.ts`, `reg-promote.ts`, `reg-sync-scripts.ts`
+- Just recipes for registry operations
+- Templates created for briefs, debriefs, decisions, playbooks
 
 ---
 
-## TD Status (ses_a9b880)
+## Completed (This Session — ses_06bd59)
 
-**In review:**
-- `td-030156` DEMO-EXEC-001-S01 (approved, pending merge)
-- `td-31d9b2` DEMO-EXEC-001-S03 (approved, pending merge)
-- `td-53f14e` DEMO-EXEC-001-S05 (approved, pending merge)
-
-**Closed this session:**
-- `td-a237a5` DEMO-EXEC-001-S02 (dry-run) ✓
-- `td-ceded2` DEMO-EXEC-001-S04 (analysis_id column) ✓
+### ALERTS-PHASE2 ✓ — Custom User-Defined Alerts
+- SQLite `alerts` table with condition types: price_below/above, pct_change_day/week, price_cross
+- CRUD CLI: `trading alerts create|list|delete|check` subcommands
+- Alert matching engine (`alerts-engine.ts`) — pure function, no I/O
+- Telegram dispatch (`telegram.ts`) — Bot API, MarkdownV2, graceful degradation
+- Dashboard `/alerts` route + HTMX view with triggered banner + create form
+- `just check-alerts` / `just check-alerts --fire` recipes
+- Commit: `75f2263`
 
 ---
 
 ## Open Epics — Next Prioritization
 
-| Epic | Description | Priority |
-|------|-------------|----------|
-| **ALERTS-PHASE2** | Custom user-defined alerts (alerts table, CRUD CLI, dashboard view) | P1 |
-| **ALERTS-PHASE3** | Continuous monitoring daemon + dashboard alert feed | P2 |
-| Dashboard UX | Further UI improvements | P3 |
+### BARNACLE-SCRUBBER [P1] — Barnacle Removal System
+**Next epic.** Non-interactive scrubber for playbook documentation.
+- Decisions resolved: drydock at `decisions/drydock/`, OpenRouter/Gemini2.5-flash, Gum escalation pipeline
+- Brief: `briefs/barnacle-scrubber-plan.md` | Decision: `decisions/007-barnacle-drydock-location.md`
+- TD epic: `ws-ab7d` (BRS-001 through BRS-007)
+- **Awaiting:** multi-agent ops conventions before coding starts
+
+### ALERTS-PHASE3 [P2] — Continuous Monitoring Daemon
+- `barnacle-scan.ts` monitoring daemon
+- Polling loop with configurable interval
+- Dashboard alert feed / SSE stream
+
+### Dashboard UX [P3]
+- Further UI improvements
+
+---
+
+## Known Context
+
+- **IG Demo**: Live, connected via skate credentials
+- **Communication channels**: Telegram account available — integration point for alerts
+- **Demo account balance**: CFD £10,062 | Spreadbet £10,000
+- **Decision record:** `decisions/007-barnacle-drydock-location.md` — drydock at `decisions/drydock/`
 
 ---
 
@@ -59,21 +79,20 @@
 git status && git branch -v   # confirm on feature branch, not main
 just check                    # must be green
 td usage --new-session        # new identity
-td ws current                 # any active work to resume?
-td reviewable                 # what needs your review?
+td ws current                 # any active work?
+td reviewable                 # what needs review?
 ```
 
 **Branching rule:**
 - On `main` with code to write → `git checkout -b feat/<name>` first
-- Never commit directly to `main` (even if you're the only reviewer)
+- Never commit directly to `main`
 - Merge via PR → forces pre-PR checklist
 
 **Every change:**
 ```bash
-just check   # clean before touching
+just check   # must be clean before touching
 # ... make change ...
 just check   # must pass before commit
-git commit -m "type(scope): what"
 ```
 
 ---
@@ -86,13 +105,4 @@ git commit -m "type(scope): what"
 | React-style `style={{...}}` | Use `style="background:#fff3cd"` (CSS string) |
 | Extracting JSX before data layer | Always extract `lib/{route}-data.ts` first |
 | Forward-fix on broken state | Revert to last known-good, then diagnose |
-| `server/` paths in tests/docs | Use `src/server/` |
 | Working on `main` directly | Always branch first |
-
----
-
-## Active Branches
-
-- `main` — current (clean, two commits ahead of origin)
-- `ses_a9b880` — current work session (DEMO-EXEC-001 complete)
-- `ses_0dd889` — previous work session (CANONICAL-REGISTRY complete)

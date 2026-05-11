@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-09
 **Author:** ses_0dd889
-**Status:** Open
+**Status:** Superseded
 **Priority:** P2
 **Type:** Epic (multi-story)
 
@@ -216,3 +216,16 @@ portable.
 - `playbooks/playbooks-playbook.md` — meta-playbook about playbooks
 - `playbooks/just-silo-playbook.md` — the silo template that is the destination
 - `silo-conceptual-lexicon.jsonl` — terms: `barnacle`, `index-rot`, `silo`, `facade`
+
+---
+
+**Superseded:** 2026-05-11 — see `decisions/008-defuddle-web-content.md` for analogous pattern.
+
+The canonicals/ directory approach was abandoned in favor of a simpler model:
+- All playbooks live in `playbooks/`
+- The registry tracks source (project vs. external) via `meta.source` field
+- When submitting to an external registry, the registry owns the canonical version
+- The project does not maintain a parallel canonical store
+
+`canonicals/` was removed. Playbooks were merged back into `playbooks/`.
+Registry scripts (reg-mine.ts, reg-import.ts, reg-promote.ts) updated to reference `playbooks/` instead of `canonicals/`.

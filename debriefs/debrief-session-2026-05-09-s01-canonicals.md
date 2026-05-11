@@ -60,3 +60,14 @@ ls canonicals/playbooks/  # verify 15 files
 - Lab script `scripts/lab/registry-design.ts` quantified the current state.
 - Design principle #6: tools must be project-agnostic (no hardcoded paths).
 - Lift-and-shift to `just-silo` is the validation mechanism, not in-scope.
+
+---
+
+**Superseded:** 2026-05-11
+
+The `canonicals/` directory created by this session was removed. The canonicals approach was abandoned in favor of a simpler model:
+- All playbooks live in `playbooks/`
+- The registry tracks source via `meta.source` field
+- External registries own canonical versions; project does not maintain parallel store
+
+`canonicals/` directory deleted. 12 non-colliding playbooks merged to `playbooks/`. 7 colliders (already present in playbooks/) discarded from canonicals/. Registry scripts updated to reference `playbooks/` instead of `canonicals/`.
