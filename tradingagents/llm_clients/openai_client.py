@@ -186,7 +186,7 @@ class OpenAIClient(BaseLLMClient):
 
         # DeepSeek's thinking-mode quirks live in their own subclass so the
         # base NormalizedChatOpenAI stays free of provider-specific branches.
-        chat_cls = DeepSeekChatOpenAI if self.provider == "deepseek" else NormalizedChatOpenAI
+        chat_cls = DeepSeekChatOpenAI if self.provider in ("deepseek", "kimi") else NormalizedChatOpenAI
         return chat_cls(**llm_kwargs)
 
     def validate_model(self) -> bool:
