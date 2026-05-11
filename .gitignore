@@ -217,6 +217,4 @@ __marimo__/
 
 # Cache
 **/data_cache/
-
-# Git worktrees
-.worktrees/
+.DS_Store
