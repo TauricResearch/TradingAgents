@@ -386,9 +386,9 @@ async def post_trade(payload: TradePayload):
     portfolio.save()
 
     prices = {}
-    for ticker in portfolio.positions:
+    for held in portfolio.positions:
         try:
-            prices[ticker] = float(yf.Ticker(ticker).fast_info["last_price"])
+            prices[held] = float(yf.Ticker(held).fast_info["last_price"])
         except Exception:
             pass
     state = portfolio.get_state(prices)

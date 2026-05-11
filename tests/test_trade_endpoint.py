@@ -108,8 +108,7 @@ class TestPostTrade:
         assert r.status_code == 503
 
     def test_invalid_side_returns_400(self, client):
-        with patch("backend.yf.Ticker", return_value=_mock_price(100.0)):
-            r = client.post("/api/trade", json={"ticker": "NVDA", "side": "HOLD", "amount_usd": 1000.0})
+        r = client.post("/api/trade", json={"ticker": "NVDA", "side": "HOLD", "amount_usd": 1000.0})
         assert r.status_code == 400
 
     def test_zero_amount_returns_400(self, client):
