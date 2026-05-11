@@ -101,3 +101,56 @@ curl -s http://localhost:3000/api/portfolio/intelligence/html | head -c 200
 ---
 
 *End handoff. Good luck.*
+
+---
+
+## Session: ses_ce3a7d — 2026-05-11
+
+**Branch:** `feat/ctx-lexicon-jsonl` — 10 commits, ready for PR to `main`
+
+### What was done
+
+**Brief:** `brief-ctx-lexicon-upgrade.md` — **CLOSED ✓**
+
+1. Converted `docs/conceptual-lexicon-example.json` (161-entry JSON array) → `debriefs/lexicon-ctx.jsonl` (JSONL)
+2. Added 3 scripts: `ctx-lexicon-convert.ts`, `ctx-lexicon-list.ts`, `ctx-lexicon-incorporate.ts`
+3. Incorporated 7 CTX terms into `silo-conceptual-lexicon.jsonl` with heuristic + usage fields
+4. Fixed slug typo: `g-delian-humility` → `godelian-humility`
+5. Deprecated + blanked 11 context-specific/stub terms (slots preserved for reuse)
+6. Added 8 just verbs: `ctx-lexicon`, `ctx-lexicon-type`, `ctx-lexicon-status`, `ctx-lexicon-search`, `ctx-lexicon-stats`, `ctx-lexicon-convert`, `ctx-lexicon-incorporate`
+7. Documented just parameter-passing gotcha + fix pattern in `playbooks/just-playbook.md`
+8. Added `just --unstable --fmt --check` as first step of `check` recipe
+
+**CTX lexicon final state:** 161 entries — 150 active, 11 deprecated
+
+### Key technical lessons
+
+1. **Script first, just second** — always test script directly before wiring to just
+2. **`getFlagValue` pattern** — strip first `word=` prefix via `indexOf("=")` to handle just's `param=value` passing
+3. **`just --unstable --fmt --check` first in `check`** — catches structural justfile breakage immediately
+4. **Deprecate > delete** — blank content, keep slot
+
+### Not done
+
+- `brief-ig-api-client-integration.md` — still open (second brief in UNIFIED-CLI-001 epic)
+- SideCar terminal setup for `td` task display (context window issue prevented completion)
+
+### Just verbs to know
+
+```bash
+just ctx-lexicon                      # List CTX lexicon
+just ctx-lexicon-type type=term       # Filter by type
+just ctx-lexicon-status stat=active   # Filter by status
+just ctx-lexicon-search query=humility # Full-text search
+just ctx-lexicon-stats                # Distribution stats
+just ctx-lexicon-convert             # Re-run JSON→JSONL conversion
+just ctx-lexicon-incorporate         # Merge CTX terms into silo lexicon
+```
+
+### Branch status
+
+```bash
+git checkout feat/ctx-lexicon-jsonl
+git log --oneline main..HEAD  # 10 commits to merge
+```
+
