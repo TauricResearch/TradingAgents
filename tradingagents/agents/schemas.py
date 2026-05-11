@@ -265,8 +265,10 @@ class SentimentReport(BaseModel):
     overall_band: SentimentBand = Field(
         description=(
             "Categorical sentiment label. Pick the band that best matches the "
-            "overall_score: Bullish (7-10), Mildly Bullish (5.5-7), Neutral/Mixed "
-            "(4.5-5.5), Mildly Bearish (3-4.5), Bearish (0-3)."
+            "overall_score: Bullish (7.1-10), Mildly Bullish (5.6-7.0), Neutral "
+            "(4.5-5.5, flat outlook with no strong signal), Mixed "
+            "(4.5-5.5, high-volume but conflicting signals), "
+            "Mildly Bearish (3.0-4.4), Bearish (0-2.9)."
         ),
     )
     confidence: Literal["low", "medium", "high"] = Field(
@@ -295,6 +297,7 @@ def render_sentiment_report(report: SentimentReport) -> str:
     header = "\n".join([
         f"**Overall Sentiment:** **{report.overall_band.value}** "
         f"(Score: {report.overall_score:.1f}/10, Confidence: {report.confidence})",
+        "",
         "",
     ])
     return header + report.narrative
