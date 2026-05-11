@@ -125,6 +125,7 @@ _PROVIDER_CONFIG = {
     "minimax-cn": ("https://api.minimaxi.com/v1", "MINIMAX_CN_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
+    "kimi": ("https://api.moonshot.cn/v1", "MOONSHOT_API_KEY"),
 }
 
 
