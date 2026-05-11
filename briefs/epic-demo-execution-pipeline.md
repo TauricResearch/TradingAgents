@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-10
 **Epic ID:** DEMO-EXEC-001
-**Status:** Open
+**Status:** Closed — superseded by unified registry model
 **Priority:** P1
 **Stories:** DEMO-EXEC-001-S01 through DEMO-EXEC-001-S05
 
