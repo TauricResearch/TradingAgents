@@ -8,6 +8,22 @@ ModelOption = Tuple[str, str]
 ProviderModeOptions = Dict[str, Dict[str, List[ModelOption]]]
 
 
+# Shared model list for MiniMax's global and CN endpoints (same model IDs).
+_MINIMAX_MODELS: Dict[str, List[ModelOption]] = {
+    "quick": [
+        ("MiniMax M2.7 Highspeed — Fast, 204K ctx", "MiniMax-M2.7-highspeed"),
+        ("MiniMax M2.5 Highspeed — Previous-gen fast", "MiniMax-M2.5-highspeed"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("MiniMax M2.7 — Flagship, 204K ctx", "MiniMax-M2.7"),
+        ("MiniMax M2.5 — Previous-gen flagship", "MiniMax-M2.5"),
+        ("MiniMax M2.7 Highspeed — Faster M2.7, 204K ctx", "MiniMax-M2.7-highspeed"),
+        ("Custom model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -101,6 +117,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    # MiniMax: same model IDs across global (.io) and China (.com) regions,
+    # so the two provider keys share one model list.
+    "minimax": _MINIMAX_MODELS,
+    "minimax-cn": _MINIMAX_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [
