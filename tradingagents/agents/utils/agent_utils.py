@@ -34,6 +34,29 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def get_horizon_instruction() -> str:
+    """Return a prompt instruction for the configured investment horizon.
+    
+    Returns guidance string based on investment horizon in config.
+    """
+    from tradingagents.dataflows.config import get_config
+    
+    horizon = get_config().get("investment_horizon", "medium_term")
+    
+    horizon_guidance = {
+        "1_day": "Focus on: intraday volatility, momentum indicators (MACD, RSI), bid-ask spreads, and execution timing. Prioritize short-term signals only.",
+        "1_week": "Focus on: weekly momentum, support/resistance levels, and event-driven price moves. Balance technical signals with short-term catalysts.",
+        "1_month": "Focus on: monthly trends, technical breakouts, and news-driven catalysts. Give equal weight to technicals and short-term fundamentals.",
+        "6_months": "Balance: technical trends (60%) and fundamental signals (40%). Look for medium-term momentum and valuation support.",
+        "1_year": "Balance: fundamental value (70%) and technical confirmation (30%). Focus on earnings trends, valuation multiples, and macro factors.",
+        "5_years_plus": "Focus on: structural demand drivers, supply constraints, industry trends, and long-term valuation multiples. Ignore short-term technical noise like MACD crossovers or 50-day SMA.",
+        "medium_term": "Balance technical and fundamental analysis equally for medium-term trading decisions.",
+    }
+    
+    guidance = horizon_guidance.get(horizon, horizon_guidance["medium_term"])
+    return f" Investment Horizon: {horizon}. Analysis Priority: {guidance} Adapt your analysis based on this investment horizon."
+
+
 def build_instrument_context(ticker: str) -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
     return (

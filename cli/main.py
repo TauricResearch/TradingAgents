@@ -568,6 +568,16 @@ def get_user_selections():
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
+    # Step 9: Investment Horizon
+    console.print(
+        create_question_box(
+            "Step 9: Investment Horizon",
+            "Select your investment time horizon",
+            "medium_term"
+        )
+    )
+    selected_horizon = ask_investment_horizon()
+
     # Step 8: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
@@ -612,6 +622,7 @@ def get_user_selections():
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        "investment_horizon": selected_horizon,
     }
 
 
@@ -964,6 +975,7 @@ def run_analysis(checkpoint: bool = False):
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
+    config["investment_horizon"] = selections.get("investment_horizon", "medium_term")
     config["checkpoint_enabled"] = checkpoint
 
     # Create stats callback handler for tracking LLM/tool calls

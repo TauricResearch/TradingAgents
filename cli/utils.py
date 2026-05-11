@@ -358,3 +358,31 @@ def ask_output_language() -> str:
         ).ask().strip()
 
     return choice
+
+
+def ask_investment_horizon() -> str:
+    """Ask for investment time horizon."""
+    choice = questionary.select(
+        "Select Investment Horizon:",
+        choices=[
+            questionary.Choice("Day trading / Intraday", "1_day"),
+            questionary.Choice("Swing trading / Short-term (1 week)", "1_week"),
+            questionary.Choice("Medium-term trading (1 month)", "1_month"),
+            questionary.Choice("Medium-term investing (6 months)", "6_months"),
+            questionary.Choice("Long-term investing (1 year)", "1_year"),
+            questionary.Choice("Long-term strategic allocation (5+ years)", "5_years_plus"),
+            questionary.Choice("Medium-term (default)", "medium_term"),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:yellow noinherit"),
+            ("highlighted", "fg:yellow noinherit"),
+            ("pointer", "fg:yellow noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No investment horizon selected. Exiting...[/red]")
+        exit(1)
+
+    return choice

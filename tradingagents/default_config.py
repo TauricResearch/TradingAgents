@@ -1,5 +1,15 @@
 import os
 
+INVESTMENT_HORIZONS = {
+    "1_day":        "Day trading / Intraday",
+    "1_week":       "Swing trading / Short-term",
+    "1_month":      "Medium-term trading",
+    "6_months":     "Medium-term investing",
+    "1_year":       "Long-term investing",
+    "5_years_plus": "Long-term strategic allocation",
+     "medium_term":  "Medium-term (default)",
+}
+
 _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 
 DEFAULT_CONFIG = {
@@ -32,6 +42,7 @@ DEFAULT_CONFIG = {
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
     # Debate and discussion settings
+    "investment_horizon": "medium_term"
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
