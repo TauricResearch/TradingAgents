@@ -141,7 +141,7 @@ for _env_var in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY",
     os.environ.pop(_env_var, None)
 
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import akshare as ak
 
@@ -184,8 +184,14 @@ def get_akshare_stock_data(symbol: str, start_date: str, end_date: str) -> str:
     Returns:
         CSV-formatted string with header
     """
-    datetime.strptime(start_date, "%Y-%m-%d")
-    datetime.strptime(end_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+
+    # Enforce minimum 1-year lookback so indicators like 200 SMA are calculable
+    min_start = end_dt - timedelta(days=365)
+    if start_dt > min_start:
+        start_dt = min_start
+        start_date = start_dt.strftime("%Y-%m-%d")
 
     symbol = _resolve_any_ticker(symbol)
     code, exchange = _normalize_akshare_ticker(symbol)
