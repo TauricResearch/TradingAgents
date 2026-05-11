@@ -11,13 +11,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
     PortfolioRating,
     ResearchPlan,
+    SentimentBand,
+    SentimentReport,
     TraderAction,
     TraderProposal,
     render_research_plan,
+    render_sentiment_report,
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
@@ -230,3 +234,149 @@ class TestResearchManagerAgent:
         rm = create_research_manager(llm)
         result = rm(_make_rm_state())
         assert result["investment_plan"] == plain_response
+
+
+# ---------------------------------------------------------------------------
+# SentimentReport schema and render
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestRenderSentimentReport:
+    def test_required_fields_present(self):
+        r = SentimentReport(
+            overall_score=7.2,
+            overall_band=SentimentBand.BULLISH,
+            confidence="high",
+            narrative="TSLA sentiment is strongly positive driven by retail enthusiasm.",
+        )
+        md = render_sentiment_report(r)
+        assert "**Overall Sentiment:** **Bullish**" in md
+        assert "Score: 7.2/10" in md
+        assert "Confidence: high" in md
+        assert "TSLA sentiment is strongly positive" in md
+
+    def test_score_formatted_to_one_decimal(self):
+        r = SentimentReport(
+            overall_score=6.0,
+            overall_band=SentimentBand.MILDLY_BULLISH,
+            confidence="medium",
+            narrative="Mixed signals.",
+        )
+        md = render_sentiment_report(r)
+        assert "6.0/10" in md
+
+    def test_all_bands_render(self):
+        for band in SentimentBand:
+            r = SentimentReport(
+                overall_score=5.0,
+                overall_band=band,
+                confidence="low",
+                narrative="Test.",
+            )
+            md = render_sentiment_report(r)
+            assert band.value in md
+
+    def test_narrative_preserved_intact(self):
+        narrative = "Line one.\n\nLine two.\n\n| Col | Val |\n|-----|-----|\n| A   | B   |"
+        r = SentimentReport(
+            overall_score=4.5,
+            overall_band=SentimentBand.NEUTRAL,
+            confidence="medium",
+            narrative=narrative,
+        )
+        md = render_sentiment_report(r)
+        assert narrative in md
+
+    def test_score_bounds(self):
+        import pytest as _pytest
+        from pydantic import ValidationError
+        with _pytest.raises(ValidationError):
+            SentimentReport(
+                overall_score=11.0,
+                overall_band=SentimentBand.BULLISH,
+                confidence="high",
+                narrative="Out of range.",
+            )
+        with _pytest.raises(ValidationError):
+            SentimentReport(
+                overall_score=-1.0,
+                overall_band=SentimentBand.BEARISH,
+                confidence="low",
+                narrative="Out of range.",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Social Media Analyst node
+# ---------------------------------------------------------------------------
+
+
+def _make_analyst_state(tool_calls=None):
+    from langchain_core.messages import AIMessage, HumanMessage
+    msgs = [HumanMessage(content="Analyze TSLA sentiment.")]
+    if tool_calls is not None:
+        msgs.append(AIMessage(content="", tool_calls=tool_calls))
+    return {
+        "messages": msgs,
+        "company_of_interest": "TSLA",
+        "trade_date": "2024-01-15",
+    }
+
+
+def _structured_analyst_llm(structured_result):
+    """LLM mock that returns no tool calls on final call, then structured result on extraction.
+
+    LangChain coerces the bound LLM into a RunnableLambda and calls it as a
+    callable (not .invoke()), so we set .return_value on the bound mock.
+    """
+    from langchain_core.messages import AIMessage
+    tool_response = AIMessage(content="Full prose report about TSLA.", tool_calls=[])
+    llm = MagicMock()
+    llm.with_structured_output.return_value.invoke.return_value = structured_result
+    # LangChain calls bound_llm(input), not bound_llm.invoke(input)
+    llm.bind_tools.return_value.return_value = tool_response
+    return llm
+
+
+@pytest.mark.unit
+class TestSocialMediaAnalystStructured:
+    def test_structured_output_populates_sentiment_report(self):
+        structured = SentimentReport(
+            overall_score=7.2,
+            overall_band=SentimentBand.BULLISH,
+            confidence="high",
+            narrative="Retail very bullish on TSLA this week.",
+        )
+        llm = _structured_analyst_llm(structured)
+        analyst = create_social_media_analyst(llm)
+        result = analyst(_make_analyst_state())
+        assert "Score: 7.2/10" in result["sentiment_report"]
+        assert "Bullish" in result["sentiment_report"]
+        assert "Retail very bullish" in result["sentiment_report"]
+
+    def test_tool_calls_return_empty_report(self):
+        """During the tool loop (tool_calls present), sentiment_report stays empty."""
+        from langchain_core.messages.tool import ToolCall
+        from langchain_core.messages import AIMessage
+        tool_response = AIMessage(
+            content="",
+            tool_calls=[ToolCall(name="get_news", args={}, id="1")],
+        )
+        llm = MagicMock()
+        llm.with_structured_output.return_value = MagicMock()
+        llm.bind_tools.return_value.return_value = tool_response
+        analyst = create_social_media_analyst(llm)
+        result = analyst(_make_analyst_state())
+        assert result["sentiment_report"] == ""
+
+    def test_falls_back_to_freetext_when_structured_unavailable(self):
+        from langchain_core.messages import AIMessage
+        tool_response = AIMessage(content="Raw prose fallback report.", tool_calls=[])
+        llm = MagicMock()
+        llm.with_structured_output.side_effect = NotImplementedError("unsupported")
+        llm.bind_tools.return_value.return_value = tool_response
+        llm.invoke.return_value = MagicMock(content="Raw prose fallback report.")
+        analyst = create_social_media_analyst(llm)
+        result = analyst(_make_analyst_state())
+        assert "Raw prose fallback report." in result["sentiment_report"]

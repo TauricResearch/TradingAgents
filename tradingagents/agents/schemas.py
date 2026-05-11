@@ -19,7 +19,7 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -226,3 +226,75 @@ def render_pm_decision(decision: PortfolioDecision) -> str:
     if decision.time_horizon:
         parts.extend(["", f"**Time Horizon**: {decision.time_horizon}"])
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Social Media / Sentiment Analyst
+# ---------------------------------------------------------------------------
+
+
+class SentimentBand(str, Enum):
+    """Categorical sentiment label used by the Social Media Analyst."""
+
+    BULLISH = "Bullish"
+    MILDLY_BULLISH = "Mildly Bullish"
+    NEUTRAL = "Neutral"
+    MIXED = "Mixed"
+    MILDLY_BEARISH = "Mildly Bearish"
+    BEARISH = "Bearish"
+
+
+class SentimentReport(BaseModel):
+    """Structured sentiment output produced by the Social Media Analyst.
+
+    The analyst collects data via tool calls (get_news), writes a free-form
+    research narrative, then this schema is used to extract deterministic
+    summary fields from that narrative. The narrative field preserves the
+    full prose so downstream debate agents receive the same rich context
+    they always have.
+    """
+
+    overall_score: float = Field(
+        ge=0,
+        le=10,
+        description=(
+            "Numeric sentiment score from 0 (most bearish) to 10 (most bullish). "
+            "Use one decimal place, e.g. 7.2."
+        ),
+    )
+    overall_band: SentimentBand = Field(
+        description=(
+            "Categorical sentiment label. Pick the band that best matches the "
+            "overall_score: Bullish (7-10), Mildly Bullish (5.5-7), Neutral/Mixed "
+            "(4.5-5.5), Mildly Bearish (3-4.5), Bearish (0-3)."
+        ),
+    )
+    confidence: Literal["low", "medium", "high"] = Field(
+        description=(
+            "Confidence in the sentiment assessment based on data availability and "
+            "signal clarity. Use 'low' when sources are sparse or contradictory, "
+            "'medium' for moderate signal, 'high' for strong consistent signal."
+        ),
+    )
+    narrative: str = Field(
+        description=(
+            "The full analyst report in markdown. Include all research findings, "
+            "social media analysis, news insights, and a summary table. "
+            "This is what downstream agents read as context."
+        ),
+    )
+
+
+def render_sentiment_report(report: SentimentReport) -> str:
+    """Render a SentimentReport to markdown for state storage and downstream agents.
+
+    The narrative (full prose report) is preserved intact so bull/bear researchers
+    and risk debate agents continue to receive the same rich context. The structured
+    fields are appended as a summary header for quick downstream parsing.
+    """
+    header = "\n".join([
+        f"**Overall Sentiment:** **{report.overall_band.value}** "
+        f"(Score: {report.overall_score:.1f}/10, Confidence: {report.confidence})",
+        "",
+    ])
+    return header + report.narrative
