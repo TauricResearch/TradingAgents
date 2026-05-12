@@ -17,6 +17,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_PORTFOLIO_ENABLED":    "portfolio_enabled",
+    "TRADINGAGENTS_PORTFOLIO_PATH":       "portfolio_path",
 }
 
 
@@ -109,6 +111,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # based on the ticker's exchange suffix. SPY remains the US default
     # so the reflection label keeps reading "Alpha vs SPY" for US tickers
     # while non-US tickers get their regional index automatically.
+    # Portfolio context injection
+    "portfolio_enabled": True,
+    "portfolio_path": "",
+    # Benchmark for alpha calculation
     "benchmark_ticker": None,
     "benchmark_map": {
         ".NS":  "^NSEI",    # NSE India (Nifty 50)

@@ -26,6 +26,7 @@ from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
+from cli.portfolio_cmd import portfolio_app
 
 console = Console()
 
@@ -34,6 +35,7 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+app.add_typer(portfolio_app, name="portfolio")
 
 
 # Create a deque to store recent messages with a maximum length
@@ -963,6 +965,23 @@ def format_tool_args(args, max_length=80) -> str:
 def run_analysis(checkpoint: bool = False):
     # First get all user selections
     selections = get_user_selections()
+
+    # Check if ticker is in user's portfolio
+    try:
+        from tradingagents.portfolio import PortfolioStore
+
+        portfolio_store = PortfolioStore()
+        positions = portfolio_store.get_position(selections["ticker"])
+        if positions:
+            total_qty = sum(p.quantity for p in positions)
+            avg_cost = sum(p.entry_price * p.quantity for p in positions) / total_qty
+            console.print(
+                f"\n[bold cyan]\U0001f4cb Portfolio Detection:[/bold cyan] "
+                f"You hold [bold]{selections['ticker']}[/bold] \u2014 {total_qty:,.2f} shares @ avg cost {avg_cost:,.4f}. "
+                f"[dim]This has been included in the analysis context.[/dim]\n"
+            )
+    except Exception:
+        pass  # Silently skip if portfolio check fails
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()

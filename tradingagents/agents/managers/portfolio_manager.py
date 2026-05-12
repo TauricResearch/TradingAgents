@@ -63,6 +63,16 @@ def create_portfolio_manager(llm):
 
 Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
 
+        # Inject portfolio context if available
+        portfolio_context = state.get("portfolio_context", "")
+        if portfolio_context:
+            prompt += f"\n\n---\n{portfolio_context}\n\n"
+            prompt += (
+                "Consider the user's existing position when making your final rating decision. "
+                "If they already hold this stock, factor in their cost basis, current P&L, "
+                "position size, and portfolio concentration when providing your recommendation."
+            )
+
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
             llm,

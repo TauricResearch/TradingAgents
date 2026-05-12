@@ -48,6 +48,16 @@ def create_trader(llm):
             },
         ]
 
+        # Inject portfolio context if available
+        portfolio_context = state.get("portfolio_context", "")
+        if portfolio_context:
+            messages[1]["content"] += f"\n\n---\n{portfolio_context}\n\n"
+            messages[1]["content"] += (
+                "Consider the user's existing position when making your recommendation. "
+                "If they already hold this stock, factor in their cost basis, current P&L, "
+                "and position size when deciding whether to buy more, hold, or sell."
+            )
+
         trader_plan = invoke_structured_or_freetext(
             structured_llm,
             llm,

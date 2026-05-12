@@ -334,7 +334,7 @@ class TradingAgentsGraph:
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date, past_context=past_context
+            company_name, trade_date, past_context=past_context, config=self.config
         )
         args = self.propagator.get_graph_args()
 
