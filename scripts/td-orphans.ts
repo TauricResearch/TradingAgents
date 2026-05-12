@@ -8,7 +8,7 @@
  * Usage:
  *   bun scripts/td-orphans.ts            # read-only report
  *   bun scripts/td-orphans.ts --realign  # absorb and log
- *   bun scripts/td-orphans.ts --realign --dry-run  # show what would happen
+ *   bun scripts/td-orphans.ts --realign --dry-run  # preview only
  */
 
 import { execSync } from "node:child_process"
@@ -28,13 +28,23 @@ interface TdIssue {
   defer_count: number
 }
 
+interface CurrentSession {
+  id: string
+  name: string
+}
+
+interface Orphan {
+  issue: TdIssue
+  reason: string
+  action: "absorb" | "reset" | "skip"
+}
+
 // ── Argument parsing ───────────────────────────────────────────────────────
 
 const args = Bun.argv.slice(2)
 const mode = args.includes("--realign") ? "realign" : "report"
 const dryRun = args.includes("--dry-run")
 
-// Show help if no args or --help
 if (args.includes("--help") || args.includes("-h") || (mode === "report" && args.length === 0)) {
   console.log(
     "Usage:\n  bun scripts/td-orphans.ts            # read-only report\n  bun scripts/td-orphans.ts --realign  # absorb and log\n  bun scripts/td-orphans.ts --realign --dry-run  # preview only",
@@ -51,26 +61,25 @@ function sh(cmd: string): string {
   }
 }
 
-function shJson<T>(cmd: string): T | null {
+function shJson<T>(cmd: string): T[] {
   try {
     const out = execSync(cmd, { encoding: "utf8", timeout: 15000 }).trim()
-    return JSON.parse(out) as T
+    if (!out || out === "null" || out === "[]") return []
+    return JSON.parse(out) as T[]
   } catch {
-    return null
+    return []
   }
 }
 
 // ── Current session ────────────────────────────────────────────────────────
 
-interface CurrentSession {
-  id: string
-  name: string
-}
-
 function getCurrentSession(): CurrentSession {
   const out = sh("td whoami 2>/dev/null")
+  // Note: session IDs may be "xxxxxx-xxxxxx" or "ses_b7b8a1" (no dash)
   const sessionMatch =
-    out.match(/SESSION:\s*(\w+-\w{6})/) || out.match(/^(\w+-\w{6})/) || out.match(/(\w+-\w{6})/)
+    out.match(/SESSION:\s*([a-z_0-9]{4,12})/i) ||
+    out.match(/^([a-z_0-9]{4,12})/i) ||
+    out.match(/([a-z_0-9]{8,12})/i)
   const id = sessionMatch ? sessionMatch[1] : "unknown"
   const nameMatch = out.match(/name:\s*(.+)/i)
   const name = nameMatch ? nameMatch[1].trim() : "unknown"
@@ -157,13 +166,9 @@ console.log(
 )
 console.log("")
 
-const allIssues = shJson<TdIssue[]>("td list --json 2>/dev/null")
-if (!allIssues) {
-  console.error("\x1b[31m✗ Failed to fetch issues from td\x1b[0m")
-  process.exit(1)
-}
+const allIssues = shJson<TdIssue[]>("td list --json --all 2>/dev/null")
 
-const orphans: { issue: TdIssue; reason: string; action: "absorb" | "reset" | "skip" }[] = []
+const orphans: Orphan[] = []
 
 for (const issue of allIssues) {
   if (issue.status !== "in_progress") continue

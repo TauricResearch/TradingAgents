@@ -242,7 +242,6 @@ alias hl-register := hledger::hl-register
 alias hl-net-worth := hledger::hl-net-worth
 
 # Type-check + lint + custom gates
-[doc("Run biome + tsc + db-usage gate. Must pass before commits.")]
 [group("bun")]
 check:
     just --unstable --fmt --check
@@ -810,14 +809,12 @@ srv:
 #   Start, stop, restart, and monitor the dashboard server.
 
 # Show all service status
-[doc("Gum-formatted status table for Dashboard, SQLite, GitNexus.")]
 [group("srv")]
 status:
     @echo "{{ CYAN }}●{{ NORMAL }} Checking service status..."
     bun scripts/server-lifecycle.ts status
 
 # Start dashboard server (background daemon)
-[doc("Start daemon. PID → ~/.tradingagents/server.pid")]
 [group("srv")]
 start:
     @echo "{{ GREEN }}▶{{ NORMAL }} Starting dashboard server..."
@@ -825,14 +822,12 @@ start:
 
 # Stop dashboard server
 [confirm("Stop the dashboard server?")]
-[doc("Graceful stop (SIGTERM → wait → SIGKILL fallback).")]
 [group("srv")]
 stop:
     @echo "{{ RED }}■{{ NORMAL }} Stopping dashboard server..."
     bun scripts/server-lifecycle.ts stop
 
 # Restart dashboard server
-[doc("Rotate logs, stop, start.")]
 [group("srv")]
 restart:
     @echo "{{ YELLOW }}↻{{ NORMAL }} Restarting dashboard server..."
