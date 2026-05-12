@@ -33,7 +33,9 @@ class StatsCallbackHandler(BaseCallbackHandler):
         self._run_models: Dict[Any, str] = {}
 
     @staticmethod
-    def _model_name(serialized: Optional[Dict[str, Any]], kwargs: Dict[str, Any]) -> str:
+    def _model_name(
+        serialized: Optional[Dict[str, Any]], kwargs: Dict[str, Any]
+    ) -> str:
         """Best-effort model id extraction across LangChain provider quirks.
 
         LangChain stashes the model under different keys depending on the
@@ -64,6 +66,7 @@ class StatsCallbackHandler(BaseCallbackHandler):
         run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> None:
+        """Increment LLM call counter when an LLM starts."""
         with self._lock:
             self.llm_calls += 1
             if run_id is not None:
@@ -77,6 +80,7 @@ class StatsCallbackHandler(BaseCallbackHandler):
         run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> None:
+        """Increment LLM call counter when a chat model starts."""
         with self._lock:
             self.llm_calls += 1
             if run_id is not None:
@@ -89,6 +93,7 @@ class StatsCallbackHandler(BaseCallbackHandler):
         run_id: Optional[UUID] = None,
         **kwargs: Any,
     ) -> None:
+        """Extract token usage from LLM response."""
         try:
             generation = response.generations[0][0]
         except (IndexError, TypeError):
@@ -132,10 +137,12 @@ class StatsCallbackHandler(BaseCallbackHandler):
         input_str: str,
         **kwargs: Any,
     ) -> None:
+        """Increment tool call counter when a tool starts."""
         with self._lock:
             self.tool_calls += 1
 
     def get_stats(self) -> Dict[str, Any]:
+        """Return current statistics."""
         with self._lock:
             return {
                 "llm_calls": self.llm_calls,
