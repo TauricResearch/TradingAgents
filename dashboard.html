@@ -500,6 +500,49 @@
   #portfolio-table td:first-child { text-align: left; }
   #portfolio-table td.pos { color: var(--green); }
   #portfolio-table td.neg { color: var(--red); }
+
+  /* ── Reports section ────────────────────────────────────────── */
+  .reports-toggle {
+    width: 100%; padding: 10px 24px;
+    background: transparent; border: none; border-top: 1px solid var(--border);
+    color: var(--amber); font-family: var(--mono); font-size: 16px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; text-align: left;
+    transition: background 0.15s;
+  }
+  .reports-toggle:hover { background: rgba(240,165,0,0.06); }
+  .reports-arrow { float: right; }
+  .reports-section {
+    border-top: 1px solid var(--border);
+    background: #070a14;
+  }
+  .report-agent-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 24px;
+    font-family: var(--mono); font-size: 16px; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    transition: color 0.15s;
+    user-select: none;
+  }
+  .report-agent-header:hover { color: var(--text); }
+  .report-agent-header.open { color: var(--amber); }
+  .report-agent-arrow { font-size: 12px; }
+  .report-agent-body { display: none; border-bottom: 1px solid var(--border); }
+  .report-agent-body.open { display: block; }
+  .report-pre {
+    margin: 0; padding: 12px 24px;
+    font-family: var(--mono); font-size: 16px; line-height: 1.7;
+    color: var(--text); white-space: pre-wrap; word-break: break-word;
+    max-height: 300px; overflow-y: auto;
+    background: transparent;
+  }
+  .report-empty {
+    padding: 10px 24px;
+    font-family: var(--mono); font-size: 16px;
+    color: var(--text-dim); font-style: italic;
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
@@ -615,6 +658,18 @@ function agentClass(name) {
   if (name.startsWith('Port')) return 'Portfolio';
   return 'Agent';
 }
+const REPORT_ORDER = [
+  { key: "fundamentals",     label: "Fundamentals Analyst" },
+  { key: "sentiment",        label: "Sentiment Analyst" },
+  { key: "news",             label: "News Analyst" },
+  { key: "market",           label: "Market Analyst" },
+  { key: "bull",             label: "Bull Researcher" },
+  { key: "bear",             label: "Bear Researcher" },
+  { key: "research_manager", label: "Research Manager" },
+  { key: "trader",           label: "Trader" },
+  { key: "risk",             label: "Risk Manager" },
+  { key: "final_decision",   label: "Portfolio Manager" },
+];
 
 // ── State ──────────────────────────────────────────────────────────────────
 const state = {};     // ticker -> { status, currentAgent, result, logs, completedAgents }
@@ -996,7 +1051,8 @@ function handleEvent(ev) {
 
 // ── Ticker management ──────────────────────────────────────────────────────
 function initTicker(ticker) {
-  state[ticker] = { status: 'pending', currentAgent: null, result: null, logs: [], completedAgents: new Set() };
+  state[ticker] = { status: 'pending', currentAgent: null, result: null,
+                    logs: [], completedAgents: new Set(), reports: null };
   renderCard(ticker);
   updateCardPosition(ticker);
   updateEmptyState();
@@ -1167,6 +1223,16 @@ function renderCard(ticker) {
       <div class="decision-row">
         <span style="font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;">Awaiting analysis…</span>
       </div>
+    </div>
+
+    <!-- Reports toggle -->
+    <button class="reports-toggle" id="reports-toggle-${ticker}"
+            onclick="toggleReports('${ticker}')" style="display:none">
+      REPORTS <span class="reports-arrow" id="reports-arrow-${ticker}">▾</span>
+    </button>
+
+    <!-- Reports section -->
+    <div class="reports-section" id="reports-section-${ticker}" style="display:none">
     </div>
   `;
   grid.appendChild(card);
