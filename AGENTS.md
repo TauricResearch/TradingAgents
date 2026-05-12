@@ -265,6 +265,8 @@ git checkout -b feat/<epic-name>
 # → commit or stash first, then branch
 ```
 
+**Remotes:** Only `github.com/pjsvis/TradingAgents`. Never push to other remotes. If `git remote -v` shows anything else, correct it.
+
 **Rules:**
 - If on `main` and about to write code → create a branch first
 - If on a feature branch → you're good, keep working
