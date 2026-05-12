@@ -253,6 +253,12 @@ ta = TradingAgentsGraph(config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 ```
 
+## Web Interface
+
+[**AgentFloor**](https://github.com/saketnayak/trading-command-center) — A self-hosted web UI for TradingAgents. One-command Docker install on Windows, macOS, and Linux (only dependency: Docker Desktop). Adds portfolio tracking, automated daily briefings, cron-based watchlist scheduling, outcome tracking at +7/14/30/90 days, and multi-user support — no Python setup required for end users.
+
+![AgentFloor demo](https://raw.githubusercontent.com/saketnayak/trading-command-center/main/docs/demo.gif)
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
