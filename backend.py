@@ -88,6 +88,29 @@ async def broadcast(event: dict):
             clients.remove(ws)
 
 
+def _extract_reports(state: dict) -> dict:
+    """Extract per-agent report text from graph final_state."""
+    def join_list(v):
+        if isinstance(v, list):
+            return "\n\n".join(str(item) for item in v)
+        return str(v) if v else ""
+
+    ids = state.get("investment_debate_state") or {}
+    rds = state.get("risk_debate_state") or {}
+    return {
+        "market":           str(state.get("market_report") or ""),
+        "sentiment":        str(state.get("sentiment_report") or ""),
+        "news":             str(state.get("news_report") or ""),
+        "fundamentals":     str(state.get("fundamentals_report") or ""),
+        "bull":             join_list(ids.get("bull_history")),
+        "bear":             join_list(ids.get("bear_history")),
+        "research_manager": str(ids.get("judge_decision") or ""),
+        "trader":           str(state.get("trader_investment_plan") or ""),
+        "risk":             join_list(rds.get("history")),
+        "final_decision":   str(state.get("final_trade_decision") or ""),
+    }
+
+
 class LiveCapture(io.StringIO):
     def __init__(self, callback):
         super().__init__()
@@ -137,6 +160,7 @@ async def _demo_analysis(ticker: str):
         "confidence": confidence,
         "reasoning": reasons[decision],
         "timestamp": datetime.now().isoformat(),
+        "reports": None,
     }
 
 
@@ -156,7 +180,7 @@ def _run_real_analysis(ticker: str, log_callback, node_callback) -> dict:
     try:
         ta = TradingAgentsGraph(analyst_keys, debug=False, config=config)
         analysis_date = datetime.now().strftime("%Y-%m-%d")
-        _, decision_raw = ta.propagate(ticker, analysis_date, on_node=node_callback)
+        final_state, decision_raw = ta.propagate(ticker, analysis_date, on_node=node_callback)
     finally:
         sys.stdout = old_stdout
 
@@ -179,6 +203,7 @@ def _run_real_analysis(ticker: str, log_callback, node_callback) -> dict:
         "confidence": confidence,
         "reasoning": reasoning,
         "timestamp": datetime.now().isoformat(),
+        "reports": _extract_reports(final_state),
     }
 
 
