@@ -438,7 +438,7 @@ agent-blocked ID *MSG:
 # Structured handoff: done/remaining/decisions captured before closing
 [group("agent")]
 agent-handoff ID:
-    bun scripts/agent-handoff.ts {{ ID }} --note "{{ MSG }}"
+    bun scripts/agent-handoff.ts {{ ID }} --note "handoff"
 
 # Full handoff with explicit done/remaining
 [group("agent")]
