@@ -250,6 +250,7 @@ check:
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
     bun scripts/reg-sync.ts --all
+    bun scripts/td-orphans.ts || true  # warning only — do not block
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]
@@ -816,7 +817,7 @@ status:
     bun scripts/server-lifecycle.ts status
 
 # Start dashboard server (background daemon)
-[doc("Start dashboard as daemon. Writes PID to ~/.tradingagents/server.pid")]
+[doc("Start daemon. PID → ~/.tradingagents/server.pid")]
 [group("srv")]
 start:
     @echo "{{ GREEN }}▶{{ NORMAL }} Starting dashboard server..."

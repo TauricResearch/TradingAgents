@@ -9,9 +9,10 @@ Run with `bun scripts/<name>.ts` or via `just <recipe>`.
 | `seed_database.ts` | Seed SQLite + exit plans + post-mortems | `bun:sqlite`, `js-yaml` |
 | `summarize_analyses.ts` | LLM summarisation via OpenRouter | none (fetch) |
 | `get_price.ts` | Yahoo Finance price + history | none (fetch) |
-| `portfolio-intel.ts` | Portfolio summary via HTTP | none (fetch) |
-| `render_diagrams.ts` | DOT/MMD → SVG (graphviz + mmdc) | `dot`, `mmdc` |
-| `extract_mermaid.ts` | Strip YAML front matter from MMD | none |
+| `agent-claim.ts` | Claim a task before touching files | none |
+| `agent-files.ts` | List files owned by a task | none |
+| `agent-log.ts` | Log progress to a task | none |
+| `td-orphans.ts` | Detect & realign orphaned in_progress tasks | none |
 
 ## Python (`py/*.py` — tradingagents dependency)
 
