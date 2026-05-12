@@ -167,6 +167,27 @@ def tushare_retry(func, max_retries=3, base_delay=1.0):
 
 
 # ---------------------------------------------------------------------------
+# Fund / ETF detection
+# ---------------------------------------------------------------------------
+
+def _is_fund_or_etf(ts_code: str) -> bool:
+    """判断标准化后的ts_code是否为基金/ETF。
+
+    A股ETF/基金代码规则：
+    - 上海: 5xxxxx.SH (包含 51xxxx, 56xxxx, 58xxxx 等)
+    - 深圳: 15xxxx.SZ, 16xxxx.SZ 等
+    """
+    code = ts_code.split(".")[0]
+    suffix = ts_code.split(".")[-1] if "." in ts_code else ""
+
+    if suffix == "SH" and code.startswith("5"):
+        return True
+    if suffix == "SZ" and (code.startswith("15") or code.startswith("16")):
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Helper to compute quarterly periods
 # ---------------------------------------------------------------------------
 
@@ -300,10 +321,24 @@ def get_tushare_stock(
         ts_start = convert_date_to_tushare(start_date)
         ts_end = convert_date_to_tushare(end_date)
 
-        # Fetch daily price data
-        df = tushare_retry(
-            lambda: pro.daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
-        )
+        # 根据代码类型选择接口
+        is_fund = _is_fund_or_etf(ts_code)
+        if is_fund:
+            logger.info(f"Detected ETF/fund code {ts_code}, using fund_daily API")
+            df = tushare_retry(
+                lambda: pro.fund_daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
+            )
+        else:
+            df = tushare_retry(
+                lambda: pro.daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
+            )
+
+        # 如果 daily 返回空且不是已知基金，也尝试 fund_daily 作为 fallback
+        if (df is None or df.empty) and not is_fund:
+            logger.debug(f"pro.daily returned empty for {ts_code}, trying fund_daily as fallback")
+            df = tushare_retry(
+                lambda: pro.fund_daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
+            )
 
         if df is None or df.empty:
             return f"No stock data found for symbol '{symbol}' between {start_date} and {end_date}"
@@ -389,10 +424,24 @@ def get_tushare_indicators(
         ts_start = convert_date_to_tushare(start_date_dt.strftime("%Y-%m-%d"))
         ts_end = convert_date_to_tushare(curr_date)
 
-        # Fetch daily data
-        df = tushare_retry(
-            lambda: pro.daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
-        )
+        # 根据代码类型选择接口
+        is_fund = _is_fund_or_etf(ts_code)
+        if is_fund:
+            logger.info(f"Detected ETF/fund code {ts_code}, using fund_daily API for indicators")
+            df = tushare_retry(
+                lambda: pro.fund_daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
+            )
+        else:
+            df = tushare_retry(
+                lambda: pro.daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
+            )
+
+        # fallback: 如果 daily 返回空，尝试 fund_daily
+        if (df is None or df.empty) and not is_fund:
+            logger.debug(f"pro.daily returned empty for {ts_code}, trying fund_daily as fallback for indicators")
+            df = tushare_retry(
+                lambda: pro.fund_daily(ts_code=ts_code, start_date=ts_start, end_date=ts_end)
+            )
 
         if df is None or df.empty:
             return f"No stock data found for symbol '{symbol}' to compute indicators"

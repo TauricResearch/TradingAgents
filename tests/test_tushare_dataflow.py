@@ -24,32 +24,32 @@ class TestDetectVendorForTicker:
     """Test ticker format detection for auto-routing."""
 
     def test_a_share_sh_suffix(self):
-        """600000.SH should route to tushare"""
-        assert detect_vendor_for_ticker("600000.SH") == "tushare"
+        """600000.SH should route to akshare"""
+        assert detect_vendor_for_ticker("600000.SH") == "akshare"
 
     def test_a_share_sz_suffix(self):
-        """000001.SZ should route to tushare"""
-        assert detect_vendor_for_ticker("000001.SZ") == "tushare"
+        """000001.SZ should route to akshare"""
+        assert detect_vendor_for_ticker("000001.SZ") == "akshare"
 
     def test_a_share_sh_prefix(self):
-        """SH600000 should route to tushare"""
-        assert detect_vendor_for_ticker("SH600000") == "tushare"
+        """SH600000 should route to akshare"""
+        assert detect_vendor_for_ticker("SH600000") == "akshare"
 
     def test_a_share_sz_prefix(self):
-        """SZ000001 should route to tushare"""
-        assert detect_vendor_for_ticker("SZ000001") == "tushare"
+        """SZ000001 should route to akshare"""
+        assert detect_vendor_for_ticker("SZ000001") == "akshare"
 
     def test_a_share_pure_digits(self):
-        """600000 (6-digit) should route to tushare"""
-        assert detect_vendor_for_ticker("600000") == "tushare"
+        """600000 (6-digit) should route to akshare"""
+        assert detect_vendor_for_ticker("600000") == "akshare"
 
     def test_hk_stock_suffix(self):
-        """0700.HK should route to tushare"""
-        assert detect_vendor_for_ticker("0700.HK") == "tushare"
+        """0700.HK should route to akshare"""
+        assert detect_vendor_for_ticker("0700.HK") == "akshare"
 
     def test_hk_stock_prefix(self):
-        """HK0700 should route to tushare"""
-        assert detect_vendor_for_ticker("HK0700") == "tushare"
+        """HK0700 should route to akshare"""
+        assert detect_vendor_for_ticker("HK0700") == "akshare"
 
     def test_us_stock(self):
         """AAPL should return None (use default)"""
@@ -66,18 +66,18 @@ class TestDetectVendorForTicker:
         assert detect_vendor_for_ticker(None) is None
 
     def test_a_share_ss_suffix(self):
-        """600000.SS (yfinance convention) should route to tushare"""
-        assert detect_vendor_for_ticker("600000.SS") == "tushare"
+        """600000.SS (yfinance convention) should route to akshare"""
+        assert detect_vendor_for_ticker("600000.SS") == "akshare"
 
     def test_a_share_ss_prefix(self):
-        """SS600000 should route to tushare"""
-        assert detect_vendor_for_ticker("SS600000") == "tushare"
+        """SS600000 should route to akshare"""
+        assert detect_vendor_for_ticker("SS600000") == "akshare"
 
     def test_case_insensitive(self):
         """Should handle lowercase"""
-        assert detect_vendor_for_ticker("sh600000") == "tushare"
-        assert detect_vendor_for_ticker("600000.sh") == "tushare"
-        assert detect_vendor_for_ticker("600000.ss") == "tushare"
+        assert detect_vendor_for_ticker("sh600000") == "akshare"
+        assert detect_vendor_for_ticker("600000.sh") == "akshare"
+        assert detect_vendor_for_ticker("600000.ss") == "akshare"
 
 
 # ---------------------------------------------------------------------------
@@ -292,10 +292,10 @@ class TestNewsService:
 class TestAutoRouting:
     """Test auto-routing logic based on ticker format."""
 
-    def test_a_share_routes_to_tushare(self):
-        """A-share ticker should prefer tushare vendor."""
-        assert detect_vendor_for_ticker("600000.SH") == "tushare"
-        assert detect_vendor_for_ticker("000001.SZ") == "tushare"
+    def test_a_share_routes_to_akshare(self):
+        """A-share ticker should prefer akshare vendor."""
+        assert detect_vendor_for_ticker("600000.SH") == "akshare"
+        assert detect_vendor_for_ticker("000001.SZ") == "akshare"
 
     def test_us_stock_does_not_route_to_tushare(self):
         """US stock should not route to tushare."""
@@ -303,18 +303,18 @@ class TestAutoRouting:
         assert detect_vendor_for_ticker("MSFT") is None
         assert detect_vendor_for_ticker("TSLA") is None
 
-    def test_hk_stock_routes_to_tushare(self):
-        """HK stock tickers should route to tushare."""
-        assert detect_vendor_for_ticker("0700.HK") == "tushare"
-        assert detect_vendor_for_ticker("HK0700") == "tushare"
-        assert detect_vendor_for_ticker("09988.HK") == "tushare"
+    def test_hk_stock_routes_to_akshare(self):
+        """HK stock tickers should route to akshare."""
+        assert detect_vendor_for_ticker("0700.HK") == "akshare"
+        assert detect_vendor_for_ticker("HK0700") == "akshare"
+        assert detect_vendor_for_ticker("09988.HK") == "akshare"
 
     def test_various_sz_formats(self):
-        """Various Shenzhen formats should all route to tushare."""
-        assert detect_vendor_for_ticker("000001") == "tushare"
-        assert detect_vendor_for_ticker("300001") == "tushare"
-        assert detect_vendor_for_ticker("SZ000001") == "tushare"
-        assert detect_vendor_for_ticker("000001.SZ") == "tushare"
+        """Various Shenzhen formats should all route to akshare."""
+        assert detect_vendor_for_ticker("000001") == "akshare"
+        assert detect_vendor_for_ticker("300001") == "akshare"
+        assert detect_vendor_for_ticker("SZ000001") == "akshare"
+        assert detect_vendor_for_ticker("000001.SZ") == "akshare"
 
 
 if __name__ == "__main__":

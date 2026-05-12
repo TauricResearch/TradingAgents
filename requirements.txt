@@ -1,1 +1,3 @@
 .
+akshare>=1.14.0
+tushare>=1.4.0  # optional: only needed if using tushare as fallback

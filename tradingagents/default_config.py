@@ -91,11 +91,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
+    # Note: A-share/HK tickers are auto-routed to akshare via detect_vendor_for_ticker(),
+    # with tushare as fallback. The settings below only affect non-Chinese tickers.
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, tushare
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance, tushare
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance, tushare
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance, tushare
+        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, tushare, akshare
+        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance, tushare, akshare
+        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance, tushare, akshare
+        "news_data": "yfinance",             # Options: alpha_vantage, yfinance, tushare, akshare
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
