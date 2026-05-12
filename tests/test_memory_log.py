@@ -674,6 +674,23 @@ class TestPortfolioManagerInjection:
         state = propagator.create_initial_state("NVDA", "2026-01-10")
         assert state["past_context"] == ""
 
+    def test_instrument_context_in_initial_state(self):
+        propagator = Propagator()
+        state = propagator.create_initial_state(
+            "TOTDY",
+            "2026-01-10",
+            instrument_context="Resolved instrument identity: Company: TOTO LTD.",
+        )
+        assert "instrument_context" in state
+        assert state["instrument_context"] == (
+            "Resolved instrument identity: Company: TOTO LTD."
+        )
+
+    def test_instrument_context_defaults_to_empty(self):
+        propagator = Propagator()
+        state = propagator.create_initial_state("NVDA", "2026-01-10")
+        assert state["instrument_context"] == ""
+
     # PM prompt
 
     def test_pm_prompt_includes_past_context(self):
