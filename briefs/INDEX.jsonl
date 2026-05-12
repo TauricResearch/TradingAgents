@@ -29,3 +29,4 @@
 {"file": "epic-unified-cli.md", "date": "2026-05-07", "status": "done", "summary": "Unified Trading CLI with citty framework: plan command, platform config, IG integration", "meta": {"epic": "td-d19b7c"}}
 {"file": "TEMPLATE.md", "date": "2026-05-11", "status": "active", "summary": "(auto-generated \u2014 add description)", "meta": {}}
 {"file": "upstream-issue-debate-state-logging.md", "date": "2026-05-07", "status": "done", "summary": "Upstream issue: state log serialization omits debate counter fields in TradingAgents", "meta": {"epic": null}}
+{"file":"2026-05-11-brief-blog-registry.md","date":"2026-05-11","status":"open","summary":"Add blog as first-class registry in scripts/reg-sync.ts — separate docs/blog/INDEX.jsonl from docs/INDEX.jsonl, update REGISTRIES map and just check","meta":{"epic":"UNIFIED-CLI-001"}}

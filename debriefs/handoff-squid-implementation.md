@@ -1,3 +1,13 @@
+---
+file: handoff-squid-implementation.md
+date: 2026-05-11
+status: open
+summary: SQUID CRUD system for registries and conceptual lexicon — committed schema lib, playbook, justfile backup; reg-crud.ts and ctx-crud.ts still to build
+meta:
+  epic: UNIFIED-CLI-001
+  session: ses_b9d84b
+---
+
 # Handoff: SQUID Implementation Session
 
 **Session:** ses_b9d84b (this session)
