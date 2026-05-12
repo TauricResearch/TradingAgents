@@ -47,7 +47,10 @@ export const REGISTRY_NAMES = Object.keys(REGISTRIES) as RegistryName[]
 // ── Zod validation helpers ──
 
 export function parseIndexFile(content: string): unknown[] {
-  const lines = content.trim().split("\n").filter((l) => l.trim())
+  const lines = content
+    .trim()
+    .split("\n")
+    .filter((l) => l.trim())
   return lines.map((line) => JSON.parse(line))
 }
 
@@ -74,7 +77,6 @@ export function validateEntries<T>(
 
 export function entryFileExists(registry: RegistryName, filename: string): boolean {
   const { readdirSync } = require("node:fs")
-  const { join } = require("node:path")
   const dir = REGISTRIES[registry]?.dirPath
   if (!dir) return false
   try {

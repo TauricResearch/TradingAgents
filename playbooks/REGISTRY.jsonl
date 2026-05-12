@@ -21,12 +21,13 @@
 {"file":"mmdr-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"playbooks-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"research-bridge-playbook.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"search-playbook.md","date":"2026-05-11","status":"project","summary":"Code search conventions: rg primary, ag specialist (--ackmate/--search-zip/-p .ignore), GitNexus for semantic search","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"services-playbook.md","date":"2026-05-08","status":"project","summary":"Server lifecycle management: PID files, log rotation, start/stop/status daemon pattern","meta":{"source":null,"mining_candidate":true,"mining_note":"PID-file lifecycle pattern is reusable; extract from TradingAgents server specifics","last_mined":"2026-05-09"}}
 {"file":"sqlite-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"squid-playbook.md","date":"2026-05-12","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"td-playbook.md","date":"2026-05-11","status":"project","summary":"Multi-agent coordination protocol: claim-before-touch, session startup, handoff, TD labels convention","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"TEMPLATE.md","date":"2025-05-02","status":"project","summary":"Playbook template with frontmatter schema (file, date, status, summary, meta)","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"trade-calculator-testing-playbook.md","date":"2026-05-08","status":"project","summary":"Trade calculator testing: unit tests, integration tests, IG instrument validation","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"tsconfig-tiered-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"typescript-hono-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"unified-registry-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
-{"file":"search-playbook.md","date":"2026-05-11","status":"project","summary":"Code search conventions: rg primary, ag specialist (--ackmate/--search-zip/-p .ignore), GitNexus for semantic search","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
