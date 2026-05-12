@@ -681,6 +681,61 @@ let wsReconnectTimer = null;
 const BACKEND = `ws://${location.host}/ws`;
 const API = `http://${location.host}/api`;
 
+// ── Reports ──────────────────────────────────────────────────────────────
+function toggleReports(ticker) {
+  const section = document.getElementById('reports-section-' + ticker);
+  const arrow   = document.getElementById('reports-arrow-' + ticker);
+  if (!section) return;
+  const isOpen = section.style.display !== 'none';
+  section.style.display = isOpen ? 'none' : 'block';
+  arrow.textContent = isOpen ? '▾' : '▴';
+}
+
+function toggleReportAgent(ticker, key) {
+  const header = document.getElementById('report-header-' + ticker + '-' + key);
+  const body   = document.getElementById('report-body-'   + ticker + '-' + key);
+  const arrow  = document.getElementById('report-arrow-'  + ticker + '-' + key);
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (header) header.classList.toggle('open', !isOpen);
+  if (arrow)  arrow.textContent = isOpen ? '▾' : '▴';
+}
+
+function renderReports(ticker) {
+  const s = state[ticker];
+  if (!s || !s.reports) return;
+
+  const decision  = s.result ? s.result.decision : null;
+  const toggleBtn = document.getElementById('reports-toggle-' + ticker);
+  const section   = document.getElementById('reports-section-' + ticker);
+  if (!toggleBtn || !section) return;
+
+  toggleBtn.style.display = 'block';
+
+  section.innerHTML = REPORT_ORDER.map(({ key, label }) => {
+    const text     = s.reports[key] || '';
+    const autoOpen = key === 'final_decision' ||
+                     (key === 'bull' && decision === 'BUY') ||
+                     (key === 'bear' && decision === 'SELL');
+    const openClass = autoOpen ? ' open' : '';
+    const arrowChar = autoOpen ? '▴' : '▾';
+    const body = text
+      ? `<pre class="report-pre">${escHtml(text)}</pre>`
+      : `<div class="report-empty">— no output —</div>`;
+    return `
+      <div class="report-agent-header${openClass}"
+           id="report-header-${ticker}-${key}"
+           onclick="toggleReportAgent('${ticker}','${key}')">
+        ${label}
+        <span class="report-agent-arrow" id="report-arrow-${ticker}-${key}">${arrowChar}</span>
+      </div>
+      <div class="report-agent-body${openClass}" id="report-body-${ticker}-${key}">
+        ${body}
+      </div>`;
+  }).join('');
+}
+
 // ── Portfolio ─────────────────────────────────────────────────────────────
 function updatePortfolioPanel() {
   const panel = document.getElementById('portfolio-panel');
@@ -1100,6 +1155,10 @@ function applyResult(ticker, result, lastUpdated) {
     const signalDs = _signalDataset(result.decision, closeValues);
     if (signalDs) chart.data.datasets.push(signalDs);
     chart.update();
+  }
+  if (result.reports) {
+    state[ticker].reports = result.reports;
+    renderReports(ticker);
   }
 }
 
