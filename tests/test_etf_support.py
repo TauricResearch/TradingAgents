@@ -1263,18 +1263,179 @@ class RiskDebatorsSurfaceLeverageWarningTests(unittest.TestCase):
 
 
 @pytest.mark.unit
-class ClearEtfCacheClearsBothCachesTests(unittest.TestCase):
-    """``clear_etf_cache`` must reset the new category cache too, otherwise
-    test isolation breaks for the leverage detection path."""
+class ClearEtfCacheClearsInfoCacheTests(unittest.TestCase):
+    """``clear_etf_cache`` must reset the consolidated ``_yfinance_info``
+    cache that both ``_yfinance_quote_type`` and ``_yfinance_etf_category``
+    now delegate to. Without this, test isolation breaks for both the
+    detection path and the leverage path."""
 
-    def test_clears_category_cache(self):
+    def test_clears_consolidated_info_cache(self):
         from tradingagents.dataflows import etf_utils
 
-        # Prime the category cache with a stub
+        # Prime the consolidated cache via either delegator — both share
+        # the same underlying ``_yfinance_info`` LRU.
         with patch("yfinance.Ticker") as yt:
-            yt.return_value.info = {"category": "Large Blend"}
+            yt.return_value.info = {"category": "Large Blend", "quoteType": "ETF"}
             etf_utils._yfinance_etf_category("CACHED")
-        # Confirm cache is populated
-        self.assertGreater(etf_utils._yfinance_etf_category.cache_info().currsize, 0)
+        self.assertGreater(etf_utils._yfinance_info.cache_info().currsize, 0)
         etf_utils.clear_etf_cache()
-        self.assertEqual(etf_utils._yfinance_etf_category.cache_info().currsize, 0)
+        self.assertEqual(etf_utils._yfinance_info.cache_info().currsize, 0)
+
+    def test_quote_type_and_category_share_one_network_call(self):
+        """The whole point of consolidation: asking for two fields off the
+        same ticker should hit ``yf.Ticker(...).info`` exactly once."""
+        from tradingagents.dataflows import etf_utils
+
+        etf_utils.clear_etf_cache()
+        with patch("yfinance.Ticker") as yt:
+            yt.return_value.info = {"quoteType": "ETF", "category": "Large Blend"}
+            etf_utils._yfinance_quote_type("SPY")
+            etf_utils._yfinance_etf_category("SPY")
+            etf_utils._yfinance_quote_type("SPY")  # 3rd call, still cached
+        # One yf.Ticker(...) construction, one .info read
+        self.assertEqual(yt.call_count, 1)
+
+
+# ---------------------------------------------------------------------------
+# Vendor parsing robustness — review feedback
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class AlphaVantageHoldingsCsvQuotingTests(unittest.TestCase):
+    """Description fields can contain commas (e.g. "Berkshire Hathaway Inc,
+    Class B"). The renderer must produce valid CSV that the LLM downstream
+    can parse, not a row with the wrong number of columns."""
+
+    def test_commas_in_description_are_quoted(self):
+        from tradingagents.dataflows import alpha_vantage_etf
+
+        payload = {
+            "holdings": [
+                {"symbol": "BRK.B", "description": "Berkshire Hathaway Inc, Class B", "weight": "0.05"},
+                {"symbol": "AAPL", "description": "Apple Inc", "weight": "0.07"},
+            ]
+        }
+        with patch.object(alpha_vantage_etf, "_make_api_request", return_value=payload):
+            out = alpha_vantage_etf.get_etf_holdings("XYZ", top_n=2)
+
+        # The CSV reader can round-trip the body and recover 3 columns per row
+        # despite the comma inside the description.
+        import csv, io
+        # Strip the markdown comment header before parsing
+        body = out.split("\n\n", 1)[1] if "\n\n" in out else out
+        # Stop at the concentration block (starts with "## ")
+        if "\n## " in body:
+            body = body.split("\n## ", 1)[0]
+        rows = list(csv.reader(io.StringIO(body)))
+        # Header + 2 holdings, all with exactly 3 columns
+        self.assertGreaterEqual(len(rows), 3)
+        for row in rows[:3]:
+            self.assertEqual(len(row), 3, f"row should have 3 columns, got: {row}")
+        # Description with the comma survived intact
+        self.assertEqual(rows[1][1], "Berkshire Hathaway Inc, Class B")
+
+
+@pytest.mark.unit
+class YfinanceWeightHeuristicTests(unittest.TestCase):
+    """yfinance ships ``Holding Percent`` as either a decimal (0.07) or a
+    percentage (7.0). Both renderer and structured extractor must apply the
+    same threshold heuristic, otherwise the holdings table and the
+    drill-down disagree on weight scaling for the same ETF."""
+
+    def _make_holdings(self, weight_value: float):
+        return pd.DataFrame(
+            {"Name": ["Apple", "Microsoft"], "Holding Percent": [weight_value, weight_value]},
+            index=["AAPL", "MSFT"],
+        )
+
+    def test_get_etf_holdings_treats_high_values_as_percent(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        # 7.5 is already percent; without the heuristic this becomes 750%.
+        df = self._make_holdings(7.5)
+        funds_data = MagicMock()
+        funds_data.top_holdings = df
+        ticker_obj = MagicMock(funds_data=funds_data)
+        with patch.object(yfinance_etf.yf, "Ticker", return_value=ticker_obj):
+            out = yfinance_etf.get_etf_holdings("SPY", top_n=2)
+        self.assertIn("7.5%", out)
+        self.assertNotIn("750.0%", out)
+        # Concentration metric reflects the same scale
+        self.assertIn("Largest single holding: 7.50%", out)
+
+    def test_get_etf_holdings_treats_low_values_as_decimal(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        df = self._make_holdings(0.075)  # decimal — 7.5%
+        funds_data = MagicMock()
+        funds_data.top_holdings = df
+        ticker_obj = MagicMock(funds_data=funds_data)
+        with patch.object(yfinance_etf.yf, "Ticker", return_value=ticker_obj):
+            out = yfinance_etf.get_etf_holdings("SPY", top_n=2)
+        self.assertIn("7.5%", out)
+        self.assertIn("Largest single holding: 7.50%", out)
+
+    def test_top_holding_tickers_uses_same_heuristic(self):
+        """Same input → same percent scaling in the structured extractor."""
+        from tradingagents.dataflows import yfinance_etf
+
+        df = self._make_holdings(7.5)  # already percent
+        funds_data = MagicMock()
+        funds_data.top_holdings = df
+        ticker_obj = MagicMock(funds_data=funds_data)
+        with patch.object(yfinance_etf.yf, "Ticker", return_value=ticker_obj):
+            holdings = yfinance_etf.get_top_holding_tickers("SPY", top_n=2)
+        # All weights should be 7.5%, not 750%
+        for _, _, weight in holdings:
+            self.assertEqual(weight, 7.5)
+
+
+@pytest.mark.unit
+class YfinanceWeightColumnLookupTests(unittest.TestCase):
+    """Both renderer and extractor must locate the weight column by
+    keyword (``weight`` / ``percent``) rather than hardcoded names —
+    yfinance can ship it under variant labels (e.g. ``Weight``)."""
+
+    def test_top_holding_tickers_finds_weight_column_by_keyword(self):
+        from tradingagents.dataflows import yfinance_etf
+
+        # Column is "Weight", not "Holding Percent"
+        df = pd.DataFrame(
+            {"Name": ["Apple"], "Weight": [0.07]},
+            index=["AAPL"],
+        )
+        funds_data = MagicMock()
+        funds_data.top_holdings = df
+        ticker_obj = MagicMock(funds_data=funds_data)
+        with patch.object(yfinance_etf.yf, "Ticker", return_value=ticker_obj):
+            holdings = yfinance_etf.get_top_holding_tickers("SPY", top_n=1)
+        # Weight should be 7.0%, not 0.0% (which is the old hardcoded-fallback bug)
+        self.assertEqual(len(holdings), 1)
+        ticker, name, weight = holdings[0]
+        self.assertEqual(ticker, "AAPL")
+        self.assertAlmostEqual(weight, 7.0, places=6)
+
+
+@pytest.mark.unit
+class AlphaVantageProfileCachingTests(unittest.TestCase):
+    """The three Alpha Vantage entry points must share one API call per
+    ticker. Without the cache, analyzing a single ETF burns three separate
+    Alpha Vantage requests and risks the free-tier daily quota."""
+
+    def test_profile_holdings_and_top_holdings_hit_api_once(self):
+        from tradingagents.dataflows import alpha_vantage_etf
+
+        payload = {
+            "name": "Test ETF",
+            "net_assets": "1000000000",
+            "holdings": [
+                {"symbol": "AAPL", "description": "Apple Inc", "weight": "0.05"},
+            ],
+        }
+        with patch.object(
+            alpha_vantage_etf, "_make_api_request", return_value=payload
+        ) as mock_req:
+            alpha_vantage_etf.get_etf_profile("XYZ")
+            alpha_vantage_etf.get_etf_holdings("XYZ", top_n=1)
+            alpha_vantage_etf.get_top_holding_tickers("XYZ", top_n=1)
+        self.assertEqual(mock_req.call_count, 1)

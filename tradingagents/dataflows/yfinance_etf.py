@@ -96,6 +96,36 @@ def get_etf_profile(
         return f"Error retrieving ETF profile for {ticker}: {str(e)}"
 
 
+def _find_weight_column(columns) -> str | None:
+    """Locate the holding-weight column by case-insensitive keyword.
+
+    yfinance ships the weight under varying labels across symbols
+    ("Holding Percent", "Weight", etc.), so a fixed string is brittle.
+    First match on "weight" or "percent" wins.
+    """
+    return next(
+        (c for c in columns if "weight" in str(c).lower() or "percent" in str(c).lower()),
+        None,
+    )
+
+
+def _normalize_weight_pct(value: object) -> float:
+    """Coerce a yfinance ``top_holdings`` weight into a percent float.
+
+    yfinance is inconsistent: usually a decimal (``0.062`` = 6.2%) but
+    occasionally already in percent (``6.2``). 1.5 is a safe threshold —
+    no single holding in a diversified fund exceeds 150%, and no decimal
+    weight reaches 1.5. Both renderers and the structured extractor must
+    apply the *same* heuristic, otherwise the holdings table and the
+    drill-down disagree on weight scaling for the same ETF.
+    """
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return v * 100 if v < 1.5 else v
+
+
 def get_etf_holdings(
     ticker: Annotated[str, "ETF ticker symbol, e.g. SPY, 2800.HK"],
     top_n: Annotated[int, "Number of top holdings to return"] = 10,
@@ -119,16 +149,14 @@ def get_etf_holdings(
             return f"No holdings disclosed for {ticker.upper()}"
 
         top = holdings.head(top_n).copy()
-        # Convert decimal weight (0.062) → "6.20%" for analyst readability.
-        # Capture the numeric percent values *before* stringifying so the
+        # Normalize each row's weight to percent via the shared heuristic
+        # (yfinance ships either decimal or percent depending on symbol).
+        # Capture the numeric values *before* stringifying so the
         # concentration block can compute its metrics from them.
         weights_pct: list[float] = []
-        weight_col = next(
-            (c for c in top.columns if "weight" in c.lower() or "percent" in c.lower()),
-            None,
-        )
+        weight_col = _find_weight_column(top.columns)
         if weight_col:
-            numeric = top[weight_col].astype(float) * 100
+            numeric = top[weight_col].apply(_normalize_weight_pct)
             weights_pct = numeric.tolist()
             top[weight_col] = numeric.round(2).astype(str) + "%"
 
@@ -171,6 +199,10 @@ def get_top_holding_tickers(
     except Exception:  # noqa: BLE001
         return []
 
+    # Use the same column-lookup + weight-normalization helpers as
+    # ``get_etf_holdings`` so the two views of the same ETF agree on
+    # both the source column and the percent scaling.
+    weight_col = _find_weight_column(df.columns) or "Holding Percent"
     out: list[tuple[str, str, float]] = []
     for sym, row in df.head(top_n).iterrows():
         raw = str(sym).strip()
@@ -180,14 +212,6 @@ def get_top_holding_tickers(
         else:
             normalized = raw
         name = str(row.get("Name", raw))
-        weight = row.get("Holding Percent", 0.0)
-        # yfinance is inconsistent: usually decimal (0.062) but occasionally
-        # already percent (6.2). 1.5 is a safe threshold — no single holding
-        # in a diversified fund exceeds 150%, and no decimal weight reaches 1.5.
-        try:
-            value = float(weight)
-            weight_pct = value * 100 if value < 1.5 else value
-        except (TypeError, ValueError):
-            weight_pct = 0.0
+        weight_pct = _normalize_weight_pct(row.get(weight_col, 0.0))
         out.append((normalized, name, weight_pct))
     return out

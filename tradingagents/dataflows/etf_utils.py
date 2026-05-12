@@ -42,38 +42,39 @@ ETF_PROTECTED_METHODS = {
 
 
 @functools.lru_cache(maxsize=512)
-def _yfinance_quote_type(ticker: str) -> Optional[str]:
-    """Cached yfinance ``info.quoteType`` lookup.
+def _yfinance_info(ticker: str) -> dict:
+    """Cached yfinance ``Ticker(ticker).info`` lookup.
 
-    The detection runs from agent prompts and the routing layer, so without
-    the LRU we would hit yfinance ``.info`` (a network call) on every tool
-    invocation. Any network or parse failure collapses to ``None`` so callers
-    treat it as "unknown".
+    Single cache for the whole metadata dict so the per-field accessors
+    (``_yfinance_quote_type``, ``_yfinance_etf_category``) share one
+    network roundtrip per ticker — important because the agent layer hits
+    quote_type from every routed tool call and category from every ETF
+    instrument-context build, so without consolidation a single analysis
+    could trigger multiple ``.info`` fetches for the same symbol.
+
+    Network or parse failures collapse to an empty dict so per-field
+    callers treat missing keys as "unknown" rather than crashing.
     """
     try:
         import yfinance as yf  # local import: yfinance is heavy
-        info = yf.Ticker(ticker).info or {}
-        return info.get("quoteType")
+        return yf.Ticker(ticker).info or {}
     except Exception:  # noqa: BLE001 — any failure is "unknown"
-        return None
+        return {}
 
 
-@functools.lru_cache(maxsize=512)
+def _yfinance_quote_type(ticker: str) -> Optional[str]:
+    """Cached yfinance ``info.quoteType`` accessor (delegates to ``_yfinance_info``)."""
+    return _yfinance_info(ticker).get("quoteType")
+
+
 def _yfinance_etf_category(ticker: str) -> str:
-    """Cached yfinance ``info.category`` lookup for ETF leverage detection.
+    """Cached yfinance ``info.category`` accessor (delegates to ``_yfinance_info``).
 
     ``category`` strings like ``"Trading--Leveraged Equity"`` and
     ``"Trading--Inverse Equity"`` are the most reliable signal that an ETF
     uses daily reset and therefore decays under buy-and-hold framing.
-    Cached for the same reason as ``_yfinance_quote_type``: this fires
-    from agent prompts on every analysis.
     """
-    try:
-        import yfinance as yf
-        info = yf.Ticker(ticker).info or {}
-        return str(info.get("category") or "")
-    except Exception:  # noqa: BLE001
-        return ""
+    return str(_yfinance_info(ticker).get("category") or "")
 
 
 def is_etf_ticker(value: object) -> bool:
@@ -133,9 +134,10 @@ def leverage_descriptor(value: object) -> str:
 
 
 def clear_etf_cache() -> None:
-    """Reset both ETF LRU caches. Tests call this between cases for isolation."""
-    _yfinance_quote_type.cache_clear()
-    _yfinance_etf_category.cache_clear()
+    """Reset the yfinance metadata LRU cache. Tests call this between cases
+    for isolation. ``_yfinance_quote_type`` / ``_yfinance_etf_category``
+    are plain delegators now and share this single cache."""
+    _yfinance_info.cache_clear()
 
 
 def _extract_ticker_arg(args: tuple, kwargs: dict) -> object:

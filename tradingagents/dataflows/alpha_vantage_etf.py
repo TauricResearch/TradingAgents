@@ -8,18 +8,28 @@ split into the same two-function shape we expose for yfinance.
 
 from __future__ import annotations
 
+import csv
+import functools
+import io
 import json
 from datetime import datetime
 
 from .alpha_vantage_common import _make_api_request
 
 
+@functools.lru_cache(maxsize=128)
 def _fetch_etf_profile_raw(ticker: str) -> dict:
-    """Fetch and parse the raw ``ETF_PROFILE`` payload.
+    """Fetch and parse the raw ``ETF_PROFILE`` payload (cached).
 
     ``_make_api_request`` returns the response body verbatim — JSON for
-    this endpoint. Returns an empty dict when Alpha Vantage responds with
-    a non-JSON body (e.g. rate-limit notes that slipped past detection).
+    this endpoint. Cached because three public entry points
+    (``get_etf_profile`` / ``get_etf_holdings`` / ``get_top_holding_tickers``)
+    each pull the same payload; without the cache, analyzing a single ETF
+    burns three separate Alpha Vantage calls and risks the free-tier
+    daily limit. The payload is read-only at all call sites.
+
+    Returns an empty dict when Alpha Vantage responds with a non-JSON
+    body (e.g. rate-limit notes that slipped past detection).
     """
     raw = _make_api_request("ETF_PROFILE", {"symbol": ticker})
     if isinstance(raw, dict):
@@ -28,6 +38,11 @@ def _fetch_etf_profile_raw(ticker: str) -> dict:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+def clear_etf_profile_cache() -> None:
+    """Reset the ``_fetch_etf_profile_raw`` LRU. Used by tests."""
+    _fetch_etf_profile_raw.cache_clear()
 
 
 def get_etf_profile(ticker: str) -> str:
@@ -93,12 +108,21 @@ def get_etf_holdings(ticker: str, top_n: int = 10) -> str:
         "# Source: Alpha Vantage ETF_PROFILE.holdings\n"
         f"# Top {len(rows)} positions\n"
         f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        "\nsymbol,description,weight\n"
+        "\n"
     )
-    body = "\n".join(
-        f"{row.get('symbol', '')},{row.get('description', '')},{row.get('weight', '')}"
-        for row in rows
-    )
+
+    # Build the CSV via the standard library so fields containing commas
+    # (e.g. "Berkshire Hathaway Inc, Class B") are properly quoted rather
+    # than producing a row with mismatched column counts.
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(["symbol", "description", "weight"])
+    for row in rows:
+        writer.writerow([
+            row.get("symbol", ""),
+            row.get("description", ""),
+            row.get("weight", ""),
+        ])
 
     # Alpha Vantage emits weight as a decimal string (``"0.092"`` = 9.2%).
     weights_pct: list[float] = []
@@ -108,7 +132,7 @@ def get_etf_holdings(ticker: str, top_n: int = 10) -> str:
         except (TypeError, ValueError):
             continue
     from .etf_utils import concentration_summary
-    return header + body + "\n" + concentration_summary(weights_pct)
+    return header + buf.getvalue() + concentration_summary(weights_pct)
 
 
 def get_top_holding_tickers(
