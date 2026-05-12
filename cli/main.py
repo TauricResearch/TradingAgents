@@ -973,7 +973,7 @@ def format_tool_args(args, max_length=80) -> str:
     return result
 
 
-def run_analysis(checkpoint: bool = False):
+def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None):
     # First get all user selections
     selections = get_user_selections()
 
@@ -990,6 +990,8 @@ def run_analysis(checkpoint: bool = False):
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    if max_recur_limit is not None:
+        config["max_recur_limit"] = max_recur_limit
 
     selected_set = {analyst.value for analyst in selections["analysts"]}
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
@@ -1224,12 +1226,18 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    max_recur_limit: Optional[int] = typer.Option(
+        None,
+        "--max-recur-limit",
+        min=1,
+        help="Override LangGraph recursion_limit for long multi-agent runs.",
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+    run_analysis(checkpoint=checkpoint, max_recur_limit=max_recur_limit)
 
 
 if __name__ == "__main__":
