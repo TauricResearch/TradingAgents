@@ -32,17 +32,10 @@ def set_config(config: Dict):
 
 
 def get_config() -> Dict:
-    """Get the current configuration as a reference.
-    
-    WARNING: This returns a reference to the internal config dict, not a copy.
-    Modifications will affect the global config. Use set_config() for safe updates.
-    
-    Returns:
-        Reference to the current configuration dictionary
-    """
+    """Return a deep copy of the current configuration."""
     if _config is None:
         initialize_config()
-    return _config.copy()
+    return deepcopy(_config)
 
 
 # Initialize with default config

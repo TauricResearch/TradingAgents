@@ -153,9 +153,6 @@ _PROVIDER_BASE_URL = {
     "openrouter": "https://openrouter.ai/api/v1",
     "ollama":     "http://localhost:11434/v1",
     "lm-studio":  "http://localhost:1234/v1",
-
-    "lm-studio":  "http://localhost:1234/v1",
-}
 }
 
 

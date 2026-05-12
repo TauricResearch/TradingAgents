@@ -2,7 +2,7 @@
 const generateMockData = () => {
   const agents = [
     { name: 'Market Analyst', role: 'Phase 1 - Analysis', status: 'active', icon: '📊' },
-    { name: 'Social Media Analyst', role: 'Phase 1 - Analysis', status: 'active', icon: '📱' },
+    { name: 'Sentiment Analyst', role: 'Phase 1 - Analysis', status: 'active', icon: '📱' },
     { name: 'News Analyst', role: 'Phase 1 - Analysis', status: 'idle', icon: '📰' },
     { name: 'Fundamentals Analyst', role: 'Phase 1 - Analysis', status: 'processing', icon: '💹' },
     { name: 'Bull Researcher', role: 'Phase 2 - Debate', status: 'active', icon: '🐂' },

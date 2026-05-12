@@ -598,6 +598,8 @@ def get_user_selections(
         }
         backend_url = provider_urls.get(llm_provider.lower())
 
+    selected_llm_provider = llm_provider
+
     # Providers with regional endpoints prompt for the region as a secondary
     # step so the main dropdown stays clean (mainland China and international
     # accounts cannot share API keys).

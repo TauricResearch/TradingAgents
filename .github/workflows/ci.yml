@@ -25,7 +25,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run unit tests
-        run: uv run pytest -m unit
+        run: uv run pytest -m "not integration"
 
       - name: Lint with ruff
         run: uv run ruff check .
