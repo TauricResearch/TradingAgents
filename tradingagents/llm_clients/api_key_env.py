@@ -32,6 +32,10 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "openrouter": "OPENROUTER_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
+    # Subscription-backed CLIs authenticate through their own login flows
+    # (`codex login`, `claude auth login`) instead of API keys.
+    "codex-cli":  None,
+    "claude-code": None,
 }
 
 

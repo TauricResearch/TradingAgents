@@ -175,6 +175,37 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    # Subscription-backed local CLIs. These use the user's existing Codex or
+    # Claude Code login rather than API keys. Custom IDs are passed straight
+    # through to the CLI's --model flag so users can track CLI aliases.
+    "codex-cli": {
+        "quick": [
+            ("Codex CLI configured default", "default"),
+            ("GPT-5.5", "gpt-5.5"),
+            ("GPT-5.4 Mini", "gpt-5.4-mini"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Codex CLI configured default", "default"),
+            ("GPT-5.5", "gpt-5.5"),
+            ("GPT-5.5 Pro", "gpt-5.5-pro"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "claude-code": {
+        "quick": [
+            ("Claude Sonnet subscription alias", "sonnet"),
+            ("Claude Haiku subscription alias", "haiku"),
+            ("Claude Sonnet 4.6", "claude-sonnet-4-6"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Claude Opus subscription alias", "opus"),
+            ("Claude Sonnet subscription alias", "sonnet"),
+            ("Claude Opus 4.7", "claude-opus-4-7"),
+            ("Custom model ID", "custom"),
+        ],
+    },
 }
 
 
