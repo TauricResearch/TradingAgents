@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "langchain-core>=0.3.81",
     "backtrader>=1.9.78.123",
+    "fastapi>=0.115.9",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
     "langchain-google-genai>=4.0.0",
@@ -25,6 +26,7 @@ dependencies = [
     "requests>=2.32.4",
     "rich>=14.0.0",
     "typer>=0.21.0",
+    "uvicorn>=0.34.0",
     "setuptools>=80.9.0",
     "stockstats>=0.6.5",
     "tqdm>=4.67.1",

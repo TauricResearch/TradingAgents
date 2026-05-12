@@ -22,6 +22,7 @@ from tradingagents.agents.schemas import (
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
+from tradingagents.agents.utils.agent_utils import get_evidence_discipline_instruction
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +87,19 @@ class TestRenderResearchPlan:
             )
             md = render_research_plan(p)
             assert f"**Recommendation**: {rating.value}" in md
+
+
+@pytest.mark.unit
+class TestEvidenceDisciplineInstruction:
+    def test_requires_price_move_attribution_and_narrative_chain(self):
+        instruction = get_evidence_discipline_instruction("Market Analyst")
+        assert "Price Move Attribution" in instruction
+        assert "start date, end date, start price, end price, and percentage move" in instruction
+        assert "trigger or driver" in instruction
+        assert "supporting evidence" in instruction
+        assert "alternative explanations" in instruction
+        assert "Narrative Chain" in instruction
+        assert "role-specific recommendation" in instruction
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +172,8 @@ class TestTraderAgent:
         assert "Evidence Check" in prompt_text
         assert "unsupported assumptions" in prompt_text
         assert "A Buy is allowed when strong evidence justifies it" in prompt_text
+        assert "Price Move Attribution" in prompt_text
+        assert "Narrative Chain" in prompt_text
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = (
@@ -281,6 +297,8 @@ class TestResearchManagerAgent:
         assert "Missing Evidence" in prompt
         assert "Confidence" in prompt
         assert "Do not force a conservative conclusion" in prompt
+        assert "Price Move Attribution" in prompt
+        assert "Narrative Chain" in prompt
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = "**Recommendation**: Sell\n\n**Rationale**: ...\n\n**Strategic Actions**: ..."
@@ -305,3 +323,5 @@ class TestPortfolioManagerAgent:
         assert "Conditions To Downgrade" in prompt
         assert "Evidence strength, not tone" in prompt
         assert "Do not force a conservative conclusion" in prompt
+        assert "Price Move Attribution" in prompt
+        assert "Narrative Chain" in prompt

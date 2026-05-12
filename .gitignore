@@ -218,3 +218,10 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Web frontend dependencies and build outputs
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts

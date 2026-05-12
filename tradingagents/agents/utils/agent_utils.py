@@ -60,6 +60,10 @@ Evidence discipline for the {role}:
 - For fundamentals, distinguish headline net profit from recurring/core profit when data allows; call out investment income, fair-value changes, cash flow quality, inventory growth, and one-off items separately.
 - For news and sentiment, lower confidence when there is no direct company news or no real social-media sample. Do not present inferred market mood as measured sentiment.
 - For technical analysis, connect entries and stops to explicit price levels and calculate whether the risk/reward is attractive.
+- Include **Price Move Attribution** whenever the report discusses a meaningful rally, selloff, breakout, drawdown, rebound, or consolidation. For each wave, state the start date, end date, start price, end price, and percentage move when data is available.
+- For every price wave, give a clear trigger or driver, the supporting evidence, the confidence level, and alternative explanations. Do not say "funds pushed it up", "market sentiment improved", or "technical rebound" without evidence such as volume, indicator change, direct news, sector movement, earnings release, policy event, or comparable-company signal.
+- Build a **Narrative Chain** that links stages in order: what changed first, how price/volume reacted, how fundamentals/news/sentiment confirmed or contradicted it, and what must happen next for the story to continue.
+- When giving a role-specific recommendation, explicitly connect the recommendation to the strongest stages in the Narrative Chain and name the stage where the thesis would fail.
 - End with **Decision Impact**: explain how the evidence changes the action, what would upgrade the view, and what would downgrade the view.
 """
 

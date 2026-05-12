@@ -81,7 +81,9 @@ class ResearchPlan(BaseModel):
             "debate, ending with which arguments led to the recommendation. "
             "Include an Evidence Check table in markdown, call out unsupported "
             "assumptions, and explain how the evidence strength justifies the "
-            "rating. Speak naturally, as if to a teammate."
+            "rating. Refer to the Price Move Attribution and Narrative Chain "
+            "when price stages are part of the debate. Speak naturally, as if "
+            "to a teammate."
         ),
     )
     strategic_actions: str = Field(
@@ -125,7 +127,8 @@ class TraderProposal(BaseModel):
         description=(
             "The case for this action, anchored in the analysts' reports and "
             "the research plan. Include an Evidence Check, unsupported assumptions, "
-            "and a risk/reward assessment when entry, stop, and target levels are available."
+            "Price Move Attribution, Narrative Chain, and a risk/reward assessment "
+            "when entry, stop, and target levels are available."
         ),
     )
     entry_price: Optional[float] = Field(
@@ -199,7 +202,8 @@ class PortfolioDecision(BaseModel):
             "debate. If prior lessons are referenced in the prompt context, "
             "incorporate them; otherwise rely solely on the current analysis. "
             "Include Evidence Used, Conditions To Upgrade, Conditions To Downgrade, "
-            "and any unsupported assumptions that should not dominate the final decision."
+            "Price Move Attribution, Narrative Chain, and any unsupported assumptions "
+            "that should not dominate the final decision."
         ),
     )
     price_target: Optional[float] = Field(
