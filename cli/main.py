@@ -1323,7 +1323,7 @@ def analyze(
     backend_url: Optional[str] = typer.Option(None, "--backend-url", help="Custom backend URL for LLM provider"),
     shallow_thinker: Optional[str] = typer.Option(None, "--shallow-thinker", help="LLM model for shallow thinking tasks"),
     deep_thinker: Optional[str] = typer.Option(None, "--deep-thinker", help="LLM model for deep thinking tasks"),
-    language: Optional[str] = typer.Option(None, "--language", "-l", help="Output language for reports"),
+    language: Optional[str] = typer.Option("English", "--language", "-l", help="Output language for reports (default: English)"),
     google_thinking_level: Optional[str] = typer.Option(None, "--google-thinking-level", help="Gemini thinking level"),
     openai_reasoning_effort: Optional[str] = typer.Option(None, "--openai-reasoning-effort", help="OpenAI reasoning effort"),
     anthropic_effort: Optional[str] = typer.Option(None, "--anthropic-effort", help="Anthropic effort level"),
