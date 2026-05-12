@@ -53,6 +53,12 @@ const REGISTRIES: Record<string, RegistryDef> = {
     indexPath: "docs/INDEX.jsonl",
     dirPath: "docs",
     filePattern: /\.md$/,
+    exclude: [/INDEX\.jsonl/, /blog\//],
+  },
+  blog: {
+    indexPath: "docs/blog/INDEX.jsonl",
+    dirPath: "docs/blog",
+    filePattern: /\.md$/,
     exclude: [/INDEX\.jsonl/],
   },
 }
