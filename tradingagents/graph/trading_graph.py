@@ -116,7 +116,9 @@ class TradingAgentsGraph:
             self.conditional_logic,
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(
+            max_recur_limit=self.config.get("max_recur_limit", 100),
+        )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
@@ -188,14 +190,37 @@ class TradingAgentsGraph:
             ),
         }
 
+    def _resolve_benchmark(self, ticker: str) -> str:
+        """Pick the benchmark ticker for alpha calculation against ``ticker``.
+
+        ``config["benchmark_ticker"]`` overrides everything when set; otherwise
+        the suffix map matches the ticker's exchange suffix (e.g. ``.T`` for
+        Tokyo). US-listed tickers without a dotted suffix fall through to the
+        empty-suffix entry (SPY by default). Unrecognised suffixes (including
+        US tickers with dots like ``BRK.B``) also fall back to the empty-suffix
+        entry, which is the right default because the alpha calculation works
+        in USD.
+        """
+        explicit = self.config.get("benchmark_ticker")
+        if explicit:
+            return explicit
+        benchmark_map = self.config.get("benchmark_map", {})
+        ticker_upper = ticker.upper()
+        for suffix, benchmark in benchmark_map.items():
+            if suffix and ticker_upper.endswith(suffix.upper()):
+                return benchmark
+        return benchmark_map.get("", "SPY")
+
     def _fetch_returns(
-        self, ticker: str, trade_date: str, holding_days: int = 5
+        self, ticker: str, trade_date: str, holding_days: int = 5,
+        benchmark: str = "SPY",
     ) -> Tuple[Optional[float], Optional[float], Optional[int]]:
         """Fetch raw and alpha return for ticker over holding_days from trade_date.
 
-        Returns (raw_return, alpha_return, actual_holding_days) or
-        (None, None, None) if price data is unavailable (too recent, delisted,
-        or network error).
+        ``benchmark`` is the index used as the alpha baseline (resolved by the
+        caller via ``_resolve_benchmark``). Returns ``(raw_return, alpha_return,
+        actual_holding_days)`` or ``(None, None, None)`` if price data is
+        unavailable (too recent, delisted, or network error).
         """
         try:
             start = datetime.strptime(trade_date, "%Y-%m-%d")
@@ -203,18 +228,18 @@ class TradingAgentsGraph:
             end_str = end.strftime("%Y-%m-%d")
 
             stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            spy = yf.Ticker("SPY").history(start=trade_date, end=end_str)
+            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
 
-            if len(stock) < 2 or len(spy) < 2:
+            if len(stock) < 2 or len(bench) < 2:
                 return None, None, None
 
-            actual_days = min(holding_days, len(stock) - 1, len(spy) - 1)
+            actual_days = min(holding_days, len(stock) - 1, len(bench) - 1)
             
             # Validate prices before division to prevent zero-division errors
             stock_open = float(stock["Close"].iloc[0])
-            spy_open = float(spy["Close"].iloc[0])
+            bench_open = float(bench["Close"].iloc[0])
             
-            if stock_open <= 0 or spy_open <= 0:
+            if stock_open <= 0 or bench_open <= 0:
                 logger.warning(
                     "Invalid price data for %s on %s (open price <= 0)",
                     ticker, trade_date,
@@ -225,11 +250,11 @@ class TradingAgentsGraph:
                 (stock["Close"].iloc[actual_days] - stock_open)
                 / stock_open
             )
-            spy_ret = float(
-                (spy["Close"].iloc[actual_days] - spy_open)
-                / spy_open
+            bench_ret = float(
+                (bench["Close"].iloc[actual_days] - bench_open)
+                / bench_open
             )
-            alpha = raw - spy_ret
+            alpha = raw - bench_ret
             return raw, alpha, actual_days
         except (ValueError, KeyError) as e:
             # ValueError: Invalid date format; KeyError: Missing 'Close' column
@@ -241,8 +266,8 @@ class TradingAgentsGraph:
         except Exception as e:
             # Transient errors (network, etc.) - will retry next run
             logger.warning(
-                "Could not resolve outcome for %s on %s (will retry next run): %s",
-                ticker, trade_date, e,
+                "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
+                ticker, trade_date, benchmark, e,
             )
             return None, None, None
 
@@ -261,12 +286,15 @@ class TradingAgentsGraph:
         if not pending:
             return
 
+        benchmark = self._resolve_benchmark(ticker)
         updates = []
         unresolvable = []
         max_retry_days = 30  # Mark as failed if >30 days have passed without data
         
         for entry in pending:
-            raw, alpha, days = self._fetch_returns(ticker, entry["date"])
+            raw, alpha, days = self._fetch_returns(
+                ticker, entry["date"], benchmark=benchmark,
+            )
             if raw is None:
                 # Check if this entry has been pending too long (data probably unavailable)
                 from datetime import datetime as dt
@@ -287,6 +315,7 @@ class TradingAgentsGraph:
                 final_decision=entry.get("decision", ""),
                 raw_return=raw,
                 alpha_return=alpha,
+                benchmark_name=benchmark,
             )
             updates.append({
                 "ticker": ticker,
@@ -362,7 +391,11 @@ class TradingAgentsGraph:
                 else:
                     chunk["messages"][-1].pretty_print()
                     trace.append(chunk)
-            final_state = trace[-1]
+            # Streamed chunks are per-node deltas. Merge them so the returned
+            # state matches what graph.invoke() yields in the non-debug path.
+            final_state = {}
+            for chunk in trace:
+                final_state.update(chunk)
         else:
             final_state = self.graph.invoke(init_agent_state, **args)
 

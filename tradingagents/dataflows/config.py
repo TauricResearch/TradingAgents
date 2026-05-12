@@ -1,43 +1,34 @@
-import tradingagents.default_config as default_config
+from copy import deepcopy
 from typing import Dict, Optional
-import threading
+
+import tradingagents.default_config as default_config
 
 # Use default config but allow it to be overridden
 _config: Optional[Dict] = None
-_config_lock = threading.Lock()
 
 
 def initialize_config() -> None:
     """Initialize the configuration with default values. Thread-safe."""
     global _config
-    with _config_lock:
-        if _config is None:
-            _config = default_config.DEFAULT_CONFIG.copy()
+    if _config is None:
+        _config = deepcopy(default_config.DEFAULT_CONFIG)
 
 
-def set_config(config: Dict) -> None:
-    """Update the configuration with custom values. Thread-safe.
-    
-    Args:
-        config: Dictionary of configuration values to set/override
-        
-    Raises:
-        ValueError: If config contains invalid vendor names
+def set_config(config: Dict):
+    """Update the configuration with custom values.
+
+    Dict-valued keys (e.g. ``data_vendors``) are merged one level deep so a
+    partial update like ``{"data_vendors": {"core_stock_apis": "alpha_vantage"}}``
+    keeps the other nested keys from the default; scalar keys are replaced.
     """
     global _config
-    with _config_lock:
-        if _config is None:
-            _config = default_config.DEFAULT_CONFIG.copy()
-        # Validate data vendor names before merging
-        if "data_vendors" in config:
-            from .interface import VENDOR_METHODS
-            for category, vendor in config["data_vendors"].items():
-                if vendor not in VENDOR_METHODS and vendor != "default":
-                    raise ValueError(
-                        f"Unknown data vendor '{vendor}' for category '{category}'. "
-                        f"Valid vendors: {list(VENDOR_METHODS.keys())}"
-                    )
-        _config.update(config)
+    initialize_config()
+    incoming = deepcopy(config)
+    for key, value in incoming.items():
+        if isinstance(value, dict) and isinstance(_config.get(key), dict):
+            _config[key].update(value)
+        else:
+            _config[key] = value
 
 
 def get_config() -> Dict:
@@ -51,7 +42,7 @@ def get_config() -> Dict:
     """
     if _config is None:
         initialize_config()
-    return _config
+    return _config.copy()
 
 
 # Initialize with default config
