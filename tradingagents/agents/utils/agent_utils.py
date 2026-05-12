@@ -18,6 +18,35 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.etf_tools import (
+    get_etf_profile,
+    get_etf_holdings,
+    get_etf_top_holdings_drilldown,
+)
+# Re-export so analyst modules don't have to reach into dataflows for the
+# detection helpers — keeps the agent-layer import surface in one place.
+from tradingagents.dataflows.etf_utils import (  # noqa: F401
+    is_etf_ticker,
+    leverage_descriptor,
+)
+
+
+def _leverage_warning(descriptor: str) -> str:
+    """Render the structural warning for a leveraged or inverse ETF.
+
+    Centralized so ``build_instrument_context`` and ``build_etf_risk_block``
+    surface the identical text — one place to tune the wording, no risk of
+    drift between the analyst's prompt and the risk debators' prompt.
+    """
+    return (
+        f"\n\n**⚠️ STRUCTURAL WARNING — {descriptor} ETF**: This product uses "
+        "**daily reset** to deliver its leverage / inverse exposure. "
+        "**Long-term hold framing is INAPPROPRIATE** because path-dependent "
+        "decay erodes the return relationship vs the underlying over multi-day "
+        "periods (a flat underlying can still produce a negative ETF return). "
+        "Any recommendation to hold beyond a few sessions must explicitly "
+        "justify why path decay is acceptable for the trade thesis."
+    )
 
 
 def get_language_instruction() -> str:
@@ -37,12 +66,75 @@ def get_language_instruction() -> str:
 
 
 def build_instrument_context(ticker: str) -> str:
-    """Describe the exact instrument so agents preserve exchange-qualified tickers."""
-    return (
+    """Describe the exact instrument so agents preserve exchange-qualified tickers.
+
+    For ETF tickers the prompt is augmented with ETF-specific analysis
+    guidance — top-holding concentration, tracking strategy, expense ratio,
+    NAV / premium-discount — and a redirect away from the company-financial
+    tools (which now return ETF-not-applicable placeholders).
+    """
+    base = (
         f"The instrument to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
+
+    if is_etf_ticker(ticker):
+        base += (
+            "\n\n**This instrument is an ETF (exchange-traded fund), not a company.**"
+            "\n- Analyze it by top-holding concentration, tracking index / underlying basket, "
+            "expense ratio, AUM trend, premium/discount to NAV, and the underlying sector "
+            "or index momentum."
+            "\n- Do NOT analyze it as a company — it has no income statement, balance sheet, "
+            "or cash flow of its own. The company-financial tools (`get_fundamentals`, "
+            "`get_balance_sheet`, `get_cashflow`, `get_income_statement`, `get_insider_transactions`) "
+            "will return ETF-not-applicable placeholders for this ticker."
+            "\n- Use `get_etf_profile` and `get_etf_holdings` for ETF-relevant data."
+        )
+        descriptor = leverage_descriptor(ticker)
+        if descriptor:
+            base += _leverage_warning(descriptor)
+    return base
+
+def build_etf_risk_block(ticker: str) -> str:
+    """Risk-debate-specific ETF axes, returned as a markdown block.
+
+    The three risk debators (aggressive / conservative / neutral) consume
+    the analyst reports but otherwise have no ETF awareness — without this
+    block they argue about "company financials" of a fund. Each axis below
+    matters to a different debator:
+
+    - liquidity / structure → conservative emphasis
+    - leverage / sector momentum → aggressive emphasis
+    - concentration / diversification fit → neutral emphasis
+
+    Returns an empty string for non-ETF tickers so debators can append
+    unconditionally without branching.
+    """
+    if not is_etf_ticker(ticker):
+        return ""
+    # Surface the structural warning at the very top of the risk block so
+    # the debators see it before any of the more general axes.
+    descriptor = leverage_descriptor(ticker)
+    leverage_block = _leverage_warning(descriptor) if descriptor else ""
+    return leverage_block + (
+        "\n\n**ETF-specific risk dimensions** (this instrument is an exchange-traded "
+        "fund, not a company — weigh these axes alongside the analyst reports):\n"
+        "- **Liquidity**: AUM size and daily turnover; small-AUM ETFs slip on "
+        "moderate sizes and can trade at persistent discounts to NAV.\n"
+        "- **Concentration**: top-10 aggregate weight and Herfindahl index "
+        "(see the holdings report). High concentration means the ETF inherits "
+        "single-name risk from a few large positions.\n"
+        "- **Tracking risk**: expense-ratio drag and tracking error vs the stated "
+        "benchmark erode long-horizon returns.\n"
+        "- **Structure risk**: leveraged or inverse ETFs decay daily — long-term "
+        "framing is inappropriate. Synthetic / swap-based ETFs add counterparty risk.\n"
+        "- **Premium/discount to NAV**: persistent divergence signals "
+        "authorized-participant or arbitrage friction.\n"
+        "- **Underlying-name catalysts**: see the drill-down section in the "
+        "fundamentals report (if present) for top-constituent news and fundamentals."
+    )
+
 
 def create_msg_delete():
     def delete_messages(state):
