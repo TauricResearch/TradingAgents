@@ -155,7 +155,12 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
-For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+For local models with Ollama or LM Studio:
+```bash
+export OLLAMA_BASE_URL=...         # Ollama (default: http://localhost:11434/v1)
+export LM_STUDIO_BASE_URL=...      # LM Studio (default: http://localhost:1234/v1)
+```
+Configure with `llm_provider: "ollama"` or `llm_provider: "lm-studio"` in your config. For Ollama, pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -170,6 +175,27 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+
+#### Non-interactive Usage (Predefined Parameters)
+You can also run the CLI with predefined parameters to skip interactive prompts. This is useful for automation or batch processing:
+
+```bash
+# Example: Run analysis for SPY with specific analysts and research depth
+tradingagents analyze --ticker SPY --date 2024-05-10 --analyst market --analyst news --depth 3 --provider openai --shallow-thinker gpt-4o-mini --deep-thinker gpt-4o
+```
+
+**Available Options:**
+- `--ticker`, `-t`: Ticker symbol to analyze.
+- `--date`, `-d`: Analysis date (YYYY-MM-DD).
+- `--analyst`, `-a`: Analyst type to include (can be specified multiple times: `market`, `social`, `news`, `fundamentals`).
+- `--depth`: Research depth (1, 3, or 5).
+- `--provider`: LLM provider (e.g., `openai`, `google`, `anthropic`, `openrouter`).
+- `--backend-url`: Custom backend URL for the LLM provider.
+- `--shallow-thinker`: Model ID for shallow thinking tasks.
+- `--deep-thinker`: Model ID for deep thinking tasks.
+- `--language`, `-l`: Output language for reports (e.g., `English`, `Chinese`).
+- `--checkpoint`: Enable checkpoint/resume.
+- `--clear-checkpoints`: Clear all checkpoints before running.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -213,7 +239,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, lm-studio, azure
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

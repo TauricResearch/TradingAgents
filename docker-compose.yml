@@ -8,12 +8,12 @@ services:
     tty: true
     stdin_open: true
 
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    profiles:
-      - ollama
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   profiles:
+  #     - ollama
 
   tradingagents-ollama:
     build: .

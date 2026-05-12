@@ -248,8 +248,12 @@ def get_stockstats_indicator(
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
-    """Get company fundamentals overview from yfinance."""
+) -> str:
+    """Get company fundamentals overview from yfinance.
+    
+    Returns:
+        Formatted string with fundamentals data or error message
+    """
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         info = yf_retry(lambda: ticker_obj.info)
@@ -298,8 +302,15 @@ def get_fundamentals(
 
         return header + "\n".join(lines)
 
+    except (KeyError, AttributeError) as e:
+        # Missing fields or invalid ticker structure
+        return f"Invalid ticker or incomplete data for '{ticker}'"
+    except (ConnectionError, TimeoutError) as e:
+        # Network issues - can be retried
+        return f"Network error retrieving fundamentals for {ticker}. Please retry."
     except Exception as e:
-        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+        # Unexpected errors
+        return f"Unexpected error retrieving fundamentals for {ticker}: {type(e).__name__}"
 
 
 def get_balance_sheet(

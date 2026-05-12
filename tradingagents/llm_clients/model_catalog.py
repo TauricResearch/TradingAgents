@@ -154,13 +154,6 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
-    # Ollama display labels intentionally omit a "local" marker — the
-    # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
-    # apply whether the user runs ollama-serve on localhost or against a
-    # remote host. The actual resolved endpoint is surfaced separately by
-    # cli.utils.confirm_ollama_endpoint() right after provider selection.
-    # "Custom model ID" lets users pick any model they have pulled via
-    # `ollama pull` beyond the three suggested defaults.
     "ollama": {
         "quick": [
             ("Qwen3:latest (8B)", "qwen3:latest"),
@@ -173,6 +166,19 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("Qwen3:latest (8B)", "qwen3:latest"),
             ("Custom model ID", "custom"),
+        ],
+    },
+    "lm-studio": {
+        "quick": [
+            ("Qwen2.5 7B - Fast, quality small model", "qwen2.5-7b"),
+            ("Mistral 7B - Balanced performance", "mistral-7b"),
+            ("Neural Chat 7B - Optimized for chat", "neural-chat-7b"),
+        ],
+        "deep": [
+            ("Qwen2.5 32B - High quality reasoning", "qwen2.5-32b"),
+            ("Llama 3.1 70B - Most capable local", "llama-3.1-70b"),
+            ("Qwen2.5 7B - Fast, quality small model", "qwen2.5-7b"),
+            ("Mistral 7B - Balanced performance", "mistral-7b"),
         ],
     },
 }

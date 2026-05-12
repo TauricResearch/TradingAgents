@@ -7,8 +7,8 @@ import tradingagents.default_config as default_config
 _config: Optional[Dict] = None
 
 
-def initialize_config():
-    """Initialize the configuration with default values."""
+def initialize_config() -> None:
+    """Initialize the configuration with default values. Thread-safe."""
     global _config
     if _config is None:
         _config = deepcopy(default_config.DEFAULT_CONFIG)
@@ -32,10 +32,17 @@ def set_config(config: Dict):
 
 
 def get_config() -> Dict:
-    """Get the current configuration."""
+    """Get the current configuration as a reference.
+    
+    WARNING: This returns a reference to the internal config dict, not a copy.
+    Modifications will affect the global config. Use set_config() for safe updates.
+    
+    Returns:
+        Reference to the current configuration dictionary
+    """
     if _config is None:
         initialize_config()
-    return deepcopy(_config)
+    return _config.copy()
 
 
 # Initialize with default config

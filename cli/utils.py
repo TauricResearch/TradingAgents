@@ -250,7 +250,8 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
-        ("Ollama", "ollama", ollama_url),
+        ("Ollama", "ollama", "http://localhost:11434/v1"),
+        ("LM Studio", "lm-studio", "http://localhost:1234/v1"),
     ]
 
     choice = questionary.select(

@@ -1,0 +1,3 @@
+**Recommendation: HOLD**
+
+The balanced debate between bullish and bearish arguments supports a cautious approach. While the structural trend remains intact (golden cross, price above key moving averages, Bollinger Band walk), near-term risks include momentum deceleration (MACD histogram collapsed 79%), overbought RSI rolling from extreme levels, and poor risk/reward for new entries at ~$731. The prudent action is to maintain existing positions but avoid adding new longs at current levels. Wait for a pullback to the $710–$720 zone for a better entry. A daily close below the 50 SMA or RSI breaking below 50 would warrant a shift to Sell.
