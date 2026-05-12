@@ -437,7 +437,7 @@ agent-blocked ID *MSG:
 
 # Structured handoff: done/remaining/decisions captured before closing
 [group("agent")]
-agent-handoff ID *MSG="handoff":
+agent-handoff ID:
     bun scripts/agent-handoff.ts {{ ID }} --note "{{ MSG }}"
 
 # Full handoff with explicit done/remaining
@@ -491,8 +491,8 @@ portfolio:
 alerts:
     bun run src/cli/main.ts alerts
 
-check-alerts FIRE="":
-    bun scripts/check-alerts.ts {{ FIRE }}
+check-alerts:
+    bun scripts/check-alerts.ts
 
 # Show contingency buylist — watchlist items with fair value targets
 [group("run")]
@@ -560,8 +560,8 @@ backups-list:
 
 # Prune backups older than N days (default: 30)
 [group("db")]
-backups-prune DAYS="30":
-    bun scripts/db-backup.ts --prune {{ DAYS }}
+backups-prune:
+    bun scripts/db-backup.ts --prune 30
 
 # Show which database is currently active (LIVE vs TEST)
 [group("db")]
@@ -623,10 +623,8 @@ seed-db-prices:
 test-seed-db:
     TEST_MODE=1 bun scripts/seed_database.ts --db ./test_portfolio.db
 
-# Generate test hLedger journal with 3 platforms
-[group("seed")]
-seed-test-journal JOURNAL="${HOME}/.hledger.journal":
-    bash scripts/seed_test_journal.sh "{{ JOURNAL }}"
+seed-test-journal:
+    bash scripts/seed_test_journal.sh
 
 # ── Test: development and test DB tools ─────────────────────────────────
 #   Test DB lifecycle, diagnostics, and cross-environment copying.
