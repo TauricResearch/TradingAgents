@@ -75,7 +75,7 @@ button {
   top: 14px;
   display: flex;
   flex-direction: column;
-  width: 118px;
+  width: 132px;
   height: calc(100vh - 28px);
   flex-shrink: 0;
   border: 1px solid hsl(var(--primary) / 0.32);
@@ -118,14 +118,21 @@ button {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   height: 44px;
   border: 1px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--text-secondary);
-  padding: 0 10px;
+  padding: 0 8px 0 12px;
   transition: 0.2s ease;
+}
+
+.nav-item span {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .nav-item:hover {

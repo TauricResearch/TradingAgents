@@ -210,7 +210,7 @@ function ResearchPage({
   onExportRun: (run: RunSummary) => void;
   onQuoteRun: (run: RunSummary) => void;
 }) {
-  const [ticker, setTicker] = useState('NVDA');
+  const [ticker, setTicker] = useState('');
   const [selectedCompany, setSelectedCompany] = useState<CompanySuggestion | null>(null);
   const [suggestions, setSuggestions] = useState<CompanySuggestion[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
