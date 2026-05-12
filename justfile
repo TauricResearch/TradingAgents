@@ -147,7 +147,7 @@ reg-import:
 # Promote a playbook — see what would be stripped (add --apply to delegate to reg-mine)
 [group("reg")]
 reg-promote:
-    bun scripts/reg-promote.ts {{ FILE }} {{ FLAGS }}
+    bun scripts/reg-promote.ts
 
 # Sync script index: list all scripts with portability classification
 [group("reg")]
@@ -336,7 +336,7 @@ test-cli:
 # Quick smoke test for structured output (openai, google, anthropic, deepseek)
 [group("python")]
 test-quick:
-    .venv/bin/python scripts/py/smoke_structured_output.py {{ PROVIDER }}
+    .venv/bin/python scripts/py/smoke_structured_output.py openai
 
 # Start new td session
 [group("td")]
@@ -706,12 +706,13 @@ prs:
       --state open --limit 20
 
 [group("pr")]
-pr-fetch NUM:
+pr-fetch:
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p debriefs/reviews
-    url="https://github.com/pjsvis/TradingAgents/pull/{{ NUM }}"
-    file="debriefs/reviews/pr-{{ NUM }}.md"
+    NUM="${1:-1}"
+    url="https://github.com/pjsvis/TradingAgents/pull/$NUM"
+    file="debriefs/reviews/pr-$NUM.md"
     tmp="$(mktemp)"
     trap 'rm -f "$tmp"' EXIT
     defuddle parse --markdown "$url" > "$tmp"
@@ -725,8 +726,7 @@ pr-fetch-all:
 
 [group("pr")]
 pr-summarize:
-
-# ── GitNexus: code knowledge graph ──────────────────────────────────────
+    bun scripts/pr-summarize.ts --write
 #   Structural analysis via the indexed knowledge graph.
 #   See: playbooks/gitnexus-playbook.md
 
