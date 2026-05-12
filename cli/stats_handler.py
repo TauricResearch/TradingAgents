@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
