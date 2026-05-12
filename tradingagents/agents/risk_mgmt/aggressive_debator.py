@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_language_instruction
 
 
 from tradingagents.agents.utils.agent_utils import get_evidence_discipline_instruction
@@ -35,7 +36,7 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
 
 {get_evidence_discipline_instruction("Aggressive Risk Analyst")}
 
-Aggressive risk discipline: support bold positioning only when upside evidence is strong enough to compensate for downside and volatility. Output conversationally as if you are speaking without any special formatting."""
+Aggressive risk discipline: support bold positioning only when upside evidence is strong enough to compensate for downside and volatility. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 

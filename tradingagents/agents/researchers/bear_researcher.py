@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_language_instruction
 
 
 from tradingagents.agents.utils.agent_utils import get_evidence_discipline_instruction
@@ -40,7 +41,7 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
 Bear-specific discipline:
 - You may advocate Underweight/Sell when the downside evidence is strong, but each major risk claim must cite the report data that supports it.
 - Distinguish demonstrated risks from possible risks. Do not overstate a risk simply because your role is bearish.
-"""
+""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 

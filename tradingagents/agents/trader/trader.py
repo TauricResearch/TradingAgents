@@ -10,6 +10,7 @@ from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_evidence_discipline_instruction,
+    get_language_instruction,
 )
 from tradingagents.agents.utils.structured import (
     bind_structured,
@@ -34,6 +35,7 @@ def create_trader(llm):
                     "Anchor your reasoning in the analysts' reports and the research plan. "
                     "A Buy is allowed when strong evidence justifies it; do not downgrade a strong setup merely to appear cautious. "
                     "Before choosing an action, audit unsupported assumptions and calculate whether the risk/reward is attractive."
+                    + get_language_instruction()
                 ),
             },
             {

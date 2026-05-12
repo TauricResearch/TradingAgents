@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_language_instruction
 
 
 from tradingagents.agents.utils.agent_utils import get_evidence_discipline_instruction
@@ -38,7 +39,7 @@ Use this information to deliver a compelling bull argument, refute the bear's co
 Bull-specific discipline:
 - You may advocate a Buy/Overweight thesis when the evidence is strong, but each major upside claim must cite the report data that supports it.
 - If a positive catalyst is inferred from a competitor or sector trend, label it as an inference and explain what direct evidence would confirm it.
-"""
+""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 

@@ -1,9 +1,13 @@
-import questionary
+import os
+from pathlib import Path
 from typing import List, Optional, Tuple, Dict
 
+import questionary
+from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType
+from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -12,7 +16,7 @@ TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
-    ("Social Media Analyst", AnalystType.SOCIAL),
+    ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
@@ -230,6 +234,10 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
+    # Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
+    # (convention from the broader Ollama ecosystem); falls back to the
+    # localhost default when unset.
+    ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
@@ -237,11 +245,12 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
-        ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
+        ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
-        ("Ollama", "ollama", "http://localhost:11434/v1"),
+        ("Ollama", "ollama", ollama_url),
     ]
 
     choice = questionary.select(
@@ -289,7 +298,9 @@ def ask_openai_reasoning_effort() -> str:
 def ask_anthropic_effort() -> str | None:
     """Ask for Anthropic effort level.
 
-    Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
+    Controls token usage and response thoroughness on Claude 4.5 / 4.6 / 4.7
+    models. The API also accepts "max"; we expose low/medium/high as the
+    common selection range.
     """
     return questionary.select(
         "Select Effort Level:",
@@ -324,6 +335,159 @@ def ask_gemini_thinking_config() -> str | None:
             ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
+
+
+def ask_glm_region() -> tuple[str, str]:
+    """Ask which GLM platform (Z.AI international vs BigModel China) to use.
+
+    Zhipu serves the same GLM models under two brands with separate
+    accounts; keys aren't interchangeable. Returns (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select GLM platform:",
+        choices=[
+            questionary.Choice(
+                "Z.AI — api.z.ai (international, uses ZHIPU_API_KEY)",
+                value=("glm", "https://api.z.ai/api/paas/v4/"),
+            ),
+            questionary.Choice(
+                "BigModel — open.bigmodel.cn (China, uses ZHIPU_CN_API_KEY)",
+                value=("glm-cn", "https://open.bigmodel.cn/api/paas/v4/"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_qwen_region() -> tuple[str, str]:
+    """Ask which Qwen region (international vs China) to use.
+
+    Alibaba DashScope exposes two endpoints with separate accounts —
+    a key from one region does NOT authenticate against the other
+    (fixes #758). Returns (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select Qwen region:",
+        choices=[
+            questionary.Choice(
+                "International — dashscope-intl.aliyuncs.com (uses DASHSCOPE_API_KEY)",
+                value=("qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
+            ),
+            questionary.Choice(
+                "China — dashscope.aliyuncs.com (uses DASHSCOPE_CN_API_KEY)",
+                value=("qwen-cn", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_minimax_region() -> tuple[str, str]:
+    """Ask which MiniMax region (global vs China) to use.
+
+    MiniMax exposes two endpoints with separate accounts — a key from
+    one region does NOT authenticate against the other. Returns
+    (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select MiniMax region:",
+        choices=[
+            questionary.Choice(
+                "Global — api.minimax.io (uses MINIMAX_API_KEY)",
+                value=("minimax", "https://api.minimax.io/v1"),
+            ),
+            questionary.Choice(
+                "China — api.minimaxi.com (uses MINIMAX_CN_API_KEY)",
+                value=("minimax-cn", "https://api.minimaxi.com/v1"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def confirm_ollama_endpoint(url: str) -> None:
+    """Show the resolved Ollama endpoint after provider selection.
+
+    Surfaces three things the user benefits from seeing before model
+    selection: which URL we'll actually hit, where it came from
+    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    missing the scheme/port that ollama-serve expects. The warning is
+    advisory only — we don't reject malformed input, since the user may
+    be doing something deliberately unusual (e.g. a reverse-proxy path).
+    """
+    from_env = os.environ.get("OLLAMA_BASE_URL")
+    origin = " (from OLLAMA_BASE_URL)" if from_env and from_env == url else ""
+    console.print(f"[green]✓ Using Ollama at {url}{origin}[/green]")
+
+    if not url.startswith(("http://", "https://")):
+        console.print(
+            f"[yellow]Note: {url!r} is missing a scheme. "
+            f"Ollama-serve typically expects a URL like "
+            f"http://<host>:11434/v1.[/yellow]"
+        )
+    elif ":11434" not in url and "://localhost" not in url and "://127.0.0.1" not in url:
+        # Soft hint when the port differs from the ollama-serve default
+        # and the host isn't local (where users sometimes proxy on :80).
+        console.print(
+            f"[yellow]Note: {url!r} doesn't include port 11434. "
+            f"Make sure your remote ollama-serve listens on the port "
+            f"shown above.[/yellow]"
+        )
+
+
+def ensure_api_key(provider: str) -> Optional[str]:
+    """Make sure the API key for `provider` is available in the environment.
+
+    If the env var is already set, returns its value untouched. Otherwise
+    interactively prompts the user, persists the value to the project's
+    .env file via python-dotenv's set_key (creating .env if needed), and
+    exports it into os.environ so the current process picks it up.
+
+    Returns None for providers that do not require a key (e.g. ollama)
+    and for providers not found in the canonical mapping.
+    """
+    env_var = get_api_key_env(provider)
+    if env_var is None:
+        return None  # ollama / unknown — no key check possible
+
+    existing = os.environ.get(env_var)
+    if existing:
+        return existing
+
+    console.print(
+        f"\n[yellow]{env_var} is not set in your environment.[/yellow]"
+    )
+    key = questionary.password(
+        f"Paste your {env_var} (will be saved to .env):",
+        style=questionary.Style([
+            ("text", "fg:cyan"),
+            ("highlighted", "noinherit"),
+        ]),
+    ).ask()
+    if not key:
+        console.print(
+            f"[red]Skipped. API calls will fail until {env_var} is set.[/red]"
+        )
+        return None
+
+    env_path = find_dotenv(usecwd=True) or str(Path.cwd() / ".env")
+    Path(env_path).touch(exist_ok=True)
+    set_key(env_path, env_var, key)
+    os.environ[env_var] = key
+    console.print(f"[green]Saved {env_var} to {env_path}[/green]")
+    return key
 
 
 def ask_output_language() -> str:

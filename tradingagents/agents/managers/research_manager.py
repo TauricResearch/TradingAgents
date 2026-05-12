@@ -6,6 +6,7 @@ from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_evidence_discipline_instruction,
+    get_language_instruction,
 )
 from tradingagents.agents.utils.structured import (
     bind_structured,
@@ -50,7 +51,7 @@ Required decision structure:
 ---
 
 **Debate History:**
-{history}"""
+{history}""" + get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,

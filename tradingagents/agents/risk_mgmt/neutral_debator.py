@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_language_instruction
 
 
 from tradingagents.agents.utils.agent_utils import get_evidence_discipline_instruction
@@ -35,7 +36,7 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
 
 {get_evidence_discipline_instruction("Neutral Risk Analyst")}
 
-Neutral risk discipline: balanced does not mean automatically Hold. If evidence is clearly asymmetric, say so and explain why. Output conversationally as if you are speaking without any special formatting."""
+Neutral risk discipline: balanced does not mean automatically Hold. If evidence is clearly asymmetric, say so and explain why. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 

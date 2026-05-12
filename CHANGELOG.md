@@ -6,6 +6,81 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.2.5] — 2026-05-11
+
+### Added
+
+- **Grounded Sentiment Analyst.** The renamed `sentiment_analyst` now reads
+  real Yahoo News, StockTwits, and Reddit data before generating its report,
+  replacing the prior flow that could fabricate social posts under prompt
+  pressure. (#557, #607)
+- **MiniMax provider** with the full M2.x catalog (M2.7 / M2.5 / M2.1 / M2
+  plus highspeed variants, 204K context). Dual-region: Global
+  (`MINIMAX_API_KEY`) and China (`MINIMAX_CN_API_KEY`).
+- **Dual-region Qwen and GLM** with separate keys per region — international
+  (`DASHSCOPE_API_KEY`, `ZHIPU_API_KEY`) and China (`DASHSCOPE_CN_API_KEY`,
+  `ZHIPU_CN_API_KEY`), selectable via a secondary region prompt. (#758)
+- **`TRADINGAGENTS_*` env-var configurability for `DEFAULT_CONFIG`.** Override
+  `llm_provider`, deep/quick model IDs, `backend_url`, `output_language`,
+  debate-round counts, checkpoint flag, and benchmark ticker via `.env` with
+  type-aware coercion (string / int / bool). (#602)
+- **Interactive API-key detection in the CLI.** When the selected provider's
+  key is missing, the CLI prompts for it and persists the value to `.env`
+  so the analysis run continues without restart.
+- **Remote Ollama support.** `OLLAMA_BASE_URL` points the CLI and the
+  programmatic client at a remote `ollama-serve`. The CLI surfaces the
+  resolved endpoint and warns on common malformed inputs. Adds a
+  `"Custom model ID"` option for models pulled via `ollama pull`. (#648, #768)
+- **Configurable news-fetch parameters** in `DEFAULT_CONFIG` — per-ticker
+  article limit, macro headline limit, lookback window, and macro search
+  queries. (#606, #683)
+- **Configurable alpha benchmark** for non-US tickers. Replaces hardcoded
+  SPY with regional indices for `.NS` (^NSEI), `.T` (^N225), `.HK` (^HSI),
+  `.L` (^FTSE), `.TO` (^GSPTSE), `.AX` (^AXJO), `.BO` (^BSESN); explicit
+  `benchmark_ticker` override available. Eliminates FX drift dominating
+  alpha for non-USD listings. (#628, #684)
+- **Multi-language output covers every user-facing agent** — researchers,
+  risk debators, research manager, and trader, ending the previous
+  partial-localization reports. (#575)
+- **Model catalog refresh.** OpenAI GPT-5.5 frontier, Anthropic Claude Opus
+  4.7, Gemini 3.1 Flash-Lite GA, xAI Grok 4.20, Qwen 3.6 line. Versioned IDs
+  only; auto-shifting aliases moved to the `"Custom model ID"` option.
+
+### Changed
+
+- **Sentiment Analyst** is now consistently named across the CLI dropdown,
+  status panel, and final reports (previously the backend was renamed but
+  the CLI still said "Social Analyst"). The `AnalystType.SOCIAL = "social"`
+  wire value is kept for saved-config back-compat.
+
+### Fixed
+
+- **Structured output works on DeepSeek V4 / reasoner and MiniMax M2.x.**
+  Those providers reject `tool_choice` per their tool-calling docs; the
+  binding flow now skips it automatically via a capability table.
+- **`pip install .` installations pick up the project `.env`** when running
+  the CLI as a console script. (#747)
+- **Reports save end-to-end** — streamed chunks were previously dropped from
+  `complete_report.md`. (#719, #736)
+- **Ticker prompt preserves exchange suffixes** (`.SH`, `.SZ`, `.SS`, `.HK`,
+  `.T`, etc.) for A-share, HK, Tokyo, and other non-US flows. (#770)
+- **Docker permission errors** no longer block first-run write to
+  `~/.tradingagents/`. (#519, #627, #672, #771)
+- **Config state no longer leaks between runs** when sub-dicts are mutated;
+  `set_config` partial updates preserve sibling defaults. (#788)
+- **`max_recur_limit` config actually applies** — previously read but not
+  forwarded to the propagator. (#764)
+- **Missing-API-key error** names the exact env var to set. (#680)
+- **Quieter startup** — suppressed the noisy upstream
+  `LangChainPendingDeprecationWarning` from langgraph-checkpoint; will be
+  removed once that package ships its fix.
+
+### Security
+
+- **Ticker path-traversal validation** at every filesystem-path site (cache,
+  checkpoint database, results) so a malicious ticker cannot escape its
+  intended directory. (#618)
+
 ## [0.2.4] — 2026-04-25
 
 ### Added

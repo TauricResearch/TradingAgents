@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_language_instruction
 
 
 from tradingagents.agents.utils.agent_utils import get_evidence_discipline_instruction
@@ -35,7 +36,7 @@ Engage by questioning their optimism and emphasizing the potential downsides the
 
 {get_evidence_discipline_instruction("Conservative Risk Analyst")}
 
-Conservative risk discipline: caution must be evidence-based. Do not reject a strong opportunity only because volatility is high; show why the downside evidence outweighs the upside. Output conversationally as if you are speaking without any special formatting."""
+Conservative risk discipline: caution must be evidence-based. Do not reject a strong opportunity only because volatility is high; show why the downside evidence outweighs the upside. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 
