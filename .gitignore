@@ -149,6 +149,7 @@ activemq-data/
 
 # Environments
 .env
+.env.enterprise
 .envrc
 .venv
 env/
@@ -217,3 +218,6 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Generated report output
+reports/
