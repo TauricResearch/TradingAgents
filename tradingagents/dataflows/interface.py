@@ -1,5 +1,8 @@
+import logging
 import re
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -34,6 +37,17 @@ from .tushare_data import (
     get_tushare_insider_transactions,
     get_tushare_news,
     get_tushare_global_news,
+)
+from .akshare_data import (
+    get_akshare_stock,
+    get_akshare_indicators,
+    get_akshare_fundamentals,
+    get_akshare_balance_sheet,
+    get_akshare_cashflow,
+    get_akshare_income_statement,
+    get_akshare_insider_transactions,
+    get_akshare_news,
+    get_akshare_global_news,
 )
 
 # Configuration and routing logic
@@ -76,6 +90,7 @@ VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
     "tushare",
+    "akshare",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -85,56 +100,65 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "tushare": get_tushare_stock,
+        "akshare": get_akshare_stock,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
         "tushare": get_tushare_indicators,
+        "akshare": get_akshare_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
         "tushare": get_tushare_fundamentals,
+        "akshare": get_akshare_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
         "tushare": get_tushare_balance_sheet,
+        "akshare": get_akshare_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
         "tushare": get_tushare_cashflow,
+        "akshare": get_akshare_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
         "tushare": get_tushare_income_statement,
+        "akshare": get_akshare_income_statement,
     },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
         "tushare": get_tushare_news,
+        "akshare": get_akshare_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
         "tushare": get_tushare_global_news,
+        "akshare": get_akshare_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
         "tushare": get_tushare_insider_transactions,
+        "akshare": get_akshare_insider_transactions,
     },
 }
 
 def detect_vendor_for_ticker(symbol: str) -> str | None:
     """
     Detect the appropriate vendor based on ticker symbol format.
-    Returns "tushare" for A-share/HK tickers, None for others (use config default).
+    Returns "akshare" for A-share/HK tickers, None for others (use config default).
     """
     if not symbol or not isinstance(symbol, str):
         return None
@@ -143,23 +167,23 @@ def detect_vendor_for_ticker(symbol: str) -> str | None:
 
     # A股格式: 600000.SH, 600000.SS, 000001.SZ
     if re.match(r'^\d{6}\.(SH|SS|SZ)$', s):
-        return "tushare"
+        return "akshare"
 
     # A股格式: SH600000, SS600000, SZ000001
     if re.match(r'^(SH|SS|SZ)\d{6}$', s):
-        return "tushare"
+        return "akshare"
 
     # 纯6位数字（A股）
     if re.match(r'^\d{6}$', s):
-        return "tushare"
+        return "akshare"
 
     # 港股格式: 0700.HK, 00700.HK
     if re.match(r'^\d{4,5}\.HK$', s):
-        return "tushare"
+        return "akshare"
 
     # 港股格式: HK0700, HK00700
     if re.match(r'^HK\d{4,5}$', s):
-        return "tushare"
+        return "akshare"
 
     return None
 
@@ -220,9 +244,19 @@ def route_to_vendor(method: str, *args, **kwargs):
         if vendor not in fallback_vendors:
             fallback_vendors.append(vendor)
 
+    errors_collected = {}
+
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             continue
+
+        if vendor == "yfinance" and auto_vendor == "akshare":
+            logger.warning(
+                "Attempting yfinance for A-share ticker '%s' as fallback — "
+                "this will likely fail. Please check your akshare/tushare "
+                "configuration.",
+                args[0] if args else "?"
+            )
 
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
@@ -230,10 +264,21 @@ def route_to_vendor(method: str, *args, **kwargs):
         try:
             return impl_func(*args, **kwargs)
         except AlphaVantageRateLimitError:
+            errors_collected[vendor] = "rate limit exceeded"
             continue  # Only rate limits trigger fallback
-        except Exception:
+        except Exception as e:
+            errors_collected[vendor] = str(e)
             if vendor == auto_vendor:
-                continue  # Auto-detected vendor failed, fall through to next
+                logger.warning(
+                    "Auto-detected vendor '%s' failed for %s(%s): %s. "
+                    "Falling through to next vendor.",
+                    vendor, method, args[0] if args else "?", e
+                )
+                continue
             raise
 
-    raise RuntimeError(f"No available vendor for '{method}'")
+    raise RuntimeError(
+        f"All vendors failed for '{method}' "
+        f"(ticker={args[0] if args else '?'}). "
+        f"Tried: {errors_collected}"
+    )
