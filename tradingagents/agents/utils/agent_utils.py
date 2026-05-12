@@ -1,4 +1,5 @@
 import logging
+import functools
 from typing import Any, Mapping
 
 import yfinance as yf
@@ -51,6 +52,7 @@ def _clean_identity_value(value: Any) -> str | None:
     return cleaned
 
 
+@functools.lru_cache(maxsize=128)
 def resolve_instrument_identity(ticker: str) -> dict[str, str]:
     """Resolve deterministic company identity metadata for a ticker.
 

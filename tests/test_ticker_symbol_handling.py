@@ -13,6 +13,9 @@ from tradingagents.agents.utils.agent_utils import (
 
 @pytest.mark.unit
 class TickerSymbolHandlingTests(unittest.TestCase):
+    def setUp(self):
+        resolve_instrument_identity.cache_clear()
+
     def test_normalize_ticker_symbol_preserves_exchange_suffix(self):
         self.assertEqual(normalize_ticker_symbol(" cnc.to "), "CNC.TO")
 
@@ -77,6 +80,19 @@ class TickerSymbolHandlingTests(unittest.TestCase):
                 "quote_type": "EQUITY",
             },
         )
+
+    def test_resolve_instrument_identity_caches_yfinance_metadata(self):
+        with patch("tradingagents.agents.utils.agent_utils.yf.Ticker") as mock_ticker:
+            mock_ticker.return_value.info = {
+                "longName": "TOTO LTD.",
+                "sector": "Industrials",
+            }
+
+            first_identity = resolve_instrument_identity("TOTDY")
+            second_identity = resolve_instrument_identity("TOTDY")
+
+        mock_ticker.assert_called_once_with("TOTDY")
+        self.assertEqual(first_identity, second_identity)
 
     def test_resolve_instrument_identity_fails_open(self):
         with patch(
