@@ -136,17 +136,17 @@ reg-sync-fix:
 
 # Mine a playbook from project to canonicals (dry-run by default, --apply to confirm)
 [group("reg")]
-reg-mine FILE:
-    bun scripts/reg-mine.ts {{ FILE }}
+reg-mine:
+    bun scripts/reg-mine.ts
 
 # Import a canonical playbook into the project (dry-run: add --apply to confirm)
 [group("reg")]
-reg-import FILE:
-    bun scripts/reg-import.ts {{ FILE }}
+reg-import:
+    bun scripts/reg-import.ts
 
 # Promote a playbook — see what would be stripped (add --apply to delegate to reg-mine)
 [group("reg")]
-reg-promote FILE *FLAGS="":
+reg-promote:
     bun scripts/reg-promote.ts {{ FILE }} {{ FLAGS }}
 
 # Sync script index: list all scripts with portability classification
@@ -166,14 +166,14 @@ barnacle-scan:
 
 # Watch for barnacles (runs scan every N minutes, logs to ~/.tradingagents/barnacle-watch.log)
 [group("reg")]
-barnacle-watch MINUTES="60":
-    @echo "{{ YELLOW }}⏱{{ NORMAL }} Starting barnacle watcher (interval: {{ MINUTES }} min)"
+barnacle-watch:
+    @echo "{{ YELLOW }}⏱{{ NORMAL }} Starting barnacle watcher (interval: 60 min)"
     @echo "{{ YELLOW }}⏱{{ NORMAL }} Press Ctrl+C to stop. Logs: ~/.tradingagents/barnacle-watch.log"
     while true; do \
         echo "[$(date -Iseconds)] Scanning..." >> ~/.tradingagents/barnacle-watch.log; \
         bun scripts/barnacle-scan.ts --mechanical >> ~/.tradingagents/barnacle-watch.log 2>&1; \
         echo "---" >> ~/.tradingagents/barnacle-watch.log; \
-        sleep $(({{ MINUTES }} * 60)); \
+        sleep $((60 * 60)); \
     done
 
 set shell := ["bash", "-o", "pipefail", "-c"]
@@ -300,13 +300,13 @@ run-cli:
 
 # Run analysis on a ticker
 [group("python")]
-analyze TICKER="SPY" DATE="today" DEBATES="1":
-    source .venv/bin/activate && python scripts/py/analyze.py '{{ TICKER }}' --date '{{ DATE }}' --debates {{ DEBATES }}
+analyze:
+    source .venv/bin/activate && python scripts/py/analyze.py 'SPY' --date today --debates 1
 
 # Generate LLM summary for a ticker (or all analyses)
 [group("python")]
-summarize TICKER="":
-    {{ if TICKER != '' { 'bun run scripts/summarize_analyses.ts --ticker ' + TICKER } else { 'bun run scripts/summarize_analyses.ts' } }}
+summarize:
+    bun run scripts/summarize_analyses.ts
 
 # Regenerate all LLM summaries
 [group("python")]
@@ -335,7 +335,7 @@ test-cli:
 
 # Quick smoke test for structured output (openai, google, anthropic, deepseek)
 [group("python")]
-test-quick PROVIDER="openai":
+test-quick:
     .venv/bin/python scripts/py/smoke_structured_output.py {{ PROVIDER }}
 
 # Start new td session
@@ -478,8 +478,8 @@ agent-end:
 
 # Run analysis on TKA.DE (default test ticker)
 [group("run")]
-analyze-tka DEBATES="1":
-    just analyze TKA.DE today {{ DEBATES }}
+analyze-tka:
+    just analyze
 
 # Show portfolio holdings via CLI (SQLite only, no server required)
 [group("run")]
@@ -501,8 +501,8 @@ buylist:
 
 # Run TradingAgents research pipeline and extract buylist values
 [group("run")]
-research TICKER:
-    bun run src/cli/main.ts research {{ TICKER }}
+research:
+    bun run src/cli/main.ts research SPY
 
 # Show portfolio holdings (LIVE, uses hledger + SQLite via dashboard)
 [group("run")]
@@ -537,8 +537,8 @@ seed-db:
 
 # Unified trading CLI — generate trade plan for a ticker
 [group("run")]
-trading TICKER:
-    bun run trading plan {{ TICKER }} --platform ig --account 50000 --risk 0.02
+trading:
+    bun run trading plan SPY --platform ig --account 50000 --risk 0.02
 
 # ── Database ───────────────────────────────────────────────────────────────
 #   Backup, restore, and maintenance.
@@ -724,8 +724,7 @@ pr-fetch-all:
     bash scripts/pr-fetch-all.sh
 
 [group("pr")]
-pr-summarize NUM:
-    bun scripts/pr-summarize.ts {{ NUM }} --write
+pr-summarize:
 
 # ── GitNexus: code knowledge graph ──────────────────────────────────────
 #   Structural analysis via the indexed knowledge graph.
@@ -738,13 +737,13 @@ gn-context SYM:
 
 # Blast radius: what breaks if you change a symbol
 [group("gn")]
-gn-impact SYM DIRECTION="upstream":
-    gitnexus impact "{{ SYM }}" --direction {{ DIRECTION }} --repo TradingAgents
+gn-impact SYM:
+    gitnexus impact "{{ SYM }}" --direction upstream --repo TradingAgents
 
 # Map uncommitted changes to affected symbols and flows
 [group("gn")]
-gn-changes SCOPE="unstaged":
-    gitnexus detect-changes --scope {{ SCOPE }} --repo TradingAgents
+gn-changes:
+    gitnexus detect-changes --scope unstaged --repo TradingAgents
 
 # Raw Cypher query against the knowledge graph
 [group("gn")]
