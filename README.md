@@ -255,9 +255,11 @@ _, decision = ta.propagate("NVDA", "2026-01-15")
 
 ## Web Interface
 
-[**AgentFloor**](https://github.com/saketnayak/trading-command-center) — A self-hosted web UI for TradingAgents. One-command Docker install on Windows, macOS, and Linux (only dependency: Docker Desktop). Adds portfolio tracking, automated daily briefings, cron-based watchlist scheduling, outcome tracking at +7/14/30/90 days, and multi-user support — no Python setup required for end users.
+[**AgentFloor**](https://github.com/saketnayak/trading-command-center) — A self-hosted web UI for TradingAgents. One-command Docker install on Windows, macOS, and Linux (only dependency: Docker). Adds portfolio tracking, automated daily briefings, cron-based watchlist scheduling, outcome tracking at +7/14/30/90 days, and multi-user support — no Python setup required for end users.
 
-![AgentFloor demo](https://raw.githubusercontent.com/saketnayak/trading-command-center/main/docs/demo.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/saketnayak/trading-command-center/main/docs/demo.gif" alt="AgentFloor demo" style="width: 100%; height: auto;">
+</p>
 
 ## Contributing
 
