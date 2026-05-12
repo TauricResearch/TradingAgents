@@ -58,6 +58,24 @@ def _yfinance_quote_type(ticker: str) -> Optional[str]:
         return None
 
 
+@functools.lru_cache(maxsize=512)
+def _yfinance_etf_category(ticker: str) -> str:
+    """Cached yfinance ``info.category`` lookup for ETF leverage detection.
+
+    ``category`` strings like ``"Trading--Leveraged Equity"`` and
+    ``"Trading--Inverse Equity"`` are the most reliable signal that an ETF
+    uses daily reset and therefore decays under buy-and-hold framing.
+    Cached for the same reason as ``_yfinance_quote_type``: this fires
+    from agent prompts on every analysis.
+    """
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info or {}
+        return str(info.get("category") or "")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def is_etf_ticker(value: object) -> bool:
     """Return True when ``value`` is recognized as an ETF by yfinance.
 
@@ -72,9 +90,52 @@ def is_etf_ticker(value: object) -> bool:
     return _yfinance_quote_type(ticker) == "ETF"
 
 
+def leverage_descriptor(value: object) -> str:
+    """Classify a ticker as leveraged / inverse / both / not, returning a tag.
+
+    Returns one of:
+    - ``""`` — not an ETF, or an ordinary unleveraged ETF.
+    - ``"Leveraged"`` — daily-reset multiplier (TQQQ 3x, UPRO 3x, SOXL 3x).
+    - ``"Inverse"`` — daily-reset short (PSQ -1x, SH -1x).
+    - ``"Leveraged Inverse"`` — both at once (SQQQ -3x, SDS -2x, SPXS -3x).
+
+    The caller injects a hard structural warning when this returns
+    non-empty: daily reset makes long-term framing inappropriate
+    regardless of which underlying these products track.
+
+    Falsy / non-string / non-ETF inputs short-circuit to ``""`` so call
+    sites can append unconditionally without branching.
+    """
+    if not isinstance(value, str):
+        return ""
+    ticker = value.strip()
+    if not ticker or not is_etf_ticker(ticker):
+        return ""
+    category = _yfinance_etf_category(ticker)
+    if not category:
+        return ""
+    # The yfinance convention is "Trading--<flavor> <asset class>", e.g.
+    # "Trading--Leveraged Equity", "Trading--Inverse Commodities". Match
+    # case-insensitively on the flavor keywords; require the "Trading--"
+    # prefix so we don't false-positive on e.g. "Long-Term Bond".
+    lower = category.lower()
+    if "trading--" not in lower and "trading-" not in lower:
+        return ""
+    is_leveraged = "leveraged" in lower
+    is_inverse = "inverse" in lower
+    if is_leveraged and is_inverse:
+        return "Leveraged Inverse"
+    if is_leveraged:
+        return "Leveraged"
+    if is_inverse:
+        return "Inverse"
+    return ""
+
+
 def clear_etf_cache() -> None:
-    """Reset the quote-type LRU. Tests call this between cases for isolation."""
+    """Reset both ETF LRU caches. Tests call this between cases for isolation."""
     _yfinance_quote_type.cache_clear()
+    _yfinance_etf_category.cache_clear()
 
 
 def _extract_ticker_arg(args: tuple, kwargs: dict) -> object:

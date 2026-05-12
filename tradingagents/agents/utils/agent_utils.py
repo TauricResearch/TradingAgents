@@ -24,8 +24,29 @@ from tradingagents.agents.utils.etf_tools import (
     get_etf_top_holdings_drilldown,
 )
 # Re-export so analyst modules don't have to reach into dataflows for the
-# detection helper — keeps the agent-layer import surface in one place.
-from tradingagents.dataflows.etf_utils import is_etf_ticker  # noqa: F401
+# detection helpers — keeps the agent-layer import surface in one place.
+from tradingagents.dataflows.etf_utils import (  # noqa: F401
+    is_etf_ticker,
+    leverage_descriptor,
+)
+
+
+def _leverage_warning(descriptor: str) -> str:
+    """Render the structural warning for a leveraged or inverse ETF.
+
+    Centralized so ``build_instrument_context`` and ``build_etf_risk_block``
+    surface the identical text — one place to tune the wording, no risk of
+    drift between the analyst's prompt and the risk debators' prompt.
+    """
+    return (
+        f"\n\n**⚠️ STRUCTURAL WARNING — {descriptor} ETF**: This product uses "
+        "**daily reset** to deliver its leverage / inverse exposure. "
+        "**Long-term hold framing is INAPPROPRIATE** because path-dependent "
+        "decay erodes the return relationship vs the underlying over multi-day "
+        "periods (a flat underlying can still produce a negative ETF return). "
+        "Any recommendation to hold beyond a few sessions must explicitly "
+        "justify why path decay is acceptable for the trade thesis."
+    )
 
 
 def get_language_instruction() -> str:
@@ -70,6 +91,9 @@ def build_instrument_context(ticker: str) -> str:
             "will return ETF-not-applicable placeholders for this ticker."
             "\n- Use `get_etf_profile` and `get_etf_holdings` for ETF-relevant data."
         )
+        descriptor = leverage_descriptor(ticker)
+        if descriptor:
+            base += _leverage_warning(descriptor)
     return base
 
 def build_etf_risk_block(ticker: str) -> str:
@@ -89,7 +113,11 @@ def build_etf_risk_block(ticker: str) -> str:
     """
     if not is_etf_ticker(ticker):
         return ""
-    return (
+    # Surface the structural warning at the very top of the risk block so
+    # the debators see it before any of the more general axes.
+    descriptor = leverage_descriptor(ticker)
+    leverage_block = _leverage_warning(descriptor) if descriptor else ""
+    return leverage_block + (
         "\n\n**ETF-specific risk dimensions** (this instrument is an exchange-traded "
         "fund, not a company — weigh these axes alongside the analyst reports):\n"
         "- **Liquidity**: AUM size and daily turnover; small-AUM ETFs slip on "

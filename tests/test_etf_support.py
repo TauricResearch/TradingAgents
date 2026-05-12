@@ -1056,3 +1056,225 @@ class RiskDebatorsInjectEtfBlockTests(unittest.TestCase):
 
         prompt = self._run(create_aggressive_debator, "AAPL", is_etf=False)
         self.assertNotIn("ETF-specific risk dimensions", prompt)
+# ---------------------------------------------------------------------------
+# Leveraged / inverse ETF detection + structural warning
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class LeverageDescriptorTests(unittest.TestCase):
+    """``leverage_descriptor`` returns one of ``""``, ``"Leveraged"``,
+    ``"Inverse"``, ``"Leveraged Inverse"`` based on yfinance category."""
+
+    def _patch(self, quote_type: str, category: str):
+        # Patch both LRU-cached helpers so the descriptor short-circuit and
+        # the actual category lookup are deterministic.
+        return patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: quote_type,
+            _yfinance_etf_category=lambda t: category,
+        )
+
+    def test_leveraged_equity_returns_leveraged(self):
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("ETF", "Trading--Leveraged Equity"):
+            self.assertEqual(leverage_descriptor("TQQQ"), "Leveraged")
+
+    def test_inverse_equity_returns_inverse(self):
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("ETF", "Trading--Inverse Equity"):
+            self.assertEqual(leverage_descriptor("PSQ"), "Inverse")
+
+    def test_leveraged_inverse_combo(self):
+        """SQQQ / SDS / SPXS are Leveraged Inverse — yfinance encodes this
+        as ``Trading--Leveraged Inverse Equity``."""
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("ETF", "Trading--Leveraged Inverse Equity"):
+            self.assertEqual(
+                leverage_descriptor("SQQQ"), "Leveraged Inverse"
+            )
+
+    def test_leveraged_commodities_works(self):
+        """The ``Trading--`` prefix isn't equity-only; gold leverage products
+        (UGL, AGQ) carry the same convention."""
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("ETF", "Trading--Leveraged Commodities"):
+            self.assertEqual(leverage_descriptor("UGL"), "Leveraged")
+
+    def test_ordinary_etf_returns_empty(self):
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("ETF", "Large Blend"):
+            self.assertEqual(leverage_descriptor("SPY"), "")
+
+    def test_long_term_bond_does_not_false_positive(self):
+        """Category strings without the ``Trading--`` prefix must NOT trip
+        the detection — "Long-Term Bond" contains neither keyword but we
+        also need to confirm "Trading--" gating."""
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("ETF", "Long-Term Bond"):
+            self.assertEqual(leverage_descriptor("TLT"), "")
+
+    def test_non_etf_returns_empty(self):
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        with self._patch("EQUITY", "Software"):
+            self.assertEqual(leverage_descriptor("AAPL"), "")
+
+    def test_non_string_inputs(self):
+        from tradingagents.dataflows.etf_utils import leverage_descriptor
+
+        for value in (None, 123, "", "   "):
+            self.assertEqual(leverage_descriptor(value), "")
+
+
+@pytest.mark.unit
+class BuildInstrumentContextLeverageWarningTests(unittest.TestCase):
+    def _patch_leveraged(self):
+        return patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: "ETF",
+            _yfinance_etf_category=lambda t: "Trading--Leveraged Equity",
+        )
+
+    def _patch_ordinary_etf(self):
+        return patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: "ETF",
+            _yfinance_etf_category=lambda t: "Large Blend",
+        )
+
+    def test_leveraged_etf_gets_structural_warning(self):
+        from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+        with self._patch_leveraged():
+            ctx = build_instrument_context("TQQQ")
+        self.assertIn("STRUCTURAL WARNING — Leveraged ETF", ctx)
+        self.assertIn("daily reset", ctx)
+        self.assertIn("INAPPROPRIATE", ctx)
+
+    def test_ordinary_etf_does_NOT_get_structural_warning(self):
+        from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+        with self._patch_ordinary_etf():
+            ctx = build_instrument_context("SPY")
+        self.assertNotIn("STRUCTURAL WARNING", ctx)
+
+    def test_stock_does_NOT_get_structural_warning(self):
+        from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+        with patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: "EQUITY",
+            _yfinance_etf_category=lambda t: "Software",
+        ):
+            ctx = build_instrument_context("AAPL")
+        self.assertNotIn("STRUCTURAL WARNING", ctx)
+
+
+@pytest.mark.unit
+class BuildEtfRiskBlockLeverageWarningTests(unittest.TestCase):
+    def test_leveraged_etf_warning_at_top_of_risk_block(self):
+        """The structural warning must lead the risk block so debators
+        can't miss it scrolling past the six general axes."""
+        from tradingagents.agents.utils.agent_utils import build_etf_risk_block
+
+        with patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: "ETF",
+            _yfinance_etf_category=lambda t: "Trading--Leveraged Inverse Equity",
+        ):
+            block = build_etf_risk_block("SQQQ")
+        # Warning appears, and appears before the general axes header
+        self.assertIn("STRUCTURAL WARNING — Leveraged Inverse ETF", block)
+        warning_pos = block.find("STRUCTURAL WARNING")
+        axes_pos = block.find("ETF-specific risk dimensions")
+        self.assertLess(warning_pos, axes_pos)
+
+    def test_ordinary_etf_risk_block_has_no_structural_warning(self):
+        from tradingagents.agents.utils.agent_utils import build_etf_risk_block
+
+        with patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: "ETF",
+            _yfinance_etf_category=lambda t: "Large Blend",
+        ):
+            block = build_etf_risk_block("SPY")
+        self.assertNotIn("STRUCTURAL WARNING", block)
+        # The general ETF axes block must still be present
+        self.assertIn("ETF-specific risk dimensions", block)
+
+
+@pytest.mark.unit
+class RiskDebatorsSurfaceLeverageWarningTests(unittest.TestCase):
+    """Each of the three debators must propagate the structural warning to
+    its LLM prompt when handed a leveraged ETF ticker."""
+
+    def _state(self, ticker: str) -> dict:
+        return {
+            "risk_debate_state": {"history": "", "count": 0},
+            "market_report": "M",
+            "sentiment_report": "S",
+            "news_report": "N",
+            "fundamentals_report": "F",
+            "trader_investment_plan": "PLAN",
+            "company_of_interest": ticker,
+        }
+
+    def _run(self, factory, ticker: str):
+        llm = MagicMock()
+        llm.invoke.return_value = MagicMock(content="reply")
+        node = factory(llm)
+        with patch.multiple(
+            "tradingagents.dataflows.etf_utils",
+            _yfinance_quote_type=lambda t: "ETF",
+            _yfinance_etf_category=lambda t: "Trading--Leveraged Equity",
+        ):
+            node(self._state(ticker))
+        return llm.invoke.call_args[0][0]
+
+    def test_aggressive_sees_leverage_warning(self):
+        from tradingagents.agents.risk_mgmt.aggressive_debator import (
+            create_aggressive_debator,
+        )
+
+        prompt = self._run(create_aggressive_debator, "TQQQ")
+        self.assertIn("STRUCTURAL WARNING — Leveraged ETF", prompt)
+
+    def test_conservative_sees_leverage_warning(self):
+        from tradingagents.agents.risk_mgmt.conservative_debator import (
+            create_conservative_debator,
+        )
+
+        prompt = self._run(create_conservative_debator, "TQQQ")
+        self.assertIn("STRUCTURAL WARNING — Leveraged ETF", prompt)
+
+    def test_neutral_sees_leverage_warning(self):
+        from tradingagents.agents.risk_mgmt.neutral_debator import (
+            create_neutral_debator,
+        )
+
+        prompt = self._run(create_neutral_debator, "TQQQ")
+        self.assertIn("STRUCTURAL WARNING — Leveraged ETF", prompt)
+
+
+@pytest.mark.unit
+class ClearEtfCacheClearsBothCachesTests(unittest.TestCase):
+    """``clear_etf_cache`` must reset the new category cache too, otherwise
+    test isolation breaks for the leverage detection path."""
+
+    def test_clears_category_cache(self):
+        from tradingagents.dataflows import etf_utils
+
+        # Prime the category cache with a stub
+        with patch("yfinance.Ticker") as yt:
+            yt.return_value.info = {"category": "Large Blend"}
+            etf_utils._yfinance_etf_category("CACHED")
+        # Confirm cache is populated
+        self.assertGreater(etf_utils._yfinance_etf_category.cache_info().currsize, 0)
+        etf_utils.clear_etf_cache()
+        self.assertEqual(etf_utils._yfinance_etf_category.cache_info().currsize, 0)
