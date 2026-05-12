@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { execSync } from "node:child_process"
+
 /**
  * Agent Coordination — Task Claim.
  *
