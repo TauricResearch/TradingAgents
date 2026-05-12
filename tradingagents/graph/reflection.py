@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from tradingagents.logging import get_logger
+
 
 class Reflector:
     """Handles reflection on trading decisions."""
@@ -10,6 +12,7 @@ class Reflector:
         """Initialize the reflector with an LLM."""
         self.quick_thinking_llm = quick_thinking_llm
         self.log_reflection_prompt = self._get_log_reflection_prompt()
+        self._slog = get_logger(__name__)
 
     def _get_log_reflection_prompt(self) -> str:
         """Concise prompt for reflect_on_final_decision (Phase B log entries).
@@ -54,4 +57,11 @@ class Reflector:
                 ),
             ),
         ]
-        return self.quick_thinking_llm.invoke(messages).content
+        result = self.quick_thinking_llm.invoke(messages).content
+        self._slog.debug(
+            "Reflection generated",
+            raw_return=f"{raw_return:+.1%}",
+            alpha_return=f"{alpha_return:+.1%}",
+            benchmark=benchmark_name,
+        )
+        return result

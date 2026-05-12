@@ -22,6 +22,9 @@ from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
+from tradingagents.logging import get_logger
+_slog = get_logger(__name__)
+
 _API = "https://www.reddit.com/r/{sub}/search.json?{qs}"
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 
@@ -51,9 +54,17 @@ def _fetch_subreddit(
             payload = json.loads(resp.read())
     except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
         logger.warning("Reddit fetch failed for r/%s · %s: %s", sub, ticker, exc)
+        _slog.warning("Reddit fetch failed", ticker=ticker, subreddit=sub, error=str(exc))
         return []
     children = (payload.get("data") or {}).get("children") or []
-    return [c.get("data", {}) for c in children if isinstance(c, dict)]
+    posts = [c.get("data", {}) for c in children if isinstance(c, dict)]
+    _slog.debug(
+        "Reddit fetch succeeded",
+        ticker=ticker,
+        subreddit=sub,
+        post_count=str(len(posts)),
+    )
+    return posts
 
 
 def fetch_reddit_posts(
@@ -99,8 +110,10 @@ def fetch_reddit_posts(
         blocks.append("\n".join(lines))
 
     if total_posts == 0:
+        _slog.info("No Reddit posts found", ticker=ticker)
         return (
             f"<no Reddit posts found mentioning {ticker.upper()} across "
             f"{', '.join(f'r/{s}' for s in subreddits)} in the past 7 days>"
         )
+    _slog.info("Reddit posts fetched", ticker=ticker, total_posts=str(total_posts))
     return "\n\n".join(blocks)

@@ -12,6 +12,9 @@ from .utils import safe_ticker_component
 
 logger = logging.getLogger(__name__)
 
+from tradingagents.logging import get_logger
+_slog = get_logger(__name__)
+
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
@@ -27,6 +30,12 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
                 logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                _slog.warning(
+                    "Yahoo Finance rate limited",
+                    attempt=str(attempt + 1),
+                    max_retries=str(max_retries),
+                    retry_delay=f"{delay:.0f}s",
+                )
                 time.sleep(delay)
             else:
                 raise
@@ -73,7 +82,9 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
 
     if os.path.exists(data_file):
         data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
+        _slog.debug("OHLCV cache hit", ticker=symbol, file=str(data_file))
     else:
+        _slog.info("OHLCV downloading", ticker=symbol, start=start_str, end=end_str)
         data = yf_retry(lambda: yf.download(
             symbol,
             start=start_str,
@@ -84,6 +95,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         ))
         data = data.reset_index()
         data.to_csv(data_file, index=False, encoding="utf-8")
+        _slog.debug("OHLCV cached to disk", ticker=symbol, rows=str(len(data)))
 
     data = _clean_dataframe(data)
 

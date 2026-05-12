@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 
 from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.logging import get_logger
 
 
 class TradingMemoryLog:
@@ -25,6 +26,7 @@ class TradingMemoryLog:
             self._log_path.parent.mkdir(parents=True, exist_ok=True)
         # Optional cap on resolved entries. None disables rotation.
         self._max_entries = cfg.get("memory_log_max_entries")
+        self._slog = get_logger(__name__)
 
     # --- Write path (Phase A) ---
 
@@ -56,6 +58,7 @@ class TradingMemoryLog:
         if self._log_path.exists():
             with open(self._log_path, "a", encoding="utf-8") as f:
                 f.write(entry)
+            self._slog.debug("Decision stored in memory log", ticker=ticker, date=trade_date, rating=rating)
         else:
             self._log_path.write_text(entry, encoding="utf-8")
 

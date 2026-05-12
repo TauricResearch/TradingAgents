@@ -221,3 +221,9 @@ __marimo__/
 .claude
 node_modules/
 **/node_modules/
+
+# Structured logs
+logs/
+**/.DS_Store
+.sisyphus/run-continuation/
+uv.lock

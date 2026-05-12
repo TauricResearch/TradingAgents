@@ -11,6 +11,8 @@ import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
+from tradingagents.logging import get_logger
+
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.llm_clients import create_llm_client
@@ -99,6 +101,14 @@ class TradingAgentsGraph:
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
         
+        slog = get_logger(__name__)
+        slog.debug(
+            "Graph initialized",
+            provider=self.config["llm_provider"],
+            deep_model=self.config["deep_think_llm"],
+            quick_model=self.config["quick_think_llm"],
+            analysts=",".join(selected_analysts),
+        )
         self.memory_log = TradingMemoryLog(self.config)
 
         # Create tool nodes
@@ -339,6 +349,8 @@ class TradingAgentsGraph:
         successful node on a subsequent invocation with the same ticker+date.
         """
         self.ticker = company_name
+        slog = get_logger(__name__)
+        slog.info("Propagate started", ticker=company_name, date=trade_date)
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)

@@ -22,6 +22,7 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.logging import get_logger
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -1041,6 +1042,18 @@ def run_analysis(
         output_language=output_language,
     )
 
+    # Initialize structured logger with run context
+    slog = get_logger("tradingagents.cli")
+    slog.info(
+        "Analysis started",
+        ticker=selections["ticker"],
+        date=selections["analysis_date"],
+        provider=selections["llm_provider"],
+        depth=str(selections["research_depth"]),
+        analysts=",".join(a.value for a in selections["analysts"]),
+        language=selections.get("output_language", "English"),
+    )
+
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
     config["max_debate_rounds"] = selections["research_depth"]
@@ -1073,6 +1086,13 @@ def run_analysis(
 
     # Initialize message buffer with selected analysts
     message_buffer.init_for_analysis(selected_analyst_keys)
+    slog.debug(
+        "Graph initialized",
+        agents=",".join(selected_analyst_keys),
+        depth=str(research_depth),
+        shallow_model=selections["shallow_thinker"],
+        deep_model=selections["deep_thinker"],
+    )
 
     # Track start time for elapsed display
     start_time = time.time()
@@ -1164,7 +1184,8 @@ def run_analysis(
 
         # Stream the analysis
         trace = []
-        for chunk in graph.graph.stream(init_agent_state, **args):
+        try:
+            for chunk in graph.graph.stream(init_agent_state, **args):
             # Process all messages in chunk, deduplicating by message ID
             for message in chunk.get("messages", []):
                 msg_id = getattr(message, "id", None)
@@ -1285,6 +1306,26 @@ def run_analysis(
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
+        stats = stats_handler.get_stats()
+        elapsed = time.time() - start_time
+        slog.info(
+            "Analysis completed successfully",
+            decision=decision[:100] if decision else "",
+            llm_calls=str(stats["llm_calls"]),
+            tool_calls=str(stats["tool_calls"]),
+            tokens_in=str(stats["tokens_in"]),
+            tokens_out=str(stats["tokens_out"]),
+            elapsed_sec=f"{elapsed:.1f}",
+        )
+
+        except Exception as exc:
+            slog.error(
+                "Analysis failed",
+                exception=str(exc),
+                elapsed_sec=f"{time.time() - start_time:.1f}",
+            )
+            raise
+
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
@@ -1302,13 +1343,17 @@ def run_analysis(
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            slog.info("Report saved", path=str(save_path.resolve()))
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
+            slog.error("Failed to save report", exception=str(e))
 
     # Prompt to display full report
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
     if display_choice in ("Y", "YES", ""):
         display_complete_report(final_state)
+
+    slog.close()
 
 
 @app.command()

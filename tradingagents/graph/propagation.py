@@ -6,6 +6,7 @@ from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
 )
+from tradingagents.logging import get_logger
 
 
 class Propagator:
@@ -14,11 +15,18 @@ class Propagator:
     def __init__(self, max_recur_limit=100):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
+        self._slog = get_logger(__name__)
 
     def create_initial_state(
         self, company_name: str, trade_date: str, past_context: str = ""
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        self._slog.debug(
+            "Creating initial state",
+            ticker=company_name,
+            date=trade_date,
+            has_past_context=str(bool(past_context)),
+        )
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,

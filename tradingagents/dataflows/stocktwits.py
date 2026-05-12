@@ -23,6 +23,9 @@ from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
+from tradingagents.logging import get_logger
+_slog = get_logger(__name__)
+
 _API = "https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 
@@ -42,10 +45,12 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
             data = json.loads(resp.read())
     except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
         logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
+        _slog.warning("StockTwits fetch failed", ticker=ticker, error=str(exc))
         return f"<stocktwits unavailable: {type(exc).__name__}>"
 
     messages = data.get("messages", []) if isinstance(data, dict) else []
     if not messages:
+        _slog.info("No StockTwits messages found", ticker=ticker)
         return f"<no StockTwits messages found for ${ticker.upper()}>"
 
     lines = []
@@ -74,6 +79,14 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
     total = bullish + bearish + unlabeled
     bull_pct = round(100 * bullish / total) if total else 0
     bear_pct = round(100 * bearish / total) if total else 0
+    _slog.info(
+        "StockTwits messages fetched",
+        ticker=ticker,
+        total=str(total),
+        bullish=str(bullish),
+        bearish=str(bearish),
+        unlabeled=str(unlabeled),
+    )
     summary = (
         f"Bullish: {bullish} ({bull_pct}%) · "
         f"Bearish: {bearish} ({bear_pct}%) · "

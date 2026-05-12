@@ -8,6 +8,7 @@ from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
+from tradingagents.logging import get_logger
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -153,9 +154,6 @@ _PROVIDER_BASE_URL = {
     "openrouter": "https://openrouter.ai/api/v1",
     "ollama":     "http://localhost:11434/v1",
     "lm-studio":  "http://localhost:1234/v1",
-
-    "lm-studio":  "http://localhost:1234/v1",
-}
 }
 
 
@@ -238,7 +236,15 @@ class OpenAIClient(BaseLLMClient):
             chat_cls = MinimaxChatOpenAI
         else:
             chat_cls = NormalizedChatOpenAI
-        return chat_cls(**llm_kwargs)
+        llm = chat_cls(**llm_kwargs)
+        slog = get_logger(__name__)
+        slog.debug(
+            "LLM created",
+            provider=self.provider,
+            model=self.model,
+            cls=chat_cls.__name__,
+        )
+        return llm
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""
