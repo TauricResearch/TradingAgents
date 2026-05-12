@@ -183,56 +183,6 @@ set dotenv-load
 # ── Modules ────────────────────────────────────────────────────────────────
 mod hledger
 
-# Group navigation shortcuts — just <letter> to list that group's recipes
-# Uses scripts/just-group-menu.ts for formatted output with common-marker indicators.
-[group("nav")]
-b:
-    @bun scripts/just-group-menu.ts bun
-
-[group("nav")]
-p:
-    @bun scripts/just-group-menu.ts python
-
-[group("nav")]
-h:
-    @just hledger::default
-
-[group("nav")]
-t:
-    @bun scripts/just-group-menu.ts td
-
-[group("nav")]
-db:
-    @bun scripts/just-group-menu.ts db
-
-[group("nav")]
-m:
-    @bun scripts/just-group-menu.ts meta
-
-[group("nav")]
-r:
-    @bun scripts/just-group-menu.ts run
-
-[group("nav")]
-s:
-    @bun scripts/just-group-menu.ts seed
-
-[group("nav")]
-x:
-    @bun scripts/just-group-menu.ts test
-
-[group("nav")]
-d:
-    @bun scripts/just-group-menu.ts diagrams
-
-[group("nav")]
-pr:
-    @bun scripts/just-group-menu.ts pr
-
-[group("nav")]
-hk:
-    @bun scripts/just-group-menu.ts hooks
-
 # Aliases for common hledger recipes (backward compat)
 alias hl := hledger::hl
 alias hl-cash := hledger::hl-cash
@@ -794,14 +744,6 @@ gn-serve:
 gn-status:
     gitnexus list
 
-[group("nav")]
-gn:
-    @bun scripts/just-group-menu.ts gn
-
-[group("nav")]
-srv:
-    @bun scripts/just-group-menu.ts srv
-
 # ── Server lifecycle ────────────────────────────────────────────────────────
 #   Start, stop, restart, and monitor the dashboard server.
 
@@ -852,10 +794,6 @@ service-help:
 lab-gum:
     @echo "=== Gum CLI output experiment ==="
     bun scripts/lab/gum.ts
-
-[group("nav")]
-lab:
-    @bun scripts/just-group-menu.ts lab
 
 # ── Hooks: git workflow automation ─────────────────────────────────────────
 
