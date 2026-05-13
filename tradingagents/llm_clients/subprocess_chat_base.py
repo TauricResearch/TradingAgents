@@ -319,6 +319,7 @@ class SubprocessChatModel(BaseChatModel):
             input=stdin_text,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=self.timeout,
             check=False,
             env=env,

@@ -65,12 +65,27 @@ class ChatGeminiCli(SubprocessChatModel):
         return cmd
 
     def _subprocess_input(self, system_prompt: str, user_prompt: str) -> str:
-        """Inline the system prompt into stdin since Gemini has no --system-prompt flag."""
-        if not system_prompt:
+        """Inline the system prompt into stdin since Gemini has no --system-prompt flag.
+
+        When a JSON schema is bound (via ``with_structured_output``), append it
+        to the system prompt — Gemini CLI has no ``--json-schema`` flag, so the
+        schema must travel inline if we want the model to honor it.
+        """
+        effective_system = system_prompt
+        if self.json_schema is not None:
+            schema_instr = (
+                "Return your response as a JSON object matching this schema:\n"
+                f"{json.dumps(self.json_schema, indent=2)}"
+            )
+            effective_system = (
+                f"{effective_system}\n\n{schema_instr}" if effective_system else schema_instr
+            )
+
+        if not effective_system:
             return user_prompt
         return (
             "<<SYSTEM>>\n"
-            f"{system_prompt}\n"
+            f"{effective_system}\n"
             "<<END SYSTEM>>\n\n"
             "<<USER>>\n"
             f"{user_prompt}\n"
@@ -126,7 +141,7 @@ _FENCED_JSON = re.compile(r"```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```", re.DOTALL)
 def _try_parse_json(text: str) -> Optional[Any]:
     """Best-effort JSON extraction for CLIs without a --json-schema flag.
 
-    Tries: raw parse → fenced block → first balanced object.
+    Tries: raw parse → fenced block → first balanced object or array.
     """
     s = text.strip()
     if not s:
@@ -143,10 +158,15 @@ def _try_parse_json(text: str) -> Optional[Any]:
         except json.JSONDecodeError:
             pass
 
-    # Find first balanced { ... }
-    start = s.find("{")
-    if start == -1:
+    # Find the earliest top-level balanced { ... } or [ ... ]
+    obj_start = s.find("{")
+    arr_start = s.find("[")
+    candidates = [(i, c) for i, c in ((obj_start, "{"), (arr_start, "[")) if i != -1]
+    if not candidates:
         return None
+    start, open_ch = min(candidates)
+    close_ch = "}" if open_ch == "{" else "]"
+
     depth = 0
     in_str = False
     escape = False
@@ -163,9 +183,9 @@ def _try_parse_json(text: str) -> Optional[Any]:
             continue
         if in_str:
             continue
-        if ch == "{":
+        if ch == open_ch:
             depth += 1
-        elif ch == "}":
+        elif ch == close_ch:
             depth -= 1
             if depth == 0:
                 try:

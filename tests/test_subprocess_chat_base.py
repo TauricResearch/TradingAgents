@@ -227,5 +227,21 @@ class TestSubprocessChatModelBinaryResolution(unittest.TestCase):
         self.assertIn("FAKE_CLI_BIN", str(ctx.exception))
 
 
+@pytest.mark.unit
+class TestSubprocessChatModelEncoding(unittest.TestCase):
+    @patch(
+        "tradingagents.llm_clients.subprocess_chat_base.shutil.which",
+        return_value="/usr/local/bin/fake-cli",
+    )
+    @patch("tradingagents.llm_clients.subprocess_chat_base.subprocess.run")
+    def test_subprocess_pinned_to_utf8(self, mock_run, _which):
+        mock_run.return_value = _FakeProc(stdout='{"ignored": true}')
+        chat = _FakeChat(model="x", canned_text="ok")
+        chat.invoke([HumanMessage(content="hi 你好 🎉")])
+        kwargs = mock_run.call_args.kwargs
+        self.assertEqual(kwargs.get("encoding"), "utf-8")
+        self.assertTrue(kwargs.get("text"))
+
+
 if __name__ == "__main__":
     unittest.main()

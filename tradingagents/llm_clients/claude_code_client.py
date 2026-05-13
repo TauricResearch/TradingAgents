@@ -100,6 +100,12 @@ class ChatClaudeCode(SubprocessChatModel):
                 f"`claude -p` returned non-JSON output: {stdout[:500]}"
             ) from exc
 
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                f"`claude -p` JSON is not an object "
+                f"(got {type(payload).__name__}): {stdout[:500]}"
+            )
+
         if payload.get("is_error"):
             err = payload.get("result") or payload.get("error") or ""
             raise RuntimeError(f"`claude -p` returned error: {str(err)[:500]}")
