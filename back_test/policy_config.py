@@ -36,7 +36,7 @@ _DEFAULT_PHASE_MODIFIER: dict[str, dict] = {
     # overextended_bull: keep core, allow trimmed add. NOT block_new_position —
     # in long bull markets "approaching resistance" is the norm, not a reason to exit.
     "overextended_bull":      {"cap": 0.55, "tp_size": 30.0, "allow_add": True},
-    "bull_pullback":          {"floor": 0.50, "cap": 0.85, "tp_size": 15.0, "allow_add": True,  "pullback_buy": True},
+    "bull_pullback":          {"floor": 0.35, "cap": 0.85, "tp_size": 15.0, "allow_add": True,  "pullback_buy": True},
     "late_bull_distribution": {"cap": 0.25, "tp_size": 50.0, "allow_add": False},
     # ----- Bear (force SELL existing, block new) -----
     "early_bear_reversal":    {"force_sell_if_position": True, "block_new_position": True},
@@ -57,53 +57,88 @@ _DEFAULT_PHASE_MODIFIER: dict[str, dict] = {
 class PortfolioStatePolicyConfig:
     """Tunable deterministic policy parameters for backtest PortfolioState mode."""
 
+    # 趋势方向对目标仓位的贡献权重。
     trend_score_weight: float = 0.25
+    # 动量强弱对目标仓位的贡献权重。
     momentum_score_weight: float = 0.125
+    # 事件影响对目标仓位的贡献权重。
     event_score_weight: float = 0.075
-    risk_score_weight: float = 0.40
+    # 风险压力对目标仓位的扣减权重。
+    risk_score_weight: float = 0.48
 
+    # 强上升趋势中的最低目标仓位。
     strong_uptrend_floor: float = 0.60
-    strong_uptrend_cap: float = 0.90
-    weak_uptrend_floor: float = 0.25
-    weak_uptrend_cap: float = 0.55
-    range_cap: float = 0.45
-    event_driven_cap: float = 0.50
+    # 强上升趋势中的最高目标仓位。
+    strong_uptrend_cap: float = 1.00
+    # 弱上升趋势中的最低目标仓位。
+    weak_uptrend_floor: float = 0.15
+    # 弱上升趋势中的最高目标仓位。
+    weak_uptrend_cap: float = 0.30
+    # 震荡或不明朗状态中的最高目标仓位。
+    range_cap: float = 0.30
+    # 事件驱动状态中的最高目标仓位。
+    event_driven_cap: float = 0.60
+    # 成交量数据不可用时的最高目标仓位。
     unavailable_volume_cap: float = 0.35
-    max_target_weight: float = 0.90
+    # 所有修正后的绝对最高目标仓位。
+    max_target_weight: float = 0.80
+    # 触发交易所需的最低目标仓位。
     min_trade_weight: float = 0.02
-    order_size_multiplier: float = 1.0
+    # 对最终订单大小应用的整体乘数。
+    order_size_multiplier: float = 0.80
 
+    # 不同成交量状态下的目标仓位乘数。
     volume_multipliers: dict[str, float] = field(
         default_factory=lambda: {
             "expanding": 1.0,
             "normal": 1.0,
-            "soft": 0.7,
-            "shrinking": 0.5,
-            "unavailable": 0.5,
+            "soft": 0.6,
+            "shrinking": 0.35,
+            "unavailable": 0.4,
         }
     )
+    # 对默认市场阶段规则的可选覆盖。
     phase_modifiers: dict[str, dict[str, Any]] = field(default_factory=dict)
 
-    recent_phase_lookback: int = 3
+    # 用于滞后确认的历史阶段数量。
+    recent_phase_lookback: int = 2
+    # 确认突变阶段所需的次数。
     hysteresis_confirmation_count: int = 0
-    overextended_sma20_atr_threshold: float = 2.0
+    # 判定过度上涨所需的 ATR 距离。
+    overextended_sma20_atr_threshold: float = 1.25
 
-    pullback_entry_add_max_pct: float = 25.0
+    # 回调买入时的单次最高加仓比例。
+    pullback_entry_add_max_pct: float = 12.0
+    # 将目标仓位转换为回调加仓比例的乘数。
     pullback_entry_add_weight_multiplier: float = 60.0
-    default_add_max_pct: float = 25.0
+    # 普通加仓订单的单次最高加仓比例。
+    default_add_max_pct: float = 12.0
+    # 将目标仓位转换为普通加仓比例的乘数。
     default_add_weight_multiplier: float = 50.0
-    weak_uptrend_soft_volume_add_max_pct: float = 15.0
+    # 弱上升趋势且量能偏软时的最高加仓比例。
+    weak_uptrend_soft_volume_add_max_pct: float = 4.0
 
+    # 出现 bearish 成交量背离时的减仓比例。
     bearish_divergence_reduce_pct: float = 30.0
+    # bearish 背离保护止损使用的 ATR 倍数。
     bearish_divergence_stop_atr: float = 1.5
+    # bearish 背离且无支撑位时的备用 ATR 倍数。
     bearish_divergence_fallback_stop_atr: float = 2.0
-    stop_loss_atr_multiple: float = 1.8
-    trend_take_profit_atr_multiple: float = 1.8
+    # 标准止损位置使用的 ATR 倍数。
+    stop_loss_atr_multiple: float = 1.3
+    # 趋势止盈位置使用的 ATR 倍数。
+    trend_take_profit_atr_multiple: float = 2.2
+    # 用近期高点上浮来拉远趋势止盈的位置。
     trend_take_profit_recent_high_multiplier: float = 1.01
-    default_take_profit_atr_multiple: float = 1.3
+    # 非趋势止盈位置使用的 ATR 倍数。
+    default_take_profit_atr_multiple: float = 1.8
+    # 强上升趋势中的止盈卖出比例。
     strong_uptrend_take_profit_size_pct: float = 25.0
+    # 默认止盈卖出比例。
     default_take_profit_size_pct: float = 40.0
+    # 是否用大盘状态修正个股决策。
     market_context_enabled: bool = True
+    # 作为大盘上下文来源的 ticker。
     market_context_ticker: str = "^GSPC"
 
     def merged_phase_modifiers(self) -> dict[str, dict[str, Any]]:
@@ -127,7 +162,7 @@ _PROFILE_PRESETS: dict[str, dict[str, Any]] = {
         "risk_score_weight": 0.55,
         "strong_uptrend_floor": 0.45,
         "strong_uptrend_cap": 0.70,
-        "weak_uptrend_floor": 0.10,
+        "weak_uptrend_floor": 0.13,
         "weak_uptrend_cap": 0.30,
         "range_cap": 0.20,
         "event_driven_cap": 0.30,

@@ -314,6 +314,9 @@ class TradingAgentsGraph:
             market_state = final_state.get("market_state")
             if market_state:
                 strategy["market_state"] = market_state
+            structure_analysis = final_state.get("structure_analysis")
+            if structure_analysis:
+                strategy["structure_analysis"] = structure_analysis
         except StructuredStrategyError as e:
             # Persist a sentinel so the operator knows the run failed extraction.
             as_of = datetime.strptime(str(trade_date), "%Y-%m-%d")

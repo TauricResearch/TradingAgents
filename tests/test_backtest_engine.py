@@ -9,12 +9,16 @@ from back_test.engine import BacktestEngine
 
 
 class StaticPriceBacktestEngine(BacktestEngine):
-    def __init__(self, *args, prices: pd.DataFrame, **kwargs):
+    def __init__(self, *args, prices: pd.DataFrame, index_prices=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._prices = prices
+        self._index_prices = index_prices or {}
 
     def load_prices(self) -> pd.DataFrame:
         return self._prices.copy()
+
+    def load_index_context_prices(self, _effective_end_date):
+        return {ticker: df.copy() for ticker, df in self._index_prices.items()}
 
 
 def write_strategy(strategy_dir, ticker, trade_date, **overrides):
@@ -106,6 +110,51 @@ class BacktestEngineTest(unittest.TestCase):
         self.assertEqual(result.executions[0]["signal_date"], "2025-01-01")
         self.assertEqual(result.executions[0]["fill_date"], "2025-01-02")
         self.assertEqual(result.report["bias_audit"]["event_timing"]["same_bar_signal_fills"], 0)
+
+    def test_trade_route_records_stock_and_index_context_on_fills(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 100.0},
+                take_profit={"price": 12.0, "size_pct": 100.0},
+                stop_loss={"price": 8.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 15.0, "Low": 7.0, "Close": 11.0, "Volume": 1000},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 15.0, "Low": 7.0, "Close": 11.0, "Volume": 1100},
+                ]
+            )
+            index_prices = {
+                "^GSPC": pd.DataFrame(
+                    [
+                        {"Date": pd.Timestamp("2025-01-01"), "Open": 100.0, "High": 101.0, "Low": 99.0, "Close": 100.5, "Volume": 2000},
+                        {"Date": pd.Timestamp("2025-01-02"), "Open": 101.0, "High": 102.0, "Low": 100.0, "Close": 101.5, "Volume": 2100},
+                    ]
+                )
+            }
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                index_prices=index_prices,
+            ).run()
+
+        fill_context = result.executions[0]["fill_price_context"]
+        self.assertEqual(fill_context["stock"]["date"], "2025-01-02")
+        self.assertEqual(fill_context["stock"]["open"], 10.0)
+        self.assertEqual(fill_context["indices"]["^GSPC"]["close"], 101.5)
+        self.assertEqual(result.trades[0]["entry_price_context"]["stock"]["date"], "2025-01-02")
+        self.assertEqual(result.trades[0]["exit_price_context"]["indices"]["^GSPC"]["close"], 101.5)
 
     def test_hold_strategy_with_entry_places_pending_buy(self):
         with tempfile.TemporaryDirectory() as tmp:

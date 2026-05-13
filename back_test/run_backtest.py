@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import sys
 
 import pandas as pd
@@ -22,6 +23,13 @@ from .metrics import summarize
 
 
 RESULTS_DIR = PROJECT_ROOT / "back_test" / "trade_route"
+
+
+def _prompt_output_label(default: str = "B") -> str:
+    raw_label = input(f"Output strategy label (e.g. A, B, C) [{default}]: ").strip()
+    label = raw_label or default
+    label = re.sub(r"[^A-Za-z0-9_.-]+", "_", label).strip("._-")
+    return label or default
 
 
 def main() -> None:
@@ -67,7 +75,22 @@ def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     effective_start = result.effective_start_date or args.start
     effective_end = result.effective_end_date or args.end
-    out_path = RESULTS_DIR / f"{args.ticker}_{effective_start}_{effective_end}_B.json"
+
+    label = _prompt_output_label()
+    out_path = RESULTS_DIR / f"{args.ticker}_{effective_start}_{effective_end}_{label}.json"
+    run_parameters = {
+        "ticker": args.ticker,
+        "requested_start_date": args.start,
+        "requested_end_date": args.end,
+        "effective_start_date": effective_start,
+        "effective_end_date": effective_end,
+        "initial_capital": args.initial_capital,
+        "commission": args.commission,
+        "slippage_bps": args.slippage_bps,
+        "min_stop_distance_pct": args.min_stop_distance_pct,
+        "output_label": label,
+        "output_path": str(out_path),
+    }
     payload = {
         "ticker": args.ticker,
         "requested_start_date": args.start,
@@ -77,6 +100,8 @@ def main() -> None:
         "initial_capital": args.initial_capital,
         "commission": args.commission,
         "slippage_bps": args.slippage_bps,
+        "min_stop_distance_pct": args.min_stop_distance_pct,
+        "run_parameters": run_parameters,
         "strategies_loaded": result.strategies_loaded,
         "report": result.report or {},
         "metrics": metrics,
@@ -97,6 +122,17 @@ def main() -> None:
         json.dump(payload, f, indent=2)
 
     print(f"\n=== Backtest Results — {args.ticker} ({effective_start} → {effective_end}) ===")
+    print("  Run parameters:")
+    print(f"    ticker:                 {run_parameters['ticker']}")
+    print(f"    requested_start_date:   {run_parameters['requested_start_date']}")
+    print(f"    requested_end_date:     {run_parameters['requested_end_date']}")
+    print(f"    effective_start_date:   {run_parameters['effective_start_date']}")
+    print(f"    effective_end_date:     {run_parameters['effective_end_date']}")
+    print(f"    initial_capital:        {run_parameters['initial_capital']:g}")
+    print(f"    commission:             {run_parameters['commission']:g}")
+    print(f"    slippage_bps:           {run_parameters['slippage_bps']:g}")
+    print(f"    min_stop_distance_pct:  {run_parameters['min_stop_distance_pct']:g}")
+    print(f"    output_label:           {run_parameters['output_label']}")
     if effective_start != args.start or effective_end != args.end:
         print(f"  Requested range:      {args.start} → {args.end}")
         print(f"  Trading range used:   {effective_start} → {effective_end}")

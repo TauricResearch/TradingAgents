@@ -47,39 +47,45 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
         self.trading_mode = trading_mode
         self.portfolio_state_policy_config = portfolio_state_policy_config
-
+    
     @staticmethod
     def _timed_agent_node(node_name: str, node):
-        """Wrap an agent node with visible wall-clock timing logs."""
 
         @wraps(node)
         def wrapped(state):
             ticker = state.get("company_of_interest", "?") if isinstance(state, dict) else "?"
             trade_date = state.get("trade_date", "?") if isinstance(state, dict) else "?"
             start = perf_counter()
+            """
             print(
                 f"[agent_timing] START node={node_name} ticker={ticker} trade_date={trade_date}",
                 flush=True,
             )
+            """
             try:
                 result = node(state)
             except Exception:
                 elapsed = perf_counter() - start
+                """
                 print(
                     f"[agent_timing] ERROR node={node_name} ticker={ticker} "
                     f"trade_date={trade_date} elapsed={elapsed:.3f}s",
                     flush=True,
                 )
+                """
                 raise
             elapsed = perf_counter() - start
+            """
             print(
                 f"[agent_timing] END node={node_name} ticker={ticker} "
                 f"trade_date={trade_date} elapsed={elapsed:.3f}s",
                 flush=True,
             )
+            """
             return result
 
         return wrapped
+    
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]

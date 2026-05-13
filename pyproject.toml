@@ -43,3 +43,4 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+"tradingagents.agents.utils" = ["*.json"]

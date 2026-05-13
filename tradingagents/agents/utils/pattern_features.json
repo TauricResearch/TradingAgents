@@ -1,0 +1,194 @@
+{
+  "Doji": [
+    "open approximately equals close",
+    "upper and lower wick present",
+    "market indecision",
+    "trend slowing"
+  ],
+  "Hammer": [
+    "long lower wick",
+    "small real body near top",
+    "appears after downtrend",
+    "liquidity sweep below support",
+    "buying absorption"
+  ],
+  "Shooting Star": [
+    "long upper wick",
+    "small real body near bottom",
+    "appears after uptrend",
+    "failed breakout",
+    "seller rejection"
+  ],
+  "Marubozu": [
+    "little or no wick",
+    "strong directional momentum",
+    "dominant orderflow"
+  ],
+  "Bullish Engulfing": [
+    "second bullish candle fully engulfs previous bearish candle",
+    "strong buyer takeover",
+    "momentum reversal"
+  ],
+  "Bearish Engulfing": [
+    "second bearish candle fully engulfs previous bullish candle",
+    "strong seller takeover",
+    "momentum reversal"
+  ],
+  "Harami": [
+    "small candle inside previous large candle",
+    "volatility contraction",
+    "market pause"
+  ],
+  "Morning Star": [
+    "downtrend candle",
+    "indecision candle",
+    "strong bullish recovery",
+    "trend exhaustion"
+  ],
+  "Evening Star": [
+    "uptrend candle",
+    "indecision candle",
+    "strong bearish reversal",
+    "trend exhaustion"
+  ],
+  "Three White Soldiers": [
+    "three consecutive bullish candles",
+    "strong bullish continuation",
+    "short covering"
+  ],
+  "Three Black Crows": [
+    "three consecutive bearish candles",
+    "strong bearish continuation",
+    "persistent selling pressure"
+  ],
+  "Higher High Higher Low": [
+    "successive higher highs",
+    "successive higher lows",
+    "uptrend structure"
+  ],
+  "Lower High Lower Low": [
+    "successive lower highs",
+    "successive lower lows",
+    "downtrend structure"
+  ],
+  "Break of Structure": [
+    "key swing point broken",
+    "trend transition",
+    "structure invalidation"
+  ],
+  "Change of Character": [
+    "first major structural reversal",
+    "possible regime shift"
+  ],
+  "Consolidation": [
+    "sideways movement",
+    "volatility compression",
+    "temporary equilibrium"
+  ],
+  "Range Breakout": [
+    "break outside consolidation range",
+    "volatility expansion",
+    "price discovery"
+  ],
+  "Head and Shoulders": [
+    "three peaks",
+    "middle peak highest",
+    "trend exhaustion",
+    "bearish reversal"
+  ],
+  "Inverse Head and Shoulders": [
+    "three troughs",
+    "middle trough lowest",
+    "bullish reversal"
+  ],
+  "Double Top": [
+    "two failed highs",
+    "resistance rejection",
+    "bearish reversal potential"
+  ],
+  "Double Bottom": [
+    "two failed lows",
+    "support holding",
+    "bullish reversal potential"
+  ],
+  "Triple Top": [
+    "three failed highs",
+    "strong resistance zone"
+  ],
+  "Triple Bottom": [
+    "three failed lows",
+    "strong support zone"
+  ],
+  "Ascending Triangle": [
+    "flat resistance",
+    "rising lows",
+    "buying pressure increasing"
+  ],
+  "Descending Triangle": [
+    "flat support",
+    "falling highs",
+    "selling pressure increasing"
+  ],
+  "Symmetrical Triangle": [
+    "converging highs and lows",
+    "volatility compression",
+    "breakout setup"
+  ],
+  "Flag": [
+    "sharp move followed by small channel",
+    "trend continuation"
+  ],
+  "Pennant": [
+    "sharp move followed by small triangle",
+    "volatility compression",
+    "trend continuation"
+  ],
+  "Wedge": [
+    "converging trend lines",
+    "slowing trend momentum",
+    "possible reversal"
+  ],
+  "Cup and Handle": [
+    "rounded bottom",
+    "small pullback handle",
+    "long-term accumulation"
+  ],
+  "Accumulation": [
+    "sideways range after decline",
+    "institutional buying",
+    "supply absorption"
+  ],
+  "Distribution": [
+    "sideways range after rally",
+    "institutional selling",
+    "demand exhaustion"
+  ],
+  "Spring": [
+    "false breakdown below support",
+    "liquidity grab",
+    "rapid recovery"
+  ],
+  "Upthrust": [
+    "false breakout above resistance",
+    "bull trap",
+    "reversal rejection"
+  ],
+  "Liquidity Sweep": [
+    "stop-loss hunting",
+    "temporary breakout",
+    "rapid reversal"
+  ],
+  "Order Block": [
+    "institutional transaction zone",
+    "strong reaction area"
+  ],
+  "Fair Value Gap": [
+    "price imbalance",
+    "low traded region",
+    "fast displacement"
+  ],
+  "Mitigation Block": [
+    "return to previous imbalance zone",
+    "liquidity rebalance"
+  ]
+}

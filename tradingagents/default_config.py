@@ -23,7 +23,7 @@ DEFAULT_CONFIG = {
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
     # Debate and discussion settings
-    "max_debate_rounds": 1,
+    "max_debate_rounds": 2,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     # Backtest-only state-first portfolio policy knobs. Leave empty to use

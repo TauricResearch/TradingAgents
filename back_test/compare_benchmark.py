@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import numbers
@@ -125,10 +126,21 @@ def _load_strategy_equity(path: Path, label: str) -> tuple[pd.Series, list]:
     return strat_df["equity"].rename(label), data.get("trades")
 
 
-def _prompt_for_inputs() -> tuple[str, str, str, list[str]]:
-    ticker = input("Ticker (e.g. SPY): ").strip().upper()
-    start = input("Start date (YYYY-MM-DD): ").strip()
-    end = input("End date (YYYY-MM-DD): ").strip()
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Compare one or more backtest strategy routes against buy-and-hold benchmarks."
+    )
+    parser.add_argument("--ticker", required=True, help="Ticker symbol, e.g. AAPL or SPY.")
+    parser.add_argument("--start", required=True, help="Start date in YYYY-MM-DD format.")
+    parser.add_argument("--end", required=True, help="End date in YYYY-MM-DD format.")
+    return parser.parse_args()
+
+
+def _prompt_for_inputs(args: argparse.Namespace | None = None) -> tuple[str, str, str, list[str]]:
+    args = args or _parse_args()
+    ticker = args.ticker.strip().upper()
+    start = args.start.strip()
+    end = args.end.strip()
 
     discovered = _discover_strategy_specs(ticker, start, end)
     if discovered:
@@ -359,5 +371,5 @@ def main(ticker: str, start: str, end: str, strategy_specs: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    ticker, start, end, strategy_specs = _prompt_for_inputs()
+    ticker, start, end, strategy_specs = _prompt_for_inputs(_parse_args())
     main(ticker, start, end, strategy_specs)

@@ -52,6 +52,7 @@ from tradingagents.dataflows.stockstats_utils import load_ohlcv
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 STRATEGIES_ROOT = PROJECT_ROOT / "back_test" / "strategy"
 SCHEMA_VERSION = "v3"
+INDEX_CONTEXT_TICKERS = ("^GSPC", "^IXIC")
 
 
 @dataclass
@@ -164,6 +165,25 @@ class BacktestEngine:
         end = pd.to_datetime(effective_end)
         df = df[(df["Date"] >= start) & (df["Date"] <= end)]
         return df.sort_values("Date").reset_index(drop=True)
+
+    def load_index_context_prices(self, effective_end_date: Optional[str]) -> dict[str, pd.DataFrame]:
+        """Load index OHLCV used only to annotate trade_route output."""
+        if self.ticker.upper() == "TEST" or effective_end_date is None:
+            return {}
+
+        start = pd.to_datetime(self.start_date)
+        end = pd.to_datetime(effective_end_date)
+        index_prices: dict[str, pd.DataFrame] = {}
+        for ticker in INDEX_CONTEXT_TICKERS:
+            try:
+                df = load_ohlcv(ticker, end.strftime("%Y-%m-%d"))
+            except Exception:
+                continue
+            if df.empty:
+                continue
+            df = df[(df["Date"] >= start) & (df["Date"] <= end)]
+            index_prices[ticker] = df.sort_values("Date").reset_index(drop=True)
+        return index_prices
 
     # ----------------------------------------------------------- main loop
     def run(self) -> BacktestResult:
@@ -399,6 +419,8 @@ class BacktestEngine:
         expired_orders += len(pending_orders)
 
         equity_df = pd.DataFrame(equity_rows)
+        index_prices = self.load_index_context_prices(effective_end_date)
+        self._attach_trade_route_price_context(trades, executions, prices, index_prices)
         audit = self._audit_bias(strategies, executions, prices, equity_df)
         report = {
             "extraction_failures": self.extraction_failures,
@@ -854,6 +876,71 @@ class BacktestEngine:
             "commission": commission,
             "fill_basis": fill_basis,
         })
+
+    @staticmethod
+    def _price_context_lookup(prices: pd.DataFrame) -> dict[str, dict]:
+        lookup: dict[str, dict] = {}
+        if prices.empty:
+            return lookup
+        for row in prices.itertuples(index=False):
+            date = row.Date.strftime("%Y-%m-%d")
+            lookup[date] = {
+                "date": date,
+                "open": float(row.Open),
+                "high": float(row.High),
+                "low": float(row.Low),
+                "close": float(row.Close),
+                "volume": float(row.Volume) if hasattr(row, "Volume") else None,
+            }
+        return lookup
+
+    @classmethod
+    def _context_for_date(
+        cls,
+        date: Optional[str],
+        stock_lookup: dict[str, dict],
+        index_lookups: dict[str, dict[str, dict]],
+    ) -> dict:
+        if not date:
+            return {"stock": None, "indices": {}}
+        return {
+            "stock": stock_lookup.get(date),
+            "indices": {
+                ticker: lookup.get(date)
+                for ticker, lookup in index_lookups.items()
+            },
+        }
+
+    @classmethod
+    def _attach_trade_route_price_context(
+        cls,
+        trades: List[dict],
+        executions: List[dict],
+        prices: pd.DataFrame,
+        index_prices: dict[str, pd.DataFrame],
+    ) -> None:
+        stock_lookup = cls._price_context_lookup(prices)
+        index_lookups = {
+            ticker: cls._price_context_lookup(df)
+            for ticker, df in index_prices.items()
+        }
+        for execution in executions:
+            execution["fill_price_context"] = cls._context_for_date(
+                execution.get("fill_date"),
+                stock_lookup,
+                index_lookups,
+            )
+        for trade in trades:
+            trade["entry_price_context"] = cls._context_for_date(
+                trade.get("entry_date"),
+                stock_lookup,
+                index_lookups,
+            )
+            trade["exit_price_context"] = cls._context_for_date(
+                trade.get("exit_date"),
+                stock_lookup,
+                index_lookups,
+            )
 
     def _audit_bias(
         self,

@@ -27,6 +27,10 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structure_patterns import (
+    analyze_ohlcv_structure,
+    format_structure_analysis_for_prompt,
+)
 from tradingagents.agents.managers.portfolio_manager import (
     PortfolioStrategy,
     PriceSizeBlock,
@@ -592,7 +596,9 @@ def _compute_short_term_market_anchors(
     if df is None or df.empty:
         return None
 
-    df = df.sort_values("Date").tail(lookback_days).reset_index(drop=True)
+    df = df.sort_values("Date").reset_index(drop=True)
+    structure_analysis = analyze_ohlcv_structure(df, ticker, trade_date)
+    df = df.tail(lookback_days).reset_index(drop=True)
     if len(df) < 2:
         return None
 
@@ -687,6 +693,7 @@ def _compute_short_term_market_anchors(
         "volume_50_sma": round(volume_20_sma, 4) if volume_20_sma is not None else None,
         "volume_ratio": round(volume_ratio, 3) if volume_ratio is not None else None,
         "volume_ratio_3d": volume_ratio_3d,
+        "structure_analysis": structure_analysis,
     }
 
 
@@ -715,6 +722,7 @@ def _format_short_term_market_anchors(anchors: dict) -> str:
         f"- last 3 volume ratios vs 20-day average: {_fmt(anchors.get('volume_ratio_3d'))}\n"
         "- proximity rule: a price P is \"within X%\" iff |P - current_price| / current_price <= X/100. "
         "Use this for all distance-to-current checks; do not estimate from the report.\n"
+        + format_structure_analysis_for_prompt(anchors.get("structure_analysis"))
     )
 
 
@@ -1323,6 +1331,52 @@ def policy_from_market_state(
             ),
         )
 
+    exhaustion_starter_phases = {"late_bear_exhaustion", "oversold_bear"}
+    market_context_supportive = (
+        market_context_state is not None
+        and market_context_multiplier >= 1.0
+        and not market_context_blocks_add
+    )
+    allow_exhaustion_starter = (
+        effective_regime == "breakdown_risk"
+        and effective_phase in exhaustion_starter_phases
+        and not has_position
+        and market_context_supportive
+        and state.risk_pressure_score <= 0.75
+    )
+    if allow_exhaustion_starter:
+        starter_size = 8.0 if state.risk_pressure_score <= 0.55 else 5.0
+        stop_base = (
+            support
+            if support is not None
+            else current - config.stop_loss_atr_multiple * atr
+        )
+        stop_price = round(min(stop_base, current - config.stop_loss_atr_multiple * atr), 2)
+        take_profit_price = round(
+            resistance
+            if resistance is not None
+            else current + config.default_take_profit_atr_multiple * atr,
+            2,
+        )
+        return PortfolioStrategy(
+            ticker=state.ticker,
+            as_of_date=state.as_of_date,
+            action="BUY",
+            entry=PriceSizeBlock(price=None, size_pct=starter_size),
+            add_position=PriceSizeBlock(),
+            take_profit=PriceSizeBlock(
+                price=take_profit_price,
+                size_pct=config.default_take_profit_size_pct,
+            ),
+            reduce_stop=PriceSizeBlock(),
+            stop_loss=StopLossBlock(price=stop_price),
+            rationale_summary=_rationale(
+                [
+                    f"{effective_phase}: fixed {starter_size:g}% exhaustion starter because index context is supportive."
+                ]
+            ),
+        )
+
     if effective_regime in {"breakdown_risk", "downtrend"} and not has_position:
         return PortfolioStrategy(
             ticker=state.ticker,
@@ -1370,6 +1424,63 @@ def policy_from_market_state(
             ),
         )
 
+    transition_repair_structure = state.structure_quality in {
+        "breakout_attempt",
+        "coherent",
+    } or (
+        state.structure_quality == "fragmented"
+        and state.risk_pressure_score <= 0.45
+        and state.trend_direction_score >= 0.25
+    )
+    transition_repair_starter = (
+        not has_position
+        and effective_regime in {"unclear", "range"}
+        and effective_phase in {"unclear", "early_bull_reversal"}
+        and state.trend_regime == "transition"
+        and state.momentum_regime == "positive"
+        and transition_repair_structure
+        and state.trend_direction_score >= 0.15
+        and state.momentum_score_value >= 0.25
+        and state.risk_pressure_score <= 0.58
+        and state.confidence >= 0.70
+        and volume_regime in {"soft", "normal", "expanding"}
+        and not bool(constraints.get("bearish_volume_divergence"))
+        and not market_context_blocks_add
+    )
+    if transition_repair_starter:
+        starter_size = 3.0 if volume_regime == "soft" else 4.0
+        if market_context_state is not None and market_context_multiplier < 1.0:
+            starter_size = min(starter_size, 3.0)
+
+        stop_floor = current - 1.2 * atr
+        support_stop = support if support is not None and support < current else stop_floor
+        stop_price = round(max(support_stop, stop_floor), 2)
+        take_profit_price = round(
+            resistance
+            if resistance is not None and resistance > current
+            else current + config.default_take_profit_atr_multiple * atr,
+            2,
+        )
+        return PortfolioStrategy(
+            ticker=state.ticker,
+            as_of_date=state.as_of_date,
+            action="BUY",
+            entry=PriceSizeBlock(price=None, size_pct=starter_size),
+            add_position=PriceSizeBlock(),
+            take_profit=PriceSizeBlock(
+                price=take_profit_price,
+                size_pct=config.default_take_profit_size_pct,
+            ),
+            reduce_stop=PriceSizeBlock(),
+            stop_loss=StopLossBlock(price=stop_price),
+            rationale_summary=_rationale(
+                [
+                    "transition repair starter: fixed small entry for positive "
+                    "breakout_attempt with controlled risk."
+                ]
+            ),
+        )
+
     # C. Linear signal + regime ceilings/floors.
     # Directional score weights are intentionally modest:
     # the LLM tends to amplify directional advocacy from analyst reports
@@ -1397,7 +1508,24 @@ def policy_from_market_state(
     elif effective_regime == "event_driven":
         target_weight = min(target_weight, config.event_driven_cap)
 
-    # D. Volume regime multiplier (deterministic, anchored).
+    # D. Phase floor/cap. Floor implements 核心持仓 (e.g. healthy_bull_trend
+    # holds >=0.50 even when raw_signal is weak); cap enforces phase-specific
+    # ceilings (e.g. overextended_bull caps at 0.30). Volume is applied after
+    # this so weak participation can still shrink an otherwise bullish floor.
+    phase_floor = phase_mod.get("floor")
+    phase_cap = phase_mod.get("cap")
+    if phase_floor is not None:
+        if effective_regime in {"strong_uptrend", "weak_uptrend"}:
+            target_weight = max(target_weight, phase_floor)
+        else:
+            notes.append(
+                f"phase floor ignored because effective_regime={effective_regime} "
+                "is not an uptrend."
+            )
+    if phase_cap is not None:
+        target_weight = min(target_weight, phase_cap)
+
+    # D'. Volume regime multiplier (deterministic, anchored).
     multiplier = config.volume_multipliers.get(
         volume_regime,
         _DEFAULT_VOLUME_MULTIPLIER["unavailable"],
@@ -1405,16 +1533,6 @@ def policy_from_market_state(
     target_weight *= multiplier
     if volume_regime == "unavailable":
         target_weight = min(target_weight, config.unavailable_volume_cap)
-
-    # D'. Phase floor/cap. Floor implements 核心持仓 (e.g. healthy_bull_trend
-    # holds >=0.50 even when raw_signal is weak); cap enforces phase-specific
-    # ceilings (e.g. overextended_bull caps at 0.30).
-    phase_floor = phase_mod.get("floor")
-    phase_cap = phase_mod.get("cap")
-    if phase_floor is not None:
-        target_weight = max(target_weight, phase_floor)
-    if phase_cap is not None:
-        target_weight = min(target_weight, phase_cap)
 
     if market_context_state is not None:
         target_weight *= market_context_multiplier
@@ -1720,6 +1838,7 @@ def create_portfolio_state_manager(
                 "risk_debate_state": _passthrough_debate_state(risk_debate_state, decision_text),
                 "final_trade_decision": decision_text,
                 "market_state": None,
+                "structure_analysis": None,
                 "structured_strategy": empty,
             }
 
@@ -1932,6 +2051,7 @@ def create_portfolio_state_manager(
             "risk_debate_state": _passthrough_debate_state(risk_debate_state, decision_text),
             "final_trade_decision": decision_text,
             "market_state": market_state.model_dump(),
+            "structure_analysis": anchors.get("structure_analysis"),
             "market_context_state": (
                 market_context_state.model_dump()
                 if market_context_state is not None

@@ -71,6 +71,8 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+    market_state: Annotated[Dict[str, Any], "Structured latent market state for backtest persistence"]
+    structure_analysis: Annotated[Dict[str, Any], "Deterministic OHLCV structure analysis for backtest persistence"]
     structured_strategy: Annotated[Dict[str, Any], "Structured strategy for backtest persistence"]
 
     # Optional current position context for the analyzed ticker
