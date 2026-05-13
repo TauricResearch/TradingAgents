@@ -51,7 +51,7 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🌐 [WebUI](#webui) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
 
 </div>
 
@@ -184,6 +184,78 @@ An interface will appear showing results as they load, letting you track the age
 <p align="center">
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
+
+## WebUI
+
+TradingAgents includes a web-based UI for real-time analysis monitoring. The WebUI provides a browser interface to configure and run analyses with live progress updates.
+
+<p align="center">
+  <img src="assets/webui/overview.png" width="100%" style="display: inline-block; margin: 0 2%;">
+</p>
+
+### Running the WebUI
+
+Launch the WebUI server:
+```bash
+tradingagents-web          # installed command
+python -m webui            # alternative: run directly from source
+```
+
+The server starts at `http://localhost:8000`. Open this URL in your browser to access the WebUI.
+
+### Features
+
+- **Live Progress**: Watch agent activities, tool calls, and LLM invocations in real-time
+- **Configuration**: Select analysts, LLM provider, models, debate rounds, and output language
+- **Streaming Reports**: View analyst reports and decisions as they are generated
+- **Session Management**: Each analysis runs in a separate session with unique ID
+
+### Configuration Options
+
+The WebUI exposes the same configuration options as the CLI and Python API:
+
+| Option | Description |
+|--------|-------------|
+| **Analysts** | Choose which analysts to run (Market, Social, News, Fundamentals) |
+| **Provider** | Select LLM provider (OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen, GLM, OpenRouter) |
+| **Quick Model** | Model for fast tasks (analysts, trader) |
+| **Deep Model** | Model for complex reasoning (research manager, portfolio manager) |
+| **Debate Rounds** | Number of bull/bear researcher debate iterations |
+| **Language** | Output language for reports and decisions |
+| **Checkpoint** | Enable resume from last successful step on crash/interrupt |
+
+### API Endpoints
+
+The WebUI server exposes these REST endpoints:
+
+- `GET /` - Web UI HTML page
+- `GET /api/models` - Available LLM models by provider
+- `POST /api/analyze` - Start a new analysis (returns run_id)
+- `GET /api/stream/{run_id}` - Server-sent events stream for live progress
+
+Example programmatic usage:
+```python
+import requests
+
+# Start analysis
+response = requests.post("http://localhost:8000/api/analyze", json={
+    "ticker": "NVDA",
+    "date": "2026-01-15",
+    "provider": "openai",
+    "quick_model": "gpt-5.4-mini",
+    "deep_model": "gpt-5.4",
+    "max_debate_rounds": 1,
+    "language": "English"
+})
+run_id = response.json()["run_id"]
+
+# Stream progress (SSE)
+import httpx
+async with httpx.AsyncClient() as client:
+    async with client.stream("GET", f"http://localhost:8000/api/stream/{run_id}") as r:
+        async for line in r.aiter_lines():
+            print(line)
+```
 
 ## TradingAgents Package
 

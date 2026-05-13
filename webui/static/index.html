@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TradingAgents</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .glass { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px); }
+    .pulse-dot { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .slide-in { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .prose-dark h1,.prose-dark h2,.prose-dark h3 { color:#93c5fd; font-weight:600; margin:1rem 0 .5rem; }
+    .prose-dark h1{font-size:1.25rem} .prose-dark h2{font-size:1.1rem} .prose-dark h3{font-size:1rem}
+    .prose-dark p { color:#cbd5e1; margin:.5rem 0; line-height:1.7; }
+    .prose-dark ul,.prose-dark ol { color:#cbd5e1; padding-left:1.5rem; margin:.5rem 0; }
+    .prose-dark li { margin:.25rem 0; }
+    .prose-dark strong { color:#e2e8f0; }
+    .prose-dark code { background:#1e2533; color:#7dd3fc; padding:.1rem .3rem; border-radius:.25rem; font-size:.85em; }
+    .prose-dark pre { background:#1e2533; padding:1rem; border-radius:.5rem; overflow-x:auto; margin:.75rem 0; }
+    .prose-dark blockquote { border-left:3px solid #3b82f6; padding-left:1rem; color:#94a3b8; }
+    .prose-dark hr { border-color:#334155; margin:1rem 0; }
+    .prose-dark table { width:100%; border-collapse:collapse; margin:.75rem 0; }
+    .prose-dark th { background:#1e2533; color:#93c5fd; padding:.5rem .75rem; text-align:left; border:1px solid #334155; }
+    .prose-dark td { padding:.5rem .75rem; border:1px solid #1e2533; color:#cbd5e1; }
+    .prose-dark tr:nth-child(even) td { background:rgba(255,255,255,0.02); }
+    select,input { background:#1a1f2e !important; color:#e2e8f0 !important; border-color:#334155 !important; }
+    select option { background:#1a1f2e; }
+    ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:#0f1117; } ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+    .tab-btn.active { background:#3b82f6; color:#fff; }
+    .tab-btn { transition:all .2s; }
+    .accordion-content { max-height:0; overflow:hidden; transition:max-height .4s ease; }
+    .accordion-content.open { max-height:9999px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-white/10 px-6 py-4 flex items-center gap-3">
+  <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-sm font-bold">TA</div>
+  <div>
+    <div class="font-semibold text-white">TradingAgents</div>
+    <div class="text-xs text-slate-400">Multi-Agent LLM Financial Analysis</div>
+  </div>
+</header>
+
+<div class="max-w-7xl mx-auto px-4 py-6 flex gap-6">
+
+  <!-- Left sidebar: config form -->
+  <aside class="w-80 flex-shrink-0">
+    <div class="glass rounded-xl p-5 space-y-5 sticky top-6">
+      <h2 class="font-semibold text-white text-sm uppercase tracking-wider">Configuration</h2>
+
+      <!-- Ticker + date -->
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Ticker Symbol</label>
+          <input id="ticker" type="text" value="NVDA" placeholder="e.g. NVDA, SPY, AAPL"
+            class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Analysis Date</label>
+          <input id="tradeDate" type="date"
+            class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition" />
+        </div>
+      </div>
+
+      <!-- Analysts -->
+      <div>
+        <label class="text-xs text-slate-400 block mb-2">Analysts</label>
+        <div class="grid grid-cols-2 gap-2" id="analystToggles">
+          <label class="analyst-toggle flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" value="market" checked class="accent-blue-500" /> <span class="text-sm">Market</span>
+          </label>
+          <label class="analyst-toggle flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" value="social" checked class="accent-blue-500" /> <span class="text-sm">Social</span>
+          </label>
+          <label class="analyst-toggle flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" value="news" checked class="accent-blue-500" /> <span class="text-sm">News</span>
+          </label>
+          <label class="analyst-toggle flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" value="fundamentals" checked class="accent-blue-500" /> <span class="text-sm">Fundamentals</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- LLM Provider -->
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">LLM Provider</label>
+        <select id="provider" class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition">
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="google">Google</option>
+          <option value="xai">xAI</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="qwen">Qwen</option>
+          <option value="glm">GLM</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="ollama">Ollama</option>
+          <option value="azure">Azure</option>
+        </select>
+      </div>
+
+      <!-- Model selects -->
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Quick-Think Model</label>
+          <select id="quickModel" class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition"></select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">Deep-Think Model</label>
+          <select id="deepModel" class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition"></select>
+        </div>
+      </div>
+
+      <!-- Advanced -->
+      <details class="group">
+        <summary class="text-xs text-slate-400 cursor-pointer select-none flex items-center gap-1">
+          <span class="group-open:rotate-90 transition-transform inline-block">▶</span> Advanced
+        </summary>
+        <div class="mt-3 space-y-3">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">Debate Rounds</label>
+              <input id="debateRounds" type="number" value="1" min="1" max="5"
+                class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">Risk Rounds</label>
+              <input id="riskRounds" type="number" value="1" min="1" max="5"
+                class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Output Language</label>
+            <select id="language" class="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500">
+              <option>English</option><option>Chinese</option><option>Spanish</option>
+              <option>French</option><option>German</option><option>Japanese</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input id="checkpoint" type="checkbox" class="accent-blue-500" />
+            <span class="text-sm text-slate-300">Enable Checkpoint Resume</span>
+          </label>
+        </div>
+      </details>
+
+      <button id="runBtn" onclick="startAnalysis()"
+        class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg text-sm transition">
+        Run Analysis
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 min-w-0 space-y-5">
+
+    <!-- Status bar -->
+    <div id="statusBar" class="text-sm text-slate-400 min-h-[1.25rem] flex items-center gap-2">
+      <span id="statusText"></span>
+      <span id="elapsedTimer" class="hidden font-mono text-slate-500"></span>
+    </div>
+
+    <!-- Pipeline status -->
+    <div class="glass rounded-xl p-5">
+      <h2 class="font-semibold text-white text-sm uppercase tracking-wider mb-4">Pipeline</h2>
+      <div id="pipeline" class="flex flex-wrap gap-3">
+        <!-- Injected by JS -->
+      </div>
+    </div>
+
+    <!-- Activity log (visible while running) -->
+    <div id="activityPanel" class="hidden glass rounded-xl overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-white/10">
+        <h2 class="font-semibold text-white text-sm uppercase tracking-wider">Live Activity</h2>
+        <span id="activityCount" class="text-xs text-slate-500"></span>
+      </div>
+      <div id="activityLog" class="p-4 h-48 overflow-y-auto space-y-1 font-mono text-xs"></div>
+    </div>
+
+    <!-- Final decision card (hidden until done) -->
+    <div id="decisionCard" class="hidden glass rounded-xl p-6 slide-in">
+      <div class="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Final Decision</div>
+          <div id="decisionTicker" class="text-3xl font-bold text-white"></div>
+          <div id="decisionDate" class="text-sm text-slate-400 mt-1"></div>
+        </div>
+        <div id="ratingBadge" class="text-2xl font-bold px-6 py-3 rounded-xl"></div>
+      </div>
+      <div id="decisionSummary" class="prose-dark mt-4 text-sm"></div>
+      <div id="runStats" class="hidden mt-3 text-xs text-slate-500 font-mono"></div>
+    </div>
+
+    <!-- Report tabs -->
+    <div id="reportsContainer" class="glass rounded-xl overflow-hidden">
+      <div class="flex gap-1 p-3 border-b border-white/10 overflow-x-auto" id="tabBar">
+        <!-- tabs injected by JS -->
+      </div>
+      <div id="tabContent" class="p-5 min-h-32">
+        <div class="text-slate-500 text-sm text-center py-8">Reports will appear here as agents complete.</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const PIPELINE_STAGES = [
+  { key: 'market',       label: 'Market',        group: 'Analysts' },
+  { key: 'social',       label: 'Social',        group: 'Analysts' },
+  { key: 'news',         label: 'News',          group: 'Analysts' },
+  { key: 'fundamentals', label: 'Fundamentals',  group: 'Analysts' },
+  { key: 'bull',         label: 'Bull',          group: 'Research' },
+  { key: 'bear',         label: 'Bear',          group: 'Research' },
+  { key: 'research_mgr', label: 'Res. Manager',  group: 'Research' },
+  { key: 'trader',       label: 'Trader',        group: 'Trading'  },
+  { key: 'aggressive',   label: 'Aggressive',    group: 'Risk'     },
+  { key: 'conservative', label: 'Conservative',  group: 'Risk'     },
+  { key: 'neutral',      label: 'Neutral',       group: 'Risk'     },
+  { key: 'portfolio',    label: 'Portfolio Mgr', group: 'Decision' },
+];
+
+// Backend emits reports for exactly these 7 fields (see webui/app.py FIELD_TO_AGENT)
+const FIELD_TO_STAGE = {
+  market_report:          'market',
+  sentiment_report:       'social',
+  news_report:            'news',
+  fundamentals_report:    'fundamentals',
+  investment_plan:        'research_mgr',
+  trader_investment_plan: 'trader',
+  final_trade_decision:   'portfolio',
+};
+
+const RATING_STYLES = {
+  'Buy':         { bg: 'bg-emerald-500/20', border: 'border-emerald-500', text: 'text-emerald-400' },
+  'Overweight':  { bg: 'bg-green-500/20',   border: 'border-green-400',   text: 'text-green-400' },
+  'Hold':        { bg: 'bg-yellow-500/20',  border: 'border-yellow-400',  text: 'text-yellow-400' },
+  'Underweight': { bg: 'bg-orange-500/20',  border: 'border-orange-400',  text: 'text-orange-400' },
+  'Sell':        { bg: 'bg-red-500/20',     border: 'border-red-500',     text: 'text-red-400' },
+};
+
+let stageStatus  = {};   // key → 'pending'|'running'|'done'
+let stageStart   = {};   // key → Date (when stage went running)
+let reports      = {};   // field → {label, content}
+let activeTab    = null;
+let models       = {};
+let currentSource = null;
+let _timerInterval = null;
+let _startTime   = null;
+let _activityCount = 0;
+
+// ─── Timer helpers ───────────────────────────────────────────────────────────
+
+function fmtElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
+}
+
+function startGlobalTimer() {
+  _startTime = Date.now();
+  const el = document.getElementById('elapsedTimer');
+  el.classList.remove('hidden');
+  _timerInterval = setInterval(() => {
+    el.textContent = fmtElapsed(Date.now() - _startTime);
+    // Update running stage pills with their elapsed time
+    Object.entries(stageStart).forEach(([key, t]) => {
+      if (stageStatus[key] === 'running') {
+        const pill = document.getElementById(`stage-${key}`);
+        if (pill) {
+          const stage = PIPELINE_STAGES.find(s => s.key === key);
+          const elapsed = fmtElapsed(Date.now() - t);
+          pill.innerHTML = `${statusIcon('running')} ${stage?.label ?? key} <span class="opacity-60">${elapsed}</span>`;
+        }
+      }
+    });
+  }, 1000);
+}
+
+function stopGlobalTimer() {
+  clearInterval(_timerInterval);
+  _timerInterval = null;
+  document.getElementById('elapsedTimer').classList.add('hidden');
+}
+
+// ─── Activity log ────────────────────────────────────────────────────────────
+
+function appendActivity(html) {
+  const log = document.getElementById('activityLog');
+  const div = document.createElement('div');
+  div.className = 'slide-in';
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  _activityCount++;
+  document.getElementById('activityCount').textContent = `${_activityCount} events`;
+}
+
+function renderProgress(d) {
+  const ts = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const time = `<span class="text-slate-600">${ts}</span>`;
+  if (d.event === 'tool') {
+    const inp = d.input ? ` <span class="text-slate-500">${escHtml(d.input)}</span>` : '';
+    appendActivity(`${time} <span class="text-amber-400">⚙ ${escHtml(d.name)}</span>${inp}`);
+  } else if (d.event === 'tool_done') {
+    const prev = d.preview ? ` <span class="text-slate-600">→ ${escHtml(d.preview)}</span>` : '';
+    appendActivity(`${time} <span class="text-slate-500">  ↩ done${prev}</span>`);
+  } else if (d.event === 'llm') {
+    appendActivity(`${time} <span class="text-blue-400">🤖 ${escHtml(d.name)}</span> <span class="text-slate-500">thinking…</span>`);
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('tradeDate').value = new Date().toISOString().slice(0,10);
+  await loadModels();
+  document.getElementById('provider').addEventListener('change', () => updateModelSelects());
+  updateModelSelects();
+  resetPipeline();
+});
+
+async function loadModels() {
+  try {
+    const res = await fetch('/api/models');
+    models = await res.json();
+  } catch(e) { console.warn('Could not load models', e); }
+}
+
+function updateModelSelects() {
+  const provider = document.getElementById('provider').value;
+  const opts = models[provider];
+  if (!opts) return;
+  fillSelect('quickModel', opts.quick || []);
+  fillSelect('deepModel', opts.deep || []);
+}
+
+function fillSelect(id, options) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '';
+  if (!options || options.length === 0) {
+    const o = document.createElement('option');
+    o.textContent = 'custom'; o.value = 'custom';
+    sel.appendChild(o);
+    return;
+  }
+  options.forEach(([label, value]) => {
+    const o = document.createElement('option');
+    o.textContent = label; o.value = value;
+    sel.appendChild(o);
+  });
+}
+
+// ─── Pipeline UI ─────────────────────────────────────────────────────────────
+
+function resetPipeline() {
+  stageStatus = {};
+  stageStart  = {};
+  PIPELINE_STAGES.forEach(s => { stageStatus[s.key] = 'pending'; });
+  renderPipeline();
+}
+
+function renderPipeline() {
+  const container = document.getElementById('pipeline');
+  const groups = {};
+  PIPELINE_STAGES.forEach(s => {
+    if (!groups[s.group]) groups[s.group] = [];
+    groups[s.group].push(s);
+  });
+  container.innerHTML = '';
+  Object.entries(groups).forEach(([grpName, stages]) => {
+    const grp = document.createElement('div');
+    grp.className = 'flex flex-col gap-1';
+    const lbl = document.createElement('div');
+    lbl.className = 'text-xs text-slate-500 uppercase tracking-wider px-1';
+    lbl.textContent = grpName;
+    grp.appendChild(lbl);
+    const pills = document.createElement('div');
+    pills.className = 'flex gap-1 flex-wrap';
+    stages.forEach(s => {
+      const status = stageStatus[s.key] || 'pending';
+      const pill = document.createElement('div');
+      pill.id = `stage-${s.key}`;
+      pill.className = `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${statusClass(status)}`;
+      pill.innerHTML = `${statusIcon(status)} ${s.label}`;
+      pills.appendChild(pill);
+    });
+    grp.appendChild(pills);
+    container.appendChild(grp);
+  });
+}
+
+function updateStage(key, status) {
+  stageStatus[key] = status;
+  if (status === 'running' && !stageStart[key]) stageStart[key] = Date.now();
+  const el = document.getElementById(`stage-${key}`);
+  if (!el) return;
+  const stage = PIPELINE_STAGES.find(s => s.key === key);
+  let label = stage ? stage.label : key;
+  if (status === 'done' && stageStart[key]) {
+    label += ` <span class="opacity-50">${fmtElapsed(Date.now() - stageStart[key])}</span>`;
+  }
+  el.className = `px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${statusClass(status)}`;
+  el.innerHTML = `${statusIcon(status)} ${label}`;
+}
+
+function statusClass(s) {
+  return s === 'done'    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+       : s === 'running' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+       :                   'bg-white/5 text-slate-500 border border-white/10';
+}
+
+function statusIcon(s) {
+  return s === 'done'    ? '<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>'
+       : s === 'running' ? '<svg class="spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>'
+       :                   '<span class="w-2 h-2 rounded-full bg-current inline-block"></span>';
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+
+function addTab(field, label) {
+  const tabBar = document.getElementById('tabBar');
+  const existing = document.getElementById(`tab-${field}`);
+  if (existing) return;
+
+  const btn = document.createElement('button');
+  btn.id = `tab-${field}`;
+  btn.className = 'tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-white/10 whitespace-nowrap';
+  btn.textContent = label;
+  btn.onclick = () => showTab(field);
+  tabBar.appendChild(btn);
+
+  if (!activeTab) showTab(field);
+}
+
+function showTab(field) {
+  activeTab = field;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`tab-${field}`);
+  if (btn) btn.classList.add('active');
+
+  const content = document.getElementById('tabContent');
+  const rep = reports[field];
+  if (rep) {
+    content.innerHTML = `<div class="prose-dark text-sm slide-in">${marked.parse(rep.content)}</div>`;
+  }
+}
+
+function updateTabContent(field) {
+  if (activeTab === field) showTab(field);
+}
+
+// ─── Analysis ─────────────────────────────────────────────────────────────────
+
+async function startAnalysis() {
+  const ticker    = document.getElementById('ticker').value.trim().toUpperCase();
+  const tradeDate = document.getElementById('tradeDate').value;
+  if (!ticker || !tradeDate) { alert('Please enter a ticker and date.'); return; }
+
+  const analysts = [...document.querySelectorAll('#analystToggles input:checked')].map(i => i.value);
+  if (!analysts.length) { alert('Select at least one analyst.'); return; }
+
+  // Reset UI
+  reports = {}; activeTab = null; _activityCount = 0;
+  document.getElementById('tabBar').innerHTML = '';
+  document.getElementById('tabContent').innerHTML = '<div class="text-slate-500 text-sm text-center py-8">Waiting for first agent…</div>';
+  document.getElementById('decisionCard').classList.add('hidden');
+  document.getElementById('activityLog').innerHTML = '';
+  document.getElementById('activityCount').textContent = '';
+  document.getElementById('activityPanel').classList.remove('hidden');
+  setStatus('');
+  stopGlobalTimer();
+  resetPipeline();
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = 'Running…';
+
+  if (currentSource) { currentSource.close(); currentSource = null; }
+
+  // Field names must match AnalysisRequest in webui/app.py
+  const payload = {
+    ticker,
+    date:              tradeDate,
+    analysts,
+    provider:          document.getElementById('provider').value,
+    quick_model:       document.getElementById('quickModel').value,
+    deep_model:        document.getElementById('deepModel').value,
+    max_debate_rounds: parseInt(document.getElementById('debateRounds').value) || 1,
+    language:          document.getElementById('language').value,
+    checkpoint:        document.getElementById('checkpoint').checked,
+  };
+
+  let runId;
+  try {
+    const res  = await fetch('/api/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    const data = await res.json();
+    runId = data.run_id;
+  } catch(e) { alert('Failed to start: ' + e.message); resetBtn(); return; }
+
+  analysts.forEach(a => updateStage(a, 'running'));
+  startGlobalTimer();
+
+  currentSource = new EventSource(`/api/stream/${runId}`);
+
+  // Backend sends generic SSE messages; dispatch on the `type` field
+  currentSource.onmessage = e => {
+    let d; try { d = JSON.parse(e.data); } catch { return; }
+
+    if (d.type === 'progress') {
+      renderProgress(d);
+
+    } else if (d.type === 'status') {
+      setStatus(d.message);
+
+    } else if (d.type === 'report') {
+      setStatus(d.agent + ' completed');
+      reports[d.field] = { label: d.agent, content: d.content };
+      addTab(d.field, d.agent);
+      updateTabContent(d.field);
+
+      const stageKey = FIELD_TO_STAGE[d.field];
+      if (stageKey) {
+        updateStage(stageKey, 'done');
+        // Research Manager completion implicitly means Bull + Bear finished
+        if (stageKey === 'research_mgr') { updateStage('bull','done'); updateStage('bear','done'); }
+        // Portfolio Manager completion means all risk agents finished
+        if (stageKey === 'portfolio')    { ['aggressive','conservative','neutral'].forEach(k => updateStage(k,'done')); }
+      }
+      markNextRunning(stageKey, analysts);
+
+    } else if (d.type === 'complete') {
+      stopGlobalTimer();
+      setStatus('Analysis complete ✓');
+      document.getElementById('activityPanel').classList.add('hidden');
+      showDecisionCard(d.ticker, d.date, d.decision, d.stats);
+      currentSource.close();
+      resetBtn();
+      PIPELINE_STAGES.forEach(s => { if (stageStatus[s.key] !== 'done') updateStage(s.key,'done'); });
+
+    } else if (d.type === 'error') {
+      stopGlobalTimer();
+      setStatus('⚠ ' + d.message);
+      alert('Error: ' + (d.message || 'Unknown error'));
+      currentSource.close(); resetBtn();
+
+    } else if (d.type === 'done') {
+      currentSource.close();
+    }
+  };
+  currentSource.onerror = () => { resetBtn(); };
+}
+
+function markNextRunning(completedKey, selectedAnalysts) {
+  const order = [
+    ...['market','social','news','fundamentals'].filter(a => selectedAnalysts.includes(a)),
+    'bull','bear','research_mgr','trader','aggressive','conservative','neutral','portfolio',
+  ];
+  const idx = order.indexOf(completedKey);
+  if (idx >= 0 && idx + 1 < order.length) {
+    const next = order[idx + 1];
+    if (stageStatus[next] === 'pending') updateStage(next, 'running');
+  }
+}
+
+function showDecisionCard(ticker, date, signal, stats) {
+  const card = document.getElementById('decisionCard');
+  card.classList.remove('hidden');
+  document.getElementById('decisionTicker').textContent = ticker;
+  document.getElementById('decisionDate').textContent   = `Analysis date: ${date}`;
+
+  const badge = document.getElementById('ratingBadge');
+  const style  = RATING_STYLES[signal] || RATING_STYLES['Hold'];
+  badge.className  = `text-2xl font-bold px-6 py-3 rounded-xl border ${style.bg} ${style.border} ${style.text}`;
+  badge.textContent = signal;
+
+  // Summary: first few meaningful lines of the final decision
+  const decision = reports['final_trade_decision']?.content || '';
+  const summary  = decision.split('\n').filter(l => l.trim()).slice(0, 4).join('\n');
+  document.getElementById('decisionSummary').innerHTML = marked.parse(summary);
+
+  // Show run stats if available
+  if (stats) {
+    const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'k' : String(n||0);
+    document.getElementById('runStats').textContent =
+      `LLM calls: ${stats.llm_calls}  ·  Tool calls: ${stats.tool_calls}  ·  Tokens in: ${fmt(stats.tokens_in)}  ·  Tokens out: ${fmt(stats.tokens_out)}`;
+    document.getElementById('runStats').classList.remove('hidden');
+  }
+
+  // Auto-switch to final decision tab
+  if (reports['final_trade_decision']) showTab('final_trade_decision');
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('statusText');
+  if (el) el.textContent = msg;
+}
+
+function resetBtn() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = false; btn.textContent = 'Run Analysis';
+}
+</script>
+</body>
+</html>
