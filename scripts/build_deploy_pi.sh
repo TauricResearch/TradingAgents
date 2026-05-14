@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Configuration
-REGISTRY="${TRADINGAGENTS_REGISTRY:-ghcr.io/YOUR_GITHUB_USERNAME}"
+REGISTRY="${TRADINGAGENTS_REGISTRY:-ghcr.io/madhuboyin}"
 IMAGE_TAG="${TRADINGAGENTS_TAG:-latest-arm64}"
 
-if [ "$REGISTRY" == "ghcr.io/YOUR_GITHUB_USERNAME" ]; then
+if [ "$REGISTRY" == "ghcr.io/madhuboyin" ]; then
   echo "⚠️  Warning: Using placeholder registry. Set TRADINGAGENTS_REGISTRY to override."
 fi
 

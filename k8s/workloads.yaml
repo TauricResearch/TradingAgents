@@ -11,7 +11,7 @@ spec:
         spec:
           containers:
           - name: trader
-            image: ghcr.io/YOUR_GITHUB_USERNAME/tradingagents:latest-arm64
+            image: ghcr.io/madhuboyin/tradingagents:latest-arm64
             args: ["trade", "NVDA"]
             envFrom:
             - secretRef:
@@ -42,7 +42,7 @@ spec:
     spec:
       containers:
       - name: dashboard
-        image: ghcr.io/YOUR_GITHUB_USERNAME/tradingagents-dashboard:latest-arm64
+        image: ghcr.io/madhuboyin/tradingagents-dashboard:latest-arm64
         ports:
         - containerPort: 8000 # API + UI
         envFrom:
