@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: tradingagents-nvda-daily
+  namespace: tradingagents
 spec:
   schedule: "0 21 * * 1-5" # 9 PM UTC (after US market close) Mon-Fri
   jobTemplate:
@@ -10,7 +11,7 @@ spec:
         spec:
           containers:
           - name: trader
-            image: your-registry/tradingagents:latest-arm64
+            image: ghcr.io/YOUR_GITHUB_USERNAME/tradingagents:latest-arm64
             args: ["trade", "NVDA"]
             envFrom:
             - secretRef:
@@ -28,6 +29,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tradingagents-dashboard
+  namespace: tradingagents
 spec:
   replicas: 1
   selector:
@@ -40,7 +42,7 @@ spec:
     spec:
       containers:
       - name: dashboard
-        image: your-registry/tradingagents-dashboard:latest-arm64
+        image: ghcr.io/YOUR_GITHUB_USERNAME/tradingagents-dashboard:latest-arm64
         ports:
         - containerPort: 8000 # API + UI
         envFrom:
@@ -48,7 +50,7 @@ spec:
             name: tradingagents-secrets
         volumeMounts:
         - name: data
-          mountPath: /home/appuser/app/results
+          mountPath: /home/appuser/.tradingagents
       volumes:
       - name: data
         persistentVolumeClaim:
@@ -58,6 +60,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: tradingagents-dashboard-svc
+  namespace: tradingagents
 spec:
   selector:
     app: dashboard

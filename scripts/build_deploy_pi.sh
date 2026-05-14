@@ -1,8 +1,12 @@
 #!/bin/bash
 
 # Configuration
-REGISTRY="your-registry"
-IMAGE_TAG="latest-arm64"
+REGISTRY="${TRADINGAGENTS_REGISTRY:-ghcr.io/YOUR_GITHUB_USERNAME}"
+IMAGE_TAG="${TRADINGAGENTS_TAG:-latest-arm64}"
+
+if [ "$REGISTRY" == "ghcr.io/YOUR_GITHUB_USERNAME" ]; then
+  echo "⚠️  Warning: Using placeholder registry. Set TRADINGAGENTS_REGISTRY to override."
+fi
 
 echo "🚀 Starting Multi-Arch Build for Raspberry Pi (ARM64)..."
 

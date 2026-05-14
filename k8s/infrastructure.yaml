@@ -2,9 +2,11 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: tradingagents-pvc
+  namespace: tradingagents
 spec:
   accessModes:
     - ReadWriteMany
+  storageClassName: longhorn
   resources:
     requests:
       storage: 1Gi
@@ -13,6 +15,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: tradingagents-secrets
+  namespace: tradingagents
 type: Opaque
 data:
   # Base64 encoded values will be placed here via kubectl or a CI/CD tool
