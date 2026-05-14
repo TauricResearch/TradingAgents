@@ -29,6 +29,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+PORTFOLIO_PATH = Path(DEFAULT_CONFIG.get("results_dir", "results")).parent / "portfolio.txt"
+
+@app.get("/api/config/portfolio")
+async def get_portfolio_config():
+    """Read the current ticker list from portfolio.txt."""
+    if not PORTFOLIO_PATH.exists():
+        return {"tickers": "NVDA,AAPL,MSFT,TSLA,GOOGL"} # Default
+    return {"tickers": PORTFOLIO_PATH.read_text().strip()}
+
+@app.post("/api/config/portfolio")
+async def update_portfolio_config(data: Dict[str, str]):
+    """Update the ticker list in portfolio.txt."""
+    tickers = data.get("tickers", "").strip()
+    if not tickers:
+        raise HTTPException(status_code=400, detail="Tickers cannot be empty")
+    
+    PORTFOLIO_PATH.write_text(tickers)
+    return {"status": "updated", "tickers": tickers}
+
 @app.post("/api/webhook/progress")
 async def handle_progress_webhook(update: Dict[str, Any]):
     """Receive progress updates from the TradingAgentsGraph."""

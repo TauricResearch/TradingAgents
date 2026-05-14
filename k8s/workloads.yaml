@@ -14,7 +14,7 @@ spec:
           - name: trader
             image: ghcr.io/madhuboyin/tradingagents:latest-arm64
             imagePullPolicy: Always
-            args: ["portfolio", "NVDA,AAPL,MSFT,TSLA,GOOGL"]
+            args: ["portfolio"]
             resources:
               requests:
                 cpu: "200m"

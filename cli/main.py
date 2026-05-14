@@ -1296,7 +1296,7 @@ def trade(
 
 @app.command("portfolio")
 def portfolio(
-    tickers: str = typer.Argument(..., help="Comma-separated list of tickers (e.g. AAPL,MSFT,NVDA)"),
+    tickers: Optional[str] = typer.Argument(None, help="Comma-separated list of tickers. If empty, reads from portfolio.txt."),
     date: Optional[str] = typer.Option(
         None, "--date", help="Analysis date (YYYY-MM-DD)."
     ),
@@ -1308,7 +1308,20 @@ def portfolio(
     ),
 ):
     """Headless trade execution for a list of tickers."""
+    if not tickers:
+        # Try to read from the default portfolio file in the results dir
+        portfolio_path = Path(DEFAULT_CONFIG["results_dir"]).parent / "portfolio.txt"
+        if portfolio_path.exists():
+            tickers = portfolio_path.read_text().strip()
+            console.print(f"[dim]Loaded tickers from {portfolio_path}[/dim]")
+        else:
+            console.print("[bold red]Error: No tickers provided and portfolio.txt not found.[/bold red]")
+            raise typer.Exit(1)
+
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    if not ticker_list:
+        console.print("[bold red]Error: Ticker list is empty.[/bold red]")
+        raise typer.Exit(1)
     if not date:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
 

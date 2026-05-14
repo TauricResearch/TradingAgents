@@ -78,6 +78,8 @@ const App = () => {
   const [stats, setStats] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [activeStatus, setActiveStatus] = useState(null);
+  const [portfolio, setPortfolio] = useState('');
+  const [isSavingPortfolio, setIsSavingPortfolio] = useState(false);
   const [selectedRun, setSelectedRun] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +98,7 @@ const App = () => {
       
     fetch('/api/stats').then(res => res.json()).then(setStats).catch(err => console.error("Error fetching stats:", err));
     fetch('/api/reflections').then(res => res.json()).then(setReflections).catch(err => console.error("Error fetching reflections:", err));
+    fetch('/api/config/portfolio').then(res => res.json()).then(data => setPortfolio(data.tickers)).catch(err => console.error("Error fetching portfolio:", err));
 
     // Poll for active status every 3 seconds
     const statusInterval = setInterval(() => {
@@ -112,6 +115,24 @@ const App = () => {
 
     return () => clearInterval(statusInterval);
   }, []);
+
+  const savePortfolio = () => {
+    setIsSavingPortfolio(true);
+    fetch('/api/config/portfolio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: portfolio })
+    })
+    .then(res => res.json())
+    .then(() => {
+      setIsSavingPortfolio(false);
+      alert('Portfolio updated successfully!');
+    })
+    .catch(err => {
+      console.error("Error updating portfolio:", err);
+      setIsSavingPortfolio(false);
+    });
+  };
 
   useEffect(() => {
     if (selectedRun) {
@@ -143,6 +164,47 @@ const App = () => {
               {stats?.win_rate?.toFixed(1) || 0}%
             </span>
           </div>
+        </div>
+
+        <div style={{ padding: '15px', borderBottom: '1px solid #1e293b', background: '#0f172a' }}>
+          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PORTFOLIO TICKERS</div>
+          <textarea 
+            value={portfolio}
+            onChange={(e) => setPortfolio(e.target.value)}
+            placeholder="AAPL,MSFT,NVDA..."
+            style={{
+              width: '100%',
+              background: '#020617',
+              border: '1px solid #334155',
+              borderRadius: '4px',
+              color: 'white',
+              fontSize: '12px',
+              padding: '8px',
+              minHeight: '60px',
+              resize: 'none',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+              marginBottom: '8px'
+            }}
+          />
+          <button 
+            onClick={savePortfolio}
+            disabled={isSavingPortfolio}
+            style={{
+              width: '100%',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '6px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              opacity: isSavingPortfolio ? 0.5 : 1
+            }}
+          >
+            {isSavingPortfolio ? 'SAVING...' : 'UPDATE TICKER LIST'}
+          </button>
         </div>
         
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
