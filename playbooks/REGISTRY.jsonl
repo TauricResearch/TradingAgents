@@ -8,6 +8,7 @@
 {"file":"debriefs-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"decisions-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"defuddle-playbook.md","date":"2026-05-08","status":"project","summary":"Defuddle: extract webpage content as clean Markdown via hosted API","meta":{"source":null,"mining_candidate":true,"mining_note":"Defuddle usage pattern (fetch → parse → review) is portable across projects","last_mined":"2026-05-09"}}
+{"file":"flox-playbook.md","date":"2026-05-14","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"git-workflow-playbook.md","date":"2026-05-10","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"gitnexus-playbook.md","date":"2026-05-08","status":"project","summary":"GitNexus code intelligence: impact analysis, Cypher queries, symbol context","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"gitnexus-usage-guide.md","date":"2026-05-08","status":"project","summary":"GitNexus usage guide: CLI commands, batch generation, DOT export pipeline","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}

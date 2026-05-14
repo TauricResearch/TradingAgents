@@ -196,9 +196,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#   and can be added to the global gitignore or merged into this file. However, if you prefer,
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
@@ -243,19 +243,21 @@ node_modules/
 !src/cli/lib/
 portfolio.db
 test_portfolio.db
+
 # Archived and backup files
 *.archived
 *.backup
 .gitnexus
+
 # GitNexus generated files
 .claude/skills/gitnexus/
-CLAUDE.md
-AGENTS.md
 
 # DeepSeek runtime state (not part of the project)
 .deepseek/
+
 # Root justfile only (not subdirectory justfiles)
-/Justfile
+/justfile
+
 # Drydock barnacle archive (quarantined content — not part of the project)
 decisions/drydock/
 
