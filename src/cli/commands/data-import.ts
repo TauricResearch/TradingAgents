@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 
 /**
- * Import positions from CSV. DEPRECATED — use 'trading data import' instead.
+ * Import positions from CSV.
  *
  * Expected CSV format:
  *   ticker,exchange,platform,quantity,avg_cost,entry_date
  *
- * Usage: trading import <file.csv>
+ * Usage: trading data import <file.csv>
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -77,7 +77,7 @@ function parseCSV(content: string): CsvRow[] {
   return rows
 }
 
-export const importCommand = defineCommand({
+export const dataImportCommand = defineCommand({
   meta: {
     name: "import",
     description: "Import positions from CSV",
@@ -95,9 +95,6 @@ export const importCommand = defineCommand({
     },
   },
   run: ({ args }) => {
-    console.warn(
-      "\n⚠️  DEPRECATED: 'trading import' is deprecated. Use 'trading data import' instead.\n",
-    )
     const filePath = args.file
     if (!existsSync(filePath)) {
       console.error(`❌ File not found: ${filePath}`)

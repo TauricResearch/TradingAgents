@@ -3,7 +3,7 @@
 /**
  * Export portfolio data to JSON or CSV.
  *
- * Usage: trading export <json|csv> [--file path]
+ * Usage: trading data export <json|csv> [-o path]
  */
 
 import { writeFileSync } from "node:fs"
@@ -55,7 +55,7 @@ function toCSV(rows: Record<string, unknown>[]): string {
   return `${lines.join("\n")}\n`
 }
 
-export const exportCommand = defineCommand({
+export const dataExportCommand = defineCommand({
   meta: {
     name: "export",
     description: "Export portfolio data to JSON or CSV",
@@ -63,7 +63,7 @@ export const exportCommand = defineCommand({
   args: {
     format: {
       type: "positional",
-      description: "Export format: json or csv",
+      description: "Output format: json or csv",
       required: true,
     },
     file: {
@@ -73,9 +73,6 @@ export const exportCommand = defineCommand({
     },
   },
   run: ({ args }) => {
-    console.warn(
-      "\n⚠️  DEPRECATED: 'trading export' is deprecated. Use 'trading data export' instead.\n",
-    )
     const format = args.format.toLowerCase()
     if (format !== "json" && format !== "csv") {
       console.error(`❌ Unknown format: ${format}. Use 'json' or 'csv'`)
