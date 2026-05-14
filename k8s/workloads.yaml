@@ -24,6 +24,8 @@ spec:
               value: "gemini-2.5-flash"
             - name: TRADINGAGENTS_QUICK_THINK_LLM
               value: "gemini-2.5-flash"
+            - name: TRADINGAGENTS_WEBHOOK_URL
+              value: "http://tradingagents-dashboard-svc.tradingagents.svc.cluster.local/api/webhook/progress"
             volumeMounts:
             - name: data
               mountPath: /home/appuser/.tradingagents

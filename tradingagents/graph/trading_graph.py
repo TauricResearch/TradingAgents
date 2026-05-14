@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import json
+import requests
 from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
@@ -351,13 +352,43 @@ class TradingAgentsGraph:
                 else:
                     chunk["messages"][-1].pretty_print()
                     trace.append(chunk)
+                
+                # Send webhook update for each chunk (node completion)
+                self._send_webhook({
+                    "ticker": company_name,
+                    "date": trade_date,
+                    "node": list(chunk.keys())[0] if chunk else "unknown",
+                    "status": "in_progress",
+                    "timestamp": datetime.now().isoformat()
+                })
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}
             for chunk in trace:
                 final_state.update(chunk)
         else:
-            final_state = self.graph.invoke(init_agent_state, **args)
+            # Even in non-debug mode, we stream to get progress updates
+            trace = []
+            for chunk in self.graph.stream(init_agent_state, **args):
+                trace.append(chunk)
+                self._send_webhook({
+                    "ticker": company_name,
+                    "date": trade_date,
+                    "node": list(chunk.keys())[0] if chunk else "unknown",
+                    "status": "in_progress",
+                    "timestamp": datetime.now().isoformat()
+                })
+            final_state = {}
+            for chunk in trace:
+                final_state.update(chunk)
+
+        # Notify completion
+        self._send_webhook({
+            "ticker": company_name,
+            "date": trade_date,
+            "status": "completed",
+            "timestamp": datetime.now().isoformat()
+        })
 
         # Store current state for reflection.
         self.curr_state = final_state
@@ -425,3 +456,14 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def _send_webhook(self, data: Dict[str, Any]):
+        """Send a progress update to the configured webhook URL."""
+        webhook_url = self.config.get("webhook_url") or os.getenv("TRADINGAGENTS_WEBHOOK_URL")
+        if not webhook_url:
+            return
+            
+        try:
+            requests.post(webhook_url, json=data, timeout=2)
+        except Exception as e:
+            logger.warning("Failed to send webhook update: %s", e)

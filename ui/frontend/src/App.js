@@ -6,6 +6,7 @@ const App = () => {
   const [runs, setRuns] = useState([]);
   const [stats, setStats] = useState(null);
   const [reflections, setReflections] = useState([]);
+  const [activeStatus, setActiveStatus] = useState(null);
   const [selectedRun, setSelectedRun] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,21 @@ const App = () => {
       
     fetch('/api/stats').then(res => res.json()).then(setStats).catch(err => console.error("Error fetching stats:", err));
     fetch('/api/reflections').then(res => res.json()).then(setReflections).catch(err => console.error("Error fetching reflections:", err));
+
+    // Poll for active status every 3 seconds
+    const statusInterval = setInterval(() => {
+      fetch('/api/status')
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'in_progress') {
+            setActiveStatus(data);
+          } else {
+            setActiveStatus(null);
+          }
+        });
+    }, 3000);
+
+    return () => clearInterval(statusInterval);
   }, []);
 
   useEffect(() => {
@@ -91,18 +107,26 @@ const App = () => {
         {/* Header */}
         <header style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px' }}>{selectedRun ? `${selectedRun.ticker} Analysis` : 'Select a run'}</h2>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Trade Date: {selectedRun?.date}</div>
+            <h2 style={{ margin: 0, fontSize: '20px' }}>
+              {activeStatus ? `🔴 ANALYZING ${activeStatus.ticker}...` : (selectedRun ? `${selectedRun.ticker} Analysis` : 'Select a run')}
+            </h2>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+              {activeStatus ? `Active Node: ${activeStatus.active_node}` : `Trade Date: ${selectedRun?.date}`}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '20px' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '10px', color: '#64748b' }}>STATUS</div>
-              <div style={{ color: '#10b981', fontSize: '14px', fontWeight: 'bold' }}>COMPLETED</div>
+              <div style={{ color: activeStatus ? '#3b82f6' : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
+                {activeStatus ? 'IN PROGRESS' : 'COMPLETED'}
+              </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: '#64748b' }}>DECISION</div>
-              <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>{runDetail?.final_trade_decision?.split('\n')[0] || '---'}</div>
-            </div>
+            {!activeStatus && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '10px', color: '#64748b' }}>DECISION</div>
+                <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>{runDetail?.final_trade_decision?.split('\n')[0] || '---'}</div>
+              </div>
+            )}
           </div>
         </header>
 
@@ -112,7 +136,7 @@ const App = () => {
             <div style={{ padding: '12px', background: '#0f172a', borderBottom: '1px solid #1e293b', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Layout size={14} /> AGENTIC FLOW VISUALIZATION
             </div>
-            <FlowGraph runData={runDetail} />
+            <FlowGraph runData={runDetail} activeStatus={activeStatus} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>

@@ -5,11 +5,20 @@ from fastapi.responses import FileResponse
 import os
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 
 app = FastAPI(title="TradingAgents Dashboard API")
+
+# Global state to track current active run
+current_run_status = {
+    "ticker": None,
+    "date": None,
+    "active_node": None,
+    "status": "idle",
+    "last_update": None
+}
 
 # Enable CORS for the React frontend
 app.add_middleware(
@@ -19,6 +28,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.post("/api/webhook/progress")
+async def handle_progress_webhook(update: Dict[str, Any]):
+    """Receive progress updates from the TradingAgentsGraph."""
+    global current_run_status
+    current_run_status.update({
+        "ticker": update.get("ticker"),
+        "date": update.get("date"),
+        "active_node": update.get("node"),
+        "status": update.get("status"),
+        "last_update": update.get("timestamp")
+    })
+    return {"status": "received"}
+
+@app.get("/api/status")
+async def get_current_status():
+    """Return the current active run status."""
+    return current_run_status
 
 RESULTS_DIR = Path(DEFAULT_CONFIG.get("results_dir", "results"))
 
