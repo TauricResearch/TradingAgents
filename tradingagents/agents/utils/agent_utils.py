@@ -45,6 +45,46 @@ def build_instrument_context(ticker: str) -> str:
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
 
+
+def summarize_report(report: str, max_chars: int = 1800) -> str:
+    """Compress an analyst report for downstream debaters.
+
+    Each analyst report ends with a Markdown summary table. We keep the head
+    (thesis + leading analysis) and the tail (which captures the table), since
+    those carry the highest signal per token. Returns the report unchanged when
+    it already fits the budget.
+    """
+    if not report:
+        return ""
+    text = report.strip()
+    if len(text) <= max_chars:
+        return text
+    head = int(max_chars * 0.55)
+    tail = max_chars - head - 32
+    return f"{text[:head].rstrip()}\n\n... [truncated for context] ...\n\n{text[-tail:].lstrip()}"
+
+
+def build_reports_block(state, max_chars_per_report: int = 1800) -> str:
+    """Render the 4 analyst reports as a single compact block for debaters."""
+    sections = [
+        ("Market", state.get("market_report", "")),
+        ("Sentiment", state.get("sentiment_report", "")),
+        ("News", state.get("news_report", "")),
+        ("Fundamentals", state.get("fundamentals_report", "")),
+    ]
+    parts = []
+    for label, body in sections:
+        digest = summarize_report(body, max_chars_per_report)
+        if digest:
+            parts.append(f"### {label} report\n{digest}")
+    return "\n\n".join(parts)
+
+ANALYST_PREAMBLE = (
+    "You have access to these tools: {tool_names}.\n{system_message}"
+    "Today's date is {current_date}. {instrument_context}"
+)
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""

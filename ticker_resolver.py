@@ -77,14 +77,22 @@ TICKER_ALIASES: dict[str, str] = {
 
 @functools.lru_cache(maxsize=500)
 def _llm_resolve(query: str) -> Optional[str]:
-    """Ask Gemini to map a free-form query to a Yahoo Finance ticker.
+    """Ask Qwen to map a free-form query to a Yahoo Finance ticker.
 
     Cached at module level — repeated lookups for the same query are free.
-    Caller must have proxy env set so the API is reachable.
+    Uses DashScope (国内端点) via the OpenAI-compatible API.
     """
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+        import os
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(
+            model="qwen-turbo",
+            api_key=os.environ.get("DASHSCOPE_API_KEY"),
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            temperature=0,
+            timeout=15,
+            max_retries=1,
+        )
         prompt = (
             "You are a stock ticker resolver. Given a company name or query in any "
             "language, return the most-likely Yahoo Finance ticker symbol.\n\n"

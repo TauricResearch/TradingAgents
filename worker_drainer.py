@@ -35,6 +35,7 @@ class WorkerDrainer:
         self.chunks: list[dict[str, Any]] = []
         self.decision: str | None = None
         self.error: dict[str, Any] | None = None
+        self.stats: dict[str, Any] | None = None
         self.eof: bool = False
         self._lock = threading.Lock()
         self._thread = threading.Thread(
@@ -67,6 +68,8 @@ class WorkerDrainer:
                     self.decision = ev.get("decision", "")
                 elif kind == "error":
                     self.error = ev
+                elif kind == "stats":
+                    self.stats = ev.get("data", {})
                 # "started" and unknown kinds intentionally ignored — caller
                 # already knows the worker started, and unknown events
                 # shouldn't crash the drainer.

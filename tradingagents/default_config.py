@@ -12,9 +12,9 @@ DEFAULT_CONFIG = {
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.4",
-    "quick_think_llm": "gpt-5.4-mini",
+    "llm_provider": "qwen",
+    "deep_think_llm": "qwen-plus",
+    "quick_think_llm": "qwen-turbo",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a

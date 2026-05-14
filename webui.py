@@ -305,12 +305,12 @@ def T(key: str) -> str:
 # Constants
 # ════════════════════════════════════════════════════════════════════
 PROVIDER_MODELS = {
+    "qwen": ["qwen-turbo", "qwen-plus", "qwen-max"],
     "google": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro",
                "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.1-pro-preview"],
     "openai": ["gpt-5.4-mini", "gpt-5.4", "gpt-5"],
     "anthropic": ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-7"],
     "deepseek": ["deepseek-chat", "deepseek-reasoner"],
-    "qwen": ["qwen-plus", "qwen-max"],
     "glm": ["glm-4-plus", "glm-4.5"],
     "xai": ["grok-4", "grok-4-mini"],
     "openrouter": ["openai/gpt-5", "anthropic/claude-sonnet-4-6"],
@@ -544,13 +544,13 @@ if st.sidebar.button(T("checkpoint_clear"), use_container_width=True):
 # ─── Daily-schedule preferences ───
 st.sidebar.divider()
 _is_zh = st.session_state["ui_lang"] == "zh"
-_prefs_title = "📅 每日定时分析" if _is_zh else "📅 Daily schedule"
+_prefs_title = "📅 每周定时分析" if _is_zh else "📅 Weekly schedule"
 _prefs = user_prefs.load(_authed_email)
 
 with st.sidebar.expander(_prefs_title, expanded=False):
     _enable = st.checkbox(
-        ("每天自动分析并推送到 Telegram" if _is_zh
-         else "Run daily and push to Telegram"),
+        ("每周一自动分析并推送到 Telegram" if _is_zh
+         else "Run weekly (Monday) and push to Telegram"),
         value=bool(_prefs.get("daily_schedule_enabled")),
         key="prefs_enabled",
     )
@@ -608,9 +608,9 @@ with st.sidebar.expander(_prefs_title, expanded=False):
         else:
             ok, detail = notify.send_telegram(
                 _chat_id,
-                ("✅ TradingAgents test message — your daily reports will arrive here."
+                ("✅ TradingAgents test message — your weekly reports will arrive here."
                  if not _is_zh else
-                 "✅ TradingAgents 测试消息 — 每日报告会发送到这里。"),
+                 "✅ TradingAgents 测试消息 — 每周报告会发送到这里。"),
             )
             if ok:
                 st.success("✓ sent — check your Telegram")

@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
+    ANALYST_PREAMBLE,
     build_instrument_context,
     get_global_news,
     get_language_instruction,
@@ -19,24 +20,14 @@ def create_news_analyst(llm):
         ]
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "You are a news researcher analyzing the past week of news and trends relevant to trading and macroeconomics. Use `get_news(query, start_date, end_date)` for company/targeted news and `get_global_news(curr_date, look_back_days, limit)` for macro coverage. Provide actionable insights with evidence."
+            " End the report with a Markdown summary table."
             + get_language_instruction()
         )
 
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
-                ),
+                ("system", ANALYST_PREAMBLE),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )

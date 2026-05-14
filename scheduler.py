@@ -105,9 +105,9 @@ def _build_config(prefs: dict[str, Any], slug: str) -> dict[str, Any]:
     from tradingagents.default_config import DEFAULT_CONFIG
     user_home = Path.home() / ".tradingagents" / "users" / slug
     cfg = DEFAULT_CONFIG.copy()
-    cfg["llm_provider"] = prefs.get("provider", "google")
-    cfg["deep_think_llm"] = prefs.get("deep_model", "gemini-2.5-flash")
-    cfg["quick_think_llm"] = prefs.get("quick_model", "gemini-2.5-flash")
+    cfg["llm_provider"] = prefs.get("provider", "qwen")
+    cfg["deep_think_llm"] = prefs.get("deep_model", "qwen-plus")
+    cfg["quick_think_llm"] = prefs.get("quick_model", "qwen-turbo")
     cfg["max_debate_rounds"] = int(prefs.get("max_debate_rounds", 1))
     cfg["max_risk_discuss_rounds"] = int(prefs.get("max_risk_discuss_rounds", 1))
     cfg["output_language"] = prefs.get("output_language", "中文")
@@ -142,6 +142,7 @@ def _run_worker(slug: str, ticker: str, trade_date: str,
     proc.stdin.close()
     decision: str | None = None
     error: dict[str, Any] | None = None
+    stats: dict[str, Any] | None = None
     chunk_count = 0
     for line in proc.stdout:
         line = line.strip()
@@ -158,14 +159,25 @@ def _run_worker(slug: str, ticker: str, trade_date: str,
             decision = ev.get("decision", "")
         elif kind == "error":
             error = ev
+        elif kind == "stats":
+            stats = ev.get("data") or {}
     proc.wait(timeout=60)
-    _log(f"  worker {ticker}: chunks={chunk_count} exit={proc.returncode}")
+    if stats:
+        _log(
+            f"  worker {ticker}: chunks={chunk_count} exit={proc.returncode} "
+            f"llm_calls={stats.get('llm_calls', '?')} "
+            f"tool_calls={stats.get('tool_calls', '?')} "
+            f"tokens_in={stats.get('tokens_in', '?')} "
+            f"tokens_out={stats.get('tokens_out', '?')}"
+        )
+    else:
+        _log(f"  worker {ticker}: chunks={chunk_count} exit={proc.returncode}")
     if error:
         return {"ok": False, "error": error}
     if decision is None:
         return {"ok": False, "error": {"type": "EmptyStream",
                                         "msg": "worker emitted no done event"}}
-    return {"ok": True, "decision": decision}
+    return {"ok": True, "decision": decision, "stats": stats}
 
 
 def _load_full_state(slug: str, ticker: str, trade_date: str) -> dict[str, Any] | None:

@@ -6,6 +6,21 @@ from dateutil.relativedelta import relativedelta
 
 from .stockstats_utils import yf_retry
 
+# Cap per-article summary length to keep the downstream prompt budget sane.
+# Full summaries from yfinance can run 1-2k characters each; the title plus
+# a 400-char lead carries the signal that matters for trading agents.
+_SUMMARY_MAX_CHARS = 400
+_TICKER_NEWS_COUNT = 8
+
+
+def _truncate_summary(summary: str) -> str:
+    if not summary:
+        return ""
+    s = summary.strip()
+    if len(s) <= _SUMMARY_MAX_CHARS:
+        return s
+    return s[:_SUMMARY_MAX_CHARS].rstrip() + "..."
+
 
 def _extract_article_data(article: dict) -> dict:
     """Extract article data from yfinance news format (handles nested 'content' structure)."""
@@ -66,7 +81,7 @@ def get_news_yfinance(
     """
     try:
         stock = yf.Ticker(ticker)
-        news = yf_retry(lambda: stock.get_news(count=20))
+        news = yf_retry(lambda: stock.get_news(count=_TICKER_NEWS_COUNT))
 
         if not news:
             return f"No news found for {ticker}"
@@ -88,8 +103,9 @@ def get_news_yfinance(
                     continue
 
             news_str += f"### {data['title']} (source: {data['publisher']})\n"
-            if data["summary"]:
-                news_str += f"{data['summary']}\n"
+            summary = _truncate_summary(data["summary"])
+            if summary:
+                news_str += f"{summary}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"
@@ -185,6 +201,7 @@ def get_global_news_yfinance(
                 summary = ""
 
             news_str += f"### {title} (source: {publisher})\n"
+            summary = _truncate_summary(summary)
             if summary:
                 news_str += f"{summary}\n"
             if link:

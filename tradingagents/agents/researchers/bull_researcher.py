@@ -1,4 +1,7 @@
-from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_reports_block,
+    get_language_instruction,
+)
 
 
 def create_bull_researcher(llm):
@@ -8,10 +11,7 @@ def create_bull_researcher(llm):
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        reports_block = build_reports_block(state)
         user_research_report = state.get("user_research_report", "")
 
         user_research_block = ""
@@ -31,11 +31,8 @@ Key points to focus on:
 - Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 
-Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
+Resources available (compressed analyst digests — head + summary table preserved):
+{reports_block}
 {user_research_block}Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.

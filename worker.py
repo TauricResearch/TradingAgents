@@ -43,6 +43,7 @@ from tradingagents.graph.checkpointer import (  # noqa: E402
     get_checkpointer,
     thread_id as _thread_id,
 )
+from cli.stats_handler import StatsCallbackHandler  # noqa: E402
 
 
 CHUNK_FIELDS = (
@@ -103,9 +104,11 @@ def main() -> int:
 
     # 2. Build graph + run
     checkpoint_ctx = None
+    stats = StatsCallbackHandler()
     try:
         ta = TradingAgentsGraph(
-            selected_analysts=selected_analysts, debug=False, config=config
+            selected_analysts=selected_analysts, debug=False, config=config,
+            callbacks=[stats],
         )
         # propagate() sets self.ticker — we bypass propagate so set it manually,
         # otherwise _log_state crashes on a None ticker.
@@ -155,6 +158,7 @@ def main() -> int:
             final_trade_decision=final_state.get("final_trade_decision", ""),
         )
         decision = ta.process_signal(final_state.get("final_trade_decision", ""))
+        emit({"kind": "stats", "data": stats.get_stats()})
         emit({"kind": "done", "decision": decision})
         return 0
 

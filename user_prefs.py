@@ -23,9 +23,9 @@ DEFAULT_PREFS: dict[str, Any] = {
     "tickers": [],                       # list[str], free-form (resolver-handled)
     "telegram_chat_id": "",
     "selected_analysts": ["market"],
-    "provider": "google",
-    "deep_model": "gemini-2.5-flash",
-    "quick_model": "gemini-2.5-flash",
+    "provider": "qwen",
+    "deep_model": "qwen-plus",
+    "quick_model": "qwen-turbo",
     "output_language": "中文",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
