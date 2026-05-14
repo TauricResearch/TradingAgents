@@ -12,6 +12,7 @@ spec:
           containers:
           - name: trader
             image: ghcr.io/madhuboyin/tradingagents:latest-arm64
+            imagePullPolicy: Always
             args: ["trade", "NVDA"]
             envFrom:
             - secretRef:
@@ -50,6 +51,7 @@ spec:
       containers:
       - name: dashboard
         image: ghcr.io/madhuboyin/tradingagents-dashboard:latest-arm64
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000 # API + UI
         envFrom:
