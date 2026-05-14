@@ -109,18 +109,25 @@ const App = () => {
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const refreshRuns = () => {
     fetch('/api/runs')
       .then(res => res.json())
       .then(data => {
         setRuns(data);
-        if (data.length > 0) {
+        // If nothing was selected before, select the newest run
+        if (!selectedRun && data.length > 0) {
           setSelectedRun(data[0]);
         }
         setLoading(false);
       })
-      .catch(err => console.error("Error fetching runs:", err));
-      
+      .catch(err => {
+        console.error("Error refreshing runs:", err);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    refreshRuns();
     fetch('/api/stats').then(res => res.json()).then(setStats).catch(err => console.error("Error fetching stats:", err));
     fetch('/api/reflections').then(res => res.json()).then(setReflections).catch(err => console.error("Error fetching reflections:", err));
     fetch('/api/config/portfolio').then(res => res.json()).then(data => setPortfolio(data.tickers)).catch(err => console.error("Error fetching portfolio:", err));
@@ -130,10 +137,16 @@ const App = () => {
       fetch('/api/status')
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'in_progress') {
+          if (data.status === 'in_progress' || data.status === 'triggered') {
             setActiveStatus(data);
           } else {
-            setActiveStatus(null);
+            // If we were just active and now we're not, refresh the list
+            setActiveStatus(prev => {
+              if (prev !== null) {
+                setTimeout(refreshRuns, 1000); // Refresh after a short delay to allow logs to be written
+              }
+              return null;
+            });
           }
         });
     }, 3000);
@@ -165,13 +178,12 @@ const App = () => {
     .then(res => res.json())
     .then(data => {
       setIsTriggering(false);
-      if (data.status === 'triggered') {
-        alert(`Analysis job started! You will see status updates in the header shortly.`);
-      }
+      // No alert needed, progress will show in header and button
     })
     .catch(err => {
       console.error("Error triggering job:", err);
       setIsTriggering(false);
+      alert('Failed to trigger analysis job. Check console for details.');
     });
   };
 
@@ -269,7 +281,9 @@ const App = () => {
             }}
           >
             <Activity size={14} />
-            {activeStatus ? 'ANALYSIS IN PROGRESS...' : (isTriggering ? 'TRIGGERING...' : 'RUN ANALYSIS NOW')}
+            {activeStatus ? (
+              activeStatus.status === 'triggered' ? 'JOB STARTING...' : 'ANALYSIS IN PROGRESS...'
+            ) : (isTriggering ? 'TRIGGERING...' : 'RUN ANALYSIS NOW')}
           </button>
         </div>
         

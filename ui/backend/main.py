@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 import os
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from kubernetes import client, config as k8s_config
@@ -71,6 +72,17 @@ async def trigger_job():
         
         # 3. Create the Job
         batch_v1.create_namespaced_job(namespace, job)
+
+        # 4. Set initial status to triggered so UI knows something is happening
+        global current_run_status
+        current_run_status.update({
+            "ticker": "Portfolio",
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "active_node": "Initializing Job...",
+            "status": "triggered",
+            "last_update": datetime.now().isoformat()
+        })
+
         return {"status": "triggered", "job_name": job_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

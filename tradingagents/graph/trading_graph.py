@@ -329,6 +329,15 @@ class TradingAgentsGraph:
 
     def _run_graph(self, company_name, trade_date):
         """Execute the graph and write the resulting state to disk and memory log."""
+        # Notify starting
+        self._send_webhook({
+            "ticker": company_name,
+            "date": trade_date,
+            "node": "Initializing...",
+            "status": "in_progress",
+            "timestamp": datetime.now().isoformat()
+        })
+
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
         init_agent_state = self.propagator.create_initial_state(
