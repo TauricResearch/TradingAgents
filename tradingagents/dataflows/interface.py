@@ -1,3 +1,4 @@
+import functools
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -131,8 +132,13 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+@functools.lru_cache(maxsize=128)
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to appropriate vendor implementation with fallback support.
+    
+    Cached to prevent redundant network calls for identical parameters
+    (e.g. Sentiment and News analysts both fetching the same news block).
+    """
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]

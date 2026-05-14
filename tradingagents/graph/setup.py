@@ -106,16 +106,27 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
         
         def sync_analysts(state: AgentState):
-            """Merge parallel analyst reports into the main message history."""
+            """Merge parallel analyst reports into the main message history.
+            
+            Reports are truncated to 10k characters each to prevent researchers 
+            from being overwhelmed by excessive context (Markdown tables, etc).
+            """
             reports = []
+            max_report_len = 10000
+            
+            def truncate(text):
+                if not text: return ""
+                if len(text) <= max_report_len: return text
+                return text[:max_report_len] + "\n... (truncated for brevity) ..."
+
             if state.get("market_report"):
-                reports.append(f"## Market Analysis\n{state['market_report']}")
+                reports.append(f"## Market Analysis\n{truncate(state['market_report'])}")
             if state.get("sentiment_report"):
-                reports.append(f"## Sentiment Analysis\n{state['sentiment_report']}")
+                reports.append(f"## Sentiment Analysis\n{truncate(state['sentiment_report'])}")
             if state.get("news_report"):
-                reports.append(f"## News Analysis\n{state['news_report']}")
+                reports.append(f"## News Analysis\n{truncate(state['news_report'])}")
             if state.get("fundamentals_report"):
-                reports.append(f"## Fundamentals Analysis\n{state['fundamentals_report']}")
+                reports.append(f"## Fundamentals Analysis\n{truncate(state['fundamentals_report'])}")
             
             if not reports:
                 return {}

@@ -201,7 +201,9 @@ const App = () => {
     if (n.includes('social') || n.includes('sentiment')) return 'Gauging market sentiment and social signals...';
     if (n.includes('news')) return 'Processing latest news and insider transactions...';
     if (n.includes('fundamental')) return 'Evaluating balance sheets and financial health...';
+    if (n.includes('synchronizer')) return 'Merging parallel analyst insights...';
     if (n.includes('bull')) return 'Constructing bullish growth thesis...';
+
     if (n.includes('bear')) return 'Identifying potential risks and bearish catalysts...';
     if (n.includes('research_manager') || n.includes('research manager')) return 'Synthesizing research into investment plan...';
     if (n.includes('trader')) return 'Calculating entry, exit, and stop-loss targets...';
