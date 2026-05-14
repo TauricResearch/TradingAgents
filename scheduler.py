@@ -163,13 +163,31 @@ def _run_worker(slug: str, ticker: str, trade_date: str,
             stats = ev.get("data") or {}
     proc.wait(timeout=60)
     if stats:
+        per_tool = stats.get("tool_call_counts") or {}
+        tool_breakdown = (
+            ",".join(f"{n}={c}" for n, c in sorted(per_tool.items()))
+            if per_tool
+            else "—"
+        )
         _log(
             f"  worker {ticker}: chunks={chunk_count} exit={proc.returncode} "
             f"llm_calls={stats.get('llm_calls', '?')} "
             f"tool_calls={stats.get('tool_calls', '?')} "
             f"tokens_in={stats.get('tokens_in', '?')} "
-            f"tokens_out={stats.get('tokens_out', '?')}"
+            f"tokens_out={stats.get('tokens_out', '?')} "
+            f"tools=[{tool_breakdown}]"
         )
+        # Heuristic: every analyst is expected to call at least one tool.
+        # When tool_calls drops below the analyst count the model is
+        # likely producing reports from memory instead of real data —
+        # flag it so the operator can consider a stronger quick_model.
+        n_analysts = len(selected) if isinstance(selected, list) else 0
+        if n_analysts > 0 and stats.get("tool_calls", 0) < n_analysts:
+            _log(
+                f"  ⚠️  {ticker}: only {stats.get('tool_calls', 0)} tool calls "
+                f"for {n_analysts} analyst(s) — model may be hallucinating. "
+                f"Consider quick_model=qwen-plus."
+            )
     else:
         _log(f"  worker {ticker}: chunks={chunk_count} exit={proc.returncode}")
     if error:
