@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * alerts delete — delete an alert rule by ID.
  *
@@ -6,10 +7,10 @@
  *   trading alerts delete <id>
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../../src/lib/db.ts"
 import { deleteAlert, getAlert } from "../../lib/alerts-db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 export const alertsDeleteCommand = defineCommand({
   meta: {

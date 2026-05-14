@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Contingency buylist — watchlist items with fair value targets.
  *
@@ -11,10 +12,10 @@
  *   trading buylist --json       # machine-readable output
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
 import { gum } from "../../../scripts/lib/gum.ts"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface BuyItem {
   ticker: string

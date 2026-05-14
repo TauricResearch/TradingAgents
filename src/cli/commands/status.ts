@@ -6,9 +6,9 @@
  */
 
 import { existsSync, statSync } from "node:fs"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

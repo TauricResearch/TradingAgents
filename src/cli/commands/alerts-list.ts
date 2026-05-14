@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
+
 /**
  * alerts list — list all alert rules.
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../../src/lib/db.ts"
 import { listAlerts } from "../../lib/alerts-db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 export const alertsListCommand = defineCommand({
   meta: {

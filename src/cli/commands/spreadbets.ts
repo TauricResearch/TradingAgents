@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
+
 /**
  * Show spread bet positions.
  *
  * Usage: trading spreadbets
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface SpreadBetRow {
   ticker: string

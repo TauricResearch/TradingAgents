@@ -3,8 +3,9 @@
  *
  * Body: { account_id, balance, note? }
  */
+
+import { DatabaseFactory } from "@lib/db"
 import { Hono } from "hono"
-import { DatabaseFactory } from "../../lib/db.ts"
 
 export const portfolioBalanceRouter = new Hono()
 

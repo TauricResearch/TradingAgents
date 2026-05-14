@@ -5,7 +5,7 @@
 
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import type { PriceResult } from "../../lib/types.ts"
+import type { PriceResult } from "@lib/types"
 import { endOfToday, priceCache } from "./cache.ts"
 import { findProjectRoot } from "./utils.ts"
 

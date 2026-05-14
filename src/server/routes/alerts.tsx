@@ -4,8 +4,8 @@
  */
 
 import { Hono } from "hono"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "src/lib/settings"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import {
   listAlerts,
   getAlert,
@@ -21,12 +21,12 @@ import {
   type PriceData,
 } from "../lib/alerts-engine.ts"
 import { dispatchAlerts } from "../lib/telegram.ts"
-import type { AlertRule, TriggeredAlert } from "../lib/types.ts"
+import type { AlertRule, TriggeredAlert } from "@lib/types"
 import { AlertsContent } from "../views/alerts-view.tsx"
 
 // ── Re-exports for data layer ────────────────────────────────────────────────
 
-export type { AlertRule, TriggeredAlert } from "../lib/types.ts"
+export type { AlertRule, TriggeredAlert } from "@lib/types"
 
 // ── Router ───────────────────────────────────────────────────────────────────
 

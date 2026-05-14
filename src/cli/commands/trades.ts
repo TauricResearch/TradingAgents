@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
+
 /**
  * Show trade history.
  *
  * Usage: trading trades [ticker]
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface TradeRow {
   ticker: string

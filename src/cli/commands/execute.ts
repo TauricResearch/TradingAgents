@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Execute trade plan via IG API.
  *
@@ -12,8 +13,8 @@
  *   trading execute AAPL --analysis-id <uuid>  # link to analysis
  */
 
+import { DatabaseFactory } from "@lib/db"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
 import { IGClient } from "../../lib/ig-client.ts"
 import { calculateTradePlan, type PriceBar } from "../../lib/trade-calculator.ts"
 import {

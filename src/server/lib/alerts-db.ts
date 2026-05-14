@@ -8,8 +8,8 @@
  *   - Type args only on query(), not on prepare()
  */
 
-import { DatabaseFactory } from "../../lib/db.ts"
-import type { AlertRule } from "../../lib/types.ts"
+import { DatabaseFactory } from "@lib/db"
+import type { AlertRule } from "@lib/types"
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

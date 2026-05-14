@@ -10,9 +10,9 @@
  */
 
 import { existsSync, readFileSync } from "node:fs"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface CsvRow {
   ticker: string

@@ -1,7 +1,7 @@
 /** Portfolio data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { endOfToday, priceCache } from "./cache.ts"
 import { findProjectRoot } from "./utils.ts"
 

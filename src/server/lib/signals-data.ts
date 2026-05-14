@@ -1,7 +1,7 @@
 /** Signals data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { sanitizeForDb } from "./sanitize.ts"
 import { findProjectRoot } from "./utils.ts"
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
+
 /**
  * Show latest AI-generated signals.
  *
  * Usage: trading signals [ticker]
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface SignalRow {
   ticker: string

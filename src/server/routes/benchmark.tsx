@@ -1,7 +1,7 @@
 /** @jsxImportSource hono/jsx */
 
 import { Hono } from "hono"
-import { cfg } from "src/lib/settings"
+import { cfg } from "@lib/settings"
 import {
   computePeriodReturns,
   fetchBenchmarkPrices,

@@ -4,7 +4,7 @@
  * Renders server-side, HTMX partial refresh for table.
  */
 
-import type { AlertRule, TriggeredAlert } from "../lib/types.ts"
+import type { AlertRule, TriggeredAlert } from "@lib/types"
 
 const dot: Record<string, string> = {
   critical: "🔴",

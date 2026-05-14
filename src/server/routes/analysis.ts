@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { DatabaseFactory } from "@lib/db"
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
-import { DatabaseFactory } from "../../lib/db.ts"
 import { sanitizeForDb } from "../lib/sanitize.ts"
 
 export const analysisRouter = new Hono()

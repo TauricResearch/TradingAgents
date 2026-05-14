@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * alerts create — create a new alert rule.
  *
@@ -9,11 +10,11 @@
  *     [--severity critical] [--channel telegram]
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
+import type { AlertCondition } from "@lib/types"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../../src/lib/db.ts"
 import { createAlert } from "../../lib/alerts-db.ts"
-import { cfg } from "../../lib/settings.ts"
-import type { AlertCondition } from "../../lib/types.ts"
 
 export const alertsCreateCommand = defineCommand({
   meta: {

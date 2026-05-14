@@ -3,7 +3,7 @@
  * Required because tsconfig.server.json uses moduleResolution: bundler
  * which does not resolve relative ../.. paths to src/lib/ in TS 6.x.
  */
-declare module "src/lib/settings" {
+declare module "@lib/settings" {
   export const cfg: {
     isTestMode: boolean
     paths: {
@@ -35,7 +35,7 @@ declare module "src/lib/settings" {
   export type Config = typeof cfg
 }
 
-declare module "src/lib/types" {
+declare module "@lib/types" {
   export interface PriceResult {
     price: number | null
     currency: string
@@ -43,7 +43,7 @@ declare module "src/lib/types" {
   export type { BenchmarkPrice, PeriodReturn } from "src/server/lib/benchmark"
 }
 
-declare module "src/lib/db" {
+declare module "@lib/db" {
   import type { Database } from "bun:sqlite"
 
   export { Database }

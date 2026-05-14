@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * alerts check — run the alert matching engine.
  *
@@ -7,11 +8,11 @@
  *   trading alerts check --fire  # actually send notifications
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../../src/lib/db.ts"
 import { listAlerts, setLastTriggered } from "../../lib/alerts-db.ts"
 import { loadPriceMap, matchAlerts, tickersFromAlerts } from "../../lib/alerts-engine.ts"
-import { cfg } from "../../lib/settings.ts"
 import { dispatchAlerts } from "../../lib/telegram.ts"
 
 export const alertsCheckCommand = defineCommand({

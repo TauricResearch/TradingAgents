@@ -1,6 +1,6 @@
 /** Data builder for workflow kanban — extracted from route for reuse. */
 import { join } from "node:path"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { fetchPrice } from "./cache.ts"
 import { getHoldings } from "./hledger.ts"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "./positions.ts"

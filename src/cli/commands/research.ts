@@ -15,10 +15,10 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
 import { gum } from "../../../scripts/lib/gum.ts"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface ParsedState {
   entryPrice: number | null

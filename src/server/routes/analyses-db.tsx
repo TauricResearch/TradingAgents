@@ -1,6 +1,6 @@
 /** DB-based analysis routes: /list and /:id (numeric DB id). */
 import { Hono } from "hono"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import type { DbAnalysis } from "../lib/analysis-data.ts"
 import {
   AnalysesListView,

@@ -17,7 +17,7 @@
     "types": ["bun"],
     "baseUrl": ".",
     "paths": {
-      "src/lib/*": ["src/lib/*"]
+      "@lib/*": ["src/lib/*"]
     },
     "ignoreDeprecations": "6.0"
   },

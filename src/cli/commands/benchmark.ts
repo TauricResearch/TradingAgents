@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
+
 /**
  * Compare portfolio returns vs. a passive benchmark index.
  *
  * Usage: trading benchmark [--benchmark TICKER] [--since YYYY-MM-DD]
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../lib/settings.ts"
 
 interface PositionRow {
   ticker: string

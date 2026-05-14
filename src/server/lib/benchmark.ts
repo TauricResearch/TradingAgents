@@ -11,8 +11,8 @@
 
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { DatabaseFactory } from "../../lib/db.ts"
-import type { PriceResult } from "../../lib/types.ts"
+import { DatabaseFactory } from "@lib/db"
+import type { PriceResult } from "@lib/types"
 import { endOfToday, priceCache } from "./cache.ts"
 import { getHoldings } from "./hledger.ts"
 import { findProjectRoot } from "./utils.ts"
