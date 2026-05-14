@@ -151,26 +151,50 @@ const App = () => {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [elapsed, setElapsed] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const duration = useMemo(() => {
-    if (activeStatus && activeStatus.start_time) {
-      const start = new Date(activeStatus.start_time);
-      const now = new Date();
-      const diff = Math.floor((now - start) / 1000);
-      const mins = Math.floor(diff / 60);
-      const secs = diff % 60;
-      return `${mins}m ${secs}s`;
+  useEffect(() => {
+    let interval;
+    
+    const updateElapsed = () => {
+      if (activeStatus && activeStatus.start_time && activeStatus.status !== 'completed' && activeStatus.status !== 'error') {
+        const start = new Date(activeStatus.start_time);
+        const now = new Date();
+        const diff = Math.floor((now - start) / 1000);
+        if (diff < 0) return; // Guard against clock skew
+        const mins = Math.floor(diff / 60);
+        const secs = diff % 60;
+        setElapsed(`${mins}m ${secs}s`);
+      } else if (runDetail && runDetail.start_time && runDetail.end_time) {
+        const start = new Date(runDetail.start_time);
+        const end = new Date(runDetail.end_time);
+        const diff = Math.floor((end - start) / 1000);
+        const mins = Math.floor(diff / 60);
+        const secs = diff % 60;
+        setElapsed(`${mins}m ${secs}s`);
+      } else if (activeStatus?.status === 'completed' || activeStatus?.status === 'error') {
+        // Keep the final duration if we just finished
+        if (activeStatus.start_time && activeStatus.end_time) {
+           const start = new Date(activeStatus.start_time);
+           const end = new Date(activeStatus.end_time);
+           const diff = Math.floor((end - start) / 1000);
+           const mins = Math.floor(diff / 60);
+           const secs = diff % 60;
+           setElapsed(`${mins}m ${secs}s`);
+        }
+      } else {
+        setElapsed(null);
+      }
+    };
+
+    updateElapsed();
+
+    if (activeStatus && activeStatus.status !== 'completed' && activeStatus.status !== 'error') {
+      interval = setInterval(updateElapsed, 1000);
     }
-    if (runDetail && runDetail.start_time && runDetail.end_time) {
-      const start = new Date(runDetail.start_time);
-      const end = new Date(runDetail.end_time);
-      const diff = Math.floor((end - start) / 1000);
-      const mins = Math.floor(diff / 60);
-      const secs = diff % 60;
-      return `${mins}m ${secs}s`;
-    }
-    return null;
+
+    return () => clearInterval(interval);
   }, [activeStatus, runDetail]);
 
   const commentary = useMemo(() => {
@@ -541,13 +565,13 @@ const App = () => {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '20px' }}>
-              {duration && (
+              {elapsed && (
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
                     <Clock size={10} /> DURATION
                   </div>
-                  <div style={{ color: '#cbd5e1', fontSize: '14px', fontWeight: 'bold' }}>
-                    {duration}
+                  <div style={{ color: activeStatus && activeStatus.status !== 'completed' && activeStatus.status !== 'error' ? '#eab308' : '#cbd5e1', fontSize: '14px', fontWeight: 'bold' }}>
+                    {elapsed}
                   </div>
                 </div>
               )}
