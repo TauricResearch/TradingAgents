@@ -11,6 +11,21 @@
 - **NEVER modify AGENTS.md** without explicit user authorization
 - **ALWAYS ask** before modifying or removing user data
 
+## CRITICAL FILES
+
+These files are core infrastructure. Modification requires user authorization.
+
+| File | Why protected |
+|------|---------------|
+| `justfile` | Quality guard — `just check` enforces biome + tsc + DB gate before any commit |
+| `biome.json` | All linting fails if this is malformed |
+| `tsconfig.server.json` | Type safety gate — errors go undetected if paths are wrong |
+| `playbooks/conventions-playbook.md` | Conventions document — breaking it allows barnacles to return |
+| `playbooks/td-playbook.md` | Multi-agent coordination protocol — corruption causes chaos |
+| `src/server/lib/db.ts` | All SQL access — corruption breaks every database operation |
+| `src/server/lib/schema.sql` | Schema drift causes data corruption |
+| `pyproject.toml` | Python dependency tree — corruption breaks the trading pipeline |
+
 ---
 
 ## Session Startup

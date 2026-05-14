@@ -251,7 +251,7 @@ in `~/.tradingagents/logs/<TICKER>/<DATE>/`.
 | `PORTFOLIO_DB` | `./portfolio.db` | `src/server/index.tsx` |
 | `TRADINGAGENTS_MEMORY_LOG_PATH` | `~/.tradingagents/memory/trading_memory.md` | `tradingagents` package |
 | `TRADINGAGENTS_CACHE_DIR` | `~/.tradingagents/cache` | `tradingagents` package |
-| `HLEDGER_FILE` | `~/.hledger.journal` | `src/server/lib/hledger.ts`, Justfile |
+| `HLEDGER_FILE` | `~/.hledger.journal` | `src/server/lib/hledger.ts`, justfile |
 | `TEST_MODE` | `0` | Set to `1` to use `test_portfolio.db` (isolated test environment) |
 | `TEST_PORTFOLIO_DB` | `./test_portfolio.db` | Path to test SQLite DB |
 | `OPENAI_API_KEY` | — | LLM provider |
@@ -411,7 +411,7 @@ briefs/                 Work proposals (archive, reference)
 debriefs/               Post-work retrospectives
 playbooks/              Tool conventions (sqlite, hledger, td, etc.)
 tests/                  Python test suite (pytest -m smoke)
-Justfile                Unified task runner (just check, just lint, etc.)
+justfile                Unified task runner (just check, just lint, etc.)
 ```
 
 ---
