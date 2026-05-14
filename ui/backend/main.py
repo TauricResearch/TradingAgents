@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.agents.utils.memory import TradingMemoryLog
 
 app = FastAPI(title="TradingAgents Dashboard API")
 
@@ -20,6 +21,8 @@ app.add_middleware(
 )
 
 RESULTS_DIR = Path(DEFAULT_CONFIG.get("results_dir", "results"))
+
+MEMORY_LOG_PATH = Path(DEFAULT_CONFIG.get("memory_log_path", os.path.expanduser("~/.tradingagents/memory/trading_memory.md")))
 
 @app.get("/api/runs")
 async def list_runs() -> List[Dict[str, Any]]:
@@ -54,6 +57,38 @@ async def get_run_detail(ticker: str, date: str):
         
     with open(log_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+@app.get("/api/stats")
+async def get_stats() -> Dict[str, Any]:
+    """Aggregate performance metrics from memory logs."""
+    memory_log = TradingMemoryLog(config={"memory_log_path": str(MEMORY_LOG_PATH)})
+    entries = memory_log.load_entries()
+    
+    resolved = [e for e in entries if not e.get("pending")]
+    
+    total_trades = len(resolved)
+    wins = 0
+    for e in resolved:
+        try:
+            # Alpha is formatted like "+1.5%" or "-2.0%"
+            alpha_val = float(e["alpha"].replace('%', ''))
+            if alpha_val > 0:
+                wins += 1
+        except (ValueError, TypeError, KeyError):
+            pass
+            
+    return {
+        "total_trades": total_trades,
+        "win_rate": (wins / total_trades * 100) if total_trades > 0 else 0,
+        "history": resolved
+    }
+
+@app.get("/api/reflections")
+async def get_reflections() -> List[Dict[str, Any]]:
+    """Retrieve all logged reflections."""
+    memory_log = TradingMemoryLog(config={"memory_log_path": str(MEMORY_LOG_PATH)})
+    entries = memory_log.load_entries()
+    return [e for e in entries if e.get("reflection")]
 
 @app.get("/api/health")
 async def health_check():

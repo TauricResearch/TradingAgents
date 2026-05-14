@@ -4,6 +4,8 @@ import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight } from 
 
 const App = () => {
   const [runs, setRuns] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [reflections, setReflections] = useState([]);
   const [selectedRun, setSelectedRun] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,9 @@ const App = () => {
         setLoading(false);
       })
       .catch(err => console.error("Error fetching runs:", err));
+      
+    fetch('/api/stats').then(res => res.json()).then(setStats).catch(err => console.error("Error fetching stats:", err));
+    fetch('/api/reflections').then(res => res.json()).then(setReflections).catch(err => console.error("Error fetching reflections:", err));
   }, []);
 
   useEffect(() => {
@@ -37,6 +42,20 @@ const App = () => {
         <div style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Activity color="#3b82f6" />
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>TradingAgents</h1>
+        </div>
+        
+        <div style={{ padding: '15px', borderBottom: '1px solid #1e293b' }}>
+          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PERFORMANCE</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Total Trades</span>
+            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{stats?.total_trades || 0}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Win Rate</span>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: stats?.win_rate >= 50 ? '#10b981' : '#ef4444' }}>
+              {stats?.win_rate?.toFixed(1) || 0}%
+            </span>
+          </div>
         </div>
         
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
@@ -111,6 +130,27 @@ const App = () => {
               </div>
             </section>
           </div>
+
+          {/* Reflections Section */}
+          {reflections.length > 0 && (
+            <div style={{ marginTop: '20px' }}>
+              <section style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
+                <h3 style={{ marginTop: 0, fontSize: '14px', color: '#a855f7', borderBottom: '1px solid #1e293b', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <History size={16} /> HISTORICAL REFLECTIONS
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {reflections.slice(0, 5).map((ref, idx) => (
+                    <div key={idx} style={{ padding: '12px', background: '#1e293b', borderRadius: '8px', borderLeft: '3px solid #a855f7' }}>
+                      <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold' }}>
+                        {ref.ticker} • {ref.date} • {ref.alpha} Alpha • {ref.holding} holding
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6' }}>{ref.reflection}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
         </main>
       </div>
     </div>
