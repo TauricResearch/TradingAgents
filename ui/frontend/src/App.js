@@ -258,7 +258,11 @@ const App = () => {
 
   const triggerAnalysis = () => {
     setIsTriggering(true);
-    fetch('/api/jobs/trigger', { method: 'POST' })
+    fetch('/api/jobs/trigger', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: portfolio })
+    })
     .then(res => {
       if (!res.ok) {
         return res.json().then(err => { throw new Error(err.detail || 'Failed to trigger job') });

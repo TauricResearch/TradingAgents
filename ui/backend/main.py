@@ -122,13 +122,16 @@ async def get_portfolio_config():
     return {"tickers": PORTFOLIO_PATH.read_text().strip()}
 
 @app.post("/api/jobs/trigger")
-async def trigger_job():
+async def trigger_job(data: Optional[Dict[str, str]] = None):
     """Trigger a manual trade analysis job in Kubernetes."""
     global current_run_status
     
+    requested_tickers = data.get("tickers") if data else None
+    display_ticker = requested_tickers if requested_tickers else "Portfolio"
+
     # 1. Set initial status to triggered so UI knows something is happening immediately
     current_run_status.update({
-        "ticker": "Portfolio",
+        "ticker": display_ticker,
         "date": datetime.now().strftime("%Y-%m-%d"),
         "active_node": "Triggering Kubernetes Job...",
         "status": "triggered",
@@ -152,11 +155,21 @@ async def trigger_job():
         
         # 3. Define the Job object based on CronJob template
         job_name = f"manual-ui-run-{int(time.time())}"
+        
+        # Copy the spec and override args if specific tickers were requested
+        job_spec = cron_job.spec.job_template.spec
+        if requested_tickers:
+            # Override the command arguments to use the specific tickers
+            # Deep copy to avoid mutating the cron_job object from cache if any
+            for container in job_spec.containers:
+                if container.name == "trader":
+                    container.args = ["portfolio", requested_tickers]
+
         job = k8s_client.V1Job(
             api_version="batch/v1",
             kind="Job",
             metadata=k8s_client.V1ObjectMeta(name=job_name),
-            spec=cron_job.spec.job_template.spec
+            spec=job_spec
         )
         
         # 4. Create the Job
@@ -164,7 +177,7 @@ async def trigger_job():
         
         current_run_status["active_node"] = "Job Created in K8s"
         current_run_status["error"] = None # Clear any previous error
-        return {"status": "triggered", "job_name": job_name}
+        return {"status": "triggered", "job_name": job_name, "tickers": requested_tickers}
     except Exception as e:
         current_run_status["status"] = "error"
         current_run_status["active_node"] = "K8s Error"
