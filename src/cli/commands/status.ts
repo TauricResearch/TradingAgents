@@ -6,9 +6,9 @@
  */
 
 import { existsSync, statSync } from "node:fs"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
 
 function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -33,7 +33,7 @@ export const statusCommand = defineCommand({
 
     let serverRunning = false
     try {
-      const resp = await fetch("http://localhost:3000/", {
+      const resp = await fetch(`http://localhost:${cfg.app.dashboardPort}/`, {
         signal: AbortSignal.timeout(2000),
       })
       serverRunning = resp.status === 200
@@ -72,7 +72,9 @@ export const statusCommand = defineCommand({
     console.log("")
 
     console.log("Server")
-    console.log(`  Status:           ${serverRunning ? "✓ Running on :3000" : "✗ Not running"}`)
+    console.log(
+      `  Status:           ${serverRunning ? `✓ Running on :${cfg.app.dashboardPort}` : "✗ Not running"}`,
+    )
     console.log("")
 
     console.log("Database")

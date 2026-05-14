@@ -14,7 +14,12 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "types": ["bun"]
+    "types": ["bun"],
+    "baseUrl": ".",
+    "paths": {
+      "@lib/*": ["src/lib/*"]
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/server/**/*.ts", "src/server/**/*.tsx"]
 }

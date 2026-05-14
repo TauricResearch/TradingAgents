@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { SignalAccuracy, PostMortem, TickerCorrelation } from "../lib/feedback-data.ts"
+import type { SignalAccuracy, PostMortem, TickerCorrelation } from "../lib/feedback.ts"
 
 // ── Accuracy panel ──────────────────────────────────────────────────────────────
 

@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
+
 /**
  * Show watchlist — prospects being tracked but not owned.
  *
  * Usage: trading watchlist
  */
 
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
 
 interface WatchlistRow {
   ticker: string

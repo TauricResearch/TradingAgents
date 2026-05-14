@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 /**
- * Import positions from CSV.
+ * Import positions from CSV. DEPRECATED — use 'trading data import' instead.
  *
  * Expected CSV format:
  *   ticker,exchange,platform,quantity,avg_cost,entry_date
@@ -10,9 +10,9 @@
  */
 
 import { existsSync, readFileSync } from "node:fs"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
 
 interface CsvRow {
   ticker: string
@@ -95,6 +95,9 @@ export const importCommand = defineCommand({
     },
   },
   run: ({ args }) => {
+    console.warn(
+      "\n⚠️  DEPRECATED: 'trading import' is deprecated. Use 'trading data import' instead.\n",
+    )
     const filePath = args.file
     if (!existsSync(filePath)) {
       console.error(`❌ File not found: ${filePath}`)

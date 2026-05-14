@@ -7,9 +7,9 @@
  */
 
 import { writeFileSync } from "node:fs"
+import { DatabaseFactory } from "@lib/db"
+import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
 
 interface PositionRow {
   ticker: string
@@ -73,6 +73,9 @@ export const exportCommand = defineCommand({
     },
   },
   run: ({ args }) => {
+    console.warn(
+      "\n⚠️  DEPRECATED: 'trading export' is deprecated. Use 'trading data export' instead.\n",
+    )
     const format = args.format.toLowerCase()
     if (format !== "json" && format !== "csv") {
       console.error(`❌ Unknown format: ${format}. Use 'json' or 'csv'`)

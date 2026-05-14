@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { PeriodReturn } from "../lib/benchmark-data.ts"
+import type { PeriodReturn } from "../lib/benchmark.ts"
 
 // ── Benchmark table ───────────────────────────────────────────────────────────
 

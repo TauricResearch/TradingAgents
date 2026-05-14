@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import { STAGES, type Prospect } from "../lib/prospects-data.ts"
+import { STAGES, type Prospect } from "../lib/prospects-db.ts"
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 

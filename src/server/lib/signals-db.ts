@@ -1,9 +1,9 @@
 /** Signals data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { sanitizeForDb } from "./sanitize.ts"
-import { findProjectRoot } from "./utils.ts"
+import { projectRoot, venvPython } from "./subprocess.ts"
 
 export interface Signal {
   id?: number
@@ -85,7 +85,7 @@ export async function batchFetchPricesWithHistory(
   const results = new Map<string, PriceWithHistory>()
   if (tickers.length === 0) return results
 
-  const root = findProjectRoot()
+  const root = projectRoot()
   const script = join(root, "scripts", "py", "get_price.py")
 
   // Fetch in parallel batches of 4 (yfinance is the bottleneck)
@@ -96,7 +96,7 @@ export async function batchFetchPricesWithHistory(
       batch.map(
         (ticker) =>
           new Promise<[string, PriceWithHistory]>((resolve) => {
-            const child = spawn("python3", [script, ticker], {
+            const child = spawn(venvPython(), [script, ticker], {
               env: { ...process.env, PYTHONUNBUFFERED: "1" },
               timeout: 12_000,
             })

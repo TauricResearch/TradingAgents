@@ -6,7 +6,7 @@ import {
   getConfigPath,
   loadRules,
   loadRulesForPlatform,
-} from "../lib/governance-data.ts"
+} from "../lib/governance.ts"
 import { RulesTable, ViolationsPanel } from "../views/governance-view.tsx"
 
 export const governanceRouter = new Hono()

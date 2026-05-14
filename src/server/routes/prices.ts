@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process"
 import { join } from "node:path"
 import { Hono } from "hono"
-import { findProjectRoot } from "../lib/utils.ts"
+import { projectRoot, venvPython } from "../lib/subprocess.ts"
 
 export const pricesRouter = new Hono()
 
@@ -18,7 +18,7 @@ export const pricesRouter = new Hono()
 pricesRouter.get("/:ticker", async (c) => {
   const ticker = c.req.param("ticker")
 
-  const root = findProjectRoot()
+  const root = projectRoot()
   const script = join(root, "scripts", "py", "get_price.py")
 
   const result = await runPython(script, ticker)
@@ -59,7 +59,7 @@ pricesRouter.post("/batch", async (c) => {
 
   const results = await Promise.all(
     tickers.map(async (t) => {
-      const root = findProjectRoot()
+      const root = projectRoot()
       const script = join(root, "scripts", "py", "get_price.py")
       return (await runPython(script, t)) ?? { ticker: t, price: null, error: "lookup failed" }
     }),
@@ -84,7 +84,7 @@ interface PriceResult {
 
 function runPython(script: string, ticker: string): Promise<PriceResult | null> {
   return new Promise((resolve) => {
-    const child = spawn("python3", [script, ticker], {
+    const child = spawn(venvPython(), [script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
       timeout: 15_000, // 15s max
     })

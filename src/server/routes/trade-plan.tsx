@@ -6,7 +6,7 @@
  */
 
 import { Hono } from "hono"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { calculateTradePlan, type PriceBar } from "../../lib/trade-calculator.ts"
 import { TradePlanView } from "../views/trade-plan.tsx"
 

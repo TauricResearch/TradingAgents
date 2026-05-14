@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/07/schema#",
+  "description": "TradingAgents Dashboard — default configuration values. All values can be overridden by environment variables.",
+  "paths": {
+    "resultsDir": ".tradingagents/logs",
+    "positionsDir": ".tradingagents/positions",
+    "postMortemsDir": ".tradingagents/post-mortems",
+    "decisionsDir": ".tradingagents/decisions",
+    "hledgerJournal": ".hledger.journal",
+    "testHledgerJournal": ".tradingagents/test_hledger.journal",
+    "memoryLog": ".tradingagents/memory/trading_memory.md",
+    "cacheDir": ".tradingagents/cache"
+  },
+  "defaults": {
+    "benchmarkTicker": "VWCE.DE",
+    "dashboardPort": "3000",
+    "portfolioDb": "portfolio.db",
+    "testPortfolioDb": "test_portfolio.db"
+  },
+  "trading": {
+    "defaultPlatform": "ig",
+    "defaultMode": "shares",
+    "defaultAccountBalance": 50000,
+    "defaultRiskPerTrade": 0.02
+  },
+  "timeouts": {
+    "analysisIdleSeconds": 240
+  }
+}

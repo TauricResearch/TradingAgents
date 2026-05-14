@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { CashBreakdown } from "../../lib/portfolio-intel-data.ts"
+import type { CashBreakdown } from "../../lib/intel-types.ts"
 import { fmtCommas } from "../../lib/markup.ts"
 
 export function CashBreakdownPanel({ breakdown }: { breakdown: CashBreakdown | null }) {

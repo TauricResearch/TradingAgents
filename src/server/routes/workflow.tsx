@@ -16,8 +16,8 @@
  * Price cache: daily (expires at midnight UTC) — shared with exits.ts via ../lib/cache.ts.
  */
 import { Hono } from "hono"
-import { DatabaseFactory } from "../../lib/db.ts"
-import { buildWorkflowData } from "../lib/workflow-data.ts"
+import { DatabaseFactory } from "@lib/db"
+import { buildWorkflowData } from "../lib/workflow-db.ts"
 import { WorkflowKanban } from "../views/workflow-kanban.tsx"
 
 export const workflowRouter = new Hono()

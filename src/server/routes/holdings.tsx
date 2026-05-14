@@ -2,7 +2,7 @@
 
 import { Hono } from "hono"
 import { PositionsTable } from "../views/holdings.tsx"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { getAllocation, getHoldings, getPrices } from "../lib/hledger.ts"
 import { loadPlan } from "../lib/positions.ts"
 

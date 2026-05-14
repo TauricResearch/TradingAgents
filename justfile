@@ -21,160 +21,27 @@ info:
     glow - "$tmp" 2>/dev/null || cat "$tmp"
     rm -f "$tmp"
 
-# Shortcut reference: just <letter> → group menu
-[group("meta")]
-shortcuts:
-    #!/usr/bin/env bash
-    echo ""
-    echo "══════════════════════════════════════════════════════════════════════"
-    echo "  NAVIGATION SHORTCUTS  —  just <letter> to see a group's recipes"
-    echo "══════════════════════════════════════════════════════════════════════"
-    echo ""
-    printf "  %-6s  %-28s  %s\n" "Letter" "Group" "Purpose"
-    echo "  ────────────────────────────────────────────────────────────────────"
-    printf "  %-6s  %-28s  %s\n" "b"     "Bun"              "TypeScript server tooling"
-    printf "  %-6s  %-28s  %s\n" "p"     "Python"           "tradingagents package, analysis"
-    printf "  %-6s  %-28s  %s\n" "db"    "Database"         "SQLite backup, stats, maintenance"
-    printf "  %-6s  %-28s  %s\n" "r"     "Run"              "Business operations (analyze, sync)"
-    printf "  %-6s  %-28s  %s\n" "s"     "Seed"             "Database seeding"
-    printf "  %-6s  %-28s  %s\n" "x"     "Test"             "Test DB, development tools"
-    printf "  %-6s  %-28s  %s\n" "d"     "Diagrams"         "Render .dot / .mmd to .svg"
-    printf "  %-6s  %-28s  %s\n" "pr"    "PR"               "GitHub pull request helpers"
-    printf "  %-6s  %-28s  %s\n" "hk"    "Hooks"            "Git workflow automation"
-    printf "  %-6s  %-28s  %s\n" "gn"    "GitNexus"         "Code knowledge graph"
-    printf "  %-6s  %-28s  %s\n" "srv"   "Server"           "Dashboard lifecycle"
-    printf "  %-6s  %-28s  %s\n" "t"     "td"               "Task management"
-    printf "  %-6s  %-28s  %s\n" "m"     "Meta"             "Project info, help, state"
-    printf "  %-6s  %-28s  %s\n" "h"     "hLedger"          "Plain-text accounting"
-    printf "  %-6s  %-28s  %s\n" "lab"   "Lab"              "Terminal experiments"
-    echo ""
-    echo "  Also: just info  — full project state"
-    echo "        just help  — project orientation guide"
-    echo ""
+# ── Knowledge Registry: briefs, debriefs, playbook indexes ───────────────
+#   Usage: just reg-list <briefs|debriefs|decisions|docs|lexicon>
+#         just reg-sync [--fix]
+#         just reg-mine [--apply]
+#         just reg-import [--apply]
 
-# ── Registry: briefs, debriefs, playbook indexes (JSONL + jq) ────────────────
-#   Query the project's knowledge base. All indexes are JSONL: one JSON object per line.
-#   See: src/server/lib/registry-types.ts for schema definitions.
+[group("kr")]
+reg-list REGISTRY:
+    bun scripts/reg.ts list "{{ REGISTRY }}"
 
-# List all decisions (human-readable)
-[group("reg")]
-reg-decisions:
-    bun scripts/reg-list.ts decisions
+[group("kr")]
+reg-sync FIX="":
+    bun scripts/reg.ts sync {{ FIX }}
 
-# List all briefs (human-readable)
-[group("reg")]
-reg-briefs:
-    bun scripts/reg-list.ts briefs
-
-# List all debriefs (human-readable)
-[group("reg")]
-reg-debriefs:
-    bun scripts/reg-list.ts debriefs
-
-# List project playbooks that are mining candidates (portable patterns to extract)
-[group("reg")]
-reg-mining:
-    @jq -r 'select(.meta.mining_candidate == true) | "\(.file) — \(.meta.mining_note)"' playbooks/REGISTRY.jsonl
-
-# List all docs (human-readable)
-[group("reg")]
-reg-docs:
-    bun scripts/reg-list.ts docs
-
-# List conceptual lexicon (terms, heuristics, definitions)
-[group("reg")]
-reg-lexicon:
-    bun scripts/reg-list.ts lexicon
-
-[group("reg")]
-ctx-lexicon:
-    bun scripts/ctx-lexicon-list.ts
-
-[group("reg")]
-ctx-lexicon-type type="term":
-    bun scripts/ctx-lexicon-list.ts --type={{ type }}
-
-[group("reg")]
-ctx-lexicon-status stat="active":
-    bun scripts/ctx-lexicon-list.ts --status={{ stat }}
-
-[group("reg")]
-ctx-lexicon-search query:
-    bun scripts/ctx-lexicon-list.ts --search={{ query }}
-
-[group("reg")]
-ctx-lexicon-stats:
-    bun scripts/ctx-lexicon-list.ts --stats
-
-[group("reg")]
-ctx-lexicon-convert:
-    bun scripts/ctx-lexicon-convert.ts
-
-[group("reg")]
-ctx-lexicon-incorporate:
-    bun scripts/ctx-lexicon-incorporate.ts
-
-# Show consolidated project state (briefs, debriefs, tasks, docs)
-[group("reg")]
-reg-state:
-    bun scripts/reg-state.ts
-
-# Validate all registries (required fields, no duplicates)
-[group("reg")]
-reg-check:
-    bun scripts/reg-check.ts
-
-# Check all indexes are up-to-date (files vs entries)
-[group("reg")]
-reg-sync:
-    bun scripts/reg-sync.ts --all
-
-# Fix stale/missing index entries (regenerate from disk)
-[group("reg")]
-reg-sync-fix:
-    bun scripts/reg-sync.ts --all --fix
-
-# Mine a playbook from project to canonicals (dry-run by default, --apply to confirm)
-[group("reg")]
+[group("kr")]
 reg-mine:
     bun scripts/reg-mine.ts
 
-# Import a canonical playbook into the project (dry-run: add --apply to confirm)
-[group("reg")]
+[group("kr")]
 reg-import:
     bun scripts/reg-import.ts
-
-# Promote a playbook — see what would be stripped (add --apply to delegate to reg-mine)
-[group("reg")]
-reg-promote:
-    bun scripts/reg-promote.ts
-
-# Sync script index: list all scripts with portability classification
-[group("reg")]
-reg-scripts:
-    bun scripts/reg-sync-scripts.ts
-
-# Sync script index — regenerate from disk
-[group("reg")]
-reg-scripts-fix:
-    bun scripts/reg-sync-scripts.ts --fix
-
-# Scan for barnacles (stale conventions, misdirecting docs)
-[group("reg")]
-barnacle-scan:
-    bun scripts/barnacle-scan.ts
-
-# Watch for barnacles (runs scan every N minutes, logs to ~/.tradingagents/barnacle-watch.log)
-[group("reg")]
-barnacle-watch:
-    @echo "{{ YELLOW }}⏱{{ NORMAL }} Starting barnacle watcher (interval: 60 min)"
-    @echo "{{ YELLOW }}⏱{{ NORMAL }} Press Ctrl+C to stop. Logs: ~/.tradingagents/barnacle-watch.log"
-    while true; do \
-        echo "[$(date -Iseconds)] Scanning..." >> ~/.tradingagents/barnacle-watch.log; \
-        bun scripts/barnacle-scan.ts --mechanical >> ~/.tradingagents/barnacle-watch.log 2>&1; \
-        echo "---" >> ~/.tradingagents/barnacle-watch.log; \
-        sleep $((60 * 60)); \
-    done
 
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments
@@ -198,8 +65,10 @@ check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
-    bun scripts/reg-sync.ts --all
-    bun scripts/td-orphans.ts || true  # warning only — do not block
+    bun scripts/check-import-boundaries.ts
+    bun scripts/reg.ts enrich --apply
+    bun scripts/reg.ts sync --fix
+    bun scripts/td-orphans.ts
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]
@@ -220,6 +89,16 @@ lint:
 [group("bun")]
 lint-fix:
     bunx biome check . --write
+
+# Show portfolio holdings (LIVE, uses hledger + SQLite via dashboard)
+[group("bun")]
+portfolio-intel:
+    bun scripts/portfolio-intel.ts
+
+# Show portfolio holdings (TEST mode)
+[group("bun")]
+portfolio-intel-test:
+    TA_DASHBOARD_PORT=3000 bun scripts/portfolio-intel.ts test
 
 # Start dashboard server (LIVE mode, port 3000)
 [group("bun")]
@@ -247,11 +126,6 @@ run:
 [group("python")]
 run-cli:
     source .venv/bin/activate && python -m cli.main
-
-# Run analysis on a ticker
-[group("python")]
-analyze:
-    source .venv/bin/activate && python scripts/py/analyze.py 'SPY' --date today --debates 1
 
 # Generate LLM summary for a ticker (or all analyses)
 [group("python")]
@@ -346,90 +220,29 @@ wt-list:
 wt-delete NAME:
     bun scripts/worktree-init.ts {{ NAME }} --delete
 
-# ── Agent: Multi-Agent Coordination ─────────────────────────────────────────
-#   Scripts live in scripts/agent-*.ts. These just recipes are the thin facade.
-#   Full protocol: playbooks/td-playbook.md
+# ── Agent: Session orientation (minimal — replaces full agent-ceremony) ────────
+#   S08 brief: agent scripts archived. Use 'td --help' for task management.
+#   (agent-*.ts scripts moved to archive/)
 
-# Full session startup: git state + td session + what's in flight
+# Orientation: branch, git status, last commit, in-flight tasks
 [group("agent")]
-agent-orient:
-    bun scripts/agent-orient.ts
-
-# Compact orientation: one line per section
-[group("agent")]
-agent-orient-c:
-    bun scripts/agent-orient.ts --compact
-
-# What should I work on next?
-[group("agent")]
-agent-next:
-    bun scripts/agent-orient.ts --next
-
-# Claim a task before touching any files (checks collision, labels session)
-[group("agent")]
-agent-claim ID:
-    bun scripts/agent-claim.ts {{ ID }}
-
-# Force-claim (bypass collision check — use when taking over from another agent)
-[group("agent")]
-agent-claim-force ID:
-    bun scripts/agent-claim.ts {{ ID }} --force
-
-# Log progress to a task
-[group("agent")]
-agent-log ID *MSG:
-    bun scripts/agent-log.ts {{ ID }} {{ MSG }}
-
-# Log a blocker
-[group("agent")]
-agent-blocked ID *MSG:
-    bun scripts/agent-log.ts {{ ID }} {{ MSG }} --blocked
-
-# Structured handoff: done/remaining/decisions captured before closing
-[group("agent")]
-agent-handoff ID:
-    bun scripts/agent-handoff.ts {{ ID }} --note "handoff"
-
-# Full handoff with explicit done/remaining
-[group("agent")]
-agent-handoff-full ID:
+orient:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Enter done items (one per line, empty to finish):"
-    done_file=$(mktemp)
-    while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$done_file"; done
-    echo "Enter remaining items (one per line, empty to finish):"
-    remaining_file=$(mktemp)
-    while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$remaining_file"; done
-    bun scripts/agent-handoff.ts {{ ID }} --done @"$done_file" --remaining @"$remaining_file"
-    rm -f "$done_file" "$remaining_file"
-
-# Sync state: git vs main + file collisions
-[group("agent")]
-agent-sync:
-    bun scripts/agent-sync.ts
-
-# Show file collisions only
-[group("agent")]
-agent-collisions:
-    bun scripts/agent-sync.ts --collisions
-
-# End session cleanly: handoff all in-progress tasks, clear claims
-[group("agent")]
-agent-end:
-    @echo "Checking in-progress tasks..."
-    @td list --status in_progress 2>/dev/null | head -20
-    @echo ""
-    @echo "Run handoffs manually, then: td ws handoff && td ws end"
-    @echo "Full guide: playbooks/td-playbook.md"
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
+    echo "Branch: $branch"
+    echo ""
+    git status --short
+    echo ""
+    last=$(git log -1 --format="%cr (%ci)" 2>/dev/null || echo "unknown")
+    echo "Last commit: $last"
+    echo ""
+    td current 2>/dev/null | head -5 || true
+    echo ""
+    td list --status in_progress 2>/dev/null | grep -E "^  td-" | head -10 || echo "  (no in-progress tasks)"
 
 # ── Run: business operations ────────────────────────────────────────────────
 #   Core day-to-day operations. Ordered by frequency of use.
-
-# Run analysis on TKA.DE (default test ticker)
-[group("run")]
-analyze-tka:
-    just analyze
 
 # Show portfolio holdings via CLI (SQLite only, no server required)
 [group("run")]
@@ -441,9 +254,6 @@ portfolio:
 alerts:
     bun run src/cli/main.ts alerts
 
-check-alerts:
-    bun scripts/check-alerts.ts
-
 # Show contingency buylist — watchlist items with fair value targets
 [group("run")]
 buylist:
@@ -454,41 +264,15 @@ buylist:
 research:
     bun run src/cli/main.ts research SPY
 
-# Show portfolio holdings (LIVE, uses hledger + SQLite via dashboard)
-[group("run")]
-portfolio-intel:
-    bun scripts/portfolio-intel.ts
-
-# Show portfolio holdings (TEST mode)
-[group("run")]
-portfolio-intel-test:
-    TA_DASHBOARD_PORT=3000 bun scripts/portfolio-intel.ts test
-
-# Sync prices for all open positions (catch-up latest)
-[group("run")]
-sync-prices:
-    bun run scripts/sync-prices.ts
-
-# Full sync: gap fill + catch-up for all open positions
-[group("run")]
-sync-prices-all:
-    bun run scripts/sync-prices.ts --all
-
-# Sync prices for a single ticker: TICKER=AAPL just sync-prices-ticker
-[group("run")]
-sync-prices-ticker:
-    @if [ -z "${TICKER}" ]; then echo "Usage: TICKER=AAPL just sync-prices-ticker"; exit 1; fi
-    bun scripts/sync-prices.ts --ticker "${TICKER}"
-
-# Seed LIVE SQLite database (positions, signals, analyses, watchlist, prices)
-[group("run")]
-seed-db:
-    bun scripts/seed_database.ts
-
 # Unified trading CLI — generate trade plan for a ticker
 [group("run")]
 trading:
     bun run trading plan SPY --platform ig --account 50000 --risk 0.02
+
+# Run analysis on a ticker (uses analyze_stream.py)
+[group("run")]
+analyze:
+    source .venv/bin/activate && python scripts/py/analyze_stream.py 'SPY' --date today --debates 1
 
 # ── Database ───────────────────────────────────────────────────────────────
 #   Backup, restore, and maintenance.
@@ -545,6 +329,22 @@ db-reset-test:
     TEST_MODE=1 bash scripts/init-test-db.sh --reset
     @echo "{{ GREEN }}✓{{ NORMAL }} TEST database reset. Run: just seed-db-test"
 
+# Sync prices for all open positions (catch-up latest)
+[group("db")]
+sync-prices:
+    bun run scripts/sync-prices.ts
+
+# Full sync: gap fill + catch-up for all open positions
+[group("db")]
+sync-prices-all:
+    bun run scripts/sync-prices.ts --all
+
+# Sync prices for a single ticker: TICKER=AAPL just sync-prices-ticker
+[group("db")]
+sync-prices-ticker:
+    @if [ -z "${TICKER}" ]; then echo "Usage: TICKER=AAPL just sync-prices-ticker"; exit 1; fi
+    bun scripts/sync-prices.ts --ticker "${TICKER}"
+
 # ── Seed: database seeding variants ────────────────────────────────────────
 #   Partial seeding for focused reset. Less frequently used than run recipes.
 
@@ -567,6 +367,11 @@ seed-db-exit-plans:
 [group("seed")]
 seed-db-prices:
     bun scripts/seed_database.ts --prices
+
+# Seed LIVE SQLite database (positions, signals, analyses, watchlist, prices)
+[group("seed")]
+seed-db:
+    bun scripts/seed_database.ts
 
 # Seed TEST SQLite database
 [group("seed")]
@@ -690,30 +495,16 @@ gn-context SYM:
 gn-impact SYM:
     gitnexus impact "{{ SYM }}" --direction upstream --repo TradingAgents
 
-# Map uncommitted changes to affected symbols and flows
-[group("gn")]
-gn-changes:
-    gitnexus detect-changes --scope unstaged --repo TradingAgents
-
-# Raw Cypher query against the knowledge graph
-[group("gn")]
-gn-cypher QUERY:
-    gitnexus cypher "{{ QUERY }}" --repo TradingAgents
-
 # Re-index the repo (run after significant code changes)
 [group("gn")]
 gn-analyze:
     gitnexus analyze --force .
 
-# Export symbol impact graph to DOT/SVG (writes docs/diagrams/gn-impact-<SYM>.dot)
+# Export symbol/file impact graph to DOT/SVG (--symbol or --file required)
 [group("gn")]
-gn-graph-symbol SYM:
-    bun scripts/gitnexus-to-dot.ts --symbol {{ SYM }} --depth 1 --render
-
-# Export file module graph to DOT/SVG (writes docs/diagrams/gn-file-<FILE>.dot)
-[group("gn")]
-gn-graph-file FILE:
-    bun scripts/gitnexus-to-dot.ts --file {{ FILE }} --render
+gn-graph SYM-or-FILE:
+    bun scripts/gitnexus-to-dot.ts --symbol {{ SYM-or-FILE }} --depth 1 --render || \
+    bun scripts/gitnexus-to-dot.ts --file {{ SYM-or-FILE }} --render
 
 # Generate key GitNexus graphs for the project (impact graphs for hotspots)
 [group("gn")]
@@ -723,26 +514,6 @@ gn-diagrams:
     @echo ""
     @echo "Generated:"
     @ls -1 docs/diagrams/gn-impact-*.dot docs/diagrams/gn-file-*.dot 2>/dev/null || echo "  (no files yet)"
-
-# Remove generated GitNexus diagrams
-[group("gn")]
-gn-diagrams-clean:
-    rm -f docs/diagrams/gn-impact-* docs/diagrams/gn-file-*
-    @echo "Cleaned GitNexus diagrams."
-
-# ⚠️ BROKEN: gitnexus serve fails due to CSP on gitnexus.vercel.app
-# Use gn-graph-symbol or gn-graph-file instead
-[group("gn")]
-gn-serve:
-    @echo "⚠️  gitnexus serve is broken — CSP blocks localhost. Use:"
-    @echo "   just gn-graph-symbol <SYMBOL>   # impact graph"
-    @echo "   just gn-graph-file <FILE>       # module graph"
-    @echo "   just gn-diagrams                # key project graphs"
-
-# Show index status
-[group("gn")]
-gn-status:
-    gitnexus list
 
 # ── Server lifecycle ────────────────────────────────────────────────────────
 #   Start, stop, restart, and monitor the dashboard server.
@@ -806,7 +577,3 @@ install-hooks:
 [group("hooks")]
 push:
     bun scripts/push-with-diagrams.ts
-
-alias a := analyze
-alias l := lint
-alias sc := shortcuts

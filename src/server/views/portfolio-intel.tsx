@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../lib/portfolio-intel-data.ts"
+import type { PortfolioIntel } from "../lib/intel-types.ts"
 import { AccountsTable } from "./partials/intel-accounts.tsx"
 import { AllocationBarSection } from "./partials/intel-allocation.tsx"
 import { AssetClassBars } from "./partials/intel-asset-class.tsx"

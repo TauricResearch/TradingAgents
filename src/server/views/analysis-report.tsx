@@ -4,8 +4,8 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { DbAnalysis, AnalysisEvent } from "../lib/analysis-data.ts"
-import { fmtDate } from "../lib/analysis-data.ts"
+import type { DbAnalysis, AnalysisEvent } from "../lib/analysis-types.ts"
+import { fmtDate } from "../lib/analysis-types.ts"
 import { renderMarkdown } from "../lib/markdown.ts"
 import { escapeHtml, signalClass, extractSignal } from "../routes/analyses-common.ts"
 

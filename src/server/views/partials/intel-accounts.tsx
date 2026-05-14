@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { AccountSummary } from "../../lib/portfolio-intel-data.ts"
+import type { AccountSummary } from "../../lib/intel-types.ts"
 import { esc, fmtCommas } from "../../lib/markup.ts"
 
 export function AccountsTable({ accounts }: { accounts: AccountSummary[] }) {

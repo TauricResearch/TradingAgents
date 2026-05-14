@@ -21,7 +21,7 @@ These files are core infrastructure. Modification requires user authorization.
 | `biome.json` | All linting fails if this is malformed |
 | `tsconfig.server.json` | Type safety gate — errors go undetected if paths are wrong |
 | `playbooks/conventions-playbook.md` | Conventions document — breaking it allows barnacles to return |
-| `playbooks/td-playbook.md` | Multi-agent coordination protocol — corruption causes chaos |
+| `playbooks/td-playbook.md` | Solo workflow protocol — keep current
 | `src/server/lib/db.ts` | All SQL access — corruption breaks every database operation |
 | `src/server/lib/schema.sql` | Schema drift causes data corruption |
 | `pyproject.toml` | Python dependency tree — corruption breaks the trading pipeline |
@@ -31,23 +31,12 @@ These files are core infrastructure. Modification requires user authorization.
 ## Session Startup
 
 ```bash
-td usage --new-session     # new identity
-bun scripts/agent-orient.ts   # branch + td + in-flight
-bun scripts/agent-sync.ts     # git state + file collisions
+just orient   # branch, git status, last commit, in-flight tasks
+git fetch origin
+td usage --new-session   # new session identity
 ```
 
-Reference: `playbooks/td-playbook.md` for the full protocol.
-
----
-
-## Multi-Agent Coordination
-
-- **Claim before touch.** Run `bun scripts/agent-claim.ts <id>` before editing a file with a task owner.
-- **Work sessions for epics.** `td ws start "Epic: Description"` + `td ws tag <id1> <id2> ...`
-- **Log progress.** `bun scripts/agent-log.ts <id> "did X"` after substantive changes.
-- **Handoff on close.** `bun scripts/agent-handoff.ts <id> --done X --remaining Y` before stopping.
-
-Reference: `playbooks/td-playbook.md`
+Reference: `playbooks/td-playbook.md` for the full workflow.
 
 ---
 

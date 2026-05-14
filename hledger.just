@@ -32,10 +32,10 @@ hl:
 hl-holdings:
     hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets: --tree
 
-# Cash balances per platform
+# Cash balances per platform (assets:cash: — distinct from hl-holdings which shows assets:)
 [group("hledger")]
 hl-cash:
-    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets: --tree
+    hledger -f "${HLEDGER_FILE:-~/.hledger.journal}" balance assets:cash: --tree
 
 # All accounts defined in journal
 [group("hledger")]

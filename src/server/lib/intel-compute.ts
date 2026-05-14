@@ -3,7 +3,7 @@
  * into a unified PortfolioIntel response from SQLite + hledger data.
  */
 
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { checkRules, loadRules, suggestRebalance } from "./governance.ts"
 import { getHoldings } from "./hledger.ts"
 import { fetchPrices } from "./intel-prices.ts"

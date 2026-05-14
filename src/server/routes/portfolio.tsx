@@ -1,7 +1,7 @@
 import { type Context, Hono } from "hono"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { sanitizeForDb } from "../lib/sanitize.ts"
-import { computePortfolioSummary } from "../lib/portfolio-data.ts"
+import { computePortfolioSummary } from "../lib/portfolio-db.ts"
 import { PortfolioSummaryView } from "../views/portfolio-summary.tsx"
 
 export const portfolioRouter = new Hono()

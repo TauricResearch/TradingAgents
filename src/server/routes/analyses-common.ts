@@ -1,7 +1,7 @@
 /** Shared helpers for analyses routes — filesystem and DB operations both use these. */
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { cfg } from "../lib/settings.ts"
+import { cfg } from "@lib/settings"
 
 /** Default results directory: ~/.tradingagents/logs */
 export function resultsDir(): string {

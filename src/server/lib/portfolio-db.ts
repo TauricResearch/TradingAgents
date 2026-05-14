@@ -1,9 +1,9 @@
 /** Portfolio data layer — extracted from route for reuse. */
 import { spawn } from "node:child_process"
 import { join } from "node:path"
-import { DatabaseFactory } from "../../lib/db.ts"
+import { DatabaseFactory } from "@lib/db"
 import { endOfToday, priceCache } from "./cache.ts"
-import { findProjectRoot } from "./utils.ts"
+import { projectRoot, venvPython } from "./subprocess.ts"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ export interface PortfolioSummary {
 
 async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceData>> {
   const results = new Map<string, PriceData>()
-  const root = findProjectRoot()
+  const root = projectRoot()
   const script = join(root, "scripts", "py", "get_price.py")
 
   const fetches = tickers.map(
@@ -61,7 +61,7 @@ async function batchFetchPrices(tickers: string[]): Promise<Map<string, PriceDat
           return
         }
 
-        const child = spawn("python3", [script, ticker], {
+        const child = spawn(venvPython(), [script, ticker], {
           env: { ...process.env, PYTHONUNBUFFERED: "1" },
           timeout: 12_000,
         })
