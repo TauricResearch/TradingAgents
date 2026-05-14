@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
-  MiniMap,
   Handle,
   Position
 } from 'reactflow';
@@ -11,7 +10,24 @@ import 'reactflow/dist/style.css';
 // Custom Node component for Agents
 const AgentNode = ({ data }) => {
   const isSelected = data.isActive;
+  const isComplete = ['Complete', 'Proposed', 'Final', 'Synthesized', 'Reviewing'].some(s => 
+    data.status?.includes(s)
+  ) && !isSelected;
+  
   const [showTooltip, setShowTooltip] = React.useState(false);
+
+  // Status colors: Amber for active, Green for complete, Slate for pending
+  const getBgColor = () => {
+    if (isSelected) return '#eab308'; // Amber
+    if (isComplete) return '#10b981'; // Green
+    return '#1e293b'; // Default Slate
+  };
+
+  const getBorderColor = () => {
+    if (isSelected) return '#fde047';
+    if (isComplete) return '#34d399';
+    return '#475569';
+  };
 
   return (
     <div 
@@ -20,12 +36,12 @@ const AgentNode = ({ data }) => {
       style={{
         padding: '10px',
         borderRadius: '8px',
-        background: isSelected ? '#3b82f6' : '#1e293b',
+        background: getBgColor(),
         color: 'white',
-        border: `2px solid ${isSelected ? '#60a5fa' : '#475569'}`,
+        border: `2px solid ${getBorderColor()}`,
         width: '180px',
         fontSize: '12px',
-        boxShadow: isSelected ? '0 0 15px rgba(59, 130, 246, 0.5)' : 'none',
+        boxShadow: isSelected ? '0 0 20px rgba(234, 179, 8, 0.4)' : (isComplete ? '0 0 10px rgba(16, 185, 129, 0.2)' : 'none'),
         transition: 'all 0.3s ease',
         cursor: 'pointer',
         position: 'relative'
@@ -33,7 +49,9 @@ const AgentNode = ({ data }) => {
     >
       <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
       <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{data.label}</div>
-      <div style={{ fontSize: '10px', opacity: 0.8 }}>{data.status || 'Waiting...'}</div>
+      <div style={{ fontSize: '10px', opacity: 0.9, fontWeight: (isSelected || isComplete) ? 'bold' : 'normal' }}>
+        {data.status || 'Waiting...'}
+      </div>
       <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
       
       {showTooltip && (
@@ -91,7 +109,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Market Analyst', 
             description: descriptions.market,
-            status: currentData.market_report ? 'Complete' : 'Pending',
+            status: (currentData.market_report || activeNode === 'market') ? (activeNode === 'market' ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode === 'market'
         }, 
         position: { x: 250, y: 100 } 
@@ -102,7 +120,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Sentiment Analyst', 
             description: descriptions.sentiment,
-            status: currentData.sentiment_report ? 'Complete' : 'Pending',
+            status: (currentData.sentiment_report || activeNode === 'social') ? (activeNode === 'social' ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode === 'social'
         }, 
         position: { x: 250, y: 200 } 
@@ -113,7 +131,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'News Analyst', 
             description: descriptions.news,
-            status: currentData.news_report ? 'Complete' : 'Pending',
+            status: (currentData.news_report || activeNode === 'news') ? (activeNode === 'news' ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode === 'news'
         }, 
         position: { x: 250, y: 300 } 
@@ -124,7 +142,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Fundamentals Analyst', 
             description: descriptions.fundamentals,
-            status: currentData.fundamentals_report ? 'Complete' : 'Pending',
+            status: (currentData.fundamentals_report || activeNode === 'fundamentals') ? (activeNode === 'fundamentals' ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode === 'fundamentals'
         }, 
         position: { x: 250, y: 400 } 
@@ -135,7 +153,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bull Researcher', 
             description: descriptions.bull,
-            status: isLive ? 'Simulating...' : 'Complete',
+            status: (isLive && activeNode === 'bull_researcher') ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
             isActive: activeNode === 'bull_researcher'
         }, 
         position: { x: 100, y: 500 } 
@@ -146,7 +164,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bear Researcher', 
             description: descriptions.bear,
-            status: isLive ? 'Simulating...' : 'Complete',
+            status: (isLive && activeNode === 'bear_researcher') ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
             isActive: activeNode === 'bear_researcher'
         }, 
         position: { x: 400, y: 500 } 
@@ -157,7 +175,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Research Manager', 
             description: descriptions.manager,
-            status: currentData.investment_plan ? 'Synthesized' : 'Waiting',
+            status: (currentData.investment_plan || activeNode === 'research_manager') ? (activeNode === 'research_manager' ? 'Synthesizing...' : 'Synthesized') : 'Waiting',
             isActive: activeNode === 'research_manager'
         }, 
         position: { x: 250, y: 600 } 
@@ -168,7 +186,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Trader', 
             description: descriptions.trader,
-            status: currentData.trader_investment_decision ? 'Proposed' : 'Waiting',
+            status: (currentData.trader_investment_decision || activeNode === 'trader') ? (activeNode === 'trader' ? 'Calculating...' : 'Proposed') : 'Waiting',
             isActive: activeNode === 'trader'
         }, 
         position: { x: 250, y: 700 } 
@@ -179,7 +197,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Portfolio Manager', 
             description: descriptions.pm,
-            status: currentData.final_trade_decision ? 'Final Decision' : 'Reviewing',
+            status: (currentData.final_trade_decision || activeNode === 'risk_management') ? (activeNode === 'risk_management' ? 'Reviewing...' : 'Final Decision') : 'Waiting',
             isActive: activeNode === 'risk_management'
         }, 
         position: { x: 250, y: 800 } 
@@ -204,8 +222,25 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     return { nodes: rawNodes, edges: rawEdges };
   }, [runData, activeStatus]);
 
+  const commentary = useMemo(() => {
+    if (!activeStatus) return null;
+    const nodeMap = {
+      'market': 'Market analysis in progress...',
+      'social': 'Sentiment analysis started...',
+      'news': 'Gathering global news and insider data...',
+      'fundamentals': 'Reviewing financial health and ratios...',
+      'bull_researcher': 'Bull researcher constructing buy case...',
+      'bear_researcher': 'Bear researcher identifying risks...',
+      'research_manager': 'Research manager synthesizing debate...',
+      'trader': 'Trader calculating execution targets...',
+      'risk_management': 'Portfolio manager making final decision...',
+      'initializing...': 'Initializing agentic workflow...',
+    };
+    return nodeMap[activeStatus.active_node] || `Processing node: ${activeStatus.active_node}...`;
+  }, [activeStatus]);
+
   return (
-    <div style={{ width: '100%', height: '600px', background: '#0f172a' }}>
+    <div style={{ width: '100%', height: '600px', background: '#0f172a', position: 'relative' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -215,12 +250,43 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
       >
         <Background color="#334155" gap={20} />
         <Controls />
-        <MiniMap 
-          nodeColor={(n) => n.type === 'agent' ? '#3b82f6' : '#94a3b8'} 
-          style={{ background: '#0f172a', border: '1px solid #1e293b' }}
-          maskColor="rgba(30, 41, 59, 0.7)"
-        />
       </ReactFlow>
+      
+      {commentary && (
+        <div style={{
+          position: 'absolute',
+          bottom: '10px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '80%',
+          background: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(4px)',
+          border: '1px solid #334155',
+          borderRadius: '20px',
+          padding: '6px 20px',
+          color: '#eab308',
+          fontSize: '13px',
+          fontWeight: 'bold',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          zIndex: 1000,
+          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)'
+        }}>
+          <div className="commentary-scroll" style={{
+            display: 'inline-block',
+            animation: 'commentary-fade 2s infinite alternate'
+          }}>
+            {commentary}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes commentary-fade {
+          0% { opacity: 0.5; transform: scale(0.98); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 };

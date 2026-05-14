@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import FlowGraph from './components/FlowGraph';
-import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight, Info, Target, AlertTriangle } from 'lucide-react';
+import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight, Info, Target, AlertTriangle, PanelLeftClose, PanelLeftOpen, Clock } from 'lucide-react';
 
 const MarkdownContent = ({ content }) => {
   if (!content) return <div style={{ color: '#64748b', fontStyle: 'italic', padding: '10px' }}>No data available</div>;
@@ -150,7 +150,28 @@ const App = () => {
   const [selectedRun, setSelectedRun] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const duration = useMemo(() => {
+    if (activeStatus && activeStatus.start_time) {
+      const start = new Date(activeStatus.start_time);
+      const now = new Date();
+      const diff = Math.floor((now - start) / 1000);
+      const mins = Math.floor(diff / 60);
+      const secs = diff % 60;
+      return `${mins}m ${secs}s`;
+    }
+    if (runDetail && runDetail.start_time && runDetail.end_time) {
+      const start = new Date(runDetail.start_time);
+      const end = new Date(runDetail.end_time);
+      const diff = Math.floor((end - start) / 1000);
+      const mins = Math.floor(diff / 60);
+      const secs = diff % 60;
+      return `${mins}m ${secs}s`;
+    }
+    return null;
+  }, [activeStatus, runDetail]);
 
   const calculateProgress = (node) => {
     // Standardize node names to lowercase for robust matching
@@ -299,120 +320,185 @@ const App = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#020617', color: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
       {/* Sidebar */}
-      <div style={{ width: '300px', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Activity color="#3b82f6" />
-          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>TradingAgents</h1>
-        </div>
-        
-        <div style={{ padding: '15px', borderBottom: '1px solid #1e293b' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PERFORMANCE</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Total Trades</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{stats?.total_trades || 0}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Win Rate</span>
-            <span style={{ fontSize: '13px', fontWeight: 'bold', color: stats?.win_rate >= 50 ? '#10b981' : '#ef4444' }}>
-              {stats?.win_rate?.toFixed(1) || 0}%
-            </span>
-          </div>
-        </div>
-
-        <div style={{ padding: '15px', borderBottom: '1px solid #1e293b', background: '#0f172a' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PORTFOLIO TICKERS</div>
-          <textarea 
-            value={portfolio}
-            onChange={(e) => setPortfolio(e.target.value)}
-            placeholder="AAPL,MSFT,NVDA..."
-            style={{
-              width: '100%',
-              background: '#020617',
-              border: '1px solid #334155',
-              borderRadius: '4px',
-              color: 'white',
-              fontSize: '12px',
-              padding: '8px',
-              minHeight: '60px',
-              resize: 'none',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-              marginBottom: '8px'
-            }}
-          />
+      <div style={{ 
+        width: isSidebarCollapsed ? '60px' : '300px', 
+        borderRight: '1px solid #1e293b', 
+        display: 'flex', 
+        flexDirection: 'column',
+        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+        <div style={{ 
+          padding: '20px', 
+          borderBottom: '1px solid #1e293b', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
+          gap: '10px' 
+        }}>
+          {!isSidebarCollapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Activity color="#3b82f6" />
+              <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>TradingAgents</h1>
+            </div>
+          )}
           <button 
-            onClick={savePortfolio}
-            disabled={isSavingPortfolio}
-            style={{
-              width: '100%',
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '6px',
-              fontSize: '11px',
-              fontWeight: 'bold',
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: '#64748b', 
               cursor: 'pointer',
-              opacity: isSavingPortfolio ? 0.5 : 1,
-              marginBottom: '8px'
-            }}
-          >
-            {isSavingPortfolio ? 'SAVING...' : 'UPDATE TICKER LIST'}
-          </button>
-
-          <button 
-            onClick={triggerAnalysis}
-            disabled={isTriggering || activeStatus}
-            style={{
-              width: '100%',
-              background: activeStatus ? '#1e293b' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '8px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: (isTriggering || activeStatus) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              opacity: isTriggering ? 0.5 : 1
+              padding: '4px'
             }}
           >
-            <Activity size={14} />
-            {activeStatus ? (
-              activeStatus.status === 'triggered' ? 'JOB STARTING...' : 'ANALYSIS IN PROGRESS...'
-            ) : (isTriggering ? 'TRIGGERING...' : 'RUN ANALYSIS NOW')}
+            {isSidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
         </div>
         
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '10px', paddingLeft: '10px' }}>RECENT RUNS</div>
-          {runs.map((run, i) => (
-            <div 
-              key={i} 
-              onClick={() => setSelectedRun(run)}
-              style={{
-                padding: '12px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                background: selectedRun === run ? '#1e293b' : 'transparent',
-                marginBottom: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                transition: 'background 0.2s'
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 'bold' }}>{run.ticker}</div>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>{run.date}</div>
+        {!isSidebarCollapsed && (
+          <>
+            <div style={{ padding: '15px', borderBottom: '1px solid #1e293b' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PERFORMANCE</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Total Trades</span>
+                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{stats?.total_trades || 0}</span>
               </div>
-              <ChevronRight size={14} color="#475569" />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Win Rate</span>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: stats?.win_rate >= 50 ? '#10b981' : '#ef4444' }}>
+                  {stats?.win_rate?.toFixed(1) || 0}%
+                </span>
+              </div>
             </div>
-          ))}
-        </div>
+
+            <div style={{ padding: '15px', borderBottom: '1px solid #1e293b', background: '#0f172a' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PORTFOLIO TICKERS</div>
+              <textarea 
+                value={portfolio}
+                onChange={(e) => setPortfolio(e.target.value)}
+                placeholder="AAPL,MSFT,NVDA..."
+                style={{
+                  width: '100%',
+                  background: '#020617',
+                  border: '1px solid #334155',
+                  borderRadius: '4px',
+                  color: 'white',
+                  fontSize: '12px',
+                  padding: '8px',
+                  minHeight: '60px',
+                  resize: 'none',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  marginBottom: '8px'
+                }}
+              />
+              <button 
+                onClick={savePortfolio}
+                disabled={isSavingPortfolio}
+                style={{
+                  width: '100%',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  opacity: isSavingPortfolio ? 0.5 : 1,
+                  marginBottom: '8px'
+                }}
+              >
+                {isSavingPortfolio ? 'SAVING...' : 'UPDATE TICKER LIST'}
+              </button>
+
+              <button 
+                onClick={triggerAnalysis}
+                disabled={isTriggering || activeStatus}
+                style={{
+                  width: '100%',
+                  background: activeStatus ? '#1e293b' : '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: (isTriggering || activeStatus) ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: isTriggering ? 0.5 : 1
+                }}
+              >
+                <Activity size={14} />
+                {activeStatus ? (
+                  activeStatus.status === 'triggered' ? 'JOB STARTING...' : 'ANALYSIS IN PROGRESS...'
+                ) : (isTriggering ? 'TRIGGERING...' : 'RUN ANALYSIS NOW')}
+              </button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '10px', paddingLeft: '10px' }}>RECENT RUNS</div>
+              {runs.map((run, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => setSelectedRun(run)}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    background: selectedRun === run ? '#1e293b' : 'transparent',
+                    marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'background 0.2s'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>{run.ticker}</div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{run.date}</div>
+                  </div>
+                  <ChevronRight size={14} color="#475569" />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        
+        {isSidebarCollapsed && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', paddingTop: '20px' }}>
+            <Activity color="#3b82f6" />
+            <div style={{ width: '30px', height: '1px', background: '#1e293b' }} />
+            {runs.slice(0, 5).map((run, i) => (
+              <div 
+                key={i} 
+                onClick={() => setSelectedRun(run)}
+                title={`${run.ticker} - ${run.date}`}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '20px',
+                  background: selectedRun === run ? '#3b82f6' : '#1e293b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                {run.ticker.slice(0, 2)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
@@ -438,6 +524,16 @@ const App = () => {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '20px' }}>
+              {duration && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                    <Clock size={10} /> DURATION
+                  </div>
+                  <div style={{ color: '#cbd5e1', fontSize: '14px', fontWeight: 'bold' }}>
+                    {duration}
+                  </div>
+                </div>
+              )}
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '10px', color: '#64748b' }}>STATUS</div>
                 <div style={{ color: activeStatus ? (activeStatus.status === 'error' ? '#ef4444' : '#3b82f6') : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>

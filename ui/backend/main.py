@@ -127,7 +127,14 @@ async def trigger_job(data: Optional[Dict[str, str]] = None):
     global current_run_status
     
     requested_tickers = data.get("tickers") if data else None
-    display_ticker = requested_tickers if requested_tickers else "Portfolio"
+    
+    # Use requested tickers or fall back to the saved portfolio file for display
+    display_ticker = requested_tickers
+    if not display_ticker:
+        if PORTFOLIO_PATH.exists():
+            display_ticker = PORTFOLIO_PATH.read_text().strip()
+        else:
+            display_ticker = "Portfolio"
 
     # 1. Set initial status to triggered so UI knows something is happening immediately
     current_run_status.update({
@@ -233,11 +240,12 @@ async def list_runs() -> List[Dict[str, Any]]:
                     runs.append({
                         "ticker": ticker_dir.name,
                         "date": date_str,
-                        "file_path": str(log_file)
+                        "file_path": str(log_file),
+                        "mtime": log_file.stat().st_mtime
                     })
     
-    # Sort by date descending
-    return sorted(runs, key=lambda x: x["date"], reverse=True)
+    # Sort by mtime descending (newest file first)
+    return sorted(runs, key=lambda x: x["mtime"], reverse=True)
 
 @app.get("/api/runs/{ticker}/{date}")
 async def get_run_detail(ticker: str, date: str):
