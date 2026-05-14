@@ -4,13 +4,13 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { PriceWithHistory, Signal } from "../lib/signals-data.ts"
+import type { PriceWithHistory, Signal } from "../lib/signals-db.ts"
 import {
   escSignals,
   fmtDateSignals,
   signalClassSignals,
   sparkline,
-} from "../lib/signals-data.ts"
+} from "../lib/signals-db.ts"
 
 // ── Timeline component ──────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioSummary } from "../lib/portfolio-data.ts"
+import type { PortfolioSummary } from "../lib/portfolio-db.ts"
 import { esc, fmt } from "../lib/markup.ts"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

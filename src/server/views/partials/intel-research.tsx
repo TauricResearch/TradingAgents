@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { DbWatchlistItem } from "../../lib/portfolio-intel-data.ts"
+import type { DbWatchlistItem } from "../../lib/intel-types.ts"
 import { esc } from "../../lib/markup.ts"
 
 export function ResearchQueue({ items }: { items: DbWatchlistItem[] }) {

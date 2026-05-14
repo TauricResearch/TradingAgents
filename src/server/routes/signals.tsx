@@ -8,7 +8,7 @@ import {
   getSignals,
   getSignalsForTicker,
   type Signal,
-} from "../lib/signals-data.ts"
+} from "../lib/signals-db.ts"
 import { SignalsViewHtml } from "../views/signals-view.tsx"
 
 export const signalsRouter = new Hono()

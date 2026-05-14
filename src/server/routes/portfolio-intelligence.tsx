@@ -1,7 +1,8 @@
 /** @jsxImportSource hono/jsx */
 
 import { Hono } from "hono"
-import { computePortfolioIntelligence, fetchPrices } from "../lib/portfolio-intel-data.ts"
+import { computePortfolioIntelligence } from "../lib/intel-compute.ts"
+import { fetchPrices } from "../lib/intel-prices.ts"
 import { PortfolioIntelView } from "../views/portfolio-intel.tsx"
 
 export const intelligenceRouter = new Hono()

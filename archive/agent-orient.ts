@@ -151,7 +151,7 @@ NOTE`,
 
 function openPRs() {
   if (mode === "compact") {
-    const raw = sh("gh pr list --state open --json number,title --jq .[] 2>/dev/null")
+    const raw = sh("gh pr list --state open --json number,title --jq . 2>/dev/null")
     if (!raw) return "PRs: none"
     try {
       const prs = JSON.parse(raw || "[]") as { number: number; title: string }[]
@@ -162,7 +162,7 @@ function openPRs() {
   }
 
   // Try to get open PRs from GitHub
-  const raw = sh("gh pr list --state open --json number,title,url --jq .[] 2>/dev/null")
+  const raw = sh("gh pr list --state open --json number,title,url --jq . 2>/dev/null")
   if (!raw) {
     writeReviewNote(
       "pr-state-unknown.md",

@@ -10,7 +10,7 @@ import type {
   WorkflowData,
   WorkflowHoldingItem,
   WorkflowPendingExitItem,
-} from "../lib/workflow-data.ts"
+} from "../lib/workflow-db.ts"
 
 // ── Stage definitions ───────────────────────────────────────────────────────
 

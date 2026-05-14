@@ -38,6 +38,7 @@
 {"file":"handoff-squid-implementation.md","date":"2026-05-12","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"plans/current.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"research-summary-2026-05-02.md","date":"2026-05-02","status":"done","summary":"Dashboard foundation research: Bun/Hono stack selection, HTMX SSR pattern, hLedger integration","meta":{"epic":null,"adr":null,"session":null}}
+{"file":"reviews/pr-14-chore-arch-harden-001-s01-flense-harden-path-aliases.md","date":"2026-05-14","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"reviews/pr-8.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"reviews/pr-9.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"reviews/pr-state-unknown.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}

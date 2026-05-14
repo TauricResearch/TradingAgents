@@ -1,32 +1,13 @@
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { DatabaseFactory } from "@lib/db"
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
 import { sanitizeForDb } from "../lib/sanitize.ts"
+import { projectRoot, venvPython } from "../lib/subprocess.ts"
 
 export const analysisRouter = new Hono()
-
-/**
- * Resolve the TradingAgents project root.
- * Order: TA_ROOT env → sibling directory → parent directory
- */
-function findProjectRoot(): string {
-  if (process.env.TA_ROOT) return process.env.TA_ROOT
-
-  const projectRoot = dirname(dirname(import.meta.dir))
-  const sibling = join(projectRoot, "..", "TradingAgents")
-  if (existsSync(join(sibling, "scripts", "analyze_stream.py"))) {
-    return sibling
-  }
-
-  if (existsSync(join(projectRoot, "scripts", "analyze_stream.py"))) {
-    return projectRoot
-  }
-
-  throw new Error("Cannot find TradingAgents root. Set TA_ROOT env var.")
-}
 
 /**
  * POST /api/analyze — trigger analysis, stream progress via SSE
@@ -70,8 +51,8 @@ analysisRouter.post("/", async (c) => {
   // Collect all events so we can save the full state after stream ends
   const events: Array<{ event: string; data: unknown }> = []
 
-  const root = findProjectRoot()
-  const venvPython = join(root, ".venv", "bin", "python3")
+  const python = venvPython()
+  const root = projectRoot()
   const script = join(root, "scripts", "analyze_stream.py")
 
   if (!existsSync(script)) {
@@ -167,7 +148,7 @@ analysisRouter.post("/", async (c) => {
         }
 
         const args = buildArgs(retry)
-        child = spawn(venvPython, args, {
+        child = spawn(python, args, {
           cwd: root,
           env: { ...process.env, PYTHONUNBUFFERED: "1" },
           // Bun spawn doesn't directly support AbortSignal.timeout, so we

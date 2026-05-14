@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { ExitStatus } from "../lib/exits-data.ts"
+import type { ExitStatus } from "../lib/exits-db.ts"
 
 // ── Individual card ─────────────────────────────────────────────────────────
 

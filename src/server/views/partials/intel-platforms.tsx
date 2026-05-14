@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { PlatformAllocation } from "../../lib/portfolio-intel-data.ts"
+import type { PlatformAllocation } from "../../lib/intel-types.ts"
 import { esc, fmtCommas } from "../../lib/markup.ts"
 
 export function PlatformTable({ platforms }: { platforms: PlatformAllocation[] }) {

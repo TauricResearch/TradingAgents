@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"
+import type { PortfolioIntel } from "../../lib/intel-types.ts"
 import { fmtCommas } from "../../lib/markup.ts"
 
 export function GovernancePanel({ data }: { data: PortfolioIntel }) {

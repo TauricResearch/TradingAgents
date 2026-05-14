@@ -12,6 +12,7 @@
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { defineCommand } from "citty"
+import { venvPython } from "../../server/lib/subprocess.ts"
 import { dryRunArg, yesArg } from "../lib/args.ts"
 
 // Default timeout matching SSE idleTimeout in server routes
@@ -69,7 +70,7 @@ async function runAnalysis(
     abortController.abort()
   }, timeout * 1000)
 
-  const proc = Bun.spawn(["python3", script, ...flags], {
+  const proc = Bun.spawn([venvPython(), script, ...flags], {
     stdout: "pipe",
     stderr: "pipe",
     env,

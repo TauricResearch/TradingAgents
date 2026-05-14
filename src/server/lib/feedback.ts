@@ -16,7 +16,7 @@ import { join } from "node:path"
 import { DatabaseFactory } from "@lib/db"
 import type { PriceResult } from "@lib/types"
 import { endOfToday, priceCache } from "./cache.ts"
-import { findProjectRoot } from "./utils.ts"
+import { projectRoot, venvPython } from "./subprocess.ts"
 
 const POST_MORTEMS_DIR =
   process.env.POST_MORTEMS_DIR ?? join(process.env.HOME ?? "/tmp", ".tradingagents", "post-mortems")
@@ -237,8 +237,8 @@ export async function fetchPriceForTicker(ticker: string): Promise<PriceResult> 
   }
 
   return new Promise((resolve) => {
-    const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
-    const child = spawn("python3", [script, ticker], {
+    const script = join(projectRoot(), "scripts", "py", "get_price.py")
+    const child = spawn(venvPython(), [script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
       timeout: 12_000,
     })

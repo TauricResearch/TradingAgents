@@ -11,7 +11,7 @@
  * Response cache: 30s — shared with /api/positions/exits/html via buildExitStatuses().
  */
 import { Hono } from "hono"
-import { buildExitStatuses } from "../lib/exits-data.ts"
+import { buildExitStatuses } from "../lib/exits-db.ts"
 import { ExitList } from "../views/exit-list.tsx"
 
 export const exitsRouter = new Hono()

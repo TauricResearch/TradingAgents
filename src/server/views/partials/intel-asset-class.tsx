@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { AssetClassAllocation } from "../../lib/portfolio-intel-data.ts"
+import type { AssetClassAllocation } from "../../lib/intel-types.ts"
 import { fmtCommas } from "../../lib/markup.ts"
 
 const ASSET_COLORS: Record<string, string> = {

@@ -8,7 +8,7 @@ import {
   getProspects,
   STAGES,
   updateProspectStage,
-} from "../lib/prospects-data.ts"
+} from "../lib/prospects-db.ts"
 import { ProspectsFilter, ProspectsPipeline } from "../views/prospects-view.tsx"
 
 export const prospectsRouter = new Hono()

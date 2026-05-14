@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { SpreadBetWithPnl } from "../../lib/portfolio-intel-data.ts"
+import type { SpreadBetWithPnl } from "../../lib/intel-types.ts"
 import { esc, fmtCommas } from "../../lib/markup.ts"
 
 export function SpreadBetTable({ bets }: { bets: SpreadBetWithPnl[] }) {

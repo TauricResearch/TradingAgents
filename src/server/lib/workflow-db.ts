@@ -4,7 +4,7 @@ import { DatabaseFactory } from "@lib/db"
 import { fetchPrice } from "./cache.ts"
 import { getHoldings } from "./hledger.ts"
 import { computeExitStatus, type ExitPlan, loadAllPlans } from "./positions.ts"
-import { findProjectRoot } from "./utils.ts"
+import { projectRoot } from "./subprocess.ts"
 
 export interface ExitPlanData {
   entryPrice: number
@@ -79,11 +79,11 @@ export async function buildWorkflowData(): Promise<WorkflowData> {
   // Fetch live prices for plan tickers (batched, 4 at a time)
   // Falls back to SQLite prices table if Python fetch fails
   const uniqueTickers = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
-  const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
+  const script = join(projectRoot(), "scripts", "py", "get_price.py")
   const priceMap = new Map<string, number | null>()
   for (let i = 0; i < uniqueTickers.length; i += 4) {
     const batch = uniqueTickers.slice(i, i + 4)
-    const results = await Promise.all(batch.map((t) => fetchPrice(t, script, findProjectRoot())))
+    const results = await Promise.all(batch.map((t) => fetchPrice(t, script, projectRoot())))
     batch.forEach((t, idx) => void priceMap.set(t, results[idx] ?? null))
   }
 

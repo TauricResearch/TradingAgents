@@ -2,7 +2,7 @@
 import { join } from "node:path"
 import { fetchPrice } from "./cache.ts"
 import { computeExitStatus, type ExitPlan, type ExitStatus, loadAllPlans } from "./positions.ts"
-import { findProjectRoot } from "./utils.ts"
+import { projectRoot } from "./subprocess.ts"
 
 // Response-level cache — full exit statuses valid for 30s
 let responseCache: { statuses: ExitStatus[]; expires: number } | null = null
@@ -17,14 +17,14 @@ export async function buildExitStatuses(): Promise<ExitStatus[]> {
 
   const plans = loadAllPlans()
   const unique = [...new Set(plans.map((p: ExitPlan) => p.ticker))]
-  const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
+  const script = join(projectRoot(), "scripts", "py", "get_price.py")
 
   // Fetch in parallel batches (4 at a time)
   const BATCH_SIZE = 4
   const priceMap = new Map<string, number | null>()
   for (let i = 0; i < unique.length; i += BATCH_SIZE) {
     const batch = unique.slice(i, i + BATCH_SIZE)
-    const results = await Promise.all(batch.map((t) => fetchPrice(t, script, findProjectRoot())))
+    const results = await Promise.all(batch.map((t) => fetchPrice(t, script, projectRoot())))
     batch.forEach((ticker, idx) => void priceMap.set(ticker, results[idx] ?? null))
   }
 

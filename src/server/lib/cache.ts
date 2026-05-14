@@ -3,6 +3,7 @@
  */
 
 import { spawn } from "node:child_process"
+import { venvPython } from "./subprocess.ts"
 
 /**
  * Returns milliseconds until midnight UTC.
@@ -43,7 +44,7 @@ export function fetchPrice(
       return
     }
 
-    const child = spawn("python3", [getPriceScript, ticker], {
+    const child = spawn(venvPython(), [getPriceScript, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
     })
     let resolved = false

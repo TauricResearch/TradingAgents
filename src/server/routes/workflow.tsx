@@ -17,7 +17,7 @@
  */
 import { Hono } from "hono"
 import { DatabaseFactory } from "@lib/db"
-import { buildWorkflowData } from "../lib/workflow-data.ts"
+import { buildWorkflowData } from "../lib/workflow-db.ts"
 import { WorkflowKanban } from "../views/workflow-kanban.tsx"
 
 export const workflowRouter = new Hono()

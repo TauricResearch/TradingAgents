@@ -43,6 +43,19 @@ export function venvPython(): string {
   return join(projectRoot, ".venv", "bin", "python3")
 }
 
+/**
+ * Resolve the TradingAgents project root directory.
+ * Uses TA_ROOT env var if set, otherwise walks up from this file's location.
+ */
+export function projectRoot(): string {
+  if (process.env.TA_ROOT) return process.env.TA_ROOT
+
+  // Walk up from this file's location to find project root
+  const python = venvPython()
+  // python is <root>/.venv/bin/python3, so root is python's great-grandparent
+  return dirname(dirname(dirname(python)))
+}
+
 // ── Simple runner ─────────────────────────────────────────────────────────────
 
 export interface RunPythonOptions {

@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { AllocationBar } from "../../lib/portfolio-intel-data.ts"
+import type { AllocationBar } from "../../lib/intel-types.ts"
 
 export function AllocationBarSection({ bar }: { bar: AllocationBar | null }) {
   if (!bar) return null

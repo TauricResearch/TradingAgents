@@ -10,6 +10,7 @@
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { defineCommand } from "citty"
+import { venvPython } from "../../server/lib/subprocess.ts"
 
 interface PriceResult {
   ticker: string
@@ -44,7 +45,7 @@ export const pricesCommand = defineCommand({
       process.exit(1)
     }
 
-    const proc = Bun.spawn(["python3", script, ticker], {
+    const proc = Bun.spawn([venvPython(), script, ticker], {
       stdout: "pipe",
       stderr: "pipe",
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
