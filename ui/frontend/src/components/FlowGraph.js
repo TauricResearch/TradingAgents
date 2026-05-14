@@ -106,13 +106,15 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     // Helper to check if a node has reported completion
     const hasCompleted = (nodeNamePart) => {
         if (isCompleted) return true;
-        return completedNodes.some(name => name.toLowerCase().includes(nodeNamePart.toLowerCase()));
+        const n = nodeNamePart.toLowerCase();
+        return completedNodes.some(name => name.toLowerCase().includes(n));
     };
 
     // Helper to check if a node is currently active (last to report)
     const isActive = (nodeNamePart) => {
         if (isCompleted) return false;
-        return activeNode.toLowerCase().includes(nodeNamePart.toLowerCase());
+        const n = nodeNamePart.toLowerCase();
+        return activeNode.toLowerCase().includes(n);
     };
 
     // Robust 'Done' checks using accumulated data + completion events
