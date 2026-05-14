@@ -158,30 +158,27 @@ const App = () => {
     let interval;
     
     const updateElapsed = () => {
-      if (activeStatus && activeStatus.start_time && activeStatus.status !== 'completed' && activeStatus.status !== 'error') {
-        const start = new Date(activeStatus.start_time);
+      const activeStart = activeStatus?.start_time;
+      const detailStart = runDetail?.start_time;
+      const detailEnd = runDetail?.end_time;
+
+      if (activeStatus && activeStart && activeStatus.status !== 'completed') {
+        const start = new Date(activeStart);
         const now = new Date();
         const diff = Math.floor((now - start) / 1000);
-        if (diff < 0) return; // Guard against clock skew
-        const mins = Math.floor(diff / 60);
-        const secs = diff % 60;
-        setElapsed(`${mins}m ${secs}s`);
-      } else if (runDetail && runDetail.start_time && runDetail.end_time) {
-        const start = new Date(runDetail.start_time);
-        const end = new Date(runDetail.end_time);
+        if (diff >= 0) {
+          const mins = Math.floor(diff / 60);
+          const secs = diff % 60;
+          setElapsed(`${mins}m ${secs}s`);
+        }
+      } else if (detailStart && detailEnd) {
+        const start = new Date(detailStart);
+        const end = new Date(detailEnd);
         const diff = Math.floor((end - start) / 1000);
-        const mins = Math.floor(diff / 60);
-        const secs = diff % 60;
-        setElapsed(`${mins}m ${secs}s`);
-      } else if (activeStatus?.status === 'completed' || activeStatus?.status === 'error') {
-        // Keep the final duration if we just finished
-        if (activeStatus.start_time && activeStatus.end_time) {
-           const start = new Date(activeStatus.start_time);
-           const end = new Date(activeStatus.end_time);
-           const diff = Math.floor((end - start) / 1000);
-           const mins = Math.floor(diff / 60);
-           const secs = diff % 60;
-           setElapsed(`${mins}m ${secs}s`);
+        if (diff >= 0) {
+          const mins = Math.floor(diff / 60);
+          const secs = diff % 60;
+          setElapsed(`${mins}m ${secs}s`);
         }
       } else {
         setElapsed(null);
@@ -201,53 +198,48 @@ const App = () => {
     if (!activeStatus) return null;
     const n = (activeStatus.active_node || '').toLowerCase();
     
-    if (n.includes('market')) return 'Market analysis in progress...';
-    if (n.includes('social') || n.includes('sentiment')) return 'Sentiment analysis started...';
-    if (n.includes('news')) return 'Gathering global news and insider data...';
-    if (n.includes('fundamental')) return 'Reviewing financial health and ratios...';
-    if (n.includes('bull')) return 'Bull researcher constructing buy case...';
-    if (n.includes('bear')) return 'Bear researcher identifying risks...';
-    if (n.includes('research_manager') || n.includes('research manager')) return 'Research manager synthesizing debate...';
-    if (n.includes('trader')) return 'Trader calculating execution targets...';
-    if (n.includes('portfolio_manager') || n.includes('portfolio manager') || n.includes('risk_management')) return 'Portfolio manager making final decision...';
-    if (n.includes('initializing')) return 'Initializing agentic workflow...';
-    if (n.includes('aggressive')) return 'Aggressive risk analyst reviewing plan...';
-    if (n.includes('conservative')) return 'Conservative risk analyst reviewing plan...';
-    if (n.includes('neutral')) return 'Neutral risk analyst reviewing plan...';
+    // Prioritize user-facing task descriptions
+    if (n.includes('market')) return 'Analyzing market trends and technical indicators...';
+    if (n.includes('social') || n.includes('sentiment')) return 'Gauging market sentiment and social signals...';
+    if (n.includes('news')) return 'Processing latest news and insider transactions...';
+    if (n.includes('fundamental')) return 'Evaluating balance sheets and financial health...';
+    if (n.includes('bull')) return 'Constructing bullish growth thesis...';
+    if (n.includes('bear')) return 'Identifying potential risks and bearish catalysts...';
+    if (n.includes('research_manager') || n.includes('research manager')) return 'Synthesizing research into investment plan...';
+    if (n.includes('trader')) return 'Calculating entry, exit, and stop-loss targets...';
+    if (n.includes('portfolio_manager') || n.includes('portfolio manager') || n.includes('risk_management')) return 'Final risk assessment and portfolio allocation...';
+    if (n.includes('aggressive')) return 'Stress-testing against aggressive risk models...';
+    if (n.includes('conservative')) return 'Evaluating conservative capital preservation...';
+    if (n.includes('neutral')) return 'Balancing neutral market outlook...';
     
-    return `Active Agent: ${activeStatus.active_node}...`;
+    // Handle startup/K8s phases gracefully
+    if (n.includes('triggering') || n.includes('created') || n.includes('initializing')) {
+      return 'Preparing agentic workflow environment...';
+    }
+    
+    return 'Processing agentic analysis...';
   }, [activeStatus]);
 
   const calculateProgress = (node) => {
-    // Standardize node names to lowercase for robust matching
     const n = (node || '').toLowerCase();
     
     const steps = {
-      'initializing...': 5,
-      'market analyst': 15,
-      'tools_market': 18,
-      'msg clear market': 20,
-      'sentiment analyst': 25,
-      'tools_social': 28,
-      'msg clear social': 30,
-      'news analyst': 35,
-      'tools_news': 38,
-      'msg clear news': 40,
-      'fundamentals analyst': 45,
-      'tools_fundamentals': 48,
-      'msg clear fundamentals': 50,
-      'bull researcher': 60,
-      'bear researcher': 70,
-      'research manager': 80,
-      'trader': 90,
-      'aggressive analyst': 92,
-      'neutral analyst': 94,
-      'conservative analyst': 96,
-      'portfolio manager': 98,
+      'preparing': 5,
+      'initializing': 10,
+      'market': 20,
+      'social': 30,
+      'sentiment': 30,
+      'news': 40,
+      'fundamental': 50,
+      'bull': 65,
+      'bear': 75,
+      'research manager': 85,
+      'trader': 92,
+      'risk': 95,
+      'portfolio': 98,
       'completed': 100
     };
 
-    // Find the closest step if not an exact match
     let progress = lastValidProgress;
     for (const [key, value] of Object.entries(steps)) {
       if (n.includes(key)) {
@@ -290,16 +282,18 @@ const App = () => {
       fetch('/api/status')
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error') {
+          if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error' || data.status === 'completed') {
             setActiveStatus(data);
+            if (data.status === 'completed') {
+               // If completed, refresh runs and clear active status after a delay
+               setTimeout(() => {
+                 refreshRuns(true);
+                 setActiveStatus(null);
+               }, 5000);
+            }
           } else {
-            // If we were just active and now we're not, refresh the list and select the newest result
-            setActiveStatus(prev => {
-              if (prev !== null && prev.status !== 'error') {
-                setTimeout(() => refreshRuns(true), 1000); // Refresh and select newest
-              }
-              return null;
-            });
+            // If we were just active and now we're not (e.g. backend reset to idle)
+            setActiveStatus(null);
           }
         });
     }, 3000);
@@ -575,26 +569,32 @@ const App = () => {
                 ) : `Trade Date: ${selectedRun?.date}`}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '20px' }}>
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
               {elapsed && (
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                    <Clock size={10} /> DURATION
+                <div style={{ 
+                  textAlign: 'right', 
+                  background: activeStatus && activeStatus.status !== 'completed' ? 'rgba(234, 179, 8, 0.1)' : 'rgba(30, 41, 59, 0.5)',
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  border: `1px solid ${activeStatus && activeStatus.status !== 'completed' ? '#eab308' : '#334155'}`
+                }}>
+                  <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end', marginBottom: '2px' }}>
+                    <Clock size={10} /> {activeStatus && activeStatus.status !== 'completed' ? 'ELAPSED' : 'TIME TAKEN'}
                   </div>
-                  <div style={{ color: activeStatus && activeStatus.status !== 'completed' && activeStatus.status !== 'error' ? '#eab308' : '#cbd5e1', fontSize: '14px', fontWeight: 'bold' }}>
+                  <div style={{ color: activeStatus && activeStatus.status !== 'completed' ? '#eab308' : '#f8fafc', fontSize: '14px', fontWeight: '800', fontFamily: 'monospace' }}>
                     {elapsed}
                   </div>
                 </div>
               )}
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '10px', color: '#64748b' }}>STATUS</div>
+                <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>STATUS</div>
                 <div style={{ color: activeStatus ? (activeStatus.status === 'error' ? '#ef4444' : '#3b82f6') : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
                   {activeStatus ? (activeStatus.status === 'error' ? 'ERROR' : 'IN PROGRESS') : 'COMPLETED'}
                 </div>
               </div>
               {!activeStatus && (
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>DECISION</div>
+                  <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>DECISION</div>
                   <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>{runDetail?.final_trade_decision?.split('\n')[0] || '---'}</div>
                 </div>
               )}

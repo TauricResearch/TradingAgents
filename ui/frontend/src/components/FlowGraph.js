@@ -10,7 +10,7 @@ import 'reactflow/dist/style.css';
 // Custom Node component for Agents
 const AgentNode = ({ data }) => {
   const isSelected = data.isActive;
-  const isComplete = ['Complete', 'Proposed', 'Final', 'Synthesized', 'Reviewing'].some(s => 
+  const isComplete = ['Complete', 'Proposed', 'Final', 'Synthesized', 'Reviewing', 'Decision'].some(s => 
     data.status?.includes(s)
   ) && !isSelected;
   
@@ -153,7 +153,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bull Researcher', 
             description: descriptions.bull,
-            status: (isLive && activeNode && activeNode.toLowerCase().includes('bull')) ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
+            status: (isLive && activeNode && activeNode.toLowerCase().includes('bull')) ? 'Analyzing...' : (currentData.investment_plan || (isLive && activeNode && ['bear', 'manager', 'trader', 'pm', 'risk'].some(s => activeNode.toLowerCase().includes(s))) ? 'Complete' : 'Pending'),
             isActive: activeNode && activeNode.toLowerCase().includes('bull')
         }, 
         position: { x: 100, y: 500 } 
@@ -164,7 +164,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bear Researcher', 
             description: descriptions.bear,
-            status: (isLive && activeNode && activeNode.toLowerCase().includes('bear')) ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
+            status: (isLive && activeNode && activeNode.toLowerCase().includes('bear')) ? 'Analyzing...' : (currentData.investment_plan || (isLive && activeNode && ['manager', 'trader', 'pm', 'risk'].some(s => activeNode.toLowerCase().includes(s))) ? 'Complete' : 'Pending'),
             isActive: activeNode && activeNode.toLowerCase().includes('bear')
         }, 
         position: { x: 400, y: 500 } 
@@ -202,7 +202,22 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         }, 
         position: { x: 250, y: 800 } 
       },
-      { id: 'end', type: 'output', data: { label: 'Decision Reached' }, position: { x: 250, y: 900 } },
+      { 
+        id: 'end', 
+        type: 'output', 
+        data: { label: 'Decision Reached' }, 
+        position: { x: 250, y: 900 },
+        style: {
+          background: (currentData.final_trade_decision || (activeStatus?.status === 'completed')) ? '#10b981' : '#1e293b',
+          color: 'white',
+          border: `2px solid ${(currentData.final_trade_decision || (activeStatus?.status === 'completed')) ? '#34d399' : '#475569'}`,
+          borderRadius: '8px',
+          padding: '10px',
+          fontWeight: 'bold',
+          width: '180px',
+          textAlign: 'center'
+        }
+      },
     ];
 
     const rawEdges = [
