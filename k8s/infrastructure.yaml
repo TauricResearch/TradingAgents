@@ -10,17 +10,3 @@ spec:
   resources:
     requests:
       storage: 1Gi
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: tradingagents-secrets
-  namespace: tradingagents
-type: Opaque
-data:
-  # Base64 encoded values will be placed here via kubectl or a CI/CD tool
-  # example: echo -n "your-key" | base64
-  OPENAI_API_KEY: ""
-  ALPHA_VANTAGE_API_KEY: ""
-  ANTHROPIC_API_KEY: ""
-  GOOGLE_API_KEY: ""
