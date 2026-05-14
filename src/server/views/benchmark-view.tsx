@@ -1,3 +1,7 @@
+/**
+ * Benchmark HTML — renders portfolio vs. benchmark comparison chart and return table.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PeriodReturn } from "../lib/benchmark-data.ts"

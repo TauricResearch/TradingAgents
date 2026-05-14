@@ -1,3 +1,7 @@
+/**
+ * Research notes panel — shows attached research notes for each prospect ticker.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { DbWatchlistItem } from "../../lib/portfolio-intel-data.ts"

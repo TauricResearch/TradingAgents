@@ -1,3 +1,7 @@
+/**
+ * Spread bet positions panel — shows open spread bet positions with P&L and notional value.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { SpreadBetWithPnl } from "../../lib/portfolio-intel-data.ts"

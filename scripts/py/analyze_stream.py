@@ -65,6 +65,8 @@ def main():
                         help="Comma-separated analyst types")
     parser.add_argument("--position-context", default=None,
                         help="Position context string (e.g. '500 shares @ 8.45 — thesis: value play')")
+    parser.add_argument("--llm-api-base", default=None,
+                        help="LLM API base URL (e.g. http://localhost:8080/v1 for BiFrost proxy)")
     args = parser.parse_args()
 
     load_dotenv()
@@ -76,9 +78,21 @@ def main():
 
     try:
         config = DEFAULT_CONFIG.copy()
+        # ── Substrate selection ─────────────────────────────────────────────────────
+        # Default: use OpenRouter directly with Ernie 4.5 (good for simple tasks, no tools needed)
         config["llm_provider"] = "openrouter"
-        config["deep_think_llm"] = "openai/gpt-5.4"
-        config["quick_think_llm"] = "openai/gpt-5.4-mini"
+        config["deep_think_llm"] = "baidu/ernie-4.5-21b-a3b-thinking"
+        config["quick_think_llm"] = "baidu/ernie-4.5-21b-a3b-thinking"
+
+        # ── BiFrost proxy routing ─────────────────────────────────────────────────
+        # If --llm-api-base is set, route through the local BiFrost proxy.
+        # BiFrost is OpenAI-compatible, and we use DeepSeek V4 Flash (tool-capable).
+        if args.llm_api_base:
+            config["backend_url"] = args.llm_api_base
+            config["llm_provider"] = "openai"  # BiFrost proxy is OpenAI-compatible
+            config["deep_think_llm"] = "deepseek/deepseek-v4-flash"   # tool-capable
+            config["quick_think_llm"] = "deepseek/deepseek-v4-flash"  # tool-capable
+
         config["max_debate_rounds"] = args.debates
         config["max_risk_discuss_rounds"] = args.debates
         config["debug"] = False  # We handle our own streaming

@@ -13,6 +13,10 @@ Run with `bun scripts/<name>.ts` or via `just <recipe>`.
 | `agent-files.ts` | List files owned by a task | none |
 | `agent-log.ts` | Log progress to a task | none |
 | `td-orphans.ts` | Detect & realign orphaned in_progress tasks | none |
+| `reg-sync.ts` | Check/fix document registries (briefs, debriefs, decisions, playbooks, docs, blog, code) | none |
+| `reg-list.ts` | Human-readable registry lister | none |
+| `reg-enrich.ts` | Extract JSDoc summaries from code files and update code/INDEX.jsonl | none |
+| `reg-sync-scripts.ts` | Sync scripts/ index with portability classification | none |
 
 ## Python (`py/*.py` — tradingagents dependency)
 

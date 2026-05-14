@@ -1,3 +1,7 @@
+/**
+ * Trade plan view — renders a single position's entry, stop-loss, risk, and position size from TradePlan data.
+ */
+
 /** @jsxImportSource hono/jsx */
 import type { TradePlan } from "../../lib/trade-calculator.ts"
 

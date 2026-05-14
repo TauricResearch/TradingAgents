@@ -115,7 +115,7 @@ The document registry system is the right infrastructure for induced requirement
 
 4. **Audit** — You can see the history of what was induced, when, and why. This is useful for learning — did the agent find the right gaps? Was the brief accurate?
 
-The code registry (`scripts/code-reg-sync.ts` → `code/INDEX.jsonl`) extends this to code — the last major surface that wasn't in the feedback loop. Once code is indexed, the loop is closed: documents and code, both visible, both inducing requirements when gaps appear.
+The code registry (`scripts/reg-sync.ts` → `code/INDEX.jsonl`) extends this to code — the last major surface that wasn't in the feedback loop. Once code is indexed, the loop is closed: documents and code, both visible, both inducing requirements when gaps appear.
 
 ---
 

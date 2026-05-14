@@ -40,7 +40,7 @@ Once code has a canonical index (`code/INDEX.jsonl`), the registry system become
 
 ## Proposed Changes
 
-### 1. `scripts/code-reg-sync.ts`
+### 1. `scripts/reg-sync.ts`
 
 Run ast-grep queries against the codebase, output `code/INDEX.jsonl`.
 
@@ -74,11 +74,11 @@ Run ast-grep queries against the codebase, output `code/INDEX.jsonl`.
 
 ### 2. Integration with `just check`
 
-Add `code-reg-sync` to the check pipeline:
+Add `reg-sync` to the check pipeline:
 
 ```bash
 bun scripts/reg-sync.ts --all
-bun scripts/code-reg-sync.ts --fix
+bun scripts/reg-sync.ts --fix
 ```
 
 Run both on `just check`. Exit non-zero if either has drift.
@@ -93,7 +93,7 @@ When briefs refer to code (e.g., the IG API client brief mentions `src/cli/lib/i
 
 ## Implementation Order
 
-1. `scripts/code-reg-sync.ts` — ast-grep → `code/INDEX.jsonl`, basic schema
+1. `scripts/reg-sync.ts` — ast-grep → `code/INDEX.jsonl`, basic schema
 2. Run on `just check` — integrate into pipeline
 3. Add domain/pattern tagging — semantic enrichment
 4. Extend `just search` — unified query across code + docs
@@ -101,10 +101,10 @@ When briefs refer to code (e.g., the IG API client brief mentions `src/cli/lib/i
 
 ## Verification
 
-- `bun scripts/code-reg-sync.ts` runs without error
+- `bun scripts/reg-sync.ts` runs without error
 - `code/INDEX.jsonl` contains entries for all `.ts`, `.tsx`, `.py` files
 - `symbols` field populated for files with exports
-- `just check` includes code-reg-sync in pipeline
+- `just check` includes reg-sync in pipeline
 - `just search "DatabaseFactory"` returns code entries + related docs
 
 ## Dependencies
@@ -124,7 +124,7 @@ When briefs refer to code (e.g., the IG API client brief mentions `src/cli/lib/i
 
 Most code-intelligence solutions reach for remote services — MCP servers, Sourcegraph, GitHub Copilot, vector databases. These are powerful but come with a cost: external dependencies, API keys, network latency, potential data egress, observability gaps.
 
-Our approach: close the gap with a local index. Same pattern as document registries — `scripts/code-reg-sync.ts` → `code/INDEX.jsonl`. The register is:
+Our approach: close the gap with a local index. Same pattern as document registries — `scripts/reg-sync.ts` → `code/INDEX.jsonl`. The register is:
 
 - **Local** — no API calls, no network dependency, no vendor lock-in
 - **Silo-native** — lives in the project, boots with the project, moves with the project

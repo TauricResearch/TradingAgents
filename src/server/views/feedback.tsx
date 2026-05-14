@@ -1,3 +1,7 @@
+/**
+ * Feedback view — shell that loads /api/feedback/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function FeedbackView() {

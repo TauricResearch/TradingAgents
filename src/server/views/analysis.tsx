@@ -1,3 +1,7 @@
+/**
+ * Analysis view — shell that loads /api/analysis/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function AnalysisView() {

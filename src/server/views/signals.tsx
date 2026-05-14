@@ -1,3 +1,7 @@
+/**
+ * Signals view — shell that loads /api/signals/view/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function SignalsView() {

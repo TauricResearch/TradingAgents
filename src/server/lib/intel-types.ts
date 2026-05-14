@@ -1,3 +1,8 @@
+/**
+ * TypeScript types for portfolio intelligence.
+ * Covers accounts, positions, cash breakdown, asset allocation, and spread bets.
+ */
+
 import type { RebalanceSuggestion, RuleViolation } from "./governance.ts"
 
 export interface DbAccount {

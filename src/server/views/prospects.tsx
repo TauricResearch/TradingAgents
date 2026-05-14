@@ -1,3 +1,7 @@
+/**
+ * Prospects view — shell that loads /api/prospects/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function ProspectsView() {

@@ -1,3 +1,7 @@
+/**
+ * Exit list HTML — renders position exit plans with status, target, stop, and rationale.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { ExitStatus } from "../lib/exits-data.ts"

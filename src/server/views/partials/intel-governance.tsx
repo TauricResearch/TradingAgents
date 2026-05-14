@@ -1,3 +1,7 @@
+/**
+ * Governance alerts panel — shows active rule violations from the risk engine.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"

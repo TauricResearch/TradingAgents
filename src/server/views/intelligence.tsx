@@ -1,3 +1,7 @@
+/**
+ * Portfolio Intelligence view — shell that loads /api/portfolio/intelligence/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function IntelligenceView() {

@@ -1,16 +1,24 @@
+{"file":"agent-claim.ts","status":"unknown","summary":"Agent Coordination — Task Claim.","meta":{"portability":"unknown","lang":"ts","path":"agent-claim.ts"}}
+{"file":"agent-handoff.ts","status":"unknown","summary":"Agent Coordination — Structured Handoff.","meta":{"portability":"unknown","lang":"ts","path":"agent-handoff.ts"}}
+{"file":"agent-log.ts","status":"unknown","summary":"Agent Coordination — Log Progress.","meta":{"portability":"unknown","lang":"ts","path":"agent-log.ts"}}
+{"file":"agent-orient.ts","status":"unknown","summary":"Agent Coordination — Orientation.","meta":{"portability":"unknown","lang":"ts","path":"agent-orient.ts"}}
+{"file":"agent-sync.ts","status":"unknown","summary":"Agent Coordination — Sync State.","meta":{"portability":"unknown","lang":"ts","path":"agent-sync.ts"}}
 {"file":"barnacle-scan.ts","status":"adaptable","summary":"Barnacle Alert Daemon.","meta":{"portability":"adaptable","lang":"ts","path":"barnacle-scan.ts"}}
+{"file":"check-alerts.ts","status":"unknown","summary":"check-alerts — alert matching + dispatch runner.","meta":{"portability":"unknown","lang":"ts","path":"check-alerts.ts"}}
 {"file":"check-database-usage.ts","status":"adaptable","summary":"Gate: Only src/lib/db.ts may create SQLite Database instances.","meta":{"portability":"adaptable","lang":"ts","path":"check-database-usage.ts"}}
 {"file":"check-view-scripts.ts","status":"adaptable","summary":"Gate: server/views/*.tsx must not contain inline scripts.","meta":{"portability":"adaptable","lang":"ts","path":"check-view-scripts.ts"}}
 {"file":"color-tools/convert-hex-to-oklch.ts","status":"adaptable","summary":"convert-hex-to-oklch.ts","meta":{"portability":"adaptable","lang":"ts","path":"color-tools/convert-hex-to-oklch.ts"}}
-{"file":"copy-test-to-dev.sh","status":"project","summary":"─────────────────────────────────────────────────────────────────────────────","meta":{"portability":"project","lang":"sh","path":"copy-test-to-dev.sh"}}
-{"file":"ctx-lexicon-convert.ts","status":"project","summary":"Convert CTX conceptual lexicon (JSON array) to merged schema (JSONL).","meta":{"portability":"project","lang":"ts","path":"ctx-lexicon-convert.ts"}}
+{"file":"copy-test-to-dev.sh","status":"project","summary":"Copies REVIEWED artefacts from test_portfolio.db → portfolio.db","meta":{"portability":"project","lang":"sh","path":"copy-test-to-dev.sh"}}
+{"file":"ctx-lexicon-convert.ts","status":"project","summary":"Convert CTX conceptual-lexicon-example.json to JSONL.","meta":{"portability":"project","lang":"ts","path":"ctx-lexicon-convert.ts"}}
+{"file":"ctx-lexicon-incorporate.ts","status":"unknown","summary":"Incorporate 7 CTX operational heuristics into silo-conceptual-lexicon.jsonl.","meta":{"portability":"unknown","lang":"ts","path":"ctx-lexicon-incorporate.ts"}}
+{"file":"ctx-lexicon-list.ts","status":"unknown","summary":"List CTX conceptual lexicon entries in a readable table.","meta":{"portability":"unknown","lang":"ts","path":"ctx-lexicon-list.ts"}}
 {"file":"db-backup.ts","status":"adaptable","summary":"Database backup utility.","meta":{"portability":"adaptable","lang":"ts","path":"db-backup.ts"}}
 {"file":"extract_mermaid.ts","status":"adaptable","summary":"Extract the mermaid block from a .mmd file (strips YAML front matter).","meta":{"portability":"adaptable","lang":"ts","path":"extract_mermaid.ts"}}
-{"file":"gen-info-md.py","status":"project","summary":"(auto-generated — add description)","meta":{"portability":"project","lang":"py","path":"gen-info-md.py"}}
+{"file":"gen-info-md.py","status":"project","summary":"Generate docs/info.md with current project state.","meta":{"portability":"project","lang":"py","path":"gen-info-md.py"}}
 {"file":"get_price.ts","status":"project","summary":"Fetch current price and recent OHLCV history for a ticker via Yahoo Finance API.","meta":{"portability":"project","lang":"ts","path":"get_price.ts"}}
 {"file":"gitnexus-batch.ts","status":"project","summary":"Batch-generate GitNexus diagrams from config file.","meta":{"portability":"project","lang":"ts","path":"gitnexus-batch.ts"}}
 {"file":"gitnexus-to-dot.ts","status":"project","summary":"Export a GitNexus subgraph to Graphviz DOT format.","meta":{"portability":"project","lang":"ts","path":"gitnexus-to-dot.ts"}}
-{"file":"init-test-db.sh","status":"project","summary":"─────────────────────────────────────────────────────────────────────────────","meta":{"portability":"project","lang":"sh","path":"init-test-db.sh"}}
+{"file":"init-test-db.sh","status":"project","summary":"Creates a fresh test portfolio SQLite DB with the correct schema.","meta":{"portability":"project","lang":"sh","path":"init-test-db.sh"}}
 {"file":"install-pre-push-hook.sh","status":"adaptable","summary":"Install a pre-push hook that regenerates GitNexus diagrams before every push.","meta":{"portability":"adaptable","lang":"sh","path":"install-pre-push-hook.sh"}}
 {"file":"just-group-menu.ts","status":"adaptable","summary":"Pretty-print a just recipe group menu.","meta":{"portability":"adaptable","lang":"ts","path":"just-group-menu.ts"}}
 {"file":"lab/alerts.ts","status":"project","summary":"Lab: Exit plan alerts — Phase 1 (refined)","meta":{"portability":"project","lang":"ts","path":"lab/alerts.ts"}}
@@ -28,17 +36,19 @@
 {"file":"lib/gum.ts","status":"portable","summary":"Gum — Charm Gum CLI styling helper","meta":{"portability":"portable","lang":"ts","path":"lib/gum.ts"}}
 {"file":"lib/llm.ts","status":"portable","summary":"Shared OpenRouter LLM substrate.","meta":{"portability":"portable","lang":"ts","path":"lib/llm.ts"}}
 {"file":"lib/mine.ts","status":"portable","summary":"Shared mining utilities for registry tools.","meta":{"portability":"portable","lang":"ts","path":"lib/mine.ts"}}
+{"file":"lib/registry-types.ts","status":"portable","summary":"Shared Zod schemas for all registries and the conceptual lexicon.","meta":{"portability":"portable","lang":"ts","path":"lib/registry-types.ts"}}
 {"file":"portfolio-intel.ts","status":"project","summary":"Print portfolio intelligence summary as plain text.","meta":{"portability":"project","lang":"ts","path":"portfolio-intel.ts"}}
 {"file":"pr-fetch-all.sh","status":"project","summary":"Fetch all open PRs as markdown via defuddle.","meta":{"portability":"project","lang":"sh","path":"pr-fetch-all.sh"}}
 {"file":"pr-summarize.ts","status":"project","summary":"Summarize a cached PR review via LLM (OpenRouter → Gemini 2.5 Flash).","meta":{"portability":"project","lang":"ts","path":"pr-summarize.ts"}}
 {"file":"push-with-diagrams.ts","status":"project","summary":"Push with diagram regeneration.","meta":{"portability":"project","lang":"ts","path":"push-with-diagrams.ts"}}
-{"file":"py/analyze_stream.py","status":"project","summary":"Inject position context via memory log so agents know about existing holdings","meta":{"portability":"project","lang":"py","path":"py/analyze_stream.py"}}
-{"file":"py/analyze.py","status":"project","summary":"(auto-generated — add description)","meta":{"portability":"project","lang":"py","path":"py/analyze.py"}}
+{"file":"py/analyze.py","status":"project","summary":"Run a TradingAgents analysis from CLI args.","meta":{"portability":"project","lang":"py","path":"py/analyze.py"}}
+{"file":"py/analyze_stream.py","status":"project","summary":"Run TradingAgents analysis and emit JSON-line events to stdout.","meta":{"portability":"project","lang":"py","path":"py/analyze_stream.py"}}
 {"file":"py/get_price.py","status":"project","summary":"Map common tickers to yfinance symbols","meta":{"portability":"project","lang":"py","path":"py/get_price.py"}}
-{"file":"py/seed_database.py","status":"project","summary":"── Secret sanitization ───────────────────────────────────────────────────────","meta":{"portability":"project","lang":"py","path":"py/seed_database.py"}}
-{"file":"py/smoke_structured_output.py","status":"project","summary":"Minimal but realistic state for the three agents.","meta":{"portability":"project","lang":"py","path":"py/smoke_structured_output.py"}}
+{"file":"py/seed_database.py","status":"project","summary":"Strips API keys, tokens, and credentials from text before writing to DB.","meta":{"portability":"project","lang":"py","path":"py/seed_database.py"}}
+{"file":"py/smoke_structured_output.py","status":"project","summary":"End-to-end smoke for structured-output agents against a real LLM provider.","meta":{"portability":"project","lang":"py","path":"py/smoke_structured_output.py"}}
 {"file":"refactor-playbook.ts","status":"adaptable","summary":"Refactor a playbook markdown file from \"war story\" to clean playbook format.","meta":{"portability":"adaptable","lang":"ts","path":"refactor-playbook.ts"}}
 {"file":"reg-check.ts","status":"portable","summary":"Validate JSONL indexes against unified schema.","meta":{"portability":"portable","lang":"ts","path":"reg-check.ts"}}
+{"file":"reg-enrich.ts","status":"unknown","summary":"Enrich code index with meaningful summaries extracted from source files.","meta":{"portability":"unknown","lang":"ts","path":"reg-enrich.ts"}}
 {"file":"reg-import.ts","status":"portable","summary":"reg-import.ts — Import a canonical playbook into the current project.","meta":{"portability":"portable","lang":"ts","path":"reg-import.ts"}}
 {"file":"reg-list.ts","status":"portable","summary":"Human-readable registry lister.","meta":{"portability":"portable","lang":"ts","path":"reg-list.ts"}}
 {"file":"reg-migrate.ts","status":"portable","summary":"Migrate document indexes to unified schema.","meta":{"portability":"portable","lang":"ts","path":"reg-migrate.ts"}}
@@ -48,12 +58,14 @@
 {"file":"reg-sync-scripts.ts","status":"portable","summary":"reg-sync-scripts.ts — Sync script index with portability classification.","meta":{"portability":"portable","lang":"ts","path":"reg-sync-scripts.ts"}}
 {"file":"reg-sync.ts","status":"portable","summary":"Check if a document index is up-to-date, or regenerate it.","meta":{"portability":"portable","lang":"ts","path":"reg-sync.ts"}}
 {"file":"render_diagrams.ts","status":"adaptable","summary":"Render all .dot and .mmd source files to .svg in docs/diagrams/.","meta":{"portability":"adaptable","lang":"ts","path":"render_diagrams.ts"}}
-{"file":"reset-portfolio.sh","status":"project","summary":"─────────────────────────────────────────────────────────────────────────────","meta":{"portability":"project","lang":"sh","path":"reset-portfolio.sh"}}
+{"file":"reset-portfolio.sh","status":"project","summary":"Hard reset: zero out all portfolio data in both dev and test environments.","meta":{"portability":"project","lang":"sh","path":"reset-portfolio.sh"}}
+{"file":"seed-initial-portfolio.ts","status":"project","summary":"Seed initial portfolio from user's real data.","meta":{"portability":"project","lang":"ts","path":"seed-initial-portfolio.ts"}}
 {"file":"seed_database.ts","status":"project","summary":"Seed the TradingAgents database with realistic simulation data.","meta":{"portability":"project","lang":"ts","path":"seed_database.ts"}}
 {"file":"seed_real_portfolio.ts","status":"project","summary":"Seed the LIVE database with real portfolio data.","meta":{"portability":"project","lang":"ts","path":"seed_real_portfolio.ts"}}
 {"file":"seed_test_journal.sh","status":"project","summary":"Generate a test hLedger journal with three platforms for dashboard development.","meta":{"portability":"project","lang":"sh","path":"seed_test_journal.sh"}}
-{"file":"seed-initial-portfolio.ts","status":"project","summary":"Seed initial portfolio from user's real data.","meta":{"portability":"project","lang":"ts","path":"seed-initial-portfolio.ts"}}
 {"file":"server-lifecycle.ts","status":"project","summary":"Server lifecycle: start means start, stop means stop.","meta":{"portability":"project","lang":"ts","path":"server-lifecycle.ts"}}
 {"file":"summarize_analyses.ts","status":"project","summary":"Generate LLM summaries for all analyses that don't have one yet.","meta":{"portability":"project","lang":"ts","path":"summarize_analyses.ts"}}
 {"file":"sync-prices.ts","status":"project","summary":"Sync daily price records for open positions.","meta":{"portability":"project","lang":"ts","path":"sync-prices.ts"}}
+{"file":"td-orphans.ts","status":"unknown","summary":"Agent Coordination — Orphan Detection & Realignment.","meta":{"portability":"unknown","lang":"ts","path":"td-orphans.ts"}}
 {"file":"trade-calculator.ts","status":"project","summary":"CLI: Generate a strategic trade plan for a ticker.","meta":{"portability":"project","lang":"ts","path":"trade-calculator.ts"}}
+{"file":"worktree-init.ts","status":"unknown","summary":"worktree-init — Create a git worktree with td-aware .td-root file.","meta":{"portability":"unknown","lang":"ts","path":"worktree-init.ts"}}

@@ -1,3 +1,7 @@
+/**
+ * Holdings view — shell that loads /api/holdings/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import { esc, fmt, fmtGBP } from "../lib/markup.ts"

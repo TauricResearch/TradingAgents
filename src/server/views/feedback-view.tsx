@@ -1,3 +1,7 @@
+/**
+ * Feedback HTML — renders post-mortem results: signal accuracy, position outcomes, and notes.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { SignalAccuracy, PostMortem, TickerCorrelation } from "../lib/feedback-data.ts"

@@ -1,3 +1,7 @@
+/**
+ * Workflow view — shell that loads /api/workflow/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function WorkflowView() {

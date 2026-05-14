@@ -58,14 +58,17 @@ justify it in one sentence, delete it.
 | td ↔ current.md sync at startup | `td list` must match `debriefs/plans/current.md`; stale planning docs are process barnacles | 2026-05-08 |
 | `scripts/` = support TS (loose) | Tooling, automation, not shipped | 2026-05-07 |
 | `scripts/lab/` = experiments | Loosest types; disposable | 2026-05-07 |
-| `scripts/lib/` = shared helpers | Reusable across scripts; pass `just check` | 2026-05-06 |
+| `scripts/lib/` = shared helpers | Reusable across scripts; pass `just check` | 2026-05-07 |
+| Refactor before patching complex state | A "surgical fix" to a tangled state machine usually makes it worse; linearise the logic first | 2026-05-13 |
+| Test against real code, not mental models | Verify the actual extraction/import path before writing assertions; a false failure costs an hour | 2026-05-13 |
+| `pos` + array slicing is a footgun | Tracking indices against a shrinking array causes off-by-one errors; prefer direct array indexing where possible | 2026-05-13 |
 
 ## Barnacle Removal Record
 
 | Date | Barnacle | Where Found | Why Removed | Removed By |
 |------|----------|-------------|-------------|------------|
 | 2026-05-07 | `Justfile` (capitalized) | `playbooks/just-playbook.md`, `ci-cd-playbook.md` | Fought `just` formatter; created duplicate file on macOS | claude |
-| 2026-05-07 | Empty `src/` directory | Project root | Claimed to be source root but contained nothing; misled every new agent | claude |
+| 2026-05-13 | `agent-orient.ts` crash on `prs.map is not a function` | `scripts/agent-orient.ts:190` | GitHub API/CLI returned unexpected format; script crashes on all sessions | ses_208dea |
 
 ## Process Barnacles
 

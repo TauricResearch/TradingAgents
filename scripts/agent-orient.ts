@@ -245,7 +245,38 @@ function openPRs() {
   ].join("\n")
 }
 
+// ── Main branch gate ───────────────────────────────────────────────────
+
+/**
+ * Gate: abort if on main with active work or uncommitted changes.
+ * This prevents accidental work on main — always branch first.
+ */
+function checkMainGate() {
+  const branch = sh("git branch -v 2>/dev/null | grep '^\\*' | awk '{print $2}'")
+  if (branch !== "main") return // only gate on main
+
+  const status = sh("git status --short 2>/dev/null")
+  const hasChanges = status.trim().length > 0
+
+  const wsRaw = sh("td ws current 2>/dev/null")
+  const hasWorkspace = wsRaw.includes("Work Session:") && !wsRaw.includes("no active work session")
+
+  if (!hasChanges && !hasWorkspace) return // clean on main — no gate needed
+
+  console.error("\n\x1b[31m✗ BLOCKED: on main with active work\x1b[0m\n")
+  console.error("  Reason(s):")
+  if (hasChanges) console.error(`  - uncommitted changes:\n${status.replace(/^/gm, "    ")}`)
+  if (hasWorkspace) {
+    const lines = wsRaw.split("\n").slice(0, 3).join("\n")
+    console.error(`  - active work session:\n${lines.replace(/^/gm, "    ")}`)
+  }
+  console.error("\n  → Create a branch first:  git checkout -b feat/<name>\n")
+  process.exit(1)
+}
+
 // ── Output ────────────────────────────────────────────────────────────────
+
+checkMainGate()
 
 console.log("")
 console.log("\x1b[36m═══════════════════════════════════\x1b[0m")

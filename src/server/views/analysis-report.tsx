@@ -1,3 +1,7 @@
+/**
+ * Analysis report HTML — renders the full multi-agent debate report with agent sections, debate rounds, and decision.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { DbAnalysis, AnalysisEvent } from "../lib/analysis-data.ts"

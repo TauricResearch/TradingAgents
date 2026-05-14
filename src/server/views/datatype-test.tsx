@@ -1,3 +1,7 @@
+/**
+ * Datatype font test page — renders all chart ligatures and glyphs for QA.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function DatatypeTestView() {

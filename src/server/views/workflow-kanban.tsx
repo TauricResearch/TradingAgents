@@ -1,3 +1,7 @@
+/**
+ * Workflow kanban HTML — renders analyses and positions as a kanban board with status columns.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type {

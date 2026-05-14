@@ -1,3 +1,7 @@
+/**
+ * Root layout wrapper — applies base HTML shell, CSS, nav, and test-mode banner.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PropsWithChildren } from "hono/jsx";

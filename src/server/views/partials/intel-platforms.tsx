@@ -1,3 +1,7 @@
+/**
+ * Platform table — shows holdings per platform (IG, Tasty, etc.) with currency breakdown.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PlatformAllocation } from "../../lib/portfolio-intel-data.ts"

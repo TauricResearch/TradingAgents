@@ -1,3 +1,7 @@
+/**
+ * Account balances panel — shows cash balances per account from hledger.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { AccountSummary } from "../../lib/portfolio-intel-data.ts"

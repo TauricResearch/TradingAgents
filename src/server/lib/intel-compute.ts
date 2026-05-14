@@ -1,3 +1,8 @@
+/**
+ * Portfolio intelligence computation — aggregates positions, cash, and governance
+ * into a unified PortfolioIntel response from SQLite + hledger data.
+ */
+
 import { DatabaseFactory } from "../../lib/db.ts"
 import { checkRules, loadRules, suggestRebalance } from "./governance.ts"
 import { getHoldings } from "./hledger.ts"

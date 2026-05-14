@@ -1,3 +1,7 @@
+/**
+ * Signals HTML — renders recent signal history with ticker, direction, confidence, and generated-at timestamp.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PriceWithHistory, Signal } from "../lib/signals-data.ts"

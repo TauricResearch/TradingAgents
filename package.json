@@ -16,6 +16,7 @@
     "colorizr": "^5.0.1"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.2",
     "citty": "^0.2.2",
     "dotenv": "^17.4.2",
     "hono": "^4.9.8",

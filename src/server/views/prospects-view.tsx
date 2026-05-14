@@ -1,3 +1,7 @@
+/**
+ * Prospects list HTML — renders watchlist items with fair value, upside %, and signal strength.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import { STAGES, type Prospect } from "../lib/prospects-data.ts"

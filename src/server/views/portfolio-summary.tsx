@@ -1,3 +1,7 @@
+/**
+ * Portfolio summary HTML — renders positions table, P&L totals, and allocation sparklines from PortfolioSummary data.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PortfolioSummary } from "../lib/portfolio-data.ts"

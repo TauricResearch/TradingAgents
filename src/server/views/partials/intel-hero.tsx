@@ -1,3 +1,7 @@
+/**
+ * Portfolio hero panel — displays total value, cash, total P&L, and negative-cash banner.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PortfolioIntel } from "../../lib/portfolio-intel-data.ts"

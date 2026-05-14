@@ -1,3 +1,7 @@
+/**
+ * Governance HTML — renders active rule violations and rebalance suggestions.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { GovernanceRule, RebalanceSuggestion, RuleViolation } from "../lib/governance-data.ts"

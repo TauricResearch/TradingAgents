@@ -110,15 +110,35 @@ function extractSummaryFromFile(filepath: string): string {
       if (lines[i].trim().startsWith("/**")) {
         const next = lines[i + 1]?.trim()
         if (next?.startsWith("* ")) {
-          return next.replace(/^\*\s*/, "").trim()
+          return next
+            .replace(/^\*\s*/, "")
+            .replace(/\\"/g, '"')
+            .trim()
         }
       }
     }
-    // Shell script: look for first substantial comment line (not just decoration)
+    // Python docstring: extract first line of triple-quoted string
+    const pyMatch = content.match(/"""([\s\S]*?)"""/)
+    if (pyMatch) {
+      const firstLine = pyMatch[1].split("\n")[0].replace(/\\"/g, '"').trim()
+      if (firstLine) return firstLine
+    }
+
+    // Shell script: look for first substantial comment line (skip decoration)
     for (const line of lines) {
       const trimmed = line.trim()
-      if (trimmed.startsWith("# ") && trimmed.length > 10 && !/^#[─═\-*]{5,}/.test(trimmed)) {
-        return trimmed.replace(/^#\s*/, "").trim()
+      if (trimmed.startsWith("# ") && trimmed.length > 10) {
+        const content = trimmed.slice(2) // strip '# ' prefix
+        // Skip lines that are mostly border/separator characters
+        const borderChars = (content.match(/[-─═─┌┐└┘├┤┬┴┼┃━] */g) || [])
+          .join("")
+          .replace(/ /g, "").length
+        const alphaNum = content.replace(/[-─═─┌┐└┘├┤┬┴┼┃━s]/g, "").length
+        if (borderChars > alphaNum * 2) continue // skip decoration
+        const summary = content.trim()
+        // Skip bare filenames (e.g. '# copy-test-to-dev.sh')
+        if (/^[a-z][a-z0-9_-]+(.[a-z]+)?$/i.test(summary)) continue
+        return summary.replace(/\\"/g, '"')
       }
     }
   } catch {
@@ -169,8 +189,25 @@ function check(fix: boolean): boolean {
   console.log(`  index: ${INDEX_PATH} (${indexedFiles.size} entries)`)
   console.log(`  files: ${SCRIPTS_DIR} (${diskFiles.length} files)`)
 
+  // Always re-extract when --fix is set (picks up doc improvements)
+  if (fix) {
+    const allFiles = diskFiles.map((f) => {
+      const fullPath = join(SCRIPTS_DIR, f)
+      const ext = f.slice(f.lastIndexOf("."))
+      const portability = portableHeuristic(f)
+      return {
+        file: f,
+        status: portability,
+        summary: extractSummaryFromFile(fullPath),
+        meta: { portability, lang: EXT_TO_LANG[ext] || "unknown", path: f },
+      }
+    })
+    const newLines = allFiles.map((e) => JSON.stringify(e)).join("\n")
+    writeFileSync(INDEX_PATH, `${newLines}\n`)
+  }
+
   if (missing.length === 0 && stale.length === 0) {
-    console.log(`  ✓ up to date`)
+    console.log(fix ? `  ✓ re-enriched: ${diskFiles.length} entries` : `  ✓ up to date`)
     return true
   }
 
@@ -182,27 +219,6 @@ function check(fix: boolean): boolean {
   if (stale.length > 0) {
     console.log(`  ⚠ STALE entries (${stale.length}):`)
     for (const f of stale) console.log(`    - ${f}`)
-  }
-
-  if (fix) {
-    console.log(`  → regenerating index...`)
-    const kept = entries.filter((e) => diskSet.has(e.file))
-    const added = missing.map((f) => {
-      const fullPath = join(SCRIPTS_DIR, f)
-      const ext = f.slice(f.lastIndexOf("."))
-      const portability = portableHeuristic(f)
-      return {
-        file: f,
-        status: portability,
-        summary: extractSummaryFromFile(fullPath),
-        meta: { portability, lang: EXT_TO_LANG[ext] || "unknown", path: f },
-      }
-    })
-
-    const merged = [...kept, ...added].sort((a, b) => a.file.localeCompare(b.file))
-    const lines = merged.map((e) => JSON.stringify(e)).join("\n")
-    writeFileSync(INDEX_PATH, `${lines}\n`)
-    console.log(`  ✓ regenerated: ${merged.length} entries`)
   }
 
   return false

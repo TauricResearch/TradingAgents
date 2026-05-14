@@ -1,3 +1,7 @@
+/**
+ * Cash breakdown panel — shows cash balance by account and currency.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { CashBreakdown } from "../../lib/portfolio-intel-data.ts"

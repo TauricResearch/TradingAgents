@@ -61,6 +61,12 @@ const REGISTRIES: Record<string, RegistryDef> = {
     filePattern: /\.md$/,
     exclude: [/INDEX\.jsonl/],
   },
+  code: {
+    indexPath: "code/INDEX.jsonl",
+    dirPath: "src",
+    filePattern: /\.tsx?$/,
+    exclude: [],
+  },
 }
 
 function loadIndex(path: string): Array<{ file: string }> {

@@ -1,3 +1,7 @@
+/**
+ * History view — shell that loads /api/analyses/html via HTMX (historical analyses list).
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function HistoryView() {

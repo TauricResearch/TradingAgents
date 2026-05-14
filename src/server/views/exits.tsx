@@ -1,3 +1,7 @@
+/**
+ * Exits view — shell that loads /api/positions/exits/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function ExitsView() {

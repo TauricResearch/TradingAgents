@@ -1,3 +1,7 @@
+/**
+ * Asset class panel — shows positions grouped by asset class with individual P&L.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { AssetClassAllocation } from "../../lib/portfolio-intel-data.ts"

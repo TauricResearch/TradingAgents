@@ -1,3 +1,7 @@
+/**
+ * Portfolio view — shell that loads /api/portfolio/summary/html via HTMX.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 export function PortfolioView() {

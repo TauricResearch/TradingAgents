@@ -1,3 +1,7 @@
+/**
+ * Allocation bar panel — shows target vs. actual % per asset class with rebalance arrows.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { AllocationBar } from "../../lib/portfolio-intel-data.ts"

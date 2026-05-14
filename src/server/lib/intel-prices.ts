@@ -1,3 +1,8 @@
+/**
+ * Live price fetching for portfolio tickers via Python script bridge.
+ * Prices are cached in-process with a TTL; callers should await this for fresh data.
+ */
+
 import { spawn } from "node:child_process"
 import { join } from "node:path"
 import { endOfToday, priceCache } from "./cache.ts"

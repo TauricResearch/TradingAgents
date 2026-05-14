@@ -3,6 +3,7 @@
 {"file":"context-window-management.md","date":"2026-05-12","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"diagrams/README.md","date":"2026-05-08","status":"active","summary":"Diagram generation pipeline: DOT to SVG/PNG via graphviz","meta":{"type":"reference","topic":"diagrams"}}
 {"file":"help.md","date":"2026-05-06","status":"active","summary":"Quick reference for common commands and workflows","meta":{"type":"reference","topic":"commands"}}
+{"file":"Hormuz Bottleneck_ Recovery Stock Analysis.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"ig-api-client.md","date":"2026-05-08","status":"active","summary":"Native fetch IG REST API client: per-endpoint version headers, CST/XST auth, zero dependencies","meta":{"type":"reference","topic":"ig-api"}}
 {"file":"ig-connectivity-config.md","date":"2026-05-08","status":"active","summary":"IG API connectivity: demo account setup, V2 auth, instrument discovery","meta":{"type":"guide","topic":"ig-api"}}
 {"file":"ig-trading-guide.md","date":"2026-05-08","status":"active","summary":"IG trading workflow: placing orders, managing positions, margin rules","meta":{"type":"guide","topic":"ig-api"}}
@@ -18,3 +19,4 @@
 {"file":"schema/unified-registry.md","date":"2026-05-08","status":"active","summary":"Unified JSONL schema for all document indexes in the repository","meta":{"type":"schema","topic":"registry"}}
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
+{"file":"ZeroHedge.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}

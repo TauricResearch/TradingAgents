@@ -1,3 +1,7 @@
+/**
+ * Portfolio Intelligence view — renders the full intel page: accounts, allocation, positions, and governance alerts.
+ */
+
 /** @jsxImportSource hono/jsx */
 
 import type { PortfolioIntel } from "../lib/portfolio-intel-data.ts"

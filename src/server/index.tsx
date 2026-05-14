@@ -1,3 +1,8 @@
+/**
+ * Dashboard server entry — Hono app with all route routers mounted.
+ * Serves HTMX + server-rendered HTML on port 3000 (TA_DASHBOARD_PORT override).
+ */
+
 /** @jsxImportSource hono/jsx */
 import { Hono } from "hono";
 import type { Context } from "hono";
