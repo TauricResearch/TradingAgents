@@ -123,6 +123,7 @@ const App = () => {
   const [isSavingPortfolio, setIsSavingPortfolio] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [selectedAgent, setSelectedAgent] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -410,10 +411,32 @@ const App = () => {
         {/* Workspace */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           <div style={{ marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #1e293b' }}>
-            <div style={{ padding: '12px', background: '#0f172a', borderBottom: '1px solid #1e293b', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Layout size={14} /> AGENTIC FLOW VISUALIZATION
+            <div style={{ padding: '15px', background: '#0f172a', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Layout size={18} color="#3b82f6" />
+                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>AGENTIC FLOW VISUALIZATION</span>
+              </div>
+              {selectedAgent && (
+                <div style={{ 
+                  background: '#1e293b', 
+                  padding: '6px 12px', 
+                  borderRadius: '6px', 
+                  fontSize: '12px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '10px',
+                  border: '1px solid #3b82f6',
+                }}>
+                  <div style={{ fontWeight: 'bold', color: '#60a5fa' }}>{selectedAgent.label.toUpperCase()}:</div>
+                  <div style={{ color: '#94a3b8' }}>{selectedAgent.description}</div>
+                  <button 
+                    onClick={() => setSelectedAgent(null)}
+                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '0 4px', fontSize: '16px' }}
+                  >×</button>
+                </div>
+              )}
             </div>
-            <FlowGraph runData={runDetail} activeStatus={activeStatus} />
+            <FlowGraph runData={runDetail} activeStatus={activeStatus} onNodeClick={setSelectedAgent} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>

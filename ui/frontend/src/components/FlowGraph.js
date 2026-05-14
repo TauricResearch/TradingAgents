@@ -11,22 +11,51 @@ import 'reactflow/dist/style.css';
 // Custom Node component for Agents
 const AgentNode = ({ data }) => {
   const isSelected = data.isActive;
+  const [showTooltip, setShowTooltip] = React.useState(false);
+
   return (
-    <div style={{
-      padding: '10px',
-      borderRadius: '8px',
-      background: isSelected ? '#3b82f6' : '#1e293b',
-      color: 'white',
-      border: `2px solid ${isSelected ? '#60a5fa' : '#475569'}`,
-      width: '180px',
-      fontSize: '12px',
-      boxShadow: isSelected ? '0 0 15px rgba(59, 130, 246, 0.5)' : 'none',
-      transition: 'all 0.3s ease'
-    }}>
+    <div 
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      style={{
+        padding: '10px',
+        borderRadius: '8px',
+        background: isSelected ? '#3b82f6' : '#1e293b',
+        color: 'white',
+        border: `2px solid ${isSelected ? '#60a5fa' : '#475569'}`,
+        width: '180px',
+        fontSize: '12px',
+        boxShadow: isSelected ? '0 0 15px rgba(59, 130, 246, 0.5)' : 'none',
+        transition: 'all 0.3s ease',
+        cursor: 'pointer',
+        position: 'relative'
+      }}
+    >
       <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
       <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{data.label}</div>
       <div style={{ fontSize: '10px', opacity: 0.8 }}>{data.status || 'Waiting...'}</div>
       <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+      
+      {showTooltip && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          marginBottom: '10px',
+          padding: '8px',
+          background: '#0f172a',
+          border: '1px solid #334155',
+          borderRadius: '4px',
+          width: '200px',
+          zIndex: 1000,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ fontWeight: 'bold', fontSize: '11px', marginBottom: '4px', color: '#60a5fa' }}>PURPOSE</div>
+          <div style={{ fontSize: '10px', lineHeight: '1.4' }}>{data.description}</div>
+        </div>
+      )}
     </div>
   );
 };
@@ -35,24 +64,23 @@ const nodeTypes = {
   agent: AgentNode,
 };
 
-const FlowGraph = ({ runData, activeStatus }) => {
+const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
   const { nodes, edges } = useMemo(() => {
     // If we have an active run, we show it, otherwise show historical data
     const isLive = !!activeStatus;
     const currentData = isLive ? {} : (runData || {});
     const activeNode = activeStatus?.active_node;
 
-    // Map LangGraph node names to our UI node IDs
-    const nodeMap = {
-        'market': 'market',
-        'social': 'sentiment',
-        'news': 'news',
-        'fundamentals': 'fundamentals',
-        'bull_researcher': 'bull',
-        'bear_researcher': 'bear',
-        'research_manager': 'manager',
-        'trader': 'trader',
-        'risk_management': 'pm'
+    const descriptions = {
+      market: "Analyzes price action, technical indicators, and volume patterns to identify trends.",
+      sentiment: "Monitors market mood by analyzing news sentiment and social signals.",
+      news: "Synthesizes global macro headlines and tracks corporate insider transactions.",
+      fundamentals: "Evaluates financial health using balance sheets, income statements, and ratios.",
+      bull: "Constructs the strongest possible 'Buy' case by identifying positive catalysts.",
+      bear: "Challenges the consensus by identifying risks and potential 'Sell' catalysts.",
+      manager: "Synthesizes competing researcher views into a single balanced investment plan.",
+      trader: "Calculates specific entry, exit, and stop-loss price targets for execution.",
+      pm: "Makes the final capital allocation decision and issues the official rating."
     };
 
     const rawNodes = [
@@ -62,6 +90,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Market Analyst', 
+            description: descriptions.market,
             status: currentData.market_report ? 'Complete' : 'Pending',
             isActive: activeNode === 'market'
         }, 
@@ -72,6 +101,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Sentiment Analyst', 
+            description: descriptions.sentiment,
             status: currentData.sentiment_report ? 'Complete' : 'Pending',
             isActive: activeNode === 'social'
         }, 
@@ -82,6 +112,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'News Analyst', 
+            description: descriptions.news,
             status: currentData.news_report ? 'Complete' : 'Pending',
             isActive: activeNode === 'news'
         }, 
@@ -92,6 +123,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Fundamentals Analyst', 
+            description: descriptions.fundamentals,
             status: currentData.fundamentals_report ? 'Complete' : 'Pending',
             isActive: activeNode === 'fundamentals'
         }, 
@@ -102,6 +134,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Bull Researcher', 
+            description: descriptions.bull,
             status: isLive ? 'Simulating...' : 'Complete',
             isActive: activeNode === 'bull_researcher'
         }, 
@@ -112,6 +145,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Bear Researcher', 
+            description: descriptions.bear,
             status: isLive ? 'Simulating...' : 'Complete',
             isActive: activeNode === 'bear_researcher'
         }, 
@@ -122,6 +156,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Research Manager', 
+            description: descriptions.manager,
             status: currentData.investment_plan ? 'Synthesized' : 'Waiting',
             isActive: activeNode === 'research_manager'
         }, 
@@ -132,6 +167,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Trader', 
+            description: descriptions.trader,
             status: currentData.trader_investment_decision ? 'Proposed' : 'Waiting',
             isActive: activeNode === 'trader'
         }, 
@@ -142,6 +178,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         type: 'agent', 
         data: { 
             label: 'Portfolio Manager', 
+            description: descriptions.pm,
             status: currentData.final_trade_decision ? 'Final Decision' : 'Reviewing',
             isActive: activeNode === 'risk_management'
         }, 
@@ -173,6 +210,7 @@ const FlowGraph = ({ runData, activeStatus }) => {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onNodeClick={(event, node) => onNodeClick && onNodeClick(node.data)}
         fitView
       >
         <Background color="#334155" gap={20} />
