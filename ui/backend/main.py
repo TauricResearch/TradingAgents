@@ -13,17 +13,20 @@ from typing import List, Dict, Any, Optional
 try:
     import kubernetes
     from kubernetes import client as k8s_client
-    from kubernetes import config as k8s_config
+    # Deep imports to bypass any namespace shadowing/attribute issues
+    from kubernetes.config.incluster_config import load_in_cluster_config
+    from kubernetes.config.kube_config import load_kube_config
+    from kubernetes.config.config_exception import ConfigException
     
     # Diagnostic logging
     print(f"DEBUG: Kubernetes library file: {getattr(kubernetes, '__file__', 'unknown')}")
-    print(f"DEBUG: k8s_config module: {k8s_config}")
-    print(f"DEBUG: k8s_config attributes: {dir(k8s_config)}")
 except ImportError as e:
     print(f"DEBUG: Kubernetes library NOT FOUND: {e}")
     kubernetes = None
     k8s_client = None
-    k8s_config = None
+    load_in_cluster_config = None
+    load_kube_config = None
+    ConfigException = Exception
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.utils.memory import TradingMemoryLog
@@ -34,10 +37,10 @@ app = FastAPI(title="TradingAgents Dashboard API")
 batch_v1 = None
 k8s_init_error = None
 
-if kubernetes and k8s_client and k8s_config:
+if kubernetes and k8s_client and load_in_cluster_config:
     try:
         print("Attempting to load in-cluster Kubernetes config...")
-        k8s_config.load_in_cluster_config()
+        load_in_cluster_config()
         batch_v1 = k8s_client.BatchV1Api()
         print("Successfully loaded in-cluster Kubernetes config.")
     except Exception as e:
@@ -45,7 +48,7 @@ if kubernetes and k8s_client and k8s_config:
         print(k8s_init_error)
         try:
             print("Attempting to load local kube-config...")
-            k8s_config.load_kube_config()
+            load_kube_config()
             batch_v1 = k8s_client.BatchV1Api()
             print("Successfully loaded local kube-config.")
             k8s_init_error = None # Success
@@ -54,7 +57,7 @@ if kubernetes and k8s_client and k8s_config:
             print(k8s_init_error)
             print("Kubernetes client will not be available.")
 else:
-    k8s_init_error = f"Kubernetes library error: lib={bool(kubernetes)} client={bool(k8s_client)} config={bool(k8s_config)}"
+    k8s_init_error = f"Kubernetes library error: lib={bool(kubernetes)} client={bool(k8s_client)} loader={bool(load_in_cluster_config)}"
     print(k8s_init_error)
 
 # Global state to track current active run
