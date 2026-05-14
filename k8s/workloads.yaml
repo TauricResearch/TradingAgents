@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tradingagents-nvda-daily
+spec:
+  schedule: "0 21 * * 1-5" # 9 PM UTC (after US market close) Mon-Fri
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: trader
+            image: your-registry/tradingagents:latest-arm64
+            args: ["trade", "NVDA"]
+            envFrom:
+            - secretRef:
+                name: tradingagents-secrets
+            volumeMounts:
+            - name: data
+              mountPath: /home/appuser/.tradingagents
+          restartPolicy: OnFailure
+          volumes:
+          - name: data
+            persistentVolumeClaim:
+              claimName: tradingagents-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tradingagents-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      containers:
+      - name: dashboard
+        image: your-registry/tradingagents-dashboard:latest-arm64
+        ports:
+        - containerPort: 8000 # API
+        - containerPort: 3000 # UI
+        envFrom:
+        - secretRef:
+            name: tradingagents-secrets
+        volumeMounts:
+        - name: data
+          mountPath: /home/appuser/app/results
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: tradingagents-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tradingagents-dashboard-svc
+spec:
+  selector:
+    app: dashboard
+  ports:
+  - name: api
+    port: 8000
+    targetPort: 8000
+  - name: ui
+    port: 80
+    targetPort: 3000
+  type: ClusterIP
