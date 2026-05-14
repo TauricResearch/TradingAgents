@@ -4,12 +4,21 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 import json
+import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from kubernetes import client, config as k8s_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 
 app = FastAPI(title="TradingAgents Dashboard API")
+
+# Initialize Kubernetes client (loads in-cluster config)
+try:
+    k8s_config.load_in_cluster_config()
+    batch_v1 = client.BatchV1Api()
+except Exception:
+    batch_v1 = None
 
 # Global state to track current active run
 current_run_status = {
@@ -37,6 +46,34 @@ async def get_portfolio_config():
     if not PORTFOLIO_PATH.exists():
         return {"tickers": "NVDA,AAPL,MSFT,TSLA,GOOGL"} # Default
     return {"tickers": PORTFOLIO_PATH.read_text().strip()}
+
+@app.post("/api/jobs/trigger")
+async def trigger_job():
+    """Trigger a manual trade analysis job in Kubernetes."""
+    if not batch_v1:
+        raise HTTPException(status_code=500, detail="Kubernetes client not initialized (local development?)")
+
+    namespace = "tradingagents"
+    cronjob_name = "tradingagents-portfolio-daily"
+    
+    try:
+        # 1. Get the CronJob template
+        cron_job = batch_v1.read_namespaced_cron_job(cronjob_name, namespace)
+        
+        # 2. Define the Job object based on CronJob template
+        job_name = f"manual-ui-run-{int(time.time())}"
+        job = client.V1Job(
+            api_version="batch/v1",
+            kind="Job",
+            metadata=client.V1ObjectMeta(name=job_name),
+            spec=cron_job.spec.job_template.spec
+        )
+        
+        # 3. Create the Job
+        batch_v1.create_namespaced_job(namespace, job)
+        return {"status": "triggered", "job_name": job_name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/config/portfolio")
 async def update_portfolio_config(data: Dict[str, str]):

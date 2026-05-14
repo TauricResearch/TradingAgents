@@ -49,6 +49,36 @@ spec:
             persistentVolumeClaim:
               claimName: tradingagents-pvc
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tradingagents-dashboard-sa
+  namespace: tradingagents
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-manager-role
+  namespace: tradingagents
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "create", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: job-manager-binding
+  namespace: tradingagents
+subjects:
+- kind: ServiceAccount
+  name: tradingagents-dashboard-sa
+  namespace: tradingagents
+roleRef:
+  kind: Role
+  name: job-manager-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -64,6 +94,7 @@ spec:
       labels:
         app: dashboard
     spec:
+      serviceAccountName: tradingagents-dashboard-sa
       containers:
       - name: dashboard
         image: ghcr.io/madhuboyin/tradingagents-dashboard:latest-arm64

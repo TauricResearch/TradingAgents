@@ -104,6 +104,7 @@ const App = () => {
   const [activeStatus, setActiveStatus] = useState(null);
   const [portfolio, setPortfolio] = useState('');
   const [isSavingPortfolio, setIsSavingPortfolio] = useState(false);
+  const [isTriggering, setIsTriggering] = useState(false);
   const [selectedRun, setSelectedRun] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -155,6 +156,22 @@ const App = () => {
     .catch(err => {
       console.error("Error updating portfolio:", err);
       setIsSavingPortfolio(false);
+    });
+  };
+
+  const triggerAnalysis = () => {
+    setIsTriggering(true);
+    fetch('/api/jobs/trigger', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      setIsTriggering(false);
+      if (data.status === 'triggered') {
+        alert(`Analysis job started! You will see status updates in the header shortly.`);
+      }
+    })
+    .catch(err => {
+      console.error("Error triggering job:", err);
+      setIsTriggering(false);
     });
   };
 
@@ -224,10 +241,35 @@ const App = () => {
               fontSize: '11px',
               fontWeight: 'bold',
               cursor: 'pointer',
-              opacity: isSavingPortfolio ? 0.5 : 1
+              opacity: isSavingPortfolio ? 0.5 : 1,
+              marginBottom: '8px'
             }}
           >
             {isSavingPortfolio ? 'SAVING...' : 'UPDATE TICKER LIST'}
+          </button>
+
+          <button 
+            onClick={triggerAnalysis}
+            disabled={isTriggering || activeStatus}
+            style={{
+              width: '100%',
+              background: activeStatus ? '#1e293b' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '8px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: (isTriggering || activeStatus) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              opacity: isTriggering ? 0.5 : 1
+            }}
+          >
+            <Activity size={14} />
+            {activeStatus ? 'ANALYSIS IN PROGRESS...' : (isTriggering ? 'TRIGGERING...' : 'RUN ANALYSIS NOW')}
           </button>
         </div>
         
