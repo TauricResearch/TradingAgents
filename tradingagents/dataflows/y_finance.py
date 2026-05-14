@@ -420,3 +420,168 @@ def get_insider_transactions(
         
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+
+
+def _fmt_num(value, as_int: bool = False) -> str:
+    """Format a numeric value for the markdown tables; 'n/a' when missing."""
+    if value is None:
+        return "n/a"
+    try:
+        if pd.isna(value):
+            return "n/a"
+    except (TypeError, ValueError):
+        return str(value)
+    try:
+        return f"{int(value)}" if as_int else f"{float(value):,.2f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _fmt_pct(value) -> str:
+    """Format a fractional value (e.g. 0.048) as a signed percentage string."""
+    if value is None:
+        return "n/a"
+    try:
+        if pd.isna(value):
+            return "n/a"
+        return f"{float(value):+.2%}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
+def _render_estimates_table(estimates_df, header_label: str) -> list:
+    """Render a yfinance estimates DataFrame (earnings_estimate / revenue_estimate) as markdown."""
+    lines = [
+        f"### {header_label}",
+        "| Period | Avg | Low | High | # Analysts | YoY Growth |",
+        "|---|---|---|---|---|---|",
+    ]
+    for period, row in estimates_df.iterrows():
+        lines.append(
+            f"| {period} "
+            f"| {_fmt_num(row.get('avg'))} "
+            f"| {_fmt_num(row.get('low'))} "
+            f"| {_fmt_num(row.get('high'))} "
+            f"| {_fmt_num(row.get('numberOfAnalysts'), as_int=True)} "
+            f"| {_fmt_pct(row.get('growth'))} |"
+        )
+    return lines
+
+
+def get_earnings_context(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
+    near_earnings_window: Annotated[int, "trading-day threshold for the 'near earnings' flag"] = 5,
+) -> str:
+    """Earnings calendar awareness: next event, consensus, surprises, recommendations.
+
+    Returns one markdown string with four sections so the Fundamentals Analyst
+    can reason about catalyst risk near earnings releases. The surprise history
+    is filtered to fiscal periods ending on or before ``curr_date`` to prevent
+    look-ahead bias; consensus estimates and recommendation counts come from
+    yfinance as a current snapshot (yfinance does not expose historical
+    snapshots of these series).
+    """
+    ticker_upper = ticker.upper()
+    curr_ts = pd.to_datetime(curr_date) if curr_date else pd.Timestamp.today().normalize()
+
+    sections = [f"# Earnings Context for {ticker_upper} (as of {curr_ts.strftime('%Y-%m-%d')})"]
+
+    try:
+        ticker_obj = yf.Ticker(ticker_upper)
+    except Exception as e:
+        return f"Error retrieving earnings context for {ticker}: {e}"
+
+    # --- Next earnings event ---
+    sections.append("\n## Next Earnings Event")
+    try:
+        calendar = yf_retry(lambda: ticker_obj.calendar) or {}
+        raw_dates = calendar.get("Earnings Date") or []
+        future = sorted(
+            d for d in (pd.to_datetime(x, errors="coerce") for x in raw_dates)
+            if pd.notna(d) and d >= curr_ts
+        )
+        if future:
+            next_date = future[0]
+            td_until = max(0, len(pd.bdate_range(start=curr_ts, end=next_date)) - 1)
+            is_near = td_until <= near_earnings_window
+            sections.append(f"- Date: {next_date.strftime('%Y-%m-%d')}")
+            sections.append(f"- Trading days until: {td_until}")
+            sections.append(
+                f"- Near earnings (within {near_earnings_window} trading days): "
+                + ("YES — elevated catalyst risk" if is_near else "NO")
+            )
+        else:
+            sections.append("- No upcoming earnings date scheduled.")
+    except Exception:
+        sections.append("- (unavailable)")
+
+    # --- Consensus estimates (EPS + revenue, upcoming quarters) ---
+    sections.append("\n## Consensus Estimates (upcoming periods)")
+    try:
+        eps_est = yf_retry(lambda: ticker_obj.earnings_estimate)
+        if eps_est is not None and not eps_est.empty:
+            sections.extend(_render_estimates_table(eps_est, "EPS"))
+        else:
+            sections.append("### EPS\n- (unavailable)")
+    except Exception:
+        sections.append("### EPS\n- (unavailable)")
+    try:
+        rev_est = yf_retry(lambda: ticker_obj.revenue_estimate)
+        if rev_est is not None and not rev_est.empty:
+            sections.extend(_render_estimates_table(rev_est, "Revenue"))
+        else:
+            sections.append("### Revenue\n- (unavailable)")
+    except Exception:
+        sections.append("### Revenue\n- (unavailable)")
+
+    # --- Earnings surprise history (look-ahead-safe) ---
+    sections.append(f"\n## Earnings Surprise History (≤ {curr_ts.strftime('%Y-%m-%d')})")
+    try:
+        history = yf_retry(lambda: ticker_obj.earnings_history)
+        if history is not None and not history.empty:
+            hist = history.copy()
+            hist.index = pd.to_datetime(hist.index, errors="coerce")
+            hist = hist.dropna(axis=0, subset=hist.columns[:0].union(hist.columns))
+            hist = hist[hist.index <= curr_ts].sort_index(ascending=False).head(4)
+            if not hist.empty:
+                sections.append("| Quarter Ended | Estimate | Actual | Surprise |")
+                sections.append("|---|---|---|---|")
+                for ts, row in hist.iterrows():
+                    sections.append(
+                        f"| {pd.Timestamp(ts).strftime('%Y-%m-%d')} "
+                        f"| {_fmt_num(row.get('epsEstimate'))} "
+                        f"| {_fmt_num(row.get('epsActual'))} "
+                        f"| {_fmt_pct(row.get('surprisePercent'))} |"
+                    )
+            else:
+                sections.append("- (no reported earnings on or before curr_date)")
+        else:
+            sections.append("- (unavailable)")
+    except Exception:
+        sections.append("- (unavailable)")
+
+    # --- Analyst recommendations snapshot ---
+    sections.append("\n## Analyst Recommendations Snapshot")
+    try:
+        rec = yf_retry(lambda: ticker_obj.recommendations_summary)
+        if rec is None or (hasattr(rec, "empty") and rec.empty):
+            rec = yf_retry(lambda: ticker_obj.recommendations)
+        if rec is not None and not rec.empty:
+            sections.append("| Period | Strong Buy | Buy | Hold | Sell | Strong Sell |")
+            sections.append("|---|---|---|---|---|---|")
+            for _, row in rec.iterrows():
+                sections.append(
+                    f"| {row.get('period', '?')} "
+                    f"| {_fmt_num(row.get('strongBuy'), as_int=True)} "
+                    f"| {_fmt_num(row.get('buy'), as_int=True)} "
+                    f"| {_fmt_num(row.get('hold'), as_int=True)} "
+                    f"| {_fmt_num(row.get('sell'), as_int=True)} "
+                    f"| {_fmt_num(row.get('strongSell'), as_int=True)} |"
+                )
+        else:
+            sections.append("- (unavailable)")
+    except Exception:
+        sections.append("- (unavailable)")
+
+    return "\n".join(sections)
