@@ -27,7 +27,9 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+        self,
+        selected_analysts=["market", "social", "news", "fundamentals"],
+        standalone=False,
     ):
         """Set up and compile the agent workflow graph.
 
@@ -37,6 +39,7 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+            standalone (bool): If True, stop after the analyst phase.
         """
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
@@ -47,27 +50,17 @@ class GraphSetup:
         tool_nodes = {}
 
         if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
-            )
+            analyst_nodes["market"] = create_market_analyst(self.quick_thinking_llm)
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
-            # "social" selector key preserved for back-compat with existing
-            # user configs; the underlying agent has been renamed to
-            # sentiment_analyst (the old name advertised social-media data
-            # the agent never had access to — see issue #557).
-            analyst_nodes["social"] = create_sentiment_analyst(
-                self.quick_thinking_llm
-            )
+            analyst_nodes["social"] = create_sentiment_analyst(self.quick_thinking_llm)
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
-            )
+            analyst_nodes["news"] = create_news_analyst(self.quick_thinking_llm)
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
 
@@ -110,14 +103,15 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node("Analyst Synchronizer", lambda x: x)
 
         # Define edges
-        # Start with the first analyst
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        # Start all selected analysts in parallel
+        for analyst_type in selected_analysts:
+            workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
 
-        # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
+        # Connect each analyst to their tools and then to the synchronizer
+        for analyst_type in selected_analysts:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
@@ -129,13 +123,13 @@ class GraphSetup:
                 [current_tools, current_clear],
             )
             workflow.add_edge(current_tools, current_analyst)
+            workflow.add_edge(current_clear, "Analyst Synchronizer")
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+        # Route from synchronizer based on standalone flag
+        if standalone:
+            workflow.add_edge("Analyst Synchronizer", END)
+        else:
+            workflow.add_edge("Analyst Synchronizer", "Bull Researcher")
 
         # Add remaining edges
         workflow.add_conditional_edges(

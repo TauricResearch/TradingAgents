@@ -1259,6 +1259,12 @@ def trade(
     checkpoint: bool = typer.Option(
         False, "--checkpoint", help="Enable checkpoint/resume."
     ),
+    analysts: Optional[str] = typer.Option(
+        None, "--analysts", help="Comma-separated list of analysts (market,social,news,fundamentals)."
+    ),
+    standalone: bool = typer.Option(
+        False, "--standalone", help="Stop after analyst phase."
+    ),
 ):
     """Headless trade execution for CronJobs."""
     if not date:
@@ -1275,14 +1281,23 @@ def trade(
         config["quick_think_llm"] = quick_llm
         
     config["checkpoint_enabled"] = checkpoint
+    config["standalone"] = standalone
     
+    selected_analysts = ["market", "social", "news", "fundamentals"]
+    if analysts:
+        selected_analysts = [a.strip().lower() for a in analysts.split(",")]
+
     # Initialize the graph
-    graph = TradingAgentsGraph(config=config)
+    graph = TradingAgentsGraph(selected_analysts=selected_analysts, config=config)
     
     # Run the analysis
     try:
         final_state, decision = graph.propagate(ticker, date)
-        console.print(f"[bold green]✓ Decision reached: {decision}[/bold green]")
+        
+        if not standalone:
+            console.print(f"[bold green]✓ Decision reached: {decision}[/bold green]")
+        else:
+            console.print(f"[bold green]✓ Standalone analysis complete for {ticker}[/bold green]")
         
         # Save report automatically to the results directory
         results_dir = Path(config["results_dir"]) / ticker / date
@@ -1291,6 +1306,50 @@ def trade(
         
     except Exception as e:
         console.print(f"[bold red]Error during trade: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command("agent")
+def agent(
+    ticker: str = typer.Argument(..., help="Ticker symbol to analyze"),
+    analyst_type: str = typer.Argument(..., help="Type of analyst (market, social, news, fundamentals, or 'all')"),
+    date: Optional[str] = typer.Option(
+        None, "--date", help="Analysis date (YYYY-MM-DD). Defaults to today."
+    ),
+):
+    """Run a standalone analysis for a specific ticker using one or more agents."""
+    if not date:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+    if analyst_type.lower() == "all":
+        analysts = ["market", "social", "news", "fundamentals"]
+    else:
+        analysts = [analyst_type.lower()]
+        
+    console.print(f"[bold green]🔍 Running standalone {analyst_type} analysis for {ticker}[/bold green]")
+    
+    config = DEFAULT_CONFIG.copy()
+    config["standalone"] = True
+    
+    graph = TradingAgentsGraph(selected_analysts=analysts, config=config)
+    
+    try:
+        final_state, _ = graph.propagate(ticker, date)
+        console.print(f"[bold green]✓ Standalone analysis complete.[/bold green]")
+        
+        # Display the results
+        for analyst in analysts:
+            report_key = f"{analyst}_report"
+            if analyst == "social":
+                report_key = "sentiment_report"
+            
+            if final_state.get(report_key):
+                console.print(Panel(Markdown(final_state[report_key]), title=f"{analyst.capitalize()} Report", border_style="blue"))
+            else:
+                console.print(f"[yellow]No report generated for {analyst}[/yellow]")
+                
+    except Exception as e:
+        console.print(f"[bold red]Error during standalone analysis: {e}[/bold red]")
         raise typer.Exit(1)
 
 
@@ -1305,6 +1364,12 @@ def portfolio(
     ),
     checkpoint: bool = typer.Option(
         True, "--checkpoint", help="Enable checkpointing (default True for portfolio)."
+    ),
+    analysts: Optional[str] = typer.Option(
+        None, "--analysts", help="Comma-separated list of analysts (market,social,news,fundamentals)."
+    ),
+    standalone: bool = typer.Option(
+        False, "--standalone", help="Stop after analyst phase."
     ),
 ):
     """Headless trade execution for a list of tickers."""
@@ -1327,6 +1392,10 @@ def portfolio(
 
     console.print(f"[bold green]🚀 Starting portfolio analysis for: {', '.join(ticker_list)} on {date}[/bold green]")
     
+    selected_analysts = ["market", "social", "news", "fundamentals"]
+    if analysts:
+        selected_analysts = [a.strip().lower() for a in analysts.split(",")]
+
     for ticker in ticker_list:
         console.print(f"\n[bold cyan]➔ Processing {ticker}...[/bold cyan]")
         try:
@@ -1336,10 +1405,15 @@ def portfolio(
             if provider:
                 config["llm_provider"] = provider.lower()
             config["checkpoint_enabled"] = checkpoint
+            config["standalone"] = standalone
             
-            graph = TradingAgentsGraph(config=config)
+            graph = TradingAgentsGraph(selected_analysts=selected_analysts, config=config)
             final_state, decision = graph.propagate(ticker, date)
-            console.print(f"[green]✓ {ticker}: {decision}[/green]")
+            
+            if not standalone:
+                console.print(f"[green]✓ {ticker}: {decision}[/green]")
+            else:
+                console.print(f"[green]✓ {ticker}: Standalone analysis complete.[/green]")
             
             # Save report
             results_dir = Path(config["results_dir"]) / ticker / date

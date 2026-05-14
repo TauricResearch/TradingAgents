@@ -122,11 +122,13 @@ async def get_portfolio_config():
     return {"tickers": PORTFOLIO_PATH.read_text().strip()}
 
 @app.post("/api/jobs/trigger")
-async def trigger_job(data: Optional[Dict[str, str]] = None):
+async def trigger_job(data: Optional[Dict[str, Any]] = None):
     """Trigger a manual trade analysis job in Kubernetes."""
     global current_run_status
     
     requested_tickers = data.get("tickers") if data else None
+    requested_analysts = data.get("analysts") if data else None
+    is_standalone = data.get("standalone", False) if data else False
     
     # Use requested tickers or fall back to the saved portfolio file for display
     display_ticker = requested_tickers
@@ -168,12 +170,26 @@ async def trigger_job(data: Optional[Dict[str, str]] = None):
         
         # Copy the spec and override args if specific tickers were requested
         job_spec = cron_job.spec.job_template.spec
+        
+        # Build arguments for the trader command
+        cmd_args = ["portfolio"]
         if requested_tickers:
-            # Override the command arguments to use the specific tickers
-            # Deep copy to avoid mutating the cron_job object from cache if any
-            for container in job_spec.template.spec.containers:
-                if container.name == "trader":
-                    container.args = ["portfolio", requested_tickers]
+            cmd_args.append(requested_tickers)
+        else:
+            # If no tickers, portfolio command still needs an argument or empty string
+            # to trigger reading from portfolio.txt if it's the first positional arg
+            # But the CLI portfolio command takes Argument(None), so we can skip it.
+            pass
+            
+        if requested_analysts:
+            cmd_args.extend(["--analysts", requested_analysts])
+        if is_standalone:
+            cmd_args.append("--standalone")
+
+        # Override the command arguments
+        for container in job_spec.template.spec.containers:
+            if container.name == "trader":
+                container.args = cmd_args
 
         job = k8s_client.V1Job(
             api_version="batch/v1",
