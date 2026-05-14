@@ -1,6 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import FlowGraph from './components/FlowGraph';
-import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight } from 'lucide-react';
+import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight, Info, Target, AlertTriangle } from 'lucide-react';
+
+const MarkdownContent = ({ content }) => {
+  if (!content) return <div style={{ color: '#64748b', fontStyle: 'italic' }}>No data available</div>;
+
+  // Split by double newlines to handle paragraphs
+  const paragraphs = content.split('\n\n');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {paragraphs.map((p, i) => {
+        // Check if paragraph starts with a header like **Header**:
+        const headerMatch = p.match(/^\*\*(.*?)\*\*:\s*(.*)/s);
+        
+        if (headerMatch) {
+          const [_, header, body] = headerMatch;
+          return (
+            <div key={i} style={{ 
+              background: '#1e293b', 
+              borderRadius: '8px', 
+              padding: '12px',
+              borderLeft: `4px solid ${
+                header.includes('Rating') || header.includes('Recommendation') ? '#3b82f6' : 
+                header.includes('Summary') || header.includes('Actions') ? '#10b981' : '#64748b'
+              }`
+            }}>
+              <div style={{ 
+                fontSize: '11px', 
+                fontWeight: 'bold', 
+                textTransform: 'uppercase', 
+                color: '#94a3b8',
+                marginBottom: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                {header.includes('Rating') && <Target size={12} />}
+                {header.includes('Action') && <AlertTriangle size={12} />}
+                {header.includes('Rationale') && <Info size={12} />}
+                {header}
+              </div>
+              <div style={{ 
+                fontSize: '14px', 
+                lineHeight: '1.6', 
+                color: '#f8fafc',
+                fontWeight: header.includes('Rating') ? 'bold' : 'normal'
+              }}>
+                {body}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <p key={i} style={{ 
+            margin: 0, 
+            fontSize: '13px', 
+            lineHeight: '1.7', 
+            color: '#cbd5e1' 
+          }}>
+            {p.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={j} style={{ color: '#f8fafc' }}>{part.slice(2, -2)}</strong>;
+              }
+              return part;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
 
 const App = () => {
   const [runs, setRuns] = useState([]);
@@ -142,16 +213,12 @@ const App = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <section style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
               <h3 style={{ marginTop: 0, fontSize: '14px', color: '#3b82f6', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>FINAL DECISION</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', lineHeight: '1.6', color: '#cbd5e1' }}>
-                {runDetail?.final_trade_decision}
-              </pre>
+              <MarkdownContent content={runDetail?.final_trade_decision} />
             </section>
             
             <section style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
               <h3 style={{ marginTop: 0, fontSize: '14px', color: '#eab308', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>INVESTMENT PLAN</h3>
-              <div style={{ fontSize: '12px', lineHeight: '1.6', color: '#cbd5e1' }}>
-                {runDetail?.investment_plan}
-              </div>
+              <MarkdownContent content={runDetail?.investment_plan} />
             </section>
           </div>
 
@@ -168,7 +235,7 @@ const App = () => {
                       <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold' }}>
                         {ref.ticker} • {ref.date} • {ref.alpha} Alpha • {ref.holding} holding
                       </div>
-                      <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6' }}>{ref.reflection}</div>
+                      <MarkdownContent content={ref.reflection} />
                     </div>
                   ))}
                 </div>
