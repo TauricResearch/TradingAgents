@@ -53,6 +53,7 @@ Volume-Based Indicators:
             [
                 (
                     "system",
+                    "Today's date is {current_date}. Use this date for all analysis and tool calls.\n"
                     "You are a helpful AI assistant, collaborating with other assistants."
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
@@ -60,7 +61,7 @@ Volume-Based Indicators:
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
+                    "{instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
