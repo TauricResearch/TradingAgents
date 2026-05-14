@@ -1235,6 +1235,43 @@ def run_analysis(checkpoint: bool = False):
 
 
 @app.command()
+def trade(
+    ticker: str = typer.Argument(..., help="Ticker symbol to analyze"),
+    date: Optional[str] = typer.Option(
+        None, "--date", help="Analysis date (YYYY-MM-DD). Defaults to today."
+    ),
+    checkpoint: bool = typer.Option(
+        False, "--checkpoint", help="Enable checkpoint/resume."
+    ),
+):
+    """Headless trade execution for CronJobs."""
+    if not date:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    console.print(f"[bold green]🚀 Starting headless trade for {ticker} on {date}[/bold green]")
+    
+    config = DEFAULT_CONFIG.copy()
+    config["checkpoint_enabled"] = checkpoint
+    
+    # Initialize the graph
+    graph = TradingAgentsGraph(config=config)
+    
+    # Run the analysis
+    try:
+        final_state, decision = graph.propagate(ticker, date)
+        console.print(f"[bold green]✓ Decision reached: {decision}[/bold green]")
+        
+        # Save report automatically to the results directory
+        results_dir = Path(config["results_dir"]) / ticker / date
+        save_report_to_disk(final_state, ticker, results_dir / "reports")
+        console.print(f"[dim]Report saved to {results_dir}[/dim]")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during trade: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command()
 def analyze(
     checkpoint: bool = typer.Option(
         False,
