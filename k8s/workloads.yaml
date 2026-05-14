@@ -1,10 +1,11 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: tradingagents-nvda-daily
+  name: tradingagents-portfolio-daily
   namespace: tradingagents
 spec:
-  schedule: "0 21 * * 1-5" # 9 PM UTC (after US market close) Mon-Fri
+  schedule: "0 21 * * 1-5" # 9 PM UTC Mon-Fri
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:
@@ -13,7 +14,14 @@ spec:
           - name: trader
             image: ghcr.io/madhuboyin/tradingagents:latest-arm64
             imagePullPolicy: Always
-            args: ["trade", "NVDA"]
+            args: ["portfolio", "NVDA,AAPL,MSFT,TSLA,GOOGL"]
+            resources:
+              requests:
+                cpu: "200m"
+                memory: "256Mi"
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
             envFrom:
             - secretRef:
                 name: tradingagents-secrets
@@ -54,6 +62,13 @@ spec:
       - name: dashboard
         image: ghcr.io/madhuboyin/tradingagents-dashboard:latest-arm64
         imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
         ports:
         - containerPort: 8000 # API + UI
         envFrom:
@@ -87,3 +102,30 @@ spec:
     port: 80
     targetPort: 8000
   type: ClusterIP
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tradingagents-cleanup
+  namespace: tradingagents
+spec:
+  schedule: "0 0 * * 0" # Weekly at midnight Sunday
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cleanup
+            image: busybox
+            args:
+            - /bin/sh
+            - -c
+            - "find /data/cache/checkpoints -type f -mtime +30 -delete"
+            volumeMounts:
+            - name: data
+              mountPath: /data
+          restartPolicy: OnFailure
+          volumes:
+          - name: data
+            persistentVolumeClaim:
+              claimName: tradingagents-pvc

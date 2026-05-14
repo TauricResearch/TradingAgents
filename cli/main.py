@@ -1294,6 +1294,51 @@ def trade(
         raise typer.Exit(1)
 
 
+@app.command("portfolio")
+def portfolio(
+    tickers: str = typer.Argument(..., help="Comma-separated list of tickers (e.g. AAPL,MSFT,NVDA)"),
+    date: Optional[str] = typer.Option(
+        None, "--date", help="Analysis date (YYYY-MM-DD)."
+    ),
+    provider: Optional[str] = typer.Option(
+        None, "--provider", help="LLM provider."
+    ),
+    checkpoint: bool = typer.Option(
+        True, "--checkpoint", help="Enable checkpointing (default True for portfolio)."
+    ),
+):
+    """Headless trade execution for a list of tickers."""
+    ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    if not date:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    console.print(f"[bold green]🚀 Starting portfolio analysis for: {', '.join(ticker_list)} on {date}[/bold green]")
+    
+    for ticker in ticker_list:
+        console.print(f"\n[bold cyan]➔ Processing {ticker}...[/bold cyan]")
+        try:
+            # We call the existing trade logic logic for each ticker
+            # Using a simplified version of trade() internal logic
+            config = DEFAULT_CONFIG.copy()
+            if provider:
+                config["llm_provider"] = provider.lower()
+            config["checkpoint_enabled"] = checkpoint
+            
+            graph = TradingAgentsGraph(config=config)
+            final_state, decision = graph.propagate(ticker, date)
+            console.print(f"[green]✓ {ticker}: {decision}[/green]")
+            
+            # Save report
+            results_dir = Path(config["results_dir"]) / ticker / date
+            save_report_to_disk(final_state, ticker, results_dir / "reports")
+            
+        except Exception as e:
+            console.print(f"[bold red]✘ Error processing {ticker}: {e}[/bold red]")
+            continue
+
+    console.print(f"\n[bold green]✅ Portfolio analysis complete.[/bold green]")
+
+
 @app.command("analyze")
 def analyze(
     checkpoint: bool = typer.Option(
