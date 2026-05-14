@@ -23,8 +23,19 @@ class Propagator:
         user_research: str = "",
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        # The human message must read as an actual question — weak tool-callers
+        # (e.g. Qwen on DashScope) treat a bare ticker symbol as a topic to
+        # free-write about and skip the data tools entirely. Phrasing it as a
+        # directive plus "use the tools" reliably triggers function-calling.
         return {
-            "messages": [("human", company_name)],
+            "messages": [
+                (
+                    "human",
+                    f"Analyze {company_name} for trading on {trade_date}. "
+                    f"Use the available data tools to gather real, current "
+                    f"information before writing your report.",
+                )
+            ],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "past_context": past_context,

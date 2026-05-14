@@ -106,9 +106,14 @@ def main() -> int:
     checkpoint_ctx = None
     stats = StatsCallbackHandler()
     try:
+        # Attach stats at graph-invocation level (via get_graph_args callbacks),
+        # NOT at LLM constructor level. LLM-level callbacks fire only for LLM
+        # events — they never see on_tool_start because ToolNode executes the
+        # tool independently of the LLM. Graph-level callbacks propagate to
+        # every node (LLM + ToolNode) so both llm_calls and tool_calls get
+        # counted correctly.
         ta = TradingAgentsGraph(
             selected_analysts=selected_analysts, debug=False, config=config,
-            callbacks=[stats],
         )
         # propagate() sets self.ticker — we bypass propagate so set it manually,
         # otherwise _log_state crashes on a None ticker.
@@ -120,7 +125,7 @@ def main() -> int:
             past_context=past_context,
             user_research=user_research,
         )
-        args = ta.propagator.get_graph_args()
+        args = ta.propagator.get_graph_args(callbacks=[stats])
 
         graph_to_stream = ta.graph
         if checkpoint_enabled:

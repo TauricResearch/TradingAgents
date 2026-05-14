@@ -87,14 +87,26 @@ ANALYST_PREAMBLE = (
 
 def create_msg_delete():
     def delete_messages(state):
-        """Clear messages and add placeholder for Anthropic compatibility"""
+        """Clear messages and replace with a directive that compels the next
+        analyst to actually use its tools instead of free-writing from memory.
+
+        A bare "Continue" placeholder was insufficient for weaker tool-callers
+        (Qwen): they treated it as ambient text and skipped tool invocation.
+        Re-stating the ticker plus an imperative reliably triggers function
+        calls on every analyst node.
+        """
         messages = state["messages"]
+        ticker = state.get("company_of_interest", "the company")
+        trade_date = state.get("trade_date", "today")
 
-        # Remove all messages
         removal_operations = [RemoveMessage(id=m.id) for m in messages]
-
-        # Add a minimal placeholder message
-        placeholder = HumanMessage(content="Continue")
+        placeholder = HumanMessage(
+            content=(
+                f"Continue the analysis of {ticker} for trading on "
+                f"{trade_date}. Use the available data tools to fetch real "
+                f"information before writing your report."
+            )
+        )
 
         return {"messages": removal_operations + [placeholder]}
 
