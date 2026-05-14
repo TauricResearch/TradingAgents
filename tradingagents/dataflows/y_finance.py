@@ -497,10 +497,10 @@ def get_earnings_context(
     try:
         calendar = yf_retry(lambda: ticker_obj.calendar) or {}
         raw_dates = calendar.get("Earnings Date") or []
-        future = sorted(
-            d for d in (pd.to_datetime(x, errors="coerce") for x in raw_dates)
-            if pd.notna(d) and d >= curr_ts
-        )
+        dates_idx = pd.to_datetime(list(raw_dates), errors="coerce")
+        if getattr(dates_idx, "tz", None) is not None:
+            dates_idx = dates_idx.tz_localize(None)
+        future = sorted(d for d in dates_idx if pd.notna(d) and d >= curr_ts)
         if future:
             next_date = future[0]
             td_until = max(0, len(pd.bdate_range(start=curr_ts, end=next_date)) - 1)
@@ -542,8 +542,11 @@ def get_earnings_context(
         if history is not None and not history.empty:
             hist = history.copy()
             hist.index = pd.to_datetime(hist.index, errors="coerce")
-            hist = hist.dropna(axis=0, subset=hist.columns[:0].union(hist.columns))
-            hist = hist[hist.index <= curr_ts].sort_index(ascending=False).head(4)
+            if getattr(hist.index, "tz", None) is not None:
+                hist.index = hist.index.tz_localize(None)
+            hist = hist[hist.index.notna() & (hist.index <= curr_ts)].sort_index(
+                ascending=False
+            ).head(4)
             if not hist.empty:
                 sections.append("| Quarter Ended | Estimate | Actual | Surprise |")
                 sections.append("|---|---|---|---|")

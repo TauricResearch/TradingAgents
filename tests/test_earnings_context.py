@@ -214,3 +214,44 @@ class TestEarningsContext:
         # Header is well-formed and dated; we don't assert the exact date to keep
         # the test stable across days.
         assert out.startswith("# Earnings Context for AAPL (as of ")
+
+    def test_handles_tz_aware_calendar_dates(self):
+        """yfinance returns tz-aware Earnings Date Timestamps for most US tickers.
+
+        Comparing tz-aware vs tz-naive raises TypeError, so the tool must strip
+        tz info before filtering. Without this fix, the call would crash on
+        real AAPL / NVDA data.
+        """
+        mock_ticker = _build_mock_ticker(
+            calendar={"Earnings Date": [
+                pd.Timestamp("2025-10-30", tz="US/Eastern"),  # past — skip
+                pd.Timestamp("2026-01-30", tz="US/Eastern"),  # first future
+                pd.Timestamp("2026-04-25", tz="US/Eastern"),  # later future
+            ]},
+        )
+        with patch("tradingagents.dataflows.y_finance.yf.Ticker", return_value=mock_ticker):
+            out = get_earnings_context("AAPL", "2026-01-15", 5)
+        assert "Date: 2026-01-30" in out
+        assert "(unavailable)" not in out.split("## Next Earnings Event")[1].split("##")[0]
+
+    def test_handles_tz_aware_earnings_history_index(self):
+        """yfinance returns tz-aware DatetimeIndex on earnings_history for US tickers."""
+        history = pd.DataFrame(
+            {
+                "epsEstimate": [1.20, 1.30, 1.40, 1.45, 1.60],
+                "epsActual":   [1.25, 1.32, 1.41, 1.52, 1.55],
+                "surprisePercent": [0.0417, 0.0154, 0.0071, 0.0483, -0.0313],
+            },
+            index=pd.DatetimeIndex(
+                ["2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2026-03-31"],
+                tz="US/Eastern",
+            ),
+        )
+        mock_ticker = _build_mock_ticker(earnings_history=history)
+        with patch("tradingagents.dataflows.y_finance.yf.Ticker", return_value=mock_ticker):
+            out = get_earnings_context("AAPL", "2026-01-15", 5)
+        # Look-ahead filter still works through the tz fix.
+        assert "2026-03-31" not in out
+        # And the eligible quarters still render.
+        for ts in ("2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30"):
+            assert ts in out
