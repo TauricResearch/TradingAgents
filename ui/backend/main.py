@@ -9,24 +9,28 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+import sys
+
 # Standard Kubernetes import
+k8s_import_error_msg = None
 try:
     import kubernetes
     from kubernetes import client as k8s_client
+    from kubernetes import config as k8s_config
     # Deep imports to bypass any namespace shadowing/attribute issues
     from kubernetes.config.incluster_config import load_in_cluster_config
     from kubernetes.config.kube_config import load_kube_config
-    from kubernetes.config.config_exception import ConfigException
     
     # Diagnostic logging
     print(f"DEBUG: Kubernetes library file: {getattr(kubernetes, '__file__', 'unknown')}")
-except ImportError as e:
-    print(f"DEBUG: Kubernetes library NOT FOUND: {e}")
+    print(f"DEBUG: sys.path: {sys.path}")
+except Exception as e:
+    k8s_import_error_msg = str(e)
+    print(f"DEBUG: Kubernetes library IMPORT FAILED: {e}")
     kubernetes = None
     k8s_client = None
     load_in_cluster_config = None
     load_kube_config = None
-    ConfigException = Exception
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.utils.memory import TradingMemoryLog
@@ -35,7 +39,7 @@ app = FastAPI(title="TradingAgents Dashboard API")
 
 # Initialize Kubernetes client
 batch_v1 = None
-k8s_init_error = None
+k8s_init_error = k8s_import_error_msg
 
 if kubernetes and k8s_client and load_in_cluster_config:
     try:
@@ -57,7 +61,8 @@ if kubernetes and k8s_client and load_in_cluster_config:
             print(k8s_init_error)
             print("Kubernetes client will not be available.")
 else:
-    k8s_init_error = f"Kubernetes library error: lib={bool(kubernetes)} client={bool(k8s_client)} loader={bool(load_in_cluster_config)}"
+    if not k8s_init_error:
+        k8s_init_error = f"Kubernetes library error: lib={bool(kubernetes)} client={bool(k8s_client)} loader={bool(load_in_cluster_config)}"
     print(k8s_init_error)
 
 # Global state to track current active run
