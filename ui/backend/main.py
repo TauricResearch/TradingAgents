@@ -8,14 +8,17 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+
+# Standard Kubernetes import
 try:
-    from kubernetes import client
-    from kubernetes.config import load_in_cluster_config, load_kube_config, ConfigException
-except ImportError:
+    import kubernetes
+    from kubernetes import client, config
+    print(f"Kubernetes library loaded from {kubernetes.__file__}")
+except ImportError as e:
+    print(f"Kubernetes library NOT FOUND: {e}")
+    kubernetes = None
     client = None
-    load_in_cluster_config = None
-    load_kube_config = None
-    ConfigException = Exception
+    config = None
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.utils.memory import TradingMemoryLog
@@ -26,10 +29,10 @@ app = FastAPI(title="TradingAgents Dashboard API")
 batch_v1 = None
 k8s_init_error = None
 
-if client and load_in_cluster_config:
+if kubernetes and client and config:
     try:
         print("Attempting to load in-cluster Kubernetes config...")
-        load_in_cluster_config()
+        config.load_in_cluster_config()
         batch_v1 = client.BatchV1Api()
         print("Successfully loaded in-cluster Kubernetes config.")
     except Exception as e:
@@ -37,7 +40,7 @@ if client and load_in_cluster_config:
         print(k8s_init_error)
         try:
             print("Attempting to load local kube-config...")
-            load_kube_config()
+            config.load_kube_config()
             batch_v1 = client.BatchV1Api()
             print("Successfully loaded local kube-config.")
             k8s_init_error = None # Success
@@ -46,7 +49,7 @@ if client and load_in_cluster_config:
             print(k8s_init_error)
             print("Kubernetes client will not be available.")
 else:
-    k8s_init_error = "Kubernetes library not found or incomplete"
+    k8s_init_error = "Kubernetes library not found in environment"
     print(k8s_init_error)
 
 # Global state to track current active run
