@@ -1234,7 +1234,7 @@ def run_analysis(checkpoint: bool = False):
         display_complete_report(final_state)
 
 
-@app.command()
+@app.command("trade")
 def trade(
     ticker: str = typer.Argument(..., help="Ticker symbol to analyze"),
     date: Optional[str] = typer.Option(
