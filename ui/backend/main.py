@@ -168,7 +168,7 @@ async def trigger_job(data: Optional[Dict[str, str]] = None):
         if requested_tickers:
             # Override the command arguments to use the specific tickers
             # Deep copy to avoid mutating the cron_job object from cache if any
-            for container in job_spec.containers:
+            for container in job_spec.template.spec.containers:
                 if container.name == "trader":
                     container.args = ["portfolio", requested_tickers]
 
