@@ -1240,6 +1240,15 @@ def trade(
     date: Optional[str] = typer.Option(
         None, "--date", help="Analysis date (YYYY-MM-DD). Defaults to today."
     ),
+    provider: Optional[str] = typer.Option(
+        None, "--provider", help="LLM provider (e.g., openai, google, anthropic)."
+    ),
+    deep_llm: Optional[str] = typer.Option(
+        None, "--deep-llm", help="Deep thinking LLM model ID."
+    ),
+    quick_llm: Optional[str] = typer.Option(
+        None, "--quick-llm", help="Quick thinking LLM model ID."
+    ),
     checkpoint: bool = typer.Option(
         False, "--checkpoint", help="Enable checkpoint/resume."
     ),
@@ -1251,6 +1260,13 @@ def trade(
     console.print(f"[bold green]🚀 Starting headless trade for {ticker} on {date}[/bold green]")
     
     config = DEFAULT_CONFIG.copy()
+    if provider:
+        config["llm_provider"] = provider.lower()
+    if deep_llm:
+        config["deep_think_llm"] = deep_llm
+    if quick_llm:
+        config["quick_think_llm"] = quick_llm
+        
     config["checkpoint_enabled"] = checkpoint
     
     # Initialize the graph
