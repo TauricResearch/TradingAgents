@@ -59,17 +59,17 @@ shortcuts:
 # List all decisions (human-readable)
 [group("reg")]
 reg-decisions:
-    bun scripts/reg-list.ts decisions
+    bun scripts/reg.ts list decisions
 
 # List all briefs (human-readable)
 [group("reg")]
 reg-briefs:
-    bun scripts/reg-list.ts briefs
+    bun scripts/reg.ts list briefs
 
 # List all debriefs (human-readable)
 [group("reg")]
 reg-debriefs:
-    bun scripts/reg-list.ts debriefs
+    bun scripts/reg.ts list debriefs
 
 # List project playbooks that are mining candidates (portable patterns to extract)
 [group("reg")]
@@ -79,12 +79,12 @@ reg-mining:
 # List all docs (human-readable)
 [group("reg")]
 reg-docs:
-    bun scripts/reg-list.ts docs
+    bun scripts/reg.ts list docs
 
 # List conceptual lexicon (terms, heuristics, definitions)
 [group("reg")]
 reg-lexicon:
-    bun scripts/reg-list.ts lexicon
+    bun scripts/reg.ts list lexicon
 
 [group("reg")]
 ctx-lexicon:
@@ -117,64 +117,47 @@ ctx-lexicon-incorporate:
 # Show consolidated project state (briefs, debriefs, tasks, docs)
 [group("reg")]
 reg-state:
-    bun scripts/reg-state.ts
+    bun scripts/reg.ts state
 
 # Validate all registries (required fields, no duplicates)
 [group("reg")]
 reg-check:
-    bun scripts/reg-check.ts
+    bun scripts/reg.ts check
 
 # Check all indexes are up-to-date (files vs entries)
 [group("reg")]
 reg-sync:
-    bun scripts/reg-sync.ts --all
+    bun scripts/reg.ts sync
 
 # Fix stale/missing index entries (regenerate from disk)
 [group("reg")]
 reg-sync-fix:
-    bun scripts/reg-sync.ts --all --fix
+    bun scripts/reg.ts sync --fix
 
 # Mine a playbook from project to canonicals (dry-run by default, --apply to confirm)
 [group("reg")]
 reg-mine:
-    bun scripts/reg-mine.ts
+    bun scripts/reg.ts mine
 
 # Import a canonical playbook into the project (dry-run: add --apply to confirm)
 [group("reg")]
 reg-import:
-    bun scripts/reg-import.ts
+    bun scripts/reg.ts import
 
 # Promote a playbook — see what would be stripped (add --apply to delegate to reg-mine)
 [group("reg")]
 reg-promote:
-    bun scripts/reg-promote.ts
+    bun scripts/reg.ts promote
 
 # Sync script index: list all scripts with portability classification
 [group("reg")]
 reg-scripts:
-    bun scripts/reg-sync-scripts.ts
+    bun scripts/reg.ts scripts
 
 # Sync script index — regenerate from disk
 [group("reg")]
 reg-scripts-fix:
-    bun scripts/reg-sync-scripts.ts --fix
-
-# Scan for barnacles (stale conventions, misdirecting docs)
-[group("reg")]
-barnacle-scan:
-    bun scripts/barnacle-scan.ts
-
-# Watch for barnacles (runs scan every N minutes, logs to ~/.tradingagents/barnacle-watch.log)
-[group("reg")]
-barnacle-watch:
-    @echo "{{ YELLOW }}⏱{{ NORMAL }} Starting barnacle watcher (interval: 60 min)"
-    @echo "{{ YELLOW }}⏱{{ NORMAL }} Press Ctrl+C to stop. Logs: ~/.tradingagents/barnacle-watch.log"
-    while true; do \
-        echo "[$(date -Iseconds)] Scanning..." >> ~/.tradingagents/barnacle-watch.log; \
-        bun scripts/barnacle-scan.ts --mechanical >> ~/.tradingagents/barnacle-watch.log 2>&1; \
-        echo "---" >> ~/.tradingagents/barnacle-watch.log; \
-        sleep $((60 * 60)); \
-    done
+    bun scripts/reg.ts scripts --fix
 
 set shell := ["bash", "-o", "pipefail", "-c"]
 set positional-arguments
@@ -199,8 +182,8 @@ check:
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
     bun scripts/check-import-boundaries.ts
-    bun scripts/reg-enrich.ts --apply
-    bun scripts/reg-sync.ts --all --fix
+    bun scripts/reg.ts enrich --apply
+    bun scripts/reg.ts sync --fix
     bun scripts/td-orphans.ts
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
