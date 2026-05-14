@@ -16,20 +16,25 @@ app = FastAPI(title="TradingAgents Dashboard API")
 
 # Initialize Kubernetes client
 batch_v1 = None
+k8s_init_error = None
+
 try:
     print("Attempting to load in-cluster Kubernetes config...")
     k8s_config.load_in_cluster_config()
     batch_v1 = client.BatchV1Api()
     print("Successfully loaded in-cluster Kubernetes config.")
 except Exception as e:
-    print(f"In-cluster config failed: {e}")
+    k8s_init_error = f"In-cluster failed: {str(e)}"
+    print(k8s_init_error)
     try:
         print("Attempting to load local kube-config...")
         k8s_config.load_kube_config()
         batch_v1 = client.BatchV1Api()
         print("Successfully loaded local kube-config.")
+        k8s_init_error = None # Success
     except Exception as e2:
-        print(f"Local kube-config failed: {e2}")
+        k8s_init_error = f"{k8s_init_error} | Local failed: {str(e2)}"
+        print(k8s_init_error)
         print("Kubernetes client will not be available.")
 
 # Global state to track current active run
@@ -38,7 +43,8 @@ current_run_status = {
     "date": None,
     "active_node": None,
     "status": "idle",
-    "last_update": None
+    "last_update": None,
+    "error": k8s_init_error
 }
 
 # Enable CORS for the React frontend
@@ -70,13 +76,16 @@ async def trigger_job():
         "date": datetime.now().strftime("%Y-%m-%d"),
         "active_node": "Triggering Kubernetes Job...",
         "status": "triggered",
-        "last_update": datetime.now().isoformat()
+        "last_update": datetime.now().isoformat(),
+        "error": k8s_init_error
     })
 
     if not batch_v1:
         # For local development without Kubernetes, we'll simulate a bit
-        current_run_status["active_node"] = "K8s Not Found (Local?)"
-        raise HTTPException(status_code=500, detail="Kubernetes client not initialized (local development?)")
+        current_run_status["active_node"] = "K8s Not Found"
+        current_run_status["status"] = "error"
+        current_run_status["error"] = k8s_init_error or "Kubernetes client not initialized"
+        raise HTTPException(status_code=500, detail=current_run_status["error"])
 
     namespace = "tradingagents"
     cronjob_name = "tradingagents-portfolio-daily"
@@ -98,10 +107,12 @@ async def trigger_job():
         batch_v1.create_namespaced_job(namespace, job)
         
         current_run_status["active_node"] = "Job Created in K8s"
+        current_run_status["error"] = None # Clear any previous error
         return {"status": "triggered", "job_name": job_name}
     except Exception as e:
-        current_run_status["status"] = "idle"
-        current_run_status["active_node"] = f"Error: {str(e)[:50]}..."
+        current_run_status["status"] = "error"
+        current_run_status["active_node"] = "K8s Error"
+        current_run_status["error"] = str(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/config/portfolio")

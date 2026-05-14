@@ -97,6 +97,23 @@ const MarkdownContent = ({ content }) => {
   );
 };
 
+const ProgressBar = ({ progress, status }) => {
+  const isError = status === 'error';
+  return (
+    <div style={{ width: '100%', height: '4px', background: '#1e293b', borderRadius: '2px', overflow: 'hidden', marginTop: '10px' }}>
+      <div 
+        style={{ 
+          width: `${progress}%`, 
+          height: '100%', 
+          background: isError ? '#ef4444' : '#3b82f6', 
+          transition: 'width 0.5s ease-in-out',
+          boxShadow: isError ? 'none' : '0 0 10px rgba(59, 130, 246, 0.5)'
+        }} 
+      />
+    </div>
+  );
+};
+
 const App = () => {
   const [runs, setRuns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -108,6 +125,23 @@ const App = () => {
   const [selectedRun, setSelectedRun] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const calculateProgress = (node) => {
+    const steps = {
+      'Initializing...': 5,
+      'market': 15,
+      'social': 25,
+      'news': 35,
+      'fundamentals': 45,
+      'bull_researcher': 60,
+      'bear_researcher': 70,
+      'research_manager': 80,
+      'trader': 90,
+      'risk_management': 95,
+      'completed': 100
+    };
+    return steps[node] || 0;
+  };
 
   const refreshRuns = (selectNewest = false) => {
     fetch('/api/runs')
@@ -137,12 +171,12 @@ const App = () => {
       fetch('/api/status')
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'in_progress' || data.status === 'triggered') {
+          if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error') {
             setActiveStatus(data);
           } else {
             // If we were just active and now we're not, refresh the list and select the newest result
             setActiveStatus(prev => {
-              if (prev !== null) {
+              if (prev !== null && prev.status !== 'error') {
                 setTimeout(() => refreshRuns(true), 1000); // Refresh and select newest
               }
               return null;
@@ -334,29 +368,43 @@ const App = () => {
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
-        <header style={{ padding: '20px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '20px' }}>
-              {activeStatus ? `🔴 ANALYZING ${activeStatus.ticker}...` : (selectedRun ? `${selectedRun.ticker} Analysis` : 'Select a run')}
-            </h2>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-              {activeStatus ? `Active Node: ${activeStatus.active_node}` : `Trade Date: ${selectedRun?.date}`}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '20px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '10px', color: '#64748b' }}>STATUS</div>
-              <div style={{ color: activeStatus ? '#3b82f6' : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
-                {activeStatus ? 'IN PROGRESS' : 'COMPLETED'}
+        <header style={{ padding: '20px', borderBottom: '1px solid #1e293b', background: '#020617' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {activeStatus ? (
+                  <>
+                    <span style={{ color: activeStatus.status === 'error' ? '#ef4444' : '#10b981' }}>●</span>
+                    {activeStatus.status === 'error' ? 'ANALYSIS FAILED' : `ANALYZING ${activeStatus.ticker}...`}
+                  </>
+                ) : (selectedRun ? `${selectedRun.ticker} Analysis` : 'Select a run')}
+              </h2>
+              <div style={{ fontSize: '12px', color: activeStatus?.status === 'error' ? '#ef4444' : '#94a3b8', marginTop: '4px' }}>
+                {activeStatus ? (
+                  activeStatus.status === 'error' 
+                    ? activeStatus.error 
+                    : `Active Node: ${activeStatus.active_node}`
+                ) : `Trade Date: ${selectedRun?.date}`}
               </div>
             </div>
-            {!activeStatus && (
+            <div style={{ display: 'flex', gap: '20px' }}>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '10px', color: '#64748b' }}>DECISION</div>
-                <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>{runDetail?.final_trade_decision?.split('\n')[0] || '---'}</div>
+                <div style={{ fontSize: '10px', color: '#64748b' }}>STATUS</div>
+                <div style={{ color: activeStatus ? (activeStatus.status === 'error' ? '#ef4444' : '#3b82f6') : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
+                  {activeStatus ? (activeStatus.status === 'error' ? 'ERROR' : 'IN PROGRESS') : 'COMPLETED'}
+                </div>
               </div>
-            )}
+              {!activeStatus && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>DECISION</div>
+                  <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>{runDetail?.final_trade_decision?.split('\n')[0] || '---'}</div>
+                </div>
+              )}
+            </div>
           </div>
+          {activeStatus && activeStatus.status !== 'error' && (
+            <ProgressBar progress={calculateProgress(activeStatus.active_node)} status={activeStatus.status} />
+          )}
         </header>
 
         {/* Workspace */}
