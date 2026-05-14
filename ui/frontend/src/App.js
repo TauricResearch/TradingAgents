@@ -3,51 +3,60 @@ import FlowGraph from './components/FlowGraph';
 import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight, Info, Target, AlertTriangle } from 'lucide-react';
 
 const MarkdownContent = ({ content }) => {
-  if (!content) return <div style={{ color: '#64748b', fontStyle: 'italic' }}>No data available</div>;
+  if (!content) return <div style={{ color: '#64748b', fontStyle: 'italic', padding: '10px' }}>No data available</div>;
 
-  // Split by double newlines to handle paragraphs
-  const paragraphs = content.split('\n\n');
+  // 1. Force newlines before any **Header**: that doesn't have one
+  // This handles the "single paragraph" problem from LLMs
+  const prepared = content.replace(/([^\n])(\*\*.*?\*\*):/g, '$1\n\n$2:');
+  
+  // 2. Split into sections
+  const chunks = prepared.split('\n\n').filter(c => c.trim());
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {paragraphs.map((p, i) => {
-        // Check if paragraph starts with a header like **Header**:
-        const headerMatch = p.match(/^\*\*(.*?)\*\*:\s*(.*)/s);
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {chunks.map((chunk, i) => {
+        const headerMatch = chunk.match(/^\*\*(.*?)\*\*:\s*(.*)/s);
         
         if (headerMatch) {
           const [_, header, body] = headerMatch;
+          const isHighlight = ['Rating', 'Recommendation', 'Action'].some(h => header.includes(h));
+          
           return (
             <div key={i} style={{ 
-              background: '#1e293b', 
+              background: isHighlight ? '#1e293b' : 'transparent', 
               borderRadius: '8px', 
-              padding: '12px',
-              borderLeft: `4px solid ${
-                header.includes('Rating') || header.includes('Recommendation') ? '#3b82f6' : 
-                header.includes('Summary') || header.includes('Actions') ? '#10b981' : '#64748b'
-              }`
+              padding: isHighlight ? '16px' : '0 4px',
+              borderLeft: isHighlight ? `4px solid ${header.includes('Rating') || header.includes('Recommendation') ? '#3b82f6' : '#10b981'}` : 'none',
+              marginBottom: '4px'
             }}>
               <div style={{ 
                 fontSize: '11px', 
-                fontWeight: 'bold', 
+                fontWeight: '800', 
                 textTransform: 'uppercase', 
-                color: '#94a3b8',
-                marginBottom: '4px',
+                color: isHighlight ? '#94a3b8' : '#3b82f6',
+                letterSpacing: '0.05em',
+                marginBottom: '6px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '8px'
               }}>
-                {header.includes('Rating') && <Target size={12} />}
-                {header.includes('Action') && <AlertTriangle size={12} />}
-                {header.includes('Rationale') && <Info size={12} />}
+                {header.includes('Rating') && <Target size={14} />}
+                {header.includes('Action') && <AlertTriangle size={14} />}
+                {header.includes('Rationale') && <Info size={14} />}
                 {header}
               </div>
               <div style={{ 
                 fontSize: '14px', 
                 lineHeight: '1.6', 
                 color: '#f8fafc',
-                fontWeight: header.includes('Rating') ? 'bold' : 'normal'
+                fontWeight: header.includes('Rating') ? '700' : '400'
               }}>
-                {body}
+                {body.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                    return <strong key={j} style={{ color: '#60a5fa' }}>{part.slice(2, -2)}</strong>;
+                  }
+                  return part;
+                })}
               </div>
             </div>
           );
@@ -55,12 +64,12 @@ const MarkdownContent = ({ content }) => {
 
         return (
           <p key={i} style={{ 
-            margin: 0, 
+            margin: '0 4px', 
             fontSize: '13px', 
             lineHeight: '1.7', 
             color: '#cbd5e1' 
           }}>
-            {p.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+            {chunk.split(/(\*\*.*?\*\*)/g).map((part, j) => {
               if (part.startsWith('**') && part.endsWith('**')) {
                 return <strong key={j} style={{ color: '#f8fafc' }}>{part.slice(2, -2)}</strong>;
               }
