@@ -51,17 +51,30 @@ async def get_portfolio_config():
 @app.post("/api/jobs/trigger")
 async def trigger_job():
     """Trigger a manual trade analysis job in Kubernetes."""
+    global current_run_status
+    
+    # 1. Set initial status to triggered so UI knows something is happening immediately
+    current_run_status.update({
+        "ticker": "Portfolio",
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "active_node": "Triggering Kubernetes Job...",
+        "status": "triggered",
+        "last_update": datetime.now().isoformat()
+    })
+
     if not batch_v1:
+        # For local development without Kubernetes, we'll simulate a bit
+        current_run_status["active_node"] = "K8s Not Found (Local?)"
         raise HTTPException(status_code=500, detail="Kubernetes client not initialized (local development?)")
 
     namespace = "tradingagents"
     cronjob_name = "tradingagents-portfolio-daily"
     
     try:
-        # 1. Get the CronJob template
+        # 2. Get the CronJob template
         cron_job = batch_v1.read_namespaced_cron_job(cronjob_name, namespace)
         
-        # 2. Define the Job object based on CronJob template
+        # 3. Define the Job object based on CronJob template
         job_name = f"manual-ui-run-{int(time.time())}"
         job = client.V1Job(
             api_version="batch/v1",
@@ -70,21 +83,14 @@ async def trigger_job():
             spec=cron_job.spec.job_template.spec
         )
         
-        # 3. Create the Job
+        # 4. Create the Job
         batch_v1.create_namespaced_job(namespace, job)
-
-        # 4. Set initial status to triggered so UI knows something is happening
-        global current_run_status
-        current_run_status.update({
-            "ticker": "Portfolio",
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "active_node": "Initializing Job...",
-            "status": "triggered",
-            "last_update": datetime.now().isoformat()
-        })
-
+        
+        current_run_status["active_node"] = "Job Created in K8s"
         return {"status": "triggered", "job_name": job_name}
     except Exception as e:
+        current_run_status["status"] = "idle"
+        current_run_status["active_node"] = f"Error: {str(e)[:50]}..."
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/config/portfolio")

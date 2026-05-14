@@ -109,13 +109,13 @@ const App = () => {
   const [runDetail, setRunDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshRuns = () => {
+  const refreshRuns = (selectNewest = false) => {
     fetch('/api/runs')
       .then(res => res.json())
       .then(data => {
         setRuns(data);
-        // If nothing was selected before, select the newest run
-        if (!selectedRun && data.length > 0) {
+        // If selectNewest is true or nothing was selected before, select the newest run
+        if (data.length > 0 && (selectNewest || !selectedRun)) {
           setSelectedRun(data[0]);
         }
         setLoading(false);
@@ -140,10 +140,10 @@ const App = () => {
           if (data.status === 'in_progress' || data.status === 'triggered') {
             setActiveStatus(data);
           } else {
-            // If we were just active and now we're not, refresh the list
+            // If we were just active and now we're not, refresh the list and select the newest result
             setActiveStatus(prev => {
               if (prev !== null) {
-                setTimeout(refreshRuns, 1000); // Refresh after a short delay to allow logs to be written
+                setTimeout(() => refreshRuns(true), 1000); // Refresh and select newest
               }
               return null;
             });
@@ -161,29 +161,45 @@ const App = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tickers: portfolio })
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to update portfolio');
+      return res.json();
+    })
     .then(() => {
       setIsSavingPortfolio(false);
-      alert('Portfolio updated successfully!');
+      alert('Ticker list updated! New analysis runs will now use: ' + portfolio);
     })
     .catch(err => {
       console.error("Error updating portfolio:", err);
       setIsSavingPortfolio(false);
+      alert(err.message);
     });
   };
 
   const triggerAnalysis = () => {
     setIsTriggering(true);
     fetch('/api/jobs/trigger', { method: 'POST' })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) {
+        return res.json().then(err => { throw new Error(err.detail || 'Failed to trigger job') });
+      }
+      return res.json();
+    })
     .then(data => {
       setIsTriggering(false);
-      // No alert needed, progress will show in header and button
+      // Immediately fetch status to show feedback without waiting for the next 3s poll
+      fetch('/api/status')
+        .then(res => res.json())
+        .then(statusData => {
+          if (statusData.status === 'triggered' || statusData.status === 'in_progress') {
+            setActiveStatus(statusData);
+          }
+        });
     })
     .catch(err => {
       console.error("Error triggering job:", err);
       setIsTriggering(false);
-      alert('Failed to trigger analysis job. Check console for details.');
+      alert(`Trigger Error: ${err.message}`);
     });
   };
 
