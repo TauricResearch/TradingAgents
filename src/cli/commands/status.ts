@@ -72,7 +72,9 @@ export const statusCommand = defineCommand({
     console.log("")
 
     console.log("Server")
-    console.log(`  Status:           ${serverRunning ? "✓ Running on :3000" : "✗ Not running"}`)
+    console.log(
+      `  Status:           ${serverRunning ? `✓ Running on :${cfg.app.dashboardPort}` : "✗ Not running"}`,
+    )
     console.log("")
 
     console.log("Database")

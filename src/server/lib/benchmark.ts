@@ -134,7 +134,8 @@ export async function batchFetchPrices(tickers: string[]): Promise<Map<string, P
               return
             }
 
-            const child = spawn("python3", [script, ticker], {
+            const python = venvPython()
+            const child = spawn(python, [script, ticker], {
               env: { ...process.env, PYTHONUNBUFFERED: "1" },
               timeout: 12_000,
             })
@@ -171,9 +172,22 @@ export async function getLivePortfolioValue(): Promise<{
   fxRates: Record<string, number>
 }> {
   const db = DatabaseFactory.get()
-  const rows = db
+  const rawRows = db
     .query("SELECT * FROM positions WHERE status = 'open' ORDER BY ticker")
-    .all() as PortfolioPosition[]
+    .all() as Array<
+    Omit<PortfolioPosition, "quantity" | "avg_cost"> & {
+      quantity: number | string
+      avg_cost: number | string
+    }
+  >
+  const rows: PortfolioPosition[] = rawRows.map((r) => ({
+    id: r.id,
+    ticker: r.ticker,
+    exchange: r.exchange,
+    platform: r.platform,
+    quantity: parseFloat(String(r.quantity)),
+    avg_cost: parseFloat(String(r.avg_cost)),
+  }))
 
   if (rows.length === 0) return { total: 0, positions: [], fxRates: {} }
 
