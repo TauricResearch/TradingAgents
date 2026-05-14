@@ -50,13 +50,13 @@ def create_news_analyst(llm):
         result = chain.invoke(state["news_messages"])
 
         report = ""
-
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
-            "news_messages": [result],
-            "news_report": report,
-        }
+        update = {"news_messages": [result]}
+        if report:
+            update["news_report"] = report
+            
+        return update
 
     return news_analyst_node

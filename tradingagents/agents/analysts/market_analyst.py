@@ -76,13 +76,13 @@ Volume-Based Indicators:
         result = chain.invoke(state["market_messages"])
 
         report = ""
-
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
-            "market_messages": [result],
-            "market_report": report,
-        }
+        update = {"market_messages": [result]}
+        if report:
+            update["market_report"] = report
+            
+        return update
 
     return market_analyst_node

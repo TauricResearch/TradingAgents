@@ -57,13 +57,13 @@ def create_fundamentals_analyst(llm):
         result = chain.invoke(state["fundamentals_messages"])
 
         report = ""
-
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
-            "fundamentals_messages": [result],
-            "fundamentals_report": report,
-        }
+        update = {"fundamentals_messages": [result]}
+        if report:
+            update["fundamentals_report"] = report
+            
+        return update
 
     return fundamentals_analyst_node
