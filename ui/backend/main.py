@@ -8,7 +8,15 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from kubernetes import client, config as k8s_config
+try:
+    from kubernetes import client
+    from kubernetes.config import load_in_cluster_config, load_kube_config, ConfigException
+except ImportError:
+    client = None
+    load_in_cluster_config = None
+    load_kube_config = None
+    ConfigException = Exception
+
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 
@@ -18,24 +26,28 @@ app = FastAPI(title="TradingAgents Dashboard API")
 batch_v1 = None
 k8s_init_error = None
 
-try:
-    print("Attempting to load in-cluster Kubernetes config...")
-    k8s_config.load_in_cluster_config()
-    batch_v1 = client.BatchV1Api()
-    print("Successfully loaded in-cluster Kubernetes config.")
-except Exception as e:
-    k8s_init_error = f"In-cluster failed: {str(e)}"
-    print(k8s_init_error)
+if client and load_in_cluster_config:
     try:
-        print("Attempting to load local kube-config...")
-        k8s_config.load_kube_config()
+        print("Attempting to load in-cluster Kubernetes config...")
+        load_in_cluster_config()
         batch_v1 = client.BatchV1Api()
-        print("Successfully loaded local kube-config.")
-        k8s_init_error = None # Success
-    except Exception as e2:
-        k8s_init_error = f"{k8s_init_error} | Local failed: {str(e2)}"
+        print("Successfully loaded in-cluster Kubernetes config.")
+    except Exception as e:
+        k8s_init_error = f"In-cluster failed: {str(e)}"
         print(k8s_init_error)
-        print("Kubernetes client will not be available.")
+        try:
+            print("Attempting to load local kube-config...")
+            load_kube_config()
+            batch_v1 = client.BatchV1Api()
+            print("Successfully loaded local kube-config.")
+            k8s_init_error = None # Success
+        except Exception as e2:
+            k8s_init_error = f"{k8s_init_error} | Local failed: {str(e2)}"
+            print(k8s_init_error)
+            print("Kubernetes client will not be available.")
+else:
+    k8s_init_error = "Kubernetes library not found or incomplete"
+    print(k8s_init_error)
 
 # Global state to track current active run
 current_run_status = {
