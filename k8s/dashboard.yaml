@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tradingagents-dashboard-sa
+  namespace: tradingagents
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-manager-role
+  namespace: tradingagents
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "create", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: job-manager-binding
+  namespace: tradingagents
+subjects:
+- kind: ServiceAccount
+  name: tradingagents-dashboard-sa
+  namespace: tradingagents
+roleRef:
+  kind: Role
+  name: job-manager-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tradingagents-dashboard
+  namespace: tradingagents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      serviceAccountName: tradingagents-dashboard-sa
+      containers:
+      - name: dashboard
+        image: ghcr.io/madhuboyin/tradingagents-dashboard:latest-arm64
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+        ports:
+        - containerPort: 8000 # API + UI
+        envFrom:
+        - secretRef:
+            name: tradingagents-secrets
+        env:
+        - name: TRADINGAGENTS_LLM_PROVIDER
+          value: "google"
+        - name: TRADINGAGENTS_DEEP_THINK_LLM
+          value: "gemini-2.5-flash"
+        - name: TRADINGAGENTS_QUICK_THINK_LLM
+          value: "gemini-2.5-flash"
+        - name: TRADINGAGENTS_LOG_LEVEL
+          value: "WARNING"
+        - name: PYTHONOPTIMIZE
+          value: "1"
+        volumeMounts:
+        - name: data
+          mountPath: /home/appuser/.tradingagents
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: tradingagents-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tradingagents-dashboard-svc
+  namespace: tradingagents
+spec:
+  selector:
+    app: dashboard
+  ports:
+  - name: web
+    port: 80
+    targetPort: 8000
+  type: ClusterIP
