@@ -101,6 +101,15 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
       pm: "Makes the final capital allocation decision and issues the official rating."
     };
 
+    const analystIds = ['market', 'sentiment', 'news', 'fundamentals'];
+    const downstreamIds = ['sync', 'bull', 'bear', 'manager', 'trader', 'pm', 'end'];
+    
+    // Check if the graph has moved past the analyst phase
+    const isPastAnalysts = activeNode && downstreamIds.some(id => 
+        activeNode.toLowerCase().includes(id.toLowerCase()) || 
+        (id === 'pm' && activeNode.toLowerCase().includes('risk'))
+    );
+
     const rawNodes = [
       { id: 'start', type: 'input', data: { label: 'Start' }, position: { x: 450, y: 0 } },
       { 
@@ -109,7 +118,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Market Analyst', 
             description: descriptions.market,
-            status: (currentData.market_report || (activeNode && activeNode.toLowerCase().includes('market'))) ? (activeNode && activeNode.toLowerCase().includes('market') ? 'Analyzing...' : 'Complete') : 'Pending',
+            status: (currentData.market_report || isPastAnalysts || (activeNode && activeNode.toLowerCase().includes('market'))) ? (activeNode && activeNode.toLowerCase().includes('market') ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && activeNode.toLowerCase().includes('market')
         }, 
         position: { x: 0, y: 150 } 
@@ -120,7 +129,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Sentiment Analyst', 
             description: descriptions.sentiment,
-            status: (currentData.sentiment_report || (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')))) ? (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')) ? 'Analyzing...' : 'Complete') : 'Pending',
+            status: (currentData.sentiment_report || isPastAnalysts || (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')))) ? (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')) ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment'))
         }, 
         position: { x: 300, y: 150 } 
@@ -131,7 +140,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'News Analyst', 
             description: descriptions.news,
-            status: (currentData.news_report || (activeNode && activeNode.toLowerCase().includes('news'))) ? (activeNode && activeNode.toLowerCase().includes('news') ? 'Analyzing...' : 'Complete') : 'Pending',
+            status: (currentData.news_report || isPastAnalysts || (activeNode && activeNode.toLowerCase().includes('news'))) ? (activeNode && activeNode.toLowerCase().includes('news') ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && activeNode.toLowerCase().includes('news')
         }, 
         position: { x: 600, y: 150 } 
@@ -142,7 +151,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Fundamentals Analyst', 
             description: descriptions.fundamentals,
-            status: (currentData.fundamentals_report || (activeNode && activeNode.toLowerCase().includes('fundamental'))) ? (activeNode && activeNode.toLowerCase().includes('fundamental') ? 'Analyzing...' : 'Complete') : 'Pending',
+            status: (currentData.fundamentals_report || isPastAnalysts || (activeNode && activeNode.toLowerCase().includes('fundamental'))) ? (activeNode && activeNode.toLowerCase().includes('fundamental') ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && activeNode.toLowerCase().includes('fundamental')
         }, 
         position: { x: 900, y: 150 } 

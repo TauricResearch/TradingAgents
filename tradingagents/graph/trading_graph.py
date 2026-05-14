@@ -355,57 +355,40 @@ class TradingAgentsGraph:
         args = self.propagator.get_graph_args()
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
+        config = args.get("config", {})
         if self.config.get("checkpoint_enabled"):
             tid = thread_id(company_name, str(trade_date))
-            args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
+            config.setdefault("configurable", {})["thread_id"] = tid
+            args["config"] = config
 
-        if self.debug:
-            trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
-                node_name = list(chunk.keys())[0] if chunk else "unknown"
-                
-                # In 'updates' mode, chunk is {node_name: {updates}}
-                node_updates = chunk.get(node_name, {})
-                if "messages" in node_updates and len(node_updates["messages"]) > 0:
-                    node_updates["messages"][-1].pretty_print()
-                
-                trace.append(chunk)
-                
-                # Send webhook update for each chunk (node completion)
-                self._send_webhook({
-                    "ticker": company_name,
-                    "date": trade_date,
-                    "node": node_name,
-                    "status": "in_progress",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "start_time": start_time_iso
-                })
+        # Even in non-debug mode, we stream to get progress updates
+        trace = []
+        node_start_times = {}
+        
+        for chunk in self.graph.stream(init_agent_state, **args):
+            node_name = list(chunk.keys())[0] if chunk else "unknown"
+            now = datetime.utcnow()
             
-            # Merge updates into final_state
-            final_state = {}
-            for chunk in trace:
-                for node_name, updates in chunk.items():
-                    final_state.update(updates)
-        else:
-            # Even in non-debug mode, we stream to get progress updates
-            trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
-                node_name = list(chunk.keys())[0] if chunk else "unknown"
-                trace.append(chunk)
-                self._send_webhook({
-                    "ticker": company_name,
-                    "date": trade_date,
-                    "node": node_name,
-                    "status": "in_progress",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "start_time": start_time_iso
-                })
+            # Log completion of previous node if any
+            for prev_node, p_start in node_start_times.items():
+                duration = (now - p_start).total_seconds()
+                logger.info("Node [%s] completed in %.2fs", prev_node, duration)
             
-            # Merge updates into final_state
-            final_state = {}
-            for chunk in trace:
-                for node_name, updates in chunk.items():
-                    final_state.update(updates)
+            node_start_times = {node_name: now}
+            trace.append(chunk)
+            
+            self._send_webhook({
+                "ticker": company_name,
+                "date": trade_date,
+                "node": node_name,
+                "status": "in_progress",
+                "timestamp": now.isoformat() + "Z",
+                "start_time": start_time_iso
+            })
+
+        # Retrieve the final accumulated state from the graph's own state manager
+        # This ensures reducers (like add_messages) are correctly applied.
+        final_state = self.graph.get_state(config).values
 
         # Store current state for reflection.
         self.curr_state = final_state
