@@ -12,8 +12,8 @@ echo "🏷️  Tagging images as: $IMAGE_TAG"
 docker buildx create --use --name pi-builder || true
 
 # Build only the Dashboard UI image
-echo "🖥️ Building TradingAgents Dashboard image..."
-docker buildx build --platform linux/arm64 \
+echo "🖥️ Building TradingAgents Dashboard image (no-cache)..."
+docker buildx build --no-cache --platform linux/arm64 \
   -f ui/Dockerfile \
   -t "${REGISTRY}/tradingagents-dashboard:${IMAGE_TAG}" \
   -t "${REGISTRY}/tradingagents-dashboard:latest-arm64" \
