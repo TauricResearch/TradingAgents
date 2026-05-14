@@ -367,4 +367,53 @@ to the client.
 
 ---
 
-*Last updated: 2026-05-03 | Version: 0.2.4*
+## File Map
+
+```
+tradingagents/          ← Python core (never fork/modify core logic)
+  graph/                LangGraph workflow (TradingAgentsGraph)
+  agents/               LLM-powered agent definitions
+  default_config.py     All config keys + defaults
+
+src/
+  cli/                  TypeScript CLI (`trading`)
+    main.ts             citty entry point
+    commands/           plan, execute, ig, portfolio, watchlist, signals, etc.
+  server/               Bun/Hono dashboard
+    index.tsx           Server entry + routes
+    lib/
+      db.ts             DatabaseFactory (WAL, singleton — all SQL access)
+      schema.sql        Full schema (positions, trades, signals, etc.)
+      hledger.ts        hLedger subprocess wrapper
+      markdown.ts       Server-side markdown renderer
+      positions.ts      Exit plan helpers
+      governance.ts     Risk rules engine
+      benchmark.ts      Portfolio vs. benchmark
+      feedback.ts       Signal accuracy + post-mortems
+      types.ts          Shared TypeScript types
+    routes/             12 route modules
+    views/              12 .tsx views (HTMX + SSR, no SPA frameworks)
+    static/fonts/       Datatype.woff2 (variable font with GSUB)
+    static/scripts/     Canonical client-side runtime (single source of truth)
+
+scripts/
+  reg-enrich.ts         Extract JSDoc summaries from source files
+  reg-sync.ts           Sync document index with disk state
+  agent-orient.ts       Agent startup orientation script
+  agent-sync.ts         Git state + file collision check
+  agent-claim.ts        Claim a task before editing its files
+  agent-log.ts          Log progress against a task
+  agent-handoff.ts      Handoff on session close
+  py/
+    analyze_stream.py   Bun↔Python bridge (JSON lines only)
+
+briefs/                 Work proposals (archive, reference)
+debriefs/               Post-work retrospectives
+playbooks/              Tool conventions (sqlite, hledger, td, etc.)
+tests/                  Python test suite (pytest -m smoke)
+Justfile                Unified task runner (just check, just lint, etc.)
+```
+
+---
+
+*Last updated: 2026-05-13 | Version: 0.3.0*

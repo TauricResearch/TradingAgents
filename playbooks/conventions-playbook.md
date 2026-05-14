@@ -158,3 +158,46 @@ the accumulation of misdirection. Every barnacle you scrape saves the next
 agent an hour. Every barnacle you leave costs the next agent an hour.
 
 The learning loop is only virtuous if it does not foul the silo.
+
+---
+
+## Environment Variables
+
+Canonical source is `scripts/just-check.ts`. Keep this table in sync with it.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `TA_DASHBOARD_PORT` | `3000` | Dashboard HTTP port |
+| `PORTFOLIO_DB` | `./portfolio.db` | SQLite database path (dev) |
+| `TEST_MODE` | `0` | Set to `1` to use `test_portfolio.db` |
+| `TEST_PORTFOLIO_DB` | `./test_portfolio.db` | Test SQLite DB (active when `TEST_MODE=1`) |
+| `TRADINGAGENTS_MEMORY_LOG_PATH` | `~/.tradingagents/memory/trading_memory.md` | Decision memory log |
+| `TRADINGAGENTS_CACHE_DIR` | `~/.tradingagents/cache` | Checkpoint cache base |
+| `HLEDGER_FILE` | `~/.hledger.journal` | hLedger journal path (DEV) |
+| `TEST_HLEDGER_FILE` | `~/.tradingagents/test_hledger.journal` | hLedger journal path (TEST) |
+
+## Known Failure Modes
+
+### Static JS copies of TypeScript
+The canonical client-side runtime lives in `src/server/static/scripts/*.js` — the single source of truth. Views reference them via `<script src="/static/scripts/xxx.js" />`. Biome linting for this directory is disabled. Do not maintain a second inline copy in views.
+
+### Biome config changes must be validated immediately
+If you add a key that doesn't exist (`files.ignore` is not valid at v2.4.14), biome fails with a parse error before running any checks. Run `just lint` immediately after any `biome.json` change.
+
+### Template literals inside template literals break silently
+Backtick-quoted strings inside template literals are a syntax error. The JSX compiler won't catch it. Fix: use `String.fromCharCode(34)` for embedded quotes.
+
+### Revert is faster than forward-fix
+If a change breaks checks and the fix isn't obvious, revert to the last known-good commit. Three failed forward-attempts burned 45 minutes. One revert took 5. Trust the revert.
+
+### Route file with JSX retaining `.ts` extension
+Biome produces cryptic parse errors: "expected `>` but instead found `data"`. The parser treats JSX as TypeScript class syntax. Fix: rename to `.tsx` and update all imports in `src/server/index.tsx`.
+
+### Forward-porting vs merging
+When a PR was written against old architecture, evaluate conflict count × semantic distance. String-concat vs JSX is a chasm. If >15 conflict regions: abort merge, cherry-pick ideas, rewrite.
+
+### Script path unification
+When a script moves (e.g. `scripts/` → `scripts/py/`), update ALL references in a single commit. Piecemeal updates create "file not found" errors that surface only in production.
+
+### No test coverage for views
+`pytest -m smoke` only covers Python. TypeScript views have no automated test. Until route-level tests exist, the only guard is: `tsc` + `just lint` + manual browser verification.
