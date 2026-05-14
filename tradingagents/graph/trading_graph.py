@@ -58,18 +58,15 @@ class TradingAgentsGraph:
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
     ):
-        """Initialize the trading agents graph and components.
-
-        Args:
-            selected_analysts: List of analyst types to include
-            debug: Whether to run in debug mode
-            config: Configuration dictionary. If None, uses default config
-            callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
-        """
+        """Initialize the trading agents graph and components."""
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
+        # Configure logging based on config
+        log_level = self.config.get("log_level", "INFO").upper()
+        logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
+        
         # Update the interface's config
         set_config(self.config)
 

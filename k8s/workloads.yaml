@@ -34,6 +34,12 @@ spec:
               value: "gemini-2.5-flash"
             - name: TRADINGAGENTS_WEBHOOK_URL
               value: "http://tradingagents-dashboard-svc.tradingagents.svc.cluster.local/api/webhook/progress"
+            - name: TRADINGAGENTS_LOG_LEVEL
+              value: "WARNING"
+            - name: PYTHONOPTIMIZE
+              value: "1"
+            - name: YF_CACHE_DIR
+              value: "/home/appuser/.tradingagents/cache/yfinance"
             volumeMounts:
             - name: data
               mountPath: /home/appuser/.tradingagents
@@ -81,6 +87,10 @@ spec:
           value: "gemini-2.5-flash"
         - name: TRADINGAGENTS_QUICK_THINK_LLM
           value: "gemini-2.5-flash"
+        - name: TRADINGAGENTS_LOG_LEVEL
+          value: "WARNING"
+        - name: PYTHONOPTIMIZE
+          value: "1"
         volumeMounts:
         - name: data
           mountPath: /home/appuser/.tradingagents
