@@ -76,24 +76,31 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
+        # Initialize LLMs with provider-specific thinking configuration.
+        # Each model gets its own kwargs so capability checks are per-model
+        # (e.g. Haiku does not support the effort param, Sonnet/Opus do).
+        deep_model = self.config["deep_think_llm"]
+        quick_model = self.config["quick_think_llm"]
+
+        deep_kwargs = self._get_provider_kwargs(model=deep_model)
+        quick_kwargs = self._get_provider_kwargs(model=quick_model)
 
         # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
+            deep_kwargs["callbacks"] = self.callbacks
+            quick_kwargs["callbacks"] = self.callbacks
 
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
-            model=self.config["deep_think_llm"],
+            model=deep_model,
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **deep_kwargs,
         )
         quick_client = create_llm_client(
             provider=self.config["llm_provider"],
-            model=self.config["quick_think_llm"],
+            model=quick_model,
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **quick_kwargs,
         )
 
         self.deep_thinking_llm = deep_client.get_llm()
@@ -130,8 +137,18 @@ class TradingAgentsGraph:
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
-        """Get provider-specific kwargs for LLM client creation."""
+    # Models that support the Anthropic extended-thinking / effort parameter.
+    # Haiku does NOT support it and will return a 400 error if it is sent.
+    _ANTHROPIC_EFFORT_SUPPORTED = ("claude-sonnet", "claude-opus")
+
+    def _get_provider_kwargs(self, model: str = "") -> Dict[str, Any]:
+        """Get provider-specific kwargs for LLM client creation.
+
+        Args:
+            model: The specific model name being configured. Used to gate
+                   capability-specific parameters (e.g. Anthropic effort is
+                   only supported on Sonnet/Opus, not Haiku).
+        """
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
 
@@ -147,7 +164,10 @@ class TradingAgentsGraph:
 
         elif provider == "anthropic":
             effort = self.config.get("anthropic_effort")
-            if effort:
+            # Only pass effort to models that actually support extended thinking.
+            # Sending it to Haiku causes a 400 error (issue #831).
+            model_lower = model.lower()
+            if effort and any(s in model_lower for s in self._ANTHROPIC_EFFORT_SUPPORTED):
                 kwargs["effort"] = effort
 
         return kwargs
