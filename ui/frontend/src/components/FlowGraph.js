@@ -215,7 +215,11 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
       >
         <Background color="#334155" gap={20} />
         <Controls />
-        <MiniMap nodeColor={(n) => n.type === 'agent' ? '#3b82f6' : '#94a3b8'} />
+        <MiniMap 
+          nodeColor={(n) => n.type === 'agent' ? '#3b82f6' : '#94a3b8'} 
+          style={{ background: '#0f172a', border: '1px solid #1e293b' }}
+          maskColor="rgba(30, 41, 59, 0.7)"
+        />
       </ReactFlow>
     </div>
   );
