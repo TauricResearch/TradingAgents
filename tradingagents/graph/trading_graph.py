@@ -367,6 +367,7 @@ class TradingAgentsGraph:
         
         for chunk in self.graph.stream(init_agent_state, **args):
             node_name = list(chunk.keys())[0] if chunk else "unknown"
+            node_updates = chunk.get(node_name, {})
             now = datetime.utcnow()
             
             # Log completion of previous node if any
@@ -377,13 +378,15 @@ class TradingAgentsGraph:
             node_start_times = {node_name: now}
             trace.append(chunk)
             
+            # Send webhook with accumulated updates for this node
             self._send_webhook({
                 "ticker": company_name,
                 "date": trade_date,
                 "node": node_name,
                 "status": "in_progress",
                 "timestamp": now.isoformat() + "Z",
-                "start_time": start_time_iso
+                "start_time": start_time_iso,
+                "updates": node_updates
             })
 
         # Retrieve the final accumulated state from the graph's own state manager

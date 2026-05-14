@@ -98,6 +98,8 @@ current_run_status = {
     "ticker": None,
     "date": None,
     "active_node": None,
+    "completed_nodes": [],
+    "updates": {},
     "status": "idle",
     "last_update": None,
     "error": k8s_init_error
@@ -144,6 +146,8 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
         "ticker": display_ticker,
         "date": datetime.now().strftime("%Y-%m-%d"),
         "active_node": "Initializing...",
+        "completed_nodes": [],
+        "updates": {},
         "status": "triggered",
         "last_update": start_time,
         "start_time": start_time,
@@ -224,10 +228,19 @@ async def update_portfolio_config(data: Dict[str, str]):
 async def handle_progress_webhook(update: Dict[str, Any]):
     """Receive progress updates from the TradingAgentsGraph."""
     global current_run_status
+    
+    node = update.get("node")
+    if node and node not in current_run_status["completed_nodes"]:
+        current_run_status["completed_nodes"].append(node)
+    
+    # Merge reports and state updates
+    if "updates" in update:
+        current_run_status["updates"].update(update["updates"])
+
     current_run_status.update({
         "ticker": update.get("ticker"),
         "date": update.get("date"),
-        "active_node": update.get("node"),
+        "active_node": node,
         "status": update.get("status"),
         "last_update": update.get("timestamp"),
         "start_time": update.get("start_time"),
