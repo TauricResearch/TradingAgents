@@ -111,6 +111,10 @@ class GraphSetup:
             Reports are truncated to 10k characters each to prevent researchers 
             from being overwhelmed by excessive context (Markdown tables, etc).
             """
+            # Only perform merge when all analysts have finished
+            if state["analyst_count"] < len(selected_analysts):
+                return {}
+
             reports = []
             max_report_len = 10000
             
@@ -158,11 +162,21 @@ class GraphSetup:
             workflow.add_edge(current_tools, current_analyst)
             workflow.add_edge(current_clear, "Analyst Synchronizer")
 
-        # Route from synchronizer based on standalone flag
-        if standalone:
-            workflow.add_edge("Analyst Synchronizer", END)
-        else:
-            workflow.add_edge("Analyst Synchronizer", "Bull Researcher")
+        def should_proceed_from_sync(state: AgentState):
+            if state["analyst_count"] >= len(selected_analysts):
+                return "proceed"
+            return "wait"
+
+        # Route from synchronizer: only proceed once all analysts are done.
+        # This prevents the downstream graph from triggering multiple times.
+        workflow.add_conditional_edges(
+            "Analyst Synchronizer",
+            should_proceed_from_sync,
+            {
+                "proceed": END if standalone else "Bull Researcher",
+                "wait": END
+            }
+        )
 
         # Add remaining edges
         workflow.add_conditional_edges(

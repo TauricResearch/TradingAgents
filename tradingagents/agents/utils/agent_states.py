@@ -1,3 +1,4 @@
+import operator
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
@@ -63,6 +64,9 @@ class AgentState(MessagesState):
     sentiment_messages: Annotated[list, add_messages]
     news_messages: Annotated[list, add_messages]
     fundamentals_messages: Annotated[list, add_messages]
+
+    # Counter for parallel analyst synchronization
+    analyst_count: Annotated[int, operator.add]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

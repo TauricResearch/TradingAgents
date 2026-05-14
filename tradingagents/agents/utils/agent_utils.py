@@ -55,7 +55,10 @@ def create_msg_delete(messages_key="messages"):
         # Add a minimal placeholder message
         placeholder = HumanMessage(content="Continue")
 
-        return {messages_key: removal_operations + [placeholder]}
+        return {
+            messages_key: removal_operations + [placeholder],
+            "analyst_count": 1,
+        }
 
     return delete_messages
 

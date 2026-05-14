@@ -29,6 +29,7 @@ class Propagator:
             "sentiment_messages": start_msg,
             "news_messages": start_msg,
             "fundamentals_messages": start_msg,
+            "analyst_count": 0,
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",
