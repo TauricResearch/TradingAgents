@@ -210,7 +210,9 @@ async def handle_progress_webhook(update: Dict[str, Any]):
         "date": update.get("date"),
         "active_node": update.get("node"),
         "status": update.get("status"),
-        "last_update": update.get("timestamp")
+        "last_update": update.get("timestamp"),
+        "start_time": update.get("start_time"),
+        "end_time": update.get("end_time")
     })
     return {"status": "received"}
 
