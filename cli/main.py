@@ -578,8 +578,30 @@ def get_user_selections():
             )
             raise typer.Exit(1)
         console.print("[green]✓ Claude CLI detected. Using Max subscription (no API key needed).[/green]")
-        selected_shallow_thinker = "default"
-        selected_deep_thinker = "default"
+
+        # Model selection for Claude CLI — Opus only
+        _CLI_MODELS = [
+            ("Claude Opus 4.6", "claude-opus-4-20250514"),
+            ("Claude Opus 4.7 Max", "claude-opus-4-20250715"),
+        ]
+        console.print(
+            create_question_box(
+                "Step 7",
+                "Select Claude model",
+                "Both models use your Max subscription at $0 cost.",
+            )
+        )
+        cli_model_choice = questionary.select(
+            "Select model:",
+            choices=[name for name, _ in _CLI_MODELS],
+            style=custom_style,
+        ).ask()
+        if cli_model_choice is None:
+            raise typer.Exit(0)
+        cli_model_id = next(mid for name, mid in _CLI_MODELS if name == cli_model_choice)
+
+        selected_shallow_thinker = cli_model_id
+        selected_deep_thinker = cli_model_id
         thinking_level = None
         reasoning_effort = None
         anthropic_effort = None
