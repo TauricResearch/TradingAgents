@@ -18,9 +18,9 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
 
   return new Promise((resolve) => {
     const python = venvPython()
-    // scripts/py/get_price.py is at <project-root>/scripts/py/get_price.py
-    // venvPython() walks up to project root, so dirname(dirname(python)) = project-root
-    const projectRoot = dirname(dirname(python))
+    // venvPython() returns <project>/.venv/bin/python3
+    // dirname 3x: .venv/bin/python3 → .venv/bin → .venv → project-root
+    const projectRoot = dirname(dirname(dirname(python)))
     const script = join(projectRoot, "scripts", "py", "get_price.py")
     const child = spawn(python, [script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },

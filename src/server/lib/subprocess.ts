@@ -89,7 +89,9 @@ export function runPython(
 ): Promise<RunPythonResult> {
   const timeout = opts.timeout ?? 30_000
   const python = venvPython()
-  const projectRoot = dirname(dirname(import.meta.filename))
+  // import.meta.filename = .../src/server/lib/subprocess.ts
+  // dirname 3x: lib → server → src → project-root
+  const projectRoot = dirname(dirname(dirname(import.meta.filename)))
 
   return new Promise((resolve) => {
     const child = spawn(python, [scriptPath, ...args], {

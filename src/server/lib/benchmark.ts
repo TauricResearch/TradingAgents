@@ -117,7 +117,9 @@ export async function batchFetchPrices(tickers: string[]): Promise<Map<string, P
   if (tickers.length === 0) return results
 
   const python = venvPython()
-  const projectRoot = dirname(dirname(python))
+  // venvPython() returns <project>/.venv/bin/python3
+  // dirname 3x: .venv/bin/python3 → .venv/bin → .venv → project-root
+  const projectRoot = dirname(dirname(dirname(python)))
   const script = join(projectRoot, "scripts", "py", "get_price.py")
   const BATCH_SIZE = 4
 
