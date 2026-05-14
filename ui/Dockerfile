@@ -10,14 +10,14 @@ RUN npm run build
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
-COPY . .
+COPY ui/backend/requirements.txt .
 
 # Use a virtualenv to avoid system python conflicts
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install core and UI dependencies in the builder stage
-RUN pip install --no-cache-dir . fastapi uvicorn
+# Install ONLY UI-specific requirements
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 3: Final Production Image
 FROM python:3.12-slim
@@ -32,13 +32,17 @@ RUN useradd --create-home appuser \
  && install -d -m 0755 -o appuser -g appuser /home/appuser/.tradingagents
 USER appuser
 
-# Copy the backend code
+# Copy ONLY the necessary code for the dashboard
+# We copy the tradingagents folder so the backend can import shared logic (config/memory)
+# but we DO NOT install its heavy dependencies.
+COPY --chown=appuser:appuser tradingagents/ /home/appuser/app/tradingagents/
 COPY --chown=appuser:appuser ui/backend/ /home/appuser/app/backend/
 
 # Copy the React build from Stage 1
 COPY --from=frontend-build --chown=appuser:appuser /app/build /home/appuser/app/frontend_build
 
 # Set up environment
+# PYTHONPATH ensures that 'import tradingagents' works even without 'pip install .'
 ENV PYTHONPATH=/home/appuser/app
 ENV PYTHONUNBUFFERED=1
 

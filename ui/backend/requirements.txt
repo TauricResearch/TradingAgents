@@ -1,0 +1,4 @@
+fastapi>=0.115.0
+uvicorn>=0.31.0
+kubernetes>=31.0.0
+python-dotenv>=1.0.1
