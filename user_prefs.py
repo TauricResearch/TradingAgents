@@ -25,7 +25,7 @@ DEFAULT_PREFS: dict[str, Any] = {
     "selected_analysts": ["market"],
     "provider": "qwen",
     "deep_model": "qwen-plus",
-    "quick_model": "qwen-turbo",
+    "quick_model": "qwen-plus",
     "output_language": "中文",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

@@ -14,7 +14,7 @@ DEFAULT_CONFIG = {
     # LLM settings
     "llm_provider": "qwen",
     "deep_think_llm": "qwen-plus",
-    "quick_think_llm": "qwen-turbo",
+    "quick_think_llm": "qwen-plus",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a

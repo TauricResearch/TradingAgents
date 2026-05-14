@@ -305,7 +305,11 @@ def T(key: str) -> str:
 # Constants
 # ════════════════════════════════════════════════════════════════════
 PROVIDER_MODELS = {
-    "qwen": ["qwen-turbo", "qwen-plus", "qwen-max"],
+    # Order matters: quick_model selectbox picks models[0], deep_model picks
+    # models[min(2, len-1)]. We want both defaults = qwen-plus (reliable
+    # tool-calling). qwen-turbo is kept as a cheaper fallback for users who
+    # want to opt in via the dropdown.
+    "qwen": ["qwen-plus", "qwen-turbo", "qwen-max"],
     "google": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro",
                "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.1-pro-preview"],
     "openai": ["gpt-5.4-mini", "gpt-5.4", "gpt-5"],

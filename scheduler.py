@@ -107,7 +107,7 @@ def _build_config(prefs: dict[str, Any], slug: str) -> dict[str, Any]:
     cfg = DEFAULT_CONFIG.copy()
     cfg["llm_provider"] = prefs.get("provider", "qwen")
     cfg["deep_think_llm"] = prefs.get("deep_model", "qwen-plus")
-    cfg["quick_think_llm"] = prefs.get("quick_model", "qwen-turbo")
+    cfg["quick_think_llm"] = prefs.get("quick_model", "qwen-plus")
     cfg["max_debate_rounds"] = int(prefs.get("max_debate_rounds", 1))
     cfg["max_risk_discuss_rounds"] = int(prefs.get("max_risk_discuss_rounds", 1))
     cfg["output_language"] = prefs.get("output_language", "中文")
@@ -186,7 +186,7 @@ def _run_worker(slug: str, ticker: str, trade_date: str,
             _log(
                 f"  ⚠️  {ticker}: only {stats.get('tool_calls', 0)} tool calls "
                 f"for {n_analysts} analyst(s) — model may be hallucinating. "
-                f"Consider quick_model=qwen-plus."
+                f"Consider upgrading quick_model (current default qwen-plus → qwen-max)."
             )
     else:
         _log(f"  worker {ticker}: chunks={chunk_count} exit={proc.returncode}")
