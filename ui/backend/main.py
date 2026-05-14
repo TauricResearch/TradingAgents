@@ -230,8 +230,10 @@ async def handle_progress_webhook(update: Dict[str, Any]):
     global current_run_status
     
     node = update.get("node")
-    if node and node not in current_run_status["completed_nodes"]:
-        current_run_status["completed_nodes"].append(node)
+    if node:
+        if node not in current_run_status["completed_nodes"]:
+            current_run_status["completed_nodes"].append(node)
+        current_run_status["active_node"] = node
     
     # Merge reports and state updates
     if "updates" in update:
@@ -240,7 +242,6 @@ async def handle_progress_webhook(update: Dict[str, Any]):
     current_run_status.update({
         "ticker": update.get("ticker"),
         "date": update.get("date"),
-        "active_node": node,
         "status": update.get("status"),
         "last_update": update.get("timestamp"),
         "start_time": update.get("start_time"),

@@ -143,9 +143,21 @@ class GraphSetup:
         workflow.add_node("Analyst Synchronizer", sync_analysts)
 
         # Define edges
-        # Start all selected analysts in parallel
-        for analyst_type in selected_analysts:
-            workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
+        # Start all selected analysts with staggered delays to smooth out API load
+        for i, analyst_type in enumerate(selected_analysts):
+            def create_starter(delay):
+                def starter_node(state):
+                    import time
+                    if delay > 0:
+                        time.sleep(delay)
+                    return {}
+                return starter_node
+                
+            starter_node_name = f"{analyst_type.capitalize()} Starter"
+            workflow.add_node(starter_node_name, create_starter(i * 2))
+            
+            workflow.add_edge(START, starter_node_name)
+            workflow.add_edge(starter_node_name, f"{analyst_type.capitalize()} Analyst")
 
         # Connect each analyst to their tools and then to the synchronizer
         for analyst_type in selected_analysts:
@@ -162,21 +174,11 @@ class GraphSetup:
             workflow.add_edge(current_tools, current_analyst)
             workflow.add_edge(current_clear, "Analyst Synchronizer")
 
-        def should_proceed_from_sync(state: AgentState):
-            if state["analyst_count"] >= len(selected_analysts):
-                return "proceed"
-            return "wait"
-
-        # Route from synchronizer: only proceed once all analysts are done.
-        # This prevents the downstream graph from triggering multiple times.
-        workflow.add_conditional_edges(
-            "Analyst Synchronizer",
-            should_proceed_from_sync,
-            {
-                "proceed": END if standalone else "Bull Researcher",
-                "wait": END
-            }
-        )
+        # Route from synchronizer: a join node naturally waits for all predecessors.
+        if standalone:
+            workflow.add_edge("Analyst Synchronizer", END)
+        else:
+            workflow.add_edge("Analyst Synchronizer", "Bull Researcher")
 
         # Add remaining edges
         workflow.add_conditional_edges(
