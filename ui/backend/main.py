@@ -137,14 +137,15 @@ async def trigger_job(data: Optional[Dict[str, str]] = None):
             display_ticker = "Portfolio"
 
     # 1. Set initial status to triggered so UI knows something is happening immediately
-    start_time = datetime.now().isoformat()
+    start_time = datetime.utcnow().isoformat() + "Z"
     current_run_status.update({
         "ticker": display_ticker,
         "date": datetime.now().strftime("%Y-%m-%d"),
-        "active_node": "Triggering Kubernetes Job...",
+        "active_node": "Initializing...",
         "status": "triggered",
         "last_update": start_time,
         "start_time": start_time,
+        "end_time": None,
         "error": k8s_init_error
     })
 

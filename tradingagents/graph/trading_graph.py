@@ -329,15 +329,16 @@ class TradingAgentsGraph:
 
     def _run_graph(self, company_name, trade_date):
         """Execute the graph and write the resulting state to disk and memory log."""
-        start_time = datetime.now()
+        start_time = datetime.utcnow()
+        start_time_iso = start_time.isoformat() + "Z"
         # Notify starting
         self._send_webhook({
             "ticker": company_name,
             "date": trade_date,
             "node": "Initializing...",
             "status": "in_progress",
-            "timestamp": start_time.isoformat(),
-            "start_time": start_time.isoformat()
+            "timestamp": start_time_iso,
+            "start_time": start_time_iso
         })
 
         # Initialize state — inject memory log context for PM.
@@ -367,8 +368,8 @@ class TradingAgentsGraph:
                     "date": trade_date,
                     "node": list(chunk.keys())[0] if chunk else "unknown",
                     "status": "in_progress",
-                    "timestamp": datetime.now().isoformat(),
-                    "start_time": start_time.isoformat()
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "start_time": start_time_iso
                 })
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
@@ -385,8 +386,8 @@ class TradingAgentsGraph:
                     "date": trade_date,
                     "node": list(chunk.keys())[0] if chunk else "unknown",
                     "status": "in_progress",
-                    "timestamp": datetime.now().isoformat(),
-                    "start_time": start_time.isoformat()
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "start_time": start_time_iso
                 })
             final_state = {}
             for chunk in trace:
@@ -394,7 +395,8 @@ class TradingAgentsGraph:
 
         # Store current state for reflection.
         self.curr_state = final_state
-        end_time = datetime.now()
+        end_time = datetime.utcnow()
+        end_time_iso = end_time.isoformat() + "Z"
 
         # Log state to disk.
         self._log_state(trade_date, final_state, start_time, end_time)
@@ -404,9 +406,9 @@ class TradingAgentsGraph:
             "ticker": company_name,
             "date": trade_date,
             "status": "completed",
-            "timestamp": end_time.isoformat(),
-            "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat()
+            "timestamp": end_time_iso,
+            "start_time": start_time_iso,
+            "end_time": end_time_iso
         })
 
         # Store decision for deferred reflection on the next same-ticker run.

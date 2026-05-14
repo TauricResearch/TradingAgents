@@ -166,11 +166,9 @@ const App = () => {
         const start = new Date(activeStart);
         const now = new Date();
         const diff = Math.floor((now - start) / 1000);
-        if (diff >= 0) {
-          const mins = Math.floor(diff / 60);
-          const secs = diff % 60;
-          setElapsed(`${mins}m ${secs}s`);
-        }
+        const mins = Math.max(0, Math.floor(diff / 60));
+        const secs = Math.max(0, diff % 60);
+        setElapsed(`${mins}m ${secs}s`);
       } else if (detailStart && detailEnd) {
         const start = new Date(detailStart);
         const end = new Date(detailEnd);
@@ -325,6 +323,8 @@ const App = () => {
 
   const triggerAnalysis = () => {
     setIsTriggering(true);
+    setElapsed("0m 0s");
+    setLastValidProgress(5);
     fetch('/api/jobs/trigger', { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
