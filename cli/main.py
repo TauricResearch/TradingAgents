@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import shutil
 import typer
 import questionary
 from pathlib import Path
@@ -567,50 +568,66 @@ def get_user_selections():
     if selected_llm_provider == "ollama":
         confirm_ollama_endpoint(backend_url)
 
-    # Confirm the provider's API key is present; prompt the user to paste
-    # one and persist it to .env if it's missing, so the analysis run
-    # doesn't fail later at the first API call.
-    ensure_api_key(selected_llm_provider)
+    # Claude CLI uses the existing 'claude auth login' session — no API key
+    # and no model selection needed (uses the user's CLI session default).
+    if selected_llm_provider == "claude_cli":
+        if shutil.which("claude") is None:
+            console.print(
+                "[red]Error: 'claude' CLI not found on PATH.[/red]\n"
+                "[yellow]Install Claude Code and run 'claude auth login' first.[/yellow]"
+            )
+            raise typer.Exit(1)
+        console.print("[green]✓ Claude CLI detected. Using Max subscription (no API key needed).[/green]")
+        selected_shallow_thinker = "default"
+        selected_deep_thinker = "default"
+        thinking_level = None
+        reasoning_effort = None
+        anthropic_effort = None
+    else:
+        # Confirm the provider's API key is present; prompt the user to paste
+        # one and persist it to .env if it's missing, so the analysis run
+        # doesn't fail later at the first API call.
+        ensure_api_key(selected_llm_provider)
 
-    # Step 7: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
-        )
-    )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
-
-    # Step 8: Provider-specific thinking configuration
-    thinking_level = None
-    reasoning_effort = None
-    anthropic_effort = None
-
-    provider_lower = selected_llm_provider.lower()
-    if provider_lower == "google":
+        # Step 7: Thinking agents
         console.print(
             create_question_box(
-                "Step 8: Thinking Mode",
-                "Configure Gemini thinking mode"
+                "Step 7: Thinking Agents", "Select your thinking agents for analysis"
             )
         )
-        thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
-        console.print(
-            create_question_box(
-                "Step 8: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
+        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+
+        # Step 8: Provider-specific thinking configuration
+        thinking_level = None
+        reasoning_effort = None
+        anthropic_effort = None
+
+        provider_lower = selected_llm_provider.lower()
+        if provider_lower == "google":
+            console.print(
+                create_question_box(
+                    "Step 8: Thinking Mode",
+                    "Configure Gemini thinking mode"
+                )
             )
-        )
-        reasoning_effort = ask_openai_reasoning_effort()
-    elif provider_lower == "anthropic":
-        console.print(
-            create_question_box(
-                "Step 8: Effort Level",
-                "Configure Claude effort level"
+            thinking_level = ask_gemini_thinking_config()
+        elif provider_lower == "openai":
+            console.print(
+                create_question_box(
+                    "Step 8: Reasoning Effort",
+                    "Configure OpenAI reasoning effort level"
+                )
             )
-        )
-        anthropic_effort = ask_anthropic_effort()
+            reasoning_effort = ask_openai_reasoning_effort()
+        elif provider_lower == "anthropic":
+            console.print(
+                create_question_box(
+                    "Step 8: Effort Level",
+                    "Configure Claude effort level"
+                )
+            )
+            anthropic_effort = ask_anthropic_effort()
 
     return {
         "ticker": selected_ticker,

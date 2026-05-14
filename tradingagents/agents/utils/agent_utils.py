@@ -20,6 +20,16 @@ from tradingagents.agents.utils.news_data_tools import (
 )
 
 
+def supports_tool_calls(llm: object) -> bool:
+    """Check whether the LLM supports native tool-calling.
+
+    Returns True for all standard API-backed LLMs (the default).
+    Returns False for providers like ClaudeCLIChat that pre-fetch data
+    instead of using bind_tools().
+    """
+    return getattr(llm, "supports_tool_calls", True)
+
+
 def get_language_instruction() -> str:
     """Return a prompt instruction for the configured output language.
 
