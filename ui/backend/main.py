@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 import json
 from pathlib import Path
@@ -56,6 +58,17 @@ async def get_run_detail(ticker: str, date: str):
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
+
+# Serve React Static Files
+frontend_path = Path("frontend_build")
+if frontend_path.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="ui")
+    
+    @app.get("/{full_path:path}")
+    async def serve_react(full_path: str):
+        if full_path.startswith("api"):
+            raise HTTPException(status_code=404)
+        return FileResponse(frontend_path / "index.html")
 
 if __name__ == "__main__":
     import uvicorn

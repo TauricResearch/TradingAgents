@@ -42,8 +42,7 @@ spec:
       - name: dashboard
         image: your-registry/tradingagents-dashboard:latest-arm64
         ports:
-        - containerPort: 8000 # API
-        - containerPort: 3000 # UI
+        - containerPort: 8000 # API + UI
         envFrom:
         - secretRef:
             name: tradingagents-secrets
@@ -63,10 +62,7 @@ spec:
   selector:
     app: dashboard
   ports:
-  - name: api
-    port: 8000
-    targetPort: 8000
-  - name: ui
+  - name: web
     port: 80
-    targetPort: 3000
+    targetPort: 8000
   type: ClusterIP
