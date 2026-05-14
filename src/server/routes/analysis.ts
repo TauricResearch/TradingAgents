@@ -140,10 +140,18 @@ analysisRouter.post("/", async (c) => {
     await new Promise<void>((resolve) => {
       let child: ReturnType<typeof spawn> | null = null
       let timedOut = false
+      let finished = false
+
+      const finish = () => {
+        if (finished) return
+        finished = true
+        clearTimeout(jsTimeout)
+        resolve()
+      }
 
       function runChild(retry: boolean) {
         if (abortController.signal.aborted || timedOut) {
-          resolve()
+          finish()
           return
         }
 
@@ -221,7 +229,7 @@ analysisRouter.post("/", async (c) => {
 
         child.on("close", (code) => {
           if (abortController.signal.aborted || timedOut) {
-            resolve()
+            finish()
             return
           }
 
@@ -243,7 +251,7 @@ analysisRouter.post("/", async (c) => {
 
           if (code === 0 || code === null) {
             persistState()
-            resolve()
+            finish()
             return
           }
 
@@ -254,13 +262,16 @@ analysisRouter.post("/", async (c) => {
               .writeSSE({
                 event: "error",
                 data: JSON.stringify({
-                  message: `Python process exited with code ${code}`,
-                  stderr: stderr.slice(-2000),
-                  retry_attempted: retries > 0,
+                  error: `Analysis failed (exit code ${code})`,
+                  detail: stderr.slice(-2000) || undefined,
+                  hint:
+                    retries > 0
+                      ? "Retry attempted but failed"
+                      : "Exit plan analysis or fix pipeline",
                 }),
               })
               .catch(() => {})
-            resolve()
+            finish()
             return
           }
 
@@ -274,9 +285,12 @@ analysisRouter.post("/", async (c) => {
         child.on("error", (err) => {
           persistState()
           stream
-            .writeSSE({ event: "error", data: JSON.stringify({ message: err.message }) })
+            .writeSSE({
+              event: "error",
+              data: JSON.stringify({ error: "Python process error", detail: err.message }),
+            })
             .catch(() => {})
-          resolve()
+          finish()
         })
       }
 
@@ -288,10 +302,14 @@ analysisRouter.post("/", async (c) => {
         stream
           .writeSSE({
             event: "error",
-            data: JSON.stringify({ message: "Analysis timed out after 240s (JS timeout)" }),
+            data: JSON.stringify({
+              error: "Analysis timed out",
+              detail: "Python signal.alarm did not fire within 240s",
+              hint: "Check for deadlocks or infinite loops in the Python pipeline",
+            }),
           })
           .catch(() => {})
-        resolve()
+        finish()
       }, 250_000) // 250s — slightly more than Python's 240s timeout
 
       runChild(false)
@@ -301,7 +319,7 @@ analysisRouter.post("/", async (c) => {
         () => {
           clearTimeout(jsTimeout)
           if (child) child.kill("SIGTERM")
-          resolve()
+          finish()
         },
         { once: true },
       )

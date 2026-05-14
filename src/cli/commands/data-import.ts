@@ -97,7 +97,7 @@ export const dataImportCommand = defineCommand({
   run: ({ args }) => {
     const filePath = args.file
     if (!existsSync(filePath)) {
-      console.error(`❌ File not found: ${filePath}`)
+      process.stderr.write(`❌ File not found: ${filePath}\n`)
       process.exit(1)
     }
 
@@ -106,31 +106,31 @@ export const dataImportCommand = defineCommand({
       const content = readFileSync(filePath, "utf-8")
       rows = parseCSV(content)
     } catch (err) {
-      console.error(`❌ Failed to parse CSV: ${(err as Error).message}`)
+      process.stderr.write(`❌ Failed to parse CSV: ${(err as Error).message}\n`)
       process.exit(1)
     }
 
     if (rows.length === 0) {
-      console.log("No valid rows found in CSV.")
+      process.stdout.write("No valid rows found in CSV.\n")
       return
     }
 
-    console.log(`Found ${rows.length} position${rows.length === 1 ? "" : "s"} to import:`)
-    console.log("")
-    console.log(
-      `${"Ticker".padEnd(12)} ${"Exchange".padEnd(8)} ${"Platform".padEnd(10)} ${"Qty".padStart(6)} ${"Avg Cost".padStart(10)} ${"Entry Date".padStart(12)}`,
+    process.stdout.write(
+      `Found ${rows.length} position${rows.length === 1 ? "" : "s"} to import:\n\n`,
     )
-    console.log("─".repeat(70))
+    process.stdout.write(
+      `${"Ticker".padEnd(12)} ${"Exchange".padEnd(8)} ${"Platform".padEnd(10)} ${"Qty".padStart(6)} ${"Avg Cost".padStart(10)} ${"Entry Date".padStart(12)}\n`,
+    )
+    process.stdout.write(`${"─".repeat(70)}\n`)
 
     for (const r of rows) {
-      console.log(
-        `${r.ticker.padEnd(12)} ${r.exchange.padEnd(8)} ${r.platform.padEnd(10)} ${r.quantity.padStart(6)} ${r.avg_cost.padStart(10)} ${r.entry_date.padStart(12)}`,
+      process.stdout.write(
+        `${r.ticker.padEnd(12)} ${r.exchange.padEnd(8)} ${r.platform.padEnd(10)} ${r.quantity.padStart(6)} ${r.avg_cost.padStart(10)} ${r.entry_date.padStart(12)}\n`,
       )
     }
 
     if (args.dryRun) {
-      console.log("")
-      console.log("⚠️  Dry run — no changes made. Omit --dry-run to import.")
+      process.stdout.write("\n⚠️  Dry run — no changes made. Omit --dry-run to import.\n")
       return
     }
 
@@ -155,11 +155,10 @@ export const dataImportCommand = defineCommand({
         )
         inserted++
       } catch (err) {
-        console.error(`  ⚠️  Skipped ${r.ticker}: ${(err as Error).message}`)
+        process.stderr.write(`  ⚠️  Skipped ${r.ticker}: ${(err as Error).message}\n`)
       }
     }
 
-    console.log("")
-    console.log(`✓ Imported ${inserted}/${rows.length} positions`)
+    process.stdout.write(`\n✓ Imported ${inserted}/${rows.length} positions\n`)
   },
 })

@@ -63,7 +63,7 @@ async function runAnalysis(
   const flags: string[] = [ticker, "--timeout", String(timeout), "--heartbeat-interval", "15"]
   if (debrief) flags.push("--debrief")
 
-  console.log(`🧠 Starting TradingAgents analysis for ${ticker}...`)
+  process.stdout.write(`🧠 Starting TradingAgents analysis for ${ticker}...\n`)
 
   const abortController = new AbortController()
   const timeoutId = setTimeout(() => {
@@ -80,17 +80,20 @@ async function runAnalysis(
   const decoder = new TextDecoder()
   const chunks: string[] = []
 
-  try {
+  // Read stdout and stderr concurrently for live heartbeat updates
+  const stdoutPromise = (async () => {
     for await (const chunk of proc.stdout) {
       const text = decoder.decode(chunk)
       process.stdout.write(text)
       chunks.push(text)
     }
+  })()
 
-    const stderr = decoder.decode(await proc.stderr)
-    if (stderr.trim()) {
+  const stderrPromise = (async () => {
+    for await (const chunk of proc.stderr) {
+      const text = decoder.decode(chunk)
       // stderr contains heartbeat events — parse and display as progress
-      for (const line of stderr.split("\n")) {
+      for (const line of text.split("\n")) {
         const trimmed = line.trim()
         if (!trimmed?.startsWith("{")) continue
         try {
@@ -100,10 +103,14 @@ async function runAnalysis(
           }
         } catch {
           // Non-JSON stderr — forward as warning
-          console.error(trimmed)
+          process.stderr.write(`${trimmed}\n`)
         }
       }
     }
+  })()
+
+  try {
+    await Promise.all(stdoutPromise, stderrPromise)
   } finally {
     clearTimeout(timeoutId)
   }

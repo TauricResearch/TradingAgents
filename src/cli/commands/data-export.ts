@@ -131,11 +131,11 @@ export const dataExportCommand = defineCommand({
 
     if (args.file) {
       writeFileSync(args.file, output)
-      console.log(
-        `✓ Exported ${positions.length} positions, ${accounts.length} accounts to ${args.file}`,
+      process.stdout.write(
+        `✓ Exported ${positions.length} positions, ${accounts.length} accounts to ${args.file}\n`,
       )
     } else {
-      console.log(output)
+      process.stdout.write(output)
     }
   },
 })

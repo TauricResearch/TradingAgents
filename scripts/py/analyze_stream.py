@@ -55,14 +55,28 @@ def heartbeat_loop(interval: int, stop_event: threading.Event):
 
 # ── Background thread for graph.propagate() ─────────────────────────────────
 
-def run_propagate(analysts, config, ticker, date, result_holder: list):
+def run_propagate(analysts, config, ticker, date, position_context, result_holder: list):
     """Run TradingAgentsGraph.propagate() in a background thread.
 
     result_holder[0] will be set to (final_state, decision) on success,
     or re-raised as an exception on failure.
+    position_context is injected before propagate() so it affects the decision.
     """
     try:
         graph = TradingAgentsGraph(analysts, config=config, debug=False)
+
+        # Inject position context before propagate() runs
+        if position_context:
+            try:
+                if hasattr(graph, "memory_log") and graph.memory_log._log_path:
+                    _inject_position_context(
+                        graph.memory_log,
+                        ticker=ticker,
+                        context=position_context,
+                        date=date,
+                    )
+            except Exception:
+                pass  # Non-fatal — position context is optional enrichment
 
         # Poll agent state in a tight loop, pushing reports to queues
         # as they appear in the graph state snapshot.
@@ -185,6 +199,8 @@ def main():
                         help="Model for deep thinking (e.g. deepseek/deepseek-v4-flash)")
     parser.add_argument("--quick-think-llm", default=None,
                         help="Model for quick thinking (e.g. deepseek/deepseek-v4-flash)")
+    parser.add_argument("--debrief", action="store_true",
+                        help="Write analysis results to debriefs/ directory")
 
     args = parser.parse_args()
 
@@ -246,7 +262,7 @@ def main():
         # 2. Still handle heartbeat (main thread is sleeping)
         propagate_thread = threading.Thread(
             target=run_propagate,
-            args=(analysts, config, args.ticker, args.date, result_holder),
+            args=(analysts, config, args.ticker, args.date, args.position_context, result_holder),
             daemon=True,
         )
         propagate_thread.start()
@@ -279,23 +295,6 @@ def main():
             raise RuntimeError("graph.propagate() returned no result")
 
         final_state, decision = result_holder[0]
-
-        # Inject position context (must happen before final state processing)
-        graph_for_context = None
-        # Reconstruct graph briefly to inject context (side-effect only)
-        # We skip this if position_context is not set to avoid double-init
-        if args.position_context:
-            try:
-                graph_for_context = TradingAgentsGraph(analysts, config=config, debug=False)
-                if graph_for_context.memory_log._log_path:
-                    _inject_position_context(
-                        graph_for_context.memory_log,
-                        ticker=args.ticker,
-                        context=args.position_context,
-                        date=args.date,
-                    )
-            except Exception:
-                pass  # Non-fatal — position context is optional enrichment
 
         # Emit any remaining reports from final state
         for agent_key, report_key in [
@@ -331,6 +330,21 @@ def main():
             })
 
         emit_stdout("complete", {"ticker": args.ticker})
+
+        # Write debrief if requested
+        if args.debrief:
+            import os as _os
+            debrief_dir = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "debriefs")
+            _os.makedirs(debrief_dir, exist_ok=True)
+            debrief_file = _os.path.join(debrief_dir, f"debrief-{args.ticker}-{args.date}.json")
+            with open(debrief_file, "w") as f:
+                json.dump({
+                    "ticker": args.ticker,
+                    "date": args.date,
+                    "position_context": args.position_context,
+                    "final_state_keys": list(final_state.keys()) if final_state else [],
+                    "decision": decision if isinstance(decision, dict) else {"action": str(decision)},
+                }, f, indent=2)
 
     except TimeoutError:
         # Stop heartbeat

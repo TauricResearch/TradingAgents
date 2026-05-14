@@ -132,7 +132,7 @@ export async function batchFetchPrices(tickers: string[]): Promise<Map<string, P
             const cached = priceCache.get(ticker)
             const now = Date.now()
             if (cached && cached.expires > now && cached.price !== null) {
-              resolve([ticker, { price: cached.price, currency: "USD" }])
+              resolve([ticker, { price: cached.price, currency: cached.currency ?? "USD" }])
               return
             }
 
@@ -149,7 +149,11 @@ export async function batchFetchPrices(tickers: string[]): Promise<Map<string, P
               try {
                 const data = JSON.parse(stdout.trim())
                 if (data.price != null) {
-                  priceCache.set(ticker, { price: data.price, expires: endOfToday() })
+                  priceCache.set(ticker, {
+                    price: data.price,
+                    currency: data.currency ?? "USD",
+                    expires: endOfToday(),
+                  })
                 }
                 resolve([ticker, { price: data.price ?? null, currency: data.currency ?? "USD" }])
               } catch {
