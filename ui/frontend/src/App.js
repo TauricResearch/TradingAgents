@@ -173,6 +173,23 @@ const App = () => {
     return null;
   }, [activeStatus, runDetail]);
 
+  const commentary = useMemo(() => {
+    if (!activeStatus) return null;
+    const nodeMap = {
+      'market': 'Market analysis in progress...',
+      'social': 'Sentiment analysis started...',
+      'news': 'Gathering global news and insider data...',
+      'fundamentals': 'Reviewing financial health and ratios...',
+      'bull_researcher': 'Bull researcher constructing buy case...',
+      'bear_researcher': 'Bear researcher identifying risks...',
+      'research_manager': 'Research manager synthesizing debate...',
+      'trader': 'Trader calculating execution targets...',
+      'risk_management': 'Portfolio manager making final decision...',
+      'initializing...': 'Initializing agentic workflow...',
+    };
+    return nodeMap[activeStatus.active_node] || `Processing node: ${activeStatus.active_node}...`;
+  }, [activeStatus]);
+
   const calculateProgress = (node) => {
     // Standardize node names to lowercase for robust matching
     const n = (node || '').toLowerCase();
@@ -549,9 +566,33 @@ const App = () => {
             </div>
           </div>
           {activeStatus && activeStatus.status !== 'error' && (
-            <ProgressBar progress={calculateProgress(activeStatus.active_node)} status={activeStatus.status} />
+            <>
+              <ProgressBar progress={calculateProgress(activeStatus.active_node)} status={activeStatus.status} />
+              {commentary && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#eab308', 
+                  marginTop: '8px', 
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ animation: 'pulse 2s infinite' }}>●</span>
+                  {commentary}
+                </div>
+              )}
+            </>
           )}
         </header>
+        
+        <style>{`
+          @keyframes pulse {
+            0% { opacity: 0.4; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.4; transform: scale(0.8); }
+          }
+        `}</style>
 
         {/* Workspace */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>

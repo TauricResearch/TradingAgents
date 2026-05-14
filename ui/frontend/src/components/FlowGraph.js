@@ -222,23 +222,6 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     return { nodes: rawNodes, edges: rawEdges };
   }, [runData, activeStatus]);
 
-  const commentary = useMemo(() => {
-    if (!activeStatus) return null;
-    const nodeMap = {
-      'market': 'Market analysis in progress...',
-      'social': 'Sentiment analysis started...',
-      'news': 'Gathering global news and insider data...',
-      'fundamentals': 'Reviewing financial health and ratios...',
-      'bull_researcher': 'Bull researcher constructing buy case...',
-      'bear_researcher': 'Bear researcher identifying risks...',
-      'research_manager': 'Research manager synthesizing debate...',
-      'trader': 'Trader calculating execution targets...',
-      'risk_management': 'Portfolio manager making final decision...',
-      'initializing...': 'Initializing agentic workflow...',
-    };
-    return nodeMap[activeStatus.active_node] || `Processing node: ${activeStatus.active_node}...`;
-  }, [activeStatus]);
-
   return (
     <div style={{ width: '100%', height: '600px', background: '#0f172a', position: 'relative' }}>
       <ReactFlow
@@ -251,42 +234,6 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         <Background color="#334155" gap={20} />
         <Controls />
       </ReactFlow>
-      
-      {commentary && (
-        <div style={{
-          position: 'absolute',
-          bottom: '10px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '80%',
-          background: 'rgba(15, 23, 42, 0.8)',
-          backdropFilter: 'blur(4px)',
-          border: '1px solid #334155',
-          borderRadius: '20px',
-          padding: '6px 20px',
-          color: '#eab308',
-          fontSize: '13px',
-          fontWeight: 'bold',
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          zIndex: 1000,
-          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)'
-        }}>
-          <div className="commentary-scroll" style={{
-            display: 'inline-block',
-            animation: 'commentary-fade 2s infinite alternate'
-          }}>
-            {commentary}
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes commentary-fade {
-          0% { opacity: 0.5; transform: scale(0.98); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </div>
   );
 };
