@@ -12,13 +12,18 @@ from typing import List, Dict, Any, Optional
 # Standard Kubernetes import
 try:
     import kubernetes
-    from kubernetes import client, config
-    print(f"Kubernetes library loaded from {kubernetes.__file__}")
+    from kubernetes import client as k8s_client
+    from kubernetes import config as k8s_config
+    
+    # Diagnostic logging
+    print(f"DEBUG: Kubernetes library file: {getattr(kubernetes, '__file__', 'unknown')}")
+    print(f"DEBUG: k8s_config module: {k8s_config}")
+    print(f"DEBUG: k8s_config attributes: {dir(k8s_config)}")
 except ImportError as e:
-    print(f"Kubernetes library NOT FOUND: {e}")
+    print(f"DEBUG: Kubernetes library NOT FOUND: {e}")
     kubernetes = None
-    client = None
-    config = None
+    k8s_client = None
+    k8s_config = None
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.utils.memory import TradingMemoryLog
@@ -29,19 +34,19 @@ app = FastAPI(title="TradingAgents Dashboard API")
 batch_v1 = None
 k8s_init_error = None
 
-if kubernetes and client and config:
+if kubernetes and k8s_client and k8s_config:
     try:
         print("Attempting to load in-cluster Kubernetes config...")
-        config.load_in_cluster_config()
-        batch_v1 = client.BatchV1Api()
+        k8s_config.load_in_cluster_config()
+        batch_v1 = k8s_client.BatchV1Api()
         print("Successfully loaded in-cluster Kubernetes config.")
     except Exception as e:
         k8s_init_error = f"In-cluster failed: {str(e)}"
         print(k8s_init_error)
         try:
             print("Attempting to load local kube-config...")
-            config.load_kube_config()
-            batch_v1 = client.BatchV1Api()
+            k8s_config.load_kube_config()
+            batch_v1 = k8s_client.BatchV1Api()
             print("Successfully loaded local kube-config.")
             k8s_init_error = None # Success
         except Exception as e2:
@@ -49,7 +54,7 @@ if kubernetes and client and config:
             print(k8s_init_error)
             print("Kubernetes client will not be available.")
 else:
-    k8s_init_error = "Kubernetes library not found in environment"
+    k8s_init_error = f"Kubernetes library error: lib={bool(kubernetes)} client={bool(k8s_client)} config={bool(k8s_config)}"
     print(k8s_init_error)
 
 # Global state to track current active run
@@ -111,10 +116,10 @@ async def trigger_job():
         
         # 3. Define the Job object based on CronJob template
         job_name = f"manual-ui-run-{int(time.time())}"
-        job = client.V1Job(
+        job = k8s_client.V1Job(
             api_version="batch/v1",
             kind="Job",
-            metadata=client.V1ObjectMeta(name=job_name),
+            metadata=k8s_client.V1ObjectMeta(name=job_name),
             spec=cron_job.spec.job_template.spec
         )
         
