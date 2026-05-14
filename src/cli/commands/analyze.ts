@@ -14,6 +14,9 @@ import { join } from "node:path"
 import { defineCommand } from "citty"
 import { dryRunArg, yesArg } from "../lib/args.ts"
 
+// Default timeout matching SSE idleTimeout in server routes
+const DEFAULT_TIMEOUT_S = 300
+
 interface DecisionEvent {
   signal: string
   reasoning: string
@@ -40,7 +43,11 @@ function parseDecisionEvents(stdout: string): DecisionEvent | null {
   return null
 }
 
-async function runAnalysis(ticker: string, debrief: boolean): Promise<string> {
+async function runAnalysis(
+  ticker: string,
+  debrief: boolean,
+  timeout: number = DEFAULT_TIMEOUT_S,
+): Promise<string> {
   const script = join(process.cwd(), "scripts", "py", "analyze_stream.py")
 
   if (!existsSync(script)) {
@@ -52,35 +59,61 @@ async function runAnalysis(ticker: string, debrief: boolean): Promise<string> {
     PYTHONUNBUFFERED: "1",
   }
 
-  const flags: string[] = [ticker]
+  const flags: string[] = [ticker, "--timeout", String(timeout), "--heartbeat-interval", "15"]
   if (debrief) flags.push("--debrief")
 
   console.log(`🧠 Starting TradingAgents analysis for ${ticker}...`)
+
+  const abortController = new AbortController()
+  const timeoutId = setTimeout(() => {
+    abortController.abort()
+  }, timeout * 1000)
 
   const proc = Bun.spawn(["python3", script, ...flags], {
     stdout: "pipe",
     stderr: "pipe",
     env,
+    signal: abortController.signal,
   })
 
   const decoder = new TextDecoder()
   const chunks: string[] = []
 
-  for await (const chunk of proc.stdout) {
-    const text = decoder.decode(chunk)
-    process.stdout.write(text)
-    chunks.push(text)
-  }
+  try {
+    for await (const chunk of proc.stdout) {
+      const text = decoder.decode(chunk)
+      process.stdout.write(text)
+      chunks.push(text)
+    }
 
-  const stderr = decoder.decode(await proc.stderr)
-  if (stderr.trim()) {
-    console.error(stderr)
+    const stderr = decoder.decode(await proc.stderr)
+    if (stderr.trim()) {
+      // stderr contains heartbeat events — parse and display as progress
+      for (const line of stderr.split("\n")) {
+        const trimmed = line.trim()
+        if (!trimmed?.startsWith("{")) continue
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (parsed.event === "heartbeat") {
+            process.stdout.write(`\r   🫀 heartbeat tick ${parsed.data.tick}...`)
+          }
+        } catch {
+          // Non-JSON stderr — forward as warning
+          console.error(trimmed)
+        }
+      }
+    }
+  } finally {
+    clearTimeout(timeoutId)
   }
 
   const exitCode = await proc.exited
   if (exitCode !== 0) {
     throw new Error(`Analysis failed with exit code ${exitCode}`)
   }
+
+  // Clear the heartbeat progress line
+  if (chunks.length > 0) process.stdout.write("\n")
 
   return chunks.join("")
 }

@@ -181,13 +181,35 @@ export const researchCommand = defineCommand({
 
     // Run the Python pipeline
     const env = { ...process.env, PYTHONUNBUFFERED: "1" }
-    const proc = Bun.spawn(["python3", script, ticker, "--debates", args.debates], {
-      stdout: "inherit",
-      stderr: "inherit",
-      env,
-    })
+    const abortController = new AbortController()
+    const timeoutMs = 300_000 // 5 minutes
+    const timeoutId = setTimeout(() => {
+      abortController.abort()
+    }, timeoutMs)
+
+    const proc = Bun.spawn(
+      [
+        "python3",
+        script,
+        ticker,
+        "--debates",
+        args.debates,
+        "--timeout",
+        "300",
+        "--heartbeat-interval",
+        "15",
+      ],
+      {
+        stdout: "inherit",
+        stderr: "inherit",
+        env,
+        signal: abortController.signal,
+      },
+    )
 
     const exitCode = await proc.exited
+    clearTimeout(timeoutId)
+
     if (exitCode !== 0) {
       console.error(`\nAnalysis failed with exit code ${exitCode}`)
       process.exit(exitCode)

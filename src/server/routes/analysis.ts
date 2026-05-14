@@ -103,97 +103,48 @@ analysisRouter.post("/", async (c) => {
   }
 
   return streamSSE(c, async (stream) => {
-    const args = [
-      script,
-      ticker,
-      "--date",
-      dateStr,
-      "--analysts",
-      analystsStr,
-      "--debates",
-      String(debatesNum),
-    ]
-    if (positionContext) args.push("--position-context", positionContext)
-
-    const child = spawn(venvPython, args, {
-      cwd: root,
-      env: { ...process.env, PYTHONUNBUFFERED: "1" },
-    })
+    // Build args with timeout and heartbeat defaults
+    const buildArgs = (retry: boolean) => {
+      const a = [
+        script,
+        ticker,
+        "--date",
+        dateStr,
+        "--analysts",
+        analystsStr,
+        "--debates",
+        String(debatesNum),
+        "--timeout",
+        "240",
+        "--heartbeat-interval",
+        "15",
+      ]
+      if (positionContext) a.push("--position-context", positionContext)
+      if (retry) a.push("--retry")
+      return a
+    }
 
     let stderr = ""
     const MAX_STDERR = 8192
     let buf = ""
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      buf += chunk.toString()
-      const idx = buf.lastIndexOf("\n")
-      if (idx === -1) return
-      const complete = buf.slice(0, idx)
-      buf = buf.slice(idx + 1)
-
-      for (const line of complete.split("\n").filter(Boolean)) {
-        try {
-          const parsed = JSON.parse(line)
-          if (parsed.event && parsed.data !== undefined) {
-            // Collect for post-stream persistence
-            events.push({ event: parsed.event, data: parsed.data })
-
-            // Auto-save decision as a signal in the DB
-            if (parsed.event === "decision") {
-              const d = parsed.data as Record<string, unknown>
-              try {
-                const db = DatabaseFactory.get()
-                db.prepare(
-                  "INSERT INTO signals (ticker, date, signal, reasoning, confidence) VALUES (?, ?, ?, ?, ?)",
-                ).run(
-                  ticker,
-                  dateStr,
-                  (d.signal as string) ?? "hold",
-                  sanitizeForDb(d.reasoning as string) ?? null,
-                  (d.confidence as string) ?? null,
-                )
-              } catch {
-                /* DB write failure shouldn't break the stream */
-              }
-            }
-
-            stream
-              .writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) })
-              .catch(() => {})
-          }
-        } catch {
-          // Skip non-JSON output (warnings, etc.)
-        }
-      }
-    })
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      const text = chunk.toString()
-      stderr += text
-      if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR)
-    })
+    let retries = 0
+    const MAX_RETRIES = 1
 
     const abortController = new AbortController()
-    const abortHandler = () => {
-      child.kill("SIGTERM")
-      abortController.abort()
-    }
 
+    const abortHandler = () => abortController.abort()
     if (stream.onAbort) stream.onAbort(abortHandler)
     c.req.raw.signal.addEventListener("abort", abortHandler, { once: true })
 
     // ── Persist full analysis state to DB ──────────────────────────────
     function persistState() {
       if (analysisId === null) return
-
       try {
         const db = DatabaseFactory.get()
-        // Extract final decision text from events
         const decisionEvent = events.find((e) => e.event === "decision")
         const decisionText = decisionEvent
           ? `${(decisionEvent.data as Record<string, unknown>).signal ?? "hold"} — ${sanitizeForDb((decisionEvent.data as Record<string, unknown>).reasoning as string) ?? ""}`
           : null
-
         db.prepare("UPDATE analyses SET raw_state = ?, decision = ? WHERE id = ?").run(
           JSON.stringify(events),
           decisionText,
@@ -204,47 +155,175 @@ analysisRouter.post("/", async (c) => {
       }
     }
 
+    // ── Main run loop with retry support ────────────────────────────────
     await new Promise<void>((resolve) => {
-      child.on("close", (code) => {
-        // Flush remaining buffer
-        const remaining = buf.trim()
-        if (remaining) {
-          try {
-            const parsed = JSON.parse(remaining)
-            if (parsed.event && parsed.data !== undefined) {
-              events.push({ event: parsed.event, data: parsed.data })
+      let child: ReturnType<typeof spawn> | null = null
+      let timedOut = false
+
+      function runChild(retry: boolean) {
+        if (abortController.signal.aborted || timedOut) {
+          resolve()
+          return
+        }
+
+        const args = buildArgs(retry)
+        child = spawn(venvPython, args, {
+          cwd: root,
+          env: { ...process.env, PYTHONUNBUFFERED: "1" },
+          // Bun spawn doesn't directly support AbortSignal.timeout, so we
+          // set a JS timeout that kills the process if Python's signal.alarm
+          // doesn't fire (defence-in-depth).
+          signal: abortController.signal,
+        })
+
+        if (!child.stdout) return
+        child.stdout.on("data", (chunk: Buffer) => {
+          buf += chunk.toString()
+          const idx = buf.lastIndexOf("\n")
+          if (idx === -1) return
+          const complete = buf.slice(0, idx)
+          buf = buf.slice(idx + 1)
+
+          for (const line of complete.split("\n").filter(Boolean)) {
+            try {
+              const parsed = JSON.parse(line)
+              if (parsed.event && parsed.data !== undefined) {
+                events.push({ event: parsed.event, data: parsed.data })
+                if (parsed.event === "decision") {
+                  const d = parsed.data as Record<string, unknown>
+                  try {
+                    const db = DatabaseFactory.get()
+                    db.prepare(
+                      "INSERT INTO signals (ticker, date, signal, reasoning, confidence) VALUES (?, ?, ?, ?, ?)",
+                    ).run(
+                      ticker,
+                      dateStr,
+                      (d.signal as string) ?? "hold",
+                      sanitizeForDb(d.reasoning as string) ?? null,
+                      (d.confidence as string) ?? null,
+                    )
+                  } catch {
+                    /* DB write failure shouldn't break the stream */
+                  }
+                }
+                stream
+                  .writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) })
+                  .catch(() => {})
+              }
+            } catch {
+              // Skip non-JSON output
             }
-          } catch {
-            // Not valid JSON
           }
-        }
+        })
 
-        persistState()
+        if (!child.stderr) return
+        child.stderr.on("data", (chunk: Buffer) => {
+          const text = chunk.toString()
+          stderr += text
+          if (stderr.length > MAX_STDERR) stderr = stderr.slice(-MAX_STDERR)
+          // Forward heartbeat events from stderr as SSE
+          const lines = text.split("\n").filter(Boolean)
+          for (const line of lines) {
+            if (!line.trim().startsWith("{")) continue
+            try {
+              const parsed = JSON.parse(line.trim())
+              if (parsed.event === "heartbeat") {
+                stream
+                  .writeSSE({ event: "heartbeat", data: JSON.stringify(parsed.data) })
+                  .catch(() => {})
+              }
+            } catch {
+              // Non-JSON stderr — accumulate in stderr buffer for error reporting
+            }
+          }
+        })
 
-        if (code !== 0 && code !== null) {
+        child.on("close", (code) => {
+          if (abortController.signal.aborted || timedOut) {
+            resolve()
+            return
+          }
+
+          // Flush remaining stdout buffer
+          const remaining = buf.trim()
+          if (remaining) {
+            try {
+              const parsed = JSON.parse(remaining)
+              if (parsed.event && parsed.data !== undefined) {
+                events.push({ event: parsed.event, data: parsed.data })
+                stream
+                  .writeSSE({ event: parsed.event, data: JSON.stringify(parsed.data) })
+                  .catch(() => {})
+              }
+            } catch {
+              /* not valid JSON */
+            }
+          }
+
+          if (code === 0 || code === null) {
+            persistState()
+            resolve()
+            return
+          }
+
+          // Non-zero exit — retry once if we haven't already
+          if (retry || retries >= MAX_RETRIES) {
+            persistState()
+            stream
+              .writeSSE({
+                event: "error",
+                data: JSON.stringify({
+                  message: `Python process exited with code ${code}`,
+                  stderr: stderr.slice(-2000),
+                  retry_attempted: retries > 0,
+                }),
+              })
+              .catch(() => {})
+            resolve()
+            return
+          }
+
+          retries++
+          stderr = ""
+          buf = ""
+          // Re-spawn with --retry flag
+          runChild(true)
+        })
+
+        child.on("error", (err) => {
+          persistState()
           stream
-            .writeSSE({
-              event: "error",
-              data: JSON.stringify({
-                message: `Python process exited with code ${code}`,
-                stderr: stderr.slice(-2000),
-              }),
-            })
+            .writeSSE({ event: "error", data: JSON.stringify({ message: err.message }) })
             .catch(() => {})
-        }
+          resolve()
+        })
+      }
 
-        resolve()
-      })
-
-      child.on("error", (err) => {
+      // JS-level timeout as defence-in-depth (Python signal.alarm is the primary)
+      const jsTimeout = setTimeout(() => {
+        timedOut = true
+        if (child) child.kill("SIGTERM")
         persistState()
         stream
-          .writeSSE({ event: "error", data: JSON.stringify({ message: err.message }) })
+          .writeSSE({
+            event: "error",
+            data: JSON.stringify({ message: "Analysis timed out after 240s (JS timeout)" }),
+          })
           .catch(() => {})
         resolve()
-      })
+      }, 250_000) // 250s — slightly more than Python's 240s timeout
 
-      abortController.signal.addEventListener("abort", () => resolve(), { once: true })
+      runChild(false)
+
+      abortController.signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(jsTimeout)
+          if (child) child.kill("SIGTERM")
+          resolve()
+        },
+        { once: true },
+      )
     })
   })
 })
