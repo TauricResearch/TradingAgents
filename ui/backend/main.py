@@ -16,17 +16,42 @@ k8s_import_error_msg = None
 try:
     import kubernetes
     from kubernetes import client as k8s_client
-    from kubernetes import config as k8s_config
-    # Deep imports to bypass any namespace shadowing/attribute issues
-    from kubernetes.config.incluster_config import load_in_cluster_config
-    from kubernetes.config.kube_config import load_kube_config
+    import kubernetes.config as k8s_config
     
-    # Diagnostic logging
+    # Exhaustive diagnostic logging
     print(f"DEBUG: Kubernetes library file: {getattr(kubernetes, '__file__', 'unknown')}")
-    print(f"DEBUG: sys.path: {sys.path}")
+    print(f"DEBUG: k8s_config module: {k8s_config}")
+    print(f"DEBUG: k8s_config file: {getattr(k8s_config, '__file__', 'unknown')}")
+    print(f"DEBUG: k8s_config dir: {dir(k8s_config)}")
+    
+    # Try to find the loader function by any means
+    load_fn = getattr(k8s_config, 'load_in_cluster_config', None)
+    if not load_fn:
+        # Check submodules explicitly
+        import kubernetes.config.incluster_config as inc
+        print(f"DEBUG: incluster_config dir: {dir(inc)}")
+        load_fn = getattr(inc, 'load_in_cluster_config', None)
+    
+    if load_fn:
+        load_in_cluster_config = load_fn
+        print("DEBUG: Successfully located load_in_cluster_config")
+    else:
+        raise ImportError("Could not locate load_in_cluster_config in kubernetes.config or its submodules")
+
+    # Repeat for kube_config
+    load_kube_fn = getattr(k8s_config, 'load_kube_config', None)
+    if not load_kube_fn:
+        import kubernetes.config.kube_config as kc
+        load_kube_fn = getattr(kc, 'load_kube_config', None)
+    
+    if load_kube_fn:
+        load_kube_config = load_kube_fn
+    else:
+        raise ImportError("Could not locate load_kube_config")
+
 except Exception as e:
-    k8s_import_error_msg = str(e)
-    print(f"DEBUG: Kubernetes library IMPORT FAILED: {e}")
+    k8s_import_error_msg = f"K8s Import Failed: {str(e)}"
+    print(f"DEBUG: {k8s_import_error_msg}")
     kubernetes = None
     k8s_client = None
     load_in_cluster_config = None
