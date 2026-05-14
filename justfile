@@ -86,30 +86,18 @@ reg-docs:
 reg-lexicon:
     bun scripts/reg.ts list lexicon
 
+# List conceptual lexicon entries (use --help for type/status/search options)
+# For advanced filtering: bun scripts/ctx-lexicon-list.ts --type=heuristic --stats etc.
 [group("reg")]
 ctx-lexicon:
     bun scripts/ctx-lexicon-list.ts
 
-[group("reg")]
-ctx-lexicon-type type="term":
-    bun scripts/ctx-lexicon-list.ts --type={{ type }}
-
-[group("reg")]
-ctx-lexicon-status stat="active":
-    bun scripts/ctx-lexicon-list.ts --status={{ stat }}
-
-[group("reg")]
-ctx-lexicon-search query:
-    bun scripts/ctx-lexicon-list.ts --search={{ query }}
-
-[group("reg")]
-ctx-lexicon-stats:
-    bun scripts/ctx-lexicon-list.ts --stats
-
+# Convert lexicon entries between formats
 [group("reg")]
 ctx-lexicon-convert:
     bun scripts/ctx-lexicon-convert.ts
 
+# Incorporate approved terms into the silo lexicon
 [group("reg")]
 ctx-lexicon-incorporate:
     bun scripts/ctx-lexicon-incorporate.ts
@@ -233,10 +221,10 @@ run:
 run-cli:
     source .venv/bin/activate && python -m cli.main
 
-# Run analysis on a ticker
+# Run analysis on a ticker (uses analyze_stream.py)
 [group("python")]
 analyze:
-    source .venv/bin/activate && python scripts/py/analyze.py 'SPY' --date today --debates 1
+    source .venv/bin/activate && python scripts/py/analyze_stream.py 'SPY' --date today --debates 1
 
 # Generate LLM summary for a ticker (or all analyses)
 [group("python")]
@@ -331,83 +319,31 @@ wt-list:
 wt-delete NAME:
     bun scripts/worktree-init.ts {{ NAME }} --delete
 
-# ── Agent: Multi-Agent Coordination ─────────────────────────────────────────
-#   Scripts live in scripts/agent-*.ts. These just recipes are the thin facade.
-#   Full protocol: playbooks/td-playbook.md
+# ── Agent: Session orientation (minimal — replaces full agent-ceremony) ────────
+#   S08 brief: agent scripts archived. Use 'td --help' for task management.
+#   Archives: agent-claim.ts, agent-log.ts, agent-handoff.ts, agent-sync.ts, agent-orient.ts
 
-# Full session startup: git state + td session + what's in flight
+# Orientation: branch, git status, last commit, in-flight tasks
 [group("agent")]
-agent-orient:
-    bun scripts/agent-orient.ts
-
-# Compact orientation: one line per section
-[group("agent")]
-agent-orient-c:
-    bun scripts/agent-orient.ts --compact
-
-# What should I work on next?
-[group("agent")]
-agent-next:
-    bun scripts/agent-orient.ts --next
-
-# Claim a task before touching any files (checks collision, labels session)
-[group("agent")]
-agent-claim ID:
-    bun scripts/agent-claim.ts {{ ID }}
-
-# Force-claim (bypass collision check — use when taking over from another agent)
-[group("agent")]
-agent-claim-force ID:
-    bun scripts/agent-claim.ts {{ ID }} --force
-
-# Log progress to a task
-[group("agent")]
-agent-log ID *MSG:
-    bun scripts/agent-log.ts {{ ID }} {{ MSG }}
-
-# Log a blocker
-[group("agent")]
-agent-blocked ID *MSG:
-    bun scripts/agent-log.ts {{ ID }} {{ MSG }} --blocked
-
-# Structured handoff: done/remaining/decisions captured before closing
-[group("agent")]
-agent-handoff ID:
-    bun scripts/agent-handoff.ts {{ ID }} --note "handoff"
-
-# Full handoff with explicit done/remaining
-[group("agent")]
-agent-handoff-full ID:
+orient:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Enter done items (one per line, empty to finish):"
-    done_file=$(mktemp)
-    while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$done_file"; done
-    echo "Enter remaining items (one per line, empty to finish):"
-    remaining_file=$(mktemp)
-    while read -r line; do [[ -z "$line" ]] && break; echo "$line" >> "$remaining_file"; done
-    bun scripts/agent-handoff.ts {{ ID }} --done @"$done_file" --remaining @"$remaining_file"
-    rm -f "$done_file" "$remaining_file"
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
+    echo "Branch: $branch"
+    echo ""
+    git status --short
+    echo ""
+    last=$(git log -1 --format="%cr (%ci)" 2>/dev/null || echo "unknown")
+    echo "Last commit: $last"
+    echo ""
+    td current 2>/dev/null | head -5 || true
+    echo ""
+    td list --status in_progress 2>/dev/null | grep -E "^  td-" | head -10 || echo "  (no in-progress tasks)"
 
-# Sync state: git vs main + file collisions
+# Quick sync: fetch remote + show diff vs main
 [group("agent")]
-agent-sync:
-    bun scripts/agent-sync.ts
-
-# Show file collisions only
-[group("agent")]
-agent-collisions:
-    bun scripts/agent-sync.ts --collisions
-
-# End session cleanly: handoff all in-progress tasks, clear claims
-[group("agent")]
-agent-end:
-    @echo "Checking in-progress tasks..."
-    @td list --status in_progress 2>/dev/null | head -20
-    @echo ""
-    @echo "Run handoffs manually, then: td ws handoff && td ws end"
-    @echo "Full guide: playbooks/td-playbook.md"
-
+sync:
+    git fetch origin 2>/dev/null && git status --short || git status --short
 # ── Run: business operations ────────────────────────────────────────────────
 #   Core day-to-day operations. Ordered by frequency of use.
 
@@ -675,30 +611,16 @@ gn-context SYM:
 gn-impact SYM:
     gitnexus impact "{{ SYM }}" --direction upstream --repo TradingAgents
 
-# Map uncommitted changes to affected symbols and flows
-[group("gn")]
-gn-changes:
-    gitnexus detect-changes --scope unstaged --repo TradingAgents
-
-# Raw Cypher query against the knowledge graph
-[group("gn")]
-gn-cypher QUERY:
-    gitnexus cypher "{{ QUERY }}" --repo TradingAgents
-
 # Re-index the repo (run after significant code changes)
 [group("gn")]
 gn-analyze:
     gitnexus analyze --force .
 
-# Export symbol impact graph to DOT/SVG (writes docs/diagrams/gn-impact-<SYM>.dot)
+# Export symbol/file impact graph to DOT/SVG (--symbol or --file required)
 [group("gn")]
-gn-graph-symbol SYM:
-    bun scripts/gitnexus-to-dot.ts --symbol {{ SYM }} --depth 1 --render
-
-# Export file module graph to DOT/SVG (writes docs/diagrams/gn-file-<FILE>.dot)
-[group("gn")]
-gn-graph-file FILE:
-    bun scripts/gitnexus-to-dot.ts --file {{ FILE }} --render
+gn-graph SYM-or-FILE:
+    bun scripts/gitnexus-to-dot.ts --symbol {{ SYM-or-FILE }} --depth 1 --render || \
+    bun scripts/gitnexus-to-dot.ts --file {{ SYM-or-FILE }} --render
 
 # Generate key GitNexus graphs for the project (impact graphs for hotspots)
 [group("gn")]
@@ -708,26 +630,6 @@ gn-diagrams:
     @echo ""
     @echo "Generated:"
     @ls -1 docs/diagrams/gn-impact-*.dot docs/diagrams/gn-file-*.dot 2>/dev/null || echo "  (no files yet)"
-
-# Remove generated GitNexus diagrams
-[group("gn")]
-gn-diagrams-clean:
-    rm -f docs/diagrams/gn-impact-* docs/diagrams/gn-file-*
-    @echo "Cleaned GitNexus diagrams."
-
-# ⚠️ BROKEN: gitnexus serve fails due to CSP on gitnexus.vercel.app
-# Use gn-graph-symbol or gn-graph-file instead
-[group("gn")]
-gn-serve:
-    @echo "⚠️  gitnexus serve is broken — CSP blocks localhost. Use:"
-    @echo "   just gn-graph-symbol <SYMBOL>   # impact graph"
-    @echo "   just gn-graph-file <FILE>       # module graph"
-    @echo "   just gn-diagrams                # key project graphs"
-
-# Show index status
-[group("gn")]
-gn-status:
-    gitnexus list
 
 # ── Server lifecycle ────────────────────────────────────────────────────────
 #   Start, stop, restart, and monitor the dashboard server.
@@ -791,7 +693,3 @@ install-hooks:
 [group("hooks")]
 push:
     bun scripts/push-with-diagrams.ts
-
-alias a := analyze
-alias l := lint
-alias sc := shortcuts
