@@ -299,10 +299,10 @@ export async function computeCorrelations(): Promise<CorrelationResult> {
     fetchPriceForTicker("GBPEUR=X"),
     fetchPriceForTicker("GBPUSD=X"),
   ])
-  const gbpeur = fxResults[0]?.price ?? 1.18
-  const gbpUSD = fxResults[1]?.price ?? 1.27
-  const gbpPerEur = 1 / gbpeur
-  const gbpPerUsd = 1 / gbpUSD
+  const gbpEur = fxResults[0]?.price ?? 1.18
+  const gbpUsd = fxResults[1]?.price ?? 1.27
+  const gbpPerEur = 1 / gbpEur
+  const gbpPerUsd = 1 / gbpUsd
 
   const allTickers = [...new Set([...signalsByTicker.keys(), ...positions.map((p) => p.ticker)])]
   const priceData = new Map<string, PriceResult>()
@@ -336,9 +336,9 @@ export async function computeCorrelations(): Promise<CorrelationResult> {
       const quantityNum = parseFloat(String(pos.quantity))
       costValueGbp = avgCostNum * quantityNum
       if (pos.platform === "degiero" || pos.exchange === "XETRA") {
-        costValueGbp = (avgCostNum * quantityNum) / gbpeur
+        costValueGbp = (avgCostNum * quantityNum) / gbpEur
       } else if (pos.platform === "ibkr" || pos.exchange === "US") {
-        costValueGbp = (avgCostNum * quantityNum) / gbpUSD
+        costValueGbp = (avgCostNum * quantityNum) / gbpUsd
       }
       currentValueGbp = currentPriceGbp != null ? currentPriceGbp * quantityNum : null
       pnlGbp = currentValueGbp != null ? currentValueGbp - costValueGbp : null

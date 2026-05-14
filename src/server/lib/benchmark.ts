@@ -192,7 +192,7 @@ export async function getLivePortfolioValue(): Promise<{
   if (rows.length === 0) return { total: 0, positions: [], fxRates: {} }
 
   const tickers = [...new Set(rows.map((r) => r.ticker))]
-  const fxPairs = ["GBPEUR=X", "GBPUSD=X", "GBPEUR", "GBPUSD"]
+  const fxPairs = ["GBPEUR=X", "GBPUSD=X"]
   const allTickers = [...tickers, ...fxPairs]
 
   const priceResults = await batchFetchPrices(allTickers)
