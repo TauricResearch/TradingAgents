@@ -28,6 +28,7 @@ from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 
 console = Console()
+console.print("[dim]DEBUG: TradingAgents CLI v0.2.6 (Headless-Ready) loading...[/dim]")
 
 app = typer.Typer(
     name="TradingAgents",
@@ -1234,6 +1235,12 @@ def run_analysis(checkpoint: bool = False):
         display_complete_report(final_state)
 
 
+@app.callback()
+def main():
+    """TradingAgents: Multi-Agents LLM Financial Trading Framework."""
+    pass
+
+
 @app.command("trade")
 def trade(
     ticker: str = typer.Argument(..., help="Ticker symbol to analyze"),
@@ -1287,7 +1294,7 @@ def trade(
         raise typer.Exit(1)
 
 
-@app.command()
+@app.command("analyze")
 def analyze(
     checkpoint: bool = typer.Option(
         False,
