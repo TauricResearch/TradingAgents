@@ -6,7 +6,7 @@
  *   TELEGRAM_CHAT_ID   — Target chat (e.g. -100123456789)
  */
 
-import type { TriggeredAlert } from "./types.ts"
+import type { TriggeredAlert } from "../../lib/types.ts"
 
 // ── Config ───────────────────────────────────────────────────────────────────
 

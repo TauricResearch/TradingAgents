@@ -6,7 +6,7 @@
  * subset of alerts that are currently triggered.
  */
 
-import type { AlertCondition, AlertRule, TriggeredAlert } from "./types.ts"
+import type { AlertCondition, AlertRule, TriggeredAlert } from "../../lib/types.ts"
 
 // ── Price Data ────────────────────────────────────────────────────────────────
 

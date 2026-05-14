@@ -3,8 +3,8 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Hono } from "hono"
 import type { ContentfulStatusCode } from "hono/utils/http-status"
+import { cfg } from "src/lib/settings"
 import { renderAnalysisReport } from "../lib/markdown.ts"
-import { cfg } from "../lib/settings.ts"
 import {
   buildConfidenceSparkline,
   estimateConfidence,

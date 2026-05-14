@@ -5,7 +5,7 @@ import {
   computeCorrelations,
   computeSignalAccuracy,
   loadPostMortems,
-} from "../lib/feedback-data.ts"
+} from "../lib/feedback.ts"
 import {
   AccuracyPanel,
   CorrelationsTable,

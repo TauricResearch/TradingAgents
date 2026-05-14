@@ -9,7 +9,7 @@
  */
 
 import { DatabaseFactory } from "../../lib/db.ts"
-import type { AlertRule } from "./types.ts"
+import type { AlertRule } from "../../lib/types.ts"
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

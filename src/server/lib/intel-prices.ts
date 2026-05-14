@@ -5,8 +5,8 @@
 
 import { spawn } from "node:child_process"
 import { join } from "node:path"
+import type { PriceResult } from "../../lib/types.ts"
 import { endOfToday, priceCache } from "./cache.ts"
-import type { PriceResult } from "./types.ts"
 import { findProjectRoot } from "./utils.ts"
 
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {

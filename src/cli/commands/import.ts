@@ -12,7 +12,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { defineCommand } from "citty"
 import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
+import { cfg } from "../../lib/settings.ts"
 
 interface CsvRow {
   ticker: string

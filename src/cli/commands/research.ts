@@ -18,7 +18,7 @@ import { join } from "node:path"
 import { defineCommand } from "citty"
 import { gum } from "../../../scripts/lib/gum.ts"
 import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
+import { cfg } from "../../lib/settings.ts"
 
 interface ParsedState {
   entryPrice: number | null

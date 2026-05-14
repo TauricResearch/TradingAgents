@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import type { GovernanceRule, RebalanceSuggestion, RuleViolation } from "../lib/governance-data.ts"
+import type { GovernanceRule, RebalanceSuggestion, RuleViolation } from "../lib/governance.ts"
 
 // ── Rules table ─────────────────────────────────────────────────────────────────
 

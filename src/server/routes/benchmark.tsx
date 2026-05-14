@@ -1,12 +1,12 @@
 /** @jsxImportSource hono/jsx */
 
 import { Hono } from "hono"
-import { cfg } from "../lib/settings.ts"
+import { cfg } from "src/lib/settings"
 import {
   computePeriodReturns,
   fetchBenchmarkPrices,
   getLivePortfolioValue,
-} from "../lib/benchmark-data.ts"
+} from "../lib/benchmark.ts"
 import { BenchmarkTable } from "../views/benchmark-view.tsx"
 
 export const benchmarkRouter = new Hono()

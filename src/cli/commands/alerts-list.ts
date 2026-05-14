@@ -5,8 +5,8 @@
 
 import { defineCommand } from "citty"
 import { DatabaseFactory } from "../../../src/lib/db.ts"
-import { listAlerts } from "../../../src/server/lib/alerts-db.ts"
-import { cfg } from "../../../src/server/lib/settings.ts"
+import { listAlerts } from "../../lib/alerts-db.ts"
+import { cfg } from "../../lib/settings.ts"
 
 export const alertsListCommand = defineCommand({
   meta: {

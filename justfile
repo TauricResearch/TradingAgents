@@ -198,8 +198,10 @@ check:
     bunx biome check .
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
-    bun scripts/reg-sync.ts --all
-    bun scripts/td-orphans.ts || true  # warning only — do not block
+    bun scripts/check-import-boundaries.ts
+    bun scripts/reg-enrich.ts --apply
+    bun scripts/reg-sync.ts --all --fix
+    bun scripts/td-orphans.ts
 
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]

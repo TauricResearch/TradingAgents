@@ -8,7 +8,7 @@
 import { existsSync, statSync } from "node:fs"
 import { defineCommand } from "citty"
 import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../../server/lib/settings.ts"
+import { cfg } from "../../lib/settings.ts"
 
 function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -33,7 +33,7 @@ export const statusCommand = defineCommand({
 
     let serverRunning = false
     try {
-      const resp = await fetch("http://localhost:3000/", {
+      const resp = await fetch(`http://localhost:${cfg.app.dashboardPort}/`, {
         signal: AbortSignal.timeout(2000),
       })
       serverRunning = resp.status === 200

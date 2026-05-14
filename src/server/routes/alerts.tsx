@@ -5,7 +5,7 @@
 
 import { Hono } from "hono"
 import { DatabaseFactory } from "../../lib/db.ts"
-import { cfg } from "../lib/settings.ts"
+import { cfg } from "src/lib/settings"
 import {
   listAlerts,
   getAlert,
