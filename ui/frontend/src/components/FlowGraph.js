@@ -109,8 +109,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Market Analyst', 
             description: descriptions.market,
-            status: (currentData.market_report || activeNode === 'market') ? (activeNode === 'market' ? 'Analyzing...' : 'Complete') : 'Pending',
-            isActive: activeNode === 'market'
+            status: (currentData.market_report || (activeNode && activeNode.toLowerCase().includes('market'))) ? (activeNode && activeNode.toLowerCase().includes('market') ? 'Analyzing...' : 'Complete') : 'Pending',
+            isActive: activeNode && activeNode.toLowerCase().includes('market')
         }, 
         position: { x: 250, y: 100 } 
       },
@@ -120,8 +120,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Sentiment Analyst', 
             description: descriptions.sentiment,
-            status: (currentData.sentiment_report || activeNode === 'social') ? (activeNode === 'social' ? 'Analyzing...' : 'Complete') : 'Pending',
-            isActive: activeNode === 'social'
+            status: (currentData.sentiment_report || (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')))) ? (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')) ? 'Analyzing...' : 'Complete') : 'Pending',
+            isActive: activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment'))
         }, 
         position: { x: 250, y: 200 } 
       },
@@ -131,8 +131,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'News Analyst', 
             description: descriptions.news,
-            status: (currentData.news_report || activeNode === 'news') ? (activeNode === 'news' ? 'Analyzing...' : 'Complete') : 'Pending',
-            isActive: activeNode === 'news'
+            status: (currentData.news_report || (activeNode && activeNode.toLowerCase().includes('news'))) ? (activeNode && activeNode.toLowerCase().includes('news') ? 'Analyzing...' : 'Complete') : 'Pending',
+            isActive: activeNode && activeNode.toLowerCase().includes('news')
         }, 
         position: { x: 250, y: 300 } 
       },
@@ -142,8 +142,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Fundamentals Analyst', 
             description: descriptions.fundamentals,
-            status: (currentData.fundamentals_report || activeNode === 'fundamentals') ? (activeNode === 'fundamentals' ? 'Analyzing...' : 'Complete') : 'Pending',
-            isActive: activeNode === 'fundamentals'
+            status: (currentData.fundamentals_report || (activeNode && activeNode.toLowerCase().includes('fundamental'))) ? (activeNode && activeNode.toLowerCase().includes('fundamental') ? 'Analyzing...' : 'Complete') : 'Pending',
+            isActive: activeNode && activeNode.toLowerCase().includes('fundamental')
         }, 
         position: { x: 250, y: 400 } 
       },
@@ -153,8 +153,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bull Researcher', 
             description: descriptions.bull,
-            status: (isLive && activeNode === 'bull_researcher') ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
-            isActive: activeNode === 'bull_researcher'
+            status: (isLive && activeNode && activeNode.toLowerCase().includes('bull')) ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
+            isActive: activeNode && activeNode.toLowerCase().includes('bull')
         }, 
         position: { x: 100, y: 500 } 
       },
@@ -164,8 +164,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bear Researcher', 
             description: descriptions.bear,
-            status: (isLive && activeNode === 'bear_researcher') ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
-            isActive: activeNode === 'bear_researcher'
+            status: (isLive && activeNode && activeNode.toLowerCase().includes('bear')) ? 'Analyzing...' : (currentData.investment_plan ? 'Complete' : 'Pending'),
+            isActive: activeNode && activeNode.toLowerCase().includes('bear')
         }, 
         position: { x: 400, y: 500 } 
       },
@@ -175,8 +175,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Research Manager', 
             description: descriptions.manager,
-            status: (currentData.investment_plan || activeNode === 'research_manager') ? (activeNode === 'research_manager' ? 'Synthesizing...' : 'Synthesized') : 'Waiting',
-            isActive: activeNode === 'research_manager'
+            status: (currentData.investment_plan || (activeNode && activeNode.toLowerCase().includes('manager'))) ? (activeNode && activeNode.toLowerCase().includes('manager') ? 'Synthesizing...' : 'Synthesized') : 'Waiting',
+            isActive: activeNode && activeNode.toLowerCase().includes('manager')
         }, 
         position: { x: 250, y: 600 } 
       },
@@ -186,8 +186,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Trader', 
             description: descriptions.trader,
-            status: (currentData.trader_investment_decision || activeNode === 'trader') ? (activeNode === 'trader' ? 'Calculating...' : 'Proposed') : 'Waiting',
-            isActive: activeNode === 'trader'
+            status: (currentData.trader_investment_decision || (activeNode && activeNode.toLowerCase().includes('trader'))) ? (activeNode && activeNode.toLowerCase().includes('trader') ? 'Calculating...' : 'Proposed') : 'Waiting',
+            isActive: activeNode && activeNode.toLowerCase().includes('trader')
         }, 
         position: { x: 250, y: 700 } 
       },
@@ -197,8 +197,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Portfolio Manager', 
             description: descriptions.pm,
-            status: (currentData.final_trade_decision || activeNode === 'risk_management') ? (activeNode === 'risk_management' ? 'Reviewing...' : 'Final Decision') : 'Waiting',
-            isActive: activeNode === 'risk_management'
+            status: (currentData.final_trade_decision || (activeNode && (activeNode.toLowerCase().includes('risk') || activeNode.toLowerCase().includes('portfolio')))) ? (activeNode && (activeNode.toLowerCase().includes('risk') || activeNode.toLowerCase().includes('portfolio')) ? 'Reviewing...' : 'Final Decision') : 'Waiting',
+            isActive: activeNode && (activeNode.toLowerCase().includes('risk') || activeNode.toLowerCase().includes('portfolio'))
         }, 
         position: { x: 250, y: 800 } 
       },

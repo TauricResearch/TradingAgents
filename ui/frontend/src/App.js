@@ -199,19 +199,23 @@ const App = () => {
 
   const commentary = useMemo(() => {
     if (!activeStatus) return null;
-    const nodeMap = {
-      'market': 'Market analysis in progress...',
-      'social': 'Sentiment analysis started...',
-      'news': 'Gathering global news and insider data...',
-      'fundamentals': 'Reviewing financial health and ratios...',
-      'bull_researcher': 'Bull researcher constructing buy case...',
-      'bear_researcher': 'Bear researcher identifying risks...',
-      'research_manager': 'Research manager synthesizing debate...',
-      'trader': 'Trader calculating execution targets...',
-      'risk_management': 'Portfolio manager making final decision...',
-      'initializing...': 'Initializing agentic workflow...',
-    };
-    return nodeMap[activeStatus.active_node] || `Processing node: ${activeStatus.active_node}...`;
+    const n = (activeStatus.active_node || '').toLowerCase();
+    
+    if (n.includes('market')) return 'Market analysis in progress...';
+    if (n.includes('social') || n.includes('sentiment')) return 'Sentiment analysis started...';
+    if (n.includes('news')) return 'Gathering global news and insider data...';
+    if (n.includes('fundamental')) return 'Reviewing financial health and ratios...';
+    if (n.includes('bull')) return 'Bull researcher constructing buy case...';
+    if (n.includes('bear')) return 'Bear researcher identifying risks...';
+    if (n.includes('research_manager') || n.includes('research manager')) return 'Research manager synthesizing debate...';
+    if (n.includes('trader')) return 'Trader calculating execution targets...';
+    if (n.includes('portfolio_manager') || n.includes('portfolio manager') || n.includes('risk_management')) return 'Portfolio manager making final decision...';
+    if (n.includes('initializing')) return 'Initializing agentic workflow...';
+    if (n.includes('aggressive')) return 'Aggressive risk analyst reviewing plan...';
+    if (n.includes('conservative')) return 'Conservative risk analyst reviewing plan...';
+    if (n.includes('neutral')) return 'Neutral risk analyst reviewing plan...';
+    
+    return `Active Agent: ${activeStatus.active_node}...`;
   }, [activeStatus]);
 
   const calculateProgress = (node) => {
@@ -222,13 +226,16 @@ const App = () => {
       'initializing...': 5,
       'market analyst': 15,
       'tools_market': 18,
+      'msg clear market': 20,
       'sentiment analyst': 25,
-      'social analyst': 25, // back-compat
       'tools_social': 28,
+      'msg clear social': 30,
       'news analyst': 35,
       'tools_news': 38,
+      'msg clear news': 40,
       'fundamentals analyst': 45,
       'tools_fundamentals': 48,
+      'msg clear fundamentals': 50,
       'bull researcher': 60,
       'bear researcher': 70,
       'research manager': 80,
@@ -240,15 +247,19 @@ const App = () => {
       'completed': 100
     };
 
-    if (steps[n]) {
-      if (steps[n] > lastValidProgress) {
-        setLastValidProgress(steps[n]);
+    // Find the closest step if not an exact match
+    let progress = lastValidProgress;
+    for (const [key, value] of Object.entries(steps)) {
+      if (n.includes(key)) {
+        progress = value;
+        break;
       }
-      return steps[n];
     }
-    
-    // For 'messages' or other internal LangGraph nodes, keep last known progress
-    return lastValidProgress;
+
+    if (progress > lastValidProgress) {
+      setLastValidProgress(progress);
+    }
+    return progress;
   };
 
   const refreshRuns = (selectNewest = false) => {
