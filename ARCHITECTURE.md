@@ -169,17 +169,20 @@ src/server/
 ## SSE Event Schema
 
 Events flow from `scripts/py/analyze_stream.py` stdout → Bun SSE → browser.
+Heartbeat events are written to **stderr** and forwarded as SSE by the Bun handler.
 
 ```typescript
-// Line format: {"event": string, "data": {...}}
+// Line format (stdout): {"event": string, "data": {...}}
+// Line format (stderr): {"event": "heartbeat", "data": {"tick": number}}
 
 type SSEEvent =
-  | { event: "start";         data: { ticker: string; date: string; position_context?: string } }
+  | { event: "start";         data: { ticker: string; date: string; position_context?: string; retry: boolean } }
+  | { event: "heartbeat";     data: { tick: number } }   // from stderr
   | { event: "agent_report";  data: { agent: string; content: string } }
   | { event: "debate_round";  data: { round: number; data: string } }
   | { event: "decision";      data: { signal: string; reasoning: string; confidence: number } }
   | { event: "complete";      data: { ticker: string } }
-  | { event: "error";         data: { message: string; traceback?: string } };
+  | { event: "error";         data: { message: string; traceback?: string; retry_attempted?: boolean } };
 ```
 
 The Bun server reads each line from the subprocess stdout, parses it as JSON,
@@ -356,13 +359,13 @@ to the client.
 ## Not Done / Known Gaps
 
 - [x] `TA_DASHBOARD_PORT` env var now wired via `cfg.app.dashboardPort` in `src/server/lib/settings.ts` (canonical: `TA_DASHBOARD_PORT`, fallback: `PORT`)
+- [x] No timeout handling for analyses exceeding 4 minutes — implemented via Python signal.SIGALRM (defence-in-depth) + JS AbortController + setTimeout kill on all three callers. Default 240s, configurable via --timeout arg.
+- [x] No error boundary for Python subprocess failures in the UI — error events emitted with traceback, retry loop in server route (re-spawns once with --retry flag on non-zero exit)
 - [ ] Port constant `3000` should be exported from a config module, not inline in `index.tsx`
 - [ ] Prices route is a stub (no yfinance subprocess implementation)
 - [ ] No authentication or access control on the dashboard
-- [ ] No error boundary for Python subprocess failures in the UI
 - [ ] `datatype.tsx` JSX helper created but unused — inline JS is simpler
 - [ ] Analysis tab shows raw event list, not rendered markdown
-- [ ] No timeout handling for analyses exceeding 4 minutes
 - [ ] Watchlist stage migration UI incomplete
 
 ---
