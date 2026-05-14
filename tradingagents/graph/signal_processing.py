@@ -3,7 +3,7 @@
 The Portfolio Manager produces a typed ``PortfolioDecision`` via structured
 output and renders it to markdown that always carries a ``**Rating**: X``
 header (see :func:`tradingagents.agents.schemas.render_pm_decision`).  The
-deterministic heuristic in :mod:`tradingagents.agents.utils.rating` is more
+deterministic heuristic in :mod:`tradingagents.utils.rating` is more
 than sufficient to extract that rating; no extra LLM call is needed.
 
 This module exists for backwards compatibility with callers that expect a
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.utils.rating import parse_rating
 
 
 class SignalProcessor:

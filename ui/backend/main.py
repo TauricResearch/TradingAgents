@@ -18,7 +18,7 @@ except ImportError:
     ConfigException = Exception
 
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.memory import TradingMemoryLog
+from tradingagents.utils.memory import TradingMemoryLog
 
 app = FastAPI(title="TradingAgents Dashboard API")
 

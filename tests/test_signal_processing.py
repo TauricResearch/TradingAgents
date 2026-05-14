@@ -2,7 +2,7 @@
 
 The Portfolio Manager produces a typed PortfolioDecision via structured
 output and renders it to markdown that always contains a ``**Rating**: X``
-header.  The deterministic heuristic in ``tradingagents.agents.utils.rating``
+header.  The deterministic heuristic in ``tradingagents.utils.rating``
 is therefore sufficient to extract the rating downstream — no second LLM
 call is needed — and SignalProcessor is now a thin adapter that delegates
 to it.
@@ -10,7 +10,7 @@ to it.
 
 import pytest
 
-from tradingagents.agents.utils.rating import RATINGS_5_TIER, parse_rating
+from tradingagents.utils.rating import RATINGS_5_TIER, parse_rating
 from tradingagents.graph.signal_processing import SignalProcessor
 
 

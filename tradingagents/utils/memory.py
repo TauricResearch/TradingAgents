@@ -4,7 +4,7 @@ from typing import List, Optional
 from pathlib import Path
 import re
 
-from tradingagents.agents.utils.rating import parse_rating
+from tradingagents.utils.rating import parse_rating
 
 
 class TradingMemoryLog:
