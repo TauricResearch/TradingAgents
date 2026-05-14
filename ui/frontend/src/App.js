@@ -9,7 +9,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/runs')
+    fetch('/api/runs')
       .then(res => res.json())
       .then(data => {
         setRuns(data);
@@ -23,7 +23,7 @@ const App = () => {
 
   useEffect(() => {
     if (selectedRun) {
-      fetch(`http://localhost:8000/api/runs/${selectedRun.ticker}/${selectedRun.date}`)
+      fetch(`/api/runs/${selectedRun.ticker}/${selectedRun.date}`)
         .then(res => res.json())
         .then(data => setRunDetail(data))
         .catch(err => console.error("Error fetching run details:", err));
