@@ -6,14 +6,13 @@ const MarkdownContent = ({ content }) => {
   if (!content) return <div style={{ color: '#64748b', fontStyle: 'italic', padding: '10px' }}>No data available</div>;
 
   // 1. Force newlines before any **Header**: that doesn't have one
-  // This handles the "single paragraph" problem from LLMs
   const prepared = content.replace(/([^\n])(\*\*.*?\*\*):/g, '$1\n\n$2:');
   
   // 2. Split into sections
   const chunks = prepared.split('\n\n').filter(c => c.trim());
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {chunks.map((chunk, i) => {
         const headerMatch = chunk.match(/^\*\*(.*?)\*\*:\s*(.*)/s);
         
@@ -21,21 +20,23 @@ const MarkdownContent = ({ content }) => {
           const [_, header, body] = headerMatch;
           const isHighlight = ['Rating', 'Recommendation', 'Action'].some(h => header.includes(h));
           
+          // Split body into sentences to create bullet points
+          const sentences = body.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 5);
+          
           return (
             <div key={i} style={{ 
               background: isHighlight ? '#1e293b' : 'transparent', 
               borderRadius: '8px', 
               padding: isHighlight ? '16px' : '0 4px',
               borderLeft: isHighlight ? `4px solid ${header.includes('Rating') || header.includes('Recommendation') ? '#3b82f6' : '#10b981'}` : 'none',
-              marginBottom: '4px'
             }}>
               <div style={{ 
                 fontSize: '11px', 
                 fontWeight: '800', 
                 textTransform: 'uppercase', 
                 color: isHighlight ? '#94a3b8' : '#3b82f6',
-                letterSpacing: '0.05em',
-                marginBottom: '6px',
+                letterSpacing: '0.1em',
+                marginBottom: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px'
@@ -45,37 +46,51 @@ const MarkdownContent = ({ content }) => {
                 {header.includes('Rationale') && <Info size={14} />}
                 {header}
               </div>
-              <div style={{ 
-                fontSize: '14px', 
-                lineHeight: '1.6', 
-                color: '#f8fafc',
-                fontWeight: header.includes('Rating') ? '700' : '400'
-              }}>
-                {body.split(/(\*\*.*?\*\*)/g).map((part, j) => {
-                  if (part.startsWith('**') && part.endsWith('**')) {
-                    return <strong key={j} style={{ color: '#60a5fa' }}>{part.slice(2, -2)}</strong>;
-                  }
-                  return part;
-                })}
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {sentences.map((sentence, idx) => (
+                  <div key={idx} style={{ 
+                    display: 'flex', 
+                    gap: '10px', 
+                    fontSize: '13px', 
+                    lineHeight: '1.6', 
+                    color: '#f8fafc',
+                    fontWeight: header.includes('Rating') ? 'bold' : '400'
+                  }}>
+                    <span style={{ color: '#3b82f6', fontSize: '16px', lineHeight: '1.2' }}>•</span>
+                    <span>
+                      {sentence.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                          return <strong key={j} style={{ color: '#60a5fa' }}>{part.slice(2, -2)}</strong>;
+                        }
+                        return part;
+                      })}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           );
         }
 
+        // Handle paragraphs that aren't headers
+        const pSentences = chunk.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 5);
         return (
-          <p key={i} style={{ 
-            margin: '0 4px', 
-            fontSize: '13px', 
-            lineHeight: '1.7', 
-            color: '#cbd5e1' 
-          }}>
-            {chunk.split(/(\*\*.*?\*\*)/g).map((part, j) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={j} style={{ color: '#f8fafc' }}>{part.slice(2, -2)}</strong>;
-              }
-              return part;
-            })}
-          </p>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 4px' }}>
+            {pSentences.map((s, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: '10px', fontSize: '13px', lineHeight: '1.7', color: '#cbd5e1' }}>
+                <span style={{ color: '#64748b' }}>•</span>
+                <span>
+                  {s.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                      return <strong key={j} style={{ color: '#f8fafc' }}>{part.slice(2, -2)}</strong>;
+                    }
+                    return part;
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
         );
       })}
     </div>
