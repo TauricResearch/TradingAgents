@@ -14,12 +14,23 @@ from tradingagents.agents.utils.memory import TradingMemoryLog
 
 app = FastAPI(title="TradingAgents Dashboard API")
 
-# Initialize Kubernetes client (loads in-cluster config)
+# Initialize Kubernetes client
+batch_v1 = None
 try:
+    print("Attempting to load in-cluster Kubernetes config...")
     k8s_config.load_in_cluster_config()
     batch_v1 = client.BatchV1Api()
-except Exception:
-    batch_v1 = None
+    print("Successfully loaded in-cluster Kubernetes config.")
+except Exception as e:
+    print(f"In-cluster config failed: {e}")
+    try:
+        print("Attempting to load local kube-config...")
+        k8s_config.load_kube_config()
+        batch_v1 = client.BatchV1Api()
+        print("Successfully loaded local kube-config.")
+    except Exception as e2:
+        print(f"Local kube-config failed: {e2}")
+        print("Kubernetes client will not be available.")
 
 # Global state to track current active run
 current_run_status = {
