@@ -1,6 +1,7 @@
 # TradingAgents/graph/setup.py
 
 from typing import Any, Dict
+from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -51,24 +52,24 @@ class GraphSetup:
 
         if "market" in selected_analysts:
             analyst_nodes["market"] = create_market_analyst(self.quick_thinking_llm)
-            delete_nodes["market"] = create_msg_delete()
+            delete_nodes["market"] = create_msg_delete("market_messages")
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
             analyst_nodes["social"] = create_sentiment_analyst(self.quick_thinking_llm)
-            delete_nodes["social"] = create_msg_delete()
+            delete_nodes["social"] = create_msg_delete("sentiment_messages")
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
             analyst_nodes["news"] = create_news_analyst(self.quick_thinking_llm)
-            delete_nodes["news"] = create_msg_delete()
+            delete_nodes["news"] = create_msg_delete("news_messages")
             tool_nodes["news"] = self.tool_nodes["news"]
 
         if "fundamentals" in selected_analysts:
             analyst_nodes["fundamentals"] = create_fundamentals_analyst(
                 self.quick_thinking_llm
             )
-            delete_nodes["fundamentals"] = create_msg_delete()
+            delete_nodes["fundamentals"] = create_msg_delete("fundamentals_messages")
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
         # Create researcher and manager nodes
@@ -103,7 +104,28 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
-        workflow.add_node("Analyst Synchronizer", lambda x: x)
+        
+        def sync_analysts(state: AgentState):
+            """Merge parallel analyst reports into the main message history."""
+            reports = []
+            if state.get("market_report"):
+                reports.append(f"## Market Analysis\n{state['market_report']}")
+            if state.get("sentiment_report"):
+                reports.append(f"## Sentiment Analysis\n{state['sentiment_report']}")
+            if state.get("news_report"):
+                reports.append(f"## News Analysis\n{state['news_report']}")
+            if state.get("fundamentals_report"):
+                reports.append(f"## Fundamentals Analysis\n{state['fundamentals_report']}")
+            
+            if not reports:
+                return {}
+                
+            combined_reports = "\n\n".join(reports)
+            return {
+                "messages": [HumanMessage(content=f"Here are the completed analyst reports:\n\n{combined_reports}")]
+            }
+
+        workflow.add_node("Analyst Synchronizer", sync_analysts)
 
         # Define edges
         # Start all selected analysts in parallel

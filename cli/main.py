@@ -1089,8 +1089,14 @@ def run_analysis(checkpoint: bool = False):
         # Stream the analysis
         trace = []
         for chunk in graph.graph.stream(init_agent_state, **args):
+            # Extract updates from the node name key in 'updates' mode
+            node_name = list(chunk.keys())[0] if chunk else "unknown"
+            node_updates = chunk.get(node_name, {})
+
             # Process all messages in chunk, deduplicating by message ID
-            for message in chunk.get("messages", []):
+            # Messages can be in the node updates or in the top-level chunk if merged
+            messages = node_updates.get("messages", [])
+            for message in messages:
                 msg_id = getattr(message, "id", None)
                 if msg_id is not None:
                     if msg_id in message_buffer._processed_message_ids:
@@ -1109,11 +1115,11 @@ def run_analysis(checkpoint: bool = False):
                             message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
             # Update analyst statuses based on report state (runs on every chunk)
-            update_analyst_statuses(message_buffer, chunk)
+            update_analyst_statuses(message_buffer, node_updates)
 
             # Research Team - Handle Investment Debate State
-            if chunk.get("investment_debate_state"):
-                debate_state = chunk["investment_debate_state"]
+            if node_updates.get("investment_debate_state"):
+                debate_state = node_updates["investment_debate_state"]
                 bull_hist = debate_state.get("bull_history", "").strip()
                 bear_hist = debate_state.get("bear_history", "").strip()
                 judge = debate_state.get("judge_decision", "").strip()
@@ -1137,17 +1143,17 @@ def run_analysis(checkpoint: bool = False):
                     message_buffer.update_agent_status("Trader", "in_progress")
 
             # Trading Team
-            if chunk.get("trader_investment_plan"):
+            if node_updates.get("trader_investment_plan"):
                 message_buffer.update_report_section(
-                    "trader_investment_plan", chunk["trader_investment_plan"]
+                    "trader_investment_plan", node_updates["trader_investment_plan"]
                 )
                 if message_buffer.agent_status.get("Trader") != "completed":
                     message_buffer.update_agent_status("Trader", "completed")
                     message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
 
             # Risk Management Team - Handle Risk Debate State
-            if chunk.get("risk_debate_state"):
-                risk_state = chunk["risk_debate_state"]
+            if node_updates.get("risk_debate_state"):
+                risk_state = node_updates["risk_debate_state"]
                 agg_hist = risk_state.get("aggressive_history", "").strip()
                 con_hist = risk_state.get("conservative_history", "").strip()
                 neu_hist = risk_state.get("neutral_history", "").strip()
@@ -1187,11 +1193,12 @@ def run_analysis(checkpoint: bool = False):
 
             trace.append(chunk)
 
-        # Streamed chunks are per-node deltas, not full state. Merge them
+        # Streamed chunks are per-node updates. Merge them
         # so every report field populated across the run is present.
         final_state = {}
         for chunk in trace:
-            final_state.update(chunk)
+            for node_name, updates in chunk.items():
+                final_state.update(updates)
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed

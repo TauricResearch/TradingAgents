@@ -102,7 +102,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     };
 
     const rawNodes = [
-      { id: 'start', type: 'input', data: { label: 'Start' }, position: { x: 250, y: 0 } },
+      { id: 'start', type: 'input', data: { label: 'Start' }, position: { x: 450, y: 0 } },
       { 
         id: 'market', 
         type: 'agent', 
@@ -112,7 +112,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.market_report || (activeNode && activeNode.toLowerCase().includes('market'))) ? (activeNode && activeNode.toLowerCase().includes('market') ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && activeNode.toLowerCase().includes('market')
         }, 
-        position: { x: 250, y: 100 } 
+        position: { x: 0, y: 150 } 
       },
       { 
         id: 'sentiment', 
@@ -123,7 +123,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.sentiment_report || (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')))) ? (activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment')) ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && (activeNode.toLowerCase().includes('social') || activeNode.toLowerCase().includes('sentiment'))
         }, 
-        position: { x: 250, y: 200 } 
+        position: { x: 300, y: 150 } 
       },
       { 
         id: 'news', 
@@ -134,7 +134,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.news_report || (activeNode && activeNode.toLowerCase().includes('news'))) ? (activeNode && activeNode.toLowerCase().includes('news') ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && activeNode.toLowerCase().includes('news')
         }, 
-        position: { x: 250, y: 300 } 
+        position: { x: 600, y: 150 } 
       },
       { 
         id: 'fundamentals', 
@@ -145,7 +145,21 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.fundamentals_report || (activeNode && activeNode.toLowerCase().includes('fundamental'))) ? (activeNode && activeNode.toLowerCase().includes('fundamental') ? 'Analyzing...' : 'Complete') : 'Pending',
             isActive: activeNode && activeNode.toLowerCase().includes('fundamental')
         }, 
-        position: { x: 250, y: 400 } 
+        position: { x: 900, y: 150 } 
+      },
+      {
+        id: 'sync',
+        data: { label: 'Analyst Synchronizer' },
+        position: { x: 450, y: 300 },
+        style: {
+          background: (activeNode && activeNode.toLowerCase().includes('synchronizer')) ? '#eab308' : '#1e293b',
+          color: 'white',
+          border: '2px solid #475569',
+          borderRadius: '8px',
+          padding: '10px',
+          width: '180px',
+          textAlign: 'center'
+        }
       },
       { 
         id: 'bull', 
@@ -156,7 +170,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (isLive && activeNode && activeNode.toLowerCase().includes('bull')) ? 'Analyzing...' : (currentData.investment_plan || (isLive && activeNode && ['bear', 'manager', 'trader', 'pm', 'risk'].some(s => activeNode.toLowerCase().includes(s))) ? 'Complete' : 'Pending'),
             isActive: activeNode && activeNode.toLowerCase().includes('bull')
         }, 
-        position: { x: 100, y: 500 } 
+        position: { x: 300, y: 450 } 
       },
       { 
         id: 'bear', 
@@ -167,7 +181,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (isLive && activeNode && activeNode.toLowerCase().includes('bear')) ? 'Analyzing...' : (currentData.investment_plan || (isLive && activeNode && ['manager', 'trader', 'pm', 'risk'].some(s => activeNode.toLowerCase().includes(s))) ? 'Complete' : 'Pending'),
             isActive: activeNode && activeNode.toLowerCase().includes('bear')
         }, 
-        position: { x: 400, y: 500 } 
+        position: { x: 600, y: 450 } 
       },
       { 
         id: 'manager', 
@@ -178,7 +192,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.investment_plan || (activeNode && activeNode.toLowerCase().includes('manager'))) ? (activeNode && activeNode.toLowerCase().includes('manager') ? 'Synthesizing...' : 'Synthesized') : 'Waiting',
             isActive: activeNode && activeNode.toLowerCase().includes('manager')
         }, 
-        position: { x: 250, y: 600 } 
+        position: { x: 450, y: 600 } 
       },
       { 
         id: 'trader', 
@@ -189,7 +203,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.trader_investment_decision || (activeNode && activeNode.toLowerCase().includes('trader'))) ? (activeNode && activeNode.toLowerCase().includes('trader') ? 'Calculating...' : 'Proposed') : 'Waiting',
             isActive: activeNode && activeNode.toLowerCase().includes('trader')
         }, 
-        position: { x: 250, y: 700 } 
+        position: { x: 450, y: 750 } 
       },
       { 
         id: 'pm', 
@@ -200,13 +214,13 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
             status: (currentData.final_trade_decision || (activeNode && (activeNode.toLowerCase().includes('risk') || activeNode.toLowerCase().includes('portfolio')))) ? (activeNode && (activeNode.toLowerCase().includes('risk') || activeNode.toLowerCase().includes('portfolio')) ? 'Reviewing...' : 'Final Decision') : 'Waiting',
             isActive: activeNode && (activeNode.toLowerCase().includes('risk') || activeNode.toLowerCase().includes('portfolio'))
         }, 
-        position: { x: 250, y: 800 } 
+        position: { x: 450, y: 900 } 
       },
       { 
         id: 'end', 
         type: 'output', 
         data: { label: 'Decision Reached' }, 
-        position: { x: 250, y: 900 },
+        position: { x: 450, y: 1050 },
         style: {
           background: (currentData.final_trade_decision || (activeStatus?.status === 'completed')) ? '#10b981' : '#1e293b',
           color: 'white',
@@ -221,17 +235,25 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     ];
 
     const rawEdges = [
-      { id: 'e1-2', source: 'start', target: 'market', animated: isLive || !!currentData.market_report },
-      { id: 'e2-3', source: 'market', target: 'sentiment', animated: isLive || !!currentData.sentiment_report },
-      { id: 'e3-4', source: 'sentiment', target: 'news', animated: isLive || !!currentData.news_report },
-      { id: 'e4-5', source: 'news', target: 'fundamentals', animated: isLive || !!currentData.fundamentals_report },
-      { id: 'e5-6', source: 'fundamentals', target: 'bull', animated: isLive || !!currentData.investment_plan },
-      { id: 'e5-7', source: 'fundamentals', target: 'bear', animated: isLive || !!currentData.investment_plan },
-      { id: 'e6-8', source: 'bull', target: 'manager', animated: isLive || !!currentData.investment_plan },
-      { id: 'e7-8', source: 'bear', target: 'manager', animated: isLive || !!currentData.investment_plan },
-      { id: 'e8-9', source: 'manager', target: 'trader', animated: isLive || !!currentData.trader_investment_decision },
-      { id: 'e9-10', source: 'trader', target: 'pm', animated: isLive || !!currentData.final_trade_decision },
-      { id: 'e10-11', source: 'pm', target: 'end' },
+      { id: 'start-market', source: 'start', target: 'market', animated: isLive },
+      { id: 'start-sentiment', source: 'start', target: 'sentiment', animated: isLive },
+      { id: 'start-news', source: 'start', target: 'news', animated: isLive },
+      { id: 'start-fundamentals', source: 'start', target: 'fundamentals', animated: isLive },
+      
+      { id: 'market-sync', source: 'market', target: 'sync', animated: !!currentData.market_report },
+      { id: 'sentiment-sync', source: 'sentiment', target: 'sync', animated: !!currentData.sentiment_report },
+      { id: 'news-sync', source: 'news', target: 'sync', animated: !!currentData.news_report },
+      { id: 'fundamentals-sync', source: 'fundamentals', target: 'sync', animated: !!currentData.fundamentals_report },
+
+      { id: 'sync-bull', source: 'sync', target: 'bull', animated: isLive || !!currentData.investment_plan },
+      { id: 'sync-bear', source: 'sync', target: 'bear', animated: isLive || !!currentData.investment_plan },
+      
+      { id: 'bull-manager', source: 'bull', target: 'manager', animated: isLive || !!currentData.investment_plan },
+      { id: 'bear-manager', source: 'bear', target: 'manager', animated: isLive || !!currentData.investment_plan },
+      
+      { id: 'manager-trader', source: 'manager', target: 'trader', animated: isLive || !!currentData.trader_investment_decision },
+      { id: 'trader-pm', source: 'trader', target: 'pm', animated: isLive || !!currentData.final_trade_decision },
+      { id: 'pm-end', source: 'pm', target: 'end' },
     ];
 
     return { nodes: rawNodes, edges: rawEdges };

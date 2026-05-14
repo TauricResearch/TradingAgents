@@ -163,13 +163,15 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
-                ]
+                ],
+                messages_key="market_messages"
             ),
             "social": ToolNode(
                 [
                     # News tools for social media analysis
                     get_news,
-                ]
+                ],
+                messages_key="sentiment_messages"
             ),
             "news": ToolNode(
                 [
@@ -177,7 +179,8 @@ class TradingAgentsGraph:
                     get_news,
                     get_global_news,
                     get_insider_transactions,
-                ]
+                ],
+                messages_key="news_messages"
             ),
             "fundamentals": ToolNode(
                 [
@@ -186,7 +189,8 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
-                ]
+                ],
+                messages_key="fundamentals_messages"
             ),
         }
 
@@ -358,42 +362,50 @@ class TradingAgentsGraph:
         if self.debug:
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
-                    chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+                node_name = list(chunk.keys())[0] if chunk else "unknown"
+                
+                # In 'updates' mode, chunk is {node_name: {updates}}
+                node_updates = chunk.get(node_name, {})
+                if "messages" in node_updates and len(node_updates["messages"]) > 0:
+                    node_updates["messages"][-1].pretty_print()
+                
+                trace.append(chunk)
                 
                 # Send webhook update for each chunk (node completion)
                 self._send_webhook({
                     "ticker": company_name,
                     "date": trade_date,
-                    "node": list(chunk.keys())[0] if chunk else "unknown",
+                    "node": node_name,
                     "status": "in_progress",
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                     "start_time": start_time_iso
                 })
-            # Streamed chunks are per-node deltas. Merge them so the returned
-            # state matches what graph.invoke() yields in the non-debug path.
+            
+            # Merge updates into final_state
             final_state = {}
             for chunk in trace:
-                final_state.update(chunk)
+                for node_name, updates in chunk.items():
+                    final_state.update(updates)
         else:
             # Even in non-debug mode, we stream to get progress updates
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
+                node_name = list(chunk.keys())[0] if chunk else "unknown"
                 trace.append(chunk)
                 self._send_webhook({
                     "ticker": company_name,
                     "date": trade_date,
-                    "node": list(chunk.keys())[0] if chunk else "unknown",
+                    "node": node_name,
                     "status": "in_progress",
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                     "start_time": start_time_iso
                 })
+            
+            # Merge updates into final_state
             final_state = {}
             for chunk in trace:
-                final_state.update(chunk)
+                for node_name, updates in chunk.items():
+                    final_state.update(updates)
 
         # Store current state for reflection.
         self.curr_state = final_state

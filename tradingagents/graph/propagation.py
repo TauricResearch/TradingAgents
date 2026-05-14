@@ -19,11 +19,16 @@ class Propagator:
         self, company_name: str, trade_date: str, past_context: str = ""
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        start_msg = [("human", company_name)]
         return {
-            "messages": [("human", company_name)],
+            "messages": start_msg,
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "past_context": past_context,
+            "market_messages": start_msg,
+            "sentiment_messages": start_msg,
+            "news_messages": start_msg,
+            "fundamentals_messages": start_msg,
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",
@@ -65,6 +70,6 @@ class Propagator:
         if callbacks:
             config["callbacks"] = callbacks
         return {
-            "stream_mode": "values",
+            "stream_mode": "updates",
             "config": config,
         }

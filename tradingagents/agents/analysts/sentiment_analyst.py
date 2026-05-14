@@ -86,10 +86,10 @@ def create_sentiment_analyst(llm):
         # No bind_tools — the data is already in the prompt; a single LLM
         # call produces the report directly.
         chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state["sentiment_messages"])
 
         return {
-            "messages": [result],
+            "sentiment_messages": [result],
             "sentiment_report": result.content,
         }
 
