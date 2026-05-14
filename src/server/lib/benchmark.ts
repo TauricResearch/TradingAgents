@@ -10,18 +10,14 @@
  */
 
 import { spawn } from "node:child_process"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { DatabaseFactory } from "@lib/db"
 import type { PriceResult } from "@lib/types"
 import { endOfToday, priceCache } from "./cache.ts"
 import { getHoldings } from "./hledger.ts"
-import { findProjectRoot } from "./utils.ts"
+import { venvPython } from "./subprocess.ts"
 
 const DEFAULT_BENCHMARK = process.env.BENCHMARK ?? "VWCE.DE"
-
-function venvPython(): string {
-  return join(findProjectRoot(), ".venv", "bin", "python3")
-}
 
 // ── Benchmark types ───────────────────────────────────────────────────────────
 
@@ -120,7 +116,9 @@ export async function batchFetchPrices(tickers: string[]): Promise<Map<string, P
   const results = new Map<string, PriceResult>()
   if (tickers.length === 0) return results
 
-  const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
+  const python = venvPython()
+  const projectRoot = dirname(dirname(python))
+  const script = join(projectRoot, "scripts", "py", "get_price.py")
   const BATCH_SIZE = 4
 
   for (let i = 0; i < tickers.length; i += BATCH_SIZE) {

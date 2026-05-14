@@ -4,10 +4,10 @@
  */
 
 import { spawn } from "node:child_process"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { PriceResult } from "@lib/types"
 import { endOfToday, priceCache } from "./cache.ts"
-import { findProjectRoot } from "./utils.ts"
+import { venvPython } from "./subprocess.ts"
 
 async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   const now = Date.now()
@@ -17,8 +17,12 @@ async function fetchPriceForTicker(ticker: string): Promise<PriceResult> {
   }
 
   return new Promise((resolve) => {
-    const script = join(findProjectRoot(), "scripts", "py", "get_price.py")
-    const child = spawn("python3", [script, ticker], {
+    const python = venvPython()
+    // scripts/py/get_price.py is at <project-root>/scripts/py/get_price.py
+    // venvPython() walks up to project root, so dirname(dirname(python)) = project-root
+    const projectRoot = dirname(dirname(python))
+    const script = join(projectRoot, "scripts", "py", "get_price.py")
+    const child = spawn(python, [script, ticker], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
       timeout: 12_000,
     })
