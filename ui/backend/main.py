@@ -24,19 +24,22 @@ try:
     print(f"DEBUG: k8s_config file: {getattr(k8s_config, '__file__', 'unknown')}")
     print(f"DEBUG: k8s_config dir: {dir(k8s_config)}")
     
-    # Try to find the loader function by any means
-    load_fn = getattr(k8s_config, 'load_in_cluster_config', None)
+    # Newer kubernetes clients expose load_incluster_config (no extra underscore).
+    # Keep a fallback to the legacy/misspelled lookup so startup is resilient across versions.
+    load_fn = getattr(k8s_config, 'load_incluster_config', None)
     if not load_fn:
         # Check submodules explicitly
         import kubernetes.config.incluster_config as inc
         print(f"DEBUG: incluster_config dir: {dir(inc)}")
-        load_fn = getattr(inc, 'load_in_cluster_config', None)
+        load_fn = getattr(inc, 'load_incluster_config', None)
+    if not load_fn:
+        load_fn = getattr(k8s_config, 'load_in_cluster_config', None)
     
     if load_fn:
         load_in_cluster_config = load_fn
-        print("DEBUG: Successfully located load_in_cluster_config")
+        print("DEBUG: Successfully located in-cluster config loader")
     else:
-        raise ImportError("Could not locate load_in_cluster_config in kubernetes.config or its submodules")
+        raise ImportError("Could not locate load_incluster_config in kubernetes.config or its submodules")
 
     # Repeat for kube_config
     load_kube_fn = getattr(k8s_config, 'load_kube_config', None)
