@@ -99,17 +99,41 @@ const MarkdownContent = ({ content }) => {
 
 const ProgressBar = ({ progress, status }) => {
   const isError = status === 'error';
+  const isTriggered = status === 'triggered';
+  
   return (
-    <div style={{ width: '100%', height: '4px', background: '#1e293b', borderRadius: '2px', overflow: 'hidden', marginTop: '10px' }}>
+    <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden', marginTop: '10px', position: 'relative' }}>
       <div 
         style={{ 
           width: `${progress}%`, 
           height: '100%', 
           background: isError ? '#ef4444' : '#3b82f6', 
-          transition: 'width 0.5s ease-in-out',
-          boxShadow: isError ? 'none' : '0 0 10px rgba(59, 130, 246, 0.5)'
+          transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: isError ? 'none' : '0 0 15px rgba(59, 130, 246, 0.5)',
+          position: 'relative',
+          overflow: 'hidden'
         }} 
-      />
+      >
+        {/* Animated pulse effect for 'thinking' state */}
+        {!isError && progress < 100 && (
+          <div className="progress-pulse" style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+            animation: 'pulse-scan 2s infinite'
+          }} />
+        )}
+      </div>
+      
+      <style>{`
+        @keyframes pulse-scan {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -119,6 +143,7 @@ const App = () => {
   const [stats, setStats] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [activeStatus, setActiveStatus] = useState(null);
+  const [lastValidProgress, setLastValidProgress] = useState(5);
   const [portfolio, setPortfolio] = useState('');
   const [isSavingPortfolio, setIsSavingPortfolio] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
@@ -128,20 +153,40 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   const calculateProgress = (node) => {
+    // Standardize node names to lowercase for robust matching
+    const n = (node || '').toLowerCase();
+    
     const steps = {
-      'Initializing...': 5,
-      'market': 15,
-      'social': 25,
-      'news': 35,
-      'fundamentals': 45,
-      'bull_researcher': 60,
-      'bear_researcher': 70,
-      'research_manager': 80,
+      'initializing...': 5,
+      'market analyst': 15,
+      'tools_market': 18,
+      'sentiment analyst': 25,
+      'social analyst': 25, // back-compat
+      'tools_social': 28,
+      'news analyst': 35,
+      'tools_news': 38,
+      'fundamentals analyst': 45,
+      'tools_fundamentals': 48,
+      'bull researcher': 60,
+      'bear researcher': 70,
+      'research manager': 80,
       'trader': 90,
-      'risk_management': 95,
+      'aggressive analyst': 92,
+      'neutral analyst': 94,
+      'conservative analyst': 96,
+      'portfolio manager': 98,
       'completed': 100
     };
-    return steps[node] || 0;
+
+    if (steps[n]) {
+      if (steps[n] > lastValidProgress) {
+        setLastValidProgress(steps[n]);
+      }
+      return steps[n];
+    }
+    
+    // For 'messages' or other internal LangGraph nodes, keep last known progress
+    return lastValidProgress;
   };
 
   const refreshRuns = (selectNewest = false) => {
