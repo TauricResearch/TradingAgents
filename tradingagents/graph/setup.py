@@ -108,15 +108,15 @@ class GraphSetup:
         def sync_analysts(state: AgentState):
             """Merge parallel analyst reports into the main message history.
             
-            Reports are truncated to 10k characters each to prevent researchers 
-            from being overwhelmed by excessive context (Markdown tables, etc).
+            Reports are truncated to 4k characters each to prevent researchers 
+            from being overwhelmed by excessive context.
             """
-            # Only perform merge when all analysts have finished
+            # Gate: Only merge when all analysts have finished.
             if state["analyst_count"] < len(selected_analysts):
                 return {}
 
             reports = []
-            max_report_len = 10000
+            max_report_len = 4000
             
             def truncate(text):
                 if not text: return ""
@@ -154,7 +154,7 @@ class GraphSetup:
                 return starter_node
                 
             starter_node_name = f"{analyst_type.capitalize()} Starter"
-            workflow.add_node(starter_node_name, create_starter(i * 2))
+            workflow.add_node(starter_node_name, create_starter(i * 4)) # 4s stagger
             
             workflow.add_edge(START, starter_node_name)
             workflow.add_edge(starter_node_name, f"{analyst_type.capitalize()} Analyst")
@@ -174,11 +174,20 @@ class GraphSetup:
             workflow.add_edge(current_tools, current_analyst)
             workflow.add_edge(current_clear, "Analyst Synchronizer")
 
-        # Route from synchronizer: a join node naturally waits for all predecessors.
-        if standalone:
-            workflow.add_edge("Analyst Synchronizer", END)
-        else:
-            workflow.add_edge("Analyst Synchronizer", "Bull Researcher")
+        def should_proceed_from_sync(state: AgentState):
+            if state["analyst_count"] >= len(selected_analysts):
+                return "proceed"
+            return "wait"
+
+        # Route from synchronizer: only proceed on the FINAL parallel update.
+        workflow.add_conditional_edges(
+            "Analyst Synchronizer",
+            should_proceed_from_sync,
+            {
+                "proceed": END if standalone else "Bull Researcher",
+                "wait": END
+            }
+        )
 
         # Add remaining edges
         workflow.add_conditional_edges(
