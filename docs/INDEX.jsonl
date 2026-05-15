@@ -18,4 +18,5 @@
 {"file":"runbook.md","date":"2026-05-10","status":"active","summary":"Operations manual: CLI reference, E2E workflows, IG demo trading, dashboard, config, troubleshooting","meta":{"type":"manual","topic":"operations"}}
 {"file":"schema/unified-registry.md","date":"2026-05-08","status":"active","summary":"Unified JSONL schema for all document indexes in the repository","meta":{"type":"schema","topic":"registry"}}
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
+{"file":"toto-for-timeseries-forcasting.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}

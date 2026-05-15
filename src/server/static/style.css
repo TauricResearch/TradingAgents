@@ -667,6 +667,13 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .freshness { font-size: 0.8em; }
 .fresh-ok   { color: var(--green); }
 .fresh-stale { color: var(--yellow); }
+
+/* Research linkage — prospects pipeline */
+.pipeline-card.stale { border-color: var(--yellow); }
+.pipeline-card .card-badge { display: flex; gap: 4px; margin-bottom: 4px; }
+.research-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--green); color: var(--bg); }
+.no-research-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--yellow); color: var(--bg); }
+.stale-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--yellow); color: var(--bg); cursor: help; }
 .fresh-old  { color: var(--red); }
 .freshness-none { color: var(--text-muted); }
 

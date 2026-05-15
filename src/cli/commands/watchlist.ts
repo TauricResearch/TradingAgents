@@ -19,6 +19,8 @@ interface WatchlistRow {
   stage: string
   added_date: string
   last_signal: string | null
+  research_doc: string | null
+  last_research_update: string | null
 }
 
 export const watchlistCommand = defineCommand({
@@ -33,9 +35,10 @@ export const watchlistCommand = defineCommand({
 
     const rows = db
       .query(
-        `SELECT ticker, platform, exchange, thesis, priority, stage, added_date, last_signal
+        `SELECT ticker, platform, exchange, thesis, priority, stage, added_date, last_signal, research_doc, last_research_update
          FROM watchlist
          ORDER BY
+           CASE WHEN research_doc IS NULL THEN 1 ELSE 0 END,
            CASE priority
              WHEN 'high' THEN 1
              WHEN 'medium' THEN 2
@@ -51,15 +54,16 @@ export const watchlistCommand = defineCommand({
       return
     }
 
-    const wTicker = 12
-    const wExch = 8
-    const wPriority = 10
-    const wStage = 14
-    const wAdded = 12
-    const wSignal = 14
+    const wTicker = 8
+    const wExch = 7
+    const wPriority = 9
+    const wStage = 12
+    const wResearch = 16
+    const wUpdated = 12
+    const wThesis = 22
 
-    const header = `${"Ticker".padEnd(wTicker)} ${"Exch".padEnd(wExch)} ${"Priority".padEnd(wPriority)} ${"Stage".padEnd(wStage)} ${"Added".padEnd(wAdded)} ${"Last Signal".padEnd(wSignal)} Thesis`
-    const line = "─".repeat(80)
+    const header = `${"Ticker".padEnd(wTicker)} ${"Exch".padEnd(wExch)} ${"Pri".padEnd(wPriority)} ${"Stage".padEnd(wStage)} ${"Research Doc".padEnd(wResearch)} ${"Updated".padEnd(wUpdated)} Thesis`
+    const line = "─".repeat(100)
 
     console.log("")
     console.log("WATCHLIST")
@@ -67,22 +71,34 @@ export const watchlistCommand = defineCommand({
     console.log(header)
     console.log(line)
 
+    let staleCount = 0
     for (const r of rows) {
+      const stale = !r.research_doc
+      if (stale) staleCount++
       const thesisShort = r.thesis
-        ? r.thesis.length > 35
-          ? `${r.thesis.slice(0, 32)}...`
+        ? r.thesis.length > wThesis
+          ? `${r.thesis.slice(0, wThesis - 3)}...`
           : r.thesis
         : "—"
       const priColor =
         r.priority === "high" ? "\x1b[31m" : r.priority === "medium" ? "\x1b[33m" : "\x1b[0m"
       const reset = "\x1b[0m"
+      const docStr = r.research_doc ?? "\x1b[33munlinked\x1b[0m"
+      const updatedStr = r.last_research_update ?? "—"
+      const staleFlag = stale ? " \x1b[33m⚠\x1b[0m" : ""
+
       console.log(
-        `${r.ticker.padEnd(wTicker)} ${r.exchange.padEnd(wExch)} ${priColor}${r.priority.padEnd(wPriority)}${reset} ${r.stage.padEnd(wStage)} ${r.added_date.padEnd(wAdded)} ${(r.last_signal ?? "—").padEnd(wSignal)} ${thesisShort}`,
+        `${r.ticker.padEnd(wTicker)} ${r.exchange.padEnd(wExch)} ${priColor}${r.priority.padEnd(wPriority)}${reset} ${r.stage.padEnd(wStage)} ${docStr.padEnd(wResearch)} ${updatedStr.padEnd(wUpdated)} ${thesisShort}${staleFlag}`,
       )
     }
 
     console.log(line)
     console.log(`  ${rows.length} prospect${rows.length === 1 ? "" : "s"} on watchlist`)
+    if (staleCount > 0) {
+      console.log(
+        `  ${staleCount} stale (no research doc — run 'trading research coverage' for details)`,
+      )
+    }
     console.log("")
   },
 })

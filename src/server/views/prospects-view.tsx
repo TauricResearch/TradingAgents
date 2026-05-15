@@ -4,7 +4,7 @@
 
 /** @jsxImportSource hono/jsx */
 
-import { STAGES, type Prospect } from "../lib/prospects-db.ts"
+import { isStale, STAGES, type Prospect } from "../lib/prospects-db.ts"
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
@@ -91,9 +91,10 @@ export function ProspectsFilter({ selectedPlatform }: { selectedPlatform: string
 function ProspectCard({ item, stage }: { item: Prospect; stage: string }) {
   const idx = STAGES.indexOf(stage as (typeof STAGES)[number])
   const nextStage = idx >= 0 && idx < STAGES.length - 1 ? STAGES[idx + 1] : null
+  const stale = isStale(item)
 
   return (
-    <div class="pipeline-card" data-id={item.id}>
+    <div class={`pipeline-card${stale ? " stale" : ""}`} data-id={item.id}>
       <div class="card-title">{item.ticker}</div>
       <div class="card-meta">
         {item.platform && item.platform !== "unknown" && (
@@ -104,6 +105,15 @@ function ProspectCard({ item, stage }: { item: Prospect; stage: string }) {
         </span>
         <span class="signal">{item.last_signal || "\u2014"}</span>
       </div>
+      {item.research_doc && (
+        <div class="card-badge">
+          <span class="research-badge" title={`Research: ${item.research_doc}`}>
+            {item.research_doc.split("-")[1]}
+          </span>
+          {stale && <span class="stale-badge" title="Research may be outdated">⚠</span>}
+        </div>
+      )}
+      {!item.research_doc && <div class="card-badge"><span class="no-research-badge">unlinked</span></div>}
       {item.thesis && <div class="card-thesis">{item.thesis}</div>}
       <div class="card-actions">
         {nextStage && (

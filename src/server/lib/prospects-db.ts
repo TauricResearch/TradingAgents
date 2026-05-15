@@ -6,10 +6,22 @@ export interface Prospect {
   id: number
   ticker: string
   platform: string
+  exchange: string
   stage: string
   priority: string
   thesis: string | null
   last_signal: string | null
+  research_doc: string | null
+  last_research_update: string | null
+}
+
+export function isStale(prospect: Prospect): boolean {
+  if (!prospect.research_doc) return true
+  if (!prospect.last_research_update) return true
+  const updated = new Date(prospect.last_research_update)
+  const threshold = new Date()
+  threshold.setDate(threshold.getDate() - 90)
+  return updated < threshold
 }
 
 export const STAGES = ["researching", "analyzed", "candidate", "approved", "acquired"] as const
