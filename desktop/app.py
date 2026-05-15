@@ -173,7 +173,7 @@ def page_history() -> None:
     """History page — past analyses table."""
     _page_wrapper()
     from desktop.pages.history import render_history_page
-    render_history_page(db=db)
+    render_history_page(db=db, runner=runner)
 
 
 @ui.page("/logs")

@@ -1,24 +1,32 @@
 """History page — past analyses table with search and filtering.
 
+Includes a **Resume** button for interrupted/failed analyses that have
+LangGraph checkpoints on disk (same ticker+date → auto-resume from
+the last successful node).
+
 See also: PLAN-desktop.md, F3.
 """
 
 from __future__ import annotations
 
+import json
+
 from nicegui import ui
 
 from desktop.state.database import HistoryDB
+from desktop.state.runner import PipelineRunner
 
 
-def render_history_page(*, db: HistoryDB) -> None:
+def render_history_page(*, db: HistoryDB, runner: PipelineRunner | None = None) -> None:
     """Render the history page content."""
-    page = _HistoryPage(db=db)
+    page = _HistoryPage(db=db, runner=runner)
     page.build()
 
 
 class _HistoryPage:
-    def __init__(self, *, db: HistoryDB) -> None:
+    def __init__(self, *, db: HistoryDB, runner: PipelineRunner | None = None) -> None:
         self._db = db
+        self._runner = runner
         self._search = ""
         self._table: ui.table | None = None
 
@@ -54,16 +62,20 @@ class _HistoryPage:
                 pagination={"rowsPerPage": 15},
             ).classes("w-full").props("flat bordered dense")
 
-            # Add "View" button column via slot
+            # Add "View" + "Resume" buttons via slot
             self._table.add_slot(
                 "body-cell-actions",
                 """
                 <q-td :props="props">
                     <q-btn flat dense color="green" icon="visibility" label="View"
                            @click="$parent.$emit('view', props.row)" />
+                    <q-btn v-if="props.row.status === 'interrupted' || props.row.status === 'failed'"
+                           flat dense color="orange" icon="replay" label="Resume"
+                           @click="$parent.$emit('resume', props.row)" />
                 </q-td>
                 """,
             )
+
             def _on_view(e) -> None:
                 # CR-02: validate client-controlled ID before navigation
                 try:
@@ -73,9 +85,82 @@ class _HistoryPage:
                     return
                 ui.navigate.to(f"/analysis/{aid}")
 
+            def _on_resume(e) -> None:
+                try:
+                    aid = int(e.args["id"])
+                except (KeyError, TypeError, ValueError):
+                    ui.notify("Invalid analysis ID", type="warning")
+                    return
+                self._resume_analysis(aid)
+
             self._table.on("view", _on_view)
+            self._table.on("resume", _on_resume)
 
             self._refresh()
+
+    def _resume_analysis(self, analysis_id: int) -> None:
+        """Resume an interrupted/failed analysis using its saved checkpoint.
+
+        Reads ticker, date, config, and selected_analysts from the DB row,
+        creates a new DB entry (so each attempt is tracked), and starts the
+        pipeline.  LangGraph finds the checkpoint via the deterministic
+        thread_id = SHA256(ticker:date) and resumes from the last saved node.
+        """
+        if self._runner is None:
+            ui.notify("Runner not available", type="negative")
+            return
+
+        if self._runner.is_running:
+            ui.notify("Another analysis is already running", type="warning")
+            return
+
+        row = self._db.get_analysis(analysis_id)
+        if row is None:
+            ui.notify("Analysis not found", type="negative")
+            return
+
+        if row.status not in ("interrupted", "failed"):
+            ui.notify(f"Cannot resume — status is '{row.status}'", type="warning")
+            return
+
+        # Reconstruct config from the saved JSON
+        try:
+            config: dict = json.loads(row.config_json) if row.config_json else {}
+        except json.JSONDecodeError:
+            config = {}
+
+        selected_analysts = [
+            a.strip() for a in (row.selected_analysts or "").split(",") if a.strip()
+        ] or ["market", "social", "news", "fundamentals"]
+
+        # Create a new DB row for this resume attempt
+        new_id = self._db.insert_analysis(
+            ticker=row.ticker,
+            date=row.date,
+            provider=row.provider,
+            model=row.model,
+            config=config,
+            selected_analysts=selected_analysts,
+        )
+
+        try:
+            self._runner.start(
+                config=config,
+                ticker=row.ticker,
+                date=row.date,
+                selected_analysts=selected_analysts,
+                analysis_id=new_id,
+            )
+        except RuntimeError as e:
+            ui.notify(str(e), type="negative")
+            return
+
+        ui.notify(
+            f"Resuming {row.ticker} from checkpoint — continuing where it left off",
+            type="positive",
+            timeout=8000,
+        )
+        ui.navigate.to("/")
 
     def _refresh(self, search: str | None = None) -> None:
         if search is not None:
