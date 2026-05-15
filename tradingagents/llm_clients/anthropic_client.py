@@ -10,6 +10,19 @@ _PASSTHROUGH_KWARGS = (
     "callbacks", "http_client", "http_async_client", "effort",
 )
 
+_EFFORT_CAPABLE_MODELS = {
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-6",
+    "claude-mythos-preview",
+}
+
+
+def _supports_effort(model: str) -> bool:
+    """Whether Anthropic accepts the effort parameter for this model."""
+    return model.lower() in _EFFORT_CAPABLE_MODELS
+
 
 class NormalizedChatAnthropic(ChatAnthropic):
     """ChatAnthropic with normalized content output.
@@ -39,6 +52,8 @@ class AnthropicClient(BaseLLMClient):
 
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
+                if key == "effort" and not _supports_effort(self.model):
+                    continue
                 llm_kwargs[key] = self.kwargs[key]
 
         return NormalizedChatAnthropic(**llm_kwargs)
