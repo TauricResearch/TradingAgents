@@ -83,6 +83,7 @@ Volume-Based Indicators:
             return {
                 "market_messages": removal_operations + [HumanMessage(content="Complete")],
                 "market_report": result.content,
+                "analyst_count": 1,
             }
         else:
             # Continue tool loop

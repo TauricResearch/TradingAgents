@@ -64,6 +64,7 @@ def create_fundamentals_analyst(llm):
             return {
                 "fundamentals_messages": removal_operations + [HumanMessage(content="Complete")],
                 "fundamentals_report": result.content,
+                "analyst_count": 1,
             }
         else:
             # Continue tool loop

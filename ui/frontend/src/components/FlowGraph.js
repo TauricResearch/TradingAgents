@@ -86,7 +86,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     const isLive = !!activeStatus;
     const isCompleted = activeStatus?.status === 'completed';
     const activeNode = (activeStatus?.active_node || '').toLowerCase();
-    const completedNodes = activeStatus?.completed_nodes || [];
+    const completedNodes = (activeStatus?.completed_nodes || []).map(n => n.toLowerCase());
     
     // Merge live updates into currentData if live, otherwise use runData
     const currentData = isLive ? (activeStatus.updates || {}) : (runData || {});
@@ -103,40 +103,50 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
       pm: "Makes the final capital allocation decision and issues the official rating."
     };
 
-    // Robust 'reached' logic to prevent flickering and hallucinations
-    // A node is past if any node later in the topological order is active OR completed.
+    // Topological order for strict 'isPast' logic
     const order = [
         'market', 'sentiment', 'news', 'fundamentals', 
-        'sync', 'bull', 'bear', 'manager', 'trader', 'pm', 'end'
+        'synchronizer', 'bull', 'bear', 'manager', 'trader', 'pm', 'end'
     ];
 
     const getIsPast = (targetNode) => {
         if (isCompleted) return true;
-        
-        // Find index of target in topological order
         const targetIdx = order.indexOf(targetNode);
         if (targetIdx === -1) return false;
 
-        // Check if any node AFTER this target is active or in completedNodes
+        // A node is past if any node strictly AFTER it in the order is current OR in completedNodes
         return order.slice(targetIdx + 1).some(name => 
             activeNode.includes(name) || 
-            completedNodes.some(cn => cn.toLowerCase().includes(name))
+            completedNodes.some(cn => cn.includes(name))
         );
     };
 
-    const isCurrent = (targetNode) => {
+    const isCurrentlyActive = (targetNode) => {
         if (isCompleted) return false;
         return activeNode.includes(targetNode);
     };
 
-    // Status helpers
-    const getStatus = (id, label, doneLabel = 'Complete') => {
-        if (isCurrent(id)) return 'Analyzing...';
-        if (getIsPast(id) || completedNodes.some(cn => cn.toLowerCase().includes(id))) return doneLabel;
-        return 'Pending';
+    // Helper for Analysts (Parallel Group)
+    const areAnalystsDone = isCompleted || getIsPast('fundamentals') || completedNodes.includes('synchronizer');
+
+    // Robust 'Done' checks
+    const isDone = (id) => {
+        if (isCompleted) return true;
+        
+        // Analysts use their specific completion event OR the synchronizer event
+        if (['market', 'sentiment', 'news', 'fundamentals'].includes(id)) {
+            return completedNodes.some(cn => cn.includes(id)) || areAnalystsDone;
+        }
+        
+        // Other nodes use topological 'isPast' or their specific completion event
+        return getIsPast(id) || completedNodes.some(cn => cn.includes(id));
     };
 
-    const isDone = (id) => isCompleted || getIsPast(id) || completedNodes.some(cn => cn.toLowerCase().includes(id));
+    const getStatus = (id, doneLabel = 'Complete') => {
+        if (isCurrentlyActive(id)) return 'Analyzing...';
+        if (isDone(id)) return doneLabel;
+        return 'Pending';
+    };
 
     const rawNodes = [
       { id: 'start', type: 'input', data: { label: 'Start' }, position: { x: 450, y: 0 } },
@@ -146,9 +156,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Market Analyst', 
             description: descriptions.market,
-            status: getStatus('market', 'Market Analyst'),
+            status: getStatus('market'),
             isComplete: isDone('market'),
-            isActive: isCurrent('market')
+            isActive: isCurrentlyActive('market')
         }, 
         position: { x: 0, y: 150 } 
       },
@@ -158,9 +168,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Sentiment Analyst', 
             description: descriptions.sentiment,
-            status: getStatus('sentiment', 'Sentiment Analyst') || getStatus('social', 'Sentiment Analyst'),
+            status: isCurrentlyActive('sentiment') || isCurrentlyActive('social') ? 'Analyzing...' : (isDone('sentiment') || isDone('social') ? 'Complete' : 'Pending'),
             isComplete: isDone('sentiment') || isDone('social'),
-            isActive: isCurrent('sentiment') || isCurrent('social')
+            isActive: isCurrentlyActive('sentiment') || isCurrentlyActive('social')
         }, 
         position: { x: 300, y: 150 } 
       },
@@ -170,9 +180,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'News Analyst', 
             description: descriptions.news,
-            status: getStatus('news', 'News Analyst'),
+            status: getStatus('news'),
             isComplete: isDone('news'),
-            isActive: isCurrent('news')
+            isActive: isCurrentlyActive('news')
         }, 
         position: { x: 600, y: 150 } 
       },
@@ -182,9 +192,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Fundamentals Analyst', 
             description: descriptions.fundamentals,
-            status: getStatus('fundamental', 'Fundamentals Analyst'),
+            status: getStatus('fundamental'),
             isComplete: isDone('fundamental'),
-            isActive: isCurrent('fundamental')
+            isActive: isCurrentlyActive('fundamental')
         }, 
         position: { x: 900, y: 150 } 
       },
@@ -193,9 +203,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { label: 'Analyst Synchronizer' },
         position: { x: 450, y: 300 },
         style: {
-          background: isCurrent('synchronizer') ? '#eab308' : (isDone('sync') ? '#10b981' : '#1e293b'),
+          background: isCurrentlyActive('synchronizer') ? '#eab308' : (isDone('synchronizer') ? '#10b981' : '#1e293b'),
           color: 'white',
-          border: `2px solid ${isDone('sync') ? '#34d399' : '#475569'}`,
+          border: `2px solid ${isDone('synchronizer') ? '#34d399' : '#475569'}`,
           borderRadius: '8px',
           padding: '10px',
           width: '180px',
@@ -208,9 +218,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bull Researcher', 
             description: descriptions.bull,
-            status: getStatus('bull', 'Bull Researcher'),
+            status: getStatus('bull'),
             isComplete: isDone('bull'),
-            isActive: isCurrent('bull')
+            isActive: isCurrentlyActive('bull')
         }, 
         position: { x: 300, y: 450 } 
       },
@@ -220,9 +230,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Bear Researcher', 
             description: descriptions.bear,
-            status: getStatus('bear', 'Bear Researcher'),
+            status: getStatus('bear'),
             isComplete: isDone('bear'),
-            isActive: isCurrent('bear')
+            isActive: isCurrentlyActive('bear')
         }, 
         position: { x: 600, y: 450 } 
       },
@@ -232,9 +242,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Research Manager', 
             description: descriptions.manager,
-            status: isCurrent('manager') ? 'Synthesizing...' : (isDone('manager') ? 'Synthesized' : 'Waiting'),
+            status: isCurrentlyActive('manager') ? 'Synthesizing...' : (isDone('manager') ? 'Synthesized' : 'Waiting'),
             isComplete: isDone('manager'),
-            isActive: isCurrent('manager')
+            isActive: isCurrentlyActive('manager')
         }, 
         position: { x: 450, y: 600 } 
       },
@@ -244,9 +254,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Trader', 
             description: descriptions.trader,
-            status: isCurrent('trader') ? 'Calculating...' : (isDone('trader') ? 'Proposed' : 'Waiting'),
+            status: isCurrentlyActive('trader') ? 'Calculating...' : (isDone('trader') ? 'Proposed' : 'Waiting'),
             isComplete: isDone('trader'),
-            isActive: isCurrent('trader')
+            isActive: isCurrentlyActive('trader')
         }, 
         position: { x: 450, y: 750 } 
       },
@@ -256,9 +266,9 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         data: { 
             label: 'Portfolio Manager', 
             description: descriptions.pm,
-            status: (isCurrent('risk') || isCurrent('portfolio')) ? 'Reviewing...' : (isDone('pm') ? 'Final Decision' : 'Waiting'),
+            status: (isCurrentlyActive('risk') || isCurrentlyActive('portfolio')) ? 'Reviewing...' : (isDone('pm') ? 'Final Decision' : 'Waiting'),
             isComplete: isDone('pm'),
-            isActive: isCurrent('risk') || isCurrent('portfolio')
+            isActive: isCurrentlyActive('risk') || isCurrentlyActive('portfolio')
         }, 
         position: { x: 450, y: 900 } 
       },
@@ -286,19 +296,19 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
       { id: 'start-news', source: 'start', target: 'news', animated: isLive && !isDone('news') },
       { id: 'start-fundamentals', source: 'start', target: 'fundamentals', animated: isLive && !isDone('fundamentals') },
       
-      { id: 'market-sync', source: 'market', target: 'sync', animated: isLive && isCurrent('market') },
-      { id: 'sentiment-sync', source: 'sentiment', target: 'sync', animated: isLive && (isCurrent('social') || isCurrent('sentiment')) },
-      { id: 'news-sync', source: 'news', target: 'sync', animated: isLive && isCurrent('news') },
-      { id: 'fundamentals-sync', source: 'fundamentals', target: 'sync', animated: isLive && isCurrent('fundamental') },
+      { id: 'market-sync', source: 'market', target: 'sync', animated: isLive && isCurrentlyActive('market') },
+      { id: 'sentiment-sync', source: 'sentiment', target: 'sync', animated: isLive && (isCurrentlyActive('social') || isCurrentlyActive('sentiment')) },
+      { id: 'news-sync', source: 'news', target: 'sync', animated: isLive && isCurrentlyActive('news') },
+      { id: 'fundamentals-sync', source: 'fundamentals', target: 'sync', animated: isLive && isCurrentlyActive('fundamental') },
 
-      { id: 'sync-bull', source: 'sync', target: 'bull', animated: isLive && isCurrent('synchronizer') },
-      { id: 'sync-bear', source: 'sync', target: 'bear', animated: isLive && isCurrent('synchronizer') },
+      { id: 'sync-bull', source: 'sync', target: 'bull', animated: isLive && isCurrentlyActive('synchronizer') },
+      { id: 'sync-bear', source: 'sync', target: 'bear', animated: isLive && isCurrentlyActive('synchronizer') },
       
-      { id: 'bull-manager', source: 'bull', target: 'manager', animated: isLive && isCurrent('bull') },
-      { id: 'bear-manager', source: 'bear', target: 'manager', animated: isLive && isCurrent('bear') },
+      { id: 'bull-manager', source: 'bull', target: 'manager', animated: isLive && isCurrentlyActive('bull') },
+      { id: 'bear-manager', source: 'bear', target: 'manager', animated: isLive && isCurrentlyActive('bear') },
       
-      { id: 'manager-trader', source: 'manager', target: 'trader', animated: isLive && isCurrent('manager') },
-      { id: 'trader-pm', source: 'trader', target: 'pm', animated: isLive && isCurrent('trader') },
+      { id: 'manager-trader', source: 'manager', target: 'trader', animated: isLive && isCurrentlyActive('manager') },
+      { id: 'trader-pm', source: 'trader', target: 'pm', animated: isLive && isCurrentlyActive('trader') },
       { id: 'pm-end', source: 'pm', target: 'end' },
     ];
 

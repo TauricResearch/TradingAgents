@@ -143,36 +143,25 @@ class GraphSetup:
         workflow.add_node("Analyst Synchronizer", sync_analysts)
 
         # Define edges
-        # Start all selected analysts with staggered delays to smooth out API load
-        for i, analyst_type in enumerate(selected_analysts):
-            def create_starter(delay):
-                def starter_node(state):
-                    import time
-                    if delay > 0:
-                        time.sleep(delay)
-                    return {}
-                return starter_node
-                
-            starter_node_name = f"{analyst_type.capitalize()} Starter"
-            workflow.add_node(starter_node_name, create_starter(i * 4)) # 4s stagger
-            
-            workflow.add_edge(START, starter_node_name)
-            workflow.add_edge(starter_node_name, f"{analyst_type.capitalize()} Analyst")
+        # Start all selected analysts directly in parallel
+        for analyst_type in selected_analysts:
+            workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
 
         # Connect each analyst to their tools and then to the synchronizer
         for analyst_type in selected_analysts:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
 
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
                 current_analyst,
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                [current_tools, current_clear],
+                {
+                    f"tools_{analyst_type}": f"tools_{analyst_type}",
+                    f"Msg Clear {analyst_type.capitalize()}": "Analyst Synchronizer" # Analysts now self-clean, but we route to Synchronizer
+                },
             )
             workflow.add_edge(current_tools, current_analyst)
-            workflow.add_edge(current_clear, "Analyst Synchronizer")
 
         def should_proceed_from_sync(state: AgentState):
             if state["analyst_count"] >= len(selected_analysts):

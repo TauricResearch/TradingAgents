@@ -95,6 +95,7 @@ def create_sentiment_analyst(llm):
         return {
             "sentiment_messages": removal_operations + [HumanMessage(content="Complete")],
             "sentiment_report": result.content,
+            "analyst_count": 1,
         }
 
     return sentiment_analyst_node

@@ -57,6 +57,7 @@ def create_news_analyst(llm):
             return {
                 "news_messages": removal_operations + [HumanMessage(content="Complete")],
                 "news_report": result.content,
+                "analyst_count": 1,
             }
         else:
             # Continue tool loop
