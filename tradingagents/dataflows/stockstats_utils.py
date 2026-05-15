@@ -3,7 +3,14 @@ import logging
 
 import pandas as pd
 import yfinance as yf
-from yfinance.exceptions import YFRateLimitError
+import requests
+try:
+    from yfinance.exceptions import YFRateLimitError
+except ImportError:
+    # Fallback for older/newer yfinance versions where this might not be present
+    class YFRateLimitError(Exception):
+        pass
+
 from stockstats import wrap
 from typing import Annotated
 import os
@@ -13,18 +20,27 @@ from .utils import safe_ticker_component
 logger = logging.getLogger(__name__)
 
 
-def yf_retry(func, max_retries=3, base_delay=2.0):
+def yf_retry(func, max_retries=3, base_delay=5.0):
     """Execute a yfinance call with exponential backoff on rate limits.
 
-    yfinance raises YFRateLimitError on HTTP 429 responses but does not
-    retry them internally. This wrapper adds retry logic specifically
-    for rate limits. Other exceptions propagate immediately.
+    yfinance may raise YFRateLimitError or requests.exceptions.HTTPError 
+    with a 429 status code. This wrapper catches both and retries.
+    Other exceptions propagate immediately.
     """
     for attempt in range(max_retries + 1):
         try:
             return func()
-        except YFRateLimitError:
-            if attempt < max_retries:
+        except (YFRateLimitError, requests.exceptions.HTTPError) as e:
+            # Check if it's a 429 Rate Limit error if it's an HTTPError
+            is_rate_limit = False
+            if isinstance(e, YFRateLimitError):
+                is_rate_limit = True
+            elif isinstance(e, requests.exceptions.HTTPError):
+                if hasattr(e, 'response') and e.response is not None:
+                    if e.response.status_code == 429:
+                        is_rate_limit = True
+            
+            if is_rate_limit and attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
                 logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(delay)

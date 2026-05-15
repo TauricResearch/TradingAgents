@@ -365,29 +365,41 @@ class TradingAgentsGraph:
         trace = []
         node_start_times = {}
         
-        for chunk in self.graph.stream(init_agent_state, **args):
-            node_name = list(chunk.keys())[0] if chunk else "unknown"
-            node_updates = chunk.get(node_name, {})
-            now = datetime.utcnow()
-            
-            # Log completion of previous node if any
-            for prev_node, p_start in node_start_times.items():
-                duration = (now - p_start).total_seconds()
-                logger.info("Node [%s] completed in %.2fs", prev_node, duration)
-            
-            node_start_times = {node_name: now}
-            trace.append(chunk)
-            
-            # Send webhook with accumulated updates for this node
+        try:
+            for chunk in self.graph.stream(init_agent_state, **args):
+                node_name = list(chunk.keys())[0] if chunk else "unknown"
+                node_updates = chunk.get(node_name, {})
+                now = datetime.utcnow()
+                
+                # Log completion of previous node if any
+                for prev_node, p_start in node_start_times.items():
+                    duration = (now - p_start).total_seconds()
+                    logger.info("Node [%s] completed in %.2fs", prev_node, duration)
+                
+                node_start_times = {node_name: now}
+                trace.append(chunk)
+                
+                # Send webhook with accumulated updates for this node
+                self._send_webhook({
+                    "ticker": company_name,
+                    "date": trade_date,
+                    "node": node_name,
+                    "status": "in_progress",
+                    "timestamp": now.isoformat() + "Z",
+                    "start_time": start_time_iso,
+                    "updates": node_updates
+                })
+        except Exception as e:
+            logger.error("Error during graph execution for %s: %s", company_name, e)
             self._send_webhook({
                 "ticker": company_name,
                 "date": trade_date,
-                "node": node_name,
-                "status": "in_progress",
-                "timestamp": now.isoformat() + "Z",
-                "start_time": start_time_iso,
-                "updates": node_updates
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "start_time": start_time_iso
             })
+            raise e
 
         # Retrieve the final accumulated state from the graph's own state manager
         # This ensures reducers (like add_messages) are correctly applied.
