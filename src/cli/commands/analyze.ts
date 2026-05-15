@@ -126,6 +126,9 @@ async function runAnalysis(
   // Clear the heartbeat progress line
   if (chunks.length > 0) process.stdout.write("\n")
 
+  // Clear the heartbeat progress line
+  if (chunks.length > 0) process.stdout.write("\n")
+
   return chunks.join("")
 }
 
