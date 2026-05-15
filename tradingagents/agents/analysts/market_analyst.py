@@ -1,5 +1,6 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_indicators,
@@ -10,8 +11,7 @@ from tradingagents.dataflows.config import get_config
 
 
 def create_market_analyst(llm):
-
-    async def market_analyst_node(state):
+    def _build_chain(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -71,13 +71,10 @@ Volume-Based Indicators:
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
+        return prompt | llm.bind_tools(tools)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = await chain.ainvoke(state["market_messages"])
-
+    def _format_result(state, result):
         if len(result.tool_calls) == 0:
-            # Report is ready, clean up private message history for this branch
             messages = state["market_messages"]
             removal_operations = [RemoveMessage(id=m.id) for m in messages]
             return {
@@ -85,8 +82,16 @@ Volume-Based Indicators:
                 "market_report": result.content,
                 "analyst_count": 1,
             }
-        else:
-            # Continue tool loop
-            return {"market_messages": [result]}
+        return {"market_messages": [result]}
 
-    return market_analyst_node
+    def market_analyst_node(state):
+        chain = _build_chain(state)
+        result = chain.invoke(state["market_messages"])
+        return _format_result(state, result)
+
+    async def market_analyst_node_async(state):
+        chain = _build_chain(state)
+        result = await chain.ainvoke(state["market_messages"])
+        return _format_result(state, result)
+
+    return RunnableLambda(market_analyst_node, afunc=market_analyst_node_async)

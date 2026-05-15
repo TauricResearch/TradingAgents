@@ -70,6 +70,20 @@ class _FakeLLM:
         return self
 
 
+class _FakeRunnableLambda:
+    def __init__(self, func, afunc=None):
+        self.func = func
+        self.afunc = afunc
+
+    def invoke(self, state):
+        return self.func(state)
+
+    async def ainvoke(self, state):
+        if self.afunc is not None:
+            return await self.afunc(state)
+        return self.func(state)
+
+
 def _load_market_module(chain):
     fake_messages = types.ModuleType("langchain_core.messages")
     fake_messages.HumanMessage = _HumanMessage
@@ -81,6 +95,10 @@ def _load_market_module(chain):
     fake_prompts.ChatPromptTemplate = _FakeChatPromptTemplate
     fake_prompts.MessagesPlaceholder = _MessagesPlaceholder
     sys.modules["langchain_core.prompts"] = fake_prompts
+
+    fake_runnables = types.ModuleType("langchain_core.runnables")
+    fake_runnables.RunnableLambda = _FakeRunnableLambda
+    sys.modules["langchain_core.runnables"] = fake_runnables
 
     fake_agent_utils = types.ModuleType("tradingagents.agents.utils.agent_utils")
     fake_agent_utils.build_instrument_context = lambda ticker: f"context for {ticker}"
@@ -118,7 +136,7 @@ def test_market_analyst_uses_ainvoke():
         "market_messages": [_HumanMessage("SHOP")],
     }
 
-    result = asyncio.run(analyst(state))
+    result = asyncio.run(analyst.ainvoke(state))
 
     assert chain.ainvoke_calls == 1
     assert chain.invoke_calls == 0

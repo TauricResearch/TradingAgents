@@ -1,5 +1,6 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
@@ -13,7 +14,7 @@ from tradingagents.dataflows.config import get_config
 
 
 def create_fundamentals_analyst(llm):
-    async def fundamentals_analyst_node(state):
+    def _build_chain(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -52,13 +53,10 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
+        return prompt | llm.bind_tools(tools)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = await chain.ainvoke(state["fundamentals_messages"])
-
+    def _format_result(state, result):
         if len(result.tool_calls) == 0:
-            # Report is ready, clean up private message history for this branch
             messages = state["fundamentals_messages"]
             removal_operations = [RemoveMessage(id=m.id) for m in messages]
             return {
@@ -66,8 +64,16 @@ def create_fundamentals_analyst(llm):
                 "fundamentals_report": result.content,
                 "analyst_count": 1,
             }
-        else:
-            # Continue tool loop
-            return {"fundamentals_messages": [result]}
+        return {"fundamentals_messages": [result]}
 
-    return fundamentals_analyst_node
+    def fundamentals_analyst_node(state):
+        chain = _build_chain(state)
+        result = chain.invoke(state["fundamentals_messages"])
+        return _format_result(state, result)
+
+    async def fundamentals_analyst_node_async(state):
+        chain = _build_chain(state)
+        result = await chain.ainvoke(state["fundamentals_messages"])
+        return _format_result(state, result)
+
+    return RunnableLambda(fundamentals_analyst_node, afunc=fundamentals_analyst_node_async)

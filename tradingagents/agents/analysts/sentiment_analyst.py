@@ -25,6 +25,7 @@ import functools
 import asyncio
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_language_instruction,
@@ -72,7 +73,7 @@ def create_sentiment_analyst(llm):
     single LLM call.
     """
 
-    async def sentiment_analyst_node(state):
+    async def _collect_sentiment_inputs(state):
         ticker = state["company_of_interest"]
         end_date = state["trade_date"]
         start_date = _seven_days_back(end_date)
@@ -116,18 +117,26 @@ def create_sentiment_analyst(llm):
                 *(run_job(name, job) for name, job in fetch_jobs.items())
             )
         )
+        return {
+            "ticker": ticker,
+            "end_date": end_date,
+            "instrument_context": instrument_context,
+            "news_block": results.get("news", "<news unavailable>"),
+            "stocktwits_block": results.get("stocktwits", "<stocktwits unavailable>"),
+            "reddit_block": results.get("reddit", "<reddit unavailable>"),
+        }
 
-        news_block = results.get("news", "<news unavailable>")
-        stocktwits_block = results.get("stocktwits", "<stocktwits unavailable>")
-        reddit_block = results.get("reddit", "<reddit unavailable>")
+    def _collect_sentiment_inputs_sync(state):
+        return asyncio.run(_collect_sentiment_inputs(state))
 
+    def _build_chain(state, inputs):
         system_message = _build_system_message(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date,
-            news_block=news_block,
-            stocktwits_block=stocktwits_block,
-            reddit_block=reddit_block,
+            ticker=inputs["ticker"],
+            start_date=_seven_days_back(inputs["end_date"]),
+            end_date=inputs["end_date"],
+            news_block=inputs["news_block"],
+            stocktwits_block=inputs["stocktwits_block"],
+            reddit_block=inputs["reddit_block"],
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -145,15 +154,11 @@ def create_sentiment_analyst(llm):
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(current_date=end_date)
-        prompt = prompt.partial(instrument_context=instrument_context)
+        prompt = prompt.partial(current_date=inputs["end_date"])
+        prompt = prompt.partial(instrument_context=inputs["instrument_context"])
+        return prompt | llm
 
-        # No bind_tools — the data is already in the prompt; a single LLM
-        # call produces the report directly.
-        chain = prompt | llm
-        result = await chain.ainvoke(state["sentiment_messages"])
-
-        # Report is ready, clean up private message history for this branch
+    def _format_result(state, result):
         messages = state["sentiment_messages"]
         removal_operations = [RemoveMessage(id=m.id) for m in messages]
         return {
@@ -162,7 +167,19 @@ def create_sentiment_analyst(llm):
             "analyst_count": 1,
         }
 
-    return sentiment_analyst_node
+    def sentiment_analyst_node(state):
+        inputs = _collect_sentiment_inputs_sync(state)
+        chain = _build_chain(state, inputs)
+        result = chain.invoke(state["sentiment_messages"])
+        return _format_result(state, result)
+
+    async def sentiment_analyst_node_async(state):
+        inputs = await _collect_sentiment_inputs(state)
+        chain = _build_chain(state, inputs)
+        result = await chain.ainvoke(state["sentiment_messages"])
+        return _format_result(state, result)
+
+    return RunnableLambda(sentiment_analyst_node, afunc=sentiment_analyst_node_async)
 
 
 def _build_system_message(
