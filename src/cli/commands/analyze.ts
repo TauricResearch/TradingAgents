@@ -13,7 +13,8 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { defineCommand } from "citty"
 import { venvPython } from "../../server/lib/subprocess.ts"
-import { dryRunArg, yesArg } from "../lib/args.ts"
+import { dryRunArg, quietArg, verboseArg, yesArg } from "../lib/args.ts"
+import { cliLogger, setLogLevel } from "../lib/cli-logger.ts"
 
 // Default timeout matching SSE idleTimeout in server routes
 const DEFAULT_TIMEOUT_S = 300
@@ -117,8 +118,13 @@ async function runAnalysis(
 
   const exitCode = await proc.exited
   if (exitCode !== 0) {
+    cliLogger.error("Analysis failed with non-zero exit code", { exitCode, ticker })
     throw new Error(`Analysis failed with exit code ${exitCode}`)
   }
+  cliLogger.info("Analysis completed successfully", { ticker })
+
+  // Clear the heartbeat progress line
+  if (chunks.length > 0) process.stdout.write("\n")
 
   // Clear the heartbeat progress line
   if (chunks.length > 0) process.stdout.write("\n")
@@ -137,7 +143,8 @@ async function runExecute(
   if (yes) args.push("--yes")
   if (dryRun) args.push("--dry-run")
 
-  console.log("")
+  cliLogger.debug("Running execute command", { ticker, analysisId, dryRun })
+  process.stdout.write("\n")
   const proc = Bun.spawn(["bun", exe, ...args], {
     stdout: "inherit",
     stderr: "inherit",
@@ -170,47 +177,67 @@ export const analyzeCommand = defineCommand({
     },
     yes: yesArg,
     "dry-run": dryRunArg,
+    quiet: quietArg,
+    verbose: verboseArg,
   },
   run: async ({ args }) => {
+    // Apply log level from --quiet/--verbose flags
+    const logLevel = (args.quiet as boolean)
+      ? "quiet"
+      : (args.verbose as boolean)
+        ? "verbose"
+        : undefined
+    setLogLevel(logLevel)
+
     const ticker = args.ticker
     const executeAfter = args.execute as boolean
     const yes = args.yes as boolean
     const dryRun = (args["dry-run"] as boolean) ?? false
+
+    cliLogger.debug("Starting analysis", { ticker, logLevel })
 
     // Generate a stable analysis ID for this run
     const analysisId = `${ticker.toUpperCase()}-${Date.now()}`
 
     // Run analysis
     const stdout = await runAnalysis(ticker, args.debrief as boolean)
-    console.log(`\n✓ Analysis complete for ${ticker}`)
+    cliLogger.info("Analysis complete", { ticker })
+    process.stdout.write(`\n✓ Analysis complete for ${ticker}\n`)
 
     // Parse decision
     const decision = parseDecisionEvents(stdout)
     if (decision) {
-      console.log(
-        `\n📊 Decision: ${decision.signal.toUpperCase()} (confidence: ${(decision.confidence * 100).toFixed(0)}%)`,
+      cliLogger.info("Decision parsed", {
+        signal: decision.signal,
+        confidence: decision.confidence,
+      })
+      process.stdout.write(
+        `\n📊 Decision: ${decision.signal.toUpperCase()} (confidence: ${(decision.confidence * 100).toFixed(0)}%)\n`,
       )
       if (decision.reasoning) {
         const preview = decision.reasoning.slice(0, 200).replace(/\n/g, " ").trim()
-        console.log(`   ${preview}...`)
+        process.stdout.write(`   ${preview}...\n`)
       }
     } else {
-      console.warn(`\n⚠️  Could not parse decision from analysis output`)
+      cliLogger.warn("Could not parse decision from analysis output", { ticker })
+      process.stdout.write(`\n⚠️  Could not parse decision from analysis output\n`)
     }
 
     // Execute if requested
     if (executeAfter) {
       if (!decision) {
-        console.error(
-          `❌ Cannot execute: no decision parsed from analysis. Run 'trading execute ${ticker}' manually.`,
+        cliLogger.error("Cannot execute: no decision parsed", { ticker })
+        process.stdout.write(
+          `\n❌ Cannot execute: no decision parsed from analysis. Run 'trading execute ${ticker}' manually.\n`,
         )
         process.exit(1)
       }
 
       const signal = decision.signal.toLowerCase()
       if (signal !== "buy" && signal !== "sell") {
-        console.log(`\n→ Decision was '${signal}', skipping execution.`)
-        console.log(`   Run 'trading execute ${ticker}' manually to force execution.`)
+        cliLogger.info("Decision not actionable for execution", { signal, ticker })
+        process.stdout.write(`\n→ Decision was '${signal}', skipping execution.\n`)
+        process.stdout.write(`   Run 'trading execute ${ticker}' manually to force execution.\n`)
         process.exit(0)
       }
 

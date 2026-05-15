@@ -1,7 +1,17 @@
 import { DatabaseFactory } from "@lib/db"
 import { defineCommand } from "citty"
 import { calculateTradePlan, type PriceBar } from "../../lib/trade-calculator.ts"
-import { accountArg, entryArg, modeArg, platformArg, riskArg, tickerArg } from "../lib/args.ts"
+import {
+  accountArg,
+  entryArg,
+  modeArg,
+  platformArg,
+  quietArg,
+  riskArg,
+  tickerArg,
+  verboseArg,
+} from "../lib/args.ts"
+import { cliLogger, setLogLevel } from "../lib/cli-logger.ts"
 import { getIGInstrument, validateIGPlan } from "../lib/ig-instruments.ts"
 import { getPlatform, type TradeMode, validateMode } from "../lib/platforms.ts"
 
@@ -29,7 +39,9 @@ function fetchPriceHistory(ticker: string): PriceBar[] {
   }>
 
   if (rows.length === 0) {
-    throw new Error(`No price history for ${ticker}. Run: trading sync --ticker ${ticker}`)
+    const msg = `No price history for ${ticker}. Run: trading sync --ticker ${ticker}`
+    cliLogger.error(msg)
+    throw new Error(msg)
   }
 
   return rows.map((r) => ({
@@ -168,8 +180,18 @@ export const planCommand = defineCommand({
     account: accountArg,
     risk: riskArg,
     entry: entryArg,
+    quiet: quietArg,
+    verbose: verboseArg,
   },
   run({ args }) {
+    // Apply log level from --quiet/--verbose flags
+    const logLevel = (args.quiet as boolean)
+      ? "quiet"
+      : (args.verbose as boolean)
+        ? "verbose"
+        : undefined
+    setLogLevel(logLevel)
+
     // 1. Extract
     const ticker = args.ticker
     const platformName = args.platform
@@ -181,6 +203,10 @@ export const planCommand = defineCommand({
     // 2. Validate platform
     const platform = getPlatform(platformName)
     if (!platform) {
+      cliLogger.error("Unknown platform", {
+        platform: platformName,
+        available: "ajbell, aviva, ig, nsandi",
+      })
       console.error(
         `❌ Error: Unknown platform "${platformName}". Available: ajbell, aviva, ig, nsandi`,
       )
@@ -190,6 +216,11 @@ export const planCommand = defineCommand({
     // 3. Validate mode
     const validation = validateMode(platformName, mode)
     if (!validation.ok) {
+      cliLogger.error("Invalid mode for platform", {
+        platform: platformName,
+        mode,
+        error: validation.error,
+      })
       console.error(`❌ Error: ${validation.error}`)
       process.exit(1)
     }
@@ -199,7 +230,9 @@ export const planCommand = defineCommand({
     try {
       history = fetchPriceHistory(ticker)
     } catch (e) {
-      console.error(`❌ Error: ${e instanceof Error ? e.message : String(e)}`)
+      const errMsg = e instanceof Error ? e.message : String(e)
+      cliLogger.errorWithCause("Failed to fetch price history", e, { ticker })
+      console.error(`❌ Error: ${errMsg}`)
       process.exit(1)
     }
 
@@ -223,15 +256,21 @@ export const planCommand = defineCommand({
     if (platformName === "ig") {
       const igValidation = validateIGPlan(plan, mode)
       for (const warning of igValidation.warnings) {
+        cliLogger.warn("IG plan validation warning", { warning })
         console.warn(warning)
       }
     }
 
     // 8. Generic warnings
     if (plan.concentrationFlag) {
+      cliLogger.warn("Position exceeds 5% of portfolio", {
+        ticker,
+        positionSize: plan.positionSize,
+      })
       console.warn(`⚠️  Warning: Position exceeds 5% of portfolio`)
     }
     if (plan.insufficientHistory) {
+      cliLogger.warn("Insufficient price history for reliable calculations", { ticker })
       console.warn(
         `⚠️  Warning: Less than 22 days of price history — calculations may be unreliable`,
       )

@@ -5,6 +5,39 @@
 
 /** @jsxImportSource hono/jsx */
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono/types";
+import { logger } from "@lib/logger";
+import { createRequestLogger } from "@lib/request-logger";
+
+// Extend Context to include request logger
+declare module "hono" {
+  interface ContextVariableMap {
+    requestLogger: ReturnType<typeof createRequestLogger>;
+  }
+}
+
+// Request logging middleware
+const requestLoggerMiddleware: MiddlewareHandler = async (c, next) => {
+  const requestId = c.req.header("X-Request-ID") ?? crypto.randomUUID();
+  const start = Date.now();
+  const reqLogger = createRequestLogger(requestId, {
+    method: c.req.method,
+    path: c.req.path,
+  });
+
+  c.set("requestLogger", reqLogger);
+
+  reqLogger.info({ userAgent: c.req.header("User-Agent") }, "Request started");
+
+  await next();
+
+  const duration = Date.now() - start;
+  reqLogger.info(
+    { status: c.res.status, duration },
+    "Request completed",
+  );
+};
+
 import type { Context } from "hono";
 import type { JSX } from "hono/jsx";
 import { serveStatic } from "hono/bun";
@@ -44,16 +77,19 @@ import { FeedbackView } from "./views/feedback.tsx";
 import { AboutView } from "./views/about.tsx";
 import { WorkflowView } from "./views/workflow.tsx";
 import { IntelligenceView } from "./views/intelligence.tsx";
-import { DatatypeTestView } from "./views/datatype-test.tsx";
+import { DatatypeTestView } from "./views/datatype-test.tsx"
 
 const app = new Hono();
+
+// Apply request logging middleware to API routes only
+app.use("/api/*", requestLoggerMiddleware)
 
 // ── Lifecycle ──────────────────────────────────────────────
 
 // TEST_MODE=1 → use test_portfolio.db instead of portfolio.db
 // TEST_PORTFOLIO_DB env var overrides the test DB path
 if (cfg.isTestMode) {
-  console.log("[TEST MODE] Using DB: " + cfg.portfolio.db)
+  logger.info({ db: cfg.portfolio.db }, "[TEST MODE] Using DB");
 }
 
 DatabaseFactory.connect(cfg.portfolio.db);
@@ -189,13 +225,13 @@ app.get("/api/portfolio/summary/html", handlePortfolioSummaryHtml);
 // ── Start ──────────────────────────────────────────────────
 
 const port = cfg.app.dashboardPort;
-console.log(`DB connected: ${DatabaseFactory.path}`);
-console.log(`Listening on :${port}`);
+logger.info({ dbPath: DatabaseFactory.path }, "DB connected");
+logger.info({ port }, "Server listening");
 
 // Graceful shutdown: close DB on SIGINT/SIGTERM
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {
-    console.log(`\n${sig} received, closing DB…`);
+    logger.info({ signal: sig }, "Received shutdown signal, closing DB");
     try { DatabaseFactory.close(); } catch { /* ignore */ }
     process.exit(0);
   });

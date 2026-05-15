@@ -2,10 +2,18 @@ import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { DatabaseFactory } from "@lib/db"
+import type { Context } from "hono"
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
 import { sanitizeForDb } from "../lib/sanitize.ts"
 import { projectRoot, venvPython } from "../lib/subprocess.ts"
+
+// Type helper to get request logger from context
+function getRequestLogger(c: Context) {
+  return (
+    c.get("requestLogger") ?? (console as unknown as { error: (msg: string, err: unknown) => void })
+  )
+}
 
 export const analysisRouter = new Hono()
 
@@ -43,7 +51,8 @@ analysisRouter.post("/", async (c) => {
       .run(ticker, dateStr, config, null, "unknown")
     analysisId = result.lastInsertRowid as number
   } catch (err) {
-    console.error("Failed to create analyses record:", err)
+    const reqLogger = getRequestLogger(c)
+    reqLogger.error({ err }, "Failed to create analyses record")
     // Proceed without analysis ID — stream still works, just no DB state
   }
 
@@ -132,7 +141,8 @@ analysisRouter.post("/", async (c) => {
           analysisId,
         )
       } catch (err) {
-        console.error("Failed to persist analysis state:", err)
+        const reqLogger = getRequestLogger(c)
+        reqLogger.error({ err }, "Failed to persist analysis state")
       }
     }
 
