@@ -147,10 +147,14 @@ class GraphSetup:
         for analyst_type in selected_analysts:
             workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
 
+        analyst_clear_nodes = []
+
         # Connect each analyst to their tools and then to the synchronizer
         for analyst_type in selected_analysts:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
+            current_clear = f"Msg Clear {analyst_type.capitalize()}"
+            analyst_clear_nodes.append(current_clear)
 
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
@@ -158,10 +162,13 @@ class GraphSetup:
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
                 {
                     f"tools_{analyst_type}": f"tools_{analyst_type}",
-                    f"Msg Clear {analyst_type.capitalize()}": "Analyst Synchronizer" # Analysts now self-clean, but we route to Synchronizer
+                    current_clear: current_clear,
                 },
             )
             workflow.add_edge(current_tools, current_analyst)
+
+        # Run the synchronizer once after every analyst branch has finalized.
+        workflow.add_edge(analyst_clear_nodes, "Analyst Synchronizer")
 
         def should_proceed_from_sync(state: AgentState):
             if state["analyst_count"] >= len(selected_analysts):

@@ -57,7 +57,6 @@ def create_msg_delete(messages_key="messages"):
 
         return {
             messages_key: removal_operations + [placeholder],
-            "analyst_count": 1,
         }
 
     return delete_messages
