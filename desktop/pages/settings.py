@@ -13,7 +13,7 @@ _DEFAULT_SETTINGS = {
     "default_provider": "claude_cli",
     "default_analysts": "market,social,news,fundamentals",
     "research_depth": "1",
-    "watchdog_timeout": "900",
+    "watchdog_timeout": "1200",
 }
 
 

@@ -75,7 +75,7 @@ class RunnerEvent:
 # ── Runner ──────────────────────────────────────────────────────────────
 
 
-_WATCHDOG_TIMEOUT_DEFAULT = 900  # 15 minutes — Claude CLI calls can take 5+ min each
+_WATCHDOG_TIMEOUT_DEFAULT = 1200  # 20 minutes — Claude CLI: 300s timeout × 3 retries + backoff ≈ 906s worst-case per node
 
 
 class PipelineRunner:
