@@ -26,7 +26,10 @@ logger = logging.getLogger(__name__)
 
 _ASSETS = Path(__file__).parent / "assets"
 db = HistoryDB()
-runner = PipelineRunner()
+
+# Read watchdog timeout from user settings (defaults to 900s if not set)
+_watchdog_timeout = int(db.get_setting("watchdog_timeout", "900") or "900")
+runner = PipelineRunner(watchdog_timeout=_watchdog_timeout)
 
 # Mark any analyses stuck in "running" from a previous crashed session.
 for _stale in db.list_analyses(status="running"):

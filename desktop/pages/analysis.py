@@ -396,7 +396,9 @@ class _AnalysisPage:
             with self._page_root:
                 self._build_progress_view()
                 self._start_polling()
-        ui.notify(f"Analysis started for {ticker}", type="positive")
+                # Must be inside `with` block — the slot context from
+                # _page_root.clear() is gone outside it.
+                ui.notify(f"Analysis started for {ticker}", type="positive")
 
     # ── Progress view (running state) ───────────────────────────────
 

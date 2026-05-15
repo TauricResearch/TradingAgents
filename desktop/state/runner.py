@@ -75,7 +75,7 @@ class RunnerEvent:
 # ── Runner ──────────────────────────────────────────────────────────────
 
 
-_WATCHDOG_TIMEOUT_DEFAULT = 300  # 5 minutes
+_WATCHDOG_TIMEOUT_DEFAULT = 900  # 15 minutes — Claude CLI calls can take 5+ min each
 
 
 class PipelineRunner:
