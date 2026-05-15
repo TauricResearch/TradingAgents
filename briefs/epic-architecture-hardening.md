@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-14
 **Epic ID:** ARCH-HARDEN-001
-**Status:** Open
+**Status:** Done
 **Stories:** ARCH-HARDEN-001-S01 through S08
 
 ---
@@ -138,14 +138,14 @@ These briefs are lower-priority and not included in this epic:
 
 | Story | Status |
 |---|---|
-| S01 — Flense and Harden | 🔲 |
-| S02 — Harden Python Bridge | 🔲 |
-| S03 — Bridge and SSE Tests | 🔲 |
-| S04 — Consolidate Server Lib | 🔲 |
-| S05 — Consolidate CLI | 🔲 |
-| S06 — Collapse Registry Tooling | 🔲 |
-| S07 — Justfile Overhaul | 🔲 |
-| S08 — Remove Agent Ceremony | 🔲 |
+| S01 — Flense and Harden | ✅ |
+| S02 — Harden Python Bridge | ✅ |
+| S03 — Bridge and SSE Tests | ✅ |
+| S04 — Consolidate Server Lib | ✅ |
+| S05 — Consolidate CLI | ✅ |
+| S06 — Collapse Registry Tooling | ✅ |
+| S07 — Justfile Overhaul | ✅ |
+| S08 — Remove Agent Ceremony | ✅ |
 
 ## Exit Criteria
 

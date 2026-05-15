@@ -11,7 +11,7 @@ export const RegistryEntrySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
   status: z.enum(["open", "done", "active", "closed", "wontfix"]),
   summary: z.string(),
-  meta: z.record(z.unknown()).optional().default({}),
+  meta: z.record(z.string(), z.unknown()).optional().default({}),
 })
 
 export type RegistryEntry = z.infer<typeof RegistryEntrySchema>
@@ -25,7 +25,7 @@ export const ConceptEntrySchema = z.object({
   heuristic: z.string(),
   usage: z.string(),
   coined_by: z.string().optional(),
-  status: z.enum(["active", "deprecated", "draft"]).default("active"),
+  status: z.enum(["active", "deprecated", "draft"]),
 })
 
 export type ConceptEntry = z.infer<typeof ConceptEntrySchema>

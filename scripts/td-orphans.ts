@@ -166,7 +166,7 @@ console.log(
 )
 console.log("")
 
-const allIssues = shJson<TdIssue[]>("td list --json --all 2>/dev/null")
+const allIssues = shJson<TdIssue>("td list --json --all 2>/dev/null")
 
 const orphans: Orphan[] = []
 

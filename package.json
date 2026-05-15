@@ -13,7 +13,8 @@
     "@biomejs/biome": "^2.4.14",
     "@types/bun": "latest",
     "@types/js-yaml": "^4.0.9",
-    "colorizr": "^5.0.1"
+    "colorizr": "^5.0.1",
+    "zod": "^4.4.3"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.2",

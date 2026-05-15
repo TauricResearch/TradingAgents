@@ -75,8 +75,8 @@ function formatEntry(entry: UnifiedEntry, width: number, isLexicon = false): str
 
   if (isLexicon) {
     // Lexicon v2: show id, type, status, date, summary, tags
-    const id = (entry as Record<string, unknown>).id ?? entry.file
-    const type = (entry as Record<string, unknown>).type ?? "term"
+    const id = (entry as unknown as Record<string, unknown>).id ?? entry.file
+    const type = (entry as unknown as Record<string, unknown>).type ?? "term"
     const header = `${String(id).padEnd(12)}  ${String(type).padEnd(24)}  ${entry.status.toUpperCase().padEnd(8)}  ${entry.date}`
     const summaryLines = wrap(entry.summary, textWidth)
     const tagStr = formatTags(entry.meta?.tags)

@@ -859,7 +859,7 @@ function seedExitPlans(): void {
     mkdirSync(dirPath, { recursive: true })
 
     // Serialize to YAML via js-yaml
-    const yamlOut = yaml.dump(plan, { defaultFlowStyle: false, sortKeys: false })
+    const yamlOut = yaml.dump(plan, { sortKeys: false })
 
     writeFileSync(join(dirPath, `${plan.ticker}.yaml`), yamlOut)
   }

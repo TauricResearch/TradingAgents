@@ -24,6 +24,7 @@ interface LexiconEntry {
   status: string
   type: string
   summary: string
+  title?: string
   meta: {
     category?: string
     heuristic?: string

@@ -70,6 +70,17 @@ check:
     bun scripts/reg.ts sync --fix
     bun scripts/td-orphans.ts
 
+# Type-check scripts tier (excludes scripts/lab/)
+[group("bun")]
+check-scripts:
+    tsc --project tsconfig.scripts.json --noEmit
+
+# Run all type-check gates: server + scripts
+[group("bun")]
+check-all:
+    just check
+    just check-scripts
+
 # Convert :root hex palette to oklch() (preserves original hex in comments)
 [group("bun")]
 convert-hex-oklch:
