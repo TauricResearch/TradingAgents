@@ -8,6 +8,7 @@ import asyncio
 import queue
 import requests
 import threading
+import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
@@ -191,6 +192,7 @@ class TradingAgentsGraph:
         self.curr_state = None
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
+        self.run_timing = {}
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
         self.workflow = self.graph_setup.setup_graph(
@@ -409,6 +411,15 @@ class TradingAgentsGraph:
         """Execute the graph and write the resulting state to disk and memory log."""
         start_time = datetime.utcnow()
         start_time_iso = start_time.isoformat() + "Z"
+        perf_start = time.perf_counter()
+        timing = {
+            "run_id": self.run_id,
+            "ticker": company_name,
+            "trade_date": str(trade_date),
+            "total_runtime_seconds": None,
+            "node_timings": {},
+            "node_order": [],
+        }
         # Notify starting
         self._send_webhook({
             "run_id": self.run_id,
@@ -417,7 +428,11 @@ class TradingAgentsGraph:
             "node": "Initializing...",
             "status": "in_progress",
             "timestamp": start_time_iso,
-            "start_time": start_time_iso
+            "start_time": start_time_iso,
+            "timing": {
+                "total_runtime_seconds": 0.0,
+                "node_timings": {},
+            },
         })
 
         # Initialize state — inject memory log context for PM.
@@ -445,20 +460,30 @@ class TradingAgentsGraph:
 
         # Even in non-debug mode, we stream to get progress updates
         trace = []
-        node_start_times = {}
+        previous_chunk_at = perf_start
         
         try:
             async for chunk in self.graph.astream(init_agent_state, **args):
                 node_name = list(chunk.keys())[0] if chunk else "unknown"
                 node_updates = chunk.get(node_name, {})
                 now = datetime.utcnow()
-                
-                # Log completion of previous node if any
-                for prev_node, p_start in node_start_times.items():
-                    duration = (now - p_start).total_seconds()
-                    logger.info("Node [%s] completed in %.2fs", prev_node, duration)
-                
-                node_start_times = {node_name: now}
+                node_elapsed = max(0.0, time.perf_counter() - previous_chunk_at)
+                previous_chunk_at = time.perf_counter()
+                node_stats = timing["node_timings"].setdefault(
+                    node_name,
+                    {
+                        "count": 0,
+                        "observed_duration_seconds_total": 0.0,
+                        "observed_duration_seconds_last": 0.0,
+                        "completed_at": None,
+                    },
+                )
+                node_stats["count"] += 1
+                node_stats["observed_duration_seconds_total"] += node_elapsed
+                node_stats["observed_duration_seconds_last"] = node_elapsed
+                node_stats["completed_at"] = now.isoformat() + "Z"
+                timing["node_order"].append(node_name)
+                logger.info("Node [%s] emitted update after %.2fs", node_name, node_elapsed)
                 trace.append(chunk)
                 
                 # Send webhook with accumulated updates for this node
@@ -470,7 +495,12 @@ class TradingAgentsGraph:
                     "status": "in_progress",
                     "timestamp": now.isoformat() + "Z",
                     "start_time": start_time_iso,
-                    "updates": node_updates
+                    "updates": node_updates,
+                    "timing": {
+                        "total_runtime_seconds": round(time.perf_counter() - perf_start, 3),
+                        "node_timings": timing["node_timings"],
+                        "latest_node": node_name,
+                    },
                 })
         except Exception as e:
             logger.error("Error during graph execution for %s: %s", company_name, e)
@@ -481,7 +511,11 @@ class TradingAgentsGraph:
                 "status": "error",
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "start_time": start_time_iso
+                "start_time": start_time_iso,
+                "timing": {
+                    "total_runtime_seconds": round(time.perf_counter() - perf_start, 3),
+                    "node_timings": timing["node_timings"],
+                },
             })
             raise e
 
@@ -493,9 +527,11 @@ class TradingAgentsGraph:
         self.curr_state = final_state
         end_time = datetime.utcnow()
         end_time_iso = end_time.isoformat() + "Z"
+        timing["total_runtime_seconds"] = round(time.perf_counter() - perf_start, 3)
+        self.run_timing = timing
 
         # Log state to disk.
-        self._log_state(trade_date, final_state, start_time, end_time)
+        self._log_state(trade_date, final_state, start_time, end_time, timing)
 
         # Notify completion
         self._send_webhook({
@@ -505,7 +541,8 @@ class TradingAgentsGraph:
             "status": "completed",
             "timestamp": end_time_iso,
             "start_time": start_time_iso,
-            "end_time": end_time_iso
+            "end_time": end_time_iso,
+            "timing": timing,
         })
 
         # Store decision for deferred reflection on the next same-ticker run.
@@ -534,7 +571,7 @@ class TradingAgentsGraph:
         state = await asyncio.to_thread(self.graph.get_state, config)
         return state.values
 
-    def _log_state(self, trade_date, final_state, start_time=None, end_time=None):
+    def _log_state(self, trade_date, final_state, start_time=None, end_time=None, timing=None):
         """Log the final state to a JSON file."""
         invest_debate = final_state.get("investment_debate_state", {})
         risk_debate = final_state.get("risk_debate_state", {})
@@ -565,6 +602,7 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state.get("investment_plan", ""),
             "final_trade_decision": final_state.get("final_trade_decision", ""),
+            "timing": timing or {},
         }
 
         # Save to file. Reject ticker values that would escape the

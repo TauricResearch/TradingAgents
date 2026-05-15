@@ -138,3 +138,37 @@ def test_latest_status_endpoint_returns_most_recent_run(backend_module):
 
     assert latest["run_id"] == "run-2"
     assert latest["ticker"] == "NVDA"
+
+
+@pytest.mark.unit
+def test_webhook_updates_include_timing_payload(backend_module):
+    timing = {
+        "total_runtime_seconds": 12.5,
+        "node_timings": {
+            "Market Analyst": {
+                "count": 1,
+                "observed_duration_seconds_total": 3.2,
+            }
+        },
+    }
+
+    asyncio.run(
+        backend_module.handle_progress_webhook(
+            {
+                "run_id": "run-timing",
+                "ticker": "SHOP",
+                "date": "2026-05-15",
+                "node": "Market Analyst",
+                "status": "completed",
+                "timestamp": "2026-05-15T12:00:05Z",
+                "start_time": "2026-05-15T12:00:00Z",
+                "end_time": "2026-05-15T12:00:05Z",
+                "timing": timing,
+            }
+        )
+    )
+
+    run_status = asyncio.run(backend_module.get_run_status("run-timing"))
+
+    assert run_status["timing"]["total_runtime_seconds"] == 12.5
+    assert run_status["tickers"]["SHOP"]["timing"]["node_timings"]["Market Analyst"]["count"] == 1

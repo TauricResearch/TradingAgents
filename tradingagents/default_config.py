@@ -19,6 +19,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_STANDALONE":           "standalone",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_PORTFOLIO_MAX_CONCURRENCY": "portfolio_max_concurrency",
+    "TRADINGAGENTS_GLOBAL_NEWS_QUERY_CONCURRENCY": "global_news_query_concurrency",
 }
 
 
@@ -95,6 +96,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "news_article_limit": 20,             # max articles per ticker (ticker-news)
     "global_news_article_limit": 10,      # max articles for global/macro news
     "global_news_lookback_days": 7,       # macro news lookback window
+    "global_news_query_concurrency": 3,   # concurrent macro-news searches
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [

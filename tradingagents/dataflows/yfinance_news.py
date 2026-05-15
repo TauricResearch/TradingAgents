@@ -1,6 +1,7 @@
 """yfinance-based news data fetching functions."""
 
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import yfinance as yf
 from datetime import datetime
@@ -132,20 +133,29 @@ def get_global_news_yfinance(
     if limit is None:
         limit = config["global_news_article_limit"]
     search_queries = config["global_news_queries"]
+    query_concurrency = max(1, int(config.get("global_news_query_concurrency", 3)))
 
     all_news = []
     seen_titles = set()
 
     try:
-        for query in search_queries:
+        def fetch_query_news(query: str):
             search = yf_retry(lambda q=query: yf.Search(
                 query=q,
                 news_count=limit,
                 enable_fuzzy_query=True,
             ))
+            return getattr(search, "news", []) or []
 
-            if search.news:
-                for article in search.news:
+        with ThreadPoolExecutor(max_workers=min(query_concurrency, len(search_queries) or 1)) as executor:
+            futures = {
+                executor.submit(fetch_query_news, query): query
+                for query in search_queries
+            }
+
+            for future in as_completed(futures):
+                query_news = future.result()
+                for article in query_news:
                     # Handle both flat and nested structures
                     if "content" in article:
                         data = _extract_article_data(article)
@@ -158,8 +168,8 @@ def get_global_news_yfinance(
                         seen_titles.add(title)
                         all_news.append(article)
 
-            if len(all_news) >= limit:
-                break
+                if len(all_news) >= limit:
+                    break
 
         if not all_news:
             return f"No global news found for {curr_date}"

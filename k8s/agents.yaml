@@ -5,7 +5,7 @@ metadata:
   namespace: tradingagents
 spec:
   schedule: "0 21 * * 1-5" # 9 PM UTC Mon-Fri
-  concurrencyPolicy: Forbid
+  concurrencyPolicy: Allow
   jobTemplate:
     spec:
       template:

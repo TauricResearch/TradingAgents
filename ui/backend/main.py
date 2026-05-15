@@ -135,6 +135,7 @@ def _make_run_status(run_id: str, display_ticker: str, requested_tickers: List[s
         "error": k8s_init_error,
         "requested_tickers": requested_tickers,
         "tickers": {},
+        "timing": {},
     }
 
 
@@ -321,6 +322,7 @@ async def handle_progress_webhook(update: Dict[str, Any]):
                 "start_time": update.get("start_time"),
                 "end_time": None,
                 "error": None,
+                "timing": {},
             },
         )
 
@@ -340,6 +342,8 @@ async def handle_progress_webhook(update: Dict[str, Any]):
             "end_time": update.get("end_time") or ticker_state.get("end_time"),
             "error": update.get("error"),
         })
+        if "timing" in update:
+            ticker_state["timing"] = update["timing"] or {}
 
         run_status.update({
             "ticker": ticker,
@@ -351,6 +355,7 @@ async def handle_progress_webhook(update: Dict[str, Any]):
             "start_time": run_status.get("start_time") or update.get("start_time"),
             "end_time": update.get("end_time") or run_status.get("end_time"),
             "error": update.get("error"),
+            "timing": ticker_state.get("timing", {}),
         })
         _recompute_run_summary(run_status)
     return {"status": "received"}
