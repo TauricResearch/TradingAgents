@@ -50,6 +50,99 @@
     padding: 12px 16px;
 }
 
+/* Markdown report content */
+.report-content {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.report-content h1,
+.report-content h2,
+.report-content h3,
+.report-content h4 {
+    color: #e0e0e0;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.report-content h1 { font-size: 1.4rem; }
+.report-content h2 { font-size: 1.2rem; }
+.report-content h3 { font-size: 1.05rem; }
+
+.report-content strong {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.report-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75em 0;
+    font-size: 0.85rem;
+}
+
+.report-content th,
+.report-content td {
+    border: 1px solid #444;
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.report-content th {
+    background-color: #2a2a3e;
+    color: #e0e0e0;
+    font-weight: 600;
+}
+
+.report-content tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.report-content ul,
+.report-content ol {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+}
+
+.report-content li {
+    margin-bottom: 0.25em;
+}
+
+.report-content code {
+    background-color: rgba(255, 255, 255, 0.08);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.report-content pre {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 0.75em 0;
+}
+
+.report-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.report-content blockquote {
+    border-left: 3px solid #4caf50;
+    padding-left: 12px;
+    margin: 0.75em 0;
+    color: #bdbdbd;
+}
+
+.report-content hr {
+    border: none;
+    border-top: 1px solid #444;
+    margin: 1em 0;
+}
+
 /* Progress bar */
 .ta-progress .q-linear-progress__track {
     opacity: 0.15;

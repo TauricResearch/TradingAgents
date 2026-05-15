@@ -45,6 +45,7 @@ class _HistoryPage:
                 {"name": "status", "label": "Status", "field": "status", "sortable": True},
                 {"name": "started_at", "label": "Started", "field": "started_at", "sortable": True},
                 {"name": "completed_at", "label": "Completed", "field": "completed_at"},
+                {"name": "actions", "label": "", "field": "actions"},
             ]
             self._table = ui.table(
                 columns=columns,
@@ -52,6 +53,27 @@ class _HistoryPage:
                 row_key="id",
                 pagination={"rowsPerPage": 15},
             ).classes("w-full").props("flat bordered dense")
+
+            # Add "View" button column via slot
+            self._table.add_slot(
+                "body-cell-actions",
+                """
+                <q-td :props="props">
+                    <q-btn flat dense color="green" icon="visibility" label="View"
+                           @click="$parent.$emit('view', props.row)" />
+                </q-td>
+                """,
+            )
+            def _on_view(e) -> None:
+                # CR-02: validate client-controlled ID before navigation
+                try:
+                    aid = int(e.args["id"])
+                except (KeyError, TypeError, ValueError):
+                    ui.notify("Invalid analysis ID", type="warning")
+                    return
+                ui.navigate.to(f"/analysis/{aid}")
+
+            self._table.on("view", _on_view)
 
             self._refresh()
 

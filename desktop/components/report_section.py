@@ -2,6 +2,9 @@
 
 Each report section (Market, News, etc.) is rendered as a Quasar
 expansion item that opens when its content first arrives.
+
+Uses ``ui.markdown()`` (backed by markdown2) so reports render
+tables, bold, headers, lists, and fenced code blocks properly.
 """
 
 from __future__ import annotations
@@ -9,6 +12,16 @@ from __future__ import annotations
 from nicegui import ui
 
 from tradingagents.progress import SECTION_TITLES, ProgressSnapshot
+
+# markdown2 extras enabled for report rendering
+_MD_EXTRAS: list[str] = [
+    "tables",
+    "fenced-code-blocks",
+    "strike",
+    "task_list",
+    "cuddled-lists",
+    "header-ids",
+]
 
 
 class ReportSectionsPanel:
@@ -45,7 +58,7 @@ class _ReportSection:
         self.key = key
         self.title = title
         self._expansion: ui.expansion | None = None
-        self._content_area: ui.html | None = None
+        self._content_area: ui.markdown | None = None
         self._has_opened = False
         self._last_content: str | None = None
 
@@ -57,7 +70,9 @@ class _ReportSection:
             "dense header-class='text-subtitle2 text-grey-4'"
         )
         with self._expansion:
-            self._content_area = ui.html("").classes("text-body2 text-white")
+            self._content_area = ui.markdown(
+                "", extras=_MD_EXTRAS,
+            ).classes("report-content text-white w-full")
 
     def update(self, content: str | None) -> None:
         if content is None:
@@ -67,20 +82,9 @@ class _ReportSection:
 
         self._last_content = content
         if self._content_area:
-            # Render markdown as HTML via NiceGUI's markdown
-            self._content_area.content = f"<pre style='white-space:pre-wrap;font-family:inherit'>{_escape_html(content)}</pre>"
+            self._content_area.set_content(content)
 
         # Auto-open on first content
         if not self._has_opened and self._expansion:
             self._expansion.open()
             self._has_opened = True
-
-
-def _escape_html(text: str) -> str:
-    """Basic HTML escaping."""
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )

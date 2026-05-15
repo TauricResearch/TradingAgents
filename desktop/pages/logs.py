@@ -5,6 +5,8 @@ See also: PLAN-desktop.md, F7.
 
 from __future__ import annotations
 
+import json
+
 from nicegui import ui
 
 from desktop.state.runner import PipelineRunner
@@ -19,6 +21,8 @@ _TYPE_COLORS: dict[str, str] = {
     "Control": "grey-5",
     "Error": "red-4",
 }
+
+_MAX_VISIBLE = 200  # Cap visible entries to prevent DOM overload
 
 
 def render_logs_page(*, runner: PipelineRunner) -> None:
@@ -63,7 +67,7 @@ class _LogsPage:
                     "log-panel w-full gap-none"
                 ).style("max-height: 600px; overflow-y: auto")
 
-            # Start polling if runner is active
+            # Polling timer — auto-deactivates when runner stops
             self._timer = ui.timer(0.5, self._poll)
             self._poll()  # Initial render
 
@@ -76,6 +80,9 @@ class _LogsPage:
         snap = self._runner.tracker.snapshot()
         total = len(snap.messages) + len(snap.tool_calls)
         if total == self._last_count:
+            # Deactivate timer when runner is no longer active
+            if not self._runner.is_running and self._timer:
+                self._timer.deactivate()
             return
         self._last_count = total
         self._render_logs(snap)
@@ -103,6 +110,10 @@ class _LogsPage:
         if self._filter_type != "All":
             entries = [e for e in entries if e[1] == self._filter_type]
 
+        # Cap visible entries to prevent DOM overload
+        if len(entries) > _MAX_VISIBLE:
+            entries = entries[-_MAX_VISIBLE:]
+
         with self._log_area:
             if not entries:
                 ui.label("No log entries yet.").classes("text-grey-5 q-pa-md")
@@ -128,7 +139,9 @@ class _LogsPage:
         lines.sort()
 
         text = "\n".join(lines)
+        # CR-01: use json.dumps for safe JS string escaping
+        escaped = json.dumps(text)
         await ui.run_javascript(
-            f"navigator.clipboard.writeText({text!r})", respond=False
+            f"navigator.clipboard.writeText({escaped})", respond=False
         )
         ui.notify("Logs copied to clipboard!", type="positive")

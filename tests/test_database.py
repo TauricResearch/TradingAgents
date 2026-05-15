@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from desktop.state.database import AnalysisRow, HistoryDB
+from desktop.state.database import AnalysisRow, HistoryDB, LogEntryRow
 
 
 @pytest.fixture
@@ -225,3 +225,91 @@ class TestSettingsCRUD:
 
     def test_delete_nonexistent_no_error(self, db: HistoryDB) -> None:
         db.delete_setting("does_not_exist")  # No exception
+
+
+# ---------------------------------------------------------------------------
+# Log entries CRUD
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def analysis_id(db: HistoryDB) -> int:
+    """Insert a dummy analysis and return its ID."""
+    return db.insert_analysis(
+        ticker="TEST", date="2026-01-01", provider="test", model="m"
+    )
+
+
+@pytest.mark.unit
+class TestLogEntriesCRUD:
+    def test_flush_and_read(self, db: HistoryDB, analysis_id: int) -> None:
+        messages = [
+            ("2026-01-01T10:00:01", "System", "Pipeline started"),
+            ("2026-01-01T10:00:02", "Agent", "Market Analyst working"),
+        ]
+        tool_calls = [
+            ("2026-01-01T10:00:03", "get_stock_data", {"ticker": "TEST"}),
+        ]
+        count = db.flush_logs(analysis_id, messages, tool_calls)
+        assert count == 3
+
+        entries = db.get_log_entries(analysis_id)
+        assert len(entries) == 3
+        assert all(isinstance(e, LogEntryRow) for e in entries)
+        # Chronological order
+        assert entries[0].content == "Pipeline started"
+        assert entries[1].content == "Market Analyst working"
+        assert entries[2].entry_type == "Tool"
+        assert "get_stock_data" in entries[2].content
+
+    def test_flush_empty(self, db: HistoryDB, analysis_id: int) -> None:
+        count = db.flush_logs(analysis_id, [], [])
+        assert count == 0
+        assert db.get_log_entries(analysis_id) == []
+
+    def test_filter_by_type(self, db: HistoryDB, analysis_id: int) -> None:
+        messages = [
+            ("2026-01-01T10:00:01", "System", "msg1"),
+            ("2026-01-01T10:00:02", "Error", "something broke"),
+            ("2026-01-01T10:00:03", "System", "msg2"),
+        ]
+        db.flush_logs(analysis_id, messages, [])
+
+        errors = db.get_log_entries(analysis_id, entry_type="Error")
+        assert len(errors) == 1
+        assert errors[0].content == "something broke"
+
+        systems = db.get_log_entries(analysis_id, entry_type="System")
+        assert len(systems) == 2
+
+    def test_count_log_entries(self, db: HistoryDB, analysis_id: int) -> None:
+        assert db.count_log_entries(analysis_id) == 0
+        messages = [("ts", "Agent", f"msg{i}") for i in range(5)]
+        db.flush_logs(analysis_id, messages, [])
+        assert db.count_log_entries(analysis_id) == 5
+
+    def test_long_args_truncated(self, db: HistoryDB, analysis_id: int) -> None:
+        long_args = "x" * 1000
+        tool_calls = [("ts", "tool_name", long_args)]
+        db.flush_logs(analysis_id, [], tool_calls)
+
+        entries = db.get_log_entries(analysis_id)
+        assert len(entries) == 1
+        assert len(entries[0].content) < 600  # truncated to ~500 + tool name
+
+    def test_log_entry_row_is_frozen(self, db: HistoryDB, analysis_id: int) -> None:
+        db.flush_logs(analysis_id, [("ts", "System", "msg")], [])
+        entry = db.get_log_entries(analysis_id)[0]
+        with pytest.raises(AttributeError):
+            entry.content = "mutated"  # type: ignore[misc]
+
+    def test_schema_includes_log_entries(self, db: HistoryDB) -> None:
+        conn = db._connect()
+        try:
+            tables = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            ).fetchall()
+            names = [r["name"] for r in tables]
+            assert "log_entries" in names
+        finally:
+            conn.close()

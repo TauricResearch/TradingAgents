@@ -38,18 +38,20 @@ class AgentStatusPanel:
     def __init__(self) -> None:
         self._container: ui.column | None = None
         self._cards: dict[str, _AgentCard] = {}
-        self._team_badges: dict[str, ui.label] = {}
+        self._team_expansions: dict[str, ui.expansion] = {}
+        self._team_names: dict[str, str] = {}  # expansion -> base name
 
     def build(self) -> None:
         """Render the initial layout (call once during page setup)."""
         self._container = ui.column().classes("w-full gap-sm")
         with self._container:
             for team_name, agents in _TEAM_ORDER:
-                with ui.expansion(team_name, icon="groups").classes(
+                expansion = ui.expansion(team_name, icon="groups").classes(
                     "w-full bg-dark"
-                ).props("dense default-opened header-class='text-subtitle2 text-white'"):
-                    badge = ui.label("").classes("text-caption text-grey-5")
-                    self._team_badges[team_name] = badge
+                ).props("dense default-opened header-class='text-subtitle2 text-white'")
+                self._team_expansions[team_name] = expansion
+                self._team_names[team_name] = team_name
+                with expansion:
                     for agent_name in agents:
                         card = _AgentCard(agent_name)
                         card.build()
@@ -65,14 +67,33 @@ class AgentStatusPanel:
             else:
                 card.hide()
 
-        # Update team badges
+        # Update team expansion headers with visible status
         for team_name, agents in _TEAM_ORDER:
+            expansion = self._team_expansions.get(team_name)
+            if not expansion:
+                continue
             active = [a for a in agents if a in snap.agent_status]
             if not active:
-                self._team_badges[team_name].set_text("")
+                # WR-05: use .props() instead of internal _props dict
+                expansion.props(f'label="{team_name}"')
                 continue
+
             done = sum(1 for a in active if snap.agent_status.get(a) == "completed")
-            self._team_badges[team_name].set_text(f"{done}/{len(active)} done")
+            in_prog = sum(1 for a in active if snap.agent_status.get(a) == "in_progress")
+            total = len(active)
+
+            if done == total:
+                label = f"{team_name}  ✔ Complete"
+            elif in_prog > 0:
+                label = f"{team_name}  ▶ {done}/{total}"
+            elif done > 0:
+                label = f"{team_name}  {done}/{total}"
+            else:
+                label = team_name
+            # WR-05: use .props() instead of internal _props dict
+            # Escape quotes in label for safe prop assignment
+            safe_label = label.replace('"', '\\"')
+            expansion.props(f'label="{safe_label}"')
 
 
 class _AgentCard:
@@ -95,9 +116,9 @@ class _AgentCard:
     def update(self, status: str) -> None:
         icon_name, color = _STATUS_ICONS.get(status, ("help", "grey"))
         if self._icon:
-            self._icon._props["name"] = icon_name
+            # WR-05: use .props() instead of internal _props dict
+            self._icon.props(f'name="{icon_name}"')
             self._icon.classes(replace=f"text-{color}")
-            self._icon.update()
         if self._status_label:
             self._status_label.set_text(status.replace("_", " "))
             self._status_label.classes(replace=f"text-caption text-{color}")

@@ -42,6 +42,17 @@ class AnalysisRow:
     selected_analysts: str  # comma-separated analyst keys
 
 
+@dataclass(frozen=True)
+class LogEntryRow:
+    """Immutable representation of one log entry."""
+
+    id: int
+    analysis_id: int
+    timestamp: str
+    entry_type: str  # System | Agent | Tool | Data | Error | Control
+    content: str
+
+
 # ── Default database path ──────────────────────────────────────────────
 
 _DEFAULT_DB_DIR = Path.home() / ".tradingagents"
@@ -104,6 +115,18 @@ class HistoryDB:
                 CREATE INDEX IF NOT EXISTS idx_analyses_status
                     ON analyses(status);
 
+                CREATE TABLE IF NOT EXISTS log_entries (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    analysis_id  INTEGER NOT NULL,
+                    timestamp    TEXT    NOT NULL,
+                    entry_type   TEXT    NOT NULL,
+                    content      TEXT    NOT NULL,
+                    FOREIGN KEY (analysis_id) REFERENCES analyses(id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_log_entries_analysis
+                    ON log_entries(analysis_id);
+
                 CREATE TABLE IF NOT EXISTS settings (
                     key   TEXT PRIMARY KEY,
                     value TEXT NOT NULL
@@ -144,7 +167,11 @@ class HistoryDB:
                 (ticker, date, provider, model, now, config_json, result_dir, analysts_csv),
             )
             conn.commit()
-            return cursor.lastrowid  # type: ignore[return-value]
+            # WR-04: validate instead of type: ignore
+            row_id = cursor.lastrowid
+            if row_id is None:
+                raise RuntimeError("INSERT did not return a row ID")
+            return row_id
         finally:
             conn.close()
 
@@ -223,8 +250,9 @@ class HistoryDB:
         params: list[Any] = []
 
         if ticker:
-            conditions.append("ticker = ?")
-            params.append(ticker.upper())
+            # WR-06: prefix match so "SP" finds "SPY", "SPXL", etc.
+            conditions.append("ticker LIKE ?")
+            params.append(ticker.upper() + "%")
         if status:
             conditions.append("status = ?")
             params.append(status)
@@ -248,8 +276,9 @@ class HistoryDB:
         params: list[Any] = []
 
         if ticker:
-            conditions.append("ticker = ?")
-            params.append(ticker.upper())
+            # WR-06: prefix match consistent with list_analyses
+            conditions.append("ticker LIKE ?")
+            params.append(ticker.upper() + "%")
         if status:
             conditions.append("status = ?")
             params.append(status)
@@ -259,6 +288,57 @@ class HistoryDB:
         try:
             row = conn.execute(f"SELECT COUNT(*) FROM analyses {where}", params).fetchone()
             return row[0]
+        finally:
+            conn.close()
+
+    def import_completed_analysis(
+        self,
+        *,
+        ticker: str,
+        date: str,
+        provider: str,
+        model: str,
+        result_dir: str,
+        selected_analysts: list[str] | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+    ) -> int:
+        """Import a previously completed analysis from disk.
+
+        Used to backfill analyses that ran via CLI before the desktop app
+        existed, so they appear in the history table.
+        """
+        now = datetime.now().isoformat(timespec="seconds")
+        analysts_csv = ",".join(selected_analysts or [])
+        conn = self._connect()
+        try:
+            # CR-01: validate result_dir is under expected base
+            from pathlib import Path as _Path
+
+            resolved = _Path(result_dir).resolve()
+            expected_base = (_Path.home() / ".tradingagents" / "results").resolve()
+            if not str(resolved).startswith(str(expected_base)):
+                raise ValueError(f"result_dir must be under {expected_base}")
+
+            cursor = conn.execute(
+                """
+                INSERT INTO analyses
+                    (ticker, date, provider, model, status, started_at,
+                     completed_at, config_json, result_dir, selected_analysts)
+                VALUES (?, ?, ?, ?, 'completed', ?, ?, '{}', ?, ?)
+                """,
+                (
+                    ticker, date, provider, model,
+                    started_at or now, completed_at or now,
+                    result_dir, analysts_csv,
+                ),
+            )
+            conn.commit()
+            # WR-04: validate instead of type: ignore
+            row_id = cursor.lastrowid
+            if row_id is None:
+                raise RuntimeError("INSERT did not return a row ID")
+            return row_id
         finally:
             conn.close()
 
@@ -278,6 +358,91 @@ class HistoryDB:
             error_text=row["error_text"],
             selected_analysts=row["selected_analysts"],
         )
+
+    # ── Log entries CRUD ──────────────────────────────────────────────
+
+    def flush_logs(
+        self,
+        analysis_id: int,
+        messages: list[tuple[str, str, str]],
+        tool_calls: list[tuple[str, str, Any]],
+    ) -> int:
+        """Batch-insert log entries from a ProgressSnapshot.
+
+        Called once when an analysis finishes (completed / failed / cancelled).
+        Returns the number of rows inserted.
+        """
+        rows: list[tuple[int, str, str, str]] = []
+        for ts, msg_type, content in messages:
+            rows.append((analysis_id, ts, msg_type, str(content)))
+        for ts, tool_name, args in tool_calls:
+            args_str = str(args)
+            if len(args_str) > 500:
+                args_str = args_str[:497] + "..."
+            rows.append((analysis_id, ts, "Tool", f"{tool_name}: {args_str}"))
+
+        if not rows:
+            return 0
+
+        conn = self._connect()
+        try:
+            conn.executemany(
+                "INSERT INTO log_entries (analysis_id, timestamp, entry_type, content) "
+                "VALUES (?, ?, ?, ?)",
+                rows,
+            )
+            conn.commit()
+            return len(rows)
+        finally:
+            conn.close()
+
+    def get_log_entries(
+        self,
+        analysis_id: int,
+        *,
+        entry_type: str | None = None,
+        limit: int = 5000,
+    ) -> list[LogEntryRow]:
+        """Fetch persisted log entries for an analysis, chronologically."""
+        conditions = ["analysis_id = ?"]
+        params: list[Any] = [analysis_id]
+
+        if entry_type:
+            conditions.append("entry_type = ?")
+            params.append(entry_type)
+
+        where = " AND ".join(conditions)
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                f"SELECT * FROM log_entries WHERE {where} "
+                f"ORDER BY timestamp ASC LIMIT ?",
+                [*params, limit],
+            ).fetchall()
+            return [
+                LogEntryRow(
+                    id=r["id"],
+                    analysis_id=r["analysis_id"],
+                    timestamp=r["timestamp"],
+                    entry_type=r["entry_type"],
+                    content=r["content"],
+                )
+                for r in rows
+            ]
+        finally:
+            conn.close()
+
+    def count_log_entries(self, analysis_id: int) -> int:
+        """Count log entries for an analysis."""
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM log_entries WHERE analysis_id = ?",
+                (analysis_id,),
+            ).fetchone()
+            return row[0]
+        finally:
+            conn.close()
 
     # ── Settings CRUD ───────────────────────────────────────────────
 
