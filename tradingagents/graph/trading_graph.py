@@ -404,15 +404,14 @@ class TradingAgentsGraph:
                 self.graph = self.workflow.compile()
 
     def _run_graph(self, company_name, trade_date):
-        """Synchronous wrapper around the async graph execution path."""
+        """Run the graph using a checkpoint-compatible execution path."""
+        if self.config.get("checkpoint_enabled"):
+            return self._run_graph_sync(company_name, trade_date)
         return asyncio.run(self._run_graph_async(company_name, trade_date))
 
-    async def _run_graph_async(self, company_name, trade_date):
-        """Execute the graph and write the resulting state to disk and memory log."""
-        start_time = datetime.utcnow()
-        start_time_iso = start_time.isoformat() + "Z"
-        perf_start = time.perf_counter()
-        timing = {
+    def _init_run_timing(self, company_name, trade_date):
+        """Create the shared timing payload used by sync and async runners."""
+        return {
             "run_id": self.run_id,
             "ticker": company_name,
             "trade_date": str(trade_date),
@@ -420,6 +419,165 @@ class TradingAgentsGraph:
             "node_timings": {},
             "node_order": [],
         }
+
+    def _record_node_timing(self, timing, node_name, now, node_elapsed):
+        """Update timing stats for one streamed node event."""
+        node_stats = timing["node_timings"].setdefault(
+            node_name,
+            {
+                "count": 0,
+                "observed_duration_seconds_total": 0.0,
+                "observed_duration_seconds_last": 0.0,
+                "completed_at": None,
+            },
+        )
+        node_stats["count"] += 1
+        node_stats["observed_duration_seconds_total"] += node_elapsed
+        node_stats["observed_duration_seconds_last"] = node_elapsed
+        node_stats["completed_at"] = now.isoformat() + "Z"
+        timing["node_order"].append(node_name)
+        logger.info("Node [%s] emitted update after %.2fs", node_name, node_elapsed)
+
+    def _send_in_progress_webhook(
+        self, company_name, trade_date, node_name, now, start_time_iso, node_updates, perf_start, timing
+    ):
+        """Send a standardized in-progress update for the current node."""
+        self._send_webhook({
+            "run_id": self.run_id,
+            "ticker": company_name,
+            "date": trade_date,
+            "node": node_name,
+            "status": "in_progress",
+            "timestamp": now.isoformat() + "Z",
+            "start_time": start_time_iso,
+            "updates": node_updates,
+            "timing": {
+                "total_runtime_seconds": round(time.perf_counter() - perf_start, 3),
+                "node_timings": timing["node_timings"],
+                "latest_node": node_name,
+            },
+        })
+
+    def _run_graph_sync(self, company_name, trade_date):
+        """Execute the graph synchronously for checkpoint-compatible runs."""
+        start_time = datetime.utcnow()
+        start_time_iso = start_time.isoformat() + "Z"
+        perf_start = time.perf_counter()
+        timing = self._init_run_timing(company_name, trade_date)
+        self._send_webhook({
+            "run_id": self.run_id,
+            "ticker": company_name,
+            "date": trade_date,
+            "node": "Initializing...",
+            "status": "in_progress",
+            "timestamp": start_time_iso,
+            "start_time": start_time_iso,
+            "timing": {
+                "total_runtime_seconds": 0.0,
+                "node_timings": {},
+            },
+        })
+
+        past_context = self.memory_log.get_past_context(company_name)
+        init_agent_state = self.propagator.create_initial_state(
+            company_name, trade_date, past_context=past_context
+        )
+        self._send_webhook({
+            "run_id": self.run_id,
+            "ticker": company_name,
+            "date": trade_date,
+            "node": "Launching Analyst Branches...",
+            "status": "in_progress",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "start_time": start_time_iso,
+        })
+        args = self.propagator.get_graph_args()
+        config = args.get("config", {})
+        if self.config.get("checkpoint_enabled"):
+            tid = thread_id(company_name, str(trade_date))
+            config.setdefault("configurable", {})["thread_id"] = tid
+            args["config"] = config
+
+        trace = []
+        previous_chunk_at = perf_start
+
+        try:
+            for chunk in self.graph.stream(init_agent_state, **args):
+                node_name = list(chunk.keys())[0] if chunk else "unknown"
+                node_updates = chunk.get(node_name, {})
+                now = datetime.utcnow()
+                current_perf = time.perf_counter()
+                node_elapsed = max(0.0, current_perf - previous_chunk_at)
+                previous_chunk_at = current_perf
+                self._record_node_timing(timing, node_name, now, node_elapsed)
+                trace.append(chunk)
+                self._send_in_progress_webhook(
+                    company_name,
+                    trade_date,
+                    node_name,
+                    now,
+                    start_time_iso,
+                    node_updates,
+                    perf_start,
+                    timing,
+                )
+        except Exception as e:
+            logger.error("Error during sync graph execution for %s: %s", company_name, e)
+            self._send_webhook({
+                "run_id": self.run_id,
+                "ticker": company_name,
+                "date": trade_date,
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "start_time": start_time_iso,
+                "timing": {
+                    "total_runtime_seconds": round(time.perf_counter() - perf_start, 3),
+                    "node_timings": timing["node_timings"],
+                },
+            })
+            raise
+
+        final_state = self.graph.get_state(config).values
+        self.curr_state = final_state
+        end_time = datetime.utcnow()
+        end_time_iso = end_time.isoformat() + "Z"
+        timing["total_runtime_seconds"] = round(time.perf_counter() - perf_start, 3)
+        self.run_timing = timing
+
+        self._log_state(trade_date, final_state, start_time, end_time, timing)
+        self._send_webhook({
+            "run_id": self.run_id,
+            "ticker": company_name,
+            "date": trade_date,
+            "status": "completed",
+            "timestamp": end_time_iso,
+            "start_time": start_time_iso,
+            "end_time": end_time_iso,
+            "timing": timing,
+        })
+
+        final_decision = final_state.get("final_trade_decision")
+        if final_decision:
+            self.memory_log.store_decision(
+                ticker=company_name,
+                trade_date=trade_date,
+                final_trade_decision=final_decision,
+            )
+
+        if self.config.get("checkpoint_enabled"):
+            clear_checkpoint(
+                self.config["data_cache_dir"], company_name, str(trade_date)
+            )
+
+        return final_state, self.process_signal(final_decision) if final_decision else "N/A"
+
+    async def _run_graph_async(self, company_name, trade_date):
+        """Execute the graph and write the resulting state to disk and memory log."""
+        start_time = datetime.utcnow()
+        start_time_iso = start_time.isoformat() + "Z"
+        perf_start = time.perf_counter()
+        timing = self._init_run_timing(company_name, trade_date)
         # Notify starting
         self._send_webhook({
             "run_id": self.run_id,
@@ -467,41 +625,21 @@ class TradingAgentsGraph:
                 node_name = list(chunk.keys())[0] if chunk else "unknown"
                 node_updates = chunk.get(node_name, {})
                 now = datetime.utcnow()
-                node_elapsed = max(0.0, time.perf_counter() - previous_chunk_at)
-                previous_chunk_at = time.perf_counter()
-                node_stats = timing["node_timings"].setdefault(
-                    node_name,
-                    {
-                        "count": 0,
-                        "observed_duration_seconds_total": 0.0,
-                        "observed_duration_seconds_last": 0.0,
-                        "completed_at": None,
-                    },
-                )
-                node_stats["count"] += 1
-                node_stats["observed_duration_seconds_total"] += node_elapsed
-                node_stats["observed_duration_seconds_last"] = node_elapsed
-                node_stats["completed_at"] = now.isoformat() + "Z"
-                timing["node_order"].append(node_name)
-                logger.info("Node [%s] emitted update after %.2fs", node_name, node_elapsed)
+                current_perf = time.perf_counter()
+                node_elapsed = max(0.0, current_perf - previous_chunk_at)
+                previous_chunk_at = current_perf
+                self._record_node_timing(timing, node_name, now, node_elapsed)
                 trace.append(chunk)
-                
-                # Send webhook with accumulated updates for this node
-                self._send_webhook({
-                    "run_id": self.run_id,
-                    "ticker": company_name,
-                    "date": trade_date,
-                    "node": node_name,
-                    "status": "in_progress",
-                    "timestamp": now.isoformat() + "Z",
-                    "start_time": start_time_iso,
-                    "updates": node_updates,
-                    "timing": {
-                        "total_runtime_seconds": round(time.perf_counter() - perf_start, 3),
-                        "node_timings": timing["node_timings"],
-                        "latest_node": node_name,
-                    },
-                })
+                self._send_in_progress_webhook(
+                    company_name,
+                    trade_date,
+                    node_name,
+                    now,
+                    start_time_iso,
+                    node_updates,
+                    perf_start,
+                    timing,
+                )
         except Exception as e:
             logger.error("Error during graph execution for %s: %s", company_name, e)
             self._send_webhook({
