@@ -1,9 +1,11 @@
 from typing import Optional
 import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import typer
 import questionary
 from pathlib import Path
 from functools import wraps
+from uuid import uuid4
 from rich.console import Console
 from rich.panel import Panel
 from rich.spinner import Spinner
@@ -35,6 +37,47 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+
+
+def _build_portfolio_config(
+    provider: Optional[str],
+    checkpoint: bool,
+    standalone: bool,
+    run_id: Optional[str],
+) -> dict:
+    """Build a per-ticker config dict for headless portfolio runs."""
+    config = DEFAULT_CONFIG.copy()
+    if provider:
+        config["llm_provider"] = provider.lower()
+    config["checkpoint_enabled"] = checkpoint
+    config["standalone"] = standalone
+    if run_id:
+        config["run_id"] = run_id
+    return config
+
+
+def _process_portfolio_ticker(
+    ticker: str,
+    date: str,
+    selected_analysts: list[str],
+    provider: Optional[str],
+    checkpoint: bool,
+    standalone: bool,
+    run_id: Optional[str],
+) -> dict:
+    """Execute a single ticker analysis for a portfolio run."""
+    config = _build_portfolio_config(provider, checkpoint, standalone, run_id)
+    graph = TradingAgentsGraph(selected_analysts=selected_analysts, config=config)
+    final_state, decision = graph.propagate(ticker, date)
+
+    results_dir = Path(config["results_dir"]) / ticker / date
+    save_report_to_disk(final_state, ticker, results_dir / "reports")
+
+    return {
+        "ticker": ticker,
+        "decision": decision,
+        "final_state": final_state,
+    }
 
 
 # Create a deque to store recent messages with a maximum length
@@ -1372,11 +1415,22 @@ def portfolio(
     checkpoint: bool = typer.Option(
         True, "--checkpoint", help="Enable checkpointing (default True for portfolio)."
     ),
+    max_concurrency: int = typer.Option(
+        DEFAULT_CONFIG.get("portfolio_max_concurrency", 1),
+        "--max-concurrency",
+        min=1,
+        help="Maximum number of tickers to analyze concurrently.",
+    ),
     analysts: Optional[str] = typer.Option(
         None, "--analysts", help="Comma-separated list of analysts (market,social,news,fundamentals)."
     ),
     standalone: bool = typer.Option(
         False, "--standalone", help="Stop after analyst phase."
+    ),
+    run_id: Optional[str] = typer.Option(
+        None,
+        "--run-id",
+        help="Optional run identifier propagated to dashboard progress updates.",
     ),
 ):
     """Headless trade execution for a list of tickers."""
@@ -1396,41 +1450,54 @@ def portfolio(
         raise typer.Exit(1)
     if not date:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
+    run_id = run_id or str(uuid4())
 
-    console.print(f"[bold green]🚀 Starting portfolio analysis for: {', '.join(ticker_list)} on {date}[/bold green]")
+    console.print(
+        f"[bold green]🚀 Starting portfolio analysis for: {', '.join(ticker_list)} on {date}[/bold green]"
+    )
+    console.print(
+        f"[dim]Run ID: {run_id} · Max concurrency: {max_concurrency}[/dim]"
+    )
     
     selected_analysts = ["market", "social", "news", "fundamentals"]
     if analysts:
         selected_analysts = [a.strip().lower() for a in analysts.split(",")]
 
-    for ticker in ticker_list:
-        console.print(f"\n[bold cyan]➔ Processing {ticker}...[/bold cyan]")
-        try:
-            # We call the existing trade logic logic for each ticker
-            # Using a simplified version of trade() internal logic
-            config = DEFAULT_CONFIG.copy()
-            if provider:
-                config["llm_provider"] = provider.lower()
-            config["checkpoint_enabled"] = checkpoint
-            config["standalone"] = standalone
-            
-            graph = TradingAgentsGraph(selected_analysts=selected_analysts, config=config)
-            final_state, decision = graph.propagate(ticker, date)
-            
-            if not standalone:
-                console.print(f"[green]✓ {ticker}: {decision}[/green]")
-            else:
-                console.print(f"[green]✓ {ticker}: Standalone analysis complete.[/green]")
-            
-            # Save report
-            results_dir = Path(config["results_dir"]) / ticker / date
-            save_report_to_disk(final_state, ticker, results_dir / "reports")
-            
-        except Exception as e:
-            console.print(f"[bold red]✘ Error processing {ticker}: {e}[/bold red]")
-            continue
+    completed = []
+    failed = []
 
-    console.print(f"\n[bold green]✅ Portfolio analysis complete.[/bold green]")
+    with ThreadPoolExecutor(max_workers=max_concurrency) as executor:
+        future_to_ticker = {
+            executor.submit(
+                _process_portfolio_ticker,
+                ticker,
+                date,
+                selected_analysts,
+                provider,
+                checkpoint,
+                standalone,
+                run_id,
+            ): ticker
+            for ticker in ticker_list
+        }
+
+        for future in as_completed(future_to_ticker):
+            ticker = future_to_ticker[future]
+            try:
+                result = future.result()
+                completed.append(result["ticker"])
+                if not standalone:
+                    console.print(f"[green]✓ {ticker}: {result['decision']}[/green]")
+                else:
+                    console.print(f"[green]✓ {ticker}: Standalone analysis complete.[/green]")
+            except Exception as e:
+                failed.append(ticker)
+                console.print(f"[bold red]✘ Error processing {ticker}: {e}[/bold red]")
+
+    console.print(
+        f"\n[bold green]✅ Portfolio analysis complete.[/bold green] "
+        f"[dim](successful: {len(completed)}, failed: {len(failed)})[/dim]"
+    )
 
 
 @app.command("analyze")

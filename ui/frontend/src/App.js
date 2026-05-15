@@ -143,6 +143,7 @@ const App = () => {
   const [stats, setStats] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [activeStatus, setActiveStatus] = useState(null);
+  const [activeRunId, setActiveRunId] = useState(null);
   const [lastValidProgress, setLastValidProgress] = useState(5);
   const [portfolio, setPortfolio] = useState('');
   const [isSavingPortfolio, setIsSavingPortfolio] = useState(false);
@@ -279,7 +280,8 @@ const App = () => {
 
     // Poll for active status every 3 seconds
     const statusInterval = setInterval(() => {
-      fetch('/api/status')
+      const statusUrl = activeRunId ? `/api/status/${activeRunId}` : '/api/status';
+      fetch(statusUrl)
         .then(res => res.json())
         .then(data => {
           if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error' || data.status === 'completed') {
@@ -289,6 +291,7 @@ const App = () => {
                setTimeout(() => {
                  refreshRuns(true);
                  setActiveStatus(null);
+                 setActiveRunId(null);
                }, 5000);
             }
           } else {
@@ -299,7 +302,7 @@ const App = () => {
     }, 3000);
 
     return () => clearInterval(statusInterval);
-  }, []);
+  }, [activeRunId]);
 
   const savePortfolio = () => {
     setIsSavingPortfolio(true);
@@ -340,8 +343,12 @@ const App = () => {
     })
     .then(data => {
       setIsTriggering(false);
+      if (data.run_id) {
+        setActiveRunId(data.run_id);
+      }
       // Immediately fetch status to show feedback without waiting for the next 3s poll
-      fetch('/api/status')
+      const statusUrl = data.run_id ? `/api/status/${data.run_id}` : '/api/status';
+      fetch(statusUrl)
         .then(res => res.json())
         .then(statusData => {
           if (statusData.status === 'triggered' || statusData.status === 'in_progress') {

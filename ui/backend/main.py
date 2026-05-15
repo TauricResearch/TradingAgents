@@ -8,6 +8,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from threading import Lock
+from uuid import uuid4
 
 import sys
 
@@ -93,17 +95,81 @@ else:
         k8s_init_error = f"Kubernetes library error: lib={bool(kubernetes)} client={bool(k8s_client)} loader={bool(load_in_cluster_config)}"
     print(k8s_init_error)
 
-# Global state to track current active run
-current_run_status = {
-    "ticker": None,
-    "date": None,
-    "active_node": None,
-    "completed_nodes": [],
-    "updates": {},
-    "status": "idle",
-    "last_update": None,
-    "error": k8s_init_error
-}
+def _make_idle_status() -> Dict[str, Any]:
+    return {
+        "run_id": None,
+        "ticker": None,
+        "date": None,
+        "active_node": None,
+        "completed_nodes": [],
+        "updates": {},
+        "status": "idle",
+        "last_update": None,
+        "start_time": None,
+        "end_time": None,
+        "error": k8s_init_error,
+        "requested_tickers": [],
+        "tickers": {},
+    }
+
+
+def _parse_ticker_list(raw: Optional[str]) -> List[str]:
+    if not raw:
+        return []
+    return [ticker.strip().upper() for ticker in raw.split(",") if ticker.strip()]
+
+
+def _make_run_status(run_id: str, display_ticker: str, requested_tickers: List[str]) -> Dict[str, Any]:
+    start_time = datetime.utcnow().isoformat() + "Z"
+    return {
+        "run_id": run_id,
+        "ticker": display_ticker,
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "active_node": "Initializing...",
+        "completed_nodes": [],
+        "updates": {},
+        "status": "triggered",
+        "last_update": start_time,
+        "start_time": start_time,
+        "end_time": None,
+        "error": k8s_init_error,
+        "requested_tickers": requested_tickers,
+        "tickers": {},
+    }
+
+
+run_statuses: Dict[str, Dict[str, Any]] = {}
+run_status_lock = Lock()
+latest_run_id: Optional[str] = None
+
+
+def _get_latest_run_status() -> Dict[str, Any]:
+    with run_status_lock:
+        if latest_run_id and latest_run_id in run_statuses:
+            return run_statuses[latest_run_id]
+        if run_statuses:
+            newest = max(
+                run_statuses.values(),
+                key=lambda status: status.get("start_time") or "",
+            )
+            return newest
+    return _make_idle_status()
+
+
+def _recompute_run_summary(run_status: Dict[str, Any]) -> None:
+    ticker_states = run_status.get("tickers", {})
+    if not ticker_states:
+        return
+
+    statuses = [state.get("status") for state in ticker_states.values()]
+    if any(status in {"triggered", "in_progress"} for status in statuses):
+        run_status["status"] = "in_progress"
+        return
+    if statuses and all(status == "error" for status in statuses):
+        run_status["status"] = "error"
+        return
+    if any(status == "completed" for status in statuses):
+        run_status["status"] = "completed"
 
 # Enable CORS for the React frontend
 app.add_middleware(
@@ -126,11 +192,13 @@ async def get_portfolio_config():
 @app.post("/api/jobs/trigger")
 async def trigger_job(data: Optional[Dict[str, Any]] = None):
     """Trigger a manual trade analysis job in Kubernetes."""
-    global current_run_status
+    global latest_run_id
     
     requested_tickers = data.get("tickers") if data else None
     requested_analysts = data.get("analysts") if data else None
     is_standalone = data.get("standalone", False) if data else False
+    requested_ticker_list = _parse_ticker_list(requested_tickers)
+    run_id = str(uuid4())
     
     # Use requested tickers or fall back to the saved portfolio file for display
     display_ticker = requested_tickers
@@ -140,27 +208,17 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
         else:
             display_ticker = "Portfolio"
 
-    # 1. Set initial status to triggered so UI knows something is happening immediately
-    start_time = datetime.utcnow().isoformat() + "Z"
-    current_run_status.update({
-        "ticker": display_ticker,
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "active_node": "Initializing...",
-        "completed_nodes": [],
-        "updates": {},
-        "status": "triggered",
-        "last_update": start_time,
-        "start_time": start_time,
-        "end_time": None,
-        "error": k8s_init_error
-    })
+    with run_status_lock:
+        run_statuses[run_id] = _make_run_status(run_id, display_ticker, requested_ticker_list)
+        latest_run_id = run_id
 
     if not batch_v1:
         # For local development without Kubernetes, we'll simulate a bit
-        current_run_status["active_node"] = "K8s Not Found"
-        current_run_status["status"] = "error"
-        current_run_status["error"] = k8s_init_error or "Kubernetes client not initialized"
-        raise HTTPException(status_code=500, detail=current_run_status["error"])
+        with run_status_lock:
+            run_statuses[run_id]["active_node"] = "K8s Not Found"
+            run_statuses[run_id]["status"] = "error"
+            run_statuses[run_id]["error"] = k8s_init_error or "Kubernetes client not initialized"
+        raise HTTPException(status_code=500, detail=run_statuses[run_id]["error"])
 
     namespace = "tradingagents"
     cronjob_name = "tradingagents-portfolio-daily"
@@ -189,6 +247,7 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
             cmd_args.extend(["--analysts", requested_analysts])
         if is_standalone:
             cmd_args.append("--standalone")
+        cmd_args.extend(["--run-id", run_id])
 
         # Override the command arguments
         for container in job_spec.template.spec.containers:
@@ -205,13 +264,20 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
         # 4. Create the Job
         batch_v1.create_namespaced_job(namespace, job)
         
-        current_run_status["active_node"] = "Job Created in K8s"
-        current_run_status["error"] = None # Clear any previous error
-        return {"status": "triggered", "job_name": job_name, "tickers": requested_tickers}
+        with run_status_lock:
+            run_statuses[run_id]["active_node"] = "Job Created in K8s"
+            run_statuses[run_id]["error"] = None
+        return {
+            "status": "triggered",
+            "job_name": job_name,
+            "tickers": requested_tickers,
+            "run_id": run_id,
+        }
     except Exception as e:
-        current_run_status["status"] = "error"
-        current_run_status["active_node"] = "K8s Error"
-        current_run_status["error"] = str(e)
+        with run_status_lock:
+            run_statuses[run_id]["status"] = "error"
+            run_statuses[run_id]["active_node"] = "K8s Error"
+            run_statuses[run_id]["error"] = str(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/config/portfolio")
@@ -227,32 +293,88 @@ async def update_portfolio_config(data: Dict[str, str]):
 @app.post("/api/webhook/progress")
 async def handle_progress_webhook(update: Dict[str, Any]):
     """Receive progress updates from the TradingAgentsGraph."""
-    global current_run_status
-    
-    node = update.get("node")
-    if node:
-        if node not in current_run_status["completed_nodes"]:
-            current_run_status["completed_nodes"].append(node)
-        current_run_status["active_node"] = node
-    
-    # Merge reports and state updates
-    if "updates" in update:
-        current_run_status["updates"].update(update["updates"])
+    global latest_run_id
 
-    current_run_status.update({
-        "ticker": update.get("ticker"),
-        "date": update.get("date"),
-        "status": update.get("status"),
-        "last_update": update.get("timestamp"),
-        "start_time": update.get("start_time"),
-        "end_time": update.get("end_time")
-    })
+    run_id = update.get("run_id") or "legacy"
+    ticker = update.get("ticker") or "UNKNOWN"
+    node = update.get("node")
+
+    with run_status_lock:
+        if run_id not in run_statuses:
+            run_statuses[run_id] = _make_run_status(run_id, ticker, [])
+        latest_run_id = run_id
+        run_status = run_statuses[run_id]
+
+        ticker_state = run_status["tickers"].setdefault(
+            ticker,
+            {
+                "ticker": ticker,
+                "date": update.get("date"),
+                "active_node": None,
+                "completed_nodes": [],
+                "updates": {},
+                "status": "triggered",
+                "last_update": None,
+                "start_time": update.get("start_time"),
+                "end_time": None,
+                "error": None,
+            },
+        )
+
+        if node:
+            if node not in ticker_state["completed_nodes"]:
+                ticker_state["completed_nodes"].append(node)
+            ticker_state["active_node"] = node
+
+        if "updates" in update:
+            ticker_state["updates"].update(update["updates"])
+
+        ticker_state.update({
+            "date": update.get("date"),
+            "status": update.get("status") or ticker_state.get("status"),
+            "last_update": update.get("timestamp"),
+            "start_time": update.get("start_time") or ticker_state.get("start_time"),
+            "end_time": update.get("end_time") or ticker_state.get("end_time"),
+            "error": update.get("error"),
+        })
+
+        run_status.update({
+            "ticker": ticker,
+            "date": update.get("date"),
+            "active_node": ticker_state.get("active_node"),
+            "completed_nodes": list(ticker_state.get("completed_nodes", [])),
+            "updates": dict(ticker_state.get("updates", {})),
+            "last_update": update.get("timestamp"),
+            "start_time": run_status.get("start_time") or update.get("start_time"),
+            "end_time": update.get("end_time") or run_status.get("end_time"),
+            "error": update.get("error"),
+        })
+        _recompute_run_summary(run_status)
     return {"status": "received"}
 
 @app.get("/api/status")
 async def get_current_status():
     """Return the current active run status."""
-    return current_run_status
+    return _get_latest_run_status()
+
+@app.get("/api/status/{run_id}")
+async def get_run_status(run_id: str):
+    """Return the status for a specific run."""
+    with run_status_lock:
+        if run_id not in run_statuses:
+            raise HTTPException(status_code=404, detail="Run status not found")
+        return run_statuses[run_id]
+
+@app.get("/api/statuses")
+async def list_run_statuses():
+    """List known run statuses ordered by newest first."""
+    with run_status_lock:
+        statuses = sorted(
+            run_statuses.values(),
+            key=lambda status: status.get("start_time") or "",
+            reverse=True,
+        )
+    return statuses
 
 RESULTS_DIR = Path(DEFAULT_CONFIG.get("results_dir", "results"))
 

@@ -62,6 +62,7 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.run_id = self.config.get("run_id")
 
         # Configure logging based on config
         log_level = self.config.get("log_level", "INFO").upper()
@@ -339,6 +340,7 @@ class TradingAgentsGraph:
         start_time_iso = start_time.isoformat() + "Z"
         # Notify starting
         self._send_webhook({
+            "run_id": self.run_id,
             "ticker": company_name,
             "date": trade_date,
             "node": "Initializing...",
@@ -381,6 +383,7 @@ class TradingAgentsGraph:
                 
                 # Send webhook with accumulated updates for this node
                 self._send_webhook({
+                    "run_id": self.run_id,
                     "ticker": company_name,
                     "date": trade_date,
                     "node": node_name,
@@ -392,6 +395,7 @@ class TradingAgentsGraph:
         except Exception as e:
             logger.error("Error during graph execution for %s: %s", company_name, e)
             self._send_webhook({
+                "run_id": self.run_id,
                 "ticker": company_name,
                 "date": trade_date,
                 "status": "error",
@@ -415,6 +419,7 @@ class TradingAgentsGraph:
 
         # Notify completion
         self._send_webhook({
+            "run_id": self.run_id,
             "ticker": company_name,
             "date": trade_date,
             "status": "completed",
