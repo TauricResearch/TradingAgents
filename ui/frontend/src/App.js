@@ -1,67 +1,133 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import FlowGraph from './components/FlowGraph';
-import { LineChart, Layout, History, Activity, ShieldCheck, ChevronRight, Info, Target, AlertTriangle, PanelLeftClose, PanelLeftOpen, Clock } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ChevronRight,
+  Info,
+  Layout,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Target,
+  TrendingUp,
+} from 'lucide-react';
 
-const MarkdownContent = ({ content }) => {
-  if (!content) return <div style={{ color: '#64748b', fontStyle: 'italic', padding: '10px' }}>No data available</div>;
+const SURFACE = {
+  appBg: '#020617',
+  panel: '#0f172a',
+  panelAlt: '#111c31',
+  panelMuted: '#162033',
+  border: '#1e293b',
+  borderStrong: '#334155',
+  text: '#f8fafc',
+  textMuted: '#94a3b8',
+  textSubtle: '#64748b',
+  blue: '#3b82f6',
+  blueSoft: '#60a5fa',
+  green: '#10b981',
+  amber: '#eab308',
+  red: '#ef4444',
+  purple: '#a855f7',
+};
 
-  // 1. Force newlines before any **Header**: that doesn't have one
+const formatStatusLabel = (status) => {
+  if (!status) return 'Idle';
+  if (status === 'in_progress') return 'In Progress';
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const parseDecisionHeadline = (content) => {
+  if (!content) return 'No decision yet';
+  const firstMeaningfulLine = content
+    .split('\n')
+    .map((line) => line.replace(/\*\*/g, '').trim())
+    .find(Boolean);
+
+  return firstMeaningfulLine || 'No decision yet';
+};
+
+const MarkdownContent = ({ content, emptyMessage = 'No data available' }) => {
+  if (!content) {
+    return (
+      <div
+        style={{
+          color: SURFACE.textMuted,
+          fontStyle: 'italic',
+          padding: '10px 0',
+        }}
+      >
+        {emptyMessage}
+      </div>
+    );
+  }
+
   const prepared = content.replace(/([^\n])(\*\*.*?\*\*):/g, '$1\n\n$2:');
-  
-  // 2. Split into sections
-  const chunks = prepared.split('\n\n').filter(c => c.trim());
+  const chunks = prepared.split('\n\n').filter((chunk) => chunk.trim());
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {chunks.map((chunk, i) => {
         const headerMatch = chunk.match(/^\*\*(.*?)\*\*:\s*(.*)/s);
-        
+
         if (headerMatch) {
-          const [_, header, body] = headerMatch;
-          const isHighlight = ['Rating', 'Recommendation', 'Action'].some(h => header.includes(h));
-          
-          // Split body into sentences to create bullet points
-          const sentences = body.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 5);
-          
+          const [, header, body] = headerMatch;
+          const isHighlight = ['Rating', 'Recommendation', 'Action'].some((token) => header.includes(token));
+          const sentences = body.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.trim().length > 5);
+
           return (
-            <div key={i} style={{ 
-              background: isHighlight ? '#1e293b' : 'transparent', 
-              borderRadius: '8px', 
-              padding: isHighlight ? '16px' : '0 4px',
-              borderLeft: isHighlight ? `4px solid ${header.includes('Rating') || header.includes('Recommendation') ? '#3b82f6' : '#10b981'}` : 'none',
-            }}>
-              <div style={{ 
-                fontSize: '11px', 
-                fontWeight: '800', 
-                textTransform: 'uppercase', 
-                color: isHighlight ? '#94a3b8' : '#3b82f6',
-                letterSpacing: '0.1em',
-                marginBottom: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
+            <div
+              key={i}
+              style={{
+                background: isHighlight ? SURFACE.panelMuted : 'transparent',
+                borderRadius: '12px',
+                padding: isHighlight ? '16px' : '0 2px',
+                border: isHighlight ? `1px solid ${SURFACE.borderStrong}` : 'none',
+                borderLeft: isHighlight
+                  ? `4px solid ${header.includes('Action') ? SURFACE.green : SURFACE.blue}`
+                  : 'none',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  color: isHighlight ? SURFACE.textMuted : SURFACE.blueSoft,
+                  letterSpacing: '0.1em',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
                 {header.includes('Rating') && <Target size={14} />}
                 {header.includes('Action') && <AlertTriangle size={14} />}
                 {header.includes('Rationale') && <Info size={14} />}
                 {header}
               </div>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {sentences.map((sentence, idx) => (
-                  <div key={idx} style={{ 
-                    display: 'flex', 
-                    gap: '10px', 
-                    fontSize: '13px', 
-                    lineHeight: '1.6', 
-                    color: '#f8fafc',
-                    fontWeight: header.includes('Rating') ? 'bold' : '400'
-                  }}>
-                    <span style={{ color: '#3b82f6', fontSize: '16px', lineHeight: '1.2' }}>•</span>
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      gap: '10px',
+                      fontSize: '13px',
+                      lineHeight: 1.6,
+                      color: SURFACE.text,
+                      fontWeight: header.includes('Rating') ? 700 : 400,
+                    }}
+                  >
+                    <span style={{ color: SURFACE.blue, fontSize: '16px', lineHeight: 1.2 }}>•</span>
                     <span>
                       {sentence.split(/(\*\*.*?\*\*)/g).map((part, j) => {
                         if (part.startsWith('**') && part.endsWith('**')) {
-                          return <strong key={j} style={{ color: '#60a5fa' }}>{part.slice(2, -2)}</strong>;
+                          return (
+                            <strong key={j} style={{ color: SURFACE.blueSoft }}>
+                              {part.slice(2, -2)}
+                            </strong>
+                          );
                         }
                         return part;
                       })}
@@ -73,17 +139,29 @@ const MarkdownContent = ({ content }) => {
           );
         }
 
-        // Handle paragraphs that aren't headers
-        const pSentences = chunk.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 5);
+        const paragraphSentences = chunk.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.trim().length > 5);
         return (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 4px' }}>
-            {pSentences.map((s, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: '10px', fontSize: '13px', lineHeight: '1.7', color: '#cbd5e1' }}>
-                <span style={{ color: '#64748b' }}>•</span>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 2px' }}>
+            {paragraphSentences.map((sentence, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  gap: '10px',
+                  fontSize: '13px',
+                  lineHeight: 1.7,
+                  color: SURFACE.textMuted,
+                }}
+              >
+                <span style={{ color: SURFACE.textSubtle }}>•</span>
                 <span>
-                  {s.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+                  {sentence.split(/(\*\*.*?\*\*)/g).map((part, j) => {
                     if (part.startsWith('**') && part.endsWith('**')) {
-                      return <strong key={j} style={{ color: '#f8fafc' }}>{part.slice(2, -2)}</strong>;
+                      return (
+                        <strong key={j} style={{ color: SURFACE.text }}>
+                          {part.slice(2, -2)}
+                        </strong>
+                      );
                     }
                     return part;
                   })}
@@ -99,44 +177,114 @@ const MarkdownContent = ({ content }) => {
 
 const ProgressBar = ({ progress, status }) => {
   const isError = status === 'error';
-  const isTriggered = status === 'triggered';
-  
+
   return (
-    <div style={{ width: '100%', height: '6px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden', marginTop: '10px', position: 'relative' }}>
-      <div 
-        style={{ 
-          width: `${progress}%`, 
-          height: '100%', 
-          background: isError ? '#ef4444' : '#3b82f6', 
+    <div
+      style={{
+        width: '100%',
+        height: '8px',
+        background: SURFACE.panel,
+        borderRadius: '999px',
+        overflow: 'hidden',
+        marginTop: '12px',
+        position: 'relative',
+        border: `1px solid ${SURFACE.border}`,
+      }}
+    >
+      <div
+        style={{
+          width: `${progress}%`,
+          height: '100%',
+          background: isError ? SURFACE.red : `linear-gradient(90deg, ${SURFACE.blue}, ${SURFACE.blueSoft})`,
           transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: isError ? 'none' : '0 0 15px rgba(59, 130, 246, 0.5)',
+          boxShadow: isError ? 'none' : '0 0 18px rgba(59, 130, 246, 0.45)',
           position: 'relative',
-          overflow: 'hidden'
-        }} 
+          overflow: 'hidden',
+        }}
       >
-        {/* Animated pulse effect for 'thinking' state */}
         {!isError && progress < 100 && (
-          <div className="progress-pulse" style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-            animation: 'pulse-scan 2s infinite'
-          }} />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent)',
+              animation: 'pulse-scan 2s infinite',
+            }}
+          />
         )}
       </div>
-      
-      <style>{`
-        @keyframes pulse-scan {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </div>
   );
 };
+
+const SectionCard = ({ title, subtitle, icon: Icon, children, accent = SURFACE.blue }) => (
+  <section
+    style={{
+      background: SURFACE.panel,
+      border: `1px solid ${SURFACE.border}`,
+      borderRadius: '16px',
+      padding: '20px',
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        marginBottom: '16px',
+        paddingBottom: '12px',
+        borderBottom: `1px solid ${SURFACE.border}`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {Icon && <Icon size={18} color={accent} />}
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: SURFACE.text }}>{title}</div>
+          {subtitle && <div style={{ fontSize: '12px', color: SURFACE.textMuted, marginTop: '3px' }}>{subtitle}</div>}
+        </div>
+      </div>
+    </div>
+    {children}
+  </section>
+);
+
+const SummaryMetric = ({ label, value, tone = SURFACE.text, helper }) => (
+  <div
+    style={{
+      background: SURFACE.panel,
+      border: `1px solid ${SURFACE.border}`,
+      borderRadius: '14px',
+      padding: '16px',
+      minHeight: '88px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      gap: '8px',
+    }}
+  >
+    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: '20px', fontWeight: 800, color: tone, lineHeight: 1.2 }}>{value}</div>
+    {helper && <div style={{ fontSize: '12px', color: SURFACE.textMuted }}>{helper}</div>}
+  </div>
+);
+
+const EmptyState = ({ title, body }) => (
+  <div
+    style={{
+      background: SURFACE.panel,
+      border: `1px dashed ${SURFACE.borderStrong}`,
+      borderRadius: '16px',
+      padding: '28px',
+      color: SURFACE.textMuted,
+    }}
+  >
+    <div style={{ fontSize: '16px', fontWeight: 700, color: SURFACE.text, marginBottom: '8px' }}>{title}</div>
+    <div style={{ fontSize: '13px', lineHeight: 1.6 }}>{body}</div>
+  </div>
+);
 
 const App = () => {
   const [runs, setRuns] = useState([]);
@@ -154,10 +302,28 @@ const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [elapsed, setElapsed] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState(null);
+  const [activeTab, setActiveTab] = useState('decision');
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+
+  const isCompact = viewportWidth < 1180;
+  const isNarrow = viewportWidth < 860;
+
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!notification) return undefined;
+    const timeout = setTimeout(() => setNotification(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [notification]);
 
   useEffect(() => {
     let interval;
-    
+
     const updateElapsed = () => {
       const activeStart = activeStatus?.start_time;
       const detailStart = runDetail?.start_time;
@@ -195,63 +361,54 @@ const App = () => {
 
   const commentary = useMemo(() => {
     if (!activeStatus) return null;
-    const n = (activeStatus.active_node || '').toLowerCase();
-    
-    // Prioritize user-facing task descriptions
-    if (n.includes('market')) return 'Analyzing market trends and technical indicators...';
-    if (n.includes('social') || n.includes('sentiment')) return 'Gauging market sentiment and social signals...';
-    if (n.includes('news')) return 'Processing latest news and insider transactions...';
-    if (n.includes('fundamental')) return 'Evaluating balance sheets and financial health...';
-    if (n.includes('synchronizer')) return 'Merging parallel analyst insights...';
-    if (n.includes('bull')) return 'Constructing bullish growth thesis...';
+    const node = (activeStatus.active_node || '').toLowerCase();
 
-    if (n.includes('bear')) return 'Identifying potential risks and bearish catalysts...';
-    if (n.includes('research_manager') || n.includes('research manager')) return 'Synthesizing research into investment plan...';
-    if (n.includes('trader')) return 'Calculating entry, exit, and stop-loss targets...';
-    if (n.includes('portfolio_manager') || n.includes('portfolio manager') || n.includes('risk_management')) return 'Final risk assessment and portfolio allocation...';
-    if (n.includes('aggressive')) return 'Stress-testing against aggressive risk models...';
-    if (n.includes('conservative')) return 'Evaluating conservative capital preservation...';
-    if (n.includes('neutral')) return 'Balancing neutral market outlook...';
-    
-    // Handle startup/K8s phases gracefully
-    if (n.includes('worker pod starting')) {
-      return 'Scheduling worker pod and warming cached image...';
+    if (node.includes('market')) return 'Analyzing market trends and technical indicators.';
+    if (node.includes('social') || node.includes('sentiment')) return 'Gauging market sentiment and social signals.';
+    if (node.includes('news')) return 'Processing headlines, macro context, and insider activity.';
+    if (node.includes('fundamental')) return 'Evaluating financial health and business fundamentals.';
+    if (node.includes('synchronizer')) return 'Combining analyst output into a single shared picture.';
+    if (node.includes('bull')) return 'Constructing the strongest bullish case.';
+    if (node.includes('bear')) return 'Stress-testing the idea with bearish scenarios.';
+    if (node.includes('research_manager') || node.includes('research manager')) return 'Turning the competing viewpoints into an investment plan.';
+    if (node.includes('trader')) return 'Calculating execution levels and guardrails.';
+    if (node.includes('portfolio_manager') || node.includes('portfolio manager') || node.includes('risk_management')) {
+      return 'Running final risk review and portfolio sizing.';
     }
-    if (n.includes('launching analyst branches')) {
-      return 'Bootstrapping analyst branches and loading prior context...';
+    if (node.includes('worker pod starting')) return 'Scheduling infrastructure and warming the workflow environment.';
+    if (node.includes('launching analyst branches')) return 'Bootstrapping analyst branches and loading prior context.';
+    if (node.includes('triggering') || node.includes('created') || node.includes('initializing')) {
+      return 'Preparing the workflow to start.';
     }
-    if (n.includes('triggering') || n.includes('created') || n.includes('initializing')) {
-      return 'Preparing agentic workflow environment...';
-    }
-    
-    return 'Processing agentic analysis...';
+
+    return 'Processing analysis.';
   }, [activeStatus]);
 
   const calculateProgress = (node) => {
-    const n = (node || '').toLowerCase();
-    
+    const normalized = (node || '').toLowerCase();
+
     const steps = {
-      'preparing': 5,
+      preparing: 5,
       'worker pod starting': 8,
-      'initializing': 10,
+      initializing: 10,
       'launching analyst branches': 12,
-      'market': 20,
-      'social': 30,
-      'sentiment': 30,
-      'news': 40,
-      'fundamental': 50,
-      'bull': 65,
-      'bear': 75,
+      market: 20,
+      social: 30,
+      sentiment: 30,
+      news: 40,
+      fundamental: 50,
+      bull: 65,
+      bear: 75,
       'research manager': 85,
-      'trader': 92,
-      'risk': 95,
-      'portfolio': 98,
-      'completed': 100
+      trader: 92,
+      risk: 95,
+      portfolio: 98,
+      completed: 100,
     };
 
     let progress = lastValidProgress;
     for (const [key, value] of Object.entries(steps)) {
-      if (n.includes(key)) {
+      if (normalized.includes(key)) {
         progress = value;
         break;
       }
@@ -263,36 +420,38 @@ const App = () => {
     return progress;
   };
 
-  const refreshRuns = (selectNewest = false) => {
+  const refreshRuns = useCallback((selectNewest = false) => {
     fetch('/api/runs')
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setRuns(data);
-        // If selectNewest is true or nothing was selected before, select the newest run
         if (data.length > 0 && (selectNewest || !selectedRun)) {
           setSelectedRun(data[0]);
         }
         setLoading(false);
       })
-      .catch(err => {
-        console.error("Error refreshing runs:", err);
+      .catch((err) => {
+        console.error('Error refreshing runs:', err);
+        setNotification({ type: 'error', message: 'Unable to refresh recent runs.' });
         setLoading(false);
       });
-  };
+  }, [selectedRun]);
 
   useEffect(() => {
     let completionTimeout;
     refreshRuns();
-    fetch('/api/stats').then(res => res.json()).then(setStats).catch(err => console.error("Error fetching stats:", err));
-    fetch('/api/reflections').then(res => res.json()).then(setReflections).catch(err => console.error("Error fetching reflections:", err));
-    fetch('/api/config/portfolio').then(res => res.json()).then(data => setPortfolio(data.tickers)).catch(err => console.error("Error fetching portfolio:", err));
+    fetch('/api/stats').then((res) => res.json()).then(setStats).catch((err) => console.error('Error fetching stats:', err));
+    fetch('/api/reflections').then((res) => res.json()).then(setReflections).catch((err) => console.error('Error fetching reflections:', err));
+    fetch('/api/config/portfolio')
+      .then((res) => res.json())
+      .then((data) => setPortfolio(data.tickers))
+      .catch((err) => console.error('Error fetching portfolio:', err));
 
-    // Poll for active status every 3 seconds
     const statusInterval = setInterval(() => {
       const statusUrl = activeRunId ? `/api/status/${activeRunId}` : '/api/status';
       fetch(statusUrl)
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error') {
             setActiveStatus(data);
           } else if (data.status === 'completed' && activeRunId) {
@@ -304,422 +463,614 @@ const App = () => {
               setActiveRunId(null);
             }, 5000);
           } else {
-            // If we were just active and now we're not (e.g. backend reset to idle)
             setActiveStatus(null);
           }
-        });
+        })
+        .catch((err) => console.error('Error fetching status:', err));
     }, 3000);
 
     return () => {
       clearInterval(statusInterval);
       clearTimeout(completionTimeout);
     };
-  }, [activeRunId]);
+  }, [activeRunId, refreshRuns]);
+
+  useEffect(() => {
+    if (selectedRun) {
+      fetch(`/api/runs/${selectedRun.ticker}/${selectedRun.date}`)
+        .then((res) => res.json())
+        .then((data) => setRunDetail(data))
+        .catch((err) => console.error('Error fetching run details:', err));
+    }
+  }, [selectedRun]);
 
   const savePortfolio = () => {
     setIsSavingPortfolio(true);
     fetch('/api/config/portfolio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tickers: portfolio })
+      body: JSON.stringify({ tickers: portfolio }),
     })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to update portfolio');
-      return res.json();
-    })
-    .then(() => {
-      setIsSavingPortfolio(false);
-      alert('Ticker list updated! New analysis runs will now use: ' + portfolio);
-    })
-    .catch(err => {
-      console.error("Error updating portfolio:", err);
-      setIsSavingPortfolio(false);
-      alert(err.message);
-    });
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to update portfolio');
+        return res.json();
+      })
+      .then(() => {
+        setIsSavingPortfolio(false);
+        setNotification({ type: 'success', message: `Ticker list updated for future runs: ${portfolio}` });
+      })
+      .catch((err) => {
+        console.error('Error updating portfolio:', err);
+        setIsSavingPortfolio(false);
+        setNotification({ type: 'error', message: err.message });
+      });
   };
 
   const triggerAnalysis = () => {
     setIsTriggering(true);
-    setElapsed("0m 0s");
+    setElapsed('0m 0s');
     setLastValidProgress(5);
-    fetch('/api/jobs/trigger', { 
+    setActiveTab('decision');
+
+    fetch('/api/jobs/trigger', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tickers: portfolio })
+      body: JSON.stringify({ tickers: portfolio }),
     })
-    .then(res => {
-      if (!res.ok) {
-        return res.json().then(err => { throw new Error(err.detail || 'Failed to trigger job') });
-      }
-      return res.json();
-    })
-    .then(data => {
-      setIsTriggering(false);
-      if (data.run_id) {
-        setActiveRunId(data.run_id);
-      }
-      // Immediately fetch status to show feedback without waiting for the next 3s poll
-      const statusUrl = data.run_id ? `/api/status/${data.run_id}` : '/api/status';
-      fetch(statusUrl)
-        .then(res => res.json())
-        .then(statusData => {
-          if (statusData.status === 'triggered' || statusData.status === 'in_progress') {
-            setActiveStatus(statusData);
-          }
-        });
-    })
-    .catch(err => {
-      console.error("Error triggering job:", err);
-      setIsTriggering(false);
-      alert(`Trigger Error: ${err.message}`);
-    });
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then((err) => {
+            throw new Error(err.detail || 'Failed to trigger job');
+          });
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setIsTriggering(false);
+        setNotification({ type: 'success', message: 'Analysis started. Live updates will appear below.' });
+        if (data.run_id) {
+          setActiveRunId(data.run_id);
+        }
+        const statusUrl = data.run_id ? `/api/status/${data.run_id}` : '/api/status';
+        fetch(statusUrl)
+          .then((res) => res.json())
+          .then((statusData) => {
+            if (statusData.status === 'triggered' || statusData.status === 'in_progress') {
+              setActiveStatus(statusData);
+            }
+          });
+      })
+      .catch((err) => {
+        console.error('Error triggering job:', err);
+        setIsTriggering(false);
+        setNotification({ type: 'error', message: `Trigger error: ${err.message}` });
+      });
   };
 
-  useEffect(() => {
-    if (selectedRun) {
-      fetch(`/api/runs/${selectedRun.ticker}/${selectedRun.date}`)
-        .then(res => res.json())
-        .then(data => setRunDetail(data))
-        .catch(err => console.error("Error fetching run details:", err));
-    }
-  }, [selectedRun]);
+  const currentDecision = runDetail?.final_trade_decision || activeStatus?.updates?.final_trade_decision;
+  const currentPlan = runDetail?.investment_plan || activeStatus?.updates?.investment_plan;
+  const activeStep = activeStatus?.active_node || (selectedAgent ? selectedAgent.label : 'Awaiting selection');
+  const heroTitle = activeStatus
+    ? activeStatus.status === 'error'
+      ? 'Analysis Failed'
+      : activeStatus.status === 'completed'
+        ? `${activeStatus.ticker} analysis`
+        : `Analyzing ${activeStatus.ticker}`
+    : selectedRun
+      ? `${selectedRun.ticker} analysis`
+      : 'Trading dashboard';
+
+  const statusTone = activeStatus
+    ? activeStatus.status === 'error'
+      ? SURFACE.red
+      : activeStatus.status === 'completed'
+        ? SURFACE.green
+        : SURFACE.blue
+    : SURFACE.green;
+
+  const summaryMetrics = [
+    {
+      label: 'Decision',
+      value: parseDecisionHeadline(currentDecision),
+      tone: SURFACE.blueSoft,
+      helper: activeStatus && activeStatus.status !== 'completed' ? 'Updates after the analysis finishes.' : 'Latest completed recommendation.',
+    },
+    {
+      label: 'Status',
+      value: formatStatusLabel(activeStatus?.status || 'completed'),
+      tone: statusTone,
+      helper: activeStatus?.status === 'error' ? 'Run needs attention.' : activeStatus ? 'Live workflow state.' : 'Most recent selected run.',
+    },
+    {
+      label: 'Current Step',
+      value: activeStatus && activeStatus.status !== 'completed' ? activeStep : selectedAgent?.label || 'Review decision',
+      tone: SURFACE.amber,
+      helper: commentary || 'Select a node to inspect why it is part of the flow.',
+    },
+    {
+      label: elapsed ? 'Runtime' : 'History',
+      value: elapsed || `${runs.length} runs`,
+      tone: SURFACE.text,
+      helper: elapsed ? 'Elapsed or completed time.' : 'Recent analyses loaded.',
+    },
+  ];
+
+  const detailTabs = [
+    { id: 'decision', label: 'Decision' },
+    { id: 'plan', label: 'Investment Plan' },
+    { id: 'history', label: 'History' },
+  ];
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#020617', color: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
-      {/* Sidebar */}
-      <div style={{ 
-        width: isSidebarCollapsed ? '60px' : '300px', 
-        borderRight: '1px solid #1e293b', 
-        display: 'flex', 
-        flexDirection: 'column',
-        transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
-        <div style={{ 
-          padding: '20px', 
-          borderBottom: '1px solid #1e293b', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: isSidebarCollapsed ? 'center' : 'space-between',
-          gap: '10px' 
-        }}>
-          {!isSidebarCollapsed && (
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: `radial-gradient(circle at top, #0f172a 0%, ${SURFACE.appBg} 45%)`,
+        color: SURFACE.text,
+        fontFamily: 'Inter, sans-serif',
+        flexDirection: isNarrow ? 'column' : 'row',
+      }}
+    >
+      <div
+        style={{
+          width: isNarrow ? '100%' : isSidebarCollapsed ? '72px' : '320px',
+          borderRight: isNarrow ? 'none' : `1px solid ${SURFACE.border}`,
+          borderBottom: isNarrow ? `1px solid ${SURFACE.border}` : 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          position: 'relative',
+          background: 'rgba(2, 6, 23, 0.82)',
+          backdropFilter: 'blur(14px)',
+        }}
+      >
+        <div
+          style={{
+            padding: '20px',
+            borderBottom: `1px solid ${SURFACE.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isSidebarCollapsed && !isNarrow ? 'center' : 'space-between',
+            gap: '10px',
+          }}
+        >
+          {(!isSidebarCollapsed || isNarrow) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Activity color="#3b82f6" />
-              <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>TradingAgents</h1>
+              <Activity color={SURFACE.blue} />
+              <div>
+                <h1 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>TradingAgents</h1>
+                <div style={{ fontSize: '12px', color: SURFACE.textMuted }}>Decision support dashboard</div>
+              </div>
             </div>
           )}
-          <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: '#64748b', 
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '4px'
-            }}
-          >
-            {isSidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-          </button>
+          {!isNarrow && (
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: SURFACE.textSubtle,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px',
+              }}
+              aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            </button>
+          )}
         </div>
-        
-        {!isSidebarCollapsed && (
+
+        {(!isSidebarCollapsed || isNarrow) && (
           <>
-            <div style={{ padding: '15px', borderBottom: '1px solid #1e293b' }}>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PERFORMANCE</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Total Trades</span>
-                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{stats?.total_trades || 0}</span>
+            <div style={{ padding: '16px 18px', borderBottom: `1px solid ${SURFACE.border}` }}>
+              <div style={{ fontSize: '12px', color: SURFACE.textSubtle, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                Performance
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Win Rate</span>
-                <span style={{ fontSize: '13px', fontWeight: 'bold', color: stats?.win_rate >= 50 ? '#10b981' : '#ef4444' }}>
-                  {stats?.win_rate?.toFixed(1) || 0}%
-                </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ background: SURFACE.panel, border: `1px solid ${SURFACE.border}`, borderRadius: '12px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: SURFACE.textMuted, marginBottom: '6px' }}>Total trades</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800 }}>{stats?.total_trades || 0}</div>
+                </div>
+                <div style={{ background: SURFACE.panel, border: `1px solid ${SURFACE.border}`, borderRadius: '12px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: SURFACE.textMuted, marginBottom: '6px' }}>Win rate</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: stats?.win_rate >= 50 ? SURFACE.green : SURFACE.red }}>
+                    {stats?.win_rate?.toFixed(1) || 0}%
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div style={{ padding: '15px', borderBottom: '1px solid #1e293b', background: '#0f172a' }}>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '8px' }}>PORTFOLIO TICKERS</div>
-              <textarea 
+            <div style={{ padding: '18px', borderBottom: `1px solid ${SURFACE.border}`, background: 'rgba(15, 23, 42, 0.65)' }}>
+              <div style={{ fontSize: '12px', color: SURFACE.textSubtle, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                Portfolio
+              </div>
+              <div style={{ fontSize: '12px', color: SURFACE.textMuted, lineHeight: 1.6, marginBottom: '10px' }}>
+                Enter comma-separated tickers for the next analysis run.
+              </div>
+              <textarea
                 value={portfolio}
                 onChange={(e) => setPortfolio(e.target.value)}
-                placeholder="AAPL,MSFT,NVDA..."
+                placeholder="AAPL, MSFT, NVDA"
                 style={{
                   width: '100%',
-                  background: '#020617',
-                  border: '1px solid #334155',
-                  borderRadius: '4px',
-                  color: 'white',
-                  fontSize: '12px',
-                  padding: '8px',
-                  minHeight: '60px',
-                  resize: 'none',
+                  background: SURFACE.appBg,
+                  border: `1px solid ${SURFACE.borderStrong}`,
+                  borderRadius: '10px',
+                  color: SURFACE.text,
+                  fontSize: '13px',
+                  padding: '10px 12px',
+                  minHeight: '72px',
+                  resize: 'vertical',
                   fontFamily: 'inherit',
                   boxSizing: 'border-box',
-                  marginBottom: '8px'
+                  marginBottom: '10px',
                 }}
               />
-              <button 
+              <button
                 onClick={savePortfolio}
                 disabled={isSavingPortfolio}
                 style={{
                   width: '100%',
-                  background: '#3b82f6',
-                  color: 'white',
+                  background: SURFACE.blue,
+                  color: SURFACE.text,
                   border: 'none',
-                  borderRadius: '4px',
-                  padding: '6px',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
+                  borderRadius: '10px',
+                  padding: '10px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  opacity: isSavingPortfolio ? 0.5 : 1,
-                  marginBottom: '8px'
+                  opacity: isSavingPortfolio ? 0.6 : 1,
+                  marginBottom: '10px',
                 }}
               >
-                {isSavingPortfolio ? 'SAVING...' : 'UPDATE TICKER LIST'}
+                {isSavingPortfolio ? 'Saving portfolio...' : 'Save ticker list'}
               </button>
 
-              <button 
+              <button
                 onClick={triggerAnalysis}
-                disabled={isTriggering || activeStatus}
+                disabled={isTriggering || !!activeStatus}
                 style={{
                   width: '100%',
-                  background: activeStatus ? '#1e293b' : '#10b981',
-                  color: 'white',
+                  background: activeStatus ? SURFACE.panelMuted : SURFACE.green,
+                  color: SURFACE.text,
                   border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  cursor: (isTriggering || activeStatus) ? 'not-allowed' : 'pointer',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  cursor: isTriggering || activeStatus ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  opacity: isTriggering ? 0.5 : 1
+                  opacity: isTriggering ? 0.7 : 1,
                 }}
               >
                 <Activity size={14} />
-                {activeStatus ? (
-                  activeStatus.status === 'triggered' ? 'JOB STARTING...' : 'ANALYSIS IN PROGRESS...'
-                ) : (isTriggering ? 'TRIGGERING...' : 'RUN ANALYSIS NOW')}
+                {activeStatus
+                  ? activeStatus.status === 'triggered'
+                    ? 'Job starting...'
+                    : 'Analysis in progress...'
+                  : isTriggering
+                    ? 'Triggering...'
+                    : 'Run analysis'}
               </button>
             </div>
-            
-            <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 'bold', marginBottom: '10px', paddingLeft: '10px' }}>RECENT RUNS</div>
-              {runs.map((run, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => setSelectedRun(run)}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    background: selectedRun === run ? '#1e293b' : 'transparent',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 'bold' }}>{run.ticker}</div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>{run.date}</div>
-                  </div>
-                  <ChevronRight size={14} color="#475569" />
-                </div>
-              ))}
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
+              <div style={{ fontSize: '12px', color: SURFACE.textSubtle, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingLeft: '6px' }}>
+                Recent runs
+              </div>
+              {runs.map((run, index) => {
+                const isSelectedRun = selectedRun === run;
+                return (
+                  <button
+                    key={`${run.ticker}-${run.date}-${index}`}
+                    onClick={() => setSelectedRun(run)}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      background: isSelectedRun ? SURFACE.panelAlt : 'transparent',
+                      marginBottom: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'background 0.2s',
+                      border: isSelectedRun ? `1px solid ${SURFACE.blue}` : `1px solid transparent`,
+                      color: SURFACE.text,
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{run.ticker}</div>
+                      <div style={{ fontSize: '12px', color: SURFACE.textMuted, marginTop: '4px' }}>{run.date}</div>
+                    </div>
+                    <ChevronRight size={14} color={SURFACE.textSubtle} />
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
-        
-        {isSidebarCollapsed && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', paddingTop: '20px' }}>
-            <Activity color="#3b82f6" />
-            <div style={{ width: '30px', height: '1px', background: '#1e293b' }} />
-            {runs.slice(0, 5).map((run, i) => (
-              <div 
-                key={i} 
+
+        {isSidebarCollapsed && !isNarrow && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', paddingTop: '20px' }}>
+            <Activity color={SURFACE.blue} />
+            <div style={{ width: '30px', height: '1px', background: SURFACE.border }} />
+            {runs.slice(0, 5).map((run, index) => (
+              <button
+                key={`${run.ticker}-${run.date}-${index}`}
                 onClick={() => setSelectedRun(run)}
                 title={`${run.ticker} - ${run.date}`}
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '20px',
-                  background: selectedRun === run ? '#3b82f6' : '#1e293b',
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '21px',
+                  background: selectedRun === run ? SURFACE.blue : SURFACE.panel,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '10px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  color: SURFACE.text,
+                  border: 'none',
                 }}
               >
                 {run.ticker.slice(0, 2)}
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Header */}
-        <header style={{ padding: '20px', borderBottom: '1px solid #1e293b', background: '#020617' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {activeStatus ? (
-                  <>
-                    <span style={{ color: activeStatus.status === 'error' ? '#ef4444' : '#10b981' }}>●</span>
-                    {activeStatus.status === 'error'
-                      ? 'ANALYSIS FAILED'
-                      : activeStatus.status === 'completed'
-                        ? `${activeStatus.ticker} Analysis`
-                        : `ANALYZING ${activeStatus.ticker}...`}
-                  </>
-                ) : (selectedRun ? `${selectedRun.ticker} Analysis` : 'Select a run')}
-              </h2>
-              <div style={{ fontSize: '12px', color: activeStatus?.status === 'error' ? '#ef4444' : '#94a3b8', marginTop: '4px' }}>
-                {activeStatus ? (
-                  activeStatus.status === 'error' 
-                    ? activeStatus.error 
+        <header style={{ padding: '24px', borderBottom: `1px solid ${SURFACE.border}`, background: 'rgba(2, 6, 23, 0.72)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isCompact ? 'flex-start' : 'center', gap: '16px', flexDirection: isCompact ? 'column' : 'row' }}>
+            <div style={{ maxWidth: '760px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ color: statusTone, fontSize: '18px' }}>●</span>
+                <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textMuted, fontWeight: 700 }}>
+                  {formatStatusLabel(activeStatus?.status || 'completed')}
+                </span>
+              </div>
+              <h2 style={{ margin: 0, fontSize: isNarrow ? '28px' : '32px', lineHeight: 1.1 }}>{heroTitle}</h2>
+              <div style={{ fontSize: '14px', color: activeStatus?.status === 'error' ? SURFACE.red : SURFACE.textMuted, marginTop: '10px', lineHeight: 1.6 }}>
+                {activeStatus
+                  ? activeStatus.status === 'error'
+                    ? activeStatus.error
                     : activeStatus.status === 'completed'
-                      ? `Trade Date: ${activeStatus.date}`
-                      : `Active Node: ${activeStatus.active_node}`
-                ) : `Trade Date: ${selectedRun?.date}`}
+                      ? `Trade date: ${activeStatus.date}`
+                      : commentary
+                  : selectedRun
+                    ? `Reviewing the run from ${selectedRun.date}. Select a workflow node to inspect the reasoning path.`
+                    : 'Choose a recent run or trigger a new analysis to inspect the workflow and final recommendation.'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-              {elapsed && (
-                <div style={{ 
-                  textAlign: 'right', 
-                  background: activeStatus && activeStatus.status !== 'completed' ? 'rgba(234, 179, 8, 0.1)' : 'rgba(30, 41, 59, 0.5)',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
-                  border: `1px solid ${activeStatus && activeStatus.status !== 'completed' ? '#eab308' : '#334155'}`
-                }}>
-                  <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end', marginBottom: '2px' }}>
-                    <Clock size={10} /> {activeStatus && activeStatus.status !== 'completed' ? 'ELAPSED' : 'TIME TAKEN'}
-                  </div>
-                  <div style={{ color: activeStatus && activeStatus.status !== 'completed' ? '#eab308' : '#f8fafc', fontSize: '14px', fontWeight: '800', fontFamily: 'monospace' }}>
-                    {elapsed}
-                  </div>
-                </div>
-              )}
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>STATUS</div>
-                <div style={{ color: activeStatus ? (activeStatus.status === 'error' ? '#ef4444' : activeStatus.status === 'completed' ? '#10b981' : '#3b82f6') : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
-                  {activeStatus ? (activeStatus.status === 'error' ? 'ERROR' : activeStatus.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS') : 'COMPLETED'}
-                </div>
+
+            {notification && (
+              <div
+                style={{
+                  minWidth: isCompact ? '100%' : '320px',
+                  maxWidth: '420px',
+                  background: notification.type === 'error' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                  border: `1px solid ${notification.type === 'error' ? SURFACE.red : SURFACE.green}`,
+                  borderRadius: '14px',
+                  padding: '14px 16px',
+                  color: notification.type === 'error' ? '#fecaca' : '#bbf7d0',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {notification.message}
               </div>
-              {(!activeStatus || activeStatus.status === 'completed') && (
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>DECISION</div>
-                  <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>
-                    {runDetail?.final_trade_decision?.split('\n')[0] || activeStatus?.updates?.final_trade_decision?.split('\n')[0] || '---'}
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isCompact ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
+              gap: '14px',
+              marginTop: '20px',
+            }}
+          >
+            {summaryMetrics.map((metric) => (
+              <SummaryMetric key={metric.label} {...metric} />
+            ))}
+          </div>
+
           {activeStatus && activeStatus.status !== 'error' && activeStatus.status !== 'completed' && (
-            <>
+            <div style={{ marginTop: '18px' }}>
               <ProgressBar progress={calculateProgress(activeStatus.active_node)} status={activeStatus.status} />
-              {commentary && (
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: '#eab308', 
-                  marginTop: '8px', 
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span style={{ animation: 'pulse 2s infinite' }}>●</span>
-                  {commentary}
-                </div>
-              )}
-            </>
+              <div style={{ fontSize: '12px', color: SURFACE.amber, marginTop: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ animation: 'pulse 2s infinite' }}>●</span>
+                Workflow progress is estimated from the current active node.
+              </div>
+            </div>
           )}
         </header>
-        
+
         <style>{`
           @keyframes pulse {
             0% { opacity: 0.4; transform: scale(0.8); }
             50% { opacity: 1; transform: scale(1.1); }
             100% { opacity: 0.4; transform: scale(0.8); }
           }
+
+          @keyframes pulse-scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
         `}</style>
 
-        {/* Workspace */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-          <div style={{ marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #1e293b' }}>
-            <div style={{ padding: '15px', background: '#0f172a', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Layout size={18} color="#3b82f6" />
-                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>AGENTIC FLOW VISUALIZATION</span>
-              </div>
-              {selectedAgent && (
-                <div style={{ 
-                  background: '#1e293b', 
-                  padding: '6px 12px', 
-                  borderRadius: '6px', 
-                  fontSize: '12px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px',
-                  border: '1px solid #3b82f6',
-                }}>
-                  <div style={{ fontWeight: 'bold', color: '#60a5fa' }}>{selectedAgent.label.toUpperCase()}:</div>
-                  <div style={{ color: '#94a3b8' }}>{selectedAgent.description}</div>
-                  <button 
-                    onClick={() => setSelectedAgent(null)}
-                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '0 4px', fontSize: '16px' }}
-                  >×</button>
-                </div>
-              )}
-            </div>
-            <FlowGraph runData={runDetail} activeStatus={activeStatus} onNodeClick={setSelectedAgent} />
-          </div>
+        <main style={{ flex: 1, overflowY: 'auto', padding: isNarrow ? '16px' : '24px' }}>
+          {loading ? (
+            <EmptyState title="Loading dashboard" body="Fetching recent runs, portfolio settings, and historical context." />
+          ) : !selectedRun && !activeStatus ? (
+            <EmptyState title="No analysis selected" body="Choose a recent run from the sidebar or trigger a fresh analysis to populate the dashboard." />
+          ) : (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isCompact ? '1fr' : 'minmax(0, 2fr) minmax(320px, 0.95fr)',
+                  gap: '20px',
+                  alignItems: 'start',
+                }}
+              >
+                <SectionCard
+                  title="Workflow overview"
+                  subtitle="Follow the analysis path and click any node to inspect what that agent contributes."
+                  icon={Layout}
+                >
+                  <FlowGraph
+                    runData={runDetail}
+                    activeStatus={activeStatus}
+                    onNodeClick={setSelectedAgent}
+                    selectedAgentId={selectedAgent?.id}
+                  />
+                </SectionCard>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <section style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-              <h3 style={{ marginTop: 0, fontSize: '14px', color: '#3b82f6', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>FINAL DECISION</h3>
-              <MarkdownContent content={runDetail?.final_trade_decision} />
-            </section>
-            
-            <section style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-              <h3 style={{ marginTop: 0, fontSize: '14px', color: '#eab308', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>INVESTMENT PLAN</h3>
-              <MarkdownContent content={runDetail?.investment_plan} />
-            </section>
-          </div>
-
-          {/* Reflections Section */}
-          {reflections.length > 0 && (
-            <div style={{ marginTop: '20px' }}>
-              <section style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px' }}>
-                <h3 style={{ marginTop: 0, fontSize: '14px', color: '#a855f7', borderBottom: '1px solid #1e293b', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <History size={16} /> HISTORICAL REFLECTIONS
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {reflections.slice(0, 5).map((ref, idx) => (
-                    <div key={idx} style={{ padding: '12px', background: '#1e293b', borderRadius: '8px', borderLeft: '3px solid #a855f7' }}>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold' }}>
-                        {ref.ticker} • {ref.date} • {ref.alpha} Alpha • {ref.holding} holding
+                <SectionCard
+                  title="Agent inspector"
+                  subtitle={selectedAgent ? 'Persistent context for the selected node.' : 'Select any node to keep its purpose visible while you review the run.'}
+                  icon={TrendingUp}
+                  accent={SURFACE.amber}
+                >
+                  {selectedAgent ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.borderStrong}`, borderRadius: '14px', padding: '16px' }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700, marginBottom: '8px' }}>
+                          Selected agent
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>{selectedAgent.label}</div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.12)', color: SURFACE.blueSoft, fontSize: '12px', fontWeight: 700 }}>
+                          <span>●</span>
+                          {selectedAgent.status || 'Waiting'}
+                        </div>
                       </div>
-                      <MarkdownContent content={ref.reflection} />
+                      <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7 }}>{selectedAgent.description}</div>
+                      <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.border}`, borderRadius: '14px', padding: '14px' }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700, marginBottom: '8px' }}>
+                          Why this matters
+                        </div>
+                        <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7 }}>
+                          This panel stays visible while you scan the graph, so you do not need to hover repeatedly to remember each stage’s purpose.
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            </div>
+                  ) : (
+                    <EmptyState
+                      title="No node selected"
+                      body="The graph now supports click-to-inspect. Pick any analyst, researcher, or manager node to keep its role pinned here while you review the output."
+                    />
+                  )}
+                </SectionCard>
+              </div>
+
+              <div style={{ marginTop: '20px' }}>
+                <SectionCard
+                  title="Decision workspace"
+                  subtitle="The most important output first, with the supporting plan and historical context one click away."
+                  icon={Target}
+                  accent={SURFACE.blue}
+                >
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '18px' }}>
+                    {detailTabs.map((tab) => {
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          style={{
+                            border: `1px solid ${isActive ? SURFACE.blue : SURFACE.borderStrong}`,
+                            background: isActive ? 'rgba(59, 130, 246, 0.14)' : 'transparent',
+                            color: isActive ? SURFACE.blueSoft : SURFACE.textMuted,
+                            borderRadius: '999px',
+                            padding: '8px 14px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {activeTab === 'decision' && (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: isCompact ? '1fr' : 'minmax(260px, 0.8fr) minmax(0, 1.2fr)',
+                        gap: '18px',
+                      }}
+                    >
+                      <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.borderStrong}`, borderRadius: '16px', padding: '18px' }}>
+                        <div style={{ fontSize: '11px', color: SURFACE.textSubtle, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '10px' }}>
+                          Key takeaway
+                        </div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, lineHeight: 1.2, color: SURFACE.blueSoft }}>
+                          {parseDecisionHeadline(currentDecision)}
+                        </div>
+                        <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7, marginTop: '12px' }}>
+                          This is the fastest way to understand the current run before diving into the full explanation.
+                        </div>
+                      </div>
+                      <div>
+                        <MarkdownContent
+                          content={currentDecision}
+                          emptyMessage="The final recommendation will appear here once a completed run is selected."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'plan' && (
+                    <MarkdownContent
+                      content={currentPlan}
+                      emptyMessage="The investment plan will appear here once the run includes execution guidance."
+                    />
+                  )}
+
+                  {activeTab === 'history' && (
+                    <>
+                      {reflections.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {reflections.slice(0, 5).map((ref, idx) => (
+                            <div
+                              key={`${ref.ticker}-${ref.date}-${idx}`}
+                              style={{
+                                padding: '16px',
+                                background: SURFACE.panelAlt,
+                                borderRadius: '14px',
+                                border: `1px solid ${SURFACE.border}`,
+                                borderLeft: `4px solid ${SURFACE.purple}`,
+                              }}
+                            >
+                              <div style={{ fontSize: '11px', color: SURFACE.textMuted, marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                {ref.ticker} • {ref.date} • {ref.alpha} alpha • {ref.holding} holding
+                              </div>
+                              <MarkdownContent content={ref.reflection} />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <EmptyState title="No historical reflections yet" body="Completed run reflections will accumulate here so trends and mistakes are easier to spot over time." />
+                      )}
+                    </>
+                  )}
+                </SectionCard>
+              </div>
+            </>
           )}
         </main>
       </div>
