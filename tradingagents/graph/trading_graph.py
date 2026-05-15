@@ -39,7 +39,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
-from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
+from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, has_checkpoint, thread_id
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -359,13 +359,22 @@ class TradingAgentsGraph:
         args = self.propagator.get_graph_args()
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
+        # When resuming from a checkpoint, pass None instead of init_agent_state
+        # so LangGraph picks up from the last saved node (not starting over).
+        resuming = False
         if self.config.get("checkpoint_enabled"):
             tid = thread_id(company_name, str(trade_date))
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
+            resuming = has_checkpoint(
+                self.config["data_cache_dir"], company_name, str(trade_date)
+            )
+
+        # None = resume from checkpoint; init_agent_state = fresh start
+        graph_input = None if resuming else init_agent_state
 
         if self.debug or on_chunk is not None:
             trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
+            for chunk in self.graph.stream(graph_input, **args):
                 if on_chunk is not None:
                     on_chunk(dict(chunk))  # shallow copy so callback can't mutate trace
                 if self.debug and chunk.get("messages"):
@@ -377,7 +386,7 @@ class TradingAgentsGraph:
             for chunk in trace:
                 final_state.update(chunk)
         else:
-            final_state = self.graph.invoke(init_agent_state, **args)
+            final_state = self.graph.invoke(graph_input, **args)
 
         # Store current state for reflection.
         self.curr_state = final_state
