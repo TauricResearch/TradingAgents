@@ -578,7 +578,11 @@ const App = () => {
                 {activeStatus ? (
                   <>
                     <span style={{ color: activeStatus.status === 'error' ? '#ef4444' : '#10b981' }}>●</span>
-                    {activeStatus.status === 'error' ? 'ANALYSIS FAILED' : `ANALYZING ${activeStatus.ticker}...`}
+                    {activeStatus.status === 'error'
+                      ? 'ANALYSIS FAILED'
+                      : activeStatus.status === 'completed'
+                        ? `${activeStatus.ticker} Analysis`
+                        : `ANALYZING ${activeStatus.ticker}...`}
                   </>
                 ) : (selectedRun ? `${selectedRun.ticker} Analysis` : 'Select a run')}
               </h2>
@@ -586,7 +590,9 @@ const App = () => {
                 {activeStatus ? (
                   activeStatus.status === 'error' 
                     ? activeStatus.error 
-                    : `Active Node: ${activeStatus.active_node}`
+                    : activeStatus.status === 'completed'
+                      ? `Trade Date: ${activeStatus.date}`
+                      : `Active Node: ${activeStatus.active_node}`
                 ) : `Trade Date: ${selectedRun?.date}`}
               </div>
             </div>
@@ -609,19 +615,21 @@ const App = () => {
               )}
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>STATUS</div>
-                <div style={{ color: activeStatus ? (activeStatus.status === 'error' ? '#ef4444' : '#3b82f6') : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
-                  {activeStatus ? (activeStatus.status === 'error' ? 'ERROR' : 'IN PROGRESS') : 'COMPLETED'}
+                <div style={{ color: activeStatus ? (activeStatus.status === 'error' ? '#ef4444' : activeStatus.status === 'completed' ? '#10b981' : '#3b82f6') : '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
+                  {activeStatus ? (activeStatus.status === 'error' ? 'ERROR' : activeStatus.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS') : 'COMPLETED'}
                 </div>
               </div>
-              {!activeStatus && (
+              {(!activeStatus || activeStatus.status === 'completed') && (
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>DECISION</div>
-                  <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>{runDetail?.final_trade_decision?.split('\n')[0] || '---'}</div>
+                  <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: 'bold' }}>
+                    {runDetail?.final_trade_decision?.split('\n')[0] || activeStatus?.updates?.final_trade_decision?.split('\n')[0] || '---'}
+                  </div>
                 </div>
               )}
             </div>
           </div>
-          {activeStatus && activeStatus.status !== 'error' && (
+          {activeStatus && activeStatus.status !== 'error' && activeStatus.status !== 'completed' && (
             <>
               <ProgressBar progress={calculateProgress(activeStatus.active_node)} status={activeStatus.status} />
               {commentary && (
