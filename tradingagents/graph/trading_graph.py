@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import json
+import asyncio
 import queue
 import requests
 import threading
@@ -401,6 +402,10 @@ class TradingAgentsGraph:
                 self.graph = self.workflow.compile()
 
     def _run_graph(self, company_name, trade_date):
+        """Synchronous wrapper around the async graph execution path."""
+        return asyncio.run(self._run_graph_async(company_name, trade_date))
+
+    async def _run_graph_async(self, company_name, trade_date):
         """Execute the graph and write the resulting state to disk and memory log."""
         start_time = datetime.utcnow()
         start_time_iso = start_time.isoformat() + "Z"
@@ -443,7 +448,7 @@ class TradingAgentsGraph:
         node_start_times = {}
         
         try:
-            for chunk in self.graph.stream(init_agent_state, **args):
+            async for chunk in self.graph.astream(init_agent_state, **args):
                 node_name = list(chunk.keys())[0] if chunk else "unknown"
                 node_updates = chunk.get(node_name, {})
                 now = datetime.utcnow()
@@ -482,7 +487,7 @@ class TradingAgentsGraph:
 
         # Retrieve the final accumulated state from the graph's own state manager
         # This ensures reducers (like add_messages) are correctly applied.
-        final_state = self.graph.get_state(config).values
+        final_state = await self._aget_graph_state_values(config)
 
         # Store current state for reflection.
         self.curr_state = final_state
@@ -520,6 +525,14 @@ class TradingAgentsGraph:
             )
 
         return final_state, self.process_signal(final_decision) if final_decision else "N/A"
+
+    async def _aget_graph_state_values(self, config):
+        """Retrieve graph state values from async or sync state helpers."""
+        if hasattr(self.graph, "aget_state"):
+            state = await self.graph.aget_state(config)
+            return state.values
+        state = await asyncio.to_thread(self.graph.get_state, config)
+        return state.values
 
     def _log_state(self, trade_date, final_state, start_time=None, end_time=None):
         """Log the final state to a JSON file."""

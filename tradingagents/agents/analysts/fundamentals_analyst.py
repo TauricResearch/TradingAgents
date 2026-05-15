@@ -13,7 +13,7 @@ from tradingagents.dataflows.config import get_config
 
 
 def create_fundamentals_analyst(llm):
-    def fundamentals_analyst_node(state):
+    async def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -55,7 +55,7 @@ def create_fundamentals_analyst(llm):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["fundamentals_messages"])
+        result = await chain.ainvoke(state["fundamentals_messages"])
 
         if len(result.tool_calls) == 0:
             # Report is ready, clean up private message history for this branch

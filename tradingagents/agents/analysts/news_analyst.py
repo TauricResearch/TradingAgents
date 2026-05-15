@@ -10,7 +10,7 @@ from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm):
-    def news_analyst_node(state):
+    async def news_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -48,7 +48,7 @@ def create_news_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["news_messages"])
+        result = await chain.ainvoke(state["news_messages"])
 
         if len(result.tool_calls) == 0:
             # Report is ready, clean up private message history for this branch

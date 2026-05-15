@@ -21,8 +21,8 @@ See: https://github.com/TauricResearch/TradingAgents/issues/557
 
 from langchain_core.messages import HumanMessage, RemoveMessage
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import functools
+import asyncio
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
@@ -72,7 +72,7 @@ def create_sentiment_analyst(llm):
     single LLM call.
     """
 
-    def sentiment_analyst_node(state):
+    async def sentiment_analyst_node(state):
         ticker = state["company_of_interest"]
         end_date = state["trade_date"]
         start_date = _seven_days_back(end_date)
@@ -105,18 +105,17 @@ def create_sentiment_analyst(llm):
                 if enable_reddit else (lambda: "<reddit disabled by config>")
             ),
         }
-        results = {}
-        with ThreadPoolExecutor(max_workers=len(fetch_jobs)) as executor:
-            future_to_name = {
-                executor.submit(job): name
-                for name, job in fetch_jobs.items()
-            }
-            for future in as_completed(future_to_name):
-                name = future_to_name[future]
-                try:
-                    results[name] = future.result()
-                except Exception as exc:
-                    results[name] = f"<{name} unavailable: {type(exc).__name__}: {exc}>"
+        async def run_job(name, job):
+            try:
+                return name, await asyncio.to_thread(job)
+            except Exception as exc:
+                return name, f"<{name} unavailable: {type(exc).__name__}: {exc}>"
+
+        results = dict(
+            await asyncio.gather(
+                *(run_job(name, job) for name, job in fetch_jobs.items())
+            )
+        )
 
         news_block = results.get("news", "<news unavailable>")
         stocktwits_block = results.get("stocktwits", "<stocktwits unavailable>")
@@ -152,7 +151,7 @@ def create_sentiment_analyst(llm):
         # No bind_tools — the data is already in the prompt; a single LLM
         # call produces the report directly.
         chain = prompt | llm
-        result = chain.invoke(state["sentiment_messages"])
+        result = await chain.ainvoke(state["sentiment_messages"])
 
         # Report is ready, clean up private message history for this branch
         messages = state["sentiment_messages"]

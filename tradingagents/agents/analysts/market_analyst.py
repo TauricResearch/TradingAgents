@@ -11,7 +11,7 @@ from tradingagents.dataflows.config import get_config
 
 def create_market_analyst(llm):
 
-    def market_analyst_node(state):
+    async def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -74,7 +74,7 @@ Volume-Based Indicators:
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["market_messages"])
+        result = await chain.ainvoke(state["market_messages"])
 
         if len(result.tool_calls) == 0:
             # Report is ready, clean up private message history for this branch
