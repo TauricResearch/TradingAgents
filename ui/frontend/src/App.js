@@ -456,6 +456,7 @@ const App = () => {
             setActiveStatus(data);
           } else if (data.status === 'completed' && activeRunId) {
             setActiveStatus(data);
+            setSelectedRun({ ticker: data.ticker, date: data.date });
             clearTimeout(completionTimeout);
             completionTimeout = setTimeout(() => {
               refreshRuns(true);
@@ -477,6 +478,7 @@ const App = () => {
 
   useEffect(() => {
     if (selectedRun) {
+      setRunDetail(null);
       fetch(`/api/runs/${selectedRun.ticker}/${selectedRun.date}`)
         .then((res) => res.json())
         .then((data) => setRunDetail(data))
@@ -547,8 +549,10 @@ const App = () => {
       });
   };
 
-  const currentDecision = runDetail?.final_trade_decision || activeStatus?.updates?.final_trade_decision;
-  const currentPlan = runDetail?.investment_plan || activeStatus?.updates?.investment_plan;
+  const liveRunDetail = activeStatus?.updates;
+  const hasLiveCompletedRun = activeStatus?.status === 'completed' && !!liveRunDetail;
+  const currentDecision = hasLiveCompletedRun ? liveRunDetail.final_trade_decision : (liveRunDetail?.final_trade_decision || runDetail?.final_trade_decision);
+  const currentPlan = hasLiveCompletedRun ? liveRunDetail.investment_plan : (liveRunDetail?.investment_plan || runDetail?.investment_plan);
   const activeStep = activeStatus?.active_node || (selectedAgent ? selectedAgent.label : 'Awaiting selection');
   const heroTitle = activeStatus
     ? activeStatus.status === 'error'
