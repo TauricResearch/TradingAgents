@@ -147,13 +147,20 @@ latest_run_id: Optional[str] = None
 def _get_latest_run_status() -> Dict[str, Any]:
     with run_status_lock:
         if latest_run_id and latest_run_id in run_statuses:
-            return run_statuses[latest_run_id]
+            latest = run_statuses[latest_run_id]
+            if latest.get("status") in {"triggered", "in_progress", "error"}:
+                return latest
         if run_statuses:
-            newest = max(
-                run_statuses.values(),
-                key=lambda status: status.get("start_time") or "",
-            )
-            return newest
+            active_runs = [
+                status
+                for status in run_statuses.values()
+                if status.get("status") in {"triggered", "in_progress", "error"}
+            ]
+            if active_runs:
+                return max(
+                    active_runs,
+                    key=lambda status: status.get("start_time") or "",
+                )
     return _make_idle_status()
 
 

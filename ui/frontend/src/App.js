@@ -281,6 +281,7 @@ const App = () => {
   };
 
   useEffect(() => {
+    let completionTimeout;
     refreshRuns();
     fetch('/api/stats').then(res => res.json()).then(setStats).catch(err => console.error("Error fetching stats:", err));
     fetch('/api/reflections').then(res => res.json()).then(setReflections).catch(err => console.error("Error fetching reflections:", err));
@@ -292,16 +293,16 @@ const App = () => {
       fetch(statusUrl)
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error' || data.status === 'completed') {
+          if (data.status === 'in_progress' || data.status === 'triggered' || data.status === 'error') {
             setActiveStatus(data);
-            if (data.status === 'completed') {
-               // If completed, refresh runs and clear active status after a delay
-               setTimeout(() => {
-                 refreshRuns(true);
-                 setActiveStatus(null);
-                 setActiveRunId(null);
-               }, 5000);
-            }
+          } else if (data.status === 'completed' && activeRunId) {
+            setActiveStatus(data);
+            clearTimeout(completionTimeout);
+            completionTimeout = setTimeout(() => {
+              refreshRuns(true);
+              setActiveStatus(null);
+              setActiveRunId(null);
+            }, 5000);
           } else {
             // If we were just active and now we're not (e.g. backend reset to idle)
             setActiveStatus(null);
@@ -309,7 +310,10 @@ const App = () => {
         });
     }, 3000);
 
-    return () => clearInterval(statusInterval);
+    return () => {
+      clearInterval(statusInterval);
+      clearTimeout(completionTimeout);
+    };
   }, [activeRunId]);
 
   const savePortfolio = () => {
