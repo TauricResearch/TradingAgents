@@ -28,6 +28,7 @@ const main = defineCommand({
     portfolio: () => import("./commands/portfolio.ts").then((m) => m.portfolioCommand),
     prices: () => import("./commands/prices.ts").then((m) => m.pricesCommand),
     research: () => import("./commands/research.ts").then((m) => m.researchCommand),
+    screen: () => import("./commands/screen.ts").then((m) => m.screenCommand),
     seed: () => import("./commands/seed.ts").then((m) => m.seedCommand),
     signals: () => import("./commands/signals.ts").then((m) => m.signalsCommand),
     spreadbets: () => import("./commands/spreadbets.ts").then((m) => m.spreadbetsCommand),

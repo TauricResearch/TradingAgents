@@ -34,7 +34,8 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@lib/*": ["src/lib/*"]
+      "@lib/*": ["src/lib/*"],
+      "@server/lib/*": ["src/server/lib/*"]
     },
     "ignoreDeprecations": "6.0"
   },

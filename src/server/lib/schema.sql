@@ -168,3 +168,64 @@ CREATE TABLE IF NOT EXISTS alerts (
 
 CREATE INDEX IF NOT EXISTS idx_alerts_ticker ON alerts(ticker);
 CREATE INDEX IF NOT EXISTS idx_alerts_enabled ON alerts(enabled);
+
+-- Screening rules for watchlist curation
+CREATE TABLE IF NOT EXISTS screening_rules (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    description TEXT,
+    enabled     INTEGER DEFAULT 1,
+    conditions  TEXT NOT NULL,  -- JSON array of ScreenCondition objects
+    priority    INTEGER DEFAULT 0,  -- higher = evaluated first
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_screening_rules_enabled ON screening_rules(enabled);
+
+-- Fundamental enrichment data per ticker (one row per fetch)
+CREATE TABLE IF NOT EXISTS watchlist_enrichment (
+    ticker           TEXT NOT NULL,
+    fetch_date       TEXT NOT NULL,  -- YYYY-MM-DD
+    pe_forward       REAL,
+    eps_growth_1y    REAL,
+    operating_margin REAL,
+    beta_1y          REAL,
+    price_to_sales   REAL,
+    sector           TEXT,
+    region           TEXT,
+    source           TEXT DEFAULT 'yahoo_finance',
+    created_at       TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (ticker, fetch_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_ticker ON watchlist_enrichment(ticker);
+CREATE INDEX IF NOT EXISTS idx_enrichment_fetch ON watchlist_enrichment(fetch_date);
+
+-- News sentiment headlines (one row per headline, FK to enrichment)
+CREATE TABLE IF NOT EXISTS watchlist_news_sentiment (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker          TEXT NOT NULL,
+    published_date  TEXT NOT NULL,  -- YYYY-MM-DD
+    headline_text   TEXT NOT NULL,
+    summary         TEXT,
+    sentiment_score REAL,           -- -1 (bearish) to 1 (bullish)
+    source          TEXT,
+    enrichment_id   TEXT,           -- "ticker:fetch_date" FK to watchlist_enrichment
+    created_at      TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sentiment_ticker ON watchlist_news_sentiment(ticker);
+CREATE INDEX IF NOT EXISTS idx_sentiment_date ON watchlist_news_sentiment(published_date);
+CREATE INDEX IF NOT EXISTS idx_sentiment_enrichment ON watchlist_news_sentiment(enrichment_id);
+
+-- Screening run history (persisted via R05.3)
+CREATE TABLE IF NOT EXISTS watchlist_screenings (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_date    TEXT NOT NULL,       -- YYYY-MM-DD
+    tickers_matched TEXT NOT NULL,   -- JSON array
+    rule_count  INTEGER,
+    created_at  TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_screenings_date ON watchlist_screenings(run_date);
