@@ -49,3 +49,4 @@
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
+{"file":"2026-05-15-brief-watchlist-pattern-enrichment.md","date":"2026-05-15","status":"open","summary":"WATCH-001 enhancement: add STL pattern features (trend, seasonality, entropy, stationarity) to screening enrichment","meta":{"epic":"WATCH-001","tags":["screening","enrichment","pattern-features"]}}

@@ -20,3 +20,5 @@
 {"file":"tidy-first-philosophy.md","date":"2026-05-08","status":"active","summary":"Development philosophy: small steps, quality as constraint, no velocity pressure","meta":{"type":"philosophy","topic":"process"}}
 {"file":"toto-for-timeseries-forcasting.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"workflow-patterns.md","date":"2026-05-08","status":"active","summary":"Common workflow patterns: trading plan, analysis review, price sync","meta":{"type":"reference","topic":"commands"}}
+{"file":"time-benchmark-takeaways.md","date":"2026-05-15","status":"active","summary":"TIME benchmark key takeaways: TSFM rankings, pattern-level evaluation methodology (STL features), actionable for WATCH-001 screening enrichment","meta":{"topic":"tsfm","tags":["time-series","forecasting","benchmark","WATCH-001"]}}
+{"file":"archive/time-benchmark-paper-2602.12147.md","date":"2026-05-15","status":"archived","summary":"Full TIME benchmark paper (arXiv:2602.12147). Moved from docs/ — too large for quick reference.","meta":{"topic":"tsfm","archived":"true"}}
