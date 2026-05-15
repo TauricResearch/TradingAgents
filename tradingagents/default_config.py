@@ -78,7 +78,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
-    "portfolio_max_concurrency": 1,
+    "portfolio_max_concurrency": 2,
+    # External data fetch controls
+    "yfinance_max_retries": 1,
+    "yfinance_base_delay_seconds": 1.0,
+    "sentiment_fetch_timeout_seconds": 5.0,
+    "sentiment_stocktwits_limit": 20,
+    "sentiment_reddit_limit_per_sub": 3,
+    "sentiment_enable_stocktwits": True,
+    "sentiment_enable_reddit": True,
+    # Progress dispatch controls
+    "webhook_queue_size": 128,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.

@@ -21,6 +21,8 @@ See: https://github.com/TauricResearch/TradingAgents/issues/557
 
 from langchain_core.messages import HumanMessage, RemoveMessage
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import functools
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
@@ -30,10 +32,36 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
+from tradingagents.dataflows.config import get_config
 
 
 def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+
+
+@functools.lru_cache(maxsize=128)
+def _cached_news_block(ticker: str, start_date: str, end_date: str) -> str:
+    return get_news.func(ticker, start_date, end_date)
+
+
+@functools.lru_cache(maxsize=128)
+def _cached_stocktwits_block(ticker: str, limit: int, timeout: float) -> str:
+    return fetch_stocktwits_messages(ticker, limit=limit, timeout=timeout)
+
+
+@functools.lru_cache(maxsize=128)
+def _cached_reddit_block(
+    ticker: str,
+    limit_per_sub: int,
+    timeout: float,
+    inter_request_delay: float,
+) -> str:
+    return fetch_reddit_posts(
+        ticker,
+        limit_per_sub=limit_per_sub,
+        timeout=timeout,
+        inter_request_delay=inter_request_delay,
+    )
 
 
 def create_sentiment_analyst(llm):
@@ -49,13 +77,50 @@ def create_sentiment_analyst(llm):
         end_date = state["trade_date"]
         start_date = _seven_days_back(end_date)
         instrument_context = build_instrument_context(ticker)
+        config = get_config()
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
-        news_block = get_news.func(ticker, start_date, end_date)
-        stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+        stocktwits_limit = config.get("sentiment_stocktwits_limit", 20)
+        reddit_limit_per_sub = config.get("sentiment_reddit_limit_per_sub", 3)
+        fetch_timeout = config.get("sentiment_fetch_timeout_seconds", 5.0)
+        enable_stocktwits = config.get("sentiment_enable_stocktwits", True)
+        enable_reddit = config.get("sentiment_enable_reddit", True)
+
+        # Fetch sentiment sources concurrently so the branch wall-clock time
+        # is bounded by the slowest source rather than the sum of all sources.
+        fetch_jobs = {
+            "news": lambda: _cached_news_block(ticker, start_date, end_date),
+            "stocktwits": (
+                (lambda: _cached_stocktwits_block(ticker, stocktwits_limit, fetch_timeout))
+                if enable_stocktwits else (lambda: "<stocktwits disabled by config>")
+            ),
+            "reddit": (
+                (
+                    lambda: _cached_reddit_block(
+                        ticker,
+                        reddit_limit_per_sub,
+                        fetch_timeout,
+                        0.0,
+                    )
+                )
+                if enable_reddit else (lambda: "<reddit disabled by config>")
+            ),
+        }
+        results = {}
+        with ThreadPoolExecutor(max_workers=len(fetch_jobs)) as executor:
+            future_to_name = {
+                executor.submit(job): name
+                for name, job in fetch_jobs.items()
+            }
+            for future in as_completed(future_to_name):
+                name = future_to_name[future]
+                try:
+                    results[name] = future.result()
+                except Exception as exc:
+                    results[name] = f"<{name} unavailable: {type(exc).__name__}: {exc}>"
+
+        news_block = results.get("news", "<news unavailable>")
+        stocktwits_block = results.get("stocktwits", "<stocktwits unavailable>")
+        reddit_block = results.get("reddit", "<reddit unavailable>")
 
         system_message = _build_system_message(
             ticker=ticker,

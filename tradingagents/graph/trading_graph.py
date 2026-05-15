@@ -4,7 +4,9 @@ import logging
 import os
 from pathlib import Path
 import json
+import queue
 import requests
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
@@ -48,6 +50,64 @@ from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
 
+class _WebhookDispatcher:
+    """Background dispatcher for progress webhooks.
+
+    This keeps dashboard updates off the graph critical path and reduces the
+    chance that a slow UI service stretches analyst runtime.
+    """
+
+    def __init__(self, webhook_url: Optional[str], max_queue_size: int = 128):
+        self.webhook_url = webhook_url
+        self._queue: queue.Queue = queue.Queue(maxsize=max_queue_size)
+        self._stop = object()
+        self._thread = None
+        self._session = requests.Session() if webhook_url else None
+
+        if webhook_url:
+            self._thread = threading.Thread(
+                target=self._worker,
+                name="tradingagents-webhook-dispatcher",
+                daemon=True,
+            )
+            self._thread.start()
+
+    def enqueue(self, payload: Dict[str, Any]) -> None:
+        if not self.webhook_url:
+            return
+        try:
+            self._queue.put_nowait(payload)
+        except queue.Full:
+            # Drop noisy in-progress updates first; terminal events should still go through.
+            if payload.get("status") == "in_progress":
+                logger.warning("Dropping in-progress webhook update because queue is full")
+                return
+            try:
+                self._queue.put(payload, timeout=1)
+            except queue.Full:
+                logger.warning("Dropping terminal webhook update because queue remained full")
+
+    def flush(self, timeout: float = 5.0) -> None:
+        if not self.webhook_url:
+            return
+        self._queue.join()
+        if self._thread:
+            self._queue.put(self._stop)
+            self._thread.join(timeout=timeout)
+
+    def _worker(self) -> None:
+        while True:
+            payload = self._queue.get()
+            try:
+                if payload is self._stop:
+                    return
+                self._session.post(self.webhook_url, json=payload, timeout=2)
+            except Exception as e:
+                logger.warning("Failed to send webhook update: %s", e)
+            finally:
+                self._queue.task_done()
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -63,6 +123,7 @@ class TradingAgentsGraph:
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
         self.run_id = self.config.get("run_id")
+        self.webhook_url = self.config.get("webhook_url") or os.getenv("TRADINGAGENTS_WEBHOOK_URL")
 
         # Configure logging based on config
         log_level = self.config.get("log_level", "INFO").upper()
@@ -120,6 +181,10 @@ class TradingAgentsGraph:
         )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.webhook_dispatcher = _WebhookDispatcher(
+            self.webhook_url,
+            max_queue_size=self.config.get("webhook_queue_size", 128),
+        )
 
         # State tracking
         self.curr_state = None
@@ -329,6 +394,7 @@ class TradingAgentsGraph:
         try:
             return self._run_graph(company_name, trade_date)
         finally:
+            self.webhook_dispatcher.flush()
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
@@ -354,6 +420,15 @@ class TradingAgentsGraph:
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date, past_context=past_context
         )
+        self._send_webhook({
+            "run_id": self.run_id,
+            "ticker": company_name,
+            "date": trade_date,
+            "node": "Launching Analyst Branches...",
+            "status": "in_progress",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "start_time": start_time_iso,
+        })
         args = self.propagator.get_graph_args()
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
@@ -495,11 +570,4 @@ class TradingAgentsGraph:
 
     def _send_webhook(self, data: Dict[str, Any]):
         """Send a progress update to the configured webhook URL."""
-        webhook_url = self.config.get("webhook_url") or os.getenv("TRADINGAGENTS_WEBHOOK_URL")
-        if not webhook_url:
-            return
-            
-        try:
-            requests.post(webhook_url, json=data, timeout=2)
-        except Exception as e:
-            logger.warning("Failed to send webhook update: %s", e)
+        self.webhook_dispatcher.enqueue(data)

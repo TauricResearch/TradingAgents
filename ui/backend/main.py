@@ -197,6 +197,7 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
     requested_tickers = data.get("tickers") if data else None
     requested_analysts = data.get("analysts") if data else None
     is_standalone = data.get("standalone", False) if data else False
+    requested_max_concurrency = data.get("max_concurrency") if data else None
     requested_ticker_list = _parse_ticker_list(requested_tickers)
     run_id = str(uuid4())
     
@@ -247,6 +248,8 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
             cmd_args.extend(["--analysts", requested_analysts])
         if is_standalone:
             cmd_args.append("--standalone")
+        if requested_max_concurrency:
+            cmd_args.extend(["--max-concurrency", str(requested_max_concurrency)])
         cmd_args.extend(["--run-id", run_id])
 
         # Override the command arguments
@@ -265,7 +268,7 @@ async def trigger_job(data: Optional[Dict[str, Any]] = None):
         batch_v1.create_namespaced_job(namespace, job)
         
         with run_status_lock:
-            run_statuses[run_id]["active_node"] = "Job Created in K8s"
+            run_statuses[run_id]["active_node"] = "Worker Pod Starting"
             run_statuses[run_id]["error"] = None
         return {
             "status": "triggered",

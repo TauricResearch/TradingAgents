@@ -20,13 +20,19 @@ from .utils import safe_ticker_component
 logger = logging.getLogger(__name__)
 
 
-def yf_retry(func, max_retries=3, base_delay=5.0):
+def yf_retry(func, max_retries=None, base_delay=None):
     """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance may raise YFRateLimitError or requests.exceptions.HTTPError 
     with a 429 status code. This wrapper catches both and retries.
     Other exceptions propagate immediately.
     """
+    config = get_config()
+    if max_retries is None:
+        max_retries = config.get("yfinance_max_retries", 1)
+    if base_delay is None:
+        base_delay = config.get("yfinance_base_delay_seconds", 1.0)
+
     for attempt in range(max_retries + 1):
         try:
             return func()

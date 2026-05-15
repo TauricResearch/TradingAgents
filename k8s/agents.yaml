@@ -13,15 +13,15 @@ spec:
           containers:
           - name: trader
             image: ghcr.io/madhuboyin/tradingagents:latest-arm64
-            imagePullPolicy: Always
+            imagePullPolicy: IfNotPresent
             args: ["portfolio"]
             resources:
               requests:
-                cpu: "200m"
-                memory: "256Mi"
+                cpu: "1000m"
+                memory: "1Gi"
               limits:
-                cpu: "500m"
-                memory: "512Mi"
+                cpu: "2000m"
+                memory: "2Gi"
             envFrom:
             - secretRef:
                 name: tradingagents-secrets
@@ -32,6 +32,8 @@ spec:
               value: "gemini-2.5-flash"
             - name: TRADINGAGENTS_QUICK_THINK_LLM
               value: "gemini-2.5-flash"
+            - name: TRADINGAGENTS_PORTFOLIO_MAX_CONCURRENCY
+              value: "2"
             - name: TRADINGAGENTS_WEBHOOK_URL
               value: "http://tradingagents-dashboard-svc.tradingagents.svc.cluster.local/api/webhook/progress"
             - name: TRADINGAGENTS_LOG_LEVEL

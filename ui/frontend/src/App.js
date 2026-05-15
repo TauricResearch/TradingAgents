@@ -214,6 +214,12 @@ const App = () => {
     if (n.includes('neutral')) return 'Balancing neutral market outlook...';
     
     // Handle startup/K8s phases gracefully
+    if (n.includes('worker pod starting')) {
+      return 'Scheduling worker pod and warming cached image...';
+    }
+    if (n.includes('launching analyst branches')) {
+      return 'Bootstrapping analyst branches and loading prior context...';
+    }
     if (n.includes('triggering') || n.includes('created') || n.includes('initializing')) {
       return 'Preparing agentic workflow environment...';
     }
@@ -226,7 +232,9 @@ const App = () => {
     
     const steps = {
       'preparing': 5,
+      'worker pod starting': 8,
       'initializing': 10,
+      'launching analyst branches': 12,
       'market': 20,
       'social': 30,
       'sentiment': 30,
