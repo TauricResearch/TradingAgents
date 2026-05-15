@@ -23,6 +23,7 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.progress import ProgressTracker, SECTION_TITLES
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -37,174 +38,113 @@ app = typer.Typer(
 )
 
 
-# Create a deque to store recent messages with a maximum length
 class MessageBuffer:
-    # Fixed teams that always run (not user-selectable)
-    FIXED_AGENTS = {
-        "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
-        "Trading Team": ["Trader"],
-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
-        "Portfolio Management": ["Portfolio Manager"],
-    }
+    """CLI-specific Rich TUI wrapper around the shared ProgressTracker.
 
-    # Analyst name mapping
-    ANALYST_MAPPING = {
-        "market": "Market Analyst",
-        "social": "Sentiment Analyst",
-        "news": "News Analyst",
-        "fundamentals": "Fundamentals Analyst",
-    }
+    Delegates thread-safe state storage to ``ProgressTracker`` while
+    keeping Rich-specific formatting (``current_report``, ``final_report``)
+    local.  The module-level ``message_buffer`` singleton exposes the same
+    public API the CLI already uses -- no call-site changes needed.
+    """
 
-    # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
-    # analyst_key: which analyst selection controls this section (None = always included)
-    # finalizing_agent: which agent must be "completed" for this report to count as done
-    REPORT_SECTIONS = {
-        "market_report": ("market", "Market Analyst"),
-        "sentiment_report": ("social", "Sentiment Analyst"),
-        "news_report": ("news", "News Analyst"),
-        "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
-        "investment_plan": (None, "Research Manager"),
-        "trader_investment_plan": (None, "Trader"),
-        "final_trade_decision": (None, "Portfolio Manager"),
-    }
+    def __init__(self, max_length: int = 100) -> None:
+        self._tracker = ProgressTracker(max_messages=max_length)
+        # CLI-only state (Rich panel formatting)
+        self.current_report: str | None = None
+        self.final_report: str | None = None
 
-    def __init__(self, max_length=100):
-        self.messages = deque(maxlen=max_length)
-        self.tool_calls = deque(maxlen=max_length)
-        self.current_report = None
-        self.final_report = None  # Store the complete final report
-        self.agent_status = {}
-        self.current_agent = None
-        self.report_sections = {}
-        self.selected_analysts = []
-        self._processed_message_ids = set()
+    # ── Backward-compatible property access ─────────────────────────
+    # CLI is single-threaded so direct access is safe. Desktop uses
+    # tracker.snapshot() instead.
 
-    def init_for_analysis(self, selected_analysts):
-        """Initialize agent status and report sections based on selected analysts.
+    @property
+    def tracker(self) -> ProgressTracker:
+        """Expose the underlying tracker for the desktop app."""
+        return self._tracker
 
-        Args:
-            selected_analysts: List of analyst type strings (e.g., ["market", "news"])
-        """
-        self.selected_analysts = [a.lower() for a in selected_analysts]
+    @property
+    def agent_status(self) -> dict[str, str]:
+        return self._tracker._agent_status
 
-        # Build agent_status dynamically
-        self.agent_status = {}
+    @property
+    def messages(self) -> deque:
+        return self._tracker._messages
 
-        # Add selected analysts
-        for analyst_key in self.selected_analysts:
-            if analyst_key in self.ANALYST_MAPPING:
-                self.agent_status[self.ANALYST_MAPPING[analyst_key]] = "pending"
+    @property
+    def tool_calls(self) -> deque:
+        return self._tracker._tool_calls
 
-        # Add fixed teams
-        for team_agents in self.FIXED_AGENTS.values():
-            for agent in team_agents:
-                self.agent_status[agent] = "pending"
+    @property
+    def current_agent(self) -> str | None:
+        return self._tracker._current_agent
 
-        # Build report_sections dynamically
-        self.report_sections = {}
-        for section, (analyst_key, _) in self.REPORT_SECTIONS.items():
-            if analyst_key is None or analyst_key in self.selected_analysts:
-                self.report_sections[section] = None
+    @property
+    def report_sections(self) -> dict[str, str | None]:
+        return self._tracker._report_sections
 
-        # Reset other state
+    @property
+    def selected_analysts(self) -> list[str]:
+        return self._tracker._selected_analysts
+
+    # ── Delegated write methods ─────────────────────────────────────
+
+    def init_for_analysis(self, selected_analysts: list[str]) -> None:
+        """Reset and configure for a new analysis run."""
+        self._tracker.init_for_analysis(selected_analysts)
         self.current_report = None
         self.final_report = None
-        self.current_agent = None
-        self.messages.clear()
-        self.tool_calls.clear()
-        self._processed_message_ids.clear()
 
-    def get_completed_reports_count(self):
-        """Count reports that are finalized (their finalizing agent is completed).
+    def add_message(self, message_type: str, content: str) -> None:
+        self._tracker.add_message(message_type, content)
 
-        A report is considered complete when:
-        1. The report section has content (not None), AND
-        2. The agent responsible for finalizing that report has status "completed"
+    def add_tool_call(self, tool_name: str, args: object) -> None:
+        self._tracker.add_tool_call(tool_name, args)
 
-        This prevents interim updates (like debate rounds) from counting as completed.
-        """
-        count = 0
-        for section in self.report_sections:
-            if section not in self.REPORT_SECTIONS:
-                continue
-            _, finalizing_agent = self.REPORT_SECTIONS[section]
-            # Report is complete if it has content AND its finalizing agent is done
-            has_content = self.report_sections.get(section) is not None
-            agent_done = self.agent_status.get(finalizing_agent) == "completed"
-            if has_content and agent_done:
-                count += 1
-        return count
+    def update_agent_status(self, agent: str, status: str) -> None:
+        self._tracker.update_agent_status(agent, status)
 
-    def add_message(self, message_type, content):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        self.messages.append((timestamp, message_type, content))
+    def update_report_section(self, section_name: str, content: str) -> None:
+        self._tracker.update_report_section(section_name, content)
+        self._update_current_report()
 
-    def add_tool_call(self, tool_name, args):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        self.tool_calls.append((timestamp, tool_name, args))
+    def has_seen_message(self, message_id: str) -> bool:
+        """Check and mark a message ID as processed (deduplication)."""
+        return self._tracker.has_seen_message(message_id)
 
-    def update_agent_status(self, agent, status):
-        if agent in self.agent_status:
-            self.agent_status[agent] = status
-            self.current_agent = agent
+    def get_completed_reports_count(self) -> int:
+        return self._tracker.get_completed_reports_count()
 
-    def update_report_section(self, section_name, content):
-        if section_name in self.report_sections:
-            self.report_sections[section_name] = content
-            self._update_current_report()
+    # ── CLI-specific Rich formatting ────────────────────────────────
 
-    def _update_current_report(self):
-        # For the panel display, only show the most recently updated section
+    def _update_current_report(self) -> None:
+        """Update the Rich panel with the most recently written section."""
         latest_section = None
         latest_content = None
 
-        # Find the most recently updated section
         for section, content in self.report_sections.items():
             if content is not None:
                 latest_section = section
                 latest_content = content
-               
-        if latest_section and latest_content:
-            # Format the current section for display
-            section_titles = {
-                "market_report": "Market Analysis",
-                "sentiment_report": "Social Sentiment",
-                "news_report": "News Analysis",
-                "fundamentals_report": "Fundamentals Analysis",
-                "investment_plan": "Research Team Decision",
-                "trader_investment_plan": "Trading Team Plan",
-                "final_trade_decision": "Portfolio Management Decision",
-            }
-            self.current_report = (
-                f"### {section_titles[latest_section]}\n{latest_content}"
-            )
 
-        # Update the final complete report
+        if latest_section and latest_content:
+            title = SECTION_TITLES.get(latest_section, latest_section)
+            self.current_report = f"### {title}\n{latest_content}"
+
         self._update_final_report()
 
-    def _update_final_report(self):
-        report_parts = []
+    def _update_final_report(self) -> None:
+        """Rebuild the full concatenated report for end-of-run display."""
+        report_parts: list[str] = []
 
-        # Analyst Team Reports - use .get() to handle missing sections
+        # Analyst Team Reports
         analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
-            if self.report_sections.get("market_report"):
-                report_parts.append(
-                    f"### Market Analysis\n{self.report_sections['market_report']}"
-                )
-            if self.report_sections.get("sentiment_report"):
-                report_parts.append(
-                    f"### Social Sentiment\n{self.report_sections['sentiment_report']}"
-                )
-            if self.report_sections.get("news_report"):
-                report_parts.append(
-                    f"### News Analysis\n{self.report_sections['news_report']}"
-                )
-            if self.report_sections.get("fundamentals_report"):
-                report_parts.append(
-                    f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
-                )
+            for section_key in analyst_sections:
+                content = self.report_sections.get(section_key)
+                if content:
+                    title = SECTION_TITLES.get(section_key, section_key)
+                    report_parts.append(f"### {title}\n{content}")
 
         # Research Team Reports
         if self.report_sections.get("investment_plan"):
@@ -1131,9 +1071,8 @@ def run_analysis(checkpoint: bool = False):
             for message in chunk.get("messages", []):
                 msg_id = getattr(message, "id", None)
                 if msg_id is not None:
-                    if msg_id in message_buffer._processed_message_ids:
+                    if message_buffer.has_seen_message(msg_id):
                         continue
-                    message_buffer._processed_message_ids.add(msg_id)
 
                 msg_type, content = classify_message_type(message)
                 if content and content.strip():

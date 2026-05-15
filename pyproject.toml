@@ -32,11 +32,17 @@ dependencies = [
     "yfinance>=0.2.63",
 ]
 
+[project.optional-dependencies]
+desktop = [
+    "nicegui>=3.10",
+]
+
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-desktop = "desktop.app:run_app"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "desktop*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]

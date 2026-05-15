@@ -1,0 +1,65 @@
+/* TradingAgents Desktop — custom styles */
+
+:root {
+    --ta-green: #2e7d32;
+    --ta-green-light: #4caf50;
+    --ta-blue: #1565c0;
+    --ta-red: #c62828;
+    --ta-orange: #e65100;
+    --ta-grey: #616161;
+}
+
+/* Left drawer */
+.q-drawer {
+    background-color: #1a1a2e !important;
+}
+
+.q-item__label {
+    font-weight: 500;
+}
+
+/* Agent status cards */
+.agent-card {
+    border-left: 4px solid var(--ta-grey);
+    transition: border-color 0.3s ease;
+}
+.agent-card.pending {
+    border-left-color: var(--ta-grey);
+}
+.agent-card.in_progress {
+    border-left-color: var(--ta-blue);
+}
+.agent-card.completed {
+    border-left-color: var(--ta-green);
+}
+.agent-card.error {
+    border-left-color: var(--ta-red);
+}
+
+/* Log panel */
+.log-panel {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Report sections */
+.report-section .q-expansion-item__content {
+    padding: 12px 16px;
+}
+
+/* Progress bar */
+.ta-progress .q-linear-progress__track {
+    opacity: 0.15;
+}
+
+/* Running badge pulse */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.running-badge {
+    animation: pulse 2s ease-in-out infinite;
+}

@@ -291,8 +291,21 @@ class TradingAgentsGraph:
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
 
-    def propagate(self, company_name, trade_date):
+    def propagate(self, company_name, trade_date, *, on_chunk=None):
         """Run the trading agents graph for a company on a specific date.
+
+        Parameters
+        ----------
+        company_name : str
+            Ticker symbol to analyse.
+        trade_date : str
+            Date string in ``YYYY-MM-DD`` format.
+        on_chunk : callable, optional
+            ``on_chunk(chunk: dict) -> None`` is invoked for every streamed
+            chunk when the graph runs in streaming mode (``debug=True`` or
+            when the desktop app drives the pipeline).  The callback runs
+            on the **pipeline thread** -- the caller is responsible for
+            cross-thread dispatch if needed.
 
         When ``checkpoint_enabled`` is set in config, the graph is recompiled
         with a per-ticker SqliteSaver so a crashed run can resume from the last
@@ -322,15 +335,22 @@ class TradingAgentsGraph:
                 logger.info("Starting fresh for %s on %s", company_name, trade_date)
 
         try:
-            return self._run_graph(company_name, trade_date)
+            return self._run_graph(company_name, trade_date, on_chunk=on_chunk)
         finally:
             if self._checkpointer_ctx is not None:
                 self._checkpointer_ctx.__exit__(None, None, None)
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def _run_graph(self, company_name, trade_date):
-        """Execute the graph and write the resulting state to disk and memory log."""
+    def _run_graph(self, company_name, trade_date, *, on_chunk=None):
+        """Execute the graph and write the resulting state to disk and memory log.
+
+        Parameters
+        ----------
+        on_chunk : callable, optional
+            Forwarded from ``propagate()``.  Called with each streamed chunk
+            dict so UI layers can react in real time.
+        """
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
         init_agent_state = self.propagator.create_initial_state(
@@ -343,14 +363,14 @@ class TradingAgentsGraph:
             tid = thread_id(company_name, str(trade_date))
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
-        if self.debug:
+        if self.debug or on_chunk is not None:
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
+                if on_chunk is not None:
+                    on_chunk(dict(chunk))  # shallow copy so callback can't mutate trace
+                if self.debug and chunk.get("messages"):
                     chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+                trace.append(chunk)
             # Streamed chunks are per-node deltas. Merge them so the returned
             # state matches what graph.invoke() yields in the non-debug path.
             final_state = {}
