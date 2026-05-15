@@ -333,17 +333,26 @@ async def handle_progress_webhook(update: Dict[str, Any]):
             },
         )
 
+        previous_active_node = ticker_state.get("active_node")
+        update_status = update.get("status") or ticker_state.get("status")
+
         if node:
-            if node not in ticker_state["completed_nodes"]:
-                ticker_state["completed_nodes"].append(node)
+            if previous_active_node and previous_active_node != node:
+                if previous_active_node not in ticker_state["completed_nodes"]:
+                    ticker_state["completed_nodes"].append(previous_active_node)
             ticker_state["active_node"] = node
+
+        if update_status == "completed":
+            completed_node = node or ticker_state.get("active_node")
+            if completed_node and completed_node not in ticker_state["completed_nodes"]:
+                ticker_state["completed_nodes"].append(completed_node)
 
         if "updates" in update:
             ticker_state["updates"].update(update["updates"])
 
         ticker_state.update({
             "date": update.get("date"),
-            "status": update.get("status") or ticker_state.get("status"),
+            "status": update_status,
             "last_update": update.get("timestamp"),
             "start_time": update.get("start_time") or ticker_state.get("start_time"),
             "end_time": update.get("end_time") or ticker_state.get("end_time"),

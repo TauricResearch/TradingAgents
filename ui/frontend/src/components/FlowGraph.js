@@ -87,6 +87,7 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
     const isCompleted = activeStatus?.status === 'completed';
     const activeNode = (activeStatus?.active_node || '').toLowerCase();
     const completedNodes = (activeStatus?.completed_nodes || []).map(n => n.toLowerCase());
+    const isAnalystBootstrapping = activeNode.includes('launching analyst branches');
     
     // Merge live updates into currentData if live, otherwise use runData
     const currentData = isLive ? (activeStatus.updates || {}) : (runData || {});
@@ -144,6 +145,12 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
 
     const isCurrentlyActive = (targetNode) => {
         if (isCompleted || isDone(targetNode)) return false;
+        if (
+          isAnalystBootstrapping &&
+          ['market', 'sentiment', 'social', 'news', 'fundamentals'].includes(targetNode)
+        ) {
+          return true;
+        }
         return activeNode.includes(targetNode);
     };
 

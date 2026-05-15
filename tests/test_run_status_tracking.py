@@ -172,3 +172,41 @@ def test_webhook_updates_include_timing_payload(backend_module):
 
     assert run_status["timing"]["total_runtime_seconds"] == 12.5
     assert run_status["tickers"]["SHOP"]["timing"]["node_timings"]["Market Analyst"]["count"] == 1
+
+
+@pytest.mark.unit
+def test_nodes_only_become_completed_after_advancing_or_finishing(backend_module):
+    asyncio.run(
+        backend_module.handle_progress_webhook(
+            {
+                "run_id": "run-progress",
+                "ticker": "TSLA",
+                "date": "2026-05-15",
+                "node": "Market Analyst",
+                "status": "in_progress",
+                "timestamp": "2026-05-15T12:00:00Z",
+                "start_time": "2026-05-15T12:00:00Z",
+            }
+        )
+    )
+    first_status = asyncio.run(backend_module.get_run_status("run-progress"))
+    assert first_status["active_node"] == "Market Analyst"
+    assert first_status["completed_nodes"] == []
+
+    asyncio.run(
+        backend_module.handle_progress_webhook(
+            {
+                "run_id": "run-progress",
+                "ticker": "TSLA",
+                "date": "2026-05-15",
+                "node": "News Analyst",
+                "status": "in_progress",
+                "timestamp": "2026-05-15T12:00:05Z",
+                "start_time": "2026-05-15T12:00:00Z",
+            }
+        )
+    )
+    second_status = asyncio.run(backend_module.get_run_status("run-progress"))
+    assert second_status["active_node"] == "News Analyst"
+    assert "Market Analyst" in second_status["completed_nodes"]
+    assert "News Analyst" not in second_status["completed_nodes"]
