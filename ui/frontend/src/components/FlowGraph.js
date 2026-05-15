@@ -121,11 +121,6 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         );
     };
 
-    const isCurrentlyActive = (targetNode) => {
-        if (isCompleted) return false;
-        return activeNode.includes(targetNode);
-    };
-
     // Helper for Analysts (Parallel Group)
     const areAnalystsDone = (
       isCompleted
@@ -133,7 +128,8 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
       || completedNodes.some(cn => cn.includes('synchronizer'))
     );
 
-    // Robust 'Done' checks
+    // Monotonic completion check: once a node is considered done in the
+    // live topology, don't let a later active-node poll move it backward.
     const isDone = (id) => {
         if (isCompleted) return true;
         
@@ -144,6 +140,11 @@ const FlowGraph = ({ runData, activeStatus, onNodeClick }) => {
         
         // Other nodes use topological 'isPast' or their specific completion event
         return getIsPast(id) || completedNodes.some(cn => cn.includes(id));
+    };
+
+    const isCurrentlyActive = (targetNode) => {
+        if (isCompleted || isDone(targetNode)) return false;
+        return activeNode.includes(targetNode);
     };
 
     const getStatus = (id, doneLabel = 'Complete') => {
