@@ -28,7 +28,7 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConsole": "off"
+        "noConsole": "error"
       },
       "style": {
         "noNonNullAssertion": "warn",
@@ -67,6 +67,48 @@
       "includes": ["scripts/lab/**"],
       "linter": {
         "enabled": false
+      }
+    },
+    {
+      "includes": ["archive/**"],
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["scripts/**"],
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/cli/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["test-db.ts", "db-stats.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
       }
     }
   ]

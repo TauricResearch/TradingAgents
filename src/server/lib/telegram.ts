@@ -6,6 +6,7 @@
  *   TELEGRAM_CHAT_ID   — Target chat (e.g. -100123456789)
  */
 
+import { logger } from "@lib/logger"
 import type { TriggeredAlert } from "@lib/types"
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ export async function sendTelegramMessage(options: TelegramSendOptions): Promise
   const chatId = getChatId()
 
   if (!token || !chatId) {
-    console.error("[telegram] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping")
+    logger.warn("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping")
     return false
   }
 
@@ -62,13 +63,13 @@ export async function sendTelegramMessage(options: TelegramSendOptions): Promise
 
     if (!response.ok) {
       const err = await response.text()
-      console.error(`[telegram] send failed: ${response.status} ${err}`)
+      logger.error({ status: response.status, err }, "Telegram send failed")
       return false
     }
 
     return true
   } catch (err) {
-    console.error(`[telegram] fetch error: ${err}`)
+    logger.error({ err }, "Telegram fetch error")
     return false
   }
 }
@@ -149,7 +150,7 @@ export async function dispatchAlert(alert: TriggeredAlert): Promise<DispatchResu
 
   if (rule.channel === "email" || rule.channel === "webhook") {
     // Stretch goal — stub for now
-    console.warn(`[telegram] channel "${rule.channel}" not implemented — skipping`)
+    logger.warn({ channel: rule.channel }, "Channel not implemented — skipping")
     return { sent: false, channel: rule.channel, alertName: rule.name, error: "not implemented" }
   }
 

@@ -62,3 +62,15 @@ export const analysisIdArg = {
   type: "string" as const,
   description: "Analysis UUID to link this execution to a prior analysis",
 }
+
+export const quietArg = {
+  type: "boolean" as const,
+  description: "Suppress all output except errors",
+  alias: "q",
+}
+
+export const verboseArg = {
+  type: "boolean" as const,
+  description: "Enable debug-level logging",
+  alias: "v",
+}

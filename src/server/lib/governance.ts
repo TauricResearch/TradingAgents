@@ -20,6 +20,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { logger } from "@lib/logger"
 import { load as parseYaml } from "js-yaml"
 import { getHoldings } from "./hledger.ts"
 
@@ -122,7 +123,7 @@ export function loadRules(): GovernanceRule[] {
     }
     return DEFAULT_RULES
   } catch (err) {
-    console.error("[governance] Failed to load config:", err)
+    logger.error({ err }, "Failed to load governance config")
     return DEFAULT_RULES
   }
 }
