@@ -7,6 +7,17 @@
 export function ProspectsView() {
   return (
     <>
+      <section class="panel" id="coverage-section">
+        <div
+          id="coverage-wrapper"
+          hx-get="/api/prospects/coverage/html"
+          hx-target="this"
+          hx-trigger="load"
+        >
+          <div class="muted">Loading coverage…</div>
+        </div>
+      </section>
+
       <section class="panel" id="prospects-panel">
         <div
           id="pipeline-wrapper"

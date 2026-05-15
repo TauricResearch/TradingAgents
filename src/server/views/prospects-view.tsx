@@ -5,10 +5,90 @@
 /** @jsxImportSource hono/jsx */
 
 import { isStale, STAGES, type Prospect } from "../lib/prospects-db.ts"
+import type { CoverageGroup } from "../routes/prospects.tsx"
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
 const PLATFORMS = ["degiero", "ibkr", "pension:nn", "test", "unknown"]
+
+// ── Research Coverage Panel ─────────────────────────────────────────────────────
+
+export function ResearchCoveragePanel({
+  groups,
+  unlinked,
+  total,
+}: {
+  groups: CoverageGroup[]
+  unlinked: CoverageGroup | null
+  total: number
+}) {
+  return (
+    <section class="panel coverage-panel" id="coverage-panel">
+      <div class="coverage-header">
+        <h4>Research Coverage</h4>
+        <span class="badge">{total} prospects</span>
+      </div>
+
+      <div class="coverage-groups">
+        {groups.map((g) => {
+          const isStaleGroup = g.stale_count > 0
+          return (
+            <div class={`coverage-group${isStaleGroup ? " stale-group" : ""}`} key={g.research_doc}>
+              <div class="coverage-group-header">
+                <span class="coverage-label">
+                  {g.label}
+                  {isStaleGroup && <span class="stale-indicator" title="Research may be outdated">⚠</span>}
+                </span>
+                <span class="coverage-count">{g.ticker_count} tickers</span>
+                {g.last_update && (
+                  <span class="coverage-date">Updated: {g.last_update}</span>
+                )}
+              </div>
+              <div class="coverage-tickers">
+                {g.high_count > 0 && (
+                  <span class="priority-chip high">{g.high_count} high</span>
+                )}
+                {g.medium_count > 0 && (
+                  <span class="priority-chip medium">{g.medium_count} medium</span>
+                )}
+                {g.low_count > 0 && (
+                  <span class="priority-chip low">{g.low_count} low</span>
+                )}
+                <span class="ticker-list">{g.tickers.join(", ")}</span>
+              </div>
+            </div>
+          )
+        })}
+
+        {unlinked && (
+          <div class="coverage-group unlinked-group">
+            <div class="coverage-group-header">
+              <span class="coverage-label">Unlinked</span>
+              <span class="coverage-count">{unlinked.ticker_count} tickers</span>
+              <span class="stale-indicator" title="No research doc linked">⚠ stale</span>
+            </div>
+            <div class="coverage-tickers">
+              {unlinked.high_count > 0 && (
+                <span class="priority-chip high">{unlinked.high_count} high</span>
+              )}
+              {unlinked.medium_count > 0 && (
+                <span class="priority-chip medium">{unlinked.medium_count} medium</span>
+              )}
+              {unlinked.low_count > 0 && (
+                <span class="priority-chip low">{unlinked.low_count} low</span>
+              )}
+              <span class="ticker-list">{unlinked.tickers.join(", ")}</span>
+            </div>
+          </div>
+        )}
+
+        {groups.length === 0 && !unlinked && (
+          <div class="muted">No research-linked watchlist entries.</div>
+        )}
+      </div>
+    </section>
+  )
+}
 
 // ── Pipeline view ─────────────────────────────────────────────────────────────────
 

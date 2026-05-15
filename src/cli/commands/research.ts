@@ -16,7 +16,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { DatabaseFactory } from "@lib/db"
 import { cfg } from "@lib/settings"
-import { defineCommand, runMain } from "citty"
+import { defineCommand } from "citty"
 import { gum } from "../../../scripts/lib/gum.ts"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -85,7 +85,8 @@ const coverageCommand = defineCommand({
           tickers: [],
         })
       }
-      const g = byDoc.get(doc)!
+      const g = byDoc.get(doc)
+      if (!g) continue
 
       g.ticker_count++
       g.tickers.push(row.ticker)
@@ -124,21 +125,45 @@ const coverageCommand = defineCommand({
     console.log(line)
 
     // Research-linked entries first
-    let hasLinked = false
     for (const [doc, g] of byDoc) {
       if (doc === "__unlinked__") continue
-      hasLinked = true
       const isStale = g.stale_count > 0
       const staleFlag = isStale ? " \x1b[33m⚠ STALE\x1b[0m" : ""
       const updateStr = g.last_update ?? "—"
 
       console.log("")
-      console.log(`  ${g.research_doc}${staleFlag}  ·  ${g.ticker_count} ticker(s)  ·  updated: ${updateStr}`)
+      console.log(
+        `  ${g.research_doc}${staleFlag}  ·  ${g.ticker_count} ticker(s)  ·  updated: ${updateStr}`,
+      )
 
       // Priority breakdown
-      if (g.high_count > 0) console.log(`    \x1b[31mhigh:\x1b[0m   ${g.tickers.filter((t) => { const r = groups.find((x) => x.research_doc === doc && x.ticker === t); return r?.priority === "high"; }).join(", ")}`)
-      if (g.medium_count > 0) console.log(`    \x1b[33mmedium:\x1b[0m ${g.tickers.filter((t) => { const r = groups.find((x) => x.research_doc === doc && x.ticker === t); return r?.priority === "medium"; }).join(", ")}`)
-      if (g.low_count > 0) console.log(`    low:    ${g.tickers.filter((t) => { const r = groups.find((x) => x.research_doc === doc && x.ticker === t); return r?.priority === "low"; }).join(", ")}`)
+      if (g.high_count > 0)
+        console.log(
+          `    \x1b[31mhigh:\x1b[0m   ${g.tickers
+            .filter((t) => {
+              const r = groups.find((x) => x.research_doc === doc && x.ticker === t)
+              return r?.priority === "high"
+            })
+            .join(", ")}`,
+        )
+      if (g.medium_count > 0)
+        console.log(
+          `    \x1b[33mmedium:\x1b[0m ${g.tickers
+            .filter((t) => {
+              const r = groups.find((x) => x.research_doc === doc && x.ticker === t)
+              return r?.priority === "medium"
+            })
+            .join(", ")}`,
+        )
+      if (g.low_count > 0)
+        console.log(
+          `    low:    ${g.tickers
+            .filter((t) => {
+              const r = groups.find((x) => x.research_doc === doc && x.ticker === t)
+              return r?.priority === "low"
+            })
+            .join(", ")}`,
+        )
 
       console.log("")
     }
@@ -146,24 +171,32 @@ const coverageCommand = defineCommand({
     // Stale unlinked entries
     const unlinked = byDoc.get("__unlinked__")
     if (unlinked && unlinked.ticker_count > 0) {
-      console.log(`  \x1b[33mUnlinked (no research doc)\x1b[0m  ·  ${unlinked.ticker_count} ticker(s)  ·  ⚠ stale`)
+      console.log(
+        `  \x1b[33mUnlinked (no research doc)\x1b[0m  ·  ${unlinked.ticker_count} ticker(s)  ·  ⚠ stale`,
+      )
       const unlinkedByPriority = {
         high: unlinked.tickers.filter(
           (t) => groups.find((x) => x.research_doc === null && x.ticker === t)?.priority === "high",
         ),
         medium: unlinked.tickers.filter(
-          (t) => groups.find((x) => x.research_doc === null && x.ticker === t)?.priority === "medium",
+          (t) =>
+            groups.find((x) => x.research_doc === null && x.ticker === t)?.priority === "medium",
         ),
         low: unlinked.tickers.filter(
           (t) => groups.find((x) => x.research_doc === null && x.ticker === t)?.priority === "low",
         ),
       }
-      if (unlinkedByPriority.high.length) console.log(`    \x1b[31mhigh:\x1b[0m   ${unlinkedByPriority.high.join(", ")}`)
-      if (unlinkedByPriority.medium.length) console.log(`    \x1b[33mmedium:\x1b[0m ${unlinkedByPriority.medium.join(", ")}`)
-      if (unlinkedByPriority.low.length) console.log(`    low:    ${unlinkedByPriority.low.join(", ")}`)
+      if (unlinkedByPriority.high.length)
+        console.log(`    \x1b[31mhigh:\x1b[0m   ${unlinkedByPriority.high.join(", ")}`)
+      if (unlinkedByPriority.medium.length)
+        console.log(`    \x1b[33mmedium:\x1b[0m ${unlinkedByPriority.medium.join(", ")}`)
+      if (unlinkedByPriority.low.length)
+        console.log(`    low:    ${unlinkedByPriority.low.join(", ")}`)
 
       console.log("")
-      console.log("  Run `trading watchlist` to see all. Link a research doc to activate screening.")
+      console.log(
+        "  Run `trading watchlist` to see all. Link a research doc to activate screening.",
+      )
     }
 
     console.log(line)
@@ -209,16 +242,22 @@ function parseState(path: string): ParsedState {
     }
   } catch {
     return {
-      entryPrice: null, stopLoss: null, positionSizing: null,
-      priceTarget: null, rating: null, action: null,
+      entryPrice: null,
+      stopLoss: null,
+      positionSizing: null,
+      priceTarget: null,
+      rating: null,
+      action: null,
     }
   }
 }
 
 function latestPrice(db: ReturnType<typeof DatabaseFactory.get>, ticker: string): number | null {
-  const row = db.query<{ close: number }, [string]>(
-    "SELECT close FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1",
-  ).get(ticker)
+  const row = db
+    .query<{ close: number }, [string]>(
+      "SELECT close FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1",
+    )
+    .get(ticker)
   return row ? row.close : null
 }
 
@@ -226,12 +265,15 @@ async function fetchPrice(ticker: string): Promise<number | null> {
   try {
     const proc = Bun.spawn({
       cmd: ["bun", "run", "scripts/get_price.ts", ticker],
-      stdout: "pipe", stderr: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
     })
     const text = await new Response(proc.stdout).text()
     const data = JSON.parse(text)
     return data.price ?? null
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 async function displayResult(ticker: string, parsed: ParsedState, currentPrice: number | null) {
@@ -261,8 +303,16 @@ async function displayResult(ticker: string, parsed: ParsedState, currentPrice: 
 const analyzeCommand = defineCommand({
   meta: { name: "analyze", description: "Run TradingAgents analysis on a ticker" },
   args: {
-    ticker: { type: "positional", description: "Stock ticker to research (e.g. AAPL, TKA.DE)", required: true },
-    write: { type: "boolean", description: "Write entry_price to watchlist.fair_value", default: false },
+    ticker: {
+      type: "positional",
+      description: "Stock ticker to research (e.g. AAPL, TKA.DE)",
+      required: true,
+    },
+    write: {
+      type: "boolean",
+      description: "Write entry_price to watchlist.fair_value",
+      default: false,
+    },
     fetch: { type: "boolean", description: "Fetch current price after analysis", default: false },
     debates: { type: "string", description: "Number of debate rounds", default: "1" },
   },
@@ -280,19 +330,37 @@ const analyzeCommand = defineCommand({
     const env = { ...process.env, PYTHONUNBUFFERED: "1" }
     const abortController = new AbortController()
     const timeoutMs = 300_000
-    const timeoutId = setTimeout(() => { abortController.abort() }, timeoutMs)
+    const timeoutId = setTimeout(() => {
+      abortController.abort()
+    }, timeoutMs)
 
     const proc = Bun.spawn(
-      ["python3", script, ticker, "--debates", args.debates, "--timeout", "300", "--heartbeat-interval", "15"],
+      [
+        "python3",
+        script,
+        ticker,
+        "--debates",
+        args.debates,
+        "--timeout",
+        "300",
+        "--heartbeat-interval",
+        "15",
+      ],
       { stdout: "inherit", stderr: "inherit", env, signal: abortController.signal },
     )
     const exitCode = await proc.exited
     clearTimeout(timeoutId)
-    if (exitCode !== 0) { console.error(`\nAnalysis failed with exit code ${exitCode}`); process.exit(exitCode) }
+    if (exitCode !== 0) {
+      console.error(`\nAnalysis failed with exit code ${exitCode}`)
+      process.exit(exitCode)
+    }
 
     console.log("\nAnalysis complete. Parsing state...\n")
     const statePath = await findLatestStateFile(ticker)
-    if (!statePath) { console.error(`No state file found for ${ticker}`); process.exit(1) }
+    if (!statePath) {
+      console.error(`No state file found for ${ticker}`)
+      process.exit(1)
+    }
 
     const parsed = parseState(statePath)
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -306,18 +374,38 @@ const analyzeCommand = defineCommand({
         console.log("  ⚠ No entry_price found in analysis.")
         return
       }
-      const existing = db.query<{ id: number }, [string]>("SELECT id FROM watchlist WHERE ticker = ?").get(ticker)
+      const existing = db
+        .query<{ id: number }, [string]>("SELECT id FROM watchlist WHERE ticker = ?")
+        .get(ticker)
       if (existing) {
-        db.run("UPDATE watchlist SET fair_value = ?, max_position_gbp = ? WHERE ticker = ?", [parsed.entryPrice, null, ticker])
-        console.log(`  ✓ Updated watchlist: ${ticker} fair_value = £${parsed.entryPrice.toFixed(2)}`)
+        db.run("UPDATE watchlist SET fair_value = ?, max_position_gbp = ? WHERE ticker = ?", [
+          parsed.entryPrice,
+          null,
+          ticker,
+        ])
+        console.log(
+          `  ✓ Updated watchlist: ${ticker} fair_value = £${parsed.entryPrice.toFixed(2)}`,
+        )
       } else {
         db.run(
           "INSERT INTO watchlist (ticker, exchange, platform, priority, stage, added_date, thesis, fair_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-          [ticker, "US", "unknown", "medium", "analyzed", new Date().toISOString().slice(0, 10), "From pipeline research", parsed.entryPrice],
+          [
+            ticker,
+            "US",
+            "unknown",
+            "medium",
+            "analyzed",
+            new Date().toISOString().slice(0, 10),
+            "From pipeline research",
+            parsed.entryPrice,
+          ],
         )
-        console.log(`  ✓ Added to watchlist: ${ticker} fair_value = £${parsed.entryPrice.toFixed(2)}`)
+        console.log(
+          `  ✓ Added to watchlist: ${ticker} fair_value = £${parsed.entryPrice.toFixed(2)}`,
+        )
       }
-      if (parsed.positionSizing) console.log(`  ℹ Position sizing suggestion: ${parsed.positionSizing}`)
+      if (parsed.positionSizing)
+        console.log(`  ℹ Position sizing suggestion: ${parsed.positionSizing}`)
       console.log("\n  Run `trading buylist` to see all contingency items.")
     }
   },
@@ -334,7 +422,7 @@ export const researchCommand = defineCommand({
     coverage: () => coverageCommand,
     analyze: () => analyzeCommand,
   },
-  run: ({ args }) => {
+  run: () => {
     // Default: show coverage if no subcommand given
     console.log("Usage: trading research <coverage|analyze>")
     console.log("  trading research coverage      — watchlist coverage by research doc")

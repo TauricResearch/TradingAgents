@@ -674,6 +674,27 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 .research-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--green); color: var(--bg); }
 .no-research-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--yellow); color: var(--bg); }
 .stale-badge { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; background: var(--yellow); color: var(--bg); cursor: help; }
+
+/* Research Coverage Panel */
+#coverage-section { margin-bottom: 0; }
+.coverage-panel { padding: 12px; }
+.coverage-header { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.coverage-header h4 { margin: 0; }
+.coverage-groups { display: flex; flex-direction: column; gap: 8px; }
+.coverage-group { border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+.coverage-group.stale-group { border-color: var(--yellow); }
+.coverage-group.unlinked-group { border-color: var(--yellow); background: color-mix(in oklch, var(--yellow) 8%, transparent); }
+.coverage-group-header { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.coverage-label { font-weight: 600; font-size: 0.9em; }
+.stale-indicator { font-size: 0.85em; color: var(--yellow); }
+.coverage-count { font-size: 0.85em; color: var(--text-dim); }
+.coverage-date { font-size: 0.8em; color: var(--text-dim); }
+.coverage-tickers { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.priority-chip { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; }
+.priority-chip.high { background: var(--red); color: var(--bg); }
+.priority-chip.medium { background: var(--yellow); color: var(--bg); }
+.priority-chip.low { background: var(--text-dim); color: var(--bg); }
+.ticker-list { font-size: 0.85em; color: var(--text-dim); }
 .fresh-old  { color: var(--red); }
 .freshness-none { color: var(--text-muted); }
 
