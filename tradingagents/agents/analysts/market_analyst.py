@@ -1,3 +1,4 @@
+from langchain_core.messages import HumanMessage, RemoveMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
@@ -75,14 +76,16 @@ Volume-Based Indicators:
 
         result = chain.invoke(state["market_messages"])
 
-        report = ""
         if len(result.tool_calls) == 0:
-            report = result.content
-
-        update = {"market_messages": [result]}
-        if report:
-            update["market_report"] = report
-            
-        return update
+            # Report is ready, clean up private message history for this branch
+            messages = state["market_messages"]
+            removal_operations = [RemoveMessage(id=m.id) for m in messages]
+            return {
+                "market_messages": removal_operations + [HumanMessage(content="Complete")],
+                "market_report": result.content,
+            }
+        else:
+            # Continue tool loop
+            return {"market_messages": [result]}
 
     return market_analyst_node

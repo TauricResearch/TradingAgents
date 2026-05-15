@@ -1,3 +1,4 @@
+from langchain_core.messages import HumanMessage, RemoveMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
@@ -56,14 +57,16 @@ def create_fundamentals_analyst(llm):
 
         result = chain.invoke(state["fundamentals_messages"])
 
-        report = ""
         if len(result.tool_calls) == 0:
-            report = result.content
-
-        update = {"fundamentals_messages": [result]}
-        if report:
-            update["fundamentals_report"] = report
-            
-        return update
+            # Report is ready, clean up private message history for this branch
+            messages = state["fundamentals_messages"]
+            removal_operations = [RemoveMessage(id=m.id) for m in messages]
+            return {
+                "fundamentals_messages": removal_operations + [HumanMessage(content="Complete")],
+                "fundamentals_report": result.content,
+            }
+        else:
+            # Continue tool loop
+            return {"fundamentals_messages": [result]}
 
     return fundamentals_analyst_node

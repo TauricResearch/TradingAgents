@@ -19,6 +19,7 @@ turn 0. The LLM produces the sentiment report in a single invocation.
 See: https://github.com/TauricResearch/TradingAgents/issues/557
 """
 
+from langchain_core.messages import HumanMessage, RemoveMessage
 from datetime import datetime, timedelta
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -88,8 +89,11 @@ def create_sentiment_analyst(llm):
         chain = prompt | llm
         result = chain.invoke(state["sentiment_messages"])
 
+        # Report is ready, clean up private message history for this branch
+        messages = state["sentiment_messages"]
+        removal_operations = [RemoveMessage(id=m.id) for m in messages]
         return {
-            "sentiment_messages": [result],
+            "sentiment_messages": removal_operations + [HumanMessage(content="Complete")],
             "sentiment_report": result.content,
         }
 
