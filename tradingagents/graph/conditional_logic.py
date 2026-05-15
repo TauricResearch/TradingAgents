@@ -11,11 +11,22 @@ class ConditionalLogic:
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 
+    @staticmethod
+    def _has_tool_calls(message) -> bool:
+        """Return True when ``message`` exposes non-empty tool calls.
+
+        Analyst branches can end with placeholder ``HumanMessage`` instances
+        during cleanup/synchronization. Those messages do not implement a
+        ``tool_calls`` attribute, so routing must treat them the same as
+        "no tool calls" instead of raising ``AttributeError``.
+        """
+        return bool(getattr(message, "tool_calls", None))
+
     def should_continue_market(self, state: AgentState):
         """Determine if market analysis should continue."""
         messages = state["market_messages"]
         last_message = messages[-1]
-        if last_message.tool_calls:
+        if self._has_tool_calls(last_message):
             return "tools_market"
         return "Msg Clear Market"
 
@@ -23,7 +34,7 @@ class ConditionalLogic:
         """Determine if social media analysis should continue."""
         messages = state["sentiment_messages"]
         last_message = messages[-1]
-        if last_message.tool_calls:
+        if self._has_tool_calls(last_message):
             return "tools_social"
         return "Msg Clear Social"
 
@@ -31,7 +42,7 @@ class ConditionalLogic:
         """Determine if news analysis should continue."""
         messages = state["news_messages"]
         last_message = messages[-1]
-        if last_message.tool_calls:
+        if self._has_tool_calls(last_message):
             return "tools_news"
         return "Msg Clear News"
 
@@ -39,7 +50,7 @@ class ConditionalLogic:
         """Determine if fundamentals analysis should continue."""
         messages = state["fundamentals_messages"]
         last_message = messages[-1]
-        if last_message.tool_calls:
+        if self._has_tool_calls(last_message):
             return "tools_fundamentals"
         return "Msg Clear Fundamentals"
 
