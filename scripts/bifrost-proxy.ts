@@ -190,7 +190,13 @@ async function handleProxy(c: any, body: any, path: string) {
     })
 
     const latency = Date.now() - startTime
-    const data = await response.json()
+    const data = (await response.json()) as {
+      usage?: {
+        prompt_tokens?: number
+        completion_tokens?: number
+        total_tokens?: number
+      }
+    }
 
     let promptTokens = 0,
       completionTokens = 0,

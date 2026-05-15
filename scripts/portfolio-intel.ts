@@ -55,7 +55,7 @@ async function main() {
   try {
     const res = await fetch(URL)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    data = await res.json()
+    data = (await res.json()) as IntelligenceResponse
   } catch (e) {
     console.error(`Failed to fetch ${URL}: ${e}`)
     process.exit(1)

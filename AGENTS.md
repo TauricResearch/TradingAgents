@@ -81,3 +81,11 @@ Two systems, one codebase:
 Detailed conventions: `playbooks/conventions-playbook.md`
 Detailed TD protocol: `playbooks/td-playbook.md`
 Architecture reference: `ARCHITECTURE.md`
+
+---
+
+## Scope
+
+**This file overrides `~/.pi/agent/AGENTS.md` for all agent sessions inside this repository.**
+
+The global `~/.pi/agent/AGENTS.md` provides Edinburgh Protocol rules and pi agent configuration. This project-level file takes precedence and overrides those rules for the duration of any session inside the TradingAgents repository. See `SILO_MANIFEST.md` for the complete asset map.

@@ -16,6 +16,7 @@
  *   reg-state.ts   # show registry state
  */
 
+import type { SpawnOptions } from "node:child_process"
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
@@ -40,7 +41,7 @@ async function runScript(script: string, extraArgs: string[]): Promise<number> {
       stdout: "inherit",
       stderr: "inherit",
       stdin: "inherit",
-    })
+    } as SpawnOptions)
     child.on("close", (code) => resolve(code ?? 1))
     child.on("error", () => resolve(1))
   })

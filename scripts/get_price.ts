@@ -71,7 +71,7 @@ async function getPrice(ticker: string): Promise<object> {
 
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${ticker}`)
 
-  const data: YFChartResponse = await res.json()
+  const data = (await res.json()) as YFChartResponse
 
   if (data.chart.error) throw new Error(`${data.chart.error.code}: ${data.chart.error.description}`)
 

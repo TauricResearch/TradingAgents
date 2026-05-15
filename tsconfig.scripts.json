@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "lib": ["ESNext"],
+    "types": ["node", "bun"],
 
     /* Tier 1: Standard Mode — internal tooling, not shipped */
     "strict": false,
@@ -17,9 +18,15 @@
     "noFallthroughCasesInSwitch": false,
 
     /* Emit */
-    "outDir": "./dist/scripts",
-    "rootDir": "./scripts",
+    "rootDir": ".",
     "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lib/*": ["src/lib/*"],
+      "@server/*": ["src/server/*"]
+    },
+    "ignoreDeprecations": "6.0",
 
     /* Interop */
     "esModuleInterop": true,
