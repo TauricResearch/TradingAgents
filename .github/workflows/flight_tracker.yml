@@ -39,8 +39,8 @@ jobs:
 
       - name: Commit history
         run: |
-          git config user.name "flight-tracker[bot]"
-          git config user.email "actions@github.com"
+          git config --local user.name "flight-tracker[bot]"
+          git config --local user.email "actions@github.com"
           git add flight_tracker/history.csv
           git diff --staged --quiet && exit 0
           git commit -m "chore: flight tracker history $(date +%Y-%m-%d)"
