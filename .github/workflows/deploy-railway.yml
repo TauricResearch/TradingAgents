@@ -1,0 +1,41 @@
+name: Deploy Railway
+
+# Railway auto-deploys on push to main from the GitHub integration — this
+# workflow runs a post-deploy smoke check so a broken /health surfaces in
+# the GitHub Actions tab too (not just Railway's deployment log).
+#
+# Future expansions (TT-182b): run alembic migrations as a pre-deploy step,
+# add /ready check, fail the workflow when the deploy times out.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    # Wait for Railway's auto-deploy to settle before pinging /health.
+    # 90s is enough for a typical Python/uvicorn boot; bump if the build
+    # ever gets slow.
+    steps:
+      - name: Wait for Railway deploy to propagate
+        run: sleep 90
+
+      - name: Smoke /health
+        env:
+          API_URL: ${{ secrets.API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "API_URL secret not set — skipping smoke. Set it in repo Settings → Secrets to enable."
+            exit 0
+          fi
+          echo "Pinging $API_URL/health"
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" "$API_URL/health")
+          echo "Status: $status"
+          echo "Body:   $(cat /tmp/body)"
+          if [ "$status" != "200" ]; then
+            echo "❌ /health returned $status — deploy is broken in production."
+            exit 1
+          fi
+          echo "✅ /health green"
