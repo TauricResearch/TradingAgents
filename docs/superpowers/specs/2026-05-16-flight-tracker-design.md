@@ -15,7 +15,7 @@ Daily automated flight price tracker that searches JFK→JNB and JNB→JFK, sele
 
 ## Architecture
 
-Standalone `flight_tracker/` module in this repo. GitHub Actions cron triggers daily at 07:00 UTC. No external hosting required.
+Standalone `flight_tracker/` module in this repo. GitHub Actions cron triggers daily at 07:17 UTC (off `:00` to avoid GitHub's documented top-of-hour scheduling delays). No external hosting required.
 
 ```
 flight_tracker/
@@ -116,7 +116,7 @@ response = {
 | `airline` | `item["flights"][0]["airline"]` |
 | `departs` | `item["flights"][0]["departure_airport"]["time"]` |
 
-`search.py` combines `best_flights + other_flights` before returning. Items missing `price` are excluded from results.
+`search.py` combines `response.get("best_flights", []) + response.get("other_flights", [])` before returning — both keys must be treated as optional since SerpAPI may return results in only one of them. Items missing `price` are excluded from results.
 
 ---
 
@@ -173,23 +173,31 @@ GitHub Actions commits `history.csv` after each run using `GITHUB_TOKEN` with `c
 | Gmail SMTP failure | Log to Actions stdout; Actions marks run failed — no email possible; **Actions run status is the authoritative signal** |
 | Git push conflict | `git pull --rebase` after commit, before push (see workflow below) |
 
+**Exit policy:** `tracker.py` always exits 0. Errors are recorded in `history.csv` (empty fields) and trigger an alert email. This ensures the commit step is always reached and history rows are never silently skipped. Only unhandled exceptions cause a non-zero exit and a red Actions run.
+
 No automatic retries — Actions UI shows failure clearly; manual re-run via `workflow_dispatch`.
 
-**Quota note:** 2 SerpAPI calls/day = ~60/month. Free tier is 100/month. Manual re-runs or adding a second route will approach the limit. If quota is exhausted and SMTP is also unavailable in the same run, the Actions run failure is the only notification — monitor Actions run status independently.
+**Quota note:** 2 SerpAPI calls/day = ~60/month. Free tier is 250/month. Manual re-runs or adding a second route will approach the limit. If quota is exhausted and SMTP is also unavailable in the same run, the Actions run failure is the only notification — monitor Actions run status independently.
 
 ---
 
 ## GitHub Actions Workflow
 
+Scheduled workflows only run from the **default branch**. Branch-based testing requires `workflow_dispatch` triggers.
+
 ```yaml
 name: Flight Tracker
 on:
   schedule:
-    - cron: '0 7 * * *'   # daily 07:00 UTC
+    - cron: '17 7 * * *'  # daily 07:17 UTC (off :00 to avoid GitHub top-of-hour delays)
   workflow_dispatch:        # allow manual trigger
 
 permissions:
   contents: write           # required for git push of history.csv
+
+concurrency:
+  group: flight-tracker
+  cancel-in-progress: false  # queue; never cancel a run mid-write
 
 jobs:
   track:
@@ -200,7 +208,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r flight_tracker/requirements.txt
-      - run: python flight_tracker/tracker.py
+      - run: python flight_tracker/tracker.py  # always exits 0; errors written to history.csv + alert email
         env:
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
@@ -230,7 +238,7 @@ jobs:
 google-search-results>=2.4.2   # SerpAPI Python client
 ```
 
-Standard library only for email (`smtplib` + `email.mime`, port 587 STARTTLS).
+Standard library only for email (`smtplib` + `email.mime`, port 587 STARTTLS). TLS must use `ssl.create_default_context()` passed to `starttls(context=...)` — fail closed on any TLS error.
 
 ---
 
