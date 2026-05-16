@@ -3,6 +3,8 @@ import os
 import sys
 from datetime import date
 
+import html as html_module
+
 from flight_tracker.config import get_config
 from flight_tracker.email_report import build_html, build_subject, send_email
 from flight_tracker.search import search_flights
@@ -73,7 +75,8 @@ def _safe_search(origin, destination, flight_date, api_key):
         return flights, None
     except Exception as exc:
         err_str = str(exc)
-        if "429" in err_str or "quota" in err_str.lower() or "credit" in err_str.lower():
+        _QUOTA_SIGNALS = ("429", "quota", "credit", "exceeded", "run out", "limit")
+        if any(s in err_str.lower() for s in _QUOTA_SIGNALS):
             return [], f"[QUOTA EXCEEDED] {err_str}"
         return [], err_str
 
@@ -98,7 +101,7 @@ def main():
                     "alert_email": alert_email,
                 }
                 send_email(
-                    f"<p>Missing required environment variable: <b>{missing_key}</b></p>",
+                    f"<p>Missing required environment variable: <b>{html_module.escape(missing_key)}</b></p>",
                     f"[CONFIG ERROR] Flight Tracker: missing {missing_key}",
                     smtp_cfg,
                 )
@@ -124,7 +127,7 @@ def main():
         subject = f"[ERROR] {subject}"
     html = build_html(outbound_picks, return_picks, today)
     if errors:
-        error_block = "<br>".join(f"<b>Error:</b> {e}" for e in errors)
+        error_block = "<br>".join(f"<b>Error:</b> {html_module.escape(str(e))}" for e in errors)
         html = f"<p style='color:red'>{error_block}</p>" + html
 
     try:

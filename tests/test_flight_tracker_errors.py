@@ -23,6 +23,16 @@ class TestSafeSearch(unittest.TestCase):
             flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
         self.assertTrue(err.startswith("[QUOTA EXCEEDED]"))
 
+    def test_quota_serpapi_exceeded_prefixed(self):
+        with patch("flight_tracker.tracker.search_flights", side_effect=Exception("Your plan has exceeded its limits.")):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertTrue(err.startswith("[QUOTA EXCEEDED]"))
+
+    def test_quota_serpapi_run_out_prefixed(self):
+        with patch("flight_tracker.tracker.search_flights", side_effect=Exception("Your account has run out of searches.")):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertTrue(err.startswith("[QUOTA EXCEEDED]"))
+
     def test_non_quota_error_not_prefixed(self):
         with patch("flight_tracker.tracker.search_flights", side_effect=Exception("network timeout")):
             flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
