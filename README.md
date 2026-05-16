@@ -19,7 +19,7 @@ This fork adds:
 ```bash
 # Prerequisites
 bun --version        # v1.x
-python --version     # 3.11+
+python --version     # 3.13+
 hledger --version    # 1.x
 
 # Install
