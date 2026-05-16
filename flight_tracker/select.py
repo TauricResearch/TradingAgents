@@ -1,3 +1,6 @@
+"""Flight selection — picks fewest-stops and cheapest flight from a normalized list."""
+
+
 def select_picks(flights: list) -> tuple:
     """Returns (fewest_stops_flight, cheapest_flight). Both None if flights is empty."""
     if not flights:
