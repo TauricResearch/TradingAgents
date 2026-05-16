@@ -1,5 +1,4 @@
 import csv
-import io
 import unittest
 import pytest
 from flight_tracker.search import Flight
