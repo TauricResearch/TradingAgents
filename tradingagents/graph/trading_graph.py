@@ -39,6 +39,11 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
+from tradingagents.dataflows.signal_weights import (
+    RollingCorrelationConfig,
+    build_weight_estimator,
+)
+
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
@@ -118,12 +123,25 @@ class TradingAgentsGraph:
             parallel_analysts=self.signal_fusion_enabled,
             max_analyst_tool_calls=self.config.get("analyst_max_tool_calls"),
         )
+
+        # Build the weight estimator. Equal-weights uses no external data,
+        # so it's the safe default. The rolling-correlation estimator
+        # uses ``benchmark_ticker`` (or SPY when None) as a single global
+        # baseline for the proxy-correlation fit — Phase 1 deliberately
+        # avoids per-ticker benchmark resolution here because the
+        # correlation magnitudes we care about are relative across
+        # proxies, not absolute alpha figures.
+        self._weight_estimator = self._build_weight_estimator(
+            default_benchmark=self.config.get("benchmark_ticker") or "SPY",
+        )
+
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
             signal_fusion_enabled=self.signal_fusion_enabled,
+            weight_estimator=self._weight_estimator,
         )
 
         self.propagator = Propagator(
@@ -141,6 +159,44 @@ class TradingAgentsGraph:
         self.workflow = self.graph_setup.setup_graph(selected_analysts)
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
+
+    def _build_weight_estimator(self, *, default_benchmark: str = "SPY"):
+        """Construct the WeightEstimator from config.
+
+        Returns ``None`` when ``signal_fusion_enabled=False`` so the graph
+        builder skips the SignalFusion node entirely. The rolling-
+        correlation estimator wires in a yfinance-backed history fetcher
+        and the per-config cache directory.
+        """
+        if not self.signal_fusion_enabled:
+            return None
+
+        method = self.config.get("weight_estimation_method", "equal")
+        if method == "equal":
+            return build_weight_estimator(method="equal")
+
+        def _fetch_history(ticker: str, start: str, end: str):
+            try:
+                return yf.Ticker(ticker).history(start=start, end=end)
+            except Exception as e:
+                logger.warning(
+                    "weight estimator history fetch failed for %s [%s, %s): %s",
+                    ticker, start, end, e,
+                )
+                return None
+
+        cache_dir = Path(self.config["data_cache_dir"]) / "signal_weights"
+        config = RollingCorrelationConfig(
+            cache_ttl_days=int(self.config.get("weight_cache_ttl_days", 7)),
+            min_weight=float(self.config.get("signal_fusion_min_weight", 0.05)),
+        )
+        return build_weight_estimator(
+            method=method,
+            fetch_history=_fetch_history,
+            benchmark_ticker=default_benchmark,
+            cache_dir=cache_dir,
+            config=config,
+        )
 
     def _get_provider_kwargs(self) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""

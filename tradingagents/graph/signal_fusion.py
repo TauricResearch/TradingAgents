@@ -117,12 +117,23 @@ def detect_disagreement(signals: Dict[str, AnalystSignal]) -> List[str]:
 def create_signal_fusion_node(
     *,
     weight_fn: Callable[[List[str]], Dict[str, float]] | None = None,
+    weight_estimator=None,
+    ticker_provider=lambda state: state.get("company_of_interest", ""),
+    date_provider=lambda state: state.get("trade_date", ""),
 ):
     """Build the fan-in node that writes composite signal fields to state.
 
-    ``weight_fn`` is the policy for converting a list of available
-    channels to a per-channel weight dict. Default: equal weights. Commit
-    2 swaps in a ``WeightEstimator`` from ``dataflows/signal_weights.py``.
+    Two ways to supply the weighting policy:
+
+    - ``weight_fn`` — a pure function ``channels -> {channel: weight}``.
+      Used by the equal-weights default and by unit tests.
+    - ``weight_estimator`` — an object implementing the ``WeightEstimator``
+      protocol from :mod:`tradingagents.dataflows.signal_weights`. The
+      fusion node passes the ticker, the trade date, and the list of
+      available channels so the estimator can read its parquet/CSV
+      cache and apply the lookahead guard.
+
+    ``weight_estimator`` wins when both are supplied.
     """
     weight_fn = weight_fn or equal_weights
 
@@ -130,7 +141,14 @@ def create_signal_fusion_node(
         signals: Dict[str, AnalystSignal] = state.get("analyst_signals") or {}
         channels = list(signals.keys())
 
-        weights = weight_fn(channels)
+        if weight_estimator is not None and channels:
+            weights = weight_estimator.get_weights(
+                ticker=ticker_provider(state),
+                as_of_date=date_provider(state),
+                available_channels=channels,
+            )
+        else:
+            weights = weight_fn(channels)
         composite = compute_composite_score(signals, weights)
         disagreement = detect_disagreement(signals)
 

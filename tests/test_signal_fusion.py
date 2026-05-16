@@ -49,13 +49,17 @@ def _make_signal(
     key_evidence: list[str] | None = None,
     report: str = "## Sample report\n\nBody.",
 ) -> AnalystSignal:
+    # Use ``is None`` rather than truthiness so callers can pass an
+    # explicit empty list to suppress the default evidence list.
+    if key_evidence is None:
+        key_evidence = ["evidence A", "evidence B"]
     return AnalystSignal(
         report=report,
         direction=direction,
         score=score,
         confidence=confidence,
         evidence_count=evidence_count,
-        key_evidence=key_evidence or ["evidence A", "evidence B"],
+        key_evidence=key_evidence,
     )
 
 
@@ -535,3 +539,325 @@ class TestConditionalLogicAnalystRoute:
         # router should exit via Extract rather than dispatch another batch.
         state = {"market_messages": prior_calls + [last]}
         assert cl.should_continue_market(state) == "Extract Market"
+
+
+# ---------------------------------------------------------------------------
+# Commit 2: weight estimator
+# ---------------------------------------------------------------------------
+
+
+def _synthetic_history(start: str, end: str, *, seed: int = 7) -> "pd.DataFrame":
+    """Build a deterministic OHLCV DataFrame for tests."""
+    import numpy as np
+    import pandas as pd
+    rng = np.random.default_rng(seed)
+    idx = pd.date_range(start=start, end=end, freq="B")
+    if len(idx) < 2:
+        return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+    # Geometric random walk for Close; volume around 1e6 with bursts.
+    returns = rng.normal(0.0005, 0.012, size=len(idx))
+    close = 100.0 * np.cumprod(1 + returns)
+    volume = (1.0 + rng.normal(0, 0.2, size=len(idx)).clip(-0.5, 1.5)) * 1_000_000
+    return pd.DataFrame(
+        {
+            "Open": close,
+            "High": close * 1.005,
+            "Low": close * 0.995,
+            "Close": close,
+            "Volume": volume,
+        },
+        index=idx,
+    )
+
+
+@pytest.mark.unit
+class TestRollingCorrelationEstimator:
+    def _build(self, *, history_fn=None, cache_dir=None, **cfg_kwargs):
+        from tradingagents.dataflows.signal_weights import (
+            RollingCorrelationConfig,
+            RollingCorrelationEstimator,
+        )
+        return RollingCorrelationEstimator(
+            fetch_history=history_fn or (lambda t, s, e: _synthetic_history(s, e, seed=hash(t) & 0xFFFF)),
+            benchmark_ticker="SPY",
+            cache_dir=cache_dir,
+            config=RollingCorrelationConfig(**cfg_kwargs),
+        )
+
+    def test_lookahead_guard_rejects_history_containing_trade_date(self, tmp_path):
+        """The estimator must refuse to fit if any feature row is dated >= as_of."""
+        import pandas as pd
+
+        def _peeky_history(ticker, start, end):
+            df = _synthetic_history(start, end)
+            # Inject a row on the trade date itself — this is the
+            # lookahead bug we want to catch.
+            cutoff = pd.Timestamp(end)
+            df.loc[cutoff] = df.iloc[-1]
+            return df
+
+        est = self._build(history_fn=_peeky_history, cache_dir=tmp_path)
+        # The estimator catches the lookahead internally and falls back
+        # to equal weights; the equal-weights fallback is the safe
+        # behavior under insufficient/contaminated data.
+        weights = est.get_weights(
+            ticker="NVDA",
+            as_of_date="2025-06-01",
+            available_channels=["market", "social", "news", "fundamentals"],
+        )
+        # Exact equality under the floor + softmax-of-uniform = uniform.
+        for v in weights.values():
+            assert v == pytest.approx(0.25, abs=0.01)
+
+    def test_min_weight_floor_enforced(self, tmp_path):
+        est = self._build(cache_dir=tmp_path, min_weight=0.10)
+        weights = est.get_weights(
+            ticker="ABCD",
+            as_of_date="2025-06-01",
+            available_channels=["market", "social", "news", "fundamentals"],
+        )
+        for v in weights.values():
+            assert v >= 0.10 - 1e-6
+        assert sum(weights.values()) == pytest.approx(1.0, abs=1e-6)
+
+    def test_weights_sum_to_one(self, tmp_path):
+        est = self._build(cache_dir=tmp_path)
+        weights = est.get_weights(
+            ticker="XYZ",
+            as_of_date="2025-06-01",
+            available_channels=["market", "social", "news", "fundamentals"],
+        )
+        assert sum(weights.values()) == pytest.approx(1.0, abs=1e-6)
+
+    def test_cache_hit_on_second_call(self, tmp_path):
+        """A second call with the same args reads from CSV cache, not from history."""
+        from tradingagents.dataflows.signal_weights import RollingCorrelationEstimator
+
+        calls = {"count": 0}
+
+        def _counting_history(t, s, e):
+            calls["count"] += 1
+            return _synthetic_history(s, e)
+
+        est = self._build(history_fn=_counting_history, cache_dir=tmp_path)
+        w1 = est.get_weights(
+            ticker="NVDA",
+            as_of_date="2025-06-01",
+            available_channels=["market", "social", "news", "fundamentals"],
+        )
+        first_call_count = calls["count"]
+        w2 = est.get_weights(
+            ticker="NVDA",
+            as_of_date="2025-06-01",
+            available_channels=["market", "social", "news", "fundamentals"],
+        )
+        # Cache hit means history was NOT re-fetched.
+        assert calls["count"] == first_call_count
+        assert w1 == w2
+
+    def test_subset_of_channels_renormalises(self, tmp_path):
+        """Requesting a subset returns weights that sum to 1 over that subset."""
+        est = self._build(cache_dir=tmp_path)
+        weights = est.get_weights(
+            ticker="ABCD",
+            as_of_date="2025-06-01",
+            available_channels=["market", "news"],
+        )
+        assert set(weights.keys()) == {"market", "news"}
+        assert sum(weights.values()) == pytest.approx(1.0, abs=1e-6)
+
+    def test_no_channels_returns_empty(self, tmp_path):
+        est = self._build(cache_dir=tmp_path)
+        assert est.get_weights(
+            ticker="NVDA",
+            as_of_date="2025-06-01",
+            available_channels=[],
+        ) == {}
+
+
+@pytest.mark.unit
+class TestBuildWeightEstimator:
+    def test_equal_method_returns_equal_estimator(self):
+        from tradingagents.dataflows.signal_weights import (
+            EqualWeightEstimator,
+            build_weight_estimator,
+        )
+        est = build_weight_estimator(method="equal")
+        assert isinstance(est, EqualWeightEstimator)
+
+    def test_rolling_correlation_requires_fetch_history(self):
+        from tradingagents.dataflows.signal_weights import build_weight_estimator
+        with pytest.raises(ValueError, match="fetch_history"):
+            build_weight_estimator(method="rolling_correlation")
+
+    def test_rolling_lasso_aliases_to_rolling_correlation(self, tmp_path):
+        from tradingagents.dataflows.signal_weights import (
+            RollingCorrelationEstimator,
+            build_weight_estimator,
+        )
+        est = build_weight_estimator(
+            method="rolling_lasso",
+            fetch_history=lambda t, s, e: _synthetic_history(s, e),
+            cache_dir=tmp_path,
+        )
+        assert isinstance(est, RollingCorrelationEstimator)
+
+    def test_unknown_method_raises(self):
+        from tradingagents.dataflows.signal_weights import build_weight_estimator
+        with pytest.raises(ValueError, match="Unknown"):
+            build_weight_estimator(method="not_a_real_method")
+
+
+# ---------------------------------------------------------------------------
+# Commit 2: fusion prompt rendering
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFusionPromptRender:
+    def test_preamble_present_when_weights_supplied(self):
+        from tradingagents.agents.utils.fusion_prompt import render_fusion_prompt_parts
+
+        parts = render_fusion_prompt_parts(
+            market_report="full market report",
+            sentiment_report="full sentiment report",
+            news_report="full news report",
+            fundamentals_report="full fundamentals report",
+            analyst_signals={
+                "market": _make_signal(score=0.5),
+                "social": _make_signal(score=-0.4, direction=SignalDirection.BEARISH),
+            },
+            signal_weights={"market": 0.25, "social": 0.25, "news": 0.25, "fundamentals": 0.25},
+            composite_score=0.42,
+            disagreement_axes=["market (+0.71) vs sentiment (-0.42)"],
+        )
+        assert "Fused signal" in parts.fusion_preamble
+        assert "+0.42" in parts.fusion_preamble
+        assert "moderately bullish" in parts.fusion_preamble
+        assert "Market" in parts.fusion_preamble
+        assert "Key analyst disagreement" in parts.fusion_preamble
+        # Above the compression threshold (default 0.10), all reports
+        # are full markdown — no digestion happened.
+        assert "full market report" in parts.market_block
+        assert "full sentiment report" in parts.sentiment_block
+
+    def test_no_preamble_when_weights_empty(self):
+        from tradingagents.agents.utils.fusion_prompt import render_fusion_prompt_parts
+
+        parts = render_fusion_prompt_parts(
+            market_report="m",
+            sentiment_report="s",
+            news_report="n",
+            fundamentals_report="f",
+            analyst_signals={},
+            signal_weights={},
+            composite_score=0.0,
+            disagreement_axes=[],
+        )
+        # Fusion-off path: preamble is empty, reports passed through verbatim.
+        assert parts.fusion_preamble == ""
+        assert parts.market_block == "m"
+        assert parts.sentiment_block == "s"
+
+    def test_compression_triggers_below_threshold(self):
+        from tradingagents.agents.utils.fusion_prompt import (
+            FusionPromptConfig,
+            render_fusion_prompt_parts,
+        )
+
+        sig = _make_signal(
+            direction=SignalDirection.BEARISH,
+            score=-0.6,
+            key_evidence=["debt rising", "margin compression"],
+        )
+        parts = render_fusion_prompt_parts(
+            market_report="full market report here, many tokens",
+            sentiment_report="full sentiment report here, many tokens",
+            news_report="full news report here, many tokens",
+            fundamentals_report="full fundamentals report here, many tokens",
+            analyst_signals={"market": sig},
+            signal_weights={"market": 0.05, "social": 0.45, "news": 0.30, "fundamentals": 0.20},
+            composite_score=0.2,
+            disagreement_axes=[],
+            config=FusionPromptConfig(compress_threshold=0.10),
+        )
+        # market weight (0.05) < threshold (0.10) → compressed digest, not full
+        assert "full market report" not in parts.market_block
+        assert "debt rising" in parts.market_block
+        assert "Bearish" in parts.market_block
+        # Above-threshold reports stay full.
+        assert "full sentiment report" in parts.sentiment_block
+
+    def test_compression_falls_back_to_sentence_clip_when_no_key_evidence(self):
+        from tradingagents.agents.utils.fusion_prompt import (
+            FusionPromptConfig,
+            render_fusion_prompt_parts,
+        )
+
+        sig = _make_signal(key_evidence=[])  # heuristic-fallback shape
+        parts = render_fusion_prompt_parts(
+            market_report="First sentence. Second sentence. Third sentence. Fourth sentence.",
+            sentiment_report="",
+            news_report="",
+            fundamentals_report="",
+            analyst_signals={"market": sig},
+            signal_weights={"market": 0.05, "social": 0.95},
+            composite_score=0.0,
+            disagreement_axes=[],
+            config=FusionPromptConfig(compress_threshold=0.10, compress_to_sentences=2),
+        )
+        # Clipped to first 2 sentences, plus the "downweighted" header.
+        assert "Downweighted" in parts.market_block
+        assert "First sentence" in parts.market_block
+        assert "Second sentence" in parts.market_block
+        assert "Fourth sentence" not in parts.market_block
+
+
+# ---------------------------------------------------------------------------
+# Commit 2: SignalFusion node with estimator
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSignalFusionNodeWithEstimator:
+    def test_estimator_called_with_state_ticker_and_date(self):
+        from tradingagents.graph.signal_fusion import create_signal_fusion_node
+
+        calls = {}
+
+        class _CaptureEstimator:
+            def get_weights(self, *, ticker, as_of_date, available_channels):
+                calls["ticker"] = ticker
+                calls["as_of_date"] = as_of_date
+                calls["channels"] = list(available_channels)
+                return {c: 1.0 / len(available_channels) for c in available_channels}
+
+        node = create_signal_fusion_node(weight_estimator=_CaptureEstimator())
+        state = {
+            "company_of_interest": "NVDA",
+            "trade_date": "2025-06-01",
+            "analyst_signals": {
+                "market": _make_signal(score=0.5, confidence=1.0),
+                "news": _make_signal(score=0.3, confidence=1.0),
+            },
+        }
+        update = node(state)
+        assert calls["ticker"] == "NVDA"
+        assert calls["as_of_date"] == "2025-06-01"
+        assert set(calls["channels"]) == {"market", "news"}
+        assert update["composite_score"] == pytest.approx(0.4)
+
+    def test_estimator_skipped_when_no_signals(self):
+        from tradingagents.graph.signal_fusion import create_signal_fusion_node
+
+        calls = {"count": 0}
+
+        class _CaptureEstimator:
+            def get_weights(self, **kw):
+                calls["count"] += 1
+                return {}
+
+        node = create_signal_fusion_node(weight_estimator=_CaptureEstimator())
+        update = node({"analyst_signals": {}, "company_of_interest": "x", "trade_date": "2025-01-01"})
+        assert calls["count"] == 0
+        assert update["composite_score"] == 0.0

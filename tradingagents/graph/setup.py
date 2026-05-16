@@ -78,6 +78,7 @@ class GraphSetup:
         *,
         signal_fusion_enabled: bool = True,
         weight_fn: Callable[[List[str]], Dict[str, float]] | None = None,
+        weight_estimator=None,
     ):
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
@@ -85,6 +86,7 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
         self.signal_fusion_enabled = signal_fusion_enabled
         self.weight_fn = weight_fn or equal_weights
+        self.weight_estimator = weight_estimator
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -217,7 +219,13 @@ class GraphSetup:
         # composite signal fields. With equal_weights this commit is
         # behavior-neutral upstream of the Bull/Bear prompt; commit 2
         # swaps in a real estimator and rewires the prompts.
-        workflow.add_node("Signal Fusion", create_signal_fusion_node(weight_fn=self.weight_fn))
+        workflow.add_node(
+            "Signal Fusion",
+            create_signal_fusion_node(
+                weight_fn=self.weight_fn,
+                weight_estimator=self.weight_estimator,
+            ),
+        )
         workflow.add_edge("Signal Fusion", "Bull Researcher")
 
         self._build_post_analysis_pipeline(workflow)
