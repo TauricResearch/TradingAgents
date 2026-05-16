@@ -1,3 +1,4 @@
+"""SerpAPI Google Flights search — normalize raw API responses into Flight namedtuples."""
 from collections import namedtuple
 from serpapi import GoogleSearch
 
