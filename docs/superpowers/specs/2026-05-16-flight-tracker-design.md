@@ -9,7 +9,7 @@
 
 ## Goal
 
-Daily automated flight price tracker that searches JFK→JNB and JNB→JFK, selects the best-direct and overall cheapest option for each leg, and emails a report every morning. Results accumulate in a CSV for trend visibility.
+Daily automated flight price tracker that searches JFK→JNB and JNB→JFK, selects the fewest-stops and overall cheapest option for each leg, and emails a report every morning. Results accumulate in a CSV for trend visibility.
 
 ---
 
@@ -19,11 +19,11 @@ Standalone `flight_tracker/` module in this repo. GitHub Actions cron triggers d
 
 ```
 flight_tracker/
-├── search.py        # SerpAPI calls, returns raw flight results per leg
-├── select.py        # picks best-direct + overall cheapest from results
-├── email_report.py  # formats HTML email, sends via Gmail SMTP
-├── tracker.py       # entrypoint: orchestrates search → select → email
-├── history.csv      # appended each run, committed back to repo
+├── search.py        # SerpAPI calls, normalizes response to internal Flight objects
+├── select.py        # picks fewest-stops + overall cheapest from normalized results
+├── email_report.py  # formats HTML email, sends via Gmail SMTP (port 587, STARTTLS)
+├── tracker.py       # entrypoint: orchestrates search → select → email → log
+├── history.csv      # one row per day, committed back to repo after each run
 └── config.py        # reads all config from environment variables
 
 .github/workflows/
@@ -34,34 +34,45 @@ flight_tracker/
 
 ## Configuration
 
-All config via environment variables (stored as GitHub Actions secrets):
+Config split into **Secrets** (sensitive, write-only in GitHub UI) and **Variables** (non-sensitive, readable/editable in GitHub UI):
+
+**Secrets** (Settings → Secrets and variables → Actions → **Secrets** tab):
 
 | Variable | Example Value | Description |
 |---|---|---|
 | `SERPAPI_KEY` | `abc123...` | SerpAPI API key |
 | `GMAIL_USER` | `you@gmail.com` | Sender Gmail address |
-| `GMAIL_APP_PASSWORD` | `xxxx xxxx xxxx` | Gmail app password (not account password) |
+| `GMAIL_APP_PASSWORD` | `xxxx xxxx xxxx` | Gmail app password — requires Google 2FA enabled |
 | `ALERT_EMAIL` | `you@gmail.com` | Recipient email |
+
+**Variables** (Settings → Secrets and variables → Actions → **Variables** tab — values are visible and editable):
+
+| Variable | Example Value | Description |
+|---|---|---|
 | `ORIGIN` | `JFK` | Departure airport IATA code |
 | `DESTINATION` | `JNB` | Arrival airport IATA code |
 | `OUTBOUND_DATE` | `2026-08-20` | Outbound flight date (YYYY-MM-DD) |
 | `RETURN_DATE` | `2026-09-06` | Return flight date (YYYY-MM-DD) |
 
-**Reuse model:** Clone repo, update these 8 secrets → tracker works for any route/dates. No code changes needed.
+**Reuse model:** Clone repo, update 4 secrets + 4 variables → tracker works for any route/dates. No code changes needed. Use Variables for dates/routes so values can be read back and confirmed before re-runs.
+
+**Note:** Gmail app passwords are silently revoked if Google 2FA is ever disabled. If email alerts stop arriving, check Actions run status directly — it is the authoritative signal when SMTP is unavailable.
 
 ---
 
 ## Data Flow
 
 1. `tracker.py` calls `search.py` for outbound leg, then return leg
-2. `search.py` hits SerpAPI `google_flights` engine, returns list of flights with: price, stops, duration, airline, departure/arrival times
+2. `search.py` calls SerpAPI `google_flights` with `type=2` (one-way), normalizes raw response into a list of `Flight` objects
 3. `select.py` processes each leg:
-   - **Best direct**: fewest stops first, lowest price as tiebreaker
-   - **Overall cheapest**: lowest price regardless of stops
+   - **Fewest stops**: minimum stops available (nonstop preferred; falls back to minimum available if no nonstops exist). Lowest price as tiebreaker. If no results, field is marked "N/A".
+   - **Overall cheapest**: lowest price regardless of stops. If no results, marked "N/A".
 4. `email_report.py` sends HTML email combining both legs
-5. `history.csv` appended with today's results; GitHub Actions commits the file back
+5. `history.csv` updated (today's date overwritten if exists, else appended); GitHub Actions commits the file back
 
 ### SerpAPI call structure
+
+`type=2` is required for one-way pricing. Without it, SerpAPI returns round-trip bundled fares.
 
 ```python
 params = {
@@ -69,11 +80,43 @@ params = {
     "departure_id": "JFK",
     "arrival_id": "JNB",
     "outbound_date": "2026-08-20",
+    "type": "2",          # one-way — required for independent per-leg pricing
     "currency": "USD",
     "hl": "en",
     "api_key": SERPAPI_KEY
 }
 ```
+
+### SerpAPI response contract
+
+The actual SerpAPI `google_flights` response structure (relevant fields):
+
+```python
+response = {
+    "best_flights": [          # top-ranked options
+        {
+            "flights": [...],  # list of flight legs (each leg = one plane segment)
+            "layovers": [...], # list of layover objects (len = stops count)
+            "total_duration": 1220,   # minutes
+            "price": 980,             # USD integer
+            # airline is inside flights[0]["airline"], not top-level
+        }
+    ],
+    "other_flights": [...]     # additional options, same structure
+}
+```
+
+**Normalization mapping** (`search.py` converts to internal `Flight` namedtuple):
+
+| Internal field | Source in API response |
+|---|---|
+| `price` | `item["price"]` — skip if missing/None |
+| `stops` | `len(item["layovers"])` |
+| `duration_min` | `item["total_duration"]` |
+| `airline` | `item["flights"][0]["airline"]` |
+| `departs` | `item["flights"][0]["departure_airport"]["time"]` |
+
+`search.py` combines `best_flights + other_flights` before returning. Items missing `price` are excluded from results.
 
 ---
 
@@ -81,12 +124,12 @@ params = {
 
 **Subject:**
 ```
-✈ JFK→JNB | Best Direct: $1,240 | Cheapest: $980 | 2026-05-16
+✈ JFK→JNB | Fewest Stops: $1,240 | Cheapest: $980 | 2026-05-16
 ```
 
 **Body:** Two HTML tables (outbound + return), each with columns:
 
-| | Best Direct | Overall Cheapest |
+| | Fewest Stops | Overall Cheapest |
 |---|---|---|
 | Price | $1,240 | $980 |
 | Airline | South African Airways | Ethiopian Airlines |
@@ -96,28 +139,43 @@ params = {
 
 Footer: "Searched via SerpAPI Google Flights · History tracked in history.csv"
 
+**Partial results:** If one leg fails but the other succeeds, email what was found and note the failure inline. Do not suppress the entire email.
+
 ---
 
 ## History Tracking
 
-`history.csv` columns:
+`history.csv` — one row per calendar date. If today's date already exists, overwrite it (handles manual re-runs without duplicates).
+
+Columns:
 ```
-date,
-outbound_best_direct_price, outbound_best_direct_airline, outbound_best_direct_stops, outbound_best_direct_duration,
-outbound_cheapest_price, outbound_cheapest_airline, outbound_cheapest_stops, outbound_cheapest_duration,
-return_best_direct_price, return_best_direct_airline, return_best_direct_stops, return_best_direct_duration,
-return_cheapest_price, return_cheapest_airline, return_cheapest_stops, return_cheapest_duration
+schema_version,date,
+outbound_fewest_stops_price,outbound_fewest_stops_airline,outbound_fewest_stops_stops,outbound_fewest_stops_duration,
+outbound_cheapest_price,outbound_cheapest_airline,outbound_cheapest_stops,outbound_cheapest_duration,
+return_fewest_stops_price,return_fewest_stops_airline,return_fewest_stops_stops,return_fewest_stops_duration,
+return_cheapest_price,return_cheapest_airline,return_cheapest_stops,return_cheapest_duration
 ```
 
-GitHub Actions commits `history.csv` after each successful run using the repo's `GITHUB_TOKEN` (no extra secret needed).
+`schema_version=1` on every row. Future schema changes increment the version; old rows retain their version number.
+
+GitHub Actions commits `history.csv` after each run using `GITHUB_TOKEN` with `contents: write` permission (explicitly granted in workflow).
 
 ---
 
 ## Error Handling
 
-- SerpAPI failure or empty results → send alert email: "Flight search failed on YYYY-MM-DD: {error}" — do not silently fail
-- Gmail SMTP failure → log to Actions stdout, let Actions mark run as failed
-- No fallback retries — Actions will show failure clearly; manual re-run via GitHub UI
+| Failure | Behaviour |
+|---|---|
+| SerpAPI HTTP error (non-429) | Send alert email with error details; append empty row to history.csv |
+| SerpAPI HTTP 429 quota exceeded | Attempt alert email; if SMTP also unavailable, Actions run marked failed — check Actions UI directly |
+| One leg returns no results | Email partial results for the leg that succeeded; note missing leg |
+| `price` missing on all flights | Treat as no results for that leg |
+| Gmail SMTP failure | Log to Actions stdout; Actions marks run failed — no email possible; **Actions run status is the authoritative signal** |
+| Git push conflict | `git pull --rebase` after commit, before push (see workflow below) |
+
+No automatic retries — Actions UI shows failure clearly; manual re-run via `workflow_dispatch`.
+
+**Quota note:** 2 SerpAPI calls/day = ~60/month. Free tier is 100/month. Manual re-runs or adding a second route will approach the limit. If quota is exhausted and SMTP is also unavailable in the same run, the Actions run failure is the only notification — monitor Actions run status independently.
 
 ---
 
@@ -129,6 +187,9 @@ on:
   schedule:
     - cron: '0 7 * * *'   # daily 07:00 UTC
   workflow_dispatch:        # allow manual trigger
+
+permissions:
+  contents: write           # required for git push of history.csv
 
 jobs:
   track:
@@ -154,7 +215,9 @@ jobs:
           git config user.name "flight-tracker[bot]"
           git config user.email "actions@github.com"
           git add flight_tracker/history.csv
-          git diff --staged --quiet || git commit -m "chore: flight tracker history $(date +%Y-%m-%d)"
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: flight tracker history $(date +%Y-%m-%d)"
+          git pull --rebase origin ${{ github.ref_name }}
           git push
 ```
 
@@ -167,13 +230,14 @@ jobs:
 google-search-results>=2.4.2   # SerpAPI Python client
 ```
 
-Standard library only for email (smtplib + email.mime).
+Standard library only for email (`smtplib` + `email.mime`, port 587 STARTTLS).
 
 ---
 
 ## Success Criteria
 
-- Daily email arrives with two picks (best-direct + cheapest) for each leg
-- `history.csv` grows by one row per day, committed to repo
-- Error email sent on any failure — no silent failures
-- Config change (new route/dates) requires only updating GitHub secrets/vars, no code edit
+- Daily email arrives with two picks (fewest-stops + cheapest) for each leg
+- `history.csv` grows by one row per day, committed to repo, no duplicate dates
+- Partial results emailed when one leg fails — no silent failures
+- Quota exhaustion surfaces as a named error in the alert email
+- Config change (new route/dates) requires only updating 4 secrets + 4 variables in GitHub, no code edit
