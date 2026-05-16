@@ -91,18 +91,20 @@ CREATE TABLE IF NOT EXISTS signals (
 
 -- Watchlist: prospects being tracked but not owned
 CREATE TABLE IF NOT EXISTS watchlist (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    ticker           TEXT NOT NULL,
-    platform         TEXT DEFAULT 'unknown',
-    exchange         TEXT DEFAULT 'US',
-    thesis           TEXT,
-    priority         TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
-    stage            TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired')),
-    added_date       TEXT NOT NULL,
-    last_signal      TEXT,
-    fair_value       REAL,              -- target buy price in GBP
-    max_position_gbp REAL,              -- max position size in GBP
-    created_at       TEXT DEFAULT (datetime('now')),
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker               TEXT NOT NULL,
+    platform             TEXT DEFAULT 'unknown',
+    exchange             TEXT DEFAULT 'US',
+    thesis               TEXT,
+    priority             TEXT DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+    stage                TEXT DEFAULT 'researching' CHECK(stage IN ('researching', 'analyzed', 'candidate', 'approved', 'acquired')),
+    added_date           TEXT NOT NULL,
+    last_signal          TEXT,
+    fair_value           REAL,              -- target buy price in GBP
+    max_position_gbp     REAL,              -- max position size in GBP
+    research_doc         TEXT,              -- links to docs/research-registry.md id (e.g. hormuz-2026-05-14)
+    last_research_update TEXT,              -- YYYY-MM-DD of last research refresh
+    created_at           TEXT DEFAULT (datetime('now')),
     UNIQUE(ticker, exchange)
 );
 
