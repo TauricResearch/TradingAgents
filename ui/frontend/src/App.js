@@ -953,14 +953,7 @@ const App = () => {
             <EmptyState title="No analysis selected" body="Choose a recent run from the sidebar or trigger a fresh analysis to populate the dashboard." />
           ) : (
             <>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: isCompact ? '1fr' : 'minmax(0, 2fr) minmax(320px, 0.95fr)',
-                  gap: '20px',
-                  alignItems: 'start',
-                }}
-              >
+              {isWorkflowCollapsed ? (
                 <SectionCard
                   title="Workflow overview"
                   subtitle="Follow the analysis path and click any node to inspect what that agent contributes."
@@ -968,51 +961,69 @@ const App = () => {
                   collapsible
                   collapsed={isWorkflowCollapsed}
                   onToggleCollapse={() => setIsWorkflowCollapsed((current) => !current)}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isCompact ? '1fr' : 'minmax(0, 2fr) minmax(320px, 0.95fr)',
+                    gap: '20px',
+                    alignItems: 'start',
+                  }}
                 >
-                  <FlowGraph
-                    runData={runDetail}
-                    activeStatus={activeStatus}
-                    onNodeClick={setSelectedAgent}
-                    selectedAgentId={selectedAgent?.id}
-                  />
-                </SectionCard>
-
-                <SectionCard
-                  title="Agent inspector"
-                  subtitle={selectedAgent ? 'Persistent context for the selected node.' : 'Select any node to keep its purpose visible while you review the run.'}
-                  icon={TrendingUp}
-                  accent={SURFACE.amber}
-                >
-                  {selectedAgent ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.borderStrong}`, borderRadius: '14px', padding: '16px' }}>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700, marginBottom: '8px' }}>
-                          Selected agent
-                        </div>
-                        <div style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>{selectedAgent.label}</div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.12)', color: SURFACE.blueSoft, fontSize: '12px', fontWeight: 700 }}>
-                          <span>●</span>
-                          {selectedAgent.status || 'Waiting'}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7 }}>{selectedAgent.description}</div>
-                      <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.border}`, borderRadius: '14px', padding: '14px' }}>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700, marginBottom: '8px' }}>
-                          Why this matters
-                        </div>
-                        <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7 }}>
-                          This panel stays visible while you scan the graph, so you do not need to hover repeatedly to remember each stage’s purpose.
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <EmptyState
-                      title="No node selected"
-                      body="The graph now supports click-to-inspect. Pick any analyst, researcher, or manager node to keep its role pinned here while you review the output."
+                  <SectionCard
+                    title="Workflow overview"
+                    subtitle="Follow the analysis path and click any node to inspect what that agent contributes."
+                    icon={Layout}
+                    collapsible
+                    collapsed={isWorkflowCollapsed}
+                    onToggleCollapse={() => setIsWorkflowCollapsed((current) => !current)}
+                  >
+                    <FlowGraph
+                      runData={runDetail}
+                      activeStatus={activeStatus}
+                      onNodeClick={setSelectedAgent}
+                      selectedAgentId={selectedAgent?.id}
                     />
-                  )}
-                </SectionCard>
-              </div>
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Agent inspector"
+                    subtitle={selectedAgent ? 'Persistent context for the selected node.' : 'Select any node to keep its purpose visible while you review the run.'}
+                    icon={TrendingUp}
+                    accent={SURFACE.amber}
+                  >
+                    {selectedAgent ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.borderStrong}`, borderRadius: '14px', padding: '16px' }}>
+                          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700, marginBottom: '8px' }}>
+                            Selected agent
+                          </div>
+                          <div style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>{selectedAgent.label}</div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.12)', color: SURFACE.blueSoft, fontSize: '12px', fontWeight: 700 }}>
+                            <span>●</span>
+                            {selectedAgent.status || 'Waiting'}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7 }}>{selectedAgent.description}</div>
+                        <div style={{ background: SURFACE.panelAlt, border: `1px solid ${SURFACE.border}`, borderRadius: '14px', padding: '14px' }}>
+                          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: SURFACE.textSubtle, fontWeight: 700, marginBottom: '8px' }}>
+                            Why this matters
+                          </div>
+                          <div style={{ fontSize: '13px', color: SURFACE.textMuted, lineHeight: 1.7 }}>
+                            This panel stays visible while you scan the graph, so you do not need to hover repeatedly to remember each stage’s purpose.
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <EmptyState
+                        title="No node selected"
+                        body="The graph now supports click-to-inspect. Pick any analyst, researcher, or manager node to keep its role pinned here while you review the output."
+                      />
+                    )}
+                  </SectionCard>
+                </div>
+              )}
 
               <div style={{ marginTop: '20px' }}>
                 <SectionCard
