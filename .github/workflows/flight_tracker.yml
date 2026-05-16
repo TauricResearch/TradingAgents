@@ -1,0 +1,48 @@
+name: Flight Tracker
+
+on:
+  schedule:
+    - cron: '17 7 * * *'   # 07:17 UTC daily — off :00 to avoid GitHub top-of-hour delays
+  workflow_dispatch:          # allow manual trigger for testing
+
+permissions:
+  contents: write             # required for git push of history.csv
+
+concurrency:
+  group: flight-tracker
+  cancel-in-progress: false   # queue runs; never cancel mid-write
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r flight_tracker/requirements.txt
+
+      - name: Run flight tracker
+        run: python flight_tracker/tracker.py
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          ORIGIN: ${{ vars.ORIGIN }}
+          DESTINATION: ${{ vars.DESTINATION }}
+          OUTBOUND_DATE: ${{ vars.OUTBOUND_DATE }}
+          RETURN_DATE: ${{ vars.RETURN_DATE }}
+
+      - name: Commit history
+        run: |
+          git config user.name "flight-tracker[bot]"
+          git config user.email "actions@github.com"
+          git add flight_tracker/history.csv
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: flight tracker history $(date +%Y-%m-%d)"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push
