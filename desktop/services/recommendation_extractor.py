@@ -190,8 +190,9 @@ _TICKER_BODY_RE = re.compile(
     re.MULTILINE,
 )
 # Also: **Инструмент:** CRWD (CrowdStrike)
+# Allow colon and bold markers in any order between keyword and ticker
 _TICKER_INSTRUMENT_RE = re.compile(
-    r"\*{0,2}инструмент\*{0,2}[\s:]+\*{0,2}([A-Z]{1,5})\b",
+    r"\*{0,2}инструмент[:\s*]+([A-Z]{1,5})\b",
     re.IGNORECASE,
 )
 
