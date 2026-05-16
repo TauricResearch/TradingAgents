@@ -197,7 +197,7 @@ class _SchedulesPage:
 
         if self._scheduler:
             try:
-                self._scheduler._run_scheduled(schedule_id, tickers)
+                self._scheduler.run_now(schedule_id, tickers)
                 ui.notify(
                     f"Dispatched {len(tickers)} ticker(s): {', '.join(tickers)}",
                     type="positive",

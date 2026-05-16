@@ -9,6 +9,8 @@ See also: PLAN-desktop.md, Phase 4.
 
 from __future__ import annotations
 
+from typing import Any
+
 from nicegui import ui
 
 from desktop.services.price_service import PriceResult, PriceService
@@ -65,9 +67,9 @@ def _pnl_color(value: float) -> str:
 # ── Public entry point ───────────────────────────────────────────────────
 
 
-def render_portfolio_page(*, db: HistoryDB) -> None:
+def render_portfolio_page(*, db: HistoryDB, price_service: Any = None) -> None:
     """Render the Portfolio Tracker page."""
-    page = _PortfolioPage(db=db)
+    page = _PortfolioPage(db=db, price_service=price_service)
     page.build()
 
 
@@ -75,9 +77,9 @@ def render_portfolio_page(*, db: HistoryDB) -> None:
 
 
 class _PortfolioPage:
-    def __init__(self, *, db: HistoryDB) -> None:
+    def __init__(self, *, db: HistoryDB, price_service: Any = None) -> None:
         self._db = db
-        self._price_service = PriceService()
+        self._price_service = price_service if price_service is not None else PriceService()
         self._content_area: ui.column | None = None
 
     def build(self) -> None:

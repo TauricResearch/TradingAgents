@@ -152,20 +152,28 @@ class _DetailPage:
 
     def _export_pdf(self, analysis: object) -> None:
         """Export this analysis as PDF."""
+        from desktop.utils.paths import validated_result_dir
+
         try:
             from desktop.services.pdf_export import PDFExporter
 
+            # SEC: Validate result_dir before using it
+            root = validated_result_dir(analysis.result_dir)
+            if root is None:
+                ui.notify("Invalid result directory", type="negative")
+                return
+
             exporter = PDFExporter()
             pdf_path = exporter.export_analysis(
-                result_dir=Path(analysis.result_dir),
+                result_dir=root,
                 ticker=analysis.ticker,
                 verdict="",  # will be read from the report
                 date=analysis.date,
             )
             ui.notify(f"PDF exported: {pdf_path.name}", type="positive")
-            # Open the file
+            # Open the file using the validated path
             import subprocess
-            subprocess.Popen(["open", str(pdf_path)])
+            subprocess.Popen(["open", str(pdf_path)])  # noqa: S603
         except ImportError:
             ui.notify(
                 "weasyprint not installed. Run: pip install weasyprint",

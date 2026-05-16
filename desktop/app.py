@@ -401,7 +401,7 @@ def page_dashboard() -> None:
     """Dashboard — active recommendations with live prices."""
     badge = _page_wrapper()
     from desktop.pages.dashboard import render_dashboard_page
-    render_dashboard_page(db=db)
+    render_dashboard_page(db=db, price_service=price_service)
     _badge_timer(badge)
 
 
@@ -437,7 +437,7 @@ def page_portfolio() -> None:
     """Portfolio — position tracking + recommendation overlay."""
     badge = _page_wrapper()
     from desktop.pages.portfolio import render_portfolio_page
-    render_portfolio_page(db=db)
+    render_portfolio_page(db=db, price_service=price_service)
     _badge_timer(badge)
 
 

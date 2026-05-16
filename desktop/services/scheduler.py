@@ -232,6 +232,10 @@ class Scheduler:
         self.remove_schedule(schedule_id)
         self.add_schedule(schedule_id, cron_expr, timezone)
 
+    def run_now(self, schedule_id: int, tickers: list[str]) -> None:
+        """Public API: manually trigger a schedule immediately."""
+        self._run_scheduled(schedule_id, tickers)
+
     # ── Timer internals ──────────────────────────────────────────────
 
     def _arm_schedule(self, schedule_id: int, cron_expr: str, timezone: str) -> None:
@@ -246,15 +250,14 @@ class Scheduler:
         next_fire = parsed.next_fire_time(now)
         delay = (next_fire - now).total_seconds()
 
-        # Update next_run in DB
+        # Update next_run in DB (preserves last_run)
         try:
-            self._db.update_schedule_last_run(
+            self._db.update_schedule_next_run(
                 schedule_id,
-                last_run=self._db.list_schedules()[0].last_run if False else "",  # keep existing
                 next_run=next_fire.isoformat(timespec="seconds"),
             )
         except Exception:
-            pass  # non-critical
+            logger.debug("Non-critical: failed to update next_run for schedule #%d", schedule_id)
 
         with self._lock:
             old = self._timers.pop(schedule_id, None)
@@ -300,8 +303,16 @@ class Scheduler:
             self._rearm(schedule_id, cron_expr, timezone)
             return
 
-        # Queue-with-wait: if runner is busy, retry
-        self._execute_with_wait(schedule_id, tickers, cron_expr, timezone)
+        # Queue-with-wait: if runner is busy, spawn a wait thread so we
+        # don't block the Timer thread (CR-04 fix). The wait thread will
+        # retry until the runner is idle or the deadline passes.
+        wait_thread = threading.Thread(
+            target=self._execute_with_wait,
+            args=(schedule_id, tickers, cron_expr, timezone),
+            daemon=True,
+            name=f"sched-wait-{schedule_id}",
+        )
+        wait_thread.start()
 
     def _execute_with_wait(
         self,

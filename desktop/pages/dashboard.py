@@ -14,6 +14,8 @@ from datetime import datetime
 
 from nicegui import ui
 
+from typing import Any
+
 from desktop.services.price_service import PriceResult, PriceService
 from desktop.state.database import HistoryDB, RecommendationRow
 
@@ -43,9 +45,9 @@ _AUTO_REFRESH_SECONDS = 60
 # ---------------------------------------------------------------------------
 
 
-def render_dashboard_page(*, db: HistoryDB) -> None:
+def render_dashboard_page(*, db: HistoryDB, price_service: Any = None) -> None:
     """Render the active recommendations dashboard."""
-    page = _DashboardPage(db=db)
+    page = _DashboardPage(db=db, price_service=price_service)
     page.build()
 
 
@@ -57,9 +59,9 @@ def render_dashboard_page(*, db: HistoryDB) -> None:
 class _DashboardPage:
     """Builds and manages the Active Recommendations Dashboard."""
 
-    def __init__(self, *, db: HistoryDB) -> None:
+    def __init__(self, *, db: HistoryDB, price_service: Any = None) -> None:
         self._db = db
-        self._price_svc = PriceService()
+        self._price_svc = price_service if price_service is not None else PriceService()
 
         # UI refs
         self._table: ui.table | None = None

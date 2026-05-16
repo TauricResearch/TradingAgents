@@ -113,14 +113,7 @@ class _ScorecardPage:
 
     def _load_all_recommendations(self) -> list[RecommendationRow]:
         """Load all recommendations (active and inactive) from the DB."""
-        conn = self._db._connect()
-        try:
-            rows = conn.execute(
-                "SELECT * FROM recommendations ORDER BY id DESC"
-            ).fetchall()
-            return [HistoryDB._row_to_recommendation(r) for r in rows]
-        finally:
-            conn.close()
+        return self._db.list_all_recommendations()
 
     def _pair_recs_with_latest_outcomes(
         self, recs: list[RecommendationRow],

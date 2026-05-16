@@ -797,6 +797,17 @@ class HistoryDB:
         finally:
             conn.close()
 
+    def list_all_recommendations(self) -> list[RecommendationRow]:
+        """Return all recommendations (active and inactive), newest first."""
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM recommendations ORDER BY id DESC"
+            ).fetchall()
+            return [self._row_to_recommendation(r) for r in rows]
+        finally:
+            conn.close()
+
     def deactivate_recommendation(self, rec_id: int) -> None:
         """Mark a recommendation as inactive."""
         now = datetime.now().isoformat(timespec="seconds")
@@ -1172,6 +1183,20 @@ class HistoryDB:
             conn.execute(
                 "UPDATE schedules SET last_run=?, next_run=? WHERE id=?",
                 (last_run, next_run, schedule_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def update_schedule_next_run(
+        self, schedule_id: int, next_run: str | None
+    ) -> None:
+        """Update only the next_run timestamp (preserves last_run)."""
+        conn = self._connect()
+        try:
+            conn.execute(
+                "UPDATE schedules SET next_run=? WHERE id=?",
+                (next_run, schedule_id),
             )
             conn.commit()
         finally:

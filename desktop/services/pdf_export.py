@@ -9,6 +9,7 @@ See also: PLAN-desktop.md, Phase 4.
 
 from __future__ import annotations
 
+import html as html_mod
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -137,8 +138,8 @@ def _md_to_html(text: str) -> str:
     """Convert Markdown text to HTML, with fallback to plain <pre>."""
     if _MD_AVAILABLE and markdown2 is not None:
         return markdown2.markdown(text, extras=_MD_EXTRAS)
-    # Minimal fallback: wrap in <pre> to preserve formatting.
-    return f"<pre>{text}</pre>"
+    # Minimal fallback: escape and wrap in <pre> to preserve formatting.
+    return f"<pre>{html_mod.escape(text)}</pre>"
 
 
 def _now_stamp() -> str:
@@ -183,13 +184,16 @@ class PDFExporter:
 
         parts: list[str] = []
 
-        # Header
+        # Header — escape user-controlled values to prevent XSS
         badge_cls = _verdict_class(verdict)
+        esc_ticker = html_mod.escape(ticker)
+        esc_date = html_mod.escape(date)
+        esc_verdict = html_mod.escape(verdict.upper())
         parts.append(
             f'<div class="header">'
-            f"<h1>TradingAgents &mdash; {ticker}</h1>"
-            f'<div class="meta">Analysis Date: {date} &nbsp;|&nbsp; '
-            f'<span class="{badge_cls} verdict-badge">{verdict.upper()}</span>'
+            f"<h1>TradingAgents &mdash; {esc_ticker}</h1>"
+            f'<div class="meta">Analysis Date: {esc_date} &nbsp;|&nbsp; '
+            f'<span class="{badge_cls} verdict-badge">{esc_verdict}</span>'
             f"</div></div>"
         )
 
@@ -204,7 +208,7 @@ class PDFExporter:
             except (OSError, UnicodeDecodeError) as exc:
                 raw = f"*Error reading {md_path.name}: {exc}*"
 
-            section_title = md_path.stem.replace("_", " ").title()
+            section_title = html_mod.escape(md_path.stem.replace("_", " ").title())
             html_body = _md_to_html(raw)
             parts.append(
                 f'<div class="section">'
