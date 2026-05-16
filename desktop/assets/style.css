@@ -1,5 +1,7 @@
 /* TradingAgents Desktop — custom styles */
 
+/* ── Theme variables ─────────────────────────────────────────────── */
+
 :root {
     --ta-green: #2e7d32;
     --ta-green-light: #4caf50;
@@ -9,9 +11,60 @@
     --ta-grey: #616161;
 }
 
-/* Left drawer */
-.q-drawer {
+/* Dark mode (default) */
+body.body--dark {
+    --ta-bg-surface: #1a1a2e;
+    --ta-bg-card: #1e1e2e;
+    --ta-text-primary: #e0e0e0;
+    --ta-text-secondary: #bdbdbd;
+    --ta-text-muted: #757575;
+    --ta-border: #444;
+    --ta-code-bg: rgba(255, 255, 255, 0.08);
+    --ta-pre-bg: rgba(0, 0, 0, 0.3);
+    --ta-table-header-bg: #2a2a3e;
+    --ta-table-stripe: rgba(255, 255, 255, 0.03);
+}
+
+/* Light mode */
+body.body--light {
+    --ta-bg-surface: #f5f5f5;
+    --ta-bg-card: #ffffff;
+    --ta-text-primary: #212121;
+    --ta-text-secondary: #424242;
+    --ta-text-muted: #757575;
+    --ta-border: #e0e0e0;
+    --ta-code-bg: rgba(0, 0, 0, 0.06);
+    --ta-pre-bg: rgba(0, 0, 0, 0.04);
+    --ta-table-header-bg: #e8eaf6;
+    --ta-table-stripe: rgba(0, 0, 0, 0.02);
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+
+.ta-header {
     background-color: #1a1a2e !important;
+    color: white !important;
+}
+
+/* Left drawer */
+body.body--dark .q-drawer {
+    background-color: #1a1a2e !important;
+}
+body.body--light .q-drawer {
+    background-color: #ffffff !important;
+    border-right: 1px solid #e0e0e0;
+}
+body.body--light .q-drawer .text-white {
+    color: #212121 !important;
+}
+body.body--light .q-drawer .text-grey-4 {
+    color: #616161 !important;
+}
+body.body--light .q-drawer .text-grey-6 {
+    color: #9e9e9e !important;
+}
+body.body--light .q-drawer .bg-grey-8 {
+    background-color: #e0e0e0 !important;
 }
 
 .q-item__label {
@@ -62,7 +115,7 @@
 .report-content h2,
 .report-content h3,
 .report-content h4 {
-    color: #e0e0e0;
+    color: var(--ta-text-primary);
     margin-top: 1em;
     margin-bottom: 0.5em;
 }
@@ -72,7 +125,7 @@
 .report-content h3 { font-size: 1.05rem; }
 
 .report-content strong {
-    color: #ffffff;
+    color: var(--ta-text-primary);
     font-weight: 600;
 }
 
@@ -85,19 +138,19 @@
 
 .report-content th,
 .report-content td {
-    border: 1px solid #444;
+    border: 1px solid var(--ta-border);
     padding: 6px 10px;
     text-align: left;
 }
 
 .report-content th {
-    background-color: #2a2a3e;
-    color: #e0e0e0;
+    background-color: var(--ta-table-header-bg);
+    color: var(--ta-text-primary);
     font-weight: 600;
 }
 
 .report-content tr:nth-child(even) {
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: var(--ta-table-stripe);
 }
 
 .report-content ul,
@@ -111,14 +164,14 @@
 }
 
 .report-content code {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--ta-code-bg);
     padding: 2px 5px;
     border-radius: 3px;
     font-size: 0.85em;
 }
 
 .report-content pre {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--ta-pre-bg);
     padding: 12px;
     border-radius: 4px;
     overflow-x: auto;
@@ -131,16 +184,32 @@
 }
 
 .report-content blockquote {
-    border-left: 3px solid #4caf50;
+    border-left: 3px solid var(--ta-green-light);
     padding-left: 12px;
     margin: 0.75em 0;
-    color: #bdbdbd;
+    color: var(--ta-text-secondary);
 }
 
 .report-content hr {
     border: none;
-    border-top: 1px solid #444;
+    border-top: 1px solid var(--ta-border);
     margin: 1em 0;
+}
+
+/* ── Light mode overrides for page content ───────────────────────── */
+
+body.body--light .bg-dark {
+    background-color: var(--ta-bg-card) !important;
+}
+body.body--light .text-white {
+    color: var(--ta-text-primary) !important;
+}
+body.body--light .text-grey-4,
+body.body--light .text-grey-5 {
+    color: var(--ta-text-muted) !important;
+}
+body.body--light .text-grey-6 {
+    color: #9e9e9e !important;
 }
 
 /* Progress bar */

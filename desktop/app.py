@@ -285,13 +285,17 @@ runner.on_finished = on_pipeline_finished
 
 
 def create_header(drawer_ref: ui.left_drawer) -> ui.label:
-    """Top header bar with app title.
+    """Top header bar with app title and theme toggle.
 
     Takes the page-local drawer reference to avoid the global (WR-03 fix).
     Returns the running badge label so the page can update it from its
     own timer instead of using bind_visibility_from (BUG-03 fix).
     """
-    with ui.header().classes("bg-dark text-white items-center justify-between"):
+    # Read persisted theme preference (default: dark)
+    is_dark = db.get_setting("theme", "dark") != "light"
+    dark_mode = ui.dark_mode(is_dark)
+
+    with ui.header().classes("items-center justify-between ta-header"):
         ui.button(icon="menu", on_click=lambda: drawer_ref.toggle()).props("flat color=white")
         ui.label("TradingAgents").classes("text-h6 q-ml-sm")
         ui.space()
@@ -302,7 +306,22 @@ def create_header(drawer_ref: ui.left_drawer) -> ui.label:
             "running-badge text-caption bg-green-8 text-white q-px-sm q-py-xs rounded-borders"
         )
         running_label.set_visibility(runner.is_running)
+
+        # Theme toggle button
+        theme_btn = ui.button(
+            icon="dark_mode" if is_dark else "light_mode",
+            on_click=lambda: _toggle_theme(dark_mode, theme_btn),
+        ).props("flat round color=white size=sm").tooltip("Toggle dark/light mode")
+
         return running_label
+
+
+def _toggle_theme(dark_mode: ui.dark_mode, btn: ui.button) -> None:
+    """Toggle between dark and light mode, persisting the preference."""
+    new_dark = not dark_mode.value
+    dark_mode.set_value(new_dark)
+    btn.props(f'icon={"dark_mode" if new_dark else "light_mode"}')
+    db.set_setting("theme", "dark" if new_dark else "light")
 
 
 def create_drawer() -> ui.left_drawer:
@@ -476,7 +495,7 @@ def run_app(*, host: str = "127.0.0.1", port: int = 8080, reload: bool = False) 
         host=host,
         port=port,
         reload=reload,
-        dark=True,
+        dark=None,  # Per-page via ui.dark_mode() in create_header()
         native=False,  # Use browser window; set True for native window later
         favicon=None,
     )
