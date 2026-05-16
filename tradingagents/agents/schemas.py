@@ -19,7 +19,7 @@ so that:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -51,6 +51,101 @@ class TraderAction(str, Enum):
     BUY = "Buy"
     HOLD = "Hold"
     SELL = "Sell"
+
+
+# ---------------------------------------------------------------------------
+# Analysts (Market / Sentiment / News / Fundamentals)
+# ---------------------------------------------------------------------------
+
+
+class SignalDirection(str, Enum):
+    """Coarse directional read produced by every analyst."""
+
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+    NEUTRAL = "neutral"
+
+
+class AnalystSignal(BaseModel):
+    """Structured complement to an analyst's free-text report.
+
+    The markdown ``report`` is what users read and what the Bull/Bear
+    researchers debate from. The other fields give the SignalFusion node
+    something numerical to weight and aggregate without re-parsing prose.
+
+    ``score`` and ``direction`` are required to be sign-consistent
+    (bullish ⇒ score > 0, bearish ⇒ score < 0, neutral ⇒ score near 0);
+    the fusion layer clamps and warns rather than raising when a model
+    occasionally violates this — pipeline robustness over hard failures.
+    """
+
+    report: str = Field(
+        description=(
+            "The full markdown report. This is the artifact users read "
+            "and downstream researchers consume verbatim."
+        ),
+    )
+    direction: SignalDirection = Field(
+        description=(
+            "Overall directional read: bullish, bearish, or neutral. Match "
+            "the sign of ``score`` (bullish positive, bearish negative)."
+        ),
+    )
+    score: float = Field(
+        ge=-1.0,
+        le=1.0,
+        description=(
+            "Direction and strength on [-1, 1]. -1 = maximum bearish "
+            "conviction, +1 = maximum bullish, 0 = no signal. Sign must "
+            "match ``direction``."
+        ),
+    )
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "How robust this read is given the evidence quality and "
+            "quantity. 0 = no defensible read, 1 = highly defensible. "
+            "Use lower values when data is sparse or sources contradict."
+        ),
+    )
+    evidence_count: int = Field(
+        ge=0,
+        description=(
+            "Number of distinct data points or events the report cites "
+            "(specific indicators, news headlines, fundamental ratios, "
+            "sentiment posts)."
+        ),
+    )
+    key_evidence: List[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description=(
+            "Three to five short bullet points summarising the strongest "
+            "evidence behind the directional read. These are reused as "
+            "the compressed-summary text when SignalFusion downweights "
+            "this analyst, so make each line stand alone."
+        ),
+    )
+
+
+def render_analyst_signal_summary(signal: AnalystSignal) -> str:
+    """Render the compressed summary used when an analyst is downweighted.
+
+    SignalFusion swaps the full markdown report for this 3–5 line digest
+    in the Bull/Bear prompt when the analyst's weight falls below the
+    compression threshold. The digest is built from ``key_evidence`` plus
+    a one-line directional header so the researcher still gets the gist
+    without burning tokens on a low-information channel.
+    """
+    header = (
+        f"**Direction**: {signal.direction.value.capitalize()} "
+        f"(score {signal.score:+.2f}, confidence {signal.confidence:.2f})"
+    )
+    if not signal.key_evidence:
+        return header
+    bullets = "\n".join(f"- {line}" for line in signal.key_evidence)
+    return f"{header}\n{bullets}"
 
 
 # ---------------------------------------------------------------------------

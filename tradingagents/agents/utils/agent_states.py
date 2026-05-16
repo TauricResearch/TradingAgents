@@ -1,6 +1,34 @@
-from typing import Annotated
+from typing import Annotated, Dict, List
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
+from langgraph.graph.message import add_messages
+
+from tradingagents.agents.schemas import AnalystSignal
+
+
+def _merge_analyst_signals(
+    left: Dict[str, AnalystSignal] | None,
+    right: Dict[str, AnalystSignal] | None,
+) -> Dict[str, AnalystSignal]:
+    """Reducer for the ``analyst_signals`` channel.
+
+    When the four analyst extractors fan in to SignalFusion in parallel,
+    each writes a dict like ``{"market": <AnalystSignal>}``. LangGraph's
+    default behavior is to overwrite the previous value; we need a merge
+    so all four signals coexist before the fusion node reads them.
+    """
+    if not left:
+        return dict(right or {})
+    if not right:
+        return dict(left)
+    merged = dict(left)
+    merged.update(right)
+    return merged
+
+
+def _replace(_left, right):
+    """Reducer that prefers the right value, used for scalar fan-in fields."""
+    return right
 
 
 # Researcher team state
@@ -49,6 +77,16 @@ class AgentState(MessagesState):
 
     sender: Annotated[str, "Agent that sent this message"]
 
+    # Per-analyst messages channels — each analyst owns its own tool-call
+    # transcript so the four analyst subgraphs can run concurrently
+    # without polluting each other's context. The shared ``messages``
+    # channel (from MessagesState) is still used by the legacy serial
+    # graph when ``signal_fusion_enabled=False``.
+    market_messages: Annotated[list, add_messages]
+    sentiment_messages: Annotated[list, add_messages]
+    news_messages: Annotated[list, add_messages]
+    fundamentals_messages: Annotated[list, add_messages]
+
     # research step
     market_report: Annotated[str, "Report from the Market Analyst"]
     sentiment_report: Annotated[str, "Report from the Sentiment Analyst"]
@@ -56,6 +94,15 @@ class AgentState(MessagesState):
         str, "Report from the News Researcher of current world affairs"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+
+    # SignalFusion layer — populated by the four analyst-extractor steps
+    # and consumed by ``create_signal_fusion_node`` which then feeds the
+    # Bull/Bear debate. ``analyst_signals`` uses a merge reducer so the
+    # parallel writes coexist; the other three fields are written once.
+    analyst_signals: Annotated[Dict[str, AnalystSignal], _merge_analyst_signals]
+    signal_weights: Annotated[Dict[str, float], _replace]
+    composite_score: Annotated[float, _replace]
+    disagreement_axes: Annotated[List[str], _replace]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

@@ -18,9 +18,21 @@ class Propagator:
     def create_initial_state(
         self, company_name: str, trade_date: str, past_context: str = ""
     ) -> Dict[str, Any]:
-        """Create the initial state for the agent graph."""
+        """Create the initial state for the agent graph.
+
+        Each per-analyst messages channel is seeded with the same human
+        prompt so the parallel-graph analysts see the same starting
+        context the legacy serial graph used to provide via the shared
+        ``messages`` channel. Initialising all channels unconditionally
+        is harmless under the legacy graph (extra keys are simply unused).
+        """
+        human_seed = [("human", company_name)]
         return {
-            "messages": [("human", company_name)],
+            "messages": list(human_seed),
+            "market_messages": list(human_seed),
+            "sentiment_messages": list(human_seed),
+            "news_messages": list(human_seed),
+            "fundamentals_messages": list(human_seed),
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "past_context": past_context,
@@ -52,6 +64,10 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "analyst_signals": {},
+            "signal_weights": {},
+            "composite_score": 0.0,
+            "disagreement_axes": [],
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:

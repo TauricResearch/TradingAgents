@@ -101,19 +101,29 @@ class TradingAgentsGraph:
         
         self.memory_log = TradingMemoryLog(self.config)
 
-        # Create tool nodes
-        self.tool_nodes = self._create_tool_nodes()
+        # Create tool nodes. In the parallel/fusion graph each analyst
+        # has its own messages channel, so the ToolNode must be told
+        # which channel to read from (otherwise it would default to the
+        # shared ``messages`` key and tools never see the analyst's
+        # actual tool_calls). The legacy serial graph uses the default.
+        self.tool_nodes = self._create_tool_nodes(
+            messages_key_per_analyst=bool(self.config.get("signal_fusion_enabled", True)),
+        )
 
         # Initialize components
+        self.signal_fusion_enabled = bool(self.config.get("signal_fusion_enabled", True))
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config["max_debate_rounds"],
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
+            parallel_analysts=self.signal_fusion_enabled,
+            max_analyst_tool_calls=self.config.get("analyst_max_tool_calls"),
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            signal_fusion_enabled=self.signal_fusion_enabled,
         )
 
         self.propagator = Propagator(
@@ -154,39 +164,43 @@ class TradingAgentsGraph:
 
         return kwargs
 
-    def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
+    def _create_tool_nodes(self, *, messages_key_per_analyst: bool = True) -> Dict[str, ToolNode]:
+        """Create tool nodes for different data sources using abstract methods.
+
+        When ``messages_key_per_analyst`` is True (the default parallel-
+        graph configuration), each ToolNode reads and writes from its
+        analyst's own ``*_messages`` channel — keeping concurrent tool
+        loops isolated. When False, all ToolNodes share the global
+        ``messages`` channel (legacy serial behavior).
+        """
+        keys = {
+            "market": "market_messages",
+            "social": "sentiment_messages",
+            "news": "news_messages",
+            "fundamentals": "fundamentals_messages",
+        }
+
+        def _node(tools: list, channel: str) -> ToolNode:
+            if messages_key_per_analyst:
+                return ToolNode(tools, messages_key=keys[channel])
+            return ToolNode(tools)
+
         return {
-            "market": ToolNode(
-                [
-                    # Core stock data tools
-                    get_stock_data,
-                    # Technical indicators
-                    get_indicators,
-                ]
+            "market": _node(
+                [get_stock_data, get_indicators],
+                "market",
             ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                ]
+            "social": _node(
+                [get_news],
+                "social",
             ),
-            "news": ToolNode(
-                [
-                    # News and insider information
-                    get_news,
-                    get_global_news,
-                    get_insider_transactions,
-                ]
+            "news": _node(
+                [get_news, get_global_news, get_insider_transactions],
+                "news",
             ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
-                ]
+            "fundamentals": _node(
+                [get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement],
+                "fundamentals",
             ),
         }
 
@@ -382,6 +396,13 @@ class TradingAgentsGraph:
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
+        # AnalystSignal is a Pydantic model; dump to plain dicts so the
+        # log JSON stays portable for downstream tools and notebooks.
+        raw_signals = final_state.get("analyst_signals") or {}
+        analyst_signals_dump = {
+            channel: signal.model_dump() if hasattr(signal, "model_dump") else signal
+            for channel, signal in raw_signals.items()
+        }
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -389,6 +410,10 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "analyst_signals": analyst_signals_dump,
+            "signal_weights": final_state.get("signal_weights") or {},
+            "composite_score": final_state.get("composite_score", 0.0),
+            "disagreement_axes": final_state.get("disagreement_axes") or [],
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

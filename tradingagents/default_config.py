@@ -8,15 +8,17 @@ _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 # of the existing default, so users can keep writing plain strings in
 # their .env file.
 _ENV_OVERRIDES = {
-    "TRADINGAGENTS_LLM_PROVIDER":         "llm_provider",
-    "TRADINGAGENTS_DEEP_THINK_LLM":       "deep_think_llm",
-    "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
-    "TRADINGAGENTS_LLM_BACKEND_URL":      "backend_url",
-    "TRADINGAGENTS_OUTPUT_LANGUAGE":      "output_language",
-    "TRADINGAGENTS_MAX_DEBATE_ROUNDS":    "max_debate_rounds",
-    "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
-    "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
-    "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_LLM_PROVIDER":              "llm_provider",
+    "TRADINGAGENTS_DEEP_THINK_LLM":            "deep_think_llm",
+    "TRADINGAGENTS_QUICK_THINK_LLM":           "quick_think_llm",
+    "TRADINGAGENTS_LLM_BACKEND_URL":           "backend_url",
+    "TRADINGAGENTS_OUTPUT_LANGUAGE":           "output_language",
+    "TRADINGAGENTS_MAX_DEBATE_ROUNDS":         "max_debate_rounds",
+    "TRADINGAGENTS_MAX_RISK_ROUNDS":           "max_risk_discuss_rounds",
+    "TRADINGAGENTS_CHECKPOINT_ENABLED":        "checkpoint_enabled",
+    "TRADINGAGENTS_BENCHMARK_TICKER":          "benchmark_ticker",
+    "TRADINGAGENTS_SIGNAL_FUSION_ENABLED":     "signal_fusion_enabled",
+    "TRADINGAGENTS_WEIGHT_ESTIMATION_METHOD":  "weight_estimation_method",
 }
 
 
@@ -108,6 +110,29 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # so the reflection label keeps reading "Alpha vs SPY" for US tickers
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
+    # SignalFusion layer (Phase 1: structured analyst output + parallel
+    # fan-out + composite score scaffolding under equal weights).
+    # ``signal_fusion_enabled=False`` reverts to the v0.2.5 serial
+    # topology, which is the only path compatible with pre-fusion
+    # SqliteSaver checkpoints.
+    "signal_fusion_enabled":              True,
+    # ``"equal"``  → uniform 1/N weights across present analysts
+    # ``"rolling_lasso"`` → reserved for commit 2; scaffolded but not
+    #                       wired into the prompt yet
+    "weight_estimation_method":           "equal",
+    "weight_cache_ttl_days":              7,
+    "signal_fusion_min_weight":           0.05,
+    # Once an analyst's weight falls below this threshold, its report
+    # is compressed to a short ``key_evidence`` digest in the Bull/Bear
+    # prompt (wired in commit 2). At equal weights nothing compresses;
+    # this only bites once rolling_lasso is selected.
+    "signal_fusion_compress_threshold":   0.10,
+    "signal_fusion_compress_to_sentences": 3,
+    # Safety cap on per-analyst tool calls — parallel fan-out removes
+    # the serial backpressure that previously kept a runaway analyst
+    # cheap. None disables the cap.
+    "analyst_max_tool_calls":             8,
+
     "benchmark_map": {
         ".NS":  "^NSEI",    # NSE India (Nifty 50)
         ".BO":  "^BSESN",   # BSE India (Sensex)

@@ -8,10 +8,11 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_language_instruction,
 )
+from tradingagents.agents.utils.structured import extract_analyst_signal
 from tradingagents.dataflows.config import get_config
 
 
-def create_fundamentals_analyst(llm):
+def create_fundamentals_analyst(llm, *, messages_key: str = "messages", channel_name: str = "fundamentals"):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
@@ -54,16 +55,22 @@ def create_fundamentals_analyst(llm):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state[messages_key])
 
-        report = ""
+        update: dict = {messages_key: [result]}
 
         if len(result.tool_calls) == 0:
             report = result.content
+            update["fundamentals_report"] = report
+            if channel_name:
+                signal = extract_analyst_signal(
+                    llm=llm,
+                    markdown_report=report,
+                    analyst_name="Fundamentals Analyst",
+                    ticker=state["company_of_interest"],
+                )
+                update["analyst_signals"] = {channel_name: signal}
 
-        return {
-            "messages": [result],
-            "fundamentals_report": report,
-        }
+        return update
 
     return fundamentals_analyst_node

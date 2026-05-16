@@ -27,6 +27,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_news,
 )
+from tradingagents.agents.utils.structured import extract_analyst_signal
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
 
@@ -35,12 +36,17 @@ def _seven_days_back(trade_date: str) -> str:
     return (datetime.strptime(trade_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
 
 
-def create_sentiment_analyst(llm):
+def create_sentiment_analyst(llm, *, messages_key: str = "messages", channel_name: str = "social"):
     """Create a sentiment analyst node for the trading graph.
 
     Pre-fetches news + StockTwits + Reddit data, injects them into the
     prompt as structured blocks, and produces a sentiment report in a
     single LLM call.
+
+    ``channel_name`` defaults to ``"social"`` to match the existing
+    ``selected_analysts`` selector key (preserved for saved-config
+    back-compat); pass ``None`` to skip ``AnalystSignal`` extraction in
+    the legacy serial graph.
     """
 
     def sentiment_analyst_node(state):
@@ -86,12 +92,23 @@ def create_sentiment_analyst(llm):
         # No bind_tools — the data is already in the prompt; a single LLM
         # call produces the report directly.
         chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state[messages_key])
 
-        return {
-            "messages": [result],
-            "sentiment_report": result.content,
+        report = result.content
+        update: dict = {
+            messages_key: [result],
+            "sentiment_report": report,
         }
+        if channel_name:
+            signal = extract_analyst_signal(
+                llm=llm,
+                markdown_report=report,
+                analyst_name="Sentiment Analyst",
+                ticker=ticker,
+            )
+            update["analyst_signals"] = {channel_name: signal}
+
+        return update
 
     return sentiment_analyst_node
 

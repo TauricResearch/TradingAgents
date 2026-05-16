@@ -5,10 +5,11 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_news,
 )
+from tradingagents.agents.utils.structured import extract_analyst_signal
 from tradingagents.dataflows.config import get_config
 
 
-def create_news_analyst(llm):
+def create_news_analyst(llm, *, messages_key: str = "messages", channel_name: str = "news"):
     def news_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
@@ -47,16 +48,22 @@ def create_news_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state[messages_key])
 
-        report = ""
+        update: dict = {messages_key: [result]}
 
         if len(result.tool_calls) == 0:
             report = result.content
+            update["news_report"] = report
+            if channel_name:
+                signal = extract_analyst_signal(
+                    llm=llm,
+                    markdown_report=report,
+                    analyst_name="News Analyst",
+                    ticker=state["company_of_interest"],
+                )
+                update["analyst_signals"] = {channel_name: signal}
 
-        return {
-            "messages": [result],
-            "news_report": report,
-        }
+        return update
 
     return news_analyst_node

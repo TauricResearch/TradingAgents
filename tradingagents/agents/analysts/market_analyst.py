@@ -5,10 +5,21 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_stock_data,
 )
+from tradingagents.agents.utils.structured import extract_analyst_signal
 from tradingagents.dataflows.config import get_config
 
 
-def create_market_analyst(llm):
+def create_market_analyst(llm, *, messages_key: str = "messages", channel_name: str = "market"):
+    """Build the market-analyst node.
+
+    ``messages_key`` lets the parallel-graph configuration route this
+    analyst's tool-call transcript to its own ``market_messages`` channel.
+    The legacy serial graph keeps the default shared ``messages`` channel
+    so v0.2.5 behavior is preserved when ``signal_fusion_enabled=False``.
+
+    ``channel_name`` is the key under which the extracted ``AnalystSignal``
+    lands in ``state['analyst_signals']``.
+    """
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
@@ -73,16 +84,22 @@ Volume-Based Indicators:
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state[messages_key])
 
-        report = ""
+        update: dict = {messages_key: [result]}
 
         if len(result.tool_calls) == 0:
             report = result.content
+            update["market_report"] = report
+            if channel_name:
+                signal = extract_analyst_signal(
+                    llm=llm,
+                    markdown_report=report,
+                    analyst_name="Market Analyst",
+                    ticker=state["company_of_interest"],
+                )
+                update["analyst_signals"] = {channel_name: signal}
 
-        return {
-            "messages": [result],
-            "market_report": report,
-        }
+        return update
 
     return market_analyst_node
