@@ -1,9 +1,105 @@
-from typing import Any, Optional
+import asyncio
+import logging
+import os
+import random
+import re
+import time
+from typing import Any, Callable, Optional, TypeVar
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
+
+
+logger = logging.getLogger(__name__)
+T = TypeVar("T")
+
+
+def _is_resource_exhausted_error(exc: Exception) -> bool:
+    """Return True for Gemini quota/rate-limit errors surfaced by Google SDKs."""
+    status = getattr(exc, "status", None)
+    code = getattr(exc, "code", None)
+    details = getattr(exc, "details", None)
+    text = " ".join(str(part) for part in (status, code, details, exc) if part is not None)
+    upper_text = text.upper()
+    return "RESOURCE_EXHAUSTED" in upper_text or " 429 " in f" {upper_text} " or "CODE: 429" in upper_text
+
+
+def _extract_retry_delay_seconds(exc: Exception) -> Optional[float]:
+    """Extract Google's suggested retry delay from SDK exception text, if present."""
+    text = str(exc)
+    patterns = (
+        r"retry(?:\s+in|Delay['\"]?\s*:\s*['\"]?)(\d+(?:\.\d+)?)s",
+        r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def _quota_retry_count() -> int:
+    raw = os.getenv("TRADINGAGENTS_GOOGLE_QUOTA_MAX_RETRIES", "2")
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 2
+
+
+def _quota_retry_delay(exc: Exception, attempt: int) -> float:
+    configured_cap = os.getenv("TRADINGAGENTS_GOOGLE_QUOTA_RETRY_MAX_DELAY_SECONDS", "30")
+    try:
+        cap = max(1.0, float(configured_cap))
+    except ValueError:
+        cap = 30.0
+
+    suggested = _extract_retry_delay_seconds(exc)
+    base_delay = suggested if suggested is not None else min(cap, 2 ** attempt)
+    return min(cap, base_delay) + random.uniform(0, 0.5)
+
+
+def _invoke_with_quota_retry(operation: Callable[[], T]) -> T:
+    max_retries = _quota_retry_count()
+    for attempt in range(max_retries + 1):
+        try:
+            return operation()
+        except Exception as exc:
+            if not _is_resource_exhausted_error(exc) or attempt >= max_retries:
+                raise
+
+            delay = _quota_retry_delay(exc, attempt)
+            logger.warning(
+                "Gemini quota exhausted, retrying in %.1fs (attempt %d/%d)",
+                delay,
+                attempt + 1,
+                max_retries,
+            )
+            time.sleep(delay)
+
+    raise RuntimeError("unreachable")
+
+
+async def _ainvoke_with_quota_retry(operation: Callable[[], T]) -> T:
+    max_retries = _quota_retry_count()
+    for attempt in range(max_retries + 1):
+        try:
+            return await operation()
+        except Exception as exc:
+            if not _is_resource_exhausted_error(exc) or attempt >= max_retries:
+                raise
+
+            delay = _quota_retry_delay(exc, attempt)
+            logger.warning(
+                "Gemini quota exhausted, retrying in %.1fs (attempt %d/%d)",
+                delay,
+                attempt + 1,
+                max_retries,
+            )
+            await asyncio.sleep(delay)
+
+    raise RuntimeError("unreachable")
 
 
 class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
@@ -14,10 +110,12 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     """
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        invoke = super().invoke
+        return normalize_content(_invoke_with_quota_retry(lambda: invoke(input, config, **kwargs)))
 
     async def ainvoke(self, input, config=None, **kwargs):
-        return normalize_content(await super().ainvoke(input, config, **kwargs))
+        ainvoke = super().ainvoke
+        return normalize_content(await _ainvoke_with_quota_retry(lambda: ainvoke(input, config, **kwargs)))
 
 
 class GoogleClient(BaseLLMClient):
