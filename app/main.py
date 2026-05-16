@@ -19,6 +19,7 @@ references are commented future-extension points, not active code.
 """
 
 import asyncio
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
 import sentry_sdk
 from fastapi import FastAPI, Response
@@ -47,14 +48,51 @@ app = FastAPI(
 # open across the process lifetime here — let SQLAlchemy + redis pool
 # manage that. This is just for the health-check shape.
 
+def _asyncpg_url(raw: str) -> tuple[str, dict]:
+    """
+    Normalize a Postgres URL for asyncpg + SQLAlchemy. Returns (url, connect_args).
+
+    asyncpg doesn't accept libpq-style query params (`sslmode`, `channel_binding`)
+    that psycopg2 and Prisma include in their connection strings — they trip
+    `TypeError: connect() got an unexpected keyword argument 'sslmode'` at
+    connect time. We strip those params from the URL and translate
+    `sslmode=require` → `connect_args={"ssl": "require"}`.
+
+    Also coerces `postgresql://` / `postgres://` → `postgresql+asyncpg://` so
+    SQLAlchemy picks the right dialect.
+    """
+    url = raw
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query))
+
+    connect_args: dict = {}
+    sslmode = query.pop("sslmode", None)
+    # channel_binding is a libpq SCRAM option asyncpg handles automatically;
+    # asyncpg rejects it as a kwarg, so we just drop it.
+    query.pop("channel_binding", None)
+
+    if sslmode in ("require", "verify-ca", "verify-full"):
+        connect_args["ssl"] = "require"
+
+    cleaned = parsed._replace(query=urlencode(query))
+    return urlunparse(cleaned), connect_args
+
+
 async def _ping_db() -> bool:
     """True iff a trivial SELECT round-trips against Postgres."""
     try:
-        # asyncpg-compatible URL transform: SQLAlchemy expects postgresql+asyncpg://
-        url = settings.DATABASE_URL
-        if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        engine = create_async_engine(url, pool_pre_ping=False, pool_size=1)
+        url, connect_args = _asyncpg_url(settings.DATABASE_URL)
+        engine = create_async_engine(
+            url,
+            pool_pre_ping=False,
+            pool_size=1,
+            connect_args=connect_args,
+        )
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         await engine.dispose()
