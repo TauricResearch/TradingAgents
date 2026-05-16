@@ -217,7 +217,7 @@ const ProgressBar = ({ progress, status }) => {
   );
 };
 
-const SectionCard = ({ title, subtitle, icon: Icon, children, accent = SURFACE.blue }) => (
+const SectionCard = ({ title, subtitle, icon: Icon, children, accent = SURFACE.blue, collapsible = false, collapsed = false, onToggleCollapse }) => (
   <section
     style={{
       background: SURFACE.panel,
@@ -237,15 +237,46 @@ const SectionCard = ({ title, subtitle, icon: Icon, children, accent = SURFACE.b
         borderBottom: `1px solid ${SURFACE.border}`,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
         {Icon && <Icon size={18} color={accent} />}
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: '15px', fontWeight: 700, color: SURFACE.text }}>{title}</div>
           {subtitle && <div style={{ fontSize: '12px', color: SURFACE.textMuted, marginTop: '3px' }}>{subtitle}</div>}
         </div>
       </div>
+      {collapsible && (
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            border: `1px solid ${SURFACE.borderStrong}`,
+            borderRadius: '999px',
+            background: 'transparent',
+            color: SURFACE.textMuted,
+            padding: '8px 12px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 700,
+            flexShrink: 0,
+          }}
+        >
+          <ChevronRight
+            size={14}
+            style={{
+              transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)',
+              transition: 'transform 0.2s ease',
+            }}
+          />
+          {collapsed ? 'Show' : 'Hide'}
+        </button>
+      )}
     </div>
-    {children}
+    {!collapsed && children}
   </section>
 );
 
@@ -305,6 +336,7 @@ const App = () => {
   const [notification, setNotification] = useState(null);
   const [activeTab, setActiveTab] = useState('decision');
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  const [isWorkflowCollapsed, setIsWorkflowCollapsed] = useState(false);
 
   const isCompact = viewportWidth < 1180;
   const isNarrow = viewportWidth < 860;
@@ -933,6 +965,9 @@ const App = () => {
                   title="Workflow overview"
                   subtitle="Follow the analysis path and click any node to inspect what that agent contributes."
                   icon={Layout}
+                  collapsible
+                  collapsed={isWorkflowCollapsed}
+                  onToggleCollapse={() => setIsWorkflowCollapsed((current) => !current)}
                 >
                   <FlowGraph
                     runData={runDetail}
