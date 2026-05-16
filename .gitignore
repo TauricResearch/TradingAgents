@@ -255,11 +255,13 @@ test_portfolio.db
 # DeepSeek runtime state (not part of the project)
 .deepseek/
 
-# Root justfile only (not subdirectory justfiles)
-/justfile
+# justfile is required in the root directory
+#/justfile
 
 # Drydock barnacle archive (quarantined content — not part of the project)
 decisions/drydock/
 
 .pi/defuddle-log.jsonl
 .pi/defuddle-whitelist.json
+.crush/
+.sisyphus/

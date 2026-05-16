@@ -308,6 +308,40 @@ backups-list:
 backups-prune:
     bun scripts/db-backup.ts --prune 30
 
+# Backup LIVE portfolio.db (timestamped copy in backups/)
+[group("db")]
+db-backup:
+    bun scripts/db-backup.ts
+
+# Reset LIVE portfolio.db from schema.sql (WIPES all data — use db-backup first)
+[confirm("Destroy and recreate portfolio.db? All data will be lost. Run 'just db-backup' first.")]
+[group("db")]
+db-reset:
+    @echo "{{ RED }}⚠{{ NORMAL }}  Backing up before reset..."
+    bun scripts/db-backup.ts
+    @echo "{{ RED }}⚠{{ NORMAL }}  Destroying portfolio.db..."
+    rm -f portfolio.db portfolio.db-wal portfolio.db-shm
+    sqlite3 portfolio.db < src/server/lib/schema.sql
+    @echo "{{ GREEN }}✓{{ NORMAL }} portfolio.db reset from schema.sql"
+    @echo "Run: just seed-db to repopulate data"
+
+# Restore portfolio.db from a backup file
+# Usage: just db-restore backups/portfolio-2026-05-15.db
+[confirm("Restore portfolio.db from backup? Current DB will be overwritten.")]
+[group("db")]
+db-restore:
+    @if [ -z "${BACKUP}" ]; then \
+        echo "Usage: BACKUP=backups/portfolio-2026-05-15.db just db-restore"; \
+        exit 1; \
+    fi
+    @if [ ! -f "${BACKUP}" ]; then \
+        echo "{{ RED }}✗{{ NORMAL }} Backup file not found: ${BACKUP}"; \
+        exit 1; \
+    fi
+    @echo "{{ RED }}⚠{{ NORMAL }}  Overwriting portfolio.db with ${BACKUP}..."
+    cp "${BACKUP}" portfolio.db
+    @echo "{{ GREEN }}✓{{ NORMAL }} Restored from ${BACKUP}"
+
 # Show which database is currently active (LIVE vs TEST)
 [group("db")]
 db-active:
