@@ -50,7 +50,65 @@ Code we own and maintain. Treated as future `python-temp-pro` template files —
 | `app/db.py` | SQLAlchemy 2.x async engine + sessionmaker + `get_db` FastAPI dependency. Owns the `asyncpg_url()` URL normalizer that strips libpq-only query params (`sslmode`, `channel_binding`) that asyncpg rejects. |
 | `app/models.py` | ORM models for Python-owned tables (`Run`, `Decision`, `AgentReport`). Prisma-owned tables (User, Role, App, etc.) are NOT modeled here — we never write to them and treat `user_id` columns as plain String FKs. |
 | `app/auth.py` | HMAC-SHA256 signature middleware. Verifies `X-Signature` + `X-Timestamp` headers on every POST/PUT/PATCH/DELETE. ±5min skew window. Skips `/health`, `/ready`, FastAPI docs paths. |
-| `app/main.py` | FastAPI entrypoint. Registers middleware, configures logging + Sentry. `/health` + `/ready` for now. `/analyze` + `/stream/{run_id}` land in [TT-182c](https://linear.app/two-trees-digital/issue/TT-182). |
+| `app/services/pubsub.py` | Redis pub-sub helpers for live event streaming on `run:<run_id>` channels. Generic — no trading knowledge. |
+| `app/services/stream_token.py` | HMAC-signed compact tokens for SSE auth. `mint(run_id)` + `verify(token, run_id)`. |
+| `app/services/callbacks.py` | LangChain `AsyncCallbackHandler` that captures each agent's chain start/end → writes `agent_reports` rows + publishes to Redis. |
+| `app/services/trading_agents_runner.py` | Trading-specific orchestrator. Wraps `TradingAgentsGraph` (TauricResearch upstream), drives DB state + pub-sub for the lifetime of a run. **Only app-specific service file** per the TT-182 template-discipline rule. |
+| `app/routes/analyze.py` | `POST /analyze` — HMAC-auth'd. Creates run row, schedules FastAPI BackgroundTask. Returns 202. |
+| `app/routes/stream.py` | `GET /stream/{run_id}?token=...` — SSE feed. Token query param verified server-side. |
+| `app/main.py` | FastAPI entrypoint. Registers middleware + routers, configures logging + Sentry. `/health` + `/ready` defined inline. |
+
+## Endpoints
+
+### `POST /analyze` — kick off a TradingAgents run
+
+Auth: HMAC headers (see HMAC contract section below).
+
+Request body:
+```json
+{
+  "runId":     "uuid-the-node-side-chose",
+  "userId":    "prisma-user-id",
+  "ticker":    "AAPL",
+  "tradeDate": "2026-05-16"
+}
+```
+
+Response 202:
+```json
+{ "runId": "...", "status": "pending" }
+```
+
+Idempotent — calling twice with the same `runId` returns the existing run's current status without spawning a duplicate analysis.
+
+The actual TradingAgents pipeline runs in a FastAPI BackgroundTask after the response. State transitions visible via the `runs` table or via subscribing to the SSE stream.
+
+### `GET /stream/{run_id}?token=<signed>` — live SSE feed
+
+Auth: query-param HMAC-signed token. Browser `EventSource` can't send custom headers, so this auth pattern replaces HMAC headers for browser-initiated streams.
+
+**Token format** (Node side mints; Python verifies):
+```
+<base64url(payload_json)>.<hex(hmac_sha256(payload_b64, HMAC_SHARED_SECRET))>
+```
+Payload: `{"runId": "<uuid>", "exp": <unix_seconds>}`. Default lifetime: 30 minutes.
+
+**Wire format**: `text/event-stream`. Each event:
+```
+data: {"type": "agent_finished", "agent": "market_analyst", "content": "...", "timestamp": "..."}
+
+```
+(Note the trailing blank line — SSE record separator.)
+
+**Event types**:
+- `run_started` — analysis kicked off
+- `agent_started` — `{agent, timestamp}` — one of TradingAgents' agents began
+- `agent_finished` — `{agent, content, timestamp}` — agent's output, persisted to `agent_reports`
+- `agent_error` — `{agent, error, timestamp}` — agent chain raised
+- `run_complete` — `{decision, timestamp}` — final BUY/SELL/HOLD, persisted to `decisions`
+- `run_error` — `{error, timestamp}` — pipeline failed
+
+The stream closes with an `event: close` record when the runner publishes a DONE_SENTINEL on the Redis channel (always sent — success or failure).
 
 ## HMAC contract (Node → Python)
 
@@ -155,7 +213,8 @@ The `.github/workflows/deploy-railway.yml` workflow runs a post-deploy `/health`
 | Phase | Status | Ticket |
 |---|---|---|
 | 182a — Scaffold + Railway deploy | ✅ done | [TT-281](https://linear.app/two-trees-digital/issue/TT-281) |
-| 182b — SQLAlchemy + Alembic + HMAC auth | this PR | [TT-282](https://linear.app/two-trees-digital/issue/TT-282) |
-| 182c — Wrap TradingAgents (/analyze, SSE) | pending | [TT-283](https://linear.app/two-trees-digital/issue/TT-283) |
+| 182b — SQLAlchemy + Alembic + HMAC auth | ✅ done | [TT-282](https://linear.app/two-trees-digital/issue/TT-282) |
+| 182c — Wrap TradingAgents (/analyze, SSE) | this PR | [TT-283](https://linear.app/two-trees-digital/issue/TT-283) |
 | 182d — Node-side UI + cost cap | pending | [TT-284](https://linear.app/two-trees-digital/issue/TT-284) |
 | 182e — Integration + polish | pending | [TT-285](https://linear.app/two-trees-digital/issue/TT-285) |
+| Long-term — Arq worker for /analyze | pending | [TT-286](https://linear.app/two-trees-digital/issue/TT-286) |

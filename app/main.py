@@ -30,6 +30,8 @@ from app.config import settings
 from app.db import dispose_engine, get_engine
 from app.logging_config import configure_logging
 from app.observability import init_sentry
+from app.routes.analyze import router as analyze_router
+from app.routes.stream import router as stream_router
 
 
 # Logging + Sentry must init BEFORE app construction so the FastAPI
@@ -46,8 +48,14 @@ app = FastAPI(
 )
 
 # HMAC verification on POST/PUT/PATCH/DELETE. /health, /ready, and the
-# FastAPI docs paths bypass — see app/auth.py for the contract.
+# FastAPI docs paths bypass — see app/auth.py for the contract. GETs
+# pass through the middleware; routes that need auth handle it
+# themselves (e.g., /stream/{run_id} uses a query-param token).
 app.add_middleware(HMACAuthMiddleware)
+
+# Routes — analyze + stream. /health and /ready are defined inline below.
+app.include_router(analyze_router)
+app.include_router(stream_router)
 
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -121,7 +129,7 @@ async def ready(response: Response) -> dict:
     }
 
 
-# Phase 182c adds:
-#   - POST /analyze  routes/analyze.py
-#   - GET  /stream/{run_id}  routes/stream.py
-#   - LangChain callback handler → Redis pub-sub
+# Future phases:
+#   - 182d (Node side) — dashboard pages that hit /analyze + /stream/{run_id}
+#   - TT-286 (long-term) — extract /analyze background work to dedicated
+#     Arq worker for restart-safety + concurrency limits
