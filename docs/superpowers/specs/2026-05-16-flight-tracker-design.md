@@ -27,7 +27,7 @@ flight_tracker/
 └── config.py        # reads all config from environment variables
 
 .github/workflows/
-└── flight_tracker.yml   # cron: daily 07:00 UTC
+└── flight_tracker.yml   # cron: daily 07:17 UTC
 ```
 
 ---
@@ -170,7 +170,7 @@ GitHub Actions commits `history.csv` after each run using `GITHUB_TOKEN` with `c
 | SerpAPI HTTP 429 quota exceeded | Attempt alert email; if SMTP also unavailable, Actions run marked failed — check Actions UI directly |
 | One leg returns no results | Email partial results for the leg that succeeded; note missing leg |
 | `price` missing on all flights | Treat as no results for that leg |
-| Gmail SMTP failure | Log to Actions stdout; Actions marks run failed — no email possible; **Actions run status is the authoritative signal** |
+| Gmail SMTP failure | Log to Actions stdout; tracker exits 0 (commit step must still run); **Actions run shows green but no email arrived — check Actions log for SMTP failure message** |
 | Git push conflict | `git pull --rebase` after commit, before push (see workflow below) |
 
 **Exit policy:** `tracker.py` always exits 0. Errors are recorded in `history.csv` (empty fields) and trigger an alert email. This ensures the commit step is always reached and history rows are never silently skipped. Only unhandled exceptions cause a non-zero exit and a red Actions run.
