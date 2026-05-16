@@ -27,6 +27,7 @@
 | `tests/test_flight_select.py` | Unit tests for selection logic |
 | `tests/test_flight_email.py` | Unit tests for HTML formatting |
 | `tests/test_flight_history.py` | Unit tests for CSV read/write/dedup logic |
+| `tests/test_flight_tracker_errors.py` | Unit tests for quota detection + error propagation |
 
 ---
 
@@ -229,8 +230,10 @@ def search_flights(origin: str, destination: str, date: str, api_key: str) -> li
 - [ ] **Step 4: Install package**
 
 ```bash
-pip install google-search-results>=2.4.2
+pip install -r flight_tracker/requirements.txt
 ```
+
+(Never use `pip install google-search-results>=2.4.2` unquoted — `>` is a shell redirect operator and will truncate a file named `2.4.2` instead of installing.)
 
 - [ ] **Step 5: Run — verify PASS**
 
@@ -238,7 +241,7 @@ pip install google-search-results>=2.4.2
 pytest tests/test_flight_search.py -v -m unit
 ```
 
-Expected: All 8 tests PASS.
+Expected: All 11 tests PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -429,6 +432,12 @@ class TestBuildHtml(unittest.TestCase):
         html = build_html((f, f), (f, f), "2026-05-16")
         self.assertIn("2h 0m", html)
 
+    def test_html_escapes_airline_name(self):
+        f = make_flight(airline='<script>alert("xss")</script>')
+        html = build_html((f, f), (f, f), "2026-05-16")
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;script&gt;", html)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -446,6 +455,7 @@ Expected: `ImportError: No module named 'flight_tracker.email_report'`
 
 `flight_tracker/email_report.py`:
 ```python
+import html as html_module
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -467,10 +477,10 @@ def _flight_row(flight) -> dict:
         return {"price": "N/A", "airline": "N/A", "stops": "N/A", "duration": "N/A", "departs": "N/A"}
     return {
         "price": _fmt_price(flight.price),
-        "airline": flight.airline,
+        "airline": html_module.escape(flight.airline),
         "stops": str(flight.stops),
         "duration": _fmt_duration(flight.duration_min),
-        "departs": flight.departs,
+        "departs": html_module.escape(flight.departs),
     }
 
 
@@ -529,7 +539,7 @@ def send_email(html: str, subject: str, config: dict) -> None:
 pytest tests/test_flight_email.py -v -m unit
 ```
 
-Expected: All 7 tests PASS.
+Expected: All 8 tests PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -565,7 +575,9 @@ To:
 | Gmail SMTP failure | Log to Actions stdout; tracker exits 0 (commit step must still run); **Actions run shows green but no email arrived — check Actions log for SMTP failure message** |
 ```
 
-Commit: `git add docs/superpowers/specs/2026-05-16-flight-tracker-design.md && git commit -m "docs(flight-tracker): correct SMTP failure exit behavior in error table"`
+Also fix the stale cron comment in the spec's architecture tree (line ~30): change `# cron: daily 07:00 UTC` to `# cron: daily 07:17 UTC` to match the workflow section.
+
+Commit: `git add docs/superpowers/specs/2026-05-16-flight-tracker-design.md && git commit -m "docs(flight-tracker): correct SMTP exit behavior and stale cron comment in spec"`
 
 - [ ] **Step 1: Create initial `history.csv`**
 
@@ -694,10 +706,58 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
+- [ ] **Step 2b: Write error injection tests**
+
+`tests/test_flight_tracker_errors.py`:
+```python
+import unittest
+from unittest.mock import patch
+import pytest
+from flight_tracker.tracker import _safe_search
+
+
+@pytest.mark.unit
+class TestSafeSearch(unittest.TestCase):
+    def test_returns_empty_and_error_on_failure(self):
+        with patch("flight_tracker.tracker.search_flights", side_effect=Exception("connection error")):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertEqual(flights, [])
+        self.assertIn("connection error", err)
+
+    def test_quota_429_prefixed(self):
+        with patch("flight_tracker.tracker.search_flights", side_effect=Exception("HTTP 429 Too Many Requests")):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertEqual(flights, [])
+        self.assertTrue(err.startswith("[QUOTA EXCEEDED]"))
+
+    def test_quota_keyword_prefixed(self):
+        with patch("flight_tracker.tracker.search_flights", side_effect=Exception("out of credits")):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertTrue(err.startswith("[QUOTA EXCEEDED]"))
+
+    def test_non_quota_error_not_prefixed(self):
+        with patch("flight_tracker.tracker.search_flights", side_effect=Exception("network timeout")):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertFalse(err.startswith("[QUOTA EXCEEDED]"))
+        self.assertIn("network timeout", err)
+
+    def test_success_returns_flights_and_none_error(self):
+        from flight_tracker.search import Flight
+        mock_flight = Flight(price=980, stops=1, duration_min=900, airline="SAA", departs="18:30")
+        with patch("flight_tracker.tracker.search_flights", return_value=[mock_flight]):
+            flights, err = _safe_search("JFK", "JNB", "2026-08-20", "key")
+        self.assertEqual(flights, [mock_flight])
+        self.assertIsNone(err)
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
 - [ ] **Step 3: Run — verify FAIL**
 
 ```bash
-pytest tests/test_flight_history.py -v -m unit
+pytest tests/test_flight_history.py tests/test_flight_tracker_errors.py -v -m unit
 ```
 
 Expected: `ImportError: No module named 'flight_tracker.tracker'`
@@ -780,7 +840,10 @@ def _safe_search(origin, destination, flight_date, api_key):
         flights = search_flights(origin, destination, flight_date, api_key)
         return flights, None
     except Exception as exc:
-        return [], str(exc)
+        err_str = str(exc)
+        if "429" in err_str or "quota" in err_str.lower() or "credit" in err_str.lower():
+            return [], f"[QUOTA EXCEEDED] {err_str}"
+        return [], err_str
 
 
 def main():
@@ -848,7 +911,7 @@ if __name__ == "__main__":
 pytest tests/test_flight_history.py -v -m unit
 ```
 
-Expected: All 6 tests PASS.
+Expected: All 6 history tests + 5 error injection tests PASS.
 
 - [ ] **Step 6: Run full unit suite — no regressions**
 
@@ -868,8 +931,8 @@ Every `sys.exit(0)` path in `main()` must have called `_update_history` before e
 - [ ] **Step 8: Commit**
 
 ```bash
-git add flight_tracker/tracker.py flight_tracker/history.csv tests/test_flight_history.py
-git commit -m "feat(flight-tracker): tracker entrypoint, history CSV, error handling"
+git add flight_tracker/tracker.py flight_tracker/history.csv tests/test_flight_history.py tests/test_flight_tracker_errors.py
+git commit -m "feat(flight-tracker): tracker entrypoint, history CSV, quota detection, error handling"
 ```
 
 ---
@@ -942,7 +1005,7 @@ jobs:
 Confirm these properties in the YAML:
 - `cron: '17 7 * * *'` — not top-of-hour
 - `cancel-in-progress: false` — queues, never cancels
-- `permissions: contents: write` — at job level
+- `permissions: contents: write` — at workflow or job level (YAML has it at workflow level; either is valid)
 - `type: "2"` in `tracker.py` search params — already in code
 - `git pull --rebase` before `git push` — conflict-safe
 - `workflow_dispatch` present — allows manual test trigger
