@@ -49,11 +49,14 @@ def test_int_coercion(monkeypatch):
         monkeypatch,
         TRADINGAGENTS_MAX_DEBATE_ROUNDS="3",
         TRADINGAGENTS_MAX_RISK_ROUNDS="2",
+        TRADINGAGENTS_LLM_MAX_CONCURRENCY="1",
     )
     assert dc.DEFAULT_CONFIG["max_debate_rounds"] == 3
     assert isinstance(dc.DEFAULT_CONFIG["max_debate_rounds"], int)
     assert dc.DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2
     assert isinstance(dc.DEFAULT_CONFIG["max_risk_discuss_rounds"], int)
+    assert dc.DEFAULT_CONFIG["llm_max_concurrency"] == 1
+    assert isinstance(dc.DEFAULT_CONFIG["llm_max_concurrency"], int)
 
 
 @pytest.mark.parametrize(

@@ -11,9 +11,10 @@ from tradingagents.agents.utils.agent_states import (
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit=100, max_concurrency: Optional[int] = None):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
+        self.max_concurrency = max_concurrency
 
     def create_initial_state(
         self, company_name: str, trade_date: str, past_context: str = ""
@@ -68,6 +69,8 @@ class Propagator:
                        Note: LLM callbacks are handled separately via LLM constructor.
         """
         config = {"recursion_limit": self.max_recur_limit}
+        if self.max_concurrency is not None:
+            config["max_concurrency"] = self.max_concurrency
         if callbacks:
             config["callbacks"] = callbacks
         return {

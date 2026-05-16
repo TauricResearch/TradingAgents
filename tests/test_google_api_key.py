@@ -8,6 +8,7 @@ from tradingagents.llm_clients.google_client import (
     _extract_retry_delay_seconds,
     _invoke_with_quota_retry,
     _is_resource_exhausted_error,
+    _quota_retry_count,
 )
 
 
@@ -57,6 +58,35 @@ def test_google_quota_retry_honors_retry_delay(monkeypatch):
     assert _invoke_with_quota_retry(operation) == "ok"
     assert sleeps == [4]
     assert attempts["count"] == 2
+
+
+@pytest.mark.unit
+def test_google_quota_retry_defaults_are_patient(monkeypatch):
+    monkeypatch.delenv("TRADINGAGENTS_GOOGLE_QUOTA_MAX_RETRIES", raising=False)
+    assert _quota_retry_count() == 6
+
+
+@pytest.mark.unit
+def test_google_quota_retry_scales_retry_info_delay(monkeypatch):
+    error = Exception(
+        "429 RESOURCE_EXHAUSTED. {'error': {'details': ["
+        "{'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '4s'}]}}"
+    )
+    attempts = {"count": 0}
+    sleeps = []
+
+    monkeypatch.setenv("TRADINGAGENTS_GOOGLE_QUOTA_MAX_RETRIES", "2")
+    monkeypatch.setattr("tradingagents.llm_clients.google_client.random.uniform", lambda *_: 0)
+    monkeypatch.setattr("tradingagents.llm_clients.google_client.time.sleep", sleeps.append)
+
+    def operation():
+        attempts["count"] += 1
+        if attempts["count"] <= 2:
+            raise error
+        return "ok"
+
+    assert _invoke_with_quota_retry(operation) == "ok"
+    assert sleeps == [4, 8]
 
 
 if __name__ == "__main__":

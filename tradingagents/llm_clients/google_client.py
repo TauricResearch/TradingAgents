@@ -41,22 +41,25 @@ def _extract_retry_delay_seconds(exc: Exception) -> Optional[float]:
 
 
 def _quota_retry_count() -> int:
-    raw = os.getenv("TRADINGAGENTS_GOOGLE_QUOTA_MAX_RETRIES", "2")
+    raw = os.getenv("TRADINGAGENTS_GOOGLE_QUOTA_MAX_RETRIES", "6")
     try:
         return max(0, int(raw))
     except ValueError:
-        return 2
+        return 6
 
 
 def _quota_retry_delay(exc: Exception, attempt: int) -> float:
-    configured_cap = os.getenv("TRADINGAGENTS_GOOGLE_QUOTA_RETRY_MAX_DELAY_SECONDS", "30")
+    configured_cap = os.getenv("TRADINGAGENTS_GOOGLE_QUOTA_RETRY_MAX_DELAY_SECONDS", "90")
     try:
         cap = max(1.0, float(configured_cap))
     except ValueError:
-        cap = 30.0
+        cap = 90.0
 
     suggested = _extract_retry_delay_seconds(exc)
-    base_delay = suggested if suggested is not None else min(cap, 2 ** attempt)
+    if suggested is not None:
+        base_delay = suggested * (attempt + 1)
+    else:
+        base_delay = 2 ** attempt
     return min(cap, base_delay) + random.uniform(0, 0.5)
 
 

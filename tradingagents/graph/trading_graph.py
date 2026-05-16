@@ -180,6 +180,7 @@ class TradingAgentsGraph:
 
         self.propagator = Propagator(
             max_recur_limit=self.config.get("max_recur_limit", 100),
+            max_concurrency=self._resolve_llm_max_concurrency(),
         )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
@@ -222,6 +223,22 @@ class TradingAgentsGraph:
                 kwargs["effort"] = effort
 
         return kwargs
+
+    def _resolve_llm_max_concurrency(self) -> Optional[int]:
+        """Resolve graph-level LLM concurrency.
+
+        Gemini quotas are frequently per-minute input-token based, so the
+        initial parallel analyst fan-out can exhaust quota even when each
+        individual call is valid. Serializing Google graph nodes by default
+        prevents avoidable bursts while still allowing users to opt into more
+        concurrency when their quota tier supports it.
+        """
+        configured = self.config.get("llm_max_concurrency")
+        if configured is not None:
+            return configured
+        if self.config.get("llm_provider", "").lower() == "google":
+            return 1
+        return None
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""

@@ -20,6 +20,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_PORTFOLIO_MAX_CONCURRENCY": "portfolio_max_concurrency",
     "TRADINGAGENTS_GLOBAL_NEWS_QUERY_CONCURRENCY": "global_news_query_concurrency",
+    "TRADINGAGENTS_LLM_MAX_CONCURRENCY": "llm_max_concurrency",
 }
 
 
@@ -80,6 +81,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     "portfolio_max_concurrency": 2,
+    # Optional LangGraph concurrency cap for LLM-heavy graph nodes.
+    # None preserves provider defaults; Google runs default to 1 at graph
+    # construction time to avoid Gemini per-minute input-token quota bursts.
+    "llm_max_concurrency": None,
     # External data fetch controls
     "yfinance_max_retries": 1,
     "yfinance_base_delay_seconds": 1.0,
