@@ -131,6 +131,7 @@ def main():
         send_email(html, subject, cfg)
     except Exception as exc:
         print(f"SMTP failure: {exc}")  # stdout; exit 0 so commit step still runs
+    sys.exit(0)
 
 
 if __name__ == "__main__":
