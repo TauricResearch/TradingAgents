@@ -48,7 +48,10 @@ def build_subject(outbound_picks: tuple, return_picks: tuple, today: str, origin
     fewest, cheapest = outbound_picks
     fewest_price = _fmt_price(fewest.price if fewest else None)
     cheapest_price = _fmt_price(cheapest.price if cheapest else None)
-    return f"✈ {origin}→{destination} | Fewest Stops: {fewest_price} | Cheapest: {cheapest_price} | {today}"
+    # Strip control chars to prevent MIME header injection
+    safe_origin = origin.translate({ord(c): None for c in "\r\n"})
+    safe_dest = destination.translate({ord(c): None for c in "\r\n"})
+    return f"✈ {safe_origin}→{safe_dest} | Fewest Stops: {fewest_price} | Cheapest: {cheapest_price} | {today}"
 
 
 def build_html(outbound_picks: tuple, return_picks: tuple, today: str) -> str:
