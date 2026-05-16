@@ -48,20 +48,11 @@ class TestUpdateHistory(unittest.TestCase):
         "return_cheapest_stops", "return_cheapest_duration",
     ]
 
-    def _make_csv(self, rows):
-        buf = io.StringIO()
-        writer = csv.DictWriter(buf, fieldnames=self.HEADER)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
-        buf.seek(0)
-        return buf
-
     def _read_csv(self, path):
         with open(path, newline="") as f:
             return list(csv.DictReader(f))
 
-    def test_appends_new_date(self, tmp_path=None):
+    def test_appends_new_date(self):
         import tempfile, os
         with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="") as f:
             csv_path = f.name
