@@ -8,19 +8,10 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from desktop.utils.reports import TYPE_COLORS
 from tradingagents.progress import ProgressSnapshot
 
 _MAX_VISIBLE = 20
-
-_TYPE_COLORS: dict[str, str] = {
-    "System": "text-blue-4",
-    "Agent": "text-green-4",
-    "User": "text-yellow-4",
-    "Data": "text-purple-4",
-    "Tool": "text-orange-4",
-    "Control": "text-grey-5",
-    "Error": "text-red-4",
-}
 
 
 class LogPanel:
@@ -70,10 +61,10 @@ class LogPanel:
             visible = all_entries[:_MAX_VISIBLE]
 
             for ts, entry_type, content in visible:
-                color = _TYPE_COLORS.get(entry_type, "text-grey")
+                color = TYPE_COLORS.get(entry_type, "grey")
                 with ui.row().classes("items-baseline gap-xs q-py-none"):
                     ui.label(ts).classes("text-caption text-grey-6")
-                    ui.label(f"[{entry_type}]").classes(f"text-caption {color}")
+                    ui.label(f"[{entry_type}]").classes(f"text-caption text-{color}")
                     ui.label(content).classes("text-caption text-white")
 
 

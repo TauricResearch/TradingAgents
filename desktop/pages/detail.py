@@ -12,17 +12,15 @@ from pathlib import Path
 
 from nicegui import ui
 
+from desktop.components.price_chart import PriceChart
 from desktop.state.database import HistoryDB
-
-# markdown2 extras — shared with report_section.py for consistency
-_MD_EXTRAS: list[str] = [
-    "tables",
-    "fenced-code-blocks",
-    "strike",
-    "task_list",
-    "cuddled-lists",
-    "header-ids",
-]
+from desktop.utils.paths import validated_result_dir
+from desktop.utils.reports import (
+    MD_EXTRAS,
+    TYPE_COLORS,
+    discover_report_files,
+    status_chip,
+)
 
 
 def render_detail_page(*, db: HistoryDB, analysis_id: int) -> None:
@@ -56,7 +54,15 @@ class _DetailPage:
 
                 ui.space()
 
-                _status_badge(analysis.status)
+                status_chip(analysis.status)
+
+                # PDF export button
+                if analysis.result_dir and Path(analysis.result_dir).is_dir():
+                    _aid = analysis  # capture for closure
+                    ui.button(
+                        "Export PDF", icon="picture_as_pdf",
+                        on_click=lambda a=_aid: self._export_pdf(a),
+                    ).props("flat dense color=blue")
 
                 ui.button("Back", icon="arrow_back",
                           on_click=lambda: ui.navigate.to("/history")).props(
@@ -68,6 +74,11 @@ class _DetailPage:
                 ui.label(f"Started: {analysis.started_at}")
                 if analysis.completed_at:
                     ui.label(f"Completed: {analysis.completed_at}")
+
+            # Price chart
+            PriceChart(
+                ticker=analysis.ticker, analysis_date=analysis.date,
+            ).build()
 
             # Error text (if failed)
             if analysis.error_text:
@@ -81,22 +92,19 @@ class _DetailPage:
                 ui.label("No report files found on disk.").classes(
                     "text-body2 text-grey-5 q-pa-md"
                 )
-                # Still show logs even without report files
                 self._build_logs_section()
                 return
 
-            # CR-01: Validate result_dir is under the expected base to
-            # prevent path traversal via stored/imported paths.
-            root = Path(result_dir).resolve()
-            expected_base = (Path.home() / ".tradingagents" / "results").resolve()
-            if not str(root).startswith(str(expected_base)):
+            # SEC-01: Use is_relative_to instead of fragile startswith
+            root = validated_result_dir(result_dir)
+            if root is None:
                 ui.label("Invalid result directory.").classes(
                     "text-body2 text-red q-pa-md"
                 )
                 self._build_logs_section()
                 return
 
-            sections = _discover_report_files(root)
+            sections = discover_report_files(root)
 
             if not sections:
                 ui.label("No report files found on disk.").classes(
@@ -108,7 +116,6 @@ class _DetailPage:
             ui.label("Reports").classes("text-h6 text-white q-mt-md")
 
             # Complete report link if present
-            # WR-03: wrap file reads with error handling
             complete = root / "complete_report.md"
             if complete.exists():
                 try:
@@ -122,7 +129,7 @@ class _DetailPage:
                 ):
                     ui.markdown(
                         complete_text,
-                        extras=_MD_EXTRAS,
+                        extras=MD_EXTRAS,
                     ).classes("report-content text-white q-pa-sm")
 
             # Individual sections
@@ -136,12 +143,37 @@ class _DetailPage:
                 ).classes("w-full bg-dark").props(
                     "dense header-class='text-subtitle2 text-grey-4'"
                 ):
-                    ui.markdown(content, extras=_MD_EXTRAS).classes(
+                    ui.markdown(content, extras=MD_EXTRAS).classes(
                         "report-content text-white q-pa-sm"
                     )
 
-            # ── Persisted logs ─────────────────────────────────────
+            # Persisted logs
             self._build_logs_section()
+
+    def _export_pdf(self, analysis: object) -> None:
+        """Export this analysis as PDF."""
+        try:
+            from desktop.services.pdf_export import PDFExporter
+
+            exporter = PDFExporter()
+            pdf_path = exporter.export_analysis(
+                result_dir=Path(analysis.result_dir),
+                ticker=analysis.ticker,
+                verdict="",  # will be read from the report
+                date=analysis.date,
+            )
+            ui.notify(f"PDF exported: {pdf_path.name}", type="positive")
+            # Open the file
+            import subprocess
+            subprocess.Popen(["open", str(pdf_path)])
+        except ImportError:
+            ui.notify(
+                "weasyprint not installed. Run: pip install weasyprint",
+                type="warning",
+                close_button=True,
+            )
+        except Exception as exc:
+            ui.notify(f"Export failed: {exc}", type="negative")
 
     def _build_logs_section(self) -> None:
         """Render persisted log entries from the database."""
@@ -166,7 +198,7 @@ class _DetailPage:
                     )
                     return
                 for entry in entries:
-                    color = _TYPE_COLORS.get(entry.entry_type, "grey")
+                    color = TYPE_COLORS.get(entry.entry_type, "grey")
                     with ui.row().classes("items-baseline gap-xs q-py-none"):
                         ui.label(entry.timestamp).classes("text-caption text-grey-6")
                         ui.label(f"[{entry.entry_type}]").classes(
@@ -191,7 +223,7 @@ class _DetailPage:
                 text = "\n".join(
                     f"{e.timestamp} [{e.entry_type}] {e.content}" for e in entries
                 )
-                # CR-01: use json.dumps for safe JS string escaping
+                # SECURITY: json.dumps is required here to prevent JS injection
                 escaped = _json.dumps(text)
                 await ui.run_javascript(
                     f"navigator.clipboard.writeText({escaped})", respond=False
@@ -208,104 +240,3 @@ class _DetailPage:
             ).style("max-height: 500px; overflow-y: auto")
 
         refresh_logs()
-
-
-# ── Report file discovery ──────────────────────────────────────────────
-
-# New format: numbered subdirectories with short names
-_PHASE_TITLES: dict[str, str] = {
-    "1_analysts": "Analysts",
-    "2_research": "Research Team",
-    "3_trading": "Trading Team",
-    "4_risk": "Risk Management",
-    "5_portfolio": "Portfolio Management",
-}
-
-_FILE_TITLES: dict[str, str] = {
-    # New format (short names in subdirs)
-    "fundamentals": "Fundamentals Analysis",
-    "market": "Market Analysis",
-    "news": "News Analysis",
-    "sentiment": "Social Sentiment",
-    "bull": "Bull Researcher",
-    "bear": "Bear Researcher",
-    "manager": "Research Manager Decision",
-    "trader": "Trading Team Plan",
-    "aggressive": "Aggressive Risk Analyst",
-    "neutral": "Neutral Risk Analyst",
-    "conservative": "Conservative Risk Analyst",
-    "decision": "Portfolio Management Decision",
-    # Old format (flat reports/ directory)
-    "market_report": "Market Analysis",
-    "sentiment_report": "Social Sentiment",
-    "news_report": "News Analysis",
-    "fundamentals_report": "Fundamentals Analysis",
-    "investment_plan": "Research Team Decision",
-    "trader_investment_plan": "Trading Team Plan",
-    "final_trade_decision": "Portfolio Management Decision",
-}
-
-
-def _discover_report_files(root: Path) -> list[tuple[str, Path]]:
-    """Find all report markdown files in either directory layout.
-
-    Returns a list of ``(display_title, path)`` tuples in a logical
-    order (analysts → research → trading → risk → portfolio).
-    """
-    sections: list[tuple[str, Path]] = []
-
-    # New format: numbered subdirectories (1_analysts/, 2_research/, ...)
-    phase_dirs = sorted(
-        (d for d in root.iterdir() if d.is_dir() and d.name[0].isdigit()),
-        key=lambda d: d.name,
-    )
-    if phase_dirs:
-        for phase_dir in phase_dirs:
-            phase_label = _PHASE_TITLES.get(phase_dir.name, phase_dir.name)
-            for md in sorted(phase_dir.glob("*.md")):
-                stem = md.stem
-                title = _FILE_TITLES.get(stem, f"{phase_label} — {stem.replace('_', ' ').title()}")
-                sections.append((f"{phase_label} / {title}", md))
-        return sections
-
-    # Old format: flat reports/ subdirectory
-    reports_dir = root / "reports"
-    if reports_dir.is_dir():
-        for md in sorted(reports_dir.glob("*.md")):
-            title = _FILE_TITLES.get(md.stem, md.stem.replace("_", " ").title())
-            sections.append((title, md))
-        return sections
-
-    # Fallback: any .md files directly in root (excluding complete_report)
-    for md in sorted(root.glob("*.md")):
-        if md.name == "complete_report.md":
-            continue
-        title = _FILE_TITLES.get(md.stem, md.stem.replace("_", " ").title())
-        sections.append((title, md))
-
-    return sections
-
-
-_TYPE_COLORS: dict[str, str] = {
-    "System": "blue-4",
-    "Agent": "green-4",
-    "User": "yellow-4",
-    "Data": "purple-4",
-    "Tool": "orange-4",
-    "Control": "grey-5",
-    "Error": "red-4",
-}
-
-
-def _status_badge(status: str) -> None:
-    """Render a colored status badge."""
-    colors = {
-        "completed": "green",
-        "running": "blue",
-        "failed": "red",
-        "interrupted": "orange",
-    }
-    color = colors.get(status, "grey")
-    ui.label(status.capitalize()).classes(
-        f"text-caption text-white bg-{color} q-px-sm q-py-xs rounded-borders"
-    )

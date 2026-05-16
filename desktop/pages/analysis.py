@@ -10,20 +10,23 @@ from __future__ import annotations
 
 import datetime
 import logging
-from pathlib import Path
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 from nicegui import ui
 
+import desktop.app as _app_module  # LEAK-02: register batch runner
 from desktop.components.agent_card import AgentStatusPanel
+from desktop.components.batch_progress import BatchProgressPanel
 from desktop.components.log_panel import LogPanel
+from desktop.components.price_chart import PriceChart
 from desktop.components.progress_bar import ProgressPanel
 from desktop.components.report_section import ReportSectionsPanel
+from desktop.state.batch import BatchRunner
 from desktop.state.database import HistoryDB
 from desktop.state.runner import EventKind, PipelineRunner
-from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 from tradingagents.progress import REPORT_SECTIONS
 
@@ -46,15 +49,18 @@ _ANALYSTS = [
     ("Fundamentals Analyst", "fundamentals"),
 ]
 
-# Claude CLI models (not in the shared model catalog)
+# Claude CLI models (not in the shared model catalog).
+# IDs must match the Anthropic versioned format (claude-opus-4-6, not
+# date-pinned snapshots like claude-opus-4-20250514 which is Opus 4 base).
 _CLAUDE_CLI_MODELS: dict[str, list[tuple[str, str]]] = {
     "quick": [
-        ("Claude Opus 4.6", "claude-opus-4-20250514"),
-        ("Claude Opus 4.7 Max", "claude-opus-4-20250715"),
+        ("Claude Opus 4.7 — Latest frontier", "claude-opus-4-7"),
+        ("Claude Opus 4.6 — Frontier intelligence", "claude-opus-4-6"),
+        ("Claude Sonnet 4.6 — Fast + smart balance", "claude-sonnet-4-6"),
     ],
     "deep": [
-        ("Claude Opus 4.6", "claude-opus-4-20250514"),
-        ("Claude Opus 4.7 Max", "claude-opus-4-20250715"),
+        ("Claude Opus 4.7 — Latest frontier", "claude-opus-4-7"),
+        ("Claude Opus 4.6 — Frontier intelligence", "claude-opus-4-6"),
     ],
 }
 
@@ -74,6 +80,10 @@ _LANGUAGES: list[tuple[str, str]] = [
 ]
 
 
+# WR-02: Ticker symbol validation (letters, digits, dots, dashes, carets)
+_TICKER_RE = re.compile(r"^[A-Z0-9.\-^]{1,20}$")
+
+
 def _get_models_for_provider(
     provider_key: str, mode: str,
 ) -> list[tuple[str, str]]:
@@ -84,16 +94,23 @@ def _get_models_for_provider(
     return [(name, mid) for name, mid in models if mid != "custom"]
 
 
-def render_analysis_page(*, runner: PipelineRunner, db: HistoryDB) -> None:
+def render_analysis_page(
+    *,
+    runner: PipelineRunner,
+    db: HistoryDB,
+    running_badge: Any = None,
+) -> None:
     """Render the analysis page content."""
-    page = _AnalysisPage(runner=runner, db=db)
+    page = _AnalysisPage(runner=runner, db=db, running_badge=running_badge)
     page.build()
 
 
 class _AnalysisPage:
     """Internal page controller managing form and progress states."""
 
-    def __init__(self, *, runner: PipelineRunner, db: HistoryDB) -> None:
+    def __init__(
+        self, *, runner: PipelineRunner, db: HistoryDB, running_badge: Any = None,
+    ) -> None:
         self._runner = runner
         self._db = db
 
@@ -119,8 +136,8 @@ class _AnalysisPage:
             "market", "social", "news", "fundamentals"
         ]
         self._research_depth = saved_depth
-        self._quick_model_id: str | None = "claude-opus-4-20250514"
-        self._deep_model_id: str | None = "claude-opus-4-20250514"
+        self._quick_model_id: str | None = "claude-opus-4-7"
+        self._deep_model_id: str | None = "claude-opus-4-7"
         self._language: str = "English"
 
         # UI refs — form inputs (read .value directly to avoid stale state)
@@ -137,6 +154,17 @@ class _AnalysisPage:
         self._log_panel: LogPanel | None = None
         self._report_panel: ReportSectionsPanel | None = None
         self._timer: ui.timer | None = None
+
+        # Run button ref for RACE-01 (disable on click)
+        self._run_btn: ui.button | None = None
+        # Header running badge for BUG-03 (manual visibility update)
+        self._running_badge: ui.label | None = running_badge
+
+        # Batch mode state
+        self._batch_mode: bool = False
+        self._batch_runner: BatchRunner | None = None
+        self._batch_panel: BatchProgressPanel | None = None
+        self._watchlist_select: ui.select | None = None
 
     def build(self) -> None:
         """Render the full page layout."""
@@ -159,12 +187,30 @@ class _AnalysisPage:
             ).classes("text-body2 text-grey-5")
 
             with ui.card().classes("w-full"):
+                # Batch mode toggle
+                with ui.row().classes("items-center gap-sm q-mb-sm"):
+                    ui.switch(
+                        "Batch Mode (multiple tickers)",
+                        value=False,
+                        on_change=lambda e: self._toggle_batch_mode(e.value),
+                    ).props("color=purple dense")
+
                 # Ticker — read .value directly in _on_run to avoid stale state
                 self._ticker_input = ui.input(
                     "Ticker Symbol",
                     value="SPY",
                     placeholder="e.g. SPY, AAPL, 0700.HK",
                 ).classes("w-full").props("outlined dense")
+
+                # Watchlist selector (only visible in batch mode)
+                watchlists = self._db.list_watchlists()
+                wl_options = {name: ", ".join(tickers) for name, tickers in watchlists.items()}
+                self._watchlist_select = ui.select(
+                    label="Load Watchlist",
+                    options=list(wl_options.keys()) if wl_options else ["No saved watchlists"],
+                    on_change=lambda e: self._load_watchlist(e.value),
+                ).classes("w-full q-mt-xs").props("outlined dense clearable")
+                self._watchlist_select.set_visibility(False)
 
                 # Date
                 self._date_input = ui.input(
@@ -259,8 +305,8 @@ class _AnalysisPage:
                     on_change=lambda e: setattr(self, "_research_depth", int(e.value)),
                 ).classes("w-full").props("label-always markers snap")
 
-            # Run button
-            ui.button(
+            # Run button — save ref for RACE-01 (disable on click)
+            self._run_btn = ui.button(
                 "Run Analysis",
                 icon="play_arrow",
                 on_click=self._on_run,
@@ -323,20 +369,32 @@ class _AnalysisPage:
         elif not checked and key in self._selected_analysts:
             self._selected_analysts.remove(key)
 
-    async def _on_run(self) -> None:
-        """Validate and start the analysis pipeline."""
-        # Read current values directly from UI elements (not stale callbacks)
-        ticker = (self._ticker_input.value or "").strip().upper() if self._ticker_input else ""
-        date = (self._date_input.value or "") if self._date_input else ""
+    def _toggle_batch_mode(self, enabled: bool) -> None:
+        """Switch between single-ticker and batch mode."""
+        self._batch_mode = enabled
+        if self._ticker_input:
+            if enabled:
+                self._ticker_input.props("label='Tickers (comma-separated)'")
+                self._ticker_input.props(
+                    "placeholder='e.g. SPY, AAPL, MSFT, NVDA, TSLA'"
+                )
+            else:
+                self._ticker_input.props("label='Ticker Symbol'")
+                self._ticker_input.props("placeholder='e.g. SPY, AAPL, 0700.HK'")
+        if self._watchlist_select:
+            self._watchlist_select.set_visibility(enabled)
 
-        if not ticker:
-            ui.notify("Please enter a ticker symbol", type="warning")
+    def _load_watchlist(self, name: str | None) -> None:
+        """Populate the ticker input from a saved watchlist."""
+        if not name or not self._ticker_input:
             return
-        if not self._selected_analysts:
-            ui.notify("Select at least one analyst", type="warning")
-            return
+        watchlists = self._db.list_watchlists()
+        tickers = watchlists.get(name, [])
+        if tickers:
+            self._ticker_input.set_value(", ".join(tickers))
 
-        # Resolve language (custom → read text input)
+    def _build_config(self) -> dict[str, Any]:
+        """Build config dict from current form state."""
         language = self._language
         if language == "custom" and self._custom_language_input:
             language = (self._custom_language_input.value or "").strip()
@@ -350,12 +408,102 @@ class _AnalysisPage:
             "max_risk_discuss_rounds": self._research_depth,
             "output_language": language,
         }
-
-        # Set user-selected models (all providers, not just claude_cli)
         if self._quick_model_id:
             config["quick_think_llm"] = self._quick_model_id
         if self._deep_model_id:
             config["deep_think_llm"] = self._deep_model_id
+        return config
+
+    async def _on_run(self) -> None:
+        """Validate and start the analysis pipeline (single or batch)."""
+        # RACE-01: Disable button immediately to prevent double-submission
+        if self._run_btn:
+            self._run_btn.disable()
+
+        raw_ticker = (self._ticker_input.value or "").strip().upper() if self._ticker_input else ""
+        date = (self._date_input.value or "") if self._date_input else ""
+
+        if not raw_ticker:
+            ui.notify("Please enter a ticker symbol", type="warning")
+            if self._run_btn:
+                self._run_btn.enable()
+            return
+        if not self._selected_analysts:
+            ui.notify("Select at least one analyst", type="warning")
+            if self._run_btn:
+                self._run_btn.enable()
+            return
+
+        # WR-03: Validate date format
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            ui.notify("Invalid date format. Use YYYY-MM-DD.", type="warning")
+            if self._run_btn:
+                self._run_btn.enable()
+            return
+
+        config = self._build_config()
+
+        # Batch mode: parse comma-separated tickers
+        if self._batch_mode:
+            tickers = [t.strip() for t in raw_ticker.split(",") if t.strip()]
+            if len(tickers) < 2:
+                ui.notify("Batch mode needs at least 2 tickers", type="warning")
+                if self._run_btn:
+                    self._run_btn.enable()
+                return
+            if len(tickers) > 20:
+                ui.notify("Maximum 20 tickers per batch", type="warning")
+                if self._run_btn:
+                    self._run_btn.enable()
+                return
+            # WR-02: Validate each ticker
+            invalid = [t for t in tickers if not _TICKER_RE.match(t)]
+            if invalid:
+                ui.notify(f"Invalid ticker(s): {', '.join(invalid)}", type="warning")
+                if self._run_btn:
+                    self._run_btn.enable()
+                return
+
+            self._batch_runner = BatchRunner(runner=self._runner, db=self._db)
+            # LEAK-02: Register on app module so shutdown can join it
+            _app_module.active_batch_runner = self._batch_runner
+            try:
+                self._batch_runner.start(
+                    tickers=tickers,
+                    config=config,
+                    date=date,
+                    selected_analysts=list(self._selected_analysts),
+                )
+            except RuntimeError as e:
+                ui.notify(str(e), type="negative")
+                if self._run_btn:
+                    self._run_btn.enable()
+                return
+
+            self._run_ticker = tickers[0]
+            self._run_date = date
+
+            if self._page_root:
+                self._page_root.clear()
+                with self._page_root:
+                    self._build_batch_progress_view(tickers)
+                    self._start_batch_polling()
+                    ui.notify(
+                        f"Batch started: {len(tickers)} tickers", type="positive",
+                    )
+            return
+
+        # Single ticker mode (original flow)
+        ticker = raw_ticker
+
+        # WR-02: Validate ticker format
+        if not _TICKER_RE.match(ticker):
+            ui.notify(f"Invalid ticker format: {ticker}", type="warning")
+            if self._run_btn:
+                self._run_btn.enable()
+            return
 
         # WR-06: Insert into database with error handling
         try:
@@ -370,6 +518,8 @@ class _AnalysisPage:
         except Exception as e:
             logger.exception("Failed to create analysis record")
             ui.notify(f"Database error: {e}", type="negative")
+            if self._run_btn:
+                self._run_btn.enable()
             return
 
         # Store ticker/date for the progress view summary strip
@@ -387,7 +537,11 @@ class _AnalysisPage:
                 analysis_id=analysis_id,
             )
         except RuntimeError as e:
+            # RACE-01: Mark the orphaned DB row as interrupted
+            self._db.mark_interrupted(analysis_id)
             ui.notify(str(e), type="negative")
+            if self._run_btn:
+                self._run_btn.enable()
             return
 
         # Swap form → progress view inside the persistent root container
@@ -396,8 +550,6 @@ class _AnalysisPage:
             with self._page_root:
                 self._build_progress_view()
                 self._start_polling()
-                # Must be inside `with` block — the slot context from
-                # _page_root.clear() is gone outside it.
                 ui.notify(f"Analysis started for {ticker}", type="positive")
 
     # ── Progress view (running state) ───────────────────────────────
@@ -437,6 +589,10 @@ class _AnalysisPage:
                     on_click=self._on_cancel,
                 ).props("color=red flat dense")
 
+            # Price chart (renders once, not polled)
+            if ticker and ticker != "???":
+                PriceChart(ticker=ticker, analysis_date=date or "").build()
+
             # Two-column layout
             with ui.row().classes("w-full gap-md"):
                 # Left column: agent status + progress bar
@@ -471,7 +627,12 @@ class _AnalysisPage:
             if event.kind == EventKind.COMPLETED:
                 self._on_completed(event.data)
             elif event.kind == EventKind.FAILED:
-                self._on_failed(event.data)
+                # WR-05: event.data is now a dict with analysis_id + error
+                if isinstance(event.data, dict):
+                    error_text = event.data.get("error", "Unknown error")
+                else:
+                    error_text = str(event.data) if event.data else "Unknown error"
+                self._on_failed(error_text)
             elif event.kind == EventKind.CANCELLED:
                 self._on_cancelled()
             elif event.kind == EventKind.WATCHDOG:
@@ -493,6 +654,10 @@ class _AnalysisPage:
             self._log_panel.update(snap)
         if self._report_panel:
             self._report_panel.update(snap)
+
+        # BUG-03: Update header badge from page timer instead of bind_visibility
+        if self._running_badge:
+            self._running_badge.set_visibility(self._runner.is_running)
 
     def _on_cancel(self) -> None:
         self._runner.cancel()
@@ -531,5 +696,136 @@ class _AnalysisPage:
             if self._page_root and self._agent_panel:
                 self._poll()
         except Exception:
-            # WR-01: log instead of silently swallowing — aids debugging
-            logger.debug("Final poll skipped (page likely navigated away)", exc_info=True)
+            # WR-07: log at WARNING (was DEBUG) — aids debugging
+            logger.warning("Final poll skipped (page likely navigated away)", exc_info=True)
+
+    # ── Batch progress view ────────────────────────────────────────────
+
+    def _build_batch_progress_view(self, tickers: list[str]) -> None:
+        """Render the batch-level progress + per-ticker dashboard."""
+        with ui.column().classes("w-full q-pa-md gap-md"):
+            # Batch header
+            with ui.row().classes(
+                "items-center w-full bg-dark q-pa-sm rounded-borders"
+            ):
+                ui.icon("playlist_play").classes("text-purple text-h5")
+                ui.label("Batch Analysis").classes("text-h6 text-white q-ml-sm")
+                ui.label(f"{len(tickers)} tickers").classes(
+                    "text-caption text-grey q-ml-sm"
+                )
+                ui.space()
+                ui.button(
+                    "Cancel All", icon="stop",
+                    on_click=self._on_batch_cancel,
+                ).props("color=red flat dense")
+
+            # Batch-level progress strip
+            self._batch_panel = BatchProgressPanel()
+            self._batch_panel.build(tickers)
+
+            # Per-ticker progress (reuses existing components)
+            self._progress_panel = ProgressPanel()
+            self._progress_panel.build()
+            self._progress_panel.start()
+
+            self._agent_panel = AgentStatusPanel()
+            self._agent_panel.build()
+
+            self._log_panel = LogPanel()
+            self._log_panel.build()
+
+            # Save watchlist prompt
+            with ui.row().classes("items-center gap-sm q-mt-sm"):
+                wl_name_input = ui.input(
+                    "Save as watchlist", placeholder="e.g. Tech Stocks",
+                ).props("outlined dense").classes("w-48")
+
+                async def save_wl() -> None:
+                    name = (wl_name_input.value or "").strip()
+                    if not name:
+                        ui.notify("Enter a watchlist name", type="warning")
+                        return
+                    # WR-04: Catch ValueError from save_watchlist validation
+                    # (rejects empty, >100 chars, or names with : \n etc.)
+                    try:
+                        self._db.save_watchlist(name, tickers)
+                        ui.notify(f"Watchlist '{name}' saved!", type="positive")
+                    except ValueError as e:
+                        ui.notify(str(e), type="warning")
+
+                ui.button("Save", icon="bookmark", on_click=save_wl).props(
+                    "flat dense color=purple"
+                )
+
+    def _start_batch_polling(self) -> None:
+        """Start the UI timer for batch mode."""
+        self._timer = ui.timer(0.5, self._batch_poll)
+
+    def _batch_poll(self) -> None:
+        """Called every 500ms during batch runs.
+
+        LEAK-01: Wrapped in try/except so navigating away doesn't cause
+        exceptions from updating destroyed page elements.
+        """
+        if not self._batch_runner:
+            return
+
+        try:
+            state = self._batch_runner.snapshot()
+
+            # Update batch-level progress
+            if self._batch_panel:
+                if state.is_done:
+                    self._batch_panel.mark_complete(
+                        len(state.completed_tickers), len(state.tickers),
+                    )
+                else:
+                    self._batch_panel.update(
+                        current_index=len(state.completed_tickers),
+                        total=len(state.tickers),
+                        current_ticker=state.current_ticker,
+                        completed_tickers=state.completed_tickers,
+                        failed_tickers=state.failed_tickers,
+                    )
+
+            # Update per-ticker progress (same as single mode)
+            snap = self._runner.tracker.snapshot()
+            total = self._runner.tracker.get_total_reports_count()
+
+            if self._agent_panel:
+                self._agent_panel.update(snap)
+            if self._progress_panel:
+                self._progress_panel.update(snap, total_reports=total)
+            if self._log_panel:
+                self._log_panel.update(snap)
+
+            # BUG-03: Update header badge
+            if self._running_badge:
+                self._running_badge.set_visibility(self._runner.is_running)
+        except Exception:
+            # LEAK-01: Page likely navigated away; deactivate timer
+            logger.warning("Batch poll skipped (page likely navigated away)", exc_info=True)
+            if self._timer:
+                self._timer.deactivate()
+            return
+
+        # Batch done?
+        if state.is_done:
+            # WR-03: Clear stale batch runner reference so shutdown
+            # doesn't try to join an already-finished runner and GC
+            # can reclaim the BatchRunner + its internal queue.
+            _app_module.active_batch_runner = None
+            if self._timer:
+                self._timer.deactivate()
+            ok = len(state.completed_tickers)
+            fail = len(state.failed_tickers)
+            msg = f"Batch complete: {ok} succeeded"
+            if fail:
+                msg += f", {fail} failed"
+            ui.notify(msg, type="positive" if not fail else "warning", timeout=10000)
+
+    def _on_batch_cancel(self) -> None:
+        """Cancel the entire batch run."""
+        if self._batch_runner:
+            self._batch_runner.cancel()
+        ui.notify("Cancelling batch...", type="info")

@@ -29,12 +29,14 @@ class _HistoryPage:
         self._runner = runner
         self._search = ""
         self._table: ui.table | None = None
+        self._selected: list[dict] = []
+        self._compare_btn: ui.button | None = None
 
     def build(self) -> None:
         with ui.column().classes("w-full q-pa-md gap-md"):
             ui.label("Analysis History").classes("text-h5 text-white")
 
-            # Search bar
+            # Search bar + Compare button
             with ui.row().classes("items-center gap-sm"):
                 ui.input(
                     "Search ticker...",
@@ -43,6 +45,12 @@ class _HistoryPage:
                 ui.button("Refresh", icon="refresh", on_click=lambda: self._refresh()).props(
                     "flat dense"
                 )
+                ui.space()
+                self._compare_btn = ui.button(
+                    "Compare", icon="compare_arrows",
+                    on_click=self._on_compare,
+                ).props("flat dense color=purple")
+                self._compare_btn.set_visibility(False)
 
             # Table
             columns = [
@@ -60,6 +68,8 @@ class _HistoryPage:
                 rows=[],
                 row_key="id",
                 pagination={"rowsPerPage": 15},
+                selection="multiple",
+                on_select=lambda e: self._on_selection_change(e.selection),
             ).classes("w-full").props("flat bordered dense")
 
             # Add "View" + "Resume" buttons via slot
@@ -97,6 +107,26 @@ class _HistoryPage:
             self._table.on("resume", _on_resume)
 
             self._refresh()
+
+    def _on_selection_change(self, selection: list[dict]) -> None:
+        """Update compare button visibility based on selection count."""
+        self._selected = selection
+        count = len(selection)
+        if self._compare_btn:
+            self._compare_btn.set_visibility(count == 2)
+            if count == 2:
+                self._compare_btn.set_text(
+                    f"Compare #{selection[0]['id']} vs #{selection[1]['id']}"
+                )
+
+    def _on_compare(self) -> None:
+        """Navigate to the comparison page with the two selected analyses."""
+        if len(self._selected) != 2:
+            ui.notify("Select exactly 2 analyses to compare", type="warning")
+            return
+        id_a = self._selected[0]["id"]
+        id_b = self._selected[1]["id"]
+        ui.navigate.to(f"/compare/{id_a}/{id_b}")
 
     def _resume_analysis(self, analysis_id: int) -> None:
         """Resume an interrupted/failed analysis using its saved checkpoint.
@@ -152,6 +182,8 @@ class _HistoryPage:
                 analysis_id=new_id,
             )
         except RuntimeError as e:
+            # CR-02: Clean up orphaned "running" row on start failure
+            self._db.mark_interrupted(new_id)
             ui.notify(str(e), type="negative")
             return
 

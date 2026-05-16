@@ -11,17 +11,8 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from desktop.utils.reports import MD_EXTRAS
 from tradingagents.progress import SECTION_TITLES, ProgressSnapshot
-
-# markdown2 extras enabled for report rendering
-_MD_EXTRAS: list[str] = [
-    "tables",
-    "fenced-code-blocks",
-    "strike",
-    "task_list",
-    "cuddled-lists",
-    "header-ids",
-]
 
 
 class ReportSectionsPanel:
@@ -71,7 +62,7 @@ class _ReportSection:
         )
         with self._expansion:
             self._content_area = ui.markdown(
-                "", extras=_MD_EXTRAS,
+                "", extras=MD_EXTRAS,
             ).classes("report-content text-white w-full")
 
     def update(self, content: str | None) -> None:

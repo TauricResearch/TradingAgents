@@ -10,17 +10,8 @@ import json
 from nicegui import ui
 
 from desktop.state.runner import PipelineRunner
+from desktop.utils.reports import TYPE_COLORS
 from tradingagents.progress import ProgressSnapshot
-
-_TYPE_COLORS: dict[str, str] = {
-    "System": "blue-4",
-    "Agent": "green-4",
-    "User": "yellow-4",
-    "Data": "purple-4",
-    "Tool": "orange-4",
-    "Control": "grey-5",
-    "Error": "red-4",
-}
 
 _MAX_VISIBLE = 200  # Cap visible entries to prevent DOM overload
 
@@ -120,7 +111,7 @@ class _LogsPage:
                 return
 
             for ts, entry_type, content in entries:
-                color = _TYPE_COLORS.get(entry_type, "grey")
+                color = TYPE_COLORS.get(entry_type, "grey")
                 with ui.row().classes("items-baseline gap-xs q-py-none"):
                     ui.label(ts).classes("text-caption text-grey-6")
                     ui.label(f"[{entry_type}]").classes(f"text-caption text-{color}")

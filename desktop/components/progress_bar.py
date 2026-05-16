@@ -10,7 +10,7 @@ import time
 
 from nicegui import ui
 
-from tradingagents.progress import ProgressSnapshot
+from tradingagents.progress import REPORT_SECTIONS, ProgressSnapshot
 
 
 class ProgressPanel:
@@ -50,11 +50,21 @@ class ProgressPanel:
 
     def update(self, snap: ProgressSnapshot, *, total_reports: int) -> None:
         """Refresh from a progress snapshot."""
-        # Report progress
-        completed = sum(
-            1 for section, content in snap.report_sections.items()
-            if content is not None
-        )
+        # Report progress — count a section as complete only when
+        # both content exists AND the finalizing agent is done.
+        # Prevents inflated counts from intermediate data (e.g. risk
+        # debate histories written before the Portfolio Manager runs).
+        completed = 0
+        for section, content in snap.report_sections.items():
+            if content is None:
+                continue
+            meta = REPORT_SECTIONS.get(section)
+            if meta is None:
+                completed += 1  # unknown section with content — count it
+                continue
+            _, finalizing_agent = meta
+            if snap.agent_status.get(finalizing_agent) == "completed":
+                completed += 1
         fraction = completed / max(total_reports, 1)
 
         if self._progress:

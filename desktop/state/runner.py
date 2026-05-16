@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import queue
 import threading
-import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -268,29 +267,44 @@ class PipelineRunner:
                 ticker, date, on_chunk=on_chunk
             )
 
+            # WR-05: Capture analysis_id for event payload so on_finished
+            # doesn't rely on the runner's mutable state.
+            aid = self._analysis_id
+
             # Check for late cancel
             if self._cancel_event.is_set():
                 with self._lock:
                     self._status = "cancelled"
-                terminal_event = RunnerEvent(EventKind.CANCELLED)
+                terminal_event = RunnerEvent(
+                    EventKind.CANCELLED, {"analysis_id": aid},
+                )
             else:
                 with self._lock:
                     self._status = "completed"
                 terminal_event = RunnerEvent(
                     EventKind.COMPLETED,
-                    {"final_state": final_state, "decision": decision},
+                    {
+                        "analysis_id": aid,
+                        "final_state": final_state,
+                        "decision": decision,
+                    },
                 )
 
         except _CancelledError:
             with self._lock:
                 self._status = "cancelled"
-            terminal_event = RunnerEvent(EventKind.CANCELLED)
+            terminal_event = RunnerEvent(
+                EventKind.CANCELLED, {"analysis_id": self._analysis_id},
+            )
 
         except Exception as exc:
             logger.exception("Pipeline failed for %s on %s", ticker, date)
             with self._lock:
                 self._status = "failed"
-            terminal_event = RunnerEvent(EventKind.FAILED, str(exc))
+            terminal_event = RunnerEvent(
+                EventKind.FAILED,
+                {"analysis_id": self._analysis_id, "error": str(exc)},
+            )
 
         finally:
             # Always stop watchdog
@@ -370,22 +384,23 @@ class PipelineRunner:
                 for agent in ("Bull Researcher", "Bear Researcher", "Research Manager"):
                     self._tracker.update_agent_status(agent, "in_progress")
 
-            parts: list[str] = []
-            if bull:
-                parts.append(f"### Bull Researcher\n{bull}")
-            if bear:
-                parts.append(f"### Bear Researcher\n{bear}")
             if judge:
-                parts.append(f"### Research Manager Decision\n{judge}")
-            if parts:
-                self._tracker.update_report_section(
-                    "investment_plan", "\n\n".join(parts),
-                )
-
-            if judge:
+                # Research Manager has decided — write the full debate to
+                # the report section (not before, to avoid inflating the
+                # progress counter while the debate is still ongoing).
                 for agent in ("Bull Researcher", "Bear Researcher", "Research Manager"):
                     self._tracker.update_agent_status(agent, "completed")
                 self._tracker.update_agent_status("Trader", "in_progress")
+
+                parts: list[str] = []
+                if bull:
+                    parts.append(f"### Bull Researcher\n{bull}")
+                if bear:
+                    parts.append(f"### Bear Researcher\n{bear}")
+                parts.append(f"### Research Manager Decision\n{judge}")
+                self._tracker.update_report_section(
+                    "investment_plan", "\n\n".join(parts),
+                )
 
         # 4. Trading team
         if chunk.get("trader_investment_plan"):
@@ -396,6 +411,10 @@ class PipelineRunner:
             self._tracker.update_agent_status("Aggressive Analyst", "in_progress")
 
         # 5. Risk management team (CR-NEW-01/02/03: aligned with cli/main.py)
+        #
+        # Risk debate histories go to the dedicated ``risk_debate``
+        # section so they get their own card.  ``final_trade_decision``
+        # is reserved for the PM's actual decision (written in step 6).
         risk = chunk.get("risk_debate_state")
         if risk:
             agg = (risk.get("aggressive_history") or "").strip()
@@ -407,29 +426,36 @@ class PipelineRunner:
             # after all the update_agent_status calls in steps 2-4.
             snap_status = self._tracker.snapshot().agent_status
 
-            risk_parts: list[str] = []
+            # Update agent statuses from debate progress
             if agg:
                 if snap_status.get("Aggressive Analyst") != "completed":
                     self._tracker.update_agent_status("Aggressive Analyst", "in_progress")
-                risk_parts.append(f"### Aggressive Analyst\n{agg}")
             if con:
                 if snap_status.get("Conservative Analyst") != "completed":
                     self._tracker.update_agent_status("Conservative Analyst", "in_progress")
-                risk_parts.append(f"### Conservative Analyst\n{con}")
             if neu:
                 if snap_status.get("Neutral Analyst") != "completed":
                     self._tracker.update_agent_status("Neutral Analyst", "in_progress")
+
+            # Write risk debate histories to their own report section
+            # (progressively, so the user sees the debate in real-time).
+            risk_parts: list[str] = []
+            if agg:
+                risk_parts.append(f"### Aggressive Analyst\n{agg}")
+            if con:
+                risk_parts.append(f"### Conservative Analyst\n{con}")
+            if neu:
                 risk_parts.append(f"### Neutral Analyst\n{neu}")
+            if risk_parts:
+                self._tracker.update_report_section(
+                    "risk_debate", "\n\n".join(risk_parts),
+                )
+
             if judge_r:
-                risk_parts.append(f"### Portfolio Manager Decision\n{judge_r}")
+                # PM has decided — mark all risk analysts completed.
                 for agent in ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst"):
                     self._tracker.update_agent_status(agent, "completed")
                 self._tracker.update_agent_status("Portfolio Manager", "in_progress")
-
-            if risk_parts:
-                self._tracker.update_report_section(
-                    "final_trade_decision", "\n\n".join(risk_parts),
-                )
 
         # 6. Portfolio manager final decision (top-level key from PM node)
         if chunk.get("final_trade_decision"):

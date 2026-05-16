@@ -42,7 +42,7 @@ class _SettingsPage:
                     label="Default Provider",
                     options=[
                         "claude_cli", "openai", "google", "anthropic",
-                        "deepseek", "ollama", "openrouter",
+                        "xai", "deepseek", "ollama", "openrouter",
                     ],
                     value=settings.get("default_provider", "claude_cli"),
                 ).classes("w-full").props("outlined dense")
@@ -66,7 +66,7 @@ class _SettingsPage:
                 # Watchdog timeout
                 watchdog_input = ui.number(
                     "Watchdog Timeout (seconds)",
-                    value=int(settings.get("watchdog_timeout", "300")),
+                    value=int(settings.get("watchdog_timeout", "1200")),
                     min=60, max=1800, step=30,
                 ).classes("w-full q-mt-md").props("outlined dense")
 
@@ -78,7 +78,7 @@ class _SettingsPage:
                 self._db.set_setting("default_analysts", ",".join(selected))
 
                 self._db.set_setting("research_depth", str(int(depth_slider.value)))
-                self._db.set_setting("watchdog_timeout", str(int(watchdog_input.value or 300)))
+                self._db.set_setting("watchdog_timeout", str(int(watchdog_input.value or 1200)))
 
                 ui.notify("Settings saved!", type="positive")
 
