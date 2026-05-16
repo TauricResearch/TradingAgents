@@ -1,11 +1,16 @@
 name: Deploy Railway
 
-# Railway auto-deploys on push to main from the GitHub integration — this
-# workflow runs a post-deploy smoke check so a broken /health surfaces in
-# the GitHub Actions tab too (not just Railway's deployment log).
+# Railway auto-deploys on push to main from the GitHub integration. This
+# workflow runs post-deploy smoke checks (/health + /ready) so a broken
+# deploy surfaces in the GitHub Actions tab too — not just Railway's
+# deployment log.
 #
-# Future expansions (TT-182b): run alembic migrations as a pre-deploy step,
-# add /ready check, fail the workflow when the deploy times out.
+# Alembic migrations run inside Railway's deploy step via a release
+# command (configured in Railway dashboard → service → Settings → Deploy
+# → Pre-deploy command):
+#     alembic upgrade head
+# That way migrations run with the same env + DB credentials as the
+# service, and a failed migration blocks the deploy automatically.
 
 on:
   push:
@@ -15,11 +20,9 @@ on:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
-    # Wait for Railway's auto-deploy to settle before pinging /health.
-    # 90s is enough for a typical Python/uvicorn boot; bump if the build
-    # ever gets slow.
     steps:
       - name: Wait for Railway deploy to propagate
+        # 90s for typical Python/uvicorn boot. Bump if build gets slow.
         run: sleep 90
 
       - name: Smoke /health
@@ -39,3 +42,21 @@ jobs:
             exit 1
           fi
           echo "✅ /health green"
+
+      - name: Smoke /ready
+        env:
+          API_URL: ${{ secrets.API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            exit 0
+          fi
+          echo "Pinging $API_URL/ready"
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" "$API_URL/ready")
+          echo "Status: $status"
+          echo "Body:   $(cat /tmp/body)"
+          if [ "$status" != "200" ]; then
+            echo "❌ /ready returned $status — DB or Redis is unreachable from the service container."
+            cat /tmp/body
+            exit 1
+          fi
+          echo "✅ /ready green"

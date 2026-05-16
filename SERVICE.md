@@ -46,7 +46,49 @@ Code we own and maintain. Treated as future `python-temp-pro` template files —
 |---|---|
 | `app/config.py` | pydantic-settings env loader. Required: DATABASE_URL, REDIS_URL, OPENAI_API_KEY, HMAC_SHARED_SECRET. |
 | `app/observability.py` | Sentry init with FastAPI/Starlette/SQLAlchemy integrations. Tags events with `app:<APP_SLUG>` so the shared `two-trees-shared-python` Sentry project is per-app filterable. |
-| `app/main.py` | FastAPI entrypoint. `/health` + `/ready` for now. `/analyze` + `/stream/{run_id}` land in [TT-182c](https://linear.app/two-trees-digital/issue/TT-182). |
+| `app/logging_config.py` | stdlib logging: JSON in prod (log-aggregator friendly), human-readable in dev. Sentry breadcrumbs auto-installed. |
+| `app/db.py` | SQLAlchemy 2.x async engine + sessionmaker + `get_db` FastAPI dependency. Owns the `asyncpg_url()` URL normalizer that strips libpq-only query params (`sslmode`, `channel_binding`) that asyncpg rejects. |
+| `app/models.py` | ORM models for Python-owned tables (`Run`, `Decision`, `AgentReport`). Prisma-owned tables (User, Role, App, etc.) are NOT modeled here — we never write to them and treat `user_id` columns as plain String FKs. |
+| `app/auth.py` | HMAC-SHA256 signature middleware. Verifies `X-Signature` + `X-Timestamp` headers on every POST/PUT/PATCH/DELETE. ±5min skew window. Skips `/health`, `/ready`, FastAPI docs paths. |
+| `app/main.py` | FastAPI entrypoint. Registers middleware, configures logging + Sentry. `/health` + `/ready` for now. `/analyze` + `/stream/{run_id}` land in [TT-182c](https://linear.app/two-trees-digital/issue/TT-182). |
+
+## HMAC contract (Node → Python)
+
+The Node-side worker (lyceum-fund/apps/worker) signs every request to this service:
+
+```
+X-Signature: sha256=<hex>
+X-Timestamp: <unix-seconds>
+```
+
+Where `<hex>` is `HMAC-SHA256("{timestamp}.{body}", HMAC_SHARED_SECRET)`.
+
+`HMAC_SHARED_SECRET` is the same value on both sides — set on Platform's Node-side Railway env AND this service's Railway env. Rotating it requires restarting both services.
+
+Replay protection: requests with `X-Timestamp` more than 5 minutes off from server clock are rejected with 401.
+
+## Migrations (Alembic)
+
+```bash
+# Run pending migrations against DATABASE_URL/DIRECT_URL
+alembic upgrade head
+
+# Create a new migration (autogenerate from model diff)
+alembic revision --autogenerate -m "add new_column to runs"
+
+# Roll back one revision
+alembic downgrade -1
+```
+
+The `alembic/env.py` `include_name` filter restricts autogenerate to Python-owned tables (`runs`, `decisions`, `agent_reports`) — Alembic never tries to drop or alter Prisma-owned tables, even if their models existed in `Base.metadata`.
+
+When adding a new Python-owned table:
+1. Add the model to `app/models.py`
+2. Add the table name to the `include_name` allowlist in `alembic/env.py`
+3. `alembic revision --autogenerate -m "..."` → review the generated migration, edit if needed, commit
+4. Deploy → Railway's pre-deploy command runs `alembic upgrade head` automatically
+
+URL resolution: Alembic prefers `DIRECT_URL` (non-pooled) over `DATABASE_URL` (pooled). PgBouncer's transaction-pooling mode doesn't support DDL transactions or advisory locks, both of which Alembic needs.
 
 ## Upstream layer (tradingagents/, cli/, main.py, test.py, etc.)
 
@@ -112,8 +154,8 @@ The `.github/workflows/deploy-railway.yml` workflow runs a post-deploy `/health`
 
 | Phase | Status | Ticket |
 |---|---|---|
-| 182a — Scaffold + Railway deploy | this PR | [TT-281](https://linear.app/two-trees-digital/issue/TT-281) |
-| 182b — SQLAlchemy + Alembic + HMAC auth | pending | [TT-282](https://linear.app/two-trees-digital/issue/TT-282) |
+| 182a — Scaffold + Railway deploy | ✅ done | [TT-281](https://linear.app/two-trees-digital/issue/TT-281) |
+| 182b — SQLAlchemy + Alembic + HMAC auth | this PR | [TT-282](https://linear.app/two-trees-digital/issue/TT-282) |
 | 182c — Wrap TradingAgents (/analyze, SSE) | pending | [TT-283](https://linear.app/two-trees-digital/issue/TT-283) |
 | 182d — Node-side UI + cost cap | pending | [TT-284](https://linear.app/two-trees-digital/issue/TT-284) |
 | 182e — Integration + polish | pending | [TT-285](https://linear.app/two-trees-digital/issue/TT-285) |
