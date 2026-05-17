@@ -36,12 +36,19 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
-def build_instrument_context(ticker: str) -> str:
+def build_instrument_context(ticker: str, asset_type: str = "stock") -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
+    instrument_label = "asset" if asset_type == "crypto" else "instrument"
+    extra_hint = (
+        " Treat it as a crypto asset rather than a company, and do not assume company fundamentals are available."
+        if asset_type == "crypto"
+        else ""
+    )
     return (
-        f"The instrument to analyze is `{ticker}`. "
+        f"The {instrument_label} to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
+        + extra_hint
     )
 
 def create_msg_delete():
