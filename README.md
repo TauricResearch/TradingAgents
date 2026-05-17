@@ -155,7 +155,58 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
-For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+### Local Ollama without Docker
+
+TradingAgents can use Ollama through its OpenAI-compatible Chat Completions endpoint. Start Ollama in another terminal, or use the Ollama desktop app:
+
+```bash
+ollama serve
+```
+
+Then pull the models you want to use and keep the endpoint on the `/v1` path:
+
+```bash
+ollama pull qwen3:latest
+ollama pull glm-4.7-flash:latest
+export OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+For `.env`-based runs, use the `TRADINGAGENTS_*` config override names:
+
+```bash
+OLLAMA_BASE_URL=http://localhost:11434/v1
+TRADINGAGENTS_LLM_PROVIDER=ollama
+TRADINGAGENTS_QUICK_THINK_LLM=qwen3:latest
+TRADINGAGENTS_DEEP_THINK_LLM=glm-4.7-flash:latest
+```
+
+Then launch the CLI and select `Ollama` as the LLM provider:
+
+```bash
+tradingagents
+```
+
+If a pulled model is not shown in the menu, choose `Custom model ID` and enter the exact name from `ollama list`, for example `qwen3:latest`.
+
+For programmatic use, set the provider and model names directly:
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "ollama"
+config["quick_think_llm"] = "qwen3:latest"
+config["deep_think_llm"] = "glm-4.7-flash:latest"
+config["backend_url"] = "http://localhost:11434/v1"  # optional when OLLAMA_BASE_URL is set
+config["max_debate_rounds"] = 2
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2026-01-15")
+print(decision)
+```
+
+Ollama does not require an API key. Use `OLLAMA_BASE_URL` or `config["backend_url"]` for the Ollama endpoint; `OPENAI_BASE_URL` is not used by the Ollama provider. If you see `openai.NotFoundError: 404 page not found`, confirm that the URL includes `/v1`, Ollama is running, and the selected model appears in `ollama list`.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
