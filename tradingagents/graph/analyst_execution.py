@@ -27,9 +27,13 @@ ANALYST_NODE_SPECS: Dict[str, AnalystNodeSpec] = {
         report_key="market_report",
     ),
     "social": AnalystNodeSpec(
+        # Wire key stays "social" for saved-config back-compat; the
+        # user-facing label is "Sentiment Analyst" to match the rename
+        # that landed in v0.2.5 (sentiment_analyst now ingests news +
+        # StockTwits + Reddit, not just social media).
         key="social",
-        agent_node="Social Analyst",
-        clear_node="Msg Clear Social",
+        agent_node="Sentiment Analyst",
+        clear_node="Msg Clear Sentiment",
         tool_node="tools_social",
         report_key="sentiment_report",
     ),
