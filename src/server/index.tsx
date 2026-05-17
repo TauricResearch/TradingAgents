@@ -62,6 +62,7 @@ import { portfolioBalanceRouter } from "./routes/portfolio-balance.ts";
 import { tradePlanRouter } from "./routes/trade-plan.tsx";
 import labCurrencyRouter from "./routes/lab-currency.tsx";
 import { alertsRouter } from "./routes/alerts.tsx";
+import { screeningsRouter } from "./routes/screenings.tsx";
 import { AlertsView } from "./views/alerts-view.tsx";
 import { Layout } from "./views/layout.tsx";
 import { PortfolioView } from "./views/portfolio.tsx";
@@ -76,6 +77,7 @@ import { BenchmarkView } from "./views/benchmark.tsx";
 import { FeedbackView } from "./views/feedback.tsx";
 import { AboutView } from "./views/about.tsx";
 import { WorkflowView } from "./views/workflow.tsx";
+import { ScreeningsView } from "./views/screenings-view.tsx";
 import { IntelligenceView } from "./views/intelligence.tsx";
 import { DatatypeTestView } from "./views/datatype-test.tsx"
 
@@ -138,6 +140,20 @@ try {
   // Index already exists — safe to ignore
 }
 
+// Migration: add research_doc column to watchlist if missing
+try {
+  DatabaseFactory.get().exec("ALTER TABLE watchlist ADD COLUMN research_doc TEXT");
+} catch {
+  // Column already exists — safe to ignore
+}
+
+// Migration: add last_research_update column to watchlist if missing
+try {
+  DatabaseFactory.get().exec("ALTER TABLE watchlist ADD COLUMN last_research_update TEXT");
+} catch {
+  // Column already exists — safe to ignore
+}
+
 app.get("/health", (c) => {
   return c.json({
     status: "ok",
@@ -184,6 +200,7 @@ app.get("/feedback", (c) => pageOrPartial(c, <FeedbackView />));
 app.get("/alerts", (c) => pageOrPartial(c, <AlertsView />));
 app.get("/about", (c) => pageOrPartial(c, <AboutView />));
 app.get("/test/datatype", (c) => pageOrPartial(c, <DatatypeTestView />));
+app.get("/screenings", (c) => pageOrPartial(c, <ScreeningsView />));
 app.route("/lab/currency", labCurrencyRouter);
 
 // ── Static (serve only from static/ directory, not source files) ──
@@ -216,6 +233,7 @@ app.route("/api/portfolio/intelligence", intelligenceRouter);
 app.route("/api/portfolio/balance", portfolioBalanceRouter);
 app.route("/api/trade-plan", tradePlanRouter);
 app.route("/api/alerts", alertsRouter);
+app.route("/api/screenings", screeningsRouter);
 
 // ── Portfolio summary (P&L in GBP) ─────────────────────────
 import { handlePortfolioSummary, handlePortfolioSummaryHtml } from "./routes/portfolio.tsx";

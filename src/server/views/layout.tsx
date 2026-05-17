@@ -107,6 +107,14 @@ export function Layout(props: LayoutProps) {
               Prospects
             </button>
             <button
+              hx-get="/screenings"
+              hx-target="#content"
+              hx-push-url="true"
+              class="tab"
+            >
+              Screenings
+            </button>
+            <button
               hx-get="/governance"
               hx-target="#content"
               hx-push-url="true"

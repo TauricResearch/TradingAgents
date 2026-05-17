@@ -701,3 +701,51 @@ label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.875rem; }
 /* Row urgency highlighting */
 .position-row.position-danger { background: color-mix(in srgb, var(--red) 5%, transparent); }
 .position-row.position-watch  { background: color-mix(in srgb, var(--yellow) 5%, transparent); }
+
+/* Screening panels */
+.screening-header, .shock-header { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.screening-header h4, .shock-header h4 { margin: 0; }
+.shock-params { font-size: 0.8em; color: var(--text-dim); }
+
+.screening-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.screening-table th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+.screening-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.screening-table tr:last-child td { border-bottom: none; }
+.screening-table .ticker { font-family: 'Datatype', monospace; font-weight: 600; }
+.screening-table .score { font-weight: 700; color: var(--green); text-align: center; }
+.screening-table .rules { font-size: 0.85em; color: var(--text-dim); }
+.screening-table .reason { font-size: 0.8em; color: var(--text-dim); max-width: 280px; }
+.screening-table .metric { font-family: 'Datatype', monospace; text-align: right; }
+.screening-table .date { font-family: 'Datatype', monospace; color: var(--text-dim); }
+.screening-table .tickers { font-size: 0.85em; color: var(--text-dim); }
+.screening-table .tickers:hover { color: var(--text); }
+
+.empty-state { font-size: 0.85em; color: var(--text-dim); padding: 8px; }
+
+/* Stage chips */
+.stage-chip { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+.stage-chip.stage-researching { background: var(--text-dim); color: var(--bg); }
+.stage-chip.stage-analyzed    { background: var(--blue); color: var(--bg); }
+.stage-chip.stage-candidate   { background: var(--yellow); color: var(--bg); }
+.stage-chip.stage-approved    { background: var(--green); color: var(--bg); }
+.stage-chip.stage-acquired    { background: var(--red); color: var(--bg); }
+
+/* Sentiment chips */
+.sentiment-chip { font-size: 0.75em; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+.sentiment-chip.bullish { background: color-mix(in oklch, var(--green) 20%, transparent); color: var(--green); }
+.sentiment-chip.neutral { background: color-mix(in oklch, var(--text-dim) 15%, transparent); color: var(--text-dim); }
+.sentiment-chip.bearish { background: color-mix(in oklch, var(--red) 20%, transparent); color: var(--red); }
+.sentiment-chip.sentiment-count { font-size: 0.85em; margin-left: 2px; color: var(--text-dim); }
+
+/* Screening page */
+.screenings-page { display: flex; flex-direction: column; gap: 16px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; }
+.page-header h2 { margin: 0 0 4px; }
+.header-actions { display: flex; gap: 8px; }
+.rules-summary { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.rules-summary h3 { margin: 0 0 4px; font-size: 1em; }
+.info-text { margin: 0; font-size: 0.85em; color: var(--text-dim); }
+.info-text code { font-size: 0.9em; }
+
+.btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-raised); color: var(--text); text-decoration: none; font-size: 0.85em; cursor: pointer; }
+.btn:hover { background: var(--bg-hover); }
