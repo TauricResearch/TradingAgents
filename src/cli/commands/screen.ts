@@ -20,6 +20,7 @@ import {
   deleteScreeningRule,
   getLatestEnrichment,
   getRecentScreenings,
+  getSentimentSummary,
   insertSentiment,
   listScreeningRules,
   pruneOldSentiment,
@@ -27,7 +28,11 @@ import {
   saveScreeningHistory,
   upsertEnrichment,
 } from "@server/lib/screening-data"
-import { type CandidateData, screenCandidates } from "@server/lib/screening-engine"
+import {
+  type CandidateData,
+  detectShockStocks,
+  screenCandidates,
+} from "@server/lib/screening-engine"
 import { defineCommand } from "citty"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -237,27 +242,31 @@ const runCommand = defineCommand({
       ? (ctx.args.stage as string).split(",").map((s: string) => s.trim())
       : undefined
 
-    const candidates: CandidateData[] = candidateRows.map((r) => ({
-      ticker: r.ticker,
-      exchange: r.exchange,
-      stage: r.stage,
-      priority: r.priority,
-      enrichment: r.fetch_date
-        ? {
-            ticker: r.ticker,
-            fetch_date: r.fetch_date as string,
-            pe_forward: r.pe_forward as number | null,
-            eps_growth_1y: r.eps_growth_1y as number | null,
-            operating_margin: r.operating_margin as number | null,
-            beta_1y: r.beta_1y as number | null,
-            price_to_sales: r.price_to_sales as number | null,
-            sector: r.sector as string | null,
-            region: r.region as string | null,
-            source: r.source as string,
-            created_at: r.created_at as string,
-          }
-        : null,
-    }))
+    const candidates: CandidateData[] = candidateRows.map((r) => {
+      const sent = getSentimentSummary(r.ticker)
+      return {
+        ticker: r.ticker,
+        exchange: r.exchange,
+        stage: r.stage,
+        priority: r.priority,
+        enrichment: r.fetch_date
+          ? {
+              ticker: r.ticker,
+              fetch_date: r.fetch_date as string,
+              pe_forward: r.pe_forward as number | null,
+              eps_growth_1y: r.eps_growth_1y as number | null,
+              operating_margin: r.operating_margin as number | null,
+              beta_1y: r.beta_1y as number | null,
+              price_to_sales: r.price_to_sales as number | null,
+              sector: r.sector as string | null,
+              region: r.region as string | null,
+              source: r.source as string,
+              created_at: r.created_at as string,
+            }
+          : null,
+        sentiment_avg: sent.avg_score,
+      }
+    })
 
     const result = screenCandidates({ candidates, rules, stageFilter })
 
@@ -405,6 +414,112 @@ const historyCommand = defineCommand({
   },
 })
 
+// ── Shock ────────────────────────────────────────────────────────────────────
+
+const shockCommand = defineCommand({
+  meta: {
+    name: "shock",
+    description: "Detect shock stocks — strong fundamentals despite price drop",
+  },
+  args: {
+    "--drop": { type: "string", description: "Minimum price drop % (default: 10)" },
+    "--margin": { type: "string", description: "Min operating margin % (default: 20)" },
+    "--ps": { type: "string", description: "Max price-to-sales ratio (default: 5)" },
+    "--json": { type: "boolean", description: "Output as JSON" },
+  },
+  run: async (ctx) => {
+    DatabaseFactory.connect(cfg.portfolio.db)
+    const db = DatabaseFactory.get()
+
+    const priceDropPct = parseFloat((ctx.args.drop as string) ?? "10")
+    const minMarginPct = parseFloat((ctx.args.margin as string) ?? "20")
+    const maxPSRatio = parseFloat((ctx.args.ps as string) ?? "5")
+
+    const candidateRows = db
+      .query(
+        `SELECT w.ticker, w.exchange, w.stage, w.priority, e.*
+         FROM watchlist w
+         LEFT JOIN watchlist_enrichment e ON w.ticker = e.ticker
+         WHERE w.stage != 'acquired'
+         ORDER BY w.priority DESC, w.ticker`,
+      )
+      .all() as Array<
+      { ticker: string; exchange: string; stage: string; priority: string } & Record<
+        string,
+        unknown
+      >
+    >
+
+    const candidates: CandidateData[] = candidateRows.map((r) => {
+      const sent = getSentimentSummary(r.ticker)
+      return {
+        ticker: r.ticker,
+        exchange: r.exchange,
+        stage: r.stage,
+        priority: r.priority,
+        enrichment: r.fetch_date
+          ? {
+              ticker: r.ticker,
+              fetch_date: r.fetch_date as string,
+              pe_forward: r.pe_forward as number | null,
+              eps_growth_1y: r.eps_growth_1y as number | null,
+              operating_margin: r.operating_margin as number | null,
+              beta_1y: r.beta_1y as number | null,
+              price_to_sales: r.price_to_sales as number | null,
+              sector: r.sector as string | null,
+              region: r.region as string | null,
+              source: r.source as string,
+              created_at: r.created_at as string,
+            }
+          : null,
+        sentiment_avg: sent.avg_score,
+      }
+    })
+
+    const shockStocks = detectShockStocks({ candidates, priceDropPct, minMarginPct, maxPSRatio })
+
+    if (ctx.args.json) {
+      console.log(
+        JSON.stringify(
+          { shockStocks, params: { priceDropPct, minMarginPct, maxPSRatio } },
+          null,
+          2,
+        ),
+      )
+      return
+    }
+
+    if (shockStocks.length === 0) {
+      console.log("No shock stocks detected with current criteria.")
+      console.log(`  Drop: >${priceDropPct}% | Margin: >${minMarginPct}% | P/S: <${maxPSRatio}`)
+      return
+    }
+
+    console.log("")
+    console.log(`⚡ SHOCK STOCKS (${shockStocks.length} found)`)
+    console.log(`  Criteria: drop >${priceDropPct}%, margin >${minMarginPct}%, P/S <${maxPSRatio}`)
+    console.log("─".repeat(80))
+    console.log(
+      `${`Ticker`.padEnd(10)} ${`Stage`.padEnd(14)} ${`Op. Margin`.padEnd(12)} ${`P/S`.padEnd(8)} Reason`,
+    )
+    console.log("─".repeat(80))
+
+    for (const s of shockStocks) {
+      const marginStr =
+        s.enrichment?.operating_margin != null
+          ? `${s.enrichment.operating_margin.toFixed(1)}%`
+          : "—"
+      const psStr =
+        s.enrichment?.price_to_sales != null ? s.enrichment.price_to_sales.toFixed(2) : "—"
+      console.log(
+        `${s.ticker.padEnd(10)} ${s.stage.padEnd(14)} ${marginStr.padEnd(12)} ${psStr.padEnd(8)} ${s.match_reasons[0] ?? "—"}`,
+      )
+    }
+
+    console.log("─".repeat(80))
+  },
+})
+
 // ── Init ────────────────────────────────────────────────────────────────────
 
 const initCommand = defineCommand({
@@ -497,6 +612,7 @@ export const screenCommand = defineCommand({
     list: () => Promise.resolve(listCommand),
     run: () => Promise.resolve(runCommand),
     sentiment: () => Promise.resolve(sentimentCommand),
+    shock: () => Promise.resolve(shockCommand),
   },
 })
 
