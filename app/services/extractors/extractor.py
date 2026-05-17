@@ -51,7 +51,28 @@ async def extract_metadata(agent_name: str, content: str) -> Optional[dict[str, 
     """
     Extract structured metadata for one agent_report. Returns a JSON-
     serializable dict on success, None on any failure.
+
+    TT-298: TEMPORARILY DISABLED. Running the extractor inside
+    LangChain's `on_chain_end` callback created cross-event-loop
+    corruption — `asyncio.wait_for` cancelling an in-flight httpx
+    request mid-LangGraph-dispatch left the asyncio state corrupted,
+    which cascaded into "Future attached to a different loop" errors
+    on the singleton SQLAlchemy/asyncpg engine and a runaway retry
+    loop user-visible as market_analyst spinning forever.
+
+    Returning None unconditionally means agent_reports.metadata stays
+    null and the dashboard's MetadataCard renders nothing per-agent
+    (graceful no-op). The real analyses complete normally.
+
+    Re-enable via the right architecture — fire-and-forget task,
+    queue-consumed worker, or process-level isolation — once TT-298
+    has shipped that work.
     """
+    # TT-298: kill switch. Restores the impl below when ready.
+    _ = agent_name, content  # silence unused-arg lint
+    return None
+
+    # ── DISABLED PATH BELOW — kept for the re-enable PR ──────────────
     schema_cls = SCHEMA_FOR_AGENT.get(agent_name)
     if not schema_cls:
         # Agent doesn't have a schema yet — nothing to extract.
