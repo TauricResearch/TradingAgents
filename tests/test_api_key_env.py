@@ -24,7 +24,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
         "qwen", "qwen-cn",
         "glm", "glm-cn",
         "minimax", "minimax-cn",
-        "openrouter", "azure", "ollama",
+        "openrouter", "azure", "ollama", "lm-studio", "llama-cpp",
     }
     assert expected.issubset(PROVIDER_API_KEY_ENV.keys())
 
@@ -51,8 +51,9 @@ def test_known_providers_resolve(provider, env_var):
     assert get_api_key_env(provider) == env_var
 
 
-def test_ollama_has_no_key():
-    assert get_api_key_env("ollama") is None
+@pytest.mark.parametrize("provider", ["ollama", "lm-studio", "llama-cpp"])
+def test_local_runtimes_have_no_key(provider):
+    assert get_api_key_env(provider) is None
 
 
 def test_unknown_provider_returns_none():

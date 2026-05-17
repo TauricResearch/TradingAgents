@@ -73,6 +73,16 @@ _MINIMAX_MODELS: Dict[str, List[ModelOption]] = {
 }
 
 
+_LOCAL_OPENAI_COMPATIBLE_MODELS: Dict[str, List[ModelOption]] = {
+    "quick": [
+        ("Custom local model ID", "custom"),
+    ],
+    "deep": [
+        ("Custom local model ID", "custom"),
+    ],
+}
+
+
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
         "quick": [
@@ -175,6 +185,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    # LM Studio and llama.cpp expose OpenAI-compatible endpoints, but model
+    # names are whatever the local server loaded, so always prompt the user.
+    "lm-studio": _LOCAL_OPENAI_COMPATIBLE_MODELS,
+    "llama-cpp": _LOCAL_OPENAI_COMPATIBLE_MODELS,
 }
 
 
