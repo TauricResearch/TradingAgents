@@ -42,6 +42,18 @@ class TestMinimaxReasoningSplit:
         # the caller passed. setdefault leaves an existing value alone.
         assert payload.get("reasoning_split") in (False, True)
 
+    def test_non_reasoning_minimax_does_not_inject_reasoning_split(self):
+        """Coding Plan / MiniMax-Text-01 / any non-M2-prefixed model must NOT
+        receive reasoning_split — the openai SDK rejects unknown kwargs with
+        TypeError (#826)."""
+        for model in ("minimax-text-01", "MiniMax-Coding-Plan"):
+            payload = _client(model)._get_request_payload(
+                [HumanMessage(content="hi")]
+            )
+            assert "reasoning_split" not in payload, (
+                f"{model!r} payload unexpectedly contains reasoning_split"
+            )
+
 
 @pytest.mark.unit
 class TestMinimaxStructuredOutputDispatch:
