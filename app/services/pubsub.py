@@ -16,9 +16,7 @@ import json
 import logging
 from typing import Any, AsyncIterator
 
-import redis.asyncio as redis
-
-from app.config import settings
+from app.services.redis_client import get_redis, make_subscriber
 
 
 logger = logging.getLogger(__name__)
@@ -33,36 +31,28 @@ def channel_for(run_id: str) -> str:
     return f"run:{run_id}"
 
 
-def _client() -> redis.Redis:
-    """Fresh Redis client per call. asyncio-safe; caller closes via .aclose()."""
-    return redis.from_url(settings.REDIS_URL)
-
-
 async def publish_event(run_id: str, event: dict[str, Any]) -> None:
     """
     Publish one JSON event to `run:<run_id>`. No-op on Redis failure —
     the run itself shouldn't fail because pub-sub blipped. Sentry captures
     the underlying exception.
+
+    TT-295: reuses the shared Redis singleton instead of opening a new
+    TCP connection per publish.
     """
-    client = _client()
     try:
         payload = json.dumps(event, default=str)
-        await client.publish(channel_for(run_id), payload)
+        await get_redis().publish(channel_for(run_id), payload)
     except Exception as e:
         logger.warning("pubsub publish failed for run %s: %s", run_id, e)
-    finally:
-        await client.aclose()
 
 
 async def publish_done(run_id: str) -> None:
     """Mark the channel as finished so subscribers close cleanly."""
-    client = _client()
     try:
-        await client.publish(channel_for(run_id), DONE_SENTINEL)
+        await get_redis().publish(channel_for(run_id), DONE_SENTINEL)
     except Exception as e:
         logger.warning("pubsub publish-done failed for run %s: %s", run_id, e)
-    finally:
-        await client.aclose()
 
 
 async def subscribe_events(run_id: str) -> AsyncIterator[str]:
@@ -73,8 +63,13 @@ async def subscribe_events(run_id: str) -> AsyncIterator[str]:
 
     Yields the message data exactly as published (string). For JSON
     events, the consumer JSON-decodes after receiving.
+
+    Subscribers get a DEDICATED connection from make_subscriber() rather
+    than sharing the singleton — Redis "subscribed mode" locks the
+    connection to that single subscription and can't be shared with
+    publishers or other subscribers.
     """
-    client = _client()
+    client = make_subscriber()
     pubsub = client.pubsub()
     try:
         await pubsub.subscribe(channel_for(run_id))
