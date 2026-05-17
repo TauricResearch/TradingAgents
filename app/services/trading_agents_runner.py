@@ -33,9 +33,14 @@ from datetime import datetime, timezone
 
 import sentry_sdk
 from sqlalchemy import update
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.config import settings
-from app.db import get_sessionmaker
+from app.db import asyncpg_url
 from app.models import Decision, Run
 from app.services.callbacks import RunRecorderHandler
 from app.services.pubsub import publish_done, publish_event
@@ -57,7 +62,34 @@ async def run_analysis(
 
     Invoked from `POST /analyze`'s FastAPI BackgroundTasks.
     """
-    sessionmaker = get_sessionmaker()
+    # TT-298: per-run engine. The global singleton engine was created
+    # at FastAPI startup on the request handler's event loop. This
+    # BackgroundTask runs in a different loop context — every DB op
+    # through the singleton threw "Future attached to a different loop"
+    # and cascaded into chain errors + runaway retry loops.
+    #
+    # Creating the engine HERE binds it to this BackgroundTask's loop.
+    # All downstream DB ops (status updates, agent_reports persist via
+    # the callback handler, decision write, settlement) flow through
+    # this sessionmaker and stay on the same loop.
+    #
+    # Cost: ~1 TCP+TLS handshake to Neon per run (pool warmup), then
+    # 5 connections shared across ~12 agents. Disposed in `finally` so
+    # the connection pool is cleanly returned to Neon at run-end.
+    url, connect_args = asyncpg_url(settings.DATABASE_URL)
+    engine = create_async_engine(
+        url,
+        connect_args=connect_args,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+    sessionmaker = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
     await _set_run_status(sessionmaker, run_id, "running")
     await publish_event(
         run_id,
@@ -98,6 +130,16 @@ async def run_analysis(
     finally:
         # Always send done so SSE subscribers close cleanly.
         await publish_done(run_id)
+        # TT-298: dispose the per-run engine so its connection pool
+        # is cleanly returned. Outstanding fire-and-forget tasks that
+        # haven't checked out a connection yet will fail their writes
+        # (logged + swallowed via _log_task_exception) — acceptable
+        # since the run itself is complete and pure-metadata-update is
+        # best-effort enrichment.
+        try:
+            await engine.dispose()
+        except Exception as e:
+            logger.warning("per-run engine dispose failed for %s: %s", run_id, e)
 
 
 async def _execute_pipeline(
