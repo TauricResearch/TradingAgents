@@ -68,6 +68,15 @@ class Settings(BaseSettings):
         default=8000,
         description="Bind port. Railway injects this automatically.",
     )
+    CORS_ALLOW_ORIGINS: str | None = Field(
+        default=None,
+        description=(
+            "Comma-separated list of origins allowed to call /stream/{run_id} "
+            "from the browser. Required for SSE — EventSource enforces CORS. "
+            "Defaults in main.py cover the prod Vercel URL + localhost; override "
+            "here when you add custom domains or need Vercel preview URLs."
+        ),
+    )
 
 
 # Module-level singleton — import as `from app.config import settings`.

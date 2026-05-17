@@ -22,6 +22,7 @@ import asyncio
 
 import sentry_sdk
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.auth import HMACAuthMiddleware
@@ -45,6 +46,34 @@ app = FastAPI(
     title="trading-agents-service",
     description="FastAPI wrapper around TauricResearch/TradingAgents",
     version="0.1.0",
+)
+
+# CORS — only needed for the /stream/{run_id} SSE endpoint. The browser's
+# EventSource enforces same-origin by default; the dashboard at
+# lyceum-fund-app.vercel.app reaches across to this service for SSE, so
+# we have to allow the cross-origin GET explicitly.
+#
+# Other routes (POST /analyze) come from the Node-side worker, which is
+# server-to-server — no browser CORS check applies, so the worker isn't
+# affected.
+#
+# Wildcard list comes from CORS_ALLOW_ORIGINS env var if set (comma-
+# separated), with a sensible default that covers the prod Vercel URL.
+# Vercel preview URLs (random per-PR subdomains) won't match; if you
+# need previews to work, add them to CORS_ALLOW_ORIGINS or switch to
+# allow_origin_regex with a vercel.app pattern.
+_default_origins = "https://lyceum-fund-app.vercel.app,http://localhost:3000"
+_origins = [
+    o.strip() for o in (settings.CORS_ALLOW_ORIGINS or _default_origins).split(",")
+    if o.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=False,                # SSE uses query-param token, no cookies
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["Content-Type"],
 )
 
 # HMAC verification on POST/PUT/PATCH/DELETE. /health, /ready, and the
