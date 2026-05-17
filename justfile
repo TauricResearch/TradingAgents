@@ -342,7 +342,31 @@ db-restore:
     cp "${BACKUP}" portfolio.db
     @echo "{{ GREEN }}✓{{ NORMAL }} Restored from ${BACKUP}"
 
-# Show which database is currently active (LIVE vs TEST)
+# ── Screening: weekly cadence ──────────────────────────────────────────────────
+#   Full screening cycle for weekly automation.
+#   Usage: just screen-weekly
+#   Cron: 0 18 * * 5 cd /path/to/repo && just screen-weekly >> ~/.tradingagents/logs/screen-weekly.log 2>&1
+
+# Run full weekly screening cycle: backup → enrich → screen → history
+# Cron: 0 18 * * 5 cd /path/to/repo && just screen-weekly >> ~/.tradingagents/logs/screen-weekly.log 2>&1
+[confirm("Run weekly screening cycle? Fetches enrichment for all watchlist candidates and evaluates rules.")]
+[group("screen")]
+screen-weekly:
+    @echo "{{ GREEN }}=== Weekly Screening Cycle ==={{ NORMAL }}"
+    bun scripts/db-backup.ts
+    @echo ""
+    @echo "Enriching watchlist candidates..."
+    bun src/cli/main.ts screen enrich --all
+    @echo ""
+    @echo "Running screening rules..."
+    bun src/cli/main.ts screen run
+    @echo ""
+    @echo "Screening history:"
+    bun src/cli/main.ts screen history
+    @echo ""
+    @echo "{{ GREEN }}=== Weekly cycle complete ==={{ NORMAL }}"
+
+# ── Show which database is currently active (LIVE vs TEST)
 [group("db")]
 db-active:
     @echo "=== Active Database ==="
