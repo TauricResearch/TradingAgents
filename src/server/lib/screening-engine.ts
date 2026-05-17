@@ -23,7 +23,7 @@ export interface MatchResult {
 
 // ── Field Extraction ─────────────────────────────────────────────────────────
 
-type CandidateData = {
+export type CandidateData = {
   ticker: string
   exchange: string
   stage: string
