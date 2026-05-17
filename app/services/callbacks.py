@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 #                                 a chain was constructed with one.
 #   3. serialized.name / .id    — legacy fallback for non-LangGraph chains.
 #   4. "unknown"                — last resort.
-_GENERIC_NAMES = {"RunnableSequence", "Runnable", "Chain", "Agent"}
+_GENERIC_NAMES = {"runnablesequence", "runnable", "chain", "agent"}
 
 
 def _normalize_agent_name(
@@ -58,11 +58,11 @@ def _normalize_agent_name(
     if metadata:
         node = metadata.get("langgraph_node")
         if node:
-            return str(node)
+            return _to_snake_case(str(node))
 
     # 2. Explicit name kwarg.
     if name_kw:
-        cleaned = _strip_suffixes(str(name_kw))
+        cleaned = _to_snake_case(_strip_suffixes(str(name_kw)))
         if cleaned and cleaned not in _GENERIC_NAMES:
             return cleaned
 
@@ -70,7 +70,7 @@ def _normalize_agent_name(
     if serialized:
         name = serialized.get("name") or serialized.get("id", [""])[-1]
         if name:
-            cleaned = _strip_suffixes(str(name))
+            cleaned = _to_snake_case(_strip_suffixes(str(name)))
             if cleaned and cleaned not in _GENERIC_NAMES:
                 return cleaned
 
@@ -83,6 +83,17 @@ def _strip_suffixes(name: str) -> str:
         if name.endswith(suffix):
             return name[: -len(suffix)]
     return name
+
+
+# TT-295 P2 fix: TradingAgents' LangGraph nodes come through with mixed
+# casing — analyst nodes as "Market Analyst" (Title Case with spaces),
+# tool nodes as "tools_market" (already snake_case). The extractor's
+# SCHEMA_FOR_AGENT mapping uses snake_case keys, so every Title-Case
+# name silently failed the schema lookup and metadata stayed null.
+# Normalizing to snake_case here makes both formats hit the same key.
+def _to_snake_case(name: str) -> str:
+    """'Market Analyst' → 'market_analyst'. Idempotent on already-snake_case input."""
+    return name.lower().strip().replace(" ", "_").replace("-", "_")
 
 
 class RunRecorderHandler(AsyncCallbackHandler):
