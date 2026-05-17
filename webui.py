@@ -305,10 +305,10 @@ def T(key: str) -> str:
 # Constants
 # ════════════════════════════════════════════════════════════════════
 PROVIDER_MODELS = {
-    # Order matters: quick_model selectbox picks models[0], deep_model picks
-    # models[min(2, len-1)]. We want both defaults = qwen-plus (reliable
-    # tool-calling). qwen-turbo is kept as a cheaper fallback for users who
-    # want to opt in via the dropdown.
+    # Order matters: provider selectbox picks key 0; for each provider,
+    # quick_model picks models[0], deep_model picks models[min(2, len-1)].
+    # Doubao is listed first so the default provider is 火山方舟 / 豆包.
+    "doubao": ["doubao-seed-1-6-250615", "doubao-seed-1-6-flash-250715", "doubao-1-5-pro-32k-250115"],
     "qwen": ["qwen-plus", "qwen-turbo", "qwen-max"],
     "google": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro",
                "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.1-pro-preview"],
@@ -324,6 +324,7 @@ PROVIDER_KEY_ENV = {
     "google": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
     "qwen": "DASHSCOPE_API_KEY", "glm": "ZHIPU_API_KEY",
+    "doubao": "ARK_API_KEY",
     "xai": "XAI_API_KEY", "openrouter": "OPENROUTER_API_KEY",
 }
 
