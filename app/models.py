@@ -123,15 +123,21 @@ class AgentReport(Base):
     content    = Column(Text,   nullable=False)
     # TT-295: per-agent structured extraction. Pydantic schemas in
     # app/services/extractors/schemas.py define the per-agent shape;
-    # callbacks.py runs a gpt-4o-mini extractor on every chain end.
-    # Null when extraction fails or no schema is defined for the agent.
+    # the post-pipeline extractor in trading_agents_runner.py fills
+    # this in. Null when extraction fails or no schema is defined for
+    # the agent.
     #
     # Python attr is `report_metadata`, not `metadata`, because the latter
     # is reserved on SQLAlchemy's declarative Base (Base.metadata is the
     # schema's MetaData instance). The DB column is still named "metadata"
     # via the explicit `name=` arg — Prisma + GraphQL both read it as
     # `metadata` since they only see the column name.
-    report_metadata = Column("metadata", JSONB, nullable=True)
+    #
+    # TT-298: `none_as_null=True` is critical. Without it, SQLAlchemy
+    # writes Python `None` as JSON `null` (the literal) into the JSONB
+    # column, not SQL NULL. Then `WHERE metadata IS NULL` matches zero
+    # rows and the post-pipeline extractor finds nothing to enrich.
+    report_metadata = Column("metadata", JSONB(none_as_null=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     run = relationship("Run", back_populates="agent_reports")
