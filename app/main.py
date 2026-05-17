@@ -24,6 +24,7 @@ import sentry_sdk
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+import redis.asyncio as redis
 
 from app.auth import HMACAuthMiddleware
 from app.config import settings
@@ -32,7 +33,6 @@ from app.logging_config import configure_logging
 from app.observability import init_sentry
 from app.routes.analyze import router as analyze_router
 from app.routes.stream import router as stream_router
-from app.services.redis_client import close_redis, get_redis
 
 
 # Logging + Sentry must init BEFORE app construction so the FastAPI
@@ -91,9 +91,8 @@ app.include_router(stream_router)
 
 @app.on_event("shutdown")
 async def shutdown_handler() -> None:
-    """Close the async DB pool + shared Redis client on container stop."""
+    """Close the async DB pool cleanly on container stop."""
     await dispose_engine()
-    await close_redis()
 
 
 # ── Connection probes for /ready ───────────────────────────────────────────
@@ -112,12 +111,13 @@ async def _ping_db() -> bool:
 
 async def _ping_redis() -> bool:
     """
-    True iff Redis PING succeeds. TT-295: reuses the shared singleton
-    instead of opening a new TCP+TLS handshake on every /ready probe
-    (Railway hits this ~every 30s).
+    True iff Redis PING succeeds. Fresh client per call — the singleton
+    pattern broke cross-event-loop callbacks in LangGraph (see pubsub.py).
     """
     try:
-        await get_redis().ping()
+        client = redis.from_url(settings.REDIS_URL, socket_timeout=2)
+        await client.ping()
+        await client.aclose()
         return True
     except Exception as e:
         sentry_sdk.capture_exception(e)
