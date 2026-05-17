@@ -16,36 +16,19 @@ app-specific code here.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from langchain_core.callbacks.base import AsyncCallbackHandler
-from sqlalchemy import update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.models import AgentReport
-from app.services.extractors import extract_metadata
 from app.services.pubsub import publish_event
 
 
 logger = logging.getLogger(__name__)
-
-
-def _log_task_exception(task: "asyncio.Task[Any]") -> None:
-    """
-    asyncio Task done-callback that surfaces exceptions in fire-and-
-    forget tasks (otherwise they vanish silently). Cancellation is
-    expected during shutdown and not logged.
-    """
-    try:
-        exc = task.exception()
-    except asyncio.CancelledError:
-        return
-    if exc is not None:
-        logger.warning("fire-and-forget task failed: %r", exc)
 
 
 # TT-295: previously this only looked at `serialized.name`, which under
@@ -182,23 +165,28 @@ class RunRecorderHandler(AsyncCallbackHandler):
         # is plain Text since most consumers will render directly.
         content = _outputs_to_text(outputs)
 
-        # TT-298: write the report row WITHOUT metadata first. Capture
-        # the row id so the fire-and-forget extractor task can update
-        # it later. This was the right model from the start — running
-        # the extractor inline blocked the callback for the LLM round-
-        # trip, and asyncio.wait_for's cancellation path corrupted the
-        # event loop context on timeouts.
-        report_id = await self._persist_report(agent_name, content)
-
-        # Fire-and-forget extraction. Schedule on the current loop; the
-        # callback returns immediately. The task runs independently,
-        # updates the row's metadata column on success, swallows
-        # failures (logged via _log_task_exception).
-        if report_id is not None:
-            extract_task = asyncio.create_task(
-                self._extract_and_update(report_id, agent_name, content)
-            )
-            extract_task.add_done_callback(_log_task_exception)
+        # TT-298 — extraction moved out of the callback path. We write
+        # the row with null metadata here; the post-pipeline phase in
+        # trading_agents_runner.py reads agent_reports back and runs the
+        # extractor in a clean async context (no LangGraph callback
+        # context = no cross-loop bugs).
+        async with self._sessionmaker() as session:
+            try:
+                session.add(
+                    AgentReport(
+                        run_id=self._run_id,
+                        agent_name=agent_name,
+                        content=content,
+                        report_metadata=None,
+                    )
+                )
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                logger.warning(
+                    "AgentReport persist failed for run %s agent %s: %s",
+                    self._run_id, agent_name, e,
+                )
 
         # Live event: agent finished, here's its output. Browser appends
         # this to the scrolling agent-output panel.
@@ -211,62 +199,6 @@ class RunRecorderHandler(AsyncCallbackHandler):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },
         )
-
-    async def _persist_report(self, agent_name: str, content: str) -> str | None:
-        """
-        Write a new AgentReport row with null metadata. Returns the row
-        id on success, None on failure (logged + swallowed — the prose
-        content is the priority but a missed row isn't a run-killer).
-        """
-        async with self._sessionmaker() as session:
-            try:
-                report = AgentReport(
-                    run_id=self._run_id,
-                    agent_name=agent_name,
-                    content=content,
-                    report_metadata=None,
-                )
-                session.add(report)
-                await session.commit()
-                return report.id
-            except Exception as e:
-                await session.rollback()
-                logger.warning(
-                    "AgentReport persist failed for run %s agent %s: %s",
-                    self._run_id, agent_name, e,
-                )
-                return None
-
-    async def _extract_and_update(
-        self,
-        report_id: str,
-        agent_name: str,
-        content: str,
-    ) -> None:
-        """
-        Fire-and-forget body: run the extractor, write the result back
-        to the agent_reports row's metadata column. Lives in its own
-        asyncio task so it can't block the chain callback. Uses its
-        own DB session — no shared state with on_chain_end.
-        """
-        metadata = await extract_metadata(agent_name, content)
-        if metadata is None:
-            # Extractor returned null (no schema, LLM failure, etc.) —
-            # row's metadata stays null. Nothing to write.
-            return
-        async with self._sessionmaker() as session:
-            try:
-                await session.execute(
-                    update(AgentReport)
-                    .where(AgentReport.id == report_id)
-                    .values(report_metadata=metadata)
-                )
-                await session.commit()
-            except Exception as e:
-                logger.warning(
-                    "metadata update failed for report %s (run %s, agent %s): %s",
-                    report_id, self._run_id, agent_name, e,
-                )
 
     async def on_chain_error(
         self,

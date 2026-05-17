@@ -32,7 +32,7 @@ import logging
 from datetime import datetime, timezone
 
 import sentry_sdk
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -41,8 +41,9 @@ from sqlalchemy.ext.asyncio import (
 
 from app.config import settings
 from app.db import asyncpg_url
-from app.models import Decision, Run
+from app.models import AgentReport, Decision, Run
 from app.services.callbacks import RunRecorderHandler
+from app.services.extractors import extract_metadata
 from app.services.pubsub import publish_done, publish_event
 
 
@@ -103,6 +104,11 @@ async def run_analysis(
 
     try:
         decision_text = await _execute_pipeline(run_id, ticker, trade_date, sessionmaker)
+        # TT-298: post-pipeline metadata extraction. Runs OUTSIDE
+        # LangGraph's callback context, in a clean coroutine — no more
+        # cross-loop bugs. Best-effort: failures logged + swallowed,
+        # never block decision persistence.
+        await _extract_run_metadata(sessionmaker, run_id)
         await _persist_decision(sessionmaker, run_id, decision_text)
         await _set_run_status(sessionmaker, run_id, "complete", completed=True)
         await publish_event(
@@ -208,6 +214,65 @@ def _build_config() -> dict:
     # OPENAI_API_KEY is read from environment by TradingAgents directly —
     # nothing to inject here. Pydantic-settings already loaded it.
     return cfg
+
+
+async def _extract_run_metadata(sessionmaker, run_id: str) -> None:
+    """
+    TT-298: post-pipeline metadata extraction.
+
+    After all LangGraph chains have completed (and the callback handler
+    has finished dispatching), iterate over this run's agent_reports
+    rows that don't yet have metadata, run the extractor on each, and
+    update the row.
+
+    Runs in a clean coroutine context — no LangChain callbacks in
+    flight, no LangGraph dispatch — so there's no cross-loop concern
+    that bit us when extraction lived inside `on_chain_end`.
+
+    Best-effort: per-row failures logged + swallowed. Schedules all
+    extractions in parallel via asyncio.gather; the longest individual
+    extraction is the wall-clock cost (~1-3s with gpt-4o-mini).
+    """
+    # 1. Load all reports needing extraction.
+    async with sessionmaker() as session:
+        result = await session.execute(
+            select(AgentReport.id, AgentReport.agent_name, AgentReport.content)
+            .where(AgentReport.run_id == run_id)
+            .where(AgentReport.report_metadata.is_(None))
+        )
+        rows = result.all()
+
+    if not rows:
+        return
+
+    async def _one(report_id: str, agent_name: str, content: str) -> None:
+        try:
+            metadata = await extract_metadata(agent_name, content)
+        except Exception as e:
+            logger.warning("extractor crashed for report %s: %s", report_id, e)
+            return
+        if metadata is None:
+            # Extractor returned null (no schema for this agent, LLM
+            # failure, etc.) — row stays with null metadata.
+            return
+        async with sessionmaker() as session:
+            try:
+                await session.execute(
+                    update(AgentReport)
+                    .where(AgentReport.id == report_id)
+                    .values(report_metadata=metadata)
+                )
+                await session.commit()
+            except Exception as e:
+                logger.warning(
+                    "metadata update failed for report %s (run %s, agent %s): %s",
+                    report_id, run_id, agent_name, e,
+                )
+
+    await asyncio.gather(
+        *[_one(r.id, r.agent_name, r.content) for r in rows],
+        return_exceptions=True,
+    )
 
 
 async def _set_run_status(
