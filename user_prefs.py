@@ -25,7 +25,7 @@ DEFAULT_PREFS: dict[str, Any] = {
     "selected_analysts": ["market"],
     "provider": "doubao",
     "deep_model": "doubao-seed-1-6-250615",
-    "quick_model": "doubao-seed-1-6-250615",
+    "quick_model": "doubao-seed-1-6-flash-250828",
     "output_language": "中文",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

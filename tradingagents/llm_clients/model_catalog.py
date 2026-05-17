@@ -103,14 +103,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "doubao": {
         "quick": [
-            ("Doubao Seed 1.6 Flash", "doubao-seed-1-6-flash-250715"),
+            ("Doubao Seed 1.6 Flash", "doubao-seed-1-6-flash-250828"),
             ("Doubao Seed 1.6", "doubao-seed-1-6-250615"),
             ("Custom model ID / endpoint (ep-xxx)", "custom"),
         ],
         "deep": [
             ("Doubao Seed 1.6", "doubao-seed-1-6-250615"),
             ("Doubao 1.5 Pro 32k", "doubao-1-5-pro-32k-250115"),
-            ("Doubao Seed 1.6 Flash", "doubao-seed-1-6-flash-250715"),
+            ("Doubao Seed 1.6 Flash", "doubao-seed-1-6-flash-250828"),
             ("Custom model ID / endpoint (ep-xxx)", "custom"),
         ],
     },

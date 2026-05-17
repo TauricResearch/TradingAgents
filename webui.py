@@ -308,7 +308,7 @@ PROVIDER_MODELS = {
     # Order matters: provider selectbox picks key 0; for each provider,
     # quick_model picks models[0], deep_model picks models[min(2, len-1)].
     # Doubao is listed first so the default provider is 火山方舟 / 豆包.
-    "doubao": ["doubao-seed-1-6-250615", "doubao-seed-1-6-flash-250715", "doubao-1-5-pro-32k-250115"],
+    "doubao": ["doubao-seed-1-6-flash-250828", "doubao-seed-1-6-250615", "doubao-1-5-pro-32k-250115"],
     "qwen": ["qwen-plus", "qwen-turbo", "qwen-max"],
     "google": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro",
                "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.1-pro-preview"],

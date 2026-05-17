@@ -14,7 +14,7 @@ DEFAULT_CONFIG = {
     # LLM settings
     "llm_provider": "doubao",
     "deep_think_llm": "doubao-seed-1-6-250615",
-    "quick_think_llm": "doubao-seed-1-6-250615",
+    "quick_think_llm": "doubao-seed-1-6-flash-250828",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
