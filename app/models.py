@@ -30,6 +30,7 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -120,6 +121,17 @@ class AgentReport(Base):
     run_id     = Column(String, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False)
     agent_name = Column(String, nullable=False)
     content    = Column(Text,   nullable=False)
+    # TT-295: per-agent structured extraction. Pydantic schemas in
+    # app/services/extractors/schemas.py define the per-agent shape;
+    # callbacks.py runs a gpt-4o-mini extractor on every chain end.
+    # Null when extraction fails or no schema is defined for the agent.
+    #
+    # Python attr is `report_metadata`, not `metadata`, because the latter
+    # is reserved on SQLAlchemy's declarative Base (Base.metadata is the
+    # schema's MetaData instance). The DB column is still named "metadata"
+    # via the explicit `name=` arg — Prisma + GraphQL both read it as
+    # `metadata` since they only see the column name.
+    report_metadata = Column("metadata", JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     run = relationship("Run", back_populates="agent_reports")
@@ -127,4 +139,7 @@ class AgentReport(Base):
     __table_args__ = (
         Index("ix_agent_reports_run_id",          "run_id"),
         Index("ix_agent_reports_run_id_agent",    "run_id", "agent_name"),
+        # GIN index on metadata — enables future filtering like "all
+        # market_analyst reports with RSI > 70" via JSONB containment.
+        Index("ix_agent_reports_metadata", "metadata", postgresql_using="gin"),
     )
