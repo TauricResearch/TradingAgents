@@ -37,30 +37,14 @@ from .schemas import SCHEMA_FOR_AGENT
 logger = logging.getLogger(__name__)
 
 
+# Aggressive timeout (was 30s) — gpt-4o-mini structured-output usually
+# resolves in 1-3s. A 30s budget meant a failing extractor blocked the
+# LangChain callback for that whole window per agent, cascading into
+# chain errors and retry loops. 8s gives us 2x normal latency headroom
+# while ensuring the run keeps moving when OpenAI is sluggish.
 _MODEL_NAME      = "gpt-4o-mini"
-_TIMEOUT_SECONDS = 30
+_TIMEOUT_SECONDS = 8
 _MAX_INPUT_CHARS = 12_000
-
-
-# Module-level ChatOpenAI singleton. The underlying httpx AsyncClient
-# (which manages the TCP pool to api.openai.com) lives on the instance —
-# recreating ChatOpenAI per call meant a fresh TLS handshake to OpenAI
-# on every extraction. With 12 agents per run, that's 12 unnecessary
-# handshakes. Lazy init so import-time isn't penalized when OPENAI_API_KEY
-# isn't yet in env (e.g., during alembic-migration-only deploys).
-_llm: ChatOpenAI | None = None
-
-
-def _get_llm() -> ChatOpenAI:
-    global _llm
-    if _llm is None:
-        _llm = ChatOpenAI(
-            model       = _MODEL_NAME,
-            temperature = 0,
-            timeout     = _TIMEOUT_SECONDS,
-            max_retries = 0,  # we handle retries at the cap level
-        )
-    return _llm
 
 
 async def extract_metadata(agent_name: str, content: str) -> Optional[dict[str, Any]]:
@@ -89,7 +73,19 @@ async def extract_metadata(agent_name: str, content: str) -> Optional[dict[str, 
     )
 
     try:
-        structured = _get_llm().with_structured_output(schema_cls)
+        # Per-call instantiation: a module-level singleton ChatOpenAI
+        # was tried but the underlying httpx AsyncClient gets bound to
+        # the event loop at construction time, and LangGraph dispatches
+        # callbacks across loops — singleton crossed loops and failed
+        # with "got Future attached to a different loop". Per-call
+        # overhead is minor and uniform; correctness wins.
+        llm = ChatOpenAI(
+            model       = _MODEL_NAME,
+            temperature = 0,
+            timeout     = _TIMEOUT_SECONDS,
+            max_retries = 0,
+        )
+        structured = llm.with_structured_output(schema_cls)
         result = await asyncio.wait_for(
             structured.ainvoke(prompt),
             timeout=_TIMEOUT_SECONDS,

@@ -16,7 +16,9 @@ import json
 import logging
 from typing import Any, AsyncIterator
 
-from app.services.redis_client import get_redis, make_subscriber
+import redis.asyncio as redis
+
+from app.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -31,28 +33,42 @@ def channel_for(run_id: str) -> str:
     return f"run:{run_id}"
 
 
+# Fresh Redis client per call. Was briefly converted to a module-level
+# singleton (TT-295 P1 code-review followup) but reverted because
+# LangGraph dispatches callbacks across event loops — a singleton
+# initialized at startup ends up attached to a different loop than the
+# one publish_event runs on, surfacing as "got Future ... attached to a
+# different loop" errors. The minor TCP+TLS overhead of per-call client
+# creation is fine given Upstash's HTTP-like keepalive characteristics.
+def _client() -> redis.Redis:
+    return redis.from_url(settings.REDIS_URL)
+
+
 async def publish_event(run_id: str, event: dict[str, Any]) -> None:
     """
     Publish one JSON event to `run:<run_id>`. No-op on Redis failure —
     the run itself shouldn't fail because pub-sub blipped. Sentry captures
     the underlying exception.
-
-    TT-295: reuses the shared Redis singleton instead of opening a new
-    TCP connection per publish.
     """
+    client = _client()
     try:
         payload = json.dumps(event, default=str)
-        await get_redis().publish(channel_for(run_id), payload)
+        await client.publish(channel_for(run_id), payload)
     except Exception as e:
         logger.warning("pubsub publish failed for run %s: %s", run_id, e)
+    finally:
+        await client.aclose()
 
 
 async def publish_done(run_id: str) -> None:
     """Mark the channel as finished so subscribers close cleanly."""
+    client = _client()
     try:
-        await get_redis().publish(channel_for(run_id), DONE_SENTINEL)
+        await client.publish(channel_for(run_id), DONE_SENTINEL)
     except Exception as e:
         logger.warning("pubsub publish-done failed for run %s: %s", run_id, e)
+    finally:
+        await client.aclose()
 
 
 async def subscribe_events(run_id: str) -> AsyncIterator[str]:
@@ -64,12 +80,11 @@ async def subscribe_events(run_id: str) -> AsyncIterator[str]:
     Yields the message data exactly as published (string). For JSON
     events, the consumer JSON-decodes after receiving.
 
-    Subscribers get a DEDICATED connection from make_subscriber() rather
-    than sharing the singleton — Redis "subscribed mode" locks the
-    connection to that single subscription and can't be shared with
-    publishers or other subscribers.
+    Subscribers always need a dedicated connection (Redis "subscribed
+    mode" locks the connection to one subscription) — `_client()`
+    already returns a fresh one per call.
     """
-    client = make_subscriber()
+    client = _client()
     pubsub = client.pubsub()
     try:
         await pubsub.subscribe(channel_for(run_id))
