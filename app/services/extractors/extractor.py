@@ -52,27 +52,19 @@ async def extract_metadata(agent_name: str, content: str) -> Optional[dict[str, 
     Extract structured metadata for one agent_report. Returns a JSON-
     serializable dict on success, None on any failure.
 
-    TT-298: TEMPORARILY DISABLED. Running the extractor inside
-    LangChain's `on_chain_end` callback created cross-event-loop
-    corruption — `asyncio.wait_for` cancelling an in-flight httpx
-    request mid-LangGraph-dispatch left the asyncio state corrupted,
-    which cascaded into "Future attached to a different loop" errors
-    on the singleton SQLAlchemy/asyncpg engine and a runaway retry
-    loop user-visible as market_analyst spinning forever.
+    TT-298 re-enable: this function is now invoked from a fire-and-forget
+    `asyncio.create_task()` in callbacks.py rather than awaited directly
+    inside `on_chain_end`. The chain callback returns immediately; this
+    runs independently. Two cross-loop-safety fixes vs the original
+    implementation:
 
-    Returning None unconditionally means agent_reports.metadata stays
-    null and the dashboard's MetadataCard renders nothing per-agent
-    (graceful no-op). The real analyses complete normally.
-
-    Re-enable via the right architecture — fire-and-forget task,
-    queue-consumed worker, or process-level isolation — once TT-298
-    has shipped that work.
+    - **No `asyncio.wait_for`**: the wait_for cancellation path is what
+      left the asyncio context in a corrupted state. We rely on
+      `ChatOpenAI(timeout=...)` instead — that's an httpx-level deadline
+      that fails cleanly without cancellation games.
+    - **Per-call ChatOpenAI**: the underlying httpx AsyncClient binds to
+      the event loop at construction; per-call avoids cross-loop reuse.
     """
-    # TT-298: kill switch. Restores the impl below when ready.
-    _ = agent_name, content  # silence unused-arg lint
-    return None
-
-    # ── DISABLED PATH BELOW — kept for the re-enable PR ──────────────
     schema_cls = SCHEMA_FOR_AGENT.get(agent_name)
     if not schema_cls:
         # Agent doesn't have a schema yet — nothing to extract.
@@ -103,21 +95,20 @@ async def extract_metadata(agent_name: str, content: str) -> Optional[dict[str, 
         llm = ChatOpenAI(
             model       = _MODEL_NAME,
             temperature = 0,
-            timeout     = _TIMEOUT_SECONDS,
+            timeout     = _TIMEOUT_SECONDS,  # httpx-level deadline; fails cleanly
             max_retries = 0,
         )
         structured = llm.with_structured_output(schema_cls)
-        result = await asyncio.wait_for(
-            structured.ainvoke(prompt),
-            timeout=_TIMEOUT_SECONDS,
-        )
+        # No `asyncio.wait_for` here — its cancellation path was what
+        # left the asyncio context corrupted under LangGraph's callback
+        # dispatch (see TT-298). ChatOpenAI's built-in `timeout` surfaces
+        # as httpx.TimeoutException through normal control flow.
+        result = await structured.ainvoke(prompt)
         # Pydantic v2: model_dump(mode="json") yields JSON-safe types.
         return result.model_dump(mode="json")  # type: ignore[union-attr]
-    except asyncio.TimeoutError:
-        logger.warning("Extractor timed out for agent %s", agent_name)
-        return None
     except Exception as e:
-        # Anything else — schema validation, LLM error, network — logged
-        # and swallowed. The agent's prose content is the priority.
+        # Schema validation, LLM error, network, timeout — all logged
+        # and swallowed. The agent's prose content is the priority;
+        # metadata is a best-effort enrichment.
         logger.warning("Extractor failed for agent %s: %s", agent_name, e)
         return None
