@@ -26,31 +26,63 @@ from langchain_core.callbacks.base import AsyncCallbackHandler
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.models import AgentReport
+from app.services.extractors import extract_metadata
 from app.services.pubsub import publish_event
 
 
 logger = logging.getLogger(__name__)
 
 
-# Heuristic for mapping a LangChain chain's serialized name to a stable
-# agent-report row name. Chain names from TradingAgents come from the
-# class name of the underlying chain/agent (e.g. "MarketAnalystChain").
-# This drops the "Chain"/"Agent" suffix and lowercases for consistency
-# with the agent_name column in TT-182's schema.
-def _normalize_agent_name(serialized: dict[str, Any] | None) -> str:
-    if not serialized:
-        return "unknown"
-    name = (
-        serialized.get("name")
-        or serialized.get("id", [""])[-1]
-        or "unknown"
-    )
-    # Strip common suffixes; collapse to snake_case-ish.
-    name = str(name)
+# TT-295: previously this only looked at `serialized.name`, which under
+# LangGraph returns generic strings like "RunnableSequence" and lost the
+# real agent identity. The dashboard's agent_reports list rendered every
+# row as "unknown" because of this.
+#
+# Lookup priority:
+#   1. metadata.langgraph_node  — LangGraph sets this for each node call.
+#                                 Most accurate for TradingAgents since
+#                                 it constructs the pipeline as a graph.
+#   2. name kwarg               — LangChain passes the explicit name when
+#                                 a chain was constructed with one.
+#   3. serialized.name / .id    — legacy fallback for non-LangGraph chains.
+#   4. "unknown"                — last resort.
+_GENERIC_NAMES = {"RunnableSequence", "Runnable", "Chain", "Agent"}
+
+
+def _normalize_agent_name(
+    serialized: dict[str, Any] | None,
+    metadata:   dict[str, Any] | None = None,
+    name_kw:    str | None            = None,
+) -> str:
+    # 1. LangGraph metadata.
+    if metadata:
+        node = metadata.get("langgraph_node")
+        if node:
+            return str(node)
+
+    # 2. Explicit name kwarg.
+    if name_kw:
+        cleaned = _strip_suffixes(str(name_kw))
+        if cleaned and cleaned not in _GENERIC_NAMES:
+            return cleaned
+
+    # 3. serialized.name / serialized.id legacy.
+    if serialized:
+        name = serialized.get("name") or serialized.get("id", [""])[-1]
+        if name:
+            cleaned = _strip_suffixes(str(name))
+            if cleaned and cleaned not in _GENERIC_NAMES:
+                return cleaned
+
+    return "unknown"
+
+
+def _strip_suffixes(name: str) -> str:
+    """Drop a single trailing 'Chain' / 'Agent' / 'Runnable' suffix if present."""
     for suffix in ("Chain", "Agent", "Runnable"):
         if name.endswith(suffix):
-            name = name[: -len(suffix)]
-    return name or "unknown"
+            return name[: -len(suffix)]
+    return name
 
 
 class RunRecorderHandler(AsyncCallbackHandler):
@@ -91,7 +123,12 @@ class RunRecorderHandler(AsyncCallbackHandler):
         parent_run_id: UUID | None = None,
         **kwargs: Any,
     ) -> None:
-        agent_name = _normalize_agent_name(serialized)
+        # TT-295: pull langgraph_node from metadata + explicit name kwarg.
+        agent_name = _normalize_agent_name(
+            serialized,
+            metadata=kwargs.get("metadata"),
+            name_kw=kwargs.get("name"),
+        )
         self._active[run_id] = agent_name
         # Live event: agent started. Browser uses this to show a "thinking..."
         # row in the UI immediately, before any output exists.
@@ -119,6 +156,11 @@ class RunRecorderHandler(AsyncCallbackHandler):
         # is plain Text since most consumers will render directly.
         content = _outputs_to_text(outputs)
 
+        # TT-295: best-effort structured-data extraction. Failure (LLM
+        # timeout, validation error, no schema for agent) nulls the
+        # metadata field but never blocks the agent_reports row write.
+        metadata = await extract_metadata(agent_name, content)
+
         # Persist durably.
         async with self._sessionmaker() as session:
             try:
@@ -127,6 +169,9 @@ class RunRecorderHandler(AsyncCallbackHandler):
                         run_id=self._run_id,
                         agent_name=agent_name,
                         content=content,
+                        # Python attr is `report_metadata`; DB column is
+                        # still "metadata". See models.py for the why.
+                        report_metadata=metadata,
                     )
                 )
                 await session.commit()
