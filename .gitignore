@@ -265,3 +265,6 @@ decisions/drydock/
 .pi/defuddle-whitelist.json
 .crush/
 .sisyphus/
+
+# macOS folder metadata (should never be committed)
+.DS_Store
