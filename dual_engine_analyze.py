@@ -209,6 +209,10 @@ def fetch_analyst_target(ticker: str, market: str) -> str:
                 v = v.strip() if v else ""
                 if not v or v == "-":
                     return None
+                # 如果已含"元/港元/USD"等后缀，直接保留
+                if re.match(r"^[\d.]+[元港元USD]", v):
+                    return v
+                # 纯数字则追加单位
                 if re.match(r"^[\d.]+$", v):
                     return v + unit
                 return v if re.search(r"\d", v) else None
@@ -534,9 +538,13 @@ def fetch_financial_from_mx(ticker: str, market: str) -> dict:
     返回：financial_data dict 或 {}"""
     try:
         # 港股代码转换：HK01316 → 01316（不加.HK后缀，mx-data 返回更完整）
+        # A股代码转换：002050 → 002050.SZ（深交所），600xxx → 600xxx.SS（沪市）
         query_ticker = ticker
         if market == "hk" and ticker.startswith("HK"):
             query_ticker = ticker[2:]  # 不加 .HK，只用数字代码
+        elif market == "a" and ticker.isdigit() and len(ticker) == 6:
+            suffix = ".SS" if ticker.startswith(("6", "5")) else ".SZ"
+            query_ticker = ticker + suffix
         
         # 显式传递 MX_APIKEY（解决 ThreadPoolExecutor 环境变量丢失问题）
         env = {**os.environ}
@@ -664,69 +672,193 @@ def run_weekly_check(ticker: str, market: str) -> str:
 
 
 # ── mx-data 实时价格查询（港股 + A股，优先数据源）───────────────────────
+def _fetch_price_from_cache(ticker: str, market: str = "hk") -> dict:
+    """
+    从 mx-data 本地缓存文件读取最近收盘价（API 耗尽时的降级方案）
+
+    缓存文件结构：
+    {
+      "headName": ["2026-05-15", "2026-05-14", ...],
+      "<field_id>": ["52.06元", "49.43元", ...],  // nameMap[field_id] = 字段名
+    }
+    提取逻辑：找"收盘价"字段，取列表第一个值（即最新收盘价）
+    """
+    import glob as _glob
+    try:
+        output_dir = Path.home() / ".openclaw/workspace/mx_data/output"
+        base = ticker  # 如 "002050"
+        if market == "hk" and ticker.startswith("HK"):
+            base = ticker[2:].lstrip("0").zfill(5)
+
+        for pat in [f"*{base}*近5日*_raw.json", f"*{base}*最新价*_raw.json"]:
+            files = sorted(_glob.glob(str(output_dir / pat)), key=lambda x: Path(x).stat().st_mtime, reverse=True)
+            for fpath in files[:2]:
+                try:
+                    import json as _json
+                    with open(fpath) as fh:
+                        d = _json.load(fh)
+                    tables = d.get("data", {}).get("data", {}).get("searchDataResultDTO", {}).get("dataTableDTOList", [])
+                    for t in tables:
+                        code = t.get("code", "")
+                        # A股只匹配 .SZ/.SS
+                        if market == "a" and not (".SZ" in code.upper() or ".SS" in code.upper() or ".SH" in code.upper()):
+                            continue
+                        # 港股只匹配 .HK
+                        if market == "hk" and ".HK" not in code.upper():
+                            continue
+
+                        tbl = t.get("table", {})
+                        nm = t.get("nameMap", {})
+
+                        # 找"收盘价"字段（A股）或含"价"字的字段
+                        price_key = None
+                        for fkey, fname in nm.items():
+                            if fkey in ("headName", "headNameSub"):
+                                continue
+                            if "收盘价" in fname or ("价" in fname and market == "a"):
+                                price_key = fkey
+                                break
+
+                        # 直接从表格数据结构中提取最新值
+                        if not price_key:
+                            # 降级：取第一个数据字段
+                            for fkey in tbl.keys():
+                                if fkey not in ("headName", "headNameSub"):
+                                    price_key = fkey
+                                    break
+
+                        if price_key and price_key in tbl:
+                            vals = tbl[price_key]
+                            if vals and isinstance(vals, list):
+                                price_str = str(vals[0])  # 第一个值 = 最新日期的值
+                                m = _re.search(r"([\d.]+)", price_str)
+                                if m:
+                                    price = float(m.group(1))
+                                    currency = "元" if market == "a" else "港元"
+                                    print(f"   ✅ 从缓存读取价格：{price} {currency}")
+                                    return {"price": price, "change": None, "volume": None, "market_cap": None, "pe": None}
+                except Exception:
+                    pass
+        print(f"   ⚠️ 缓存中未找到 {ticker} 的价格数据")
+        return None
+    except Exception as e:
+        print(f"   ⚠️ 缓存读取失败：{e}")
+        return None
+
+
 def fetch_price_from_mx(ticker: str, market: str = "hk") -> dict:
     """
     使用 mx-data 查询实时价格（优先数据源，覆盖 daily_stock_analysis 的降级数据）
     返回：{'price': float, 'change': float, 'volume': int, 'market_cap': str, 'pe': str} 或 None
+
+    解析逻辑（v2）：
+    - mx-data 返回表头为 "日期 | [股票名(代码)]" 格式，列名不含字段描述
+    - 策略：按 "近5日收盘价" 查询 → 从最新一行第一个数据列提取价格（A股在H股前）
     """
+    import re as _re2
+
+    def _extract_number(val: str) -> float | None:
+        """从 '52.06元' / '+3.5%' / '-2.1%' / '1.23万亿' 等格式提取数字"""
+        m = _re2.search(r'([+-]?[\d.]+)', val)
+        return float(m.group(1)) if m else None
+
     try:
         # 转换代码格式
+        # 注意：A股查询必须无后缀（002050），加 .SH/.SZ 会导致接口返回空
         if ticker.startswith("HK") and ticker[2:].isdigit():
             query_ticker = f"{ticker[2:]}.HK"
         elif market == "a" and ticker.isdigit():
-            query_ticker = f"{ticker}.SH"
+            query_ticker = ticker  # A股无后缀，mx-data 自动识别
         else:
             query_ticker = ticker
-        
+
         # 传递所有 MX_APIKEY* 环境变量
         mx_env = {k: v for k, v in os.environ.items() if k.startswith("MX_APIKEY")}
         subprocess_env = {**os.environ, **mx_env}
-        
+
+        # 使用 "近5日收盘价" 查询 —— 此字段 mx-data 必定识别，返回正确表格格式
         result = subprocess.run(
-            ["python3.12", MX_DATA_SCRIPT, f"{query_ticker} 最新价 涨跌幅 成交量 总市值 市盈率"],
+            ["python3.12", MX_DATA_SCRIPT, f"{query_ticker} 近5日收盘价"],
             capture_output=True, text=True, timeout=TIMEOUT_DATA,
             env=subprocess_env
         )
-        
+
         output = result.stdout.strip()
+
         price_data = {'price': None, 'change': None, 'volume': None, 'market_cap': None, 'pe': None}
-        
-        # 解析表格数据
-        import re as _re2
+
+        if not output or result.returncode != 0:
+            print(f"   ⚠️ mx-data 查询失败 (rc={result.returncode}), 尝试从缓存读取...")
+            return _fetch_price_from_cache(ticker, market)
+
+        # 解析 mx-data 表格格式：
+        # | date | 三花智控(002050.SZ) | 三花智控(02050.HK) |
+        # | 2026-05-15 | 52.06元 | 35.92港元 |
+        lines = output.splitlines()
         headers = []
-        for line in output.splitlines():
+        data_rows = []
+
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("**") or line.startswith("- ") or line.startswith("查询"):
+                continue
             if _re2.match(r"\|\s*date\s*\|", line, _re2.I):
-                headers = [p.strip().lower() for p in line.strip().strip("|").split("|")]
+                # 表头行：| date | 股票名(代码) | 股票名(代码) |
+                raw_cols = [p.strip() for p in line.strip().strip("|").split("|")]
+                headers = raw_cols
             elif _re2.match(r"\|\s*\d{4}-\d{2}-\d{2}", line):
+                # 数据行：| 2026-05-15 | 52.06元 | 35.92港元 |
                 parts = [p.strip() for p in line.strip().strip("|").split("|")]
-                if len(parts) >= 2 and headers:
-                    for i, col in enumerate(headers):
-                        if i < len(parts):
-                            val = parts[i]
-                            if val and val != "-":
-                                match = _re2.search(r"([\d.]+)", val)
-                                if match:
-                                    num = float(match.group(1))
-                                    if "最新价" in col or "现价" in col:
-                                        price_data['price'] = num
-                                    elif "涨跌幅" in col:
-                                        price_data['change'] = num
-                                    elif "成交量" in col:
-                                        price_data['volume'] = int(num * 10000) if num > 1000 else int(num)
-                                    elif "总市值" in col:
-                                        price_data['market_cap'] = val
-                                    elif "市盈率" in col or "PE" in col.upper():
-                                        price_data['pe'] = val
-                    break
-        
-        if price_data['price']:
-            currency = "元" if market == "a" else "港元"
-            print(f"   ✅ mx-data 获取到实时价格：{price_data['price']} {currency}")
-            return price_data
-        else:
-            print(f"   ⚠️ mx-data 未获取到有效价格数据")
+                data_rows.append(parts)
+
+        if not data_rows:
+            print(f"   ⚠️ mx-data 无数据行，原始输出前3行: {lines[:3]}")
             return None
-            
+
+        # 找目标列索引（A股：找包含 "SZ)" 或纯数字代码 的列；港股：找 ".HK)" 的列）
+        target_col_idx = None
+        ticker_codes = []
+        if market == "a":
+            # A股代码（无后缀或 .SZ/.SS）
+            ticker_codes = [ticker]  # 原始代码 002050
+            if len(ticker) == 6 and ticker.startswith(("0", "3", "2")):
+                ticker_codes.append(f"{ticker}.SZ")
+            elif len(ticker) == 6:
+                ticker_codes.append(f"{ticker}.SS")
+        elif market == "hk":
+            # 港股代码
+            hk_num = ticker[2:].lstrip("0").zfill(5)
+            ticker_codes = [f"{hk_num}.HK", f"{hk_num}"]
+
+        for idx, col in enumerate(headers):
+            if idx == 0:
+                continue  # 跳过 date 列
+            for code in ticker_codes:
+                if code in col:
+                    target_col_idx = idx
+                    break
+            if target_col_idx is not None:
+                break
+
+        # 若按代码匹配失败，取第一列数据（A股股价通常在第一列）
+        if target_col_idx is None and len(headers) > 1:
+            target_col_idx = 1
+            print(f"   ⚠️ 未匹配到目标列，使用第一数据列（index=1）")
+
+        if target_col_idx is not None and data_rows:
+            first_row = data_rows[0]  # 最新一行
+            if target_col_idx < len(first_row):
+                price_str = first_row[target_col_idx]
+                num = _extract_number(price_str)
+                if num is not None:
+                    price_data['price'] = num
+                    currency = "元" if market == "a" else "港元"
+                    print(f"   ✅ mx-data 获取到实时价格：{price_data['price']} {currency}")
+                    return price_data
+
+        print(f"   ⚠️ mx-data 未能解析价格，表头={headers[:3]}, 首行={data_rows[0] if data_rows else 'N/A'}")
+        return None
+
     except subprocess.TimeoutExpired:
         log_error("mx-data-price", f"查询超时 ({TIMEOUT_DATA}秒)")
         return None
@@ -2039,14 +2171,34 @@ def print_report(ticker: str, market: str, r, ta_decision: str | None, weekly_te
     weekly_conclusion = weekly_signal(weekly_text, r.operation_advice)
     market_label = {"a": "A 股", "hk": "港股", "us": "美股"}[market]
     
-    # 获取当前价格
-    if current_price is None:
-        try:
-            match = re.search(r"([\d.]+)", buy)
-            if match:
-                current_price = float(match.group(1)) / 0.98  # 买点 ≈ 现价×98%
-        except Exception:
-            current_price = 0
+    # 获取当前价格（已在 analyze() 中通过 mx-data 修正）
+    # 策略：取 mx-data 实时价 和 daily_analysis 买点推算价 中的较大者
+    # 原因：若买点来自历史数据（明显低于实时价），说明买卖点已过时，应以实时价为准
+    _buy_val = None
+    try:
+        _buy_val = float(buy)
+    except Exception:
+        pass
+
+    if current_price and current_price > 0:
+        real_price = current_price
+    elif _buy_val and _buy_val > 0:
+        # 买点通常是现价×98%，反推现价
+        real_price = _buy_val / 0.98
+    else:
+        real_price = None
+
+    current_price = real_price  # 用于后续计算
+
+    # 若有真实当前价格，基于真实价格重新计算买卖点
+    # 修复原因：daily_stock_analysis 的历史数据买卖点可能过时（如历史价50元 vs 实时价52元）
+    if real_price and real_price > 0:
+        _buy = round(real_price * 0.98, 2)
+        _sl  = round(real_price * 0.95, 2)
+        _tp  = round(real_price * 1.05, 2)
+        buy = f"{_buy}"
+        sl  = f"{_sl}"
+        tp  = f"{_tp}"
     
     # 获取高盛财务指标
     gs_metrics = fetch_gs_financial_metrics(ticker, market)
@@ -2772,15 +2924,24 @@ def analyze(ticker: str):
 
     # 机构目标价
     analyst_target = fetch_analyst_target(ticker, market)
-    # 用 mx-data 宽查询补充机构目标价
+    # 用 mx-data 宽查询结果补充（仅当 fetch_analyst_target 无效时，或宽查询有更完整数据时）
+    # 注意：必须确认 mx_financial_data 取的是 A 股（002050.SZ）而非 H 股（02050.HK）
     consensus_rating = ""
     if mx_financial_data:
         tp = mx_financial_data.get("target_price")
-        if tp:
+        # 只有当 fetch_analyst_target 未返回有效结果时，才使用宽查询数据
+        # 同时要求目标价 > 0（过滤掉 None 或 0 等无效值）
+        if tp and tp > 0 and (not analyst_target or analyst_target.strip() == ""):
             rating = mx_financial_data.get("consensus_rating", "")
             upside = mx_financial_data.get("upside")
             analyst_target = f"目标价 {tp} 评级{rating} 上涨空间{upside}%" if rating else f"目标价 {tp}"
             consensus_rating = f"评级 {rating}" if rating else ""
+        elif analyst_target and analyst_target.strip():
+            # analyst_target 已有效，尝试从宽查询补充评级信息
+            rating = mx_financial_data.get("consensus_rating", "")
+            upside = mx_financial_data.get("upside")
+            if rating and not consensus_rating:
+                consensus_rating = f"评级 {rating}" if rating else ""
     
     # 获取当前价格（从买点推算）
     current_price = None
