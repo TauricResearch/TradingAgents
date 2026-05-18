@@ -144,18 +144,80 @@ export function upsertEnrichment(enrichment: Omit<EnrichmentRow, "created_at">):
   )
 }
 
+// ── Normalization helpers ────────────────────────────────────────────────────────
+
+// Raw DB rows have REAL columns as strings; normalize to numbers
+type RawEnrichmentRow = {
+  ticker: string
+  fetch_date: string
+  pe_forward: string | null
+  eps_growth_1y: string | null
+  operating_margin: string | null
+  beta_1y: string | null
+  price_to_sales: string | null
+  sector: string | null
+  region: string | null
+  source: string
+  created_at: string
+}
+
+function normalizeEnrichmentRow(raw: RawEnrichmentRow): EnrichmentRow {
+  return {
+    ticker: raw.ticker,
+    fetch_date: raw.fetch_date,
+    pe_forward: raw.pe_forward != null ? parseFloat(raw.pe_forward) : null,
+    eps_growth_1y: raw.eps_growth_1y != null ? parseFloat(raw.eps_growth_1y) : null,
+    operating_margin: raw.operating_margin != null ? parseFloat(raw.operating_margin) : null,
+    beta_1y: raw.beta_1y != null ? parseFloat(raw.beta_1y) : null,
+    price_to_sales: raw.price_to_sales != null ? parseFloat(raw.price_to_sales) : null,
+    sector: raw.sector,
+    region: raw.region,
+    source: raw.source,
+    created_at: raw.created_at,
+  }
+}
+
+type RawSentimentRow = {
+  id: number
+  ticker: string
+  published_date: string
+  headline_text: string
+  summary: string | null
+  sentiment_score: string | null
+  source: string | null
+  enrichment_id: string
+  created_at: string
+}
+
+function normalizeSentimentRow(raw: RawSentimentRow): SentimentRow {
+  return {
+    id: raw.id,
+    ticker: raw.ticker,
+    published_date: raw.published_date,
+    headline_text: raw.headline_text,
+    summary: raw.summary,
+    sentiment_score: raw.sentiment_score != null ? parseFloat(raw.sentiment_score) : null,
+    source: raw.source,
+    enrichment_id: raw.enrichment_id,
+    created_at: raw.created_at,
+  }
+}
+
 export function getLatestEnrichment(ticker: string): EnrichmentRow | null {
   const db = DatabaseFactory.get()
-  return db
+  const raw = db
     .query("SELECT * FROM watchlist_enrichment WHERE ticker = ? ORDER BY fetch_date DESC LIMIT 1")
-    .get(ticker) as EnrichmentRow | null
+    .get(ticker) as RawEnrichmentRow | undefined
+  if (!raw) return null
+  return normalizeEnrichmentRow(raw)
 }
 
 export function getAllEnrichment(): EnrichmentRow[] {
   const db = DatabaseFactory.get()
-  return db
+  const rows = db
     .query("SELECT * FROM watchlist_enrichment ORDER BY ticker, fetch_date DESC")
-    .all() as EnrichmentRow[]
+    .all() as RawEnrichmentRow[]
+  return rows.map(normalizeEnrichmentRow)
 }
 
 // ── Sentiment ────────────────────────────────────────────────────────────────
@@ -182,9 +244,10 @@ export function insertSentiment(headline: Omit<SentimentRow, "id" | "created_at"
 
 export function getSentimentForTicker(ticker: string): SentimentRow[] {
   const db = DatabaseFactory.get()
-  return db
+  const rows = db
     .query("SELECT * FROM watchlist_news_sentiment WHERE ticker = ? ORDER BY published_date DESC")
-    .all(ticker) as SentimentRow[]
+    .all(ticker) as RawSentimentRow[]
+  return rows.map(normalizeSentimentRow)
 }
 
 export function getSentimentSummary(ticker: string): { count: number; avg_score: number | null } {

@@ -1,6 +1,10 @@
 -- TradingAgents Portfolio Database Schema
 -- See: playbooks/sqlite-playbook.md for connection protocol
 -- All connections MUST use DatabaseFactory (enforces WAL, pragmas)
+--
+-- Screening schema additions (screening_rules, watchlist_enrichment,
+-- watchlist_news_sentiment, watchlist_screenings) authorized via
+-- brief-epic-w WATCH-001: screen engine, CLI, data layer — #17 merged
 
 -- Accounts (delivery mechanisms — tax wrappers and platforms)
 -- Balance is tracked via hledger for most accounts; manual for legacy/savings.
@@ -214,7 +218,8 @@ CREATE TABLE IF NOT EXISTS watchlist_news_sentiment (
     sentiment_score REAL,           -- -1 (bearish) to 1 (bullish)
     source          TEXT,
     enrichment_id   TEXT,           -- "ticker:fetch_date" FK to watchlist_enrichment
-    created_at      TEXT DEFAULT (datetime('now'))
+    created_at      TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY(enrichment_id) REFERENCES watchlist_enrichment(ticker)
 );
 
 CREATE INDEX IF NOT EXISTS idx_sentiment_ticker ON watchlist_news_sentiment(ticker);

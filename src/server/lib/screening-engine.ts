@@ -85,11 +85,16 @@ function evaluateCondition(condition: ScreenCondition, data: CandidateData): boo
     case "in":
       return Array.isArray(condition.value) ? condition.value.includes(value as string) : false
     case "bottom_pct": {
-      // For bottom X%: we need the field to be in the bottom percentile
-      // This requires knowing the distribution, so we skip for now
+      // Distribution-based operators require knowing the full field distribution.
+      // TODO(td-??): implement bottom_pct — requires pre-computing percentile buckets
+      // biome-ignore lint/suspicious/noConsole: intentional warning for unsupported operator
+      console.warn(`[screening-engine] bottom_pct not implemented (field=${condition.field})`)
       return false
     }
     case "top_pct": {
+      // TODO(td-??): implement top_pct — requires pre-computing percentile buckets
+      // biome-ignore lint/suspicious/noConsole: intentional warning for unsupported operator
+      console.warn(`[screening-engine] top_pct not implemented (field=${condition.field})`)
       return false
     }
     default:
@@ -164,11 +169,9 @@ export function screenCandidates(input: ScreenInput): ScreenResult {
 
       if (allConditionsMet) {
         matchedRules.push(rule.name)
-        // Add reason for each satisfied condition
+        // Add reason for each condition (already verified all pass via allConditionsMet)
         for (const cond of rule.conditions) {
-          if (evaluateCondition(cond, candidate)) {
-            matchReasons.push(formatReason(rule, cond, candidate))
-          }
+          matchReasons.push(formatReason(rule, cond, candidate))
         }
       }
     }
@@ -221,12 +224,13 @@ export function detectShockStocks(input: ShockStockInput): MatchResult[] {
 
       const margin = c.enrichment.operating_margin
       const ps = c.enrichment.price_to_sales
-      const _priceDrop = c.current_price != null ? priceDropPct : 0
+      const priceDrop =
+        (c as CandidateData & { price_drop_pct?: number }).price_drop_pct ?? priceDropPct
 
       // Must have fundamentals
       if (margin == null || ps == null) return false
 
-      return margin >= minMarginPct && ps <= maxPSRatio
+      return priceDrop >= priceDropPct && margin >= minMarginPct && ps <= maxPSRatio
     })
     .map((c) => ({
       ticker: c.ticker,

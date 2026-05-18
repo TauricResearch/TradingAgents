@@ -1,4 +1,5 @@
 {"file":"agent-voice-convention.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"agentic-design-playbook.md","date":"2026-05-17","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"briefs-playbook.md","date":"2026-05-09","status":"canonical","summary":"Briefs Playbook","meta":{"source":"canonical","mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"ci-cd-playbook.md","date":"2026-05-08","status":"project","summary":"CI/CD pipeline: pre-push hooks, diagram auto-generation, just check gate","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}
 {"file":"cli-design-playbook.md","date":"2026-05-08","status":"project","summary":"CLI design patterns: citty framework, argument definitions, output formatting","meta":{"source":null,"mining_candidate":false,"mining_note":null,"last_mined":null}}

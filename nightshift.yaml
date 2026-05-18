@@ -1,0 +1,54 @@
+# NightShift config for TradingAgents
+# See https://nightshift.haplab.com/docs/configuration
+
+schedule:
+  cron: "0 2 * * *"  # 2am daily
+
+budget:
+  mode: daily
+  max_percent: 75
+  reserve_percent: 10
+  billing_mode: subscription
+  calibrate_enabled: true
+
+providers:
+  preference:
+    - claude
+  claude:
+    enabled: true
+    data_path: "~/.claude"
+    dangerously_skip_permissions: true
+
+projects:
+  - path: /Users/petersmith/Dev/GitHub/TradingAgents
+
+tasks:
+  enabled:
+    - lint-fix
+    - docs-backfill
+    - skill-groom
+    - doc-drift
+    - dead-code
+    - dependency-risk
+    - security-footgun
+    - test-gap
+
+  priorities:
+    doc-drift: 1
+    dead-code: 2
+    lint-fix: 3
+    docs-backfill: 4
+    dependency-risk: 5
+    skill-groom: 6
+    security-footgun: 7
+    test-gap: 8
+
+  intervals:
+    doc-drift: "72h"
+    dead-code: "168h"
+    lint-fix: "24h"
+    docs-backfill: "168h"
+    dependency-risk: "168h"
+    skill-groom: "168h"
+    security-footgun: "168h"
+    test-gap: "168h"

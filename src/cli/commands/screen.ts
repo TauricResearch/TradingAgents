@@ -57,9 +57,9 @@ const createCommand = defineCommand({
   meta: { name: "create", description: "Create a screening rule" },
   args: {
     name: { type: "positional", required: true, description: "Rule name" },
-    "--conditions": { type: "string", required: true, description: "JSON array of conditions" },
-    "--description": { type: "string", description: "Rule description" },
-    "--priority": { type: "string", description: "Priority (default: 0)" },
+    conditions: { type: "string", required: true, description: "JSON array of conditions" },
+    description: { type: "string", description: "Rule description" },
+    priority: { type: "string", description: "Priority (default: 0)" },
   },
   run: (ctx) => {
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -164,8 +164,8 @@ const deleteCommand = defineCommand({
 const enrichCommand = defineCommand({
   meta: { name: "enrich", description: "Fetch and store fundamental enrichment data" },
   args: {
-    "--ticker": { type: "string", description: "Specific ticker" },
-    "--all": { type: "boolean", description: "Enrich all watchlist candidates" },
+    ticker: { type: "string", description: "Specific ticker" },
+    all: { type: "boolean", description: "Enrich all watchlist candidates" },
   },
   run: async (ctx) => {
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -212,8 +212,8 @@ const enrichCommand = defineCommand({
 const runCommand = defineCommand({
   meta: { name: "run", description: "Run screening rules against watchlist" },
   args: {
-    "--json": { type: "boolean", description: "Output as JSON" },
-    "--stage": { type: "string", description: "Filter by stage (comma-separated)" },
+    json: { type: "boolean", description: "Output as JSON" },
+    stage: { type: "string", description: "Filter by stage (comma-separated)" },
   },
   run: async (ctx) => {
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -270,6 +270,12 @@ const runCommand = defineCommand({
 
     const result = screenCandidates({ candidates, rules, stageFilter })
 
+    // Save history whenever there are matches (before JSON early-return)
+    if (result.matches.length > 0) {
+      const matchedTickers = result.matches.map((m) => m.ticker)
+      saveScreeningHistory(matchedTickers, result.rules_evaluated)
+    }
+
     if (ctx.args.json) {
       console.log(JSON.stringify(result, null, 2))
       return
@@ -279,10 +285,6 @@ const runCommand = defineCommand({
       console.log("No candidates match current screening rules.")
       return
     }
-
-    // Save history
-    const matchedTickers = result.matches.map((m) => m.ticker)
-    saveScreeningHistory(matchedTickers, result.rules_evaluated)
 
     // Output table
     const wTicker = 12
@@ -320,8 +322,8 @@ const runCommand = defineCommand({
 const sentimentCommand = defineCommand({
   meta: { name: "sentiment", description: "Fetch and score news headlines for tickers" },
   args: {
-    "--ticker": { type: "string", description: "Specific ticker" },
-    "--all": { type: "boolean", description: "Process all watchlist candidates" },
+    ticker: { type: "string", description: "Specific ticker" },
+    all: { type: "boolean", description: "Process all watchlist candidates" },
   },
   run: async (ctx) => {
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -387,7 +389,7 @@ const sentimentCommand = defineCommand({
 const historyCommand = defineCommand({
   meta: { name: "history", description: "Show recent screening runs" },
   args: {
-    "--limit": { type: "string", description: "Number of runs to show (default: 10)" },
+    limit: { type: "string", description: "Number of runs to show (default: 10)" },
   },
   run: (ctx) => {
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -541,41 +543,18 @@ const initCommand = defineCommand({
     DatabaseFactory.connect(cfg.portfolio.db)
     const db = DatabaseFactory.get()
 
-    const newTables = [
-      "screening_rules",
-      "watchlist_enrichment",
-      "watchlist_news_sentiment",
-      "watchlist_screenings",
-    ]
-
-    // Parse schema: statements end with ');' (handle ')' and ';' on different lines)
-    const statements: string[] = []
-    let buffer = ""
-    for (const line of schema.split("\n")) {
-      buffer += `${line}\n`
-      if (line.trim() === ");") {
-        statements.push(buffer.trim())
-        buffer = ""
-      }
-    }
+    // Parse schema: split on semicolons (handles single-line CREATE INDEX; statements)
+    const rawStatements = schema.split(/;\s*(?:\r?\n|$)/)
+    const statements = rawStatements
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .filter((s) => {
+        const content = s.replace(/--.*$/gm, "").trim()
+        return content.length > 0
+      })
+      .map((s) => `${s};`)
 
     for (const stmt of statements) {
-      if (!stmt) continue
-      const lines = stmt.split("\n")
-      const hasContent = lines.some((l) => {
-        const t = l.trim()
-        return t.length > 0 && !t.startsWith("--")
-      })
-      if (!hasContent) continue
-
-      // Determine if this statement should be skipped
-      const tableMatch = stmt.match(/CREATE TABLE IF NOT EXISTS\s+(\w+)/i)
-      const indexMatch = stmt.match(
-        /^CREATE INDEX\s+(\S+)(?:\s+IF\s+NOT\s+EXISTS)?\s+ON\s+(\w+)\(/i,
-      )
-      if (tableMatch && !newTables.includes(tableMatch[1])) continue // skip existing tables
-      if (indexMatch && !newTables.includes(indexMatch[2])) continue // skip indexes for existing tables
-
       try {
         db.query(stmt).run()
       } catch (e) {
@@ -592,7 +571,6 @@ const initCommand = defineCommand({
     console.log(
       green(`Screening tables: ${created.map((r) => r.name).join(", ") || "(none created)"}`),
     )
-    db.close()
   },
 })
 
@@ -629,45 +607,40 @@ interface YahooEnrichment {
 }
 
 async function enrichFromYahoo(ticker: string): Promise<YahooEnrichment | null> {
-  try {
-    const { spawn } = require("node:child_process")
-    const result = await new Promise<string>((resolve, reject) => {
-      const child = spawn(
-        "python3",
-        [
-          "-c",
-          `
-import yfinance as yf
-t = yf.Ticker('${ticker}')
-info = t.info
-print({
-    'pe_forward': info.get('forwardPE'),
-    'eps_growth_1y': info.get('earningsGrowth'),
-    'operating_margin': info.get('operatingMargin'),
-    'beta_1y': info.get('beta'),
-    'price_to_sales': info.get('priceToSalesTrailing12Months'),
-    'sector': info.get('sector'),
-    'region': info.get('region'),
-})
+  const { spawn } = require("node:child_process")
+  const result = await new Promise<string>((resolve, reject) => {
+    const child = spawn("python3", [
+      "-c",
+      `import sys, json, yfinance
+t = yf.Ticker(sys.argv[1]).info
+print(json.dumps({
+    'pe_forward': t.get('forwardPE'),
+    'eps_growth_1y': t.get('earningsGrowth'),
+    'operating_margin': t.get('operatingMargin'),
+    'beta_1y': t.get('beta'),
+    'price_to_sales': t.get('priceToSalesTrailing12Months'),
+    'sector': t.get('sector'),
+    'region': t.get('region'),
+}))
 `,
-        ],
-        { timeout: 15000 },
-      )
-      let out = ""
-      child.stdout?.on("data", (d: Buffer) => {
-        out += d.toString()
-      })
-      child.stderr?.on("data", (_d: Buffer) => {
-        /* ignore */
-      })
-      child.on("close", (code) => {
-        code === 0 ? resolve(out) : reject(new Error(`exit ${code}`))
-      })
+      ticker,
+    ])
+    let out = ""
+    let errOut = ""
+    child.stdout?.on("data", (d: Buffer) => {
+      out += d.toString()
     })
-    return JSON.parse(result.trim()) as YahooEnrichment
-  } catch {
-    return null
-  }
+    child.stderr?.on("data", (d: Buffer) => {
+      errOut += d.toString()
+    })
+    child.on("close", (code) => {
+      if (code === 0) resolve(out)
+      else reject(new Error(`python3 exit ${code}: ${errOut || "(no stderr)"}`))
+    })
+  }).catch((err) => {
+    throw new Error(`enrichFromYahoo(${ticker}): ${err}`)
+  })
+  return JSON.parse(result.trim()) as YahooEnrichment
 }
 
 // ── Headline Fetching ────────────────────────────────────────────────────────
@@ -687,6 +660,10 @@ async function fetchHeadlines(_ticker: string): Promise<Headline[]> {
 }
 
 // ── Sentiment Scoring ─────────────────────────────────────────────────────────
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
 
 function scoreSentiment(text: string): number {
   const bullish = [
@@ -718,10 +695,10 @@ function scoreSentiment(text: string): number {
   let score = 0
 
   for (const word of bullish) {
-    if (lower.includes(word)) score += 0.2
+    if (new RegExp(`\\b${escapeRegex(word)}\\b`, "i").test(lower)) score += 0.2
   }
   for (const word of bearish) {
-    if (lower.includes(word)) score -= 0.2
+    if (new RegExp(`\\b${escapeRegex(word)}\\b`, "i").test(lower)) score -= 0.2
   }
 
   return Math.max(-1, Math.min(1, score))

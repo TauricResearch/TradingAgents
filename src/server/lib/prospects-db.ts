@@ -19,6 +19,7 @@ export function isStale(prospect: Prospect): boolean {
   if (!prospect.research_doc) return true
   if (!prospect.last_research_update) return true
   const updated = new Date(prospect.last_research_update)
+  if (Number.isNaN(updated.getTime())) return true // malformed dates are stale
   const threshold = new Date()
   threshold.setDate(threshold.getDate() - 90)
   return updated < threshold

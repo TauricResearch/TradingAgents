@@ -1,16 +1,13 @@
 {"file":"15-brief-tidy-up.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-02-brief-portfolio-intelligence.md","date":"2026-05-02","status":"done","summary":"Portfolio Intelligence System: hledger cash + SQLite positions unified view","meta":{"epic":null}}
-{"file":"2026-05-07-brief-ascii-to-dot.md","date":"2026-07-07","status":"done","summary":"Replace ASCII diagrams with DOT + SVG/PNG via graphviz rendering pipeline","meta":{"epic":null}}
+{"file":"2026-05-07-brief-ascii-to-dot.md","date":"2026-05-07","status":"done","summary":"Replace ASCII diagrams with DOT + SVG/PNG via graphviz rendering pipeline","meta":{"epic":null}}
 {"file":"2026-05-08-brief-ctx-lexicon-upgrade.md","date":"2026-05-08","status":"done","summary":"CTX lexicon migrated: JSON array → JSONL, 161 entries, 7 terms incorporated into silo lexicon, 11 deprecated stubs removed","meta":{"epic":"UNIFIED-CLI-001"}}
 {"file":"2026-05-08-brief-ig-api-client-integration.md","date":"2026-05-08","status":"done","summary":"Integrate custom IG API client using native fetch; ig-trading-api package is broken","meta":{"epic":"UNIFIED-CLI-001"}}
 {"file":"2026-05-08-brief-just-silo-template.md","date":"2026-05-08","status":"done","summary":"Canonical silo template: directory structure with named compartments and justfile facade","meta":{"epic":"UNIFIED-CLI-001"}}
 {"file":"2026-05-08-brief-lab-first-methodology.md","date":"2026-05-08","status":"done","summary":"Lab-First Method: entropy-sink principle for safe experimentation before production changes","meta":{"blog":true}}
 {"file":"2026-05-09-brief-canonical-registry.md","date":"2026-05-09","status":"done","summary":"Canonical Registry Framework: superseded by unified registry model","meta":{"epic":null,"superseded":true}}
-{"file":"2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"done","summary":"Barnacle Removal System (BRS): agent-delegated horizontal culling of non-functional legacy text","meta":{"barnacle":true}}
-{"file":"2026-05-11-brief-barnacle-scraper-prompt.md","date":"2026-05-11","status":"done","summary":"Barnacle Scrubber agent prompt + escalation checklist for suspicious load-bearing text","meta":{"barnacle":true}}
 {"file":"2026-05-11-brief-blog-registry.md","date":"2026-05-11","status":"superseded","summary":"Add blog as first-class registry in scripts/reg-sync.ts — separate docs/blog/INDEX.jsonl from docs/INDEX.jsonl, update REGISTRIES map and just check","meta":{"epic":"UNIFIED-CLI-001"}}
 {"file":"2026-05-11-brief-code-registry.md","date":"2026-05-11","status":"done","summary":"Code registry via ast-grep: scripts/reg-sync.ts → code/INDEX.jsonl, integrate into just check, bridge code and docs","meta":{"epic":"UNIFIED-CLI-001"}}
-{"file":"2026-05-11-brief-reintegration-protocol.md","date":"2026-05-11","status":"done","summary":"Re-Integration Protocol: drydock recovery flow with @load-bearing annotation support","meta":{"barnacle":true}}
 {"file":"2026-05-11-td-worktree-feature-request.md","date":"2026-05-11","status":"done","summary":"td worktree integration feature request submitted as GitHub Issue #184","meta":{"epic":null,"submitted":true}}
 {"file":"2026-05-11-td-worktree-issue-draft.md","date":"2026-05-11","status":"done","summary":"Draft GitHub issue: td init should write .td-root in git worktrees for multi-agent development","meta":{"epic":null,"submitted":true}}
 {"file":"2026-05-11-td-worktree-test-results.md","date":"2026-05-11","status":"done","summary":"TD worktree integration test results: worktree-init.ts script validates worktree session awareness","meta":{"epic":null}}
@@ -20,7 +17,10 @@
 {"file":"2026-05-15-brief-watchlist-pattern-enrichment.md","date":"2026-05-15","status":"open","summary":"WATCH-001 enhancement: add STL pattern features (trend, seasonality, entropy, stationarity) to screening enrichment","meta":{"epic":"WATCH-001","tags":["screening","enrichment","pattern-features"]}}
 {"file":"2026-06-01-brief-bifrost-installation.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"alerts-phase2.md","date":"2026-05-11","status":"done","summary":"ALERTS-PHASE2: SQLite alerts table, CRUD CLI, matching engine, Telegram dispatch, dashboard route","meta":{"epic":"td-cbb2e9"}}
-{"file":"barnacle-scrubber-plan.md","date":"2026-05-11","status":"done","summary":"BARNACLE-SCRUBBER: 7-task implementation plan — ingest, LLM scan, slim phase, anomaly escalation, re-integration, deletion log, just recipes","meta":{"epic":"td-6fed05","barnacle":true}}
+{"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-scraper-prompt.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-reintegration-protocol.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"archive/barnacle-system-2026-05-11/barnacle-scrubber-plan.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"brief-add-bridge-tests-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Add test coverage for the Python bridge and SSE streaming endpoints","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-add-scripts-type-check-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Add a CI gate for the scripts tier TypeScript config","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-alert-fire-integration.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}

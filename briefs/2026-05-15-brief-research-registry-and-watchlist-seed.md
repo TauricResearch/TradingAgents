@@ -76,7 +76,7 @@ ALTER TABLE watchlist ADD COLUMN last_research_update TEXT;  -- YYYY-MM-DD
 - [ ] **R02.1:** Add `research_doc` TEXT column (nullable, links to registry ID)
 - [ ] **R02.2:** Add `last_research_update` TEXT column (YYYY-MM-DD)
 - [ ] **R02.3:** Migration script to apply safely (with rollback)
-- [ ] **R02.4:** Update `prospects-data.ts` to surface the new fields
+- [ ] **R02.4:** Update `prospects-db.ts` to surface the new fields
 
 ### R03: Seed Hormuz Stocks into Watchlist
 

@@ -258,7 +258,7 @@ function latestPrice(db: ReturnType<typeof DatabaseFactory.get>, ticker: string)
       "SELECT close FROM prices WHERE ticker = ? ORDER BY date DESC LIMIT 1",
     )
     .get(ticker)
-  return row ? row.close : null
+  return row ? parseFloat(row.close) : null
 }
 
 async function fetchPrice(ticker: string): Promise<number | null> {

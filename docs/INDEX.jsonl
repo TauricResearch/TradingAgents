@@ -1,7 +1,7 @@
 {"file":"26-05-15-felix-prehn-picks.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"agent-judge-layer.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"agent-silo-value-proposition.md","date":"2026-05-11","status":"active","summary":"Corporate value prop: blast radius containment, bounded economics, auditability — the silo as product not constraint","meta":{"type":"argument","topic":"agent-silo","tags":["agent-silo","corporate-security","product-argument","blast-radius"]}}
-{"file":"archive/time-benchmark-paper-2602.12147.md","date":"2026-05-15","status":"archived","summary":"Full TIME benchmark paper (arXiv:2602.12147). Moved from docs/ — too large for quick reference.","meta":{"topic":"tsfm","archived":"true"}}
+{"file":"archive/time-benchmark-paper-2602.12147.md","date":"2026-05-15","status":"archived","summary":"Full TIME benchmark paper (arXiv:2602.12147). Moved from docs/ — too large for quick reference.","meta":{"topic":"tsfm","archived":true}}
 {"file":"context-window-management.md","date":"2026-05-12","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"diagrams/README.md","date":"2026-05-08","status":"active","summary":"Diagram generation pipeline: DOT to SVG/PNG via graphviz","meta":{"type":"reference","topic":"diagrams"}}
 {"file":"great_rotation_research_report-1.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
