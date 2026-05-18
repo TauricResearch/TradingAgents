@@ -218,3 +218,6 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Analyst access generated reports
+analyst_access_sessions/
