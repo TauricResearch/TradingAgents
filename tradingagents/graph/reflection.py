@@ -33,11 +33,15 @@ class Reflector:
         final_decision: str,
         raw_return: float,
         alpha_return: float,
+        benchmark_name: str = "SPY",
     ) -> str:
         """Single reflection call on the final trade decision with outcome context.
 
         Used by Phase B deferred reflection. The final_trade_decision already
         synthesises all analyst insights, so no separate market context is needed.
+        ``benchmark_name`` is the label used for the alpha line (e.g. ``"SPY"``
+        for US tickers, ``"^N225"`` for ``.T`` listings); defaults to SPY for
+        callers that haven't been updated to thread the benchmark through.
         """
         messages = [
             ("system", self.log_reflection_prompt),
@@ -45,7 +49,7 @@ class Reflector:
                 "human",
                 (
                     f"Raw return: {raw_return:+.1%}\n"
-                    f"Alpha vs SPY: {alpha_return:+.1%}\n\n"
+                    f"Alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
                     f"Final Decision:\n{final_decision}"
                 ),
             ),
