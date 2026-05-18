@@ -1,8 +1,7 @@
-"""Model name validators for each provider.
+"""Model name validators for each provider."""
 
-Only validates model names - does NOT enforce limits.
-Let LLM providers use their own defaults for unspecified params.
-"""
+from .model_catalog import get_known_models
+
 
 VALID_MODELS = {
     "openai": [
@@ -58,6 +57,9 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    provider: models
+    for provider, models in get_known_models().items()
+    if provider not in ("ollama", "openrouter")
 }
 
 

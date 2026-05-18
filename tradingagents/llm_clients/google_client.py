@@ -25,11 +25,20 @@ class GoogleClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatGoogleGenerativeAI instance."""
+        self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
 
-        for key in ("timeout", "max_retries", "google_api_key", "callbacks", "http_client", "http_async_client"):
+        if self.base_url:
+            llm_kwargs["base_url"] = self.base_url
+
+        for key in ("timeout", "max_retries", "callbacks", "http_client", "http_async_client"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+
+        # Unified api_key maps to provider-specific google_api_key
+        google_api_key = self.kwargs.get("api_key") or self.kwargs.get("google_api_key")
+        if google_api_key:
+            llm_kwargs["google_api_key"] = google_api_key
 
         # Map thinking_level to appropriate API param based on model
         # Gemini 3 Pro: low, high
