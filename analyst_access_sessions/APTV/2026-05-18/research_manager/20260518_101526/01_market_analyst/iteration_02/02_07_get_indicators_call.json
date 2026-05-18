@@ -1,0 +1,10 @@
+{
+  "name": "get_indicators",
+  "args": {
+    "symbol": "APTV",
+    "indicator": "atr",
+    "curr_date": "2026-05-18",
+    "look_back_days": 60
+  },
+  "tool_call_id": "call_9tTnHUeo5mxgcXE6ukx3fcHu"
+}

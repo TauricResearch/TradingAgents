@@ -1,0 +1,15 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_GPh9ymZhF0KuDgvmEWuhdemr",
+      "name": "get_news",
+      "args": {
+        "ticker": "APTV",
+        "start_date": "2025-11-18",
+        "end_date": "2026-05-18"
+      }
+    }
+  ]
+}

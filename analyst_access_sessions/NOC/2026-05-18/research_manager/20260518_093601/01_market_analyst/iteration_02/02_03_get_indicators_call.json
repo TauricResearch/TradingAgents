@@ -1,0 +1,10 @@
+{
+  "name": "get_indicators",
+  "args": {
+    "symbol": "NOC",
+    "indicator": "macd",
+    "curr_date": "2026-05-18",
+    "look_back_days": 90
+  },
+  "tool_call_id": "call_deA5ynAIlfDc5BPmZy35Afhq"
+}

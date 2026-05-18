@@ -1,0 +1,37 @@
+{
+  "company_of_interest": "APTV",
+  "trade_date": "2026-05-18",
+  "market_report": "",
+  "sentiment_report": "",
+  "news_report": "",
+  "fundamentals_report": "",
+  "investment_plan": "",
+  "trader_investment_plan": "",
+  "investment_debate_state": {
+    "bull_history": "",
+    "bear_history": "",
+    "history": "",
+    "current_response": "",
+    "judge_decision": "",
+    "count": 0
+  },
+  "risk_debate_state": {
+    "aggressive_history": "",
+    "conservative_history": "",
+    "neutral_history": "",
+    "history": "",
+    "latest_speaker": "",
+    "current_aggressive_response": "",
+    "current_conservative_response": "",
+    "current_neutral_response": "",
+    "judge_decision": "",
+    "count": 0
+  },
+  "messages": [
+    {
+      "type": "HumanMessage",
+      "content": "You are working on ticker `APTV` for trade date `2026-05-18`.\nThe active specialist is `Market Analyst`.\nUser request: Revisa si hay algún elemento en sus fundamentales que se haya degradado en los últimos 6 meses y que pueda afectar el precio de la acción en los próximos 3 a 12 meses.\n\nGather sufficient relevant data before concluding. If important data is missing or unavailable, say exactly what is missing and why it matters.",
+      "tool_calls": []
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "agent_key": "research_manager",
+  "display_name": "Research Manager",
+  "stage_slug": "07_research_manager",
+  "kind": "derived",
+  "llm": "deep",
+  "required_data": [
+    "bull and bear debate history",
+    "analyst reports from market, sentiment, news, and fundamentals"
+  ],
+  "prerequisites": [
+    "market_analyst",
+    "social_media_analyst",
+    "news_analyst",
+    "fundamentals_analyst",
+    "bull_researcher",
+    "bear_researcher"
+  ],
+  "context_fields": [
+    "investment_debate_state",
+    "investment_plan"
+  ],
+  "goal_hint": "Synthesize the debate into a clear investment plan."
+}

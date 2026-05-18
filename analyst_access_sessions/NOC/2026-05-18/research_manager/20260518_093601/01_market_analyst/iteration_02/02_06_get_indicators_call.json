@@ -1,0 +1,10 @@
+{
+  "name": "get_indicators",
+  "args": {
+    "symbol": "NOC",
+    "indicator": "vwma",
+    "curr_date": "2026-05-18",
+    "look_back_days": 90
+  },
+  "tool_call_id": "call_su7DWXfSeeav6GygvfWiEfXE"
+}

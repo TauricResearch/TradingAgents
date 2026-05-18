@@ -1,0 +1,9 @@
+{
+  "name": "get_stock_data",
+  "args": {
+    "symbol": "NOC",
+    "start_date": "2025-11-18",
+    "end_date": "2026-05-18"
+  },
+  "tool_call_id": "call_VSBvfYWMqZ36OOyMH35h6aje"
+}

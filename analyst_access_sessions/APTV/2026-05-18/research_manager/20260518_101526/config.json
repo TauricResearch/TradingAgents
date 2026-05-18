@@ -1,0 +1,24 @@
+{
+  "project_dir": "C:\\Users\\alemu\\OneDrive\\Documentos\\TradingAgents\\tradingagents",
+  "results_dir": "./results",
+  "data_cache_dir": "C:\\Users\\alemu\\OneDrive\\Documentos\\TradingAgents\\tradingagents\\dataflows/data_cache",
+  "llm_provider": "openai",
+  "deep_think_llm": "gpt-5.5",
+  "quick_think_llm": "gpt-5.4-mini",
+  "backend_url": "https://api.openai.com/v1",
+  "llm_timeout": 120,
+  "llm_max_retries": 2,
+  "google_thinking_level": null,
+  "openai_reasoning_effort": "medium",
+  "anthropic_effort": null,
+  "max_debate_rounds": 1,
+  "max_risk_discuss_rounds": 1,
+  "max_recur_limit": 100,
+  "data_vendors": {
+    "core_stock_apis": "yfinance",
+    "technical_indicators": "yfinance",
+    "fundamental_data": "yfinance",
+    "news_data": "yfinance"
+  },
+  "tool_vendors": {}
+}

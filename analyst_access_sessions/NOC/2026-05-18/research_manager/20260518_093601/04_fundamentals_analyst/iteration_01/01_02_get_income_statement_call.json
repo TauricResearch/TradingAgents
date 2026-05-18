@@ -1,0 +1,9 @@
+{
+  "name": "get_income_statement",
+  "args": {
+    "ticker": "NOC",
+    "freq": "quarterly",
+    "curr_date": "2026-05-18"
+  },
+  "tool_call_id": "call_8LKTNk0Mv8gMs84n64l9STOf"
+}

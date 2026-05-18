@@ -1,0 +1,15 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_VSBvfYWMqZ36OOyMH35h6aje",
+      "name": "get_stock_data",
+      "args": {
+        "symbol": "NOC",
+        "start_date": "2025-11-18",
+        "end_date": "2026-05-18"
+      }
+    }
+  ]
+}

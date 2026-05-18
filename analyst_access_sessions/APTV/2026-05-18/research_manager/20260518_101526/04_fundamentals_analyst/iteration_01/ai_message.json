@@ -1,0 +1,41 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_MDy3ltlV0OjBMitaLKMV5zX1",
+      "name": "get_fundamentals",
+      "args": {
+        "ticker": "APTV",
+        "curr_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_LdgJ76EsGIzv7BgbekH3zvSF",
+      "name": "get_income_statement",
+      "args": {
+        "ticker": "APTV",
+        "freq": "quarterly",
+        "curr_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_vsZhJVrJpoMy3cJRYcmmCSIs",
+      "name": "get_balance_sheet",
+      "args": {
+        "ticker": "APTV",
+        "freq": "quarterly",
+        "curr_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_LBJw0eQtHRzm8B8G6M4CBSqv",
+      "name": "get_cashflow",
+      "args": {
+        "ticker": "APTV",
+        "freq": "quarterly",
+        "curr_date": "2026-05-18"
+      }
+    }
+  ]
+}

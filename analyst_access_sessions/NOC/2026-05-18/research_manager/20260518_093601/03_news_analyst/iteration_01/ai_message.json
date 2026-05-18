@@ -1,0 +1,24 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_EXLRjGEKyzRriDrZjuZ4ukvT",
+      "name": "get_news",
+      "args": {
+        "ticker": "NOC",
+        "start_date": "2025-11-18",
+        "end_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_koK7Lk7ftEVaRGMPEcaIVoYj",
+      "name": "get_global_news",
+      "args": {
+        "curr_date": "2026-05-18",
+        "look_back_days": 7,
+        "limit": 5
+      }
+    }
+  ]
+}

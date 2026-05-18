@@ -1,0 +1,21 @@
+{
+  "ticker": "APTV",
+  "trade_date": "2026-05-18",
+  "agent_key": "research_manager",
+  "display_name": "Research Manager",
+  "user_request": "Revisa si hay algún elemento en sus fundamentales que se haya degradado en los últimos 6 meses y que pueda afectar el precio de la acción en los próximos 3 a 12 meses.",
+  "required_data": [
+    "bull and bear debate history",
+    "analyst reports from market, sentiment, news, and fundamentals"
+  ],
+  "execution_plan": [
+    "market_analyst",
+    "social_media_analyst",
+    "news_analyst",
+    "fundamentals_analyst",
+    "bull_researcher",
+    "bear_researcher",
+    "research_manager"
+  ],
+  "output_dir": "analyst_access_sessions\\APTV\\2026-05-18\\research_manager\\20260518_101526"
+}

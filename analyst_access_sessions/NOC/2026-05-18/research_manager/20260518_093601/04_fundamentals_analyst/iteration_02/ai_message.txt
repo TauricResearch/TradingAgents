@@ -1,0 +1,398 @@
+## NOC — Revisión de fundamentales degradados en los últimos 6 meses  
+**Fecha de análisis:** 2026-05-18  
+**Ticker:** NOC — Northrop Grumman Corporation  
+**Especialista:** Fundamentals Analyst  
+
+### Conclusión ejecutiva
+
+Sí hay **algunos elementos fundamentales de NOC que se han deteriorado durante los últimos ~6 meses** y que podrían afectar el precio de la acción en los próximos **3 a 12 meses**, principalmente si se mantienen en los próximos trimestres:
+
+1. **Deterioro fuerte de flujo de caja libre en Q1 2026**, con FCF de **-US$1.823B**, tras un Q4 2025 muy positivo de **US$3.235B**.  
+2. **Empeoramiento del capital de trabajo**, especialmente por aumento de cuentas por cobrar y salida de efectivo operativo.  
+3. **Caída secuencial de ingresos, EBITDA, EBIT, utilidad neta y EPS** desde Q4 2025 hacia Q1 2026. Parte puede ser estacional, pero la magnitud merece seguimiento.  
+4. **Reducción fuerte de efectivo disponible**, de **US$4.403B en Q4 2025** a **US$2.090B en Q1 2026**, elevando la deuda neta.  
+5. **Valuación no barata frente al crecimiento esperado**, con **PEG de 4.02** y **Forward EPS menor que EPS TTM**, lo que aumenta la sensibilidad de la acción ante cualquier revisión negativa de guidance o FCF.
+
+Dicho esto, **no todo es negativo**: frente a Q1 2025, NOC muestra mejora en ingresos, utilidad neta, margen operativo y EPS. Por tanto, el deterioro observado parece más **secuencial y de calidad de caja/capital de trabajo**, no necesariamente una ruptura estructural todavía.
+
+---
+
+## 1. Perfil fundamental de NOC
+
+NOC, Northrop Grumman Corporation, opera en el sector **Industrials**, industria **Aerospace & Defense**. Es un contratista de defensa con exposición a programas militares, aeroespaciales, sistemas espaciales, defensa electrónica y plataformas estratégicas.
+
+Datos fundamentales actuales disponibles:
+
+- **Market Cap:** ~US$77.55B  
+- **Revenue TTM:** US$42.37B  
+- **Net Income TTM:** US$4.576B  
+- **EBITDA:** US$7.307B  
+- **Profit Margin:** 10.8%  
+- **Operating Margin:** 11.7%  
+- **ROE:** 28.5%  
+- **ROA:** 7.36%  
+- **P/E TTM:** 17.1x  
+- **Forward P/E:** 18.1x  
+- **PEG:** 4.02  
+- **Dividend Yield:** 1.71%  
+- **Debt/Equity:** ~102.7 según datos fundamentales  
+- **Current Ratio:** 1.15  
+- **Free Cash Flow informado:** ~US$2.07B  
+
+### Lectura para traders
+
+NOC sigue siendo una compañía rentable, de alta calidad defensiva y con retorno sobre capital atractivo. Sin embargo, la acción no está extremadamente barata si se considera el **PEG elevado** y una expectativa de **Forward EPS inferior al EPS TTM**. Eso implica que el mercado podría castigar más rápido cualquier deterioro adicional en márgenes, cash flow o guidance.
+
+---
+
+## 2. Deterioro en ingresos y rentabilidad secuencial
+
+### Ingresos
+
+Los ingresos de NOC pasaron de:
+
+- **Q3 2025:** US$10.423B  
+- **Q4 2025:** US$11.712B  
+- **Q1 2026:** US$9.881B  
+
+Esto implica:
+
+- Caída de **-15.6% QoQ** frente a Q4 2025.  
+- Caída de **-5.2%** frente a Q3 2025.  
+- Pero aumento de **+4.4% YoY** frente a Q1 2025, cuando los ingresos fueron US$9.468B.
+
+### Interpretación
+
+La caída frente a Q4 puede tener componente estacional, común en contratistas de defensa por reconocimiento de ingresos, entregas y timing de contratos. Sin embargo, al analizar los últimos 6 meses, la tendencia secuencial desde Q4 a Q1 es negativa.
+
+Para los próximos 3 a 12 meses, el riesgo es que el mercado interprete esta caída no como estacional sino como señal de menor ritmo de ejecución, presión de programas o demora en contratos.
+
+---
+
+## 3. Margen operativo y utilidad: deterioro secuencial relevante
+
+### Utilidad operativa
+
+- **Q3 2025:** US$1.242B  
+- **Q4 2025:** US$1.271B  
+- **Q1 2026:** US$989M  
+
+La utilidad operativa cayó:
+
+- **-22.2% QoQ** frente a Q4 2025.  
+- **-20.4%** frente a Q3 2025.
+
+### Margen operativo aproximado
+
+- **Q3 2025:** 11.9%  
+- **Q4 2025:** 10.9%  
+- **Q1 2026:** 10.0%  
+
+Esto muestra una compresión secuencial desde Q3 2025.
+
+### Utilidad neta
+
+- **Q3 2025:** US$1.100B  
+- **Q4 2025:** US$1.427B  
+- **Q1 2026:** US$875M  
+
+La utilidad neta cayó:
+
+- **-38.7% QoQ** frente a Q4 2025.  
+- **-20.5%** frente a Q3 2025.
+
+### EPS diluido
+
+- **Q3 2025:** US$7.67  
+- **Q1 2026:** US$6.14  
+
+El EPS diluido cayó aproximadamente **-20%** frente a Q3 2025.  
+El dato de EPS diluido para Q4 2025 no está disponible en la herramienta.
+
+### Lectura para traders
+
+Este es uno de los puntos más importantes. La acción de NOC podría verse presionada si el mercado empieza a descontar una normalización de márgenes hacia niveles más bajos o si las estimaciones de EPS 2026 se revisan a la baja.
+
+El margen operativo de Q1 2026, cercano a **10.0%**, no es alarmante en términos absolutos, pero sí representa una degradación frente a los trimestres anteriores.
+
+---
+
+## 4. Flujo de caja libre: el deterioro más importante
+
+El flujo de caja libre de NOC muestra una señal negativa clara en Q1 2026:
+
+- **Q3 2025 FCF:** US$1.256B  
+- **Q4 2025 FCF:** US$3.235B  
+- **Q1 2026 FCF:** **-US$1.823B**
+
+El flujo operativo también se deterioró:
+
+- **Q4 2025 Operating Cash Flow:** US$3.897B  
+- **Q1 2026 Operating Cash Flow:** **-US$1.656B**
+
+### Causa principal: capital de trabajo
+
+El cambio en capital de trabajo fue:
+
+- **Q4 2025:** +US$2.364B  
+- **Q1 2026:** **-US$3.077B**
+
+Esto es un giro negativo de más de US$5B entre trimestres.
+
+Dentro del capital de trabajo, destacan:
+
+- **Cambio en receivables:** -US$982M en Q1 2026  
+- **Cambio en payables/accrued expense:** -US$723M en Q1 2026  
+- **Cambio en prepaid assets:** -US$426M  
+- **Cambio en inventory:** -US$144M  
+
+### Interpretación
+
+Este deterioro en cash flow es probablemente el factor fundamental más sensible para el precio de la acción en los próximos 3 a 12 meses. En compañías de defensa como NOC, el mercado suele tolerar variaciones trimestrales de capital de trabajo, pero no una tendencia persistente de baja conversión de utilidades a efectivo.
+
+Si Q2 y Q3 2026 no muestran normalización del flujo operativo y de FCF, podrían aparecer riesgos de:
+
+- Reducción de recompras.  
+- Menor flexibilidad financiera.  
+- Menor capacidad de desapalancamiento.  
+- Presión sobre valoración.  
+- Riesgo de revisión negativa de guidance de FCF.
+
+---
+
+## 5. Aumento de cuentas por cobrar y presión en conversión de caja
+
+Las cuentas por cobrar aumentaron de forma notable:
+
+- **Q4 2025 receivables:** US$7.919B  
+- **Q1 2026 receivables:** US$9.362B  
+
+Esto representa un aumento de aproximadamente **+18.2% QoQ**.
+
+Como porcentaje de ingresos trimestrales:
+
+- **Q4 2025:** receivables equivalentes a ~67.6% de ingresos trimestrales.  
+- **Q1 2026:** receivables equivalentes a ~94.7% de ingresos trimestrales.
+
+### Lectura para traders
+
+Este punto merece vigilancia. Un aumento de cuentas por cobrar puede ser normal por timing de facturación y pagos gubernamentales, pero también puede señalar menor eficiencia de cobro o mayor dependencia de pagos futuros.
+
+Si los receivables permanecen elevados durante los próximos trimestres, el mercado podría descontar menor calidad de earnings, aunque la utilidad contable siga siendo positiva.
+
+---
+
+## 6. Balance: liquidez más débil por caída de caja, pero solvencia aún manejable
+
+### Caja
+
+La caja y equivalentes pasaron de:
+
+- **Q4 2025:** US$4.403B  
+- **Q1 2026:** US$2.090B  
+
+Caída de **-52.5% QoQ**.
+
+### Deuda total
+
+- **Q4 2025:** US$17.019B  
+- **Q1 2026:** US$16.316B  
+
+La deuda total bajó aproximadamente **-4.1%**, lo cual es positivo.
+
+### Deuda neta
+
+- **Q4 2025:** US$10.759B  
+- **Q1 2026:** US$12.321B  
+
+La deuda neta subió **+14.5% QoQ**, principalmente por la reducción de caja.
+
+### Current ratio
+
+El current ratio actual es **1.15**, todavía aceptable, y el capital de trabajo mejoró:
+
+- **Q4 2025 working capital:** US$1.405B  
+- **Q1 2026 working capital:** US$1.949B  
+
+### Interpretación
+
+El balance no muestra una crisis de liquidez. De hecho, la deuda total bajó y el capital de trabajo mejoró. Sin embargo, la caída de caja y el aumento de deuda neta sí reducen flexibilidad financiera, especialmente si el FCF sigue débil.
+
+---
+
+## 7. Recompras: menor soporte para EPS y precio
+
+Las recompras de acciones bajaron fuertemente:
+
+- **Q3 2025:** US$277M  
+- **Q4 2025:** US$456M  
+- **Q1 2026:** US$68M  
+
+Esto puede ser una señal de prudencia ante el flujo de caja negativo o una decisión temporal de capital allocation.
+
+### Lectura para traders
+
+La menor recompra reduce un soporte técnico y fundamental para el EPS. En un entorno donde el Forward EPS ya es menor al EPS TTM, una desaceleración de buybacks puede limitar el crecimiento del EPS por acción.
+
+---
+
+## 8. Dividendos: sostenibles, pero Q1 fue financiado con balance/caja
+
+Dividendos pagados:
+
+- **Q3 2025:** US$330M  
+- **Q4 2025:** US$329M  
+- **Q1 2026:** US$333M  
+
+El dividendo parece estable. Sin embargo, en Q1 2026 el FCF fue **-US$1.823B**, por lo que el dividendo no fue cubierto por flujo libre en ese trimestre.
+
+### Interpretación
+
+No parece haber riesgo inmediato para el dividendo, dada la escala y calidad de NOC. Pero si el FCF negativo persistiera, el mercado podría cuestionar el ritmo combinado de dividendos, recompras y deuda.
+
+---
+
+## 9. Valuación: mayor sensibilidad a malas noticias
+
+Los múltiplos actuales muestran que NOC no cotiza con gran descuento:
+
+- **P/E TTM:** 17.1x  
+- **Forward P/E:** 18.1x  
+- **PEG:** 4.02  
+- **Price/Book:** 4.53x  
+- **Forward EPS:** US$30.18  
+- **EPS TTM:** US$31.90  
+
+El hecho de que el **Forward EPS sea inferior al EPS TTM** indica que el mercado espera cierta presión o normalización de ganancias.
+
+### Lectura para traders
+
+Con PEG elevado y Forward EPS inferior al actual, la acción puede ser vulnerable si aparecen:
+
+- Rebajas de estimaciones.  
+- Menor FCF.  
+- Presión adicional en márgenes.  
+- Retrasos de cobro o acumulación de receivables.  
+- Reducción de guidance.
+
+---
+
+## 10. Elementos que NO parecen haberse degradado de forma preocupante
+
+Aunque hay señales negativas, también hay puntos de soporte:
+
+### Mejora YoY frente a Q1 2025
+
+Comparado con Q1 2025:
+
+- Ingresos subieron de **US$9.468B a US$9.881B**.  
+- Utilidad neta subió de **US$481M a US$875M**.  
+- EPS diluido subió de **US$3.32 a US$6.14**.  
+- Margen operativo mejoró de ~6.1% a ~10.0%.  
+
+Esto sugiere que la comparación anual sigue siendo positiva.
+
+### Balance aún razonable
+
+- Current ratio de **1.15**.  
+- Capital de trabajo positivo.  
+- Deuda total bajó secuencialmente.  
+- Patrimonio común subió de **US$16.674B en Q4 2025** a **US$17.115B en Q1 2026**.
+
+### Tangible book value
+
+El tangible book value sigue negativo, pero mejoró:
+
+- **Q4 2025:** -US$763M  
+- **Q1 2026:** -US$324M  
+
+No es una degradación reciente; es una característica de balance con alto goodwill/intangibles.
+
+---
+
+## 11. Riesgos fundamentales para los próximos 3 a 12 meses
+
+Los factores con mayor probabilidad de afectar el precio de NOC son:
+
+### 1. Persistencia de FCF negativo
+
+Si el Q1 fue solo estacional, el impacto puede ser limitado.  
+Si se repite en Q2 o Q3, el mercado puede castigar la acción.
+
+### 2. Receivables elevados
+
+El aumento de receivables puede generar dudas sobre conversión de caja y timing de cobros.
+
+### 3. Margen operativo bajo presión
+
+El margen operativo cayó secuencialmente a ~10.0%. Una caída por debajo de este nivel o falta de recuperación sería negativa.
+
+### 4. Menor recompra
+
+La recompra en Q1 fue muy inferior a trimestres previos, reduciendo soporte al EPS.
+
+### 5. Forward EPS menor que EPS TTM
+
+Esto deja poco espacio para decepciones si la acción ya descuenta estabilidad defensiva.
+
+---
+
+## 12. Datos faltantes importantes
+
+Falta información que sería importante para cerrar una conclusión con mayor convicción:
+
+1. **Backlog y book-to-bill recientes de NOC.**  
+   Importa porque en defensa el crecimiento futuro depende fuertemente de cartera de pedidos, adjudicaciones y ejecución de contratos.
+
+2. **Guidance actualizado de management para 2026 en ventas, EPS y FCF.**  
+   Importa porque el mercado reacciona más a revisiones de guidance que a un único trimestre estacional.
+
+3. **Detalle por segmento de márgenes y ventas.**  
+   Importa porque el deterioro puede estar concentrado en un programa o división específica, como Space, Mission Systems, Aeronautics o Defense Systems.
+
+4. **Explicación del management sobre la salida de capital de trabajo en Q1 2026.**  
+   Importa porque permitiría distinguir entre timing normal de cobros y un problema más persistente de conversión de caja.
+
+5. **Dato de EPS diluido de Q4 2025 en la herramienta.**  
+   Importa porque limita la comparación precisa de EPS secuencial entre Q4 2025 y Q1 2026.
+
+6. **Información de programas específicos, cargos, sobrecostos o retrasos contractuales.**  
+   Importa porque en NOC los riesgos de ejecución de programas pueden afectar márgenes durante varios trimestres.
+
+---
+
+## Evaluación final para traders
+
+En los últimos 6 meses, la degradación fundamental más relevante en NOC está en **flujo de caja, capital de trabajo, caja disponible y rentabilidad secuencial**. No parece haber aún una degradación estructural clara del negocio, ya que las comparaciones YoY siguen siendo positivas, pero el Q1 2026 muestra señales que deben monitorearse de cerca.
+
+### Señal práctica
+
+Para los próximos 3 a 12 meses, el dato clave será si NOC logra recuperar:
+
+- FCF positivo.  
+- Menor nivel de receivables.  
+- Margen operativo por encima de ~10.5%–11%.  
+- Ritmo más normal de recompras.  
+- Confirmación de guidance 2026.
+
+Si esos elementos no mejoran, la acción podría enfrentar presión por menor calidad de earnings y compresión de múltiplos.
+
+---
+
+## Tabla resumen de puntos clave
+
+| Área | Evidencia reciente en NOC | Cambio / deterioro | Impacto potencial 3-12 meses | Lectura para traders |
+|---|---:|---:|---|---|
+| Ingresos | Q1 2026: US$9.881B vs Q4 2025: US$11.712B | -15.6% QoQ | Riesgo si no es solo estacional | Vigilar crecimiento en Q2/Q3 |
+| Utilidad operativa | Q1 2026: US$989M vs Q4 2025: US$1.271B | -22.2% QoQ | Presión sobre EPS y múltiplo | Negativo si margen no recupera |
+| Margen operativo | Q1 2026: ~10.0% vs Q3 2025: ~11.9% | Compresión secuencial | Puede generar revisiones de estimaciones | Vigilar margen >10.5%-11% |
+| Utilidad neta | Q1 2026: US$875M vs Q4 2025: US$1.427B | -38.7% QoQ | Riesgo de menor momentum de earnings | Comparar contra guidance |
+| EPS diluido | Q1 2026: US$6.14 vs Q3 2025: US$7.67 | -20% aprox. | Menor soporte para valuación | Dato Q4 EPS no disponible |
+| Flujo de caja libre | Q1 2026: -US$1.823B vs Q4 2025: US$3.235B | Deterioro fuerte | Principal riesgo fundamental | Confirmar recuperación en Q2 |
+| Capital de trabajo | Q1 2026: -US$3.077B | Salida significativa | Puede afectar FCF y recompras | Vigilar cobranza y receivables |
+| Receivables | Q1 2026: US$9.362B vs Q4 2025: US$7.919B | +18.2% QoQ | Riesgo de menor conversión de caja | Señal amarilla |
+| Caja | Q1 2026: US$2.090B vs Q4 2025: US$4.403B | -52.5% QoQ | Menor flexibilidad financiera | Vigilar deuda neta |
+| Deuda neta | Q1 2026: US$12.321B vs Q4 2025: US$10.759B | +14.5% QoQ | Puede limitar capital return | Moderadamente negativo |
+| Recompras | Q1 2026: US$68M vs Q4 2025: US$456M | Caída fuerte | Menor soporte al EPS | Negativo si persiste |
+| Valuación | P/E TTM 17.1x, Forward P/E 18.1x, PEG 4.02 | Forward EPS < EPS TTM | Mayor sensibilidad a decepciones | Riesgo de compresión de múltiplo |
+| Comparación YoY | Q1 2026 mejor que Q1 2025 en ingresos, utilidad y EPS | Positivo YoY | Mitiga lectura negativa | No hay ruptura estructural clara aún |

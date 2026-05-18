@@ -1,0 +1,41 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_2aDqXEjRMo5SYnZqxFTYetKZ",
+      "name": "get_fundamentals",
+      "args": {
+        "ticker": "NOC",
+        "curr_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_8LKTNk0Mv8gMs84n64l9STOf",
+      "name": "get_income_statement",
+      "args": {
+        "ticker": "NOC",
+        "freq": "quarterly",
+        "curr_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_MTUfNS6tmQs0EnARqBaIleYV",
+      "name": "get_balance_sheet",
+      "args": {
+        "ticker": "NOC",
+        "freq": "quarterly",
+        "curr_date": "2026-05-18"
+      }
+    },
+    {
+      "id": "call_UB3qRsH20Bn4zefGUWiwoZfC",
+      "name": "get_cashflow",
+      "args": {
+        "ticker": "NOC",
+        "freq": "quarterly",
+        "curr_date": "2026-05-18"
+      }
+    }
+  ]
+}

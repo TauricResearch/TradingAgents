@@ -1,0 +1,8 @@
+{
+  "name": "get_fundamentals",
+  "args": {
+    "ticker": "NOC",
+    "curr_date": "2026-05-18"
+  },
+  "tool_call_id": "call_2aDqXEjRMo5SYnZqxFTYetKZ"
+}

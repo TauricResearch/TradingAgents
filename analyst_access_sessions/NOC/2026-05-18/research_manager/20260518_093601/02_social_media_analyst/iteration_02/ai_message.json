@@ -1,0 +1,33 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_YkamR0MKjPKkaV06S0nEtwSk",
+      "name": "get_news",
+      "args": {
+        "ticker": "NOC",
+        "start_date": "2026-04-01",
+        "end_date": "2026-04-30"
+      }
+    },
+    {
+      "id": "call_ZngneSuQZC1IirKuBJE4loj9",
+      "name": "get_news",
+      "args": {
+        "ticker": "NOC",
+        "start_date": "2026-01-01",
+        "end_date": "2026-03-31"
+      }
+    },
+    {
+      "id": "call_Vu9mBupFPvIJjkeakqZreQ4F",
+      "name": "get_news",
+      "args": {
+        "ticker": "NOC",
+        "start_date": "2025-11-18",
+        "end_date": "2025-12-31"
+      }
+    }
+  ]
+}

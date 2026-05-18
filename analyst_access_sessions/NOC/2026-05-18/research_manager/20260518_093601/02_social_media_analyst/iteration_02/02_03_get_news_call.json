@@ -1,0 +1,9 @@
+{
+  "name": "get_news",
+  "args": {
+    "ticker": "NOC",
+    "start_date": "2025-11-18",
+    "end_date": "2025-12-31"
+  },
+  "tool_call_id": "call_Vu9mBupFPvIJjkeakqZreQ4F"
+}

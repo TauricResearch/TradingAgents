@@ -1,0 +1,86 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_i0AkG7TQpBZYH874y1IWCfLP",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "close_50_sma",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_zPksAXpDpYUMEoMJU6Gq75T0",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "close_200_sma",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_deA5ynAIlfDc5BPmZy35Afhq",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "macd",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_q7dak4R0X46georE267dqV2q",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "rsi",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_t7KNhmx5m5vsRk1r0d52h21s",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "atr",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_su7DWXfSeeav6GygvfWiEfXE",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "vwma",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_Mk7WBxnlpFCMKY86534745dI",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "boll_ub",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    },
+    {
+      "id": "call_IbImIsLkRMNLEZWswtG06OeC",
+      "name": "get_indicators",
+      "args": {
+        "symbol": "NOC",
+        "indicator": "boll_lb",
+        "curr_date": "2026-05-18",
+        "look_back_days": 90
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "get_income_statement",
+  "args": {
+    "ticker": "APTV",
+    "freq": "quarterly",
+    "curr_date": "2026-05-18"
+  },
+  "tool_call_id": "call_LdgJ76EsGIzv7BgbekH3zvSF"
+}

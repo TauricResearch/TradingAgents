@@ -1,0 +1,7 @@
+{
+  "stage_name": "Market Analyst",
+  "report_key": "market_report",
+  "tool_call_count": 9,
+  "tool_output_chars": 37465,
+  "warnings": []
+}

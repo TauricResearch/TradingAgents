@@ -1,0 +1,15 @@
+{
+  "type": "AIMessage",
+  "content": "",
+  "tool_calls": [
+    {
+      "id": "call_g0HJ6e8Xu6ZDmFa9Eri0ks0O",
+      "name": "get_news",
+      "args": {
+        "ticker": "NOC",
+        "start_date": "2025-11-18",
+        "end_date": "2026-05-18"
+      }
+    }
+  ]
+}

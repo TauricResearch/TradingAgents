@@ -1,0 +1,10 @@
+{
+  "name": "get_indicators",
+  "args": {
+    "symbol": "NOC",
+    "indicator": "close_200_sma",
+    "curr_date": "2026-05-18",
+    "look_back_days": 90
+  },
+  "tool_call_id": "call_zPksAXpDpYUMEoMJU6Gq75T0"
+}

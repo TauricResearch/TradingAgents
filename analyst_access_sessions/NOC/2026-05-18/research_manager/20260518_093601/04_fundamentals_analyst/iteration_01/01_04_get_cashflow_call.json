@@ -1,0 +1,9 @@
+{
+  "name": "get_cashflow",
+  "args": {
+    "ticker": "NOC",
+    "freq": "quarterly",
+    "curr_date": "2026-05-18"
+  },
+  "tool_call_id": "call_UB3qRsH20Bn4zefGUWiwoZfC"
+}

@@ -1,0 +1,7 @@
+{
+  "stage_name": "News Analyst",
+  "report_key": "news_report",
+  "tool_call_count": 2,
+  "tool_output_chars": 10955,
+  "warnings": []
+}

@@ -1,0 +1,9 @@
+{
+  "name": "get_global_news",
+  "args": {
+    "curr_date": "2026-05-18",
+    "look_back_days": 7,
+    "limit": 5
+  },
+  "tool_call_id": "call_jpE6rxgBIMxlL8Vx0Fh8uxJq"
+}
