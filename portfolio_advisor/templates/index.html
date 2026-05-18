@@ -1,0 +1,1316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portfolio Advisor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2128;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --green-bg:  #0a2818;
+      --green-dim: rgba(63,185,80,.08);
+      --red:       #f85149;
+      --red-bg:    #2d1117;
+      --red-dim:   rgba(248,81,73,.08);
+      --yellow:    #d29922;
+      --blue:      #58a6ff;
+      --orange:    #fb8f44;
+      --purple:    #bc8cff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: .9rem;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .app-wrapper { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+
+    /* ── Header ── */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .app-title { font-size: 1.2rem; font-weight: 700; color: var(--text); margin: 0; }
+    .app-subtitle { font-size: .75rem; color: var(--muted); margin: 0; }
+    .header-controls { display: flex; gap: .5rem; align-items: center; }
+
+    /* ── Mode toggle ── */
+    .mode-toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .mode-btn {
+      padding: .3rem .85rem;
+      font-size: .8rem;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .mode-btn.active-conservative {
+      background: var(--surface2);
+      color: var(--blue);
+    }
+    .mode-btn.active-aggressive {
+      background: var(--surface2);
+      color: var(--orange);
+    }
+    .mode-btn:hover:not(.active-conservative):not(.active-aggressive) {
+      color: var(--text);
+      background: rgba(255,255,255,.04);
+    }
+
+    /* ── Run button ── */
+    .run-btn {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .35rem .9rem;
+      font-size: .8rem;
+      font-weight: 500;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .run-btn:hover:not(:disabled) { background: #79b8ff; }
+    .run-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ── Status strip ── */
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: .75rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1100px) { .status-strip { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px)  { .status-strip { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent-color, var(--border));
+    }
+    .stat-label {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .3rem;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .stat-value { font-size: 1.05rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .stat-sub   { font-size: .7rem; color: var(--muted); margin-top: .15rem; }
+
+    /* ── Content grid ── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+    /* ── Panels ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .panel:last-child { margin-bottom: 0; }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .65rem 1rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-size: .8rem;
+      font-weight: 600;
+    }
+    .panel-header .panel-title {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+    .panel-count {
+      font-size: .7rem;
+      font-weight: 500;
+      padding: .1rem .45rem;
+      border-radius: 20px;
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Tables ── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .data-table th {
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: .5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: .55rem 1rem;
+      border-bottom: 1px solid rgba(48,54,61,.5);
+      vertical-align: middle;
+    }
+    .data-table tbody tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover td { background: rgba(255,255,255,.03); }
+
+    /* Action row accents */
+    .row-sell td:first-child { border-left: 3px solid var(--red); }
+    .row-buy  td:first-child { border-left: 3px solid var(--green); }
+    .row-hold td:first-child { border-left: 3px solid var(--border); }
+
+    .row-sell { background: var(--red-dim); }
+    .row-buy  { background: var(--green-dim); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .2rem;
+      font-size: .68rem;
+      font-weight: 600;
+      padding: .18rem .45rem;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .badge-buy        { background: rgba(63,185,80,.15);  color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .badge-overweight { background: rgba(63,185,80,.1);   color: #a0d7a6;      border: 1px solid rgba(63,185,80,.2); }
+    .badge-sell       { background: rgba(248,81,73,.15);  color: var(--red);   border: 1px solid rgba(248,81,73,.3); }
+    .badge-underweight{ background: rgba(248,81,73,.1);   color: #f4a09a;      border: 1px solid rgba(248,81,73,.2); }
+    .badge-hold       { background: rgba(139,148,158,.1); color: var(--muted); border: 1px solid rgba(139,148,158,.2); }
+    .badge-owned      { background: rgba(88,166,255,.1);  color: var(--blue);  border: 1px solid rgba(88,166,255,.2); }
+    .badge-new        { background: transparent;           color: var(--muted); border: 1px solid var(--border); }
+    .badge-warn       { background: rgba(210,153,34,.15); color: var(--yellow);border: 1px solid rgba(210,153,34,.3); }
+    .badge-dim        { background: var(--surface2);      color: var(--muted); border: 1px solid var(--border); font-style: italic; }
+    .badge-flag-conc  { background: rgba(210,153,34,.12); color: var(--yellow);border: 1px solid rgba(210,153,34,.25); }
+    .badge-flag-down  { background: rgba(248,81,73,.12);  color: #f4a09a;      border: 1px solid rgba(248,81,73,.25); }
+    .badge-flag-sec   { background: rgba(188,140,255,.1); color: var(--purple);border: 1px solid rgba(188,140,255,.25); }
+
+    /* ── Ticker + price ── */
+    .ticker { font-weight: 700; font-size: .9rem; letter-spacing: .02em; }
+    .price-cell { font-variant-numeric: tabular-nums; font-size: .85rem; color: var(--text); }
+    .rationale-cell { font-size: .75rem; color: var(--muted); max-width: 380px; }
+
+    /* ── PnL ── */
+    .pnl-pos { color: var(--green); }
+    .pnl-neg { color: var(--red); }
+    .pnl-sub { font-size: .72rem; opacity: .8; }
+
+    /* ── Unaffordable ── */
+    .row-unaffordable { opacity: .45; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      color: var(--muted);
+      font-size: .8rem;
+      gap: .4rem;
+    }
+    .empty-state i { font-size: 1.4rem; opacity: .4; }
+
+    /* ── Source indicator ── */
+    .src-live     { color: var(--green); }
+    .src-fallback { color: var(--yellow); }
+    .src-unknown  { color: var(--muted); }
+
+    /* ── Regime colors ── */
+    .regime-bull          { color: var(--green); }
+    .regime-corrective    { color: var(--yellow); }
+    .regime-bear          { color: var(--orange); }
+    .regime-confirmed_bear{ color: var(--red); }
+    .regime-unknown       { color: var(--muted); }
+
+    /* Accent colors per stat card */
+    .accent-cash    { --accent-color: var(--blue); }
+    .accent-source  { --accent-color: var(--purple); }
+    .accent-cond    { --accent-color: var(--muted); }
+    .accent-regime  { --accent-color: var(--muted); } /* overridden by JS */
+    .accent-intra   { --accent-color: #3dc9b0; }
+    .accent-eod     { --accent-color: #3dc9b0; }
+
+    /* ── Condition badge ── */
+    .cond-1 { color: var(--green); }
+    .cond-2 { color: var(--blue); }
+    .cond-3 { color: var(--muted); }
+    .cond-4 { color: var(--orange); }
+
+    /* ── Spinner ── */
+    .spin {
+      display: none;
+      width: .75rem;
+      height: .75rem;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Progress bar ── */
+    .progress-bar-wrap {
+      display: none;
+      margin-top: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+    }
+    .progress-bar-wrap.visible { display: block; }
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: .4rem;
+    }
+    .progress-stage { font-size: .82rem; font-weight: 600; color: var(--text); }
+    .progress-pct   { font-size: .82rem; font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums; }
+    .progress-track {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), #3fb950);
+      border-radius: 3px;
+      transition: width .4s ease;
+      width: 0%;
+    }
+    .progress-detail { font-size: .72rem; color: var(--muted); margin-top: .35rem; min-height: 1em; }
+
+    /* ── Broker status ── */
+    .broker-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: .72rem;
+      font-weight: 600;
+      padding: .2rem .55rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .broker-pill:hover { border-color: var(--muted); color: var(--text); }
+    .broker-pill.live     { color: var(--green); border-color: rgba(63,185,80,.4); }
+    .broker-pill.fallback { color: var(--yellow); border-color: rgba(210,153,34,.4); }
+    .broker-pill.error    { color: var(--red);   border-color: rgba(248,81,73,.4); }
+    .broker-pill.checking { color: var(--muted); }
+
+    /* ── Portfolio editor ── */
+    .editor-body { padding: .85rem; display: none; border-top: 1px solid var(--border); }
+    .form-label-sm { font-size: .72rem; font-weight: 600; text-transform: uppercase;
+                     letter-spacing: .04em; color: var(--muted); margin-bottom: .3rem; }
+    .form-ctrl {
+      width: 100%; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: .4rem .6rem; font-size: .82rem;
+      transition: border-color .15s;
+    }
+    .form-ctrl:focus { outline: none; border-color: var(--blue); }
+    textarea.form-ctrl { resize: vertical; font-family: 'Courier New', monospace; }
+
+    .btn-save {
+      width: 100%; margin-top: .5rem;
+      padding: .45rem; border: none; border-radius: 6px;
+      background: var(--blue); color: #fff; font-weight: 600;
+      font-size: .82rem; cursor: pointer; transition: background .15s;
+    }
+    .btn-save:hover { background: #79b8ff; }
+
+    .btn-edit {
+      font-size: .72rem; padding: .2rem .55rem;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 4px;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-edit:hover { color: var(--text); border-color: var(--muted); }
+
+    .save-msg { font-size: .75rem; margin-top: .4rem; color: var(--green); display: none; }
+
+    /* ── Settings gear button ── */
+    .gear-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem; height: 2rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: .95rem;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .gear-btn:hover { color: var(--text); border-color: var(--muted); background: var(--surface2); }
+
+    /* ── Reconnect button (header, shown when broker is in error/fallback) ── */
+    .reconnect-btn {
+      display: none;
+      align-items: center;
+      gap: .3rem;
+      font-size: .72rem;
+      font-weight: 600;
+      padding: .2rem .6rem;
+      border-radius: 20px;
+      border: 1px solid rgba(248,81,73,.4);
+      background: rgba(248,81,73,.08);
+      color: var(--red);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .reconnect-btn:hover { background: rgba(248,81,73,.16); }
+    .reconnect-btn.fallback {
+      border-color: rgba(210,153,34,.4);
+      background: rgba(210,153,34,.08);
+      color: var(--yellow);
+    }
+    .reconnect-btn.fallback:hover { background: rgba(210,153,34,.16); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 420px; max-width: 95vw;
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: .85rem 1.1rem;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600; font-size: .88rem;
+    }
+    .modal-close {
+      background: transparent; border: none; color: var(--muted);
+      font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 0 .25rem;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 1.1rem; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: .5rem;
+      padding: .75rem 1.1rem;
+      border-top: 1px solid var(--border);
+    }
+    .btn-cancel {
+      padding: .4rem .85rem; border-radius: 6px; font-size: .82rem;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); cursor: pointer;
+    }
+    .btn-cancel:hover { color: var(--text); border-color: var(--muted); }
+    .btn-action {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .4rem .85rem; border-radius: 6px; font-size: .82rem;
+      background: var(--blue); color: #fff; border: none; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-action:hover:not(:disabled) { background: #79b8ff; }
+    .btn-action:disabled { opacity: .55; cursor: not-allowed; }
+    .reauth-msg  { font-size: .82rem; color: var(--muted); margin: 0 0 .9rem; min-height: 1.4em; }
+    .msg-error   { color: var(--red); }
+    .msg-success { color: var(--green); }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div>
+      <p class="app-title"><i class="bi bi-graph-up-arrow" style="color:var(--blue)"></i> Portfolio Advisor</p>
+      <p class="app-subtitle">Powered by TradingAgents &mdash; multi-agent LLM analysis</p>
+    </div>
+    <div class="header-controls">
+      <button class="gear-btn" onclick="openSettings()" title="Settings">
+        <i class="bi bi-gear"></i>
+      </button>
+      <button class="broker-pill" id="brokerPill" onclick="checkBroker()" title="Check brokerage connection">
+        <i class="bi bi-plug" id="brokerIcon"></i>
+        <span id="brokerLabel">Check connection</span>
+      </button>
+      <button class="reconnect-btn" id="reconnectBtn" onclick="openReauth()" title="Re-authenticate with Robinhood">
+        <i class="bi bi-arrow-clockwise"></i> Reconnect
+      </button>
+      <div class="mode-toggle" id="modeToggle">
+        <button class="mode-btn" data-value="conservative">
+          <i class="bi bi-shield-check"></i> Conservative
+        </button>
+        <button class="mode-btn" data-value="aggressive">
+          <i class="bi bi-lightning-charge"></i> Aggressive
+        </button>
+      </div>
+      <button class="run-btn" id="runBtn" onclick="triggerRun()">
+        <i class="bi bi-play-fill"></i>
+        <span>Run Now</span>
+        <div class="spin" id="spinner"></div>
+      </button>
+    </div>
+  </header>
+
+  <!-- Progress bar (shown during active runs) -->
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-top">
+      <span class="progress-stage" id="progressStage">Starting…</span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-detail" id="progressDetail"></div>
+  </div>
+
+  <!-- Status strip -->
+  <div class="status-strip">
+
+    <div class="stat-card accent-cash">
+      <div class="stat-label"><i class="bi bi-wallet2"></i> Cash Available</div>
+      <div class="stat-value" id="cashVal">—</div>
+    </div>
+
+    <div class="stat-card accent-source">
+      <div class="stat-label"><i class="bi bi-plug"></i> Data Source</div>
+      <div class="stat-value" id="sourceVal">—</div>
+    </div>
+
+    <div class="stat-card accent-cond" id="condCard">
+      <div class="stat-label"><i class="bi bi-diagram-3"></i> Condition</div>
+      <div class="stat-value" id="conditionVal">—</div>
+      <div class="stat-sub" id="conditionSub"></div>
+    </div>
+
+    <div class="stat-card accent-regime" id="regimeCard">
+      <div class="stat-label"><i class="bi bi-activity"></i> Market Regime</div>
+      <div class="stat-value" id="regimeVal">—</div>
+      <div class="stat-sub" id="regimeSub"></div>
+    </div>
+
+    <div class="stat-card accent-intra">
+      <div class="stat-label"><i class="bi bi-clock-history"></i> Last Intraday</div>
+      <div class="stat-value" style="font-size:.85rem" id="intradayVal">—</div>
+    </div>
+
+    <div class="stat-card accent-eod">
+      <div class="stat-label"><i class="bi bi-calendar-check"></i> Last EOD Scan</div>
+      <div class="stat-value" style="font-size:.85rem" id="eodVal">—</div>
+    </div>
+
+  </div>
+
+  <!-- Content grid -->
+  <div class="content-grid">
+
+    <!-- Left column: action tables -->
+    <div>
+
+      <!-- SELL -->
+      <div class="panel" id="sellPanel">
+        <div class="panel-header" style="color:var(--red)">
+          <div class="panel-title">
+            <i class="bi bi-arrow-down-circle-fill"></i>
+            Sell Alerts
+            <span class="panel-count" id="sellCount">0</span>
+          </div>
+        </div>
+        <div id="sellBody">
+          <table class="data-table" id="sellTable">
+            <thead><tr>
+              <th>Ticker</th><th>Signal</th><th>Price</th><th>Rationale</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty-state" id="sellEmpty">
+            <i class="bi bi-check-circle"></i>
+            No sell alerts
+          </div>
+        </div>
+      </div>
+
+      <!-- BUY -->
+      <div class="panel" id="buyPanel">
+        <div class="panel-header" style="color:var(--green)">
+          <div class="panel-title">
+            <i class="bi bi-arrow-up-circle-fill"></i>
+            Buy Candidates
+            <span class="panel-count" id="buyCount">0</span>
+          </div>
+        </div>
+        <div id="buyBody">
+          <table class="data-table" id="buyTable">
+            <thead><tr>
+              <th>Ticker</th><th>Signal</th><th>Price</th><th>Status</th><th>Rationale</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty-state" id="buyEmpty">
+            <i class="bi bi-search"></i>
+            No buy candidates
+          </div>
+        </div>
+      </div>
+
+      <!-- HOLD -->
+      <div class="panel">
+        <div class="panel-header" style="color:var(--muted)">
+          <div class="panel-title">
+            <i class="bi bi-pause-circle"></i>
+            Hold
+            <span class="panel-count" id="holdCount">0</span>
+          </div>
+        </div>
+        <table class="data-table" id="holdTable">
+          <thead><tr>
+            <th>Ticker</th><th>Signal</th><th>Price</th><th>Rationale</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="holdEmpty">
+          <i class="bi bi-hourglass-split"></i>
+          No hold positions
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column -->
+    <div>
+
+      <!-- Positions -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="bi bi-briefcase"></i>
+            Positions
+            <span class="panel-count" id="posCount">0</span>
+          </div>
+        </div>
+        <table class="data-table" id="posTable">
+          <thead><tr>
+            <th>Ticker</th><th>Shares</th><th>Price</th><th>P&amp;L</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="posEmpty">
+          <i class="bi bi-briefcase"></i>
+          No positions loaded
+        </div>
+      </div>
+
+      <!-- Fallback portfolio editor -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="bi bi-pencil-square"></i>
+            Fallback Portfolio
+          </div>
+          <button class="btn-edit" onclick="toggleEditor()">Edit</button>
+        </div>
+        <div class="editor-body" id="editorBody">
+          <div style="margin-bottom:.6rem">
+            <div class="form-label-sm">Cash ($)</div>
+            <input type="number" class="form-ctrl" id="cashInput" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <div class="form-label-sm">Positions — JSON array</div>
+            <textarea class="form-ctrl" id="positionsInput" rows="8"
+              placeholder='[{"ticker":"AAPL","shares":10,"cost_basis":150,"current_price":175,"sector":"Technology","market_value":1750}]'></textarea>
+          </div>
+          <button class="btn-save" onclick="savePortfolio()">Save Portfolio</button>
+          <div class="save-msg" id="saveMsg">Saved successfully.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsOverlay" style="display:none" onclick="settingsOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span><i class="bi bi-gear" style="color:var(--blue)"></i>&nbsp; Settings</span>
+      <button class="modal-close" onclick="closeSettings()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.75rem">
+        Robinhood Credentials
+      </div>
+      <div style="margin-bottom:.65rem">
+        <div class="form-label-sm">Username (email)</div>
+        <input type="email" class="form-ctrl" id="settingsUsername" placeholder="you@example.com" autocomplete="username">
+      </div>
+      <div style="margin-bottom:.65rem">
+        <div class="form-label-sm">Password</div>
+        <div style="position:relative">
+          <input type="password" class="form-ctrl" id="settingsPassword"
+                 placeholder="Leave blank to keep current"
+                 autocomplete="current-password"
+                 style="padding-right:2.5rem">
+          <button type="button" onclick="toggleSettingsPw()" tabindex="-1"
+                  style="position:absolute;right:.55rem;top:50%;transform:translateY(-50%);
+                         background:none;border:none;color:var(--muted);cursor:pointer;padding:0;font-size:.9rem">
+            <i class="bi bi-eye" id="settingsPwEye"></i>
+          </button>
+        </div>
+        <div id="settingsPwNote" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
+      </div>
+      <p class="reauth-msg" id="settingsMsg" style="margin-top:.5rem;min-height:1.2em"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+      <button class="btn-action" id="settingsSaveBtn" onclick="saveSettings()">
+        <div class="spin" id="settingsSpin" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></div>
+        <span id="settingsBtnLabel">Save &amp; Test Connection</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Reconnect modal -->
+<div class="modal-overlay" id="reauthOverlay" style="display:none" onclick="reauthOverlayClick(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span><i class="bi bi-plug" style="color:var(--blue)"></i>&nbsp; Reconnect to Robinhood</span>
+      <button class="modal-close" onclick="closeReauth()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="reauth-msg" id="reauthMsg">Click <strong>Reconnect</strong> to attempt login with stored credentials.</p>
+      <div id="mfaSection" style="display:none">
+        <div class="form-label-sm">Verification code (SMS / authenticator app)</div>
+        <input type="text" class="form-ctrl" id="mfaInput" maxlength="8"
+               placeholder="6-digit code" inputmode="numeric" autocomplete="one-time-code"
+               onkeydown="if(event.key==='Enter') submitReauth()">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="reauthCancelBtn" onclick="closeReauth()">Cancel</button>
+      <button class="btn-action" id="reauthSubmitBtn" onclick="submitReauth()">
+        <div class="spin" id="reauthSpin" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></div>
+        <span id="reauthBtnLabel">Reconnect</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const initialState = {{ state | tojson }};
+let currentState   = initialState;
+let _wasRunning    = !!initialState.running;
+let _slowTimer     = null;
+let _fastTimer     = null;
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+
+function fmt(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('en-US', {
+    timeZone: 'America/New_York', hour12: false,
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  }) + ' ET';
+}
+
+function fmtMoney(n) {
+  if (n == null || n === '') return '—';
+  return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// ── Badge builders ────────────────────────────────────────────────────────────
+
+function signalBadge(signal) {
+  const map = {
+    Buy:         ['badge-buy',         '<i class="bi bi-arrow-up-short"></i> Buy'],
+    Overweight:  ['badge-overweight',  '<i class="bi bi-arrow-up-short"></i> Overweight'],
+    Hold:        ['badge-hold',        'Hold'],
+    Underweight: ['badge-underweight', '<i class="bi bi-arrow-down-short"></i> Underweight'],
+    Sell:        ['badge-sell',        '<i class="bi bi-arrow-down-short"></i> Sell'],
+  };
+  const [cls, label] = map[signal] || ['badge-hold', signal];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ── Condition & regime metadata ───────────────────────────────────────────────
+
+const COND = {
+  1: { label: 'Condition 1', sub: 'Cash available — no positions', cls: 'cond-1', accent: 'var(--green)' },
+  2: { label: 'Condition 2', sub: 'Cash available + positions held', cls: 'cond-2', accent: 'var(--blue)' },
+  3: { label: 'Condition 3', sub: 'No cash — no positions', cls: 'cond-3', accent: 'var(--muted)' },
+  4: { label: 'Condition 4', sub: 'No cash — positions held', cls: 'cond-4', accent: 'var(--orange)' },
+};
+
+const REGIME = {
+  bull:           { label: 'Bull Market',    sub: 'SPY above 50 & 200-day SMA',        cls: 'regime-bull',           accent: 'var(--green)'  },
+  corrective:     { label: 'Corrective',     sub: 'SPY above 200-day, below 50-day',   cls: 'regime-corrective',     accent: 'var(--yellow)' },
+  bear:           { label: 'Bear Market',    sub: 'SPY below 200-day SMA',             cls: 'regime-bear',           accent: 'var(--orange)' },
+  confirmed_bear: { label: 'Confirmed Bear', sub: 'Death cross — broad sell pressure', cls: 'regime-confirmed_bear', accent: 'var(--red)'    },
+  unknown:        { label: 'Unknown',        sub: 'Insufficient data',                  cls: 'regime-unknown',        accent: 'var(--muted)'  },
+};
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+
+function showProgress(visible) {
+  document.getElementById('progressWrap').classList.toggle('visible', visible);
+}
+
+function updateProgress(stage, progress, detail) {
+  const pct = Math.min(100, Math.max(0, progress || 0));
+  document.getElementById('progressStage').textContent  = stage || 'Running…';
+  document.getElementById('progressPct').textContent    = pct + '%';
+  document.getElementById('progressFill').style.width   = pct + '%';
+  document.getElementById('progressDetail').textContent = detail || '';
+}
+
+// ── Broker check ──────────────────────────────────────────────────────────────
+
+function _applyBrokerResult(data) {
+  const pill  = document.getElementById('brokerPill');
+  const icon  = document.getElementById('brokerIcon');
+  const label = document.getElementById('brokerLabel');
+  const rBtn  = document.getElementById('reconnectBtn');
+
+  icon.style.animation = '';
+  rBtn.style.display   = 'none';
+
+  if (data.ok) {
+    const src = data.source || 'unknown';
+    pill.className = `broker-pill ${src}`;
+    icon.className = src === 'live' ? 'bi bi-plug-fill' : 'bi bi-exclamation-triangle';
+    label.textContent = src === 'live'
+      ? `Live · ${data.positions} pos · $${Number(data.cash).toFixed(2)}`
+      : `Fallback · ${data.positions} pos`;
+    if (src === 'fallback') {
+      rBtn.className = 'reconnect-btn fallback';
+      rBtn.style.display = 'inline-flex';
+    }
+  } else {
+    pill.className = 'broker-pill error';
+    icon.className = 'bi bi-x-circle';
+    label.textContent = 'Connection failed';
+    rBtn.className = 'reconnect-btn';
+    rBtn.style.display = 'inline-flex';
+  }
+}
+
+async function checkBroker() {
+  const pill  = document.getElementById('brokerPill');
+  const icon  = document.getElementById('brokerIcon');
+  const label = document.getElementById('brokerLabel');
+  const rBtn  = document.getElementById('reconnectBtn');
+
+  pill.className       = 'broker-pill checking';
+  icon.className       = 'bi bi-arrow-repeat';
+  icon.style.animation = 'spin .6s linear infinite';
+  label.textContent    = 'Checking…';
+  rBtn.style.display   = 'none';
+
+  try {
+    const data = await fetch('/api/broker/check', {method: 'POST'}).then(r => r.json());
+    _applyBrokerResult(data);
+  } catch {
+    _applyBrokerResult({ok: false});
+  }
+}
+
+// ── Settings modal ────────────────────────────────────────────────────────────
+
+async function openSettings() {
+  // Reset state
+  const msg = document.getElementById('settingsMsg');
+  msg.textContent = '';
+  msg.className = 'reauth-msg';
+  document.getElementById('settingsPassword').value = '';
+  document.getElementById('settingsBtnLabel').textContent = 'Save & Test Connection';
+  document.getElementById('settingsSaveBtn').disabled = false;
+  document.getElementById('settingsSpin').style.display = 'none';
+
+  // Pre-populate from server
+  try {
+    const s = await fetch('/api/settings').then(r => r.json());
+    document.getElementById('settingsUsername').value = s.robinhood_username || '';
+    document.getElementById('settingsPwNote').textContent =
+      s.robinhood_password_set ? 'Password is set. Leave blank to keep it.' : 'No password saved yet.';
+  } catch {
+    document.getElementById('settingsPwNote').textContent = 'Could not load current settings.';
+  }
+
+  document.getElementById('settingsOverlay').style.display = 'flex';
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').style.display = 'none';
+}
+
+function settingsOverlayClick(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+}
+
+function toggleSettingsPw() {
+  const inp  = document.getElementById('settingsPassword');
+  const icon = document.getElementById('settingsPwEye');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+  } else {
+    inp.type = 'password';
+    icon.className = 'bi bi-eye';
+  }
+}
+
+async function saveSettings() {
+  const username = document.getElementById('settingsUsername').value.trim();
+  const password = document.getElementById('settingsPassword').value;
+
+  if (!username) {
+    const m = document.getElementById('settingsMsg');
+    m.className = 'reauth-msg msg-error';
+    m.textContent = 'Username is required.';
+    return;
+  }
+
+  const btn  = document.getElementById('settingsSaveBtn');
+  const spin = document.getElementById('settingsSpin');
+  const msg  = document.getElementById('settingsMsg');
+  btn.disabled = true;
+  spin.style.display = 'block';
+  msg.className = 'reauth-msg';
+  msg.textContent = 'Saving…';
+
+  try {
+    const body = { robinhood_username: username };
+    if (password) body.robinhood_password = password;
+
+    const saved = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(r => r.json());
+
+    if (!saved.ok) {
+      msg.className = 'reauth-msg msg-error';
+      msg.textContent = 'Save failed: ' + (saved.reason || 'unknown error');
+      btn.disabled = false;
+      spin.style.display = 'none';
+      return;
+    }
+
+    // Saved — now test connection
+    msg.textContent = 'Saved. Testing connection…';
+    const result = await fetch('/api/broker/check', { method: 'POST' }).then(r => r.json());
+    spin.style.display = 'none';
+
+    if (result.ok && result.source === 'live') {
+      msg.className = 'reauth-msg msg-success';
+      msg.textContent = `Connected — Live · ${result.positions} position(s) · $${Number(result.cash).toFixed(2)}`;
+      document.getElementById('settingsBtnLabel').textContent = 'Done';
+      // Update the pill immediately
+      _applyBrokerResult(result);
+      setTimeout(closeSettings, 2500);
+    } else if (result.ok && result.source === 'fallback') {
+      msg.className = 'reauth-msg';
+      msg.textContent = `Settings saved. Robinhood unreachable — using local fallback (${result.positions} positions).`;
+      _applyBrokerResult(result);
+      document.getElementById('settingsBtnLabel').textContent = 'Close';
+      btn.disabled = false;
+      btn.onclick = closeSettings;
+    } else {
+      msg.className = 'reauth-msg msg-error';
+      msg.textContent = 'Settings saved, but connection failed: ' + (result.error || 'unknown');
+      _applyBrokerResult(result);
+      btn.disabled = false;
+      document.getElementById('settingsBtnLabel').textContent = 'Close';
+      btn.onclick = closeSettings;
+    }
+  } catch (e) {
+    spin.style.display = 'none';
+    msg.className = 'reauth-msg msg-error';
+    msg.textContent = 'Network error: ' + e.message;
+    btn.disabled = false;
+  }
+}
+
+// ── Reconnect (reauth) flow ───────────────────────────────────────────────────
+
+function openReauth() {
+  const msg = document.getElementById('reauthMsg');
+  msg.textContent = 'Click Reconnect to attempt login with stored credentials.';
+  msg.className = 'reauth-msg';
+  document.getElementById('mfaSection').style.display  = 'none';
+  document.getElementById('mfaInput').value            = '';
+  document.getElementById('reauthBtnLabel').textContent = 'Reconnect';
+  document.getElementById('reauthSubmitBtn').disabled  = false;
+  document.getElementById('reauthSpin').style.display  = 'none';
+  document.getElementById('reauthCancelBtn').textContent = 'Cancel';
+  document.getElementById('reauthOverlay').style.display = 'flex';
+}
+
+function closeReauth() {
+  document.getElementById('reauthOverlay').style.display = 'none';
+}
+
+function reauthOverlayClick(e) {
+  if (e.target === document.getElementById('reauthOverlay')) closeReauth();
+}
+
+async function submitReauth() {
+  const mfaSection = document.getElementById('mfaSection');
+  const mfaCode    = mfaSection.style.display !== 'none'
+    ? document.getElementById('mfaInput').value.trim() : null;
+
+  const submitBtn = document.getElementById('reauthSubmitBtn');
+  const spin      = document.getElementById('reauthSpin');
+  const msg       = document.getElementById('reauthMsg');
+
+  submitBtn.disabled    = true;
+  spin.style.display    = 'block';
+  msg.className         = 'reauth-msg';
+  msg.textContent       = mfaCode ? 'Verifying code…' : 'Connecting to Robinhood…';
+
+  try {
+    const body = mfaCode ? {mfa_code: mfaCode} : {};
+    const data = await fetch('/api/broker/reauth', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    }).then(r => r.json());
+
+    spin.style.display = 'none';
+
+    if (data.ok) {
+      msg.className = 'reauth-msg msg-success';
+      msg.textContent = 'Connected! Refreshing status…';
+      mfaSection.style.display = 'none';
+      document.getElementById('reauthBtnLabel').textContent = 'Done';
+      document.getElementById('reauthCancelBtn').textContent = 'Close';
+      // Run check and apply result to pill, then close
+      fetch('/api/broker/check', {method: 'POST'})
+        .then(r => r.json())
+        .then(r => { _applyBrokerResult(r); })
+        .catch(() => {});
+      setTimeout(closeReauth, 1500);
+
+    } else if (data.requires_mfa) {
+      msg.textContent = 'A verification code was sent to your registered device. Enter it below.';
+      mfaSection.style.display = 'block';
+      document.getElementById('mfaInput').focus();
+      document.getElementById('reauthBtnLabel').textContent = 'Verify';
+      submitBtn.disabled = false;
+
+    } else {
+      msg.className = 'reauth-msg msg-error';
+      msg.textContent = 'Error: ' + (data.error || 'Unknown error');
+      submitBtn.disabled = false;
+    }
+  } catch (e) {
+    spin.style.display = 'none';
+    msg.className = 'reauth-msg msg-error';
+    msg.textContent = 'Network error — is the server reachable?';
+    submitBtn.disabled = false;
+  }
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+
+function renderState(s) {
+  currentState = s;
+
+  // Cash
+  document.getElementById('cashVal').textContent = fmtMoney(s.cash || 0);
+
+  // Source
+  const src   = s.portfolio_source || 'unknown';
+  const srcEl = document.getElementById('sourceVal');
+  srcEl.textContent = src.charAt(0).toUpperCase() + src.slice(1);
+  srcEl.className   = 'stat-value src-' + src;
+
+  // Condition
+  const c        = COND[s.condition];
+  const condCard = document.getElementById('condCard');
+  if (c) {
+    condCard.style.setProperty('--accent-color', c.accent);
+    document.getElementById('conditionVal').innerHTML    = `<span class="${c.cls}">${c.label}</span>`;
+    document.getElementById('conditionSub').textContent = c.sub;
+  } else {
+    document.getElementById('conditionVal').textContent = '—';
+    document.getElementById('conditionSub').textContent = '';
+  }
+
+  // Market regime
+  const rm         = s.market_regime || {};
+  const r          = REGIME[rm.regime] || REGIME.unknown;
+  const regimeCard = document.getElementById('regimeCard');
+  regimeCard.style.setProperty('--accent-color', r.accent);
+  const regimeEl        = document.getElementById('regimeVal');
+  regimeEl.textContent  = r.label;
+  regimeEl.className    = 'stat-value ' + r.cls;
+  document.getElementById('regimeSub').textContent = rm.spy_price
+    ? `SPY ${fmtMoney(rm.spy_price)} · SMA50 ${fmtMoney(rm.sma50)}`
+    : r.sub;
+
+  // Timestamps
+  document.getElementById('intradayVal').textContent = fmt(s.last_intraday_run);
+  document.getElementById('eodVal').textContent      = fmt(s.last_eod_run);
+
+  // Mode toggle
+  const mode = s.aggressiveness || 'conservative';
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.remove('active-conservative', 'active-aggressive');
+    if (btn.dataset.value === mode) btn.classList.add(`active-${mode}`);
+  });
+
+  // Run button & spinner
+  const running = !!s.running;
+  document.getElementById('runBtn').disabled            = running;
+  document.getElementById('spinner').style.display      = running ? 'block' : 'none';
+
+  // Progress bar
+  if (running) {
+    showProgress(true);
+    updateProgress(s.stage, s.progress, s.stage_detail);
+  } else if (_wasRunning) {
+    // Run just finished — flash complete state then hide
+    showProgress(true);
+    updateProgress(s.stage || 'Complete', 100, s.stage_detail || '');
+    setTimeout(() => showProgress(false), 4000);
+  } else {
+    showProgress(false);
+  }
+
+  // Polling speed: 3s during run, 60s otherwise
+  if (running && !_fastTimer) {
+    clearInterval(_slowTimer);
+    _slowTimer = null;
+    _fastTimer = setInterval(refresh, 3000);
+  } else if (!running && _fastTimer) {
+    clearInterval(_fastTimer);
+    _fastTimer = null;
+    _slowTimer = setInterval(refresh, 60_000);
+  }
+
+  _wasRunning = running;
+
+  // Actions
+  const all = s.actions || [];
+  renderActions('sellTable', 'sellEmpty', 'sellCount',
+    all.filter(a => a.action === 'SELL'), ['ticker','signal','price','rationale']);
+  renderActions('buyTable',  'buyEmpty',  'buyCount',
+    all.filter(a => a.action === 'BUY'),  ['ticker','signal','price','owned','rationale']);
+  renderActions('holdTable', 'holdEmpty', 'holdCount',
+    all.filter(a => a.action === 'HOLD'), ['ticker','signal','price','rationale']);
+
+  // Positions
+  renderPositions(s.portfolio_positions || []);
+}
+
+// ── Action tables ─────────────────────────────────────────────────────────────
+
+function renderActions(tableId, emptyId, countId, rows, cols) {
+  document.getElementById(countId).textContent          = rows.length;
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = '';
+  document.getElementById(emptyId).style.display        = rows.length ? 'none'  : 'flex';
+  document.getElementById(tableId).style.display        = rows.length ? 'table' : 'none';
+
+  rows.forEach(a => {
+    const tr = tbody.insertRow();
+    tr.className = ({ BUY: 'row-buy', SELL: 'row-sell', HOLD: 'row-hold' }[a.action] || '');
+    if (a.action === 'BUY' && a.affordable === false) tr.classList.add('row-unaffordable');
+
+    cols.forEach(col => {
+      const td = tr.insertCell();
+      if (col === 'ticker') {
+        let html = `<span class="ticker">${a.ticker}</span>`;
+        if (a.action === 'BUY' && a.affordable === false)
+          html += ` <span class="badge badge-dim" title="Price exceeds available cash">Unaffordable</span>`;
+        td.innerHTML = html;
+      } else if (col === 'signal') {
+        td.innerHTML = signalBadge(a.signal);
+      } else if (col === 'price') {
+        td.className   = 'price-cell';
+        td.textContent = a.price ? fmtMoney(a.price) : '—';
+      } else if (col === 'owned') {
+        td.innerHTML = a.owned
+          ? '<span class="badge badge-owned"><i class="bi bi-check2"></i> Owned</span>'
+          : '<span class="badge badge-new">New</span>';
+      } else if (col === 'rationale') {
+        td.className   = 'rationale-cell';
+        td.textContent = a.rationale || '—';
+      }
+    });
+  });
+}
+
+// ── Positions table ───────────────────────────────────────────────────────────
+
+function renderPositions(positions) {
+  document.getElementById('posCount').textContent       = positions.length;
+  const tbody = document.querySelector('#posTable tbody');
+  tbody.innerHTML = '';
+  document.getElementById('posEmpty').style.display     = positions.length ? 'none'  : 'flex';
+  document.getElementById('posTable').style.display     = positions.length ? 'table' : 'none';
+
+  positions.forEach(p => {
+    const pnl    = (p.current_price - p.cost_basis) * p.shares;
+    const pnlPct = p.cost_basis > 0
+      ? ((p.current_price - p.cost_basis) / p.cost_basis * 100).toFixed(1)
+      : '0.0';
+    const sign   = pnl >= 0 ? '+' : '';
+    const flags  = (p.flags || []).map(f => {
+      if (f === 'concentration_risk')
+        return `<span class="badge badge-flag-conc" title=">10% of portfolio"><i class="bi bi-exclamation-triangle"></i> Conc.</span>`;
+      if (f === 'drawdown_15pct')
+        return `<span class="badge badge-flag-down" title="Down >15% from cost"><i class="bi bi-arrow-down-circle"></i> −15%</span>`;
+      if (f === 'sector_concentration')
+        return `<span class="badge badge-flag-sec" title="Sector >25% of portfolio"><i class="bi bi-pie-chart"></i> Sector</span>`;
+      return '';
+    }).join(' ');
+
+    const tr = tbody.insertRow();
+    tr.innerHTML = `
+      <td><span class="ticker">${p.ticker}</span>${flags ? ' ' + flags : ''}</td>
+      <td>${p.shares}</td>
+      <td class="price-cell">${fmtMoney(p.current_price)}</td>
+      <td class="${pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">
+        ${sign}${fmtMoney(pnl)}<div class="pnl-sub">${sign}${pnlPct}%</div>
+      </td>`;
+  });
+}
+
+// ── Portfolio editor ──────────────────────────────────────────────────────────
+
+function toggleEditor() {
+  const body = document.getElementById('editorBody');
+  const open = body.style.display === 'block';
+  if (!open) {
+    document.getElementById('cashInput').value =
+      currentState.cash || 0;
+    document.getElementById('positionsInput').value =
+      JSON.stringify(currentState.portfolio_positions || [], null, 2);
+  }
+  body.style.display = open ? 'none' : 'block';
+}
+
+async function savePortfolio() {
+  try {
+    const positions = JSON.parse(document.getElementById('positionsInput').value || '[]');
+    const cash      = parseFloat(document.getElementById('cashInput').value) || 0;
+    const data = await fetch('/api/portfolio', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({cash, positions}),
+    }).then(r => r.json());
+    const msg       = document.getElementById('saveMsg');
+    msg.textContent = data.ok ? 'Saved successfully.' : 'Error: ' + data.reason;
+    msg.style.color = data.ok ? 'var(--green)' : 'var(--red)';
+    msg.style.display = 'block';
+    setTimeout(() => msg.style.display = 'none', 3000);
+  } catch (e) {
+    alert('Invalid JSON: ' + e.message);
+  }
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    await fetch('/api/aggressiveness', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({aggressiveness: btn.dataset.value}),
+    });
+    refresh();
+  });
+});
+
+async function triggerRun() {
+  const res = await fetch('/api/run', {method: 'POST'});
+  if (!res.ok) { alert((await res.json()).reason || 'Run failed'); return; }
+  document.getElementById('runBtn').disabled       = true;
+  document.getElementById('spinner').style.display = 'block';
+  showProgress(true);
+  updateProgress('Starting…', 0, '');
+}
+
+async function refresh() {
+  try { renderState(await fetch('/api/state').then(r => r.json())); }
+  catch (e) { console.warn('Refresh failed:', e); }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+renderState(initialState);
+// Start appropriate polling interval based on initial state
+if (_wasRunning) {
+  _fastTimer = setInterval(refresh, 3000);
+} else {
+  _slowTimer = setInterval(refresh, 60_000);
+}
+</script>
+</body>
+</html>

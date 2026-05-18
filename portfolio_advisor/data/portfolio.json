@@ -1,0 +1,13 @@
+{
+  "cash": 0.00,
+  "positions": [
+    {
+      "ticker": "AAPL",
+      "shares": 10,
+      "cost_basis": 150.00,
+      "current_price": 175.00,
+      "sector": "Technology",
+      "market_value": 1750.00
+    }
+  ]
+}

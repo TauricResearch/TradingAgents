@@ -30,13 +30,19 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    # portfolio-advisor dependencies
+    "apscheduler>=3.10.0",
+    "flask>=3.0.0",
+    "pandas-market-calendars>=4.4.0",
+    "robin-stocks>=3.0.0",
 ]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+portfolio-advisor = "portfolio_advisor.main:main"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "portfolio_advisor*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
