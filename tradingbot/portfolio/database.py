@@ -187,7 +187,7 @@ class PortfolioDatabase:
                 holding_days,
                 entry_signal,
                 exit_signal,
-                datetime.utcnow().isoformat(),
+                datetime.now().isoformat(),
             ))
 
         logger.info(
