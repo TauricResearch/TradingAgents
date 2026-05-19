@@ -88,6 +88,25 @@ INDICATOR_DESCRIPTIONS = {
     "mfi": "资金流量指标，用于衡量量价驱动的超买超卖。",
 }
 
+EVENT_TAG_RULES = [
+    ("shareholder_change", ("减持", "增持", "持股变动", "股东变动", "权益变动")),
+    ("buyback", ("回购", "回购股份")),
+    ("lockup", ("解禁", "限售股", "限售股份上市流通")),
+    ("earnings_preview", ("业绩预告", "业绩快报", "业绩修正", "预盈", "预亏")),
+    ("financing", ("定增", "配股", "可转债", "募资", "融资", "发行股份")),
+    ("pledge", ("质押", "解除质押")),
+    ("litigation", ("诉讼", "仲裁", "立案", "处罚", "警示函")),
+    ("risk_warning", ("风险提示", "ST", "*ST", "退市", "终止上市", "异常波动")),
+    ("contract_order", ("中标", "合同", "订单", "框架协议")),
+    ("restructuring", ("重组", "收购", "并购", "资产出售", "资产购买")),
+    ("suspension", ("停牌", "复牌")),
+    ("dividend", ("分红", "派息", "权益分派")),
+]
+
+POSITIVE_EVENT_TAGS = {"buyback", "contract_order", "earnings_preview", "dividend"}
+NEGATIVE_EVENT_TAGS = {"risk_warning", "litigation", "pledge", "lockup"}
+MIXED_EVENT_TAGS = {"shareholder_change", "financing", "restructuring", "suspension"}
+
 
 def _call_akshare_api(func, *args, retries: int = 2, retry_delay: float = 0.5, **kwargs):
     last_exc = None
@@ -107,6 +126,37 @@ def _safe_truncate(text: str, limit: int = 160) -> str:
     if len(clean) <= limit:
         return clean
     return clean[: limit - 3] + "..."
+
+
+def _classify_event_tag(text: str) -> str:
+    title = str(text or "")
+    for tag, keywords in EVENT_TAG_RULES:
+        if any(keyword in title for keyword in keywords):
+            return tag
+    return "other"
+
+
+def _tag_bias(tag: str, title: str) -> str:
+    text = str(title or "")
+    if tag == "shareholder_change":
+        if "增持" in text:
+            return "positive"
+        if "减持" in text:
+            return "negative"
+        return "mixed"
+    if tag == "earnings_preview":
+        if any(keyword in text for keyword in ("预增", "扭亏", "增长", "上升", "预盈")):
+            return "positive"
+        if any(keyword in text for keyword in ("预亏", "下滑", "下降", "亏损")):
+            return "negative"
+        return "mixed"
+    if tag in POSITIVE_EVENT_TAGS:
+        return "positive"
+    if tag in NEGATIVE_EVENT_TAGS:
+        return "negative"
+    if tag in MIXED_EVENT_TAGS:
+        return "mixed"
+    return "neutral"
 
 
 def _format_table(df: pd.DataFrame, title: str, rows: int = 10) -> str:
@@ -590,6 +640,9 @@ def get_company_event_signals(ticker: str, start_date: str, end_date: str) -> st
     sections = [f"# A-share company event signals for {normalized}", ""]
     any_hits = False
     errors = []
+    tag_counter: dict[str, int] = {}
+    bias_counter = {"positive": 0, "negative": 0, "mixed": 0, "neutral": 0}
+    event_examples: dict[str, list[str]] = {}
 
     for category in categories:
         try:
@@ -623,10 +676,20 @@ def get_company_event_signals(ticker: str, start_date: str, end_date: str) -> st
         latest_rows = working.head(5)
         for _, row in latest_rows.iterrows():
             line = []
+            title_value = str(row.get(title_col, "")) if title_col else ""
+            tag = _classify_event_tag(title_value)
+            bias = _tag_bias(tag, title_value)
+            tag_counter[tag] = tag_counter.get(tag, 0) + 1
+            bias_counter[bias] = bias_counter.get(bias, 0) + 1
+            event_examples.setdefault(tag, [])
+            if title_value and len(event_examples[tag]) < 2:
+                event_examples[tag].append(_safe_truncate(title_value, 60))
             if date_col and pd.notna(row.get(date_col)):
                 line.append(pd.Timestamp(row[date_col]).strftime("%Y-%m-%d"))
             if type_col and row.get(type_col):
                 line.append(str(row[type_col]))
+            line.append(f"tag={tag}")
+            line.append(f"bias={bias}")
             if title_col and row.get(title_col):
                 line.append(_safe_truncate(row[title_col], 120))
             if link_col and row.get(link_col):
@@ -641,6 +704,22 @@ def get_company_event_signals(ticker: str, start_date: str, end_date: str) -> st
                 + "\n".join(errors[:5])
             )
         return f"{normalized} 在 {start_date} 到 {end_date} 之间没有可识别的事件信号。"
+
+    sections.insert(
+        2,
+        "## Event summary\n"
+        f"- Positive-biased events: {bias_counter.get('positive', 0)}\n"
+        f"- Negative-biased events: {bias_counter.get('negative', 0)}\n"
+        f"- Mixed events: {bias_counter.get('mixed', 0)}\n"
+        f"- Neutral / other events: {bias_counter.get('neutral', 0)}"
+    )
+    if tag_counter:
+        sections.insert(3, "## Dominant tags")
+        tag_lines = []
+        for tag, count in sorted(tag_counter.items(), key=lambda item: (-item[1], item[0])):
+            examples = "; ".join(event_examples.get(tag, []))
+            tag_lines.append(f"- {tag}: {count}" + (f" | examples: {examples}" if examples else ""))
+        sections[4:4] = tag_lines + [""]
 
     if errors:
         sections.append("## Data retrieval notes")
@@ -665,6 +744,15 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                 working = df.copy().head(5)
                 sections.append("## Individual fund flow")
                 sections.append(working.to_csv(index=False))
+                if "主力净流入-净额" in working.columns:
+                    values = pd.to_numeric(working["主力净流入-净额"], errors="coerce").dropna()
+                    if not values.empty:
+                        pos = int((values > 0).sum())
+                        neg = int((values < 0).sum())
+                        latest = values.iloc[0]
+                        sections.append(
+                            f"Signal: recent main-fund-flow observations positive={pos}, negative={neg}, latest={latest:.2f}"
+                        )
         except Exception as exc:  # noqa: BLE001
             errors.append(f"fund_flow: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
 
@@ -676,6 +764,13 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                 working = df.copy().head(5)
                 sections.append("## Northbound holding activity")
                 sections.append(working.to_csv(index=False))
+                for col in ["持股数量", "HOLD_SHARES", "持股市值", "HOLD_MARKET_CAP"]:
+                    if col in working.columns:
+                        values = pd.to_numeric(working[col], errors="coerce").dropna()
+                        if len(values) >= 2:
+                            delta = values.iloc[0] - values.iloc[1]
+                            sections.append(f"Signal: northbound latest delta on {col} = {delta:.2f}")
+                            break
         except Exception as exc:  # noqa: BLE001
             errors.append(f"northbound: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
 
@@ -704,6 +799,11 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                 if not matched.empty:
                     sections.append("## Margin trading detail")
                     sections.append(matched.head(3).to_csv(index=False))
+                    for col in ["融资余额", "融资买入额", "融券余额", "融券余量"]:
+                        if col in matched.columns:
+                            val = pd.to_numeric(matched[col], errors="coerce").dropna()
+                            if not val.empty:
+                                sections.append(f"Signal: latest {col} = {val.iloc[0]:.2f}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"margin: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
 
@@ -718,4 +818,80 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
     if errors:
         sections.append("## Data retrieval notes")
         sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
+def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
+    """Build a concise A-share decision summary from events and activity signals."""
+    normalized = normalize_ashare_symbol(ticker)
+    event_text = get_company_event_signals(ticker, start_date, end_date)
+    activity_text = get_market_activity(ticker, curr_date)
+
+    def count_token(text: str, token: str) -> int:
+        return text.count(token)
+
+    positive = count_token(event_text, "bias=positive")
+    negative = count_token(event_text, "bias=negative")
+    mixed = count_token(event_text, "bias=mixed")
+
+    catalysts = []
+    risks = []
+    dilution = []
+    flow = []
+
+    if "tag=contract_order" in event_text:
+        catalysts.append("Recent contract / order announcements may support near-term sentiment.")
+    if "tag=buyback" in event_text:
+        catalysts.append("Buyback-related disclosures can signal management confidence.")
+    if "tag=earnings_preview" in event_text:
+        catalysts.append("Earnings-preview disclosures may act as a direct price catalyst.")
+
+    if "tag=risk_warning" in event_text:
+        risks.append("Risk-warning announcements increase downside and sentiment risk.")
+    if "tag=litigation" in event_text:
+        risks.append("Litigation / investigation related notices need extra caution.")
+    if "tag=suspension" in event_text:
+        risks.append("Suspension / resumption related events can impair exit flexibility.")
+    if "tag=lockup" in event_text:
+        risks.append("Lock-up expiry related items can create supply overhang.")
+
+    if "tag=financing" in event_text:
+        dilution.append("Financing-related announcements may imply dilution or capital-raising pressure.")
+    if "tag=shareholder_change" in event_text and "bias=negative" in event_text:
+        dilution.append("Shareholder reduction related events may pressure supply / sentiment.")
+
+    if "Individual fund flow" in activity_text:
+        flow.append("Individual fund-flow data is available and should be checked for persistence, not just one-day spikes.")
+    if "Northbound holding activity" in activity_text:
+        flow.append("Northbound holding changes are available and may help validate institutional appetite.")
+    if "Margin trading detail" in activity_text:
+        flow.append("Margin-trading detail is available; rising leverage can amplify both upside and downside.")
+
+    bias_line = (
+        f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
+    )
+
+    sections = [
+        f"# A-share decision signal summary for {normalized}",
+        "",
+        "## Overall read",
+        bias_line,
+        (
+            "Net event tone looks constructive."
+            if positive > negative
+            else "Net event tone looks cautious."
+            if negative > positive
+            else "Event tone looks mixed / balanced."
+        ),
+        "",
+        "## Catalysts",
+    ]
+    sections.extend(f"- {item}" for item in (catalysts or ["No strong positive event catalyst was detected from the current rule set."]))
+    sections.extend(["", "## Risks"])
+    sections.extend(f"- {item}" for item in (risks or ["No major rule-based risk event was detected, but absence of evidence is not evidence of absence."]))
+    sections.extend(["", "## Dilution / Supply Pressure"])
+    sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
+    sections.extend(["", "## Capital Flow / Activity"])
+    sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text])
     return "\n".join(sections).strip()

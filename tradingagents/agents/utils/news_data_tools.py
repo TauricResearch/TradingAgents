@@ -98,6 +98,21 @@ def get_market_activity(
 
 
 @tool
+def get_decision_signal_summary(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve a consolidated A-share decision summary built from event and
+    market-activity signals.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_decision_signal_summary", ticker, start_date, end_date, curr_date)
+
+
+@tool
 def get_xueqiu_sentiment(
     ticker: Annotated[str, "Ticker symbol"],
 ) -> str:

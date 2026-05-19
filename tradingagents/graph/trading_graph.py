@@ -41,6 +41,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_company_announcements,
     get_company_event_signals,
     get_market_activity,
+    get_decision_signal_summary,
     get_xueqiu_sentiment,
     get_caixin_news,
 )
@@ -190,6 +191,7 @@ class TradingAgentsGraph:
                     get_company_announcements,
                     get_company_event_signals,
                     get_market_activity,
+                    get_decision_signal_summary,
                     get_caixin_news,
                 ]
             ),
@@ -201,6 +203,7 @@ class TradingAgentsGraph:
                     get_cashflow,
                     get_income_statement,
                     get_company_event_signals,
+                    get_decision_signal_summary,
                 ]
             ),
         }

@@ -8,6 +8,7 @@ import pytest
 import tradingagents.default_config as default_config
 from tradingagents.dataflows.a_share import (
     get_balance_sheet,
+    get_decision_signal_summary,
     get_company_event_signals,
     get_fundamentals,
     get_market_activity,
@@ -167,6 +168,11 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("持股变动", result)
         self.assertIn("签署重大合同", result)
         self.assertIn("股东减持计划", result)
+        self.assertIn("Event summary", result)
+        self.assertIn("tag=contract_order", result)
+        self.assertIn("tag=shareholder_change", result)
+        self.assertIn("bias=positive", result)
+        self.assertIn("bias=negative", result)
 
     @patch("tradingagents.dataflows.a_share.get_previous_trade_date")
     @patch("tradingagents.dataflows.a_share.ak.stock_margin_detail_szse", create=True)
@@ -189,3 +195,40 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Individual fund flow", result)
         self.assertIn("Northbound holding activity", result)
         self.assertIn("Margin trading detail", result)
+        self.assertIn("Signal:", result)
+
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_get_decision_signal_summary_combines_event_and_activity_reads(
+        self,
+        mock_events,
+        mock_activity,
+    ):
+        mock_events.return_value = "\n".join(
+            [
+                "# A-share company event signals for 002624.SZ",
+                "bias=positive",
+                "tag=contract_order",
+                "bias=negative",
+                "tag=shareholder_change",
+                "tag=financing",
+            ]
+        )
+        mock_activity.return_value = "\n".join(
+            [
+                "# A-share market activity signals for 002624.SZ",
+                "## Individual fund flow",
+                "Signal: recent main-fund-flow observations positive=3, negative=1, latest=123.00",
+                "## Northbound holding activity",
+                "## Margin trading detail",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("A-share decision signal summary for 002624.SZ", result)
+        self.assertIn("Event balance over the lookback window: positive=1, negative=1, mixed=0.", result)
+        self.assertIn("Recent contract / order announcements may support near-term sentiment.", result)
+        self.assertIn("Shareholder reduction related events may pressure supply / sentiment.", result)
+        self.assertIn("Northbound holding changes are available", result)
+        self.assertIn("Source Digests", result)
