@@ -25,6 +25,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_relative_strength_context,
     get_corporate_action_pressure_context,
     get_unusual_trading_activity,
+    get_capital_flow_regime_context,
     get_decision_signal_summary,
     get_xueqiu_sentiment,
     get_caixin_news,

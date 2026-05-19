@@ -1406,6 +1406,117 @@ def get_unusual_trading_activity(ticker: str, start_date: str, end_date: str) ->
     return "\n".join(sections).strip()
 
 
+def get_capital_flow_regime_context(ticker: str, curr_date: str, window: int = 10) -> str:
+    """Summarise medium-horizon capital-flow regime for an A-share ticker."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    exchange = get_ashare_exchange(ticker)
+    market_code = exchange.lower()
+    sections = [f"# A-share capital flow regime context for {normalized}", ""]
+    errors = []
+
+    fund_flow_fetcher = getattr(ak, "stock_individual_fund_flow", None)
+    if fund_flow_fetcher is not None:
+        try:
+            df = _call_akshare_api(fund_flow_fetcher, stock=plain, market=market_code)
+            if not df.empty:
+                working = df.copy().head(window)
+                col = _find_first_numeric_column(working, ["主力净流入-净额", "主力净流入净额"])
+                if col:
+                    values = pd.to_numeric(working[col], errors="coerce").dropna()
+                    if not values.empty:
+                        pos = int((values > 0).sum())
+                        neg = int((values < 0).sum())
+                        sections.append("## Main fund-flow regime")
+                        sections.append(f"- Positive sessions in sample: {pos}")
+                        sections.append(f"- Negative sessions in sample: {neg}")
+                        sections.append(f"- Sample mean: {values.mean():.2f}")
+                        sections.append(f"- Sample sum: {values.sum():.2f}")
+                        if pos - neg >= max(2, window // 4):
+                            sections.append("- Signal: medium-horizon main-fund-flow regime looks supportive.")
+                        elif neg - pos >= max(2, window // 4):
+                            sections.append("- Signal: medium-horizon main-fund-flow regime looks weak.")
+                        else:
+                            sections.append("- Signal: medium-horizon main-fund-flow regime looks mixed.")
+                        sections.append("")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"fund_flow_regime: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    northbound_fetcher = getattr(ak, "stock_hsgt_individual_em", None)
+    if northbound_fetcher is not None:
+        try:
+            df = _call_akshare_api(northbound_fetcher, symbol=plain)
+            if not df.empty:
+                working = df.copy().head(window)
+                col = _find_first_numeric_column(working, ["持股数量", "HOLD_SHARES", "持股市值", "HOLD_MARKET_CAP"])
+                if col:
+                    values = pd.to_numeric(working[col], errors="coerce").dropna()
+                    if len(values) >= 2:
+                        delta = float(values.iloc[0] - values.iloc[-1])
+                        sections.append("## Northbound regime")
+                        sections.append(f"- Window change on {col}: {delta:.2f}")
+                        sections.append(f"- Latest value: {values.iloc[0]:.2f}")
+                        if delta > 0:
+                            sections.append("- Signal: northbound positioning has been building over the sampled window.")
+                        elif delta < 0:
+                            sections.append("- Signal: northbound positioning has been fading over the sampled window.")
+                        else:
+                            sections.append("- Signal: northbound positioning is broadly flat over the sampled window.")
+                        sections.append("")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"northbound_regime: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    trade_date = get_previous_trade_date(curr_date)
+    trade_date_compact = trade_date.replace("-", "")
+    if exchange == "SZ":
+        margin_fetcher = getattr(ak, "stock_margin_detail_szse", None)
+        margin_kwargs = {"date": trade_date_compact}
+    elif exchange == "SH":
+        margin_fetcher = getattr(ak, "stock_margin_detail_sse", None)
+        margin_kwargs = {"date": trade_date_compact}
+    else:
+        margin_fetcher = None
+        margin_kwargs = {}
+
+    if margin_fetcher is not None:
+        try:
+            df = _call_akshare_api(margin_fetcher, **margin_kwargs)
+            if not df.empty:
+                code_columns = [c for c in df.columns if "代码" in str(c) or "证券代码" in str(c)]
+                matched = pd.DataFrame()
+                for column in code_columns:
+                    matched = df[df[column].astype(str).str.contains(plain, na=False)]
+                    if not matched.empty:
+                        break
+                if not matched.empty:
+                    financing_col = _find_first_numeric_column(matched, ["融资余额", "融资买入额"])
+                    short_col = _find_first_numeric_column(matched, ["融券余额", "融券余量"])
+                    sections.append("## Margin regime")
+                    if financing_col:
+                        val = pd.to_numeric(matched[financing_col], errors="coerce").dropna()
+                        if not val.empty:
+                            sections.append(f"- Latest {financing_col}: {val.iloc[0]:.2f}")
+                            sections.append("- Signal: margin-financing should be read alongside price trend to judge leverage appetite.")
+                    if short_col:
+                        val = pd.to_numeric(matched[short_col], errors="coerce").dropna()
+                        if not val.empty:
+                            sections.append(f"- Latest {short_col}: {val.iloc[0]:.2f}")
+                            sections.append("- Signal: short-side balance helps judge whether skepticism is materially elevated.")
+                    sections.append("")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"margin_regime: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    if len(sections) == 2:
+        if errors:
+            return f"未能稳定获取 {normalized} 的资金面周期信息。\n\n" + "\n".join(errors[:5])
+        return f"未获取到 {normalized} 的资金面周期信息。"
+
+    if errors:
+        sections.append("## Data retrieval notes")
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1416,6 +1527,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     relative_text = get_relative_strength_context(ticker, curr_date)
     action_pressure_text = get_corporate_action_pressure_context(ticker, start_date, end_date)
     unusual_text = get_unusual_trading_activity(ticker, start_date, end_date)
+    regime_text = get_capital_flow_regime_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -1488,6 +1600,14 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("龙虎榜 / unusual-trading records are available and may explain part of the move as short-horizon flow rather than medium-term fundamentals.")
     if "Seat detail snapshot" in unusual_text:
         flow.append("席位明细 is available, which helps judge whether the move reflects concentrated trading participation.")
+    if "main-fund-flow regime looks supportive" in regime_text:
+        flow.append("Medium-horizon main-fund-flow regime looks supportive rather than merely one-day positive.")
+    if "main-fund-flow regime looks weak" in regime_text:
+        flow.append("Medium-horizon main-fund-flow regime looks weak, which reduces confidence in a short-term bounce.")
+    if "northbound positioning has been building" in regime_text:
+        flow.append("Northbound positioning has been building over the sampled window, which supports persistence.")
+    if "northbound positioning has been fading" in regime_text:
+        flow.append("Northbound positioning has been fading over the sampled window, which weakens persistence.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -1515,5 +1635,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text])
     return "\n".join(sections).strip()
