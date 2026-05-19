@@ -56,6 +56,55 @@ _BJ_PREFIXES = (
 _SUFFIX_RE = re.compile(r"^(\d{6})\.(SH|SZ|BJ)$", re.IGNORECASE)
 _PREFIX_RE = re.compile(r"^(SH|SZ|BJ)(\d{6})$", re.IGNORECASE)
 _BARE_RE = re.compile(r"^\d{6}$")
+_DIGITS_RE = re.compile(r"\d{6}")
+
+# Common Chinese stock name → ticker code mapping (extensible)
+_NAME_TO_CODE: dict[str, str] = {
+    # 蓝筹 / 大盘股
+    "贵州茅台": "600519", "茅台": "600519",
+    "中国平安": "601318", "平安": "601318",
+    "招商银行": "600036", "招行": "600036",
+    "宁德时代": "300750",
+    "比亚迪": "002594",
+    "华友钴业": "603799", "华友": "603799",
+    "隆基绿能": "601012", "隆基": "601012",
+    "五粮液": "000858",
+    "海天味业": "603288", "海天": "603288",
+    "恒瑞医药": "600276", "恒瑞": "600276",
+    "迈瑞医疗": "300760", "迈瑞": "300760",
+    "药明康德": "603259", "药明": "603259",
+    "中国中免": "601888", "中免": "601888",
+    "长江电力": "600900",
+    "工商银行": "601398", "工行": "601398",
+    "建设银行": "601939", "建行": "601939",
+    "农业银行": "601288", "农行": "601288",
+    "中国银行": "601988",
+    "贵州茅台": "600519",
+    "三一重工": "600031", "三一": "600031",
+    "中芯国际": "688981", "中芯": "688981",
+    "京东方": "000725", "京东方A": "000725",
+    "紫金矿业": "601899", "紫金": "601899",
+    "中国神华": "601088", "神华": "601088",
+    "宝钢股份": "600019", "宝钢": "600019",
+    "万科": "000002", "万科A": "000002",
+    "格力电器": "000651", "格力": "000651",
+    "美的集团": "000333", "美的": "000333",
+    "海尔智家": "600690", "海尔": "600690",
+    "顺丰控股": "002352", "顺丰": "002352",
+    "中信证券": "600030", "中信": "600030",
+    "东方财富": "300059",
+    "阳光电源": "300274",
+    "通威股份": "600438", "通威": "600438",
+    "天齐锂业": "002466", "天齐": "002466",
+    "赣锋锂业": "002460", "赣锋": "002460",
+    "盐湖股份": "000792", "盐湖": "000792",
+    "北方稀土": "600111",
+    "中国稀土": "000831",
+    "长城汽车": "601633",
+    "赛力斯": "601127",
+    "小米集团": "01810",  # 港股，仅供参考
+    "腾讯控股": "00700",  # 港股，仅供参考
+}
 
 
 def infer_exchange(code: str) -> str:
@@ -77,12 +126,14 @@ def infer_exchange(code: str) -> str:
 def normalize_ashare_symbol(symbol: str) -> str:
     """Normalize user input to ``600519.SH`` / ``000001.SZ`` / ``430047.BJ``.
 
-    Accepts any of: ``600519``, ``SH600519``, ``600519.SH``, ``sh600519``.
+    Accepts any of: ``600519``, ``SH600519``, ``600519.SH``, ``sh600519``,
+    or a Chinese stock name like ``华友钴业``, ``茅台``, ``宁德时代``.
     """
     s = symbol.strip().upper().replace(" ", "")
     if not s:
         raise ValueError("Ticker symbol cannot be empty.")
 
+    # 1. Try standard formats first
     m = _SUFFIX_RE.fullmatch(s)
     if m:
         return f"{m.group(1)}.{m.group(2)}"
@@ -94,9 +145,26 @@ def normalize_ashare_symbol(symbol: str) -> str:
     if _BARE_RE.fullmatch(s):
         return f"{s}.{infer_exchange(s)}"
 
+    # 2. Try Chinese name lookup (case-insensitive for original input)
+    s_orig = symbol.strip()
+    if s_orig in _NAME_TO_CODE:
+        code = _NAME_TO_CODE[s_orig]
+        return f"{code}.{infer_exchange(code)}"
+    # Also try the uppercased version for edge cases
+    if s in _NAME_TO_CODE:
+        code = _NAME_TO_CODE[s]
+        return f"{code}.{infer_exchange(code)}"
+
+    # 3. Try to extract a 6-digit code from mixed input (e.g., "603799.SH" or "股票603799")
+    m = _DIGITS_RE.search(symbol)
+    if m:
+        code = m.group()
+        return f"{code}.{infer_exchange(code)}"
+
     raise ValueError(
         f"Unsupported A-share symbol format: '{symbol}'. "
-        "Use a 6-digit code such as 600519, SH600519, or 600519.SH."
+        "Use a 6-digit code such as 600519, SH600519, 600519.SH, "
+        "or a Chinese stock name like '华友钴业', '茅台'."
     )
 
 
