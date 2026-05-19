@@ -9,6 +9,8 @@ from langchain_core.messages import AIMessage
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    build_market_rule_context,
+    build_a_share_research_focus,
     get_language_instruction,
 )
 from tradingagents.agents.utils.structured import (
@@ -24,6 +26,8 @@ def create_trader(llm):
         company_name = state["company_of_interest"]
         asset_type = state.get("asset_type", "stock")
         instrument_context = build_instrument_context(company_name, asset_type)
+        market_rule_context = build_market_rule_context(company_name, asset_type)
+        research_focus = build_a_share_research_focus(company_name, asset_type)
         investment_plan = state["investment_plan"]
 
         messages = [
@@ -32,7 +36,9 @@ def create_trader(llm):
                 "content": (
                     "You are a trading agent analyzing market data to make investment decisions. "
                     "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
+                    "Anchor your reasoning in the analysts' reports and the research plan. "
+                    "Respect market microstructure and execution constraints for the target instrument. "
+                    f"{market_rule_context} {research_focus}"
                     + get_language_instruction()
                 ),
             },
@@ -44,6 +50,7 @@ def create_trader(llm):
                     f"insights from current technical market trends, macroeconomic indicators, and "
                     f"social media sentiment. Use this plan as a foundation for evaluating your next "
                     f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
+                    f"Execution / market-structure context: {market_rule_context or 'Use normal market assumptions.'}\n\n"
                     f"Leverage these insights to make an informed and strategic decision."
                 ),
             },

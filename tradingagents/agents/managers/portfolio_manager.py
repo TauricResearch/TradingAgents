@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.utils.agent_utils import (
+    build_market_rule_context,
     build_instrument_context,
     get_language_instruction,
 )
@@ -25,7 +26,10 @@ def create_portfolio_manager(llm):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        company_name = state["company_of_interest"]
+        asset_type = state.get("asset_type", "stock")
+        instrument_context = build_instrument_context(company_name, asset_type)
+        market_rule_context = build_market_rule_context(company_name, asset_type)
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -55,6 +59,7 @@ def create_portfolio_manager(llm):
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
+- Market structure / execution constraints: **{market_rule_context or 'Normal market assumptions.'}**
 {lessons_line}
 **Risk Analysts Debate History:**
 {history}

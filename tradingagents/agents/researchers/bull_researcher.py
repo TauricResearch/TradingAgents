@@ -1,4 +1,8 @@
-from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_a_share_research_focus,
+    build_market_rule_context,
+    get_language_instruction,
+)
 
 
 def create_bull_researcher(llm):
@@ -14,6 +18,9 @@ def create_bull_researcher(llm):
         fundamentals_report = state["fundamentals_report"]
         asset_type = state.get("asset_type", "stock")
         target_label = "stock" if asset_type == "stock" else "asset"
+        company_name = state["company_of_interest"]
+        market_rule_context = build_market_rule_context(company_name, asset_type)
+        research_focus = build_a_share_research_focus(company_name, asset_type)
         fundamentals_label = (
             "Company fundamentals report"
             if asset_type == "stock"
@@ -34,6 +41,8 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
+Market structure / rule context: {market_rule_context or 'No special market-rule override.'}
+Special research focus: {research_focus or 'None'}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.

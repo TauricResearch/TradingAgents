@@ -39,6 +39,39 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def is_a_share_ticker(ticker: str) -> bool:
+    """Return True when ``ticker`` looks like an exchange-qualified A-share."""
+    ticker_upper = ticker.strip().upper()
+    return ticker_upper.endswith((".SH", ".SZ", ".BJ"))
+
+
+def build_market_rule_context(ticker: str, asset_type: str = "stock") -> str:
+    """Inject market-structure constraints that materially affect decisions."""
+    if asset_type != "stock" or not is_a_share_ticker(ticker):
+        return ""
+
+    return (
+        "A-share market constraints and context: "
+        "China A-shares are effectively T+1 for selling after a buy, have daily price limits for most names "
+        "(commonly 10%, 20% on ChiNext/STAR after registration-based reform, and different limits for ST/*ST names), "
+        "may be suspended, and often react strongly to policy, exchange announcements, lock-up expiries, shareholder "
+        "reductions/increases, and sector rotation. Do not assume easy intraday exit, unrestricted shorting, or US-style "
+        "liquidity. Treat official announcements, trading halts, risk-warning labels, and price-limit behavior as first-class risks."
+    )
+
+
+def build_a_share_research_focus(ticker: str, asset_type: str = "stock") -> str:
+    """Return a concise checklist of A-share-specific research priorities."""
+    if asset_type != "stock" or not is_a_share_ticker(ticker):
+        return ""
+
+    return (
+        "When reasoning about this A-share, pay special attention to: policy direction, sector/theme rotation, "
+        "earnings pre-announcements, official company announcements, trading suspensions, ST risk, lock-up expiry, "
+        "shareholder reductions/increases, and whether recent moves could be explained by short-term sentiment rather than fundamentals."
+    )
+
+
 def build_instrument_context(ticker: str, asset_type: str = "stock") -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
     instrument_label = "asset" if asset_type == "crypto" else "instrument"

@@ -4,7 +4,11 @@ import pytest
 
 from cli.models import AssetType
 from cli.utils import detect_market_region, normalize_ticker_symbol
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import (
+    build_a_share_research_focus,
+    build_instrument_context,
+    build_market_rule_context,
+)
 
 
 @pytest.mark.unit
@@ -25,6 +29,11 @@ class TickerSymbolHandlingTests(unittest.TestCase):
         self.assertEqual(detect_market_region("600519"), "cn_a")
         self.assertEqual(detect_market_region("000001.SZ", AssetType.STOCK), "cn_a")
         self.assertEqual(detect_market_region("SPY"), "us")
+
+    def test_a_share_rule_helpers_activate_for_a_share(self):
+        self.assertIn("T+1", build_market_rule_context("600519.SH"))
+        self.assertIn("policy direction", build_a_share_research_focus("000001.SZ"))
+        self.assertEqual(build_market_rule_context("AAPL"), "")
 
 
 if __name__ == "__main__":
