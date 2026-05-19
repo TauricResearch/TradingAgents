@@ -89,9 +89,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "geopolitical risk trade war sanctions",
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
+        "China economy PBOC stimulus policy",
+        "A-share Shanghai Shenzhen stock market",
     ],
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
+    # Available vendors: "yfinance", "alpha_vantage", "akshare"
+    # For China A-share market, set all to "akshare":
+    #   "core_stock_apis": "akshare",
+    #   "technical_indicators": "akshare",
+    #   "fundamental_data": "akshare",
+    #   "news_data": "akshare",
     "data_vendors": {
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
@@ -117,6 +125,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".L":   "^FTSE",    # London (FTSE 100)
         ".TO":  "^GSPTSE",  # Toronto (TSX Composite)
         ".AX":  "^AXJO",    # Australia (ASX 200)
+        ".SH":  "000001.SH", # Shanghai Composite (SSE)
+        ".SZ":  "399001.SZ", # Shenzhen Component (SZSE)
+        ".BJ":  "899050.BJ", # Beijing Exchange Index
         "":     "SPY",      # default for US-listed tickers (no suffix)
     },
 })

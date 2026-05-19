@@ -31,6 +31,9 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+[project.optional-dependencies]
+# China A-share market support via akshare
+akshare = ["akshare>=1.14.0"]
 
 [project.scripts]
 tradingagents = "cli.main:app"
