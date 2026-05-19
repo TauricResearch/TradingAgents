@@ -110,6 +110,19 @@ def get_sector_rotation_context(
 
 
 @tool
+def get_sector_strength_snapshot(
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    limit: Annotated[int, "Number of leading / lagging boards to summarize"] = 5,
+) -> str:
+    """
+    Retrieve a ranked snapshot of leading and lagging A-share industry and
+    concept boards.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_sector_strength_snapshot", curr_date, limit)
+
+
+@tool
 def get_decision_signal_summary(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],

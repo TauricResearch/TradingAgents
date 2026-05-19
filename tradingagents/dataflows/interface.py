@@ -27,6 +27,7 @@ from .a_share import (
     get_market_activity as get_akshare_market_activity,
     get_decision_signal_summary as get_akshare_decision_signal_summary,
     get_sector_rotation_context as get_akshare_sector_rotation_context,
+    get_sector_strength_snapshot as get_akshare_sector_strength_snapshot,
 )
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
@@ -77,6 +78,7 @@ TOOLS_CATEGORIES = {
             "get_company_event_signals",
             "get_market_activity",
             "get_sector_rotation_context",
+            "get_sector_strength_snapshot",
             "get_decision_signal_summary",
             "get_xueqiu_sentiment",
             "get_caixin_news",
@@ -151,6 +153,9 @@ VENDOR_METHODS = {
     },
     "get_sector_rotation_context": {
         "akshare": get_akshare_sector_rotation_context,
+    },
+    "get_sector_strength_snapshot": {
+        "akshare": get_akshare_sector_strength_snapshot,
     },
     "get_decision_signal_summary": {
         "akshare": get_akshare_decision_signal_summary,

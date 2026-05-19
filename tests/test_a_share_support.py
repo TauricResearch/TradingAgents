@@ -13,6 +13,7 @@ from tradingagents.dataflows.a_share import (
     get_fundamentals,
     get_market_activity,
     get_sector_rotation_context,
+    get_sector_strength_snapshot,
     get_stock_data,
 )
 from tradingagents.dataflows.config import set_config
@@ -237,18 +238,51 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Industry tags", result)
         self.assertIn("消费电子", result)
         self.assertIn("Concept / theme tags", result)
-        self.assertIn("华为概念;AI手机", result)
+        self.assertIn("华为概念", result)
+        self.assertIn("AI手机", result)
         self.assertIn("Industry board sample", result)
         self.assertIn("Concept board sample", result)
         self.assertIn("Rotation takeaways", result)
 
+    @patch("tradingagents.dataflows.a_share.ak.stock_board_concept_name_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_board_industry_name_em", create=True)
+    def test_get_sector_strength_snapshot_ranks_leaders_and_laggards(
+        self,
+        mock_industry_name,
+        mock_concept_name,
+    ):
+        mock_industry_name.return_value = pd.DataFrame(
+            {
+                "板块名称": ["消费电子", "银行", "有色金属"],
+                "涨跌幅": [3.2, -1.1, 1.4],
+            }
+        )
+        mock_concept_name.return_value = pd.DataFrame(
+            {
+                "板块名称": ["AI手机", "华为概念", "中特估"],
+                "涨跌幅": [4.5, 2.2, -0.8],
+            }
+        )
+
+        result = get_sector_strength_snapshot("2024-04-11", 2)
+
+        self.assertIn("Industry board strength", result)
+        self.assertIn("Concept board strength", result)
+        self.assertIn("Top leaders by 涨跌幅", result)
+        self.assertIn("Laggards by 涨跌幅", result)
+        self.assertIn("消费电子", result)
+        self.assertIn("AI手机", result)
+
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_market_activity")
     @patch("tradingagents.dataflows.a_share.get_company_event_signals")
     def test_get_decision_signal_summary_combines_event_and_activity_reads(
         self,
         mock_events,
         mock_activity,
+        mock_strength,
     ):
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
         mock_events.return_value = "\n".join(
             [
                 "# A-share company event signals for 002624.SZ",
@@ -278,6 +312,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Northbound holding changes are available", result)
         self.assertIn("Source Digests", result)
 
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
     @patch("tradingagents.dataflows.a_share.get_market_activity")
     @patch("tradingagents.dataflows.a_share.get_company_event_signals")
@@ -286,7 +321,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_events,
         mock_activity,
         mock_sector,
+        mock_strength,
     ):
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
         mock_sector.return_value = "\n".join(
@@ -303,13 +340,41 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Sector / concept rotation context is available", result)
         self.assertIn("Board snapshot performance is available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_sector_strength_snapshot(
+        self,
+        mock_events,
+        mock_activity,
+        mock_sector,
+        mock_strength,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
+        mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
+        mock_strength.return_value = "\n".join(
+            [
+                "# A-share sector strength snapshot for 2024-04-11",
+                "Signal: leading boards currently include AI手机, 消费电子, 华为概念.",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("Broader board-strength rankings are available", result)
+
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_market_activity")
     @patch("tradingagents.dataflows.a_share.get_company_event_signals")
     def test_decision_signal_summary_absorbs_flow_trend_clues(
         self,
         mock_events,
         mock_activity,
+        mock_strength,
     ):
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "\n".join(
             [

@@ -42,6 +42,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_company_event_signals,
     get_market_activity,
     get_sector_rotation_context,
+    get_sector_strength_snapshot,
     get_decision_signal_summary,
     get_xueqiu_sentiment,
     get_caixin_news,
@@ -174,6 +175,7 @@ class TradingAgentsGraph:
                     get_indicators,
                     get_market_activity,
                     get_sector_rotation_context,
+                    get_sector_strength_snapshot,
                 ]
             ),
             "social": ToolNode(
@@ -194,6 +196,7 @@ class TradingAgentsGraph:
                     get_company_event_signals,
                     get_market_activity,
                     get_sector_rotation_context,
+                    get_sector_strength_snapshot,
                     get_decision_signal_summary,
                     get_caixin_news,
                 ]

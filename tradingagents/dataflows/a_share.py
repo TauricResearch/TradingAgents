@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import logging
 import math
+import re
 import time
 from types import SimpleNamespace
 
@@ -208,6 +209,18 @@ def _extract_text_values(df: pd.DataFrame, candidates: list[str], limit: int = 1
             if len(values) >= limit:
                 return values
     return values
+
+
+def _expand_delimited_values(values: list[str], limit: int = 10) -> list[str]:
+    expanded: list[str] = []
+    for value in values:
+        for item in re.split(r"[;,，、/|]", value):
+            clean = item.strip()
+            if clean and clean not in expanded:
+                expanded.append(clean)
+            if len(expanded) >= limit:
+                return expanded
+    return expanded
 
 
 def _round_numeric_frame(df: pd.DataFrame) -> pd.DataFrame:
@@ -932,9 +945,12 @@ def get_sector_rotation_context(ticker: str, curr_date: str) -> str:
                         limit=5,
                     )
                 if not concept_names:
-                    concept_names = _extract_text_values(
-                        profile_df,
-                        ["所属概念", "概念", "概念题材", "涉及概念"],
+                    concept_names = _expand_delimited_values(
+                        _extract_text_values(
+                            profile_df,
+                            ["所属概念", "概念", "概念题材", "涉及概念"],
+                            limit=10,
+                        ),
                         limit=10,
                     )
             if industry_names or concept_names:
@@ -1028,12 +1044,86 @@ def get_sector_rotation_context(ticker: str, curr_date: str) -> str:
     return "\n".join(sections).strip()
 
 
+def get_sector_strength_snapshot(curr_date: str, limit: int = 5) -> str:
+    """Return a ranked snapshot of leading / lagging A-share industry and concept boards."""
+    sections = [f"# A-share sector strength snapshot for {curr_date}", ""]
+    errors = []
+
+    def append_board_rankings(
+        title: str,
+        fetcher_name: str,
+        name_candidates: list[str],
+        change_candidates: list[str],
+    ) -> None:
+        fetcher = getattr(ak, fetcher_name, None)
+        if fetcher is None:
+            return
+        try:
+            df = _call_akshare_api(fetcher)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{fetcher_name}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+            return
+        if df.empty:
+            return
+
+        working = df.copy()
+        name_col = next((col for col in name_candidates if col in working.columns), None)
+        change_col = _find_first_numeric_column(working, change_candidates)
+        if name_col is None or change_col is None:
+            return
+
+        working[change_col] = pd.to_numeric(working[change_col], errors="coerce")
+        working = working.dropna(subset=[change_col])
+        if working.empty:
+            return
+
+        leaders = working.sort_values(change_col, ascending=False).head(limit)
+        laggards = working.sort_values(change_col, ascending=True).head(limit)
+
+        sections.append(f"## {title}")
+        sections.append(f"Top leaders by {change_col}:")
+        for _, row in leaders.iterrows():
+            sections.append(f"- {row[name_col]}: {float(row[change_col]):.2f}")
+        sections.append(f"Laggards by {change_col}:")
+        for _, row in laggards.iterrows():
+            sections.append(f"- {row[name_col]}: {float(row[change_col]):.2f}")
+        leader_names = ", ".join(str(row[name_col]) for _, row in leaders.head(3).iterrows())
+        laggard_names = ", ".join(str(row[name_col]) for _, row in laggards.head(3).iterrows())
+        sections.append(f"Signal: leading boards currently include {leader_names}.")
+        sections.append(f"Signal: weakest boards currently include {laggard_names}.")
+        sections.append("")
+
+    append_board_rankings(
+        "Industry board strength",
+        "stock_board_industry_name_em",
+        ["板块名称", "名称"],
+        ["涨跌幅", "涨跌额"],
+    )
+    append_board_rankings(
+        "Concept board strength",
+        "stock_board_concept_name_em",
+        ["板块名称", "名称"],
+        ["涨跌幅", "涨跌额"],
+    )
+
+    if len(sections) == 2:
+        if errors:
+            return "未能稳定获取 A 股板块强弱快照。\n\n" + "\n".join(errors[:5])
+        return "未获取到可用的 A 股板块强弱快照。"
+
+    if errors:
+        sections.append("## Data retrieval notes")
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
     event_text = get_company_event_signals(ticker, start_date, end_date)
     activity_text = get_market_activity(ticker, curr_date)
     sector_text = get_sector_rotation_context(ticker, curr_date)
+    strength_text = get_sector_strength_snapshot(curr_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -1090,6 +1180,8 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Sector / concept rotation context is available and should be used to separate stock-specific moves from board-wide moves.")
     if "board snapshot mean 涨跌幅" in sector_text:
         flow.append("Board snapshot performance is available, which helps judge whether relative strength is stock-specific or sector-driven.")
+    if "leading boards currently include" in strength_text:
+        flow.append("Broader board-strength rankings are available, which helps place the ticker inside the current rotation leaderboard.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -1117,5 +1209,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text])
     return "\n".join(sections).strip()
