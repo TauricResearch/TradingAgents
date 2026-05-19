@@ -51,12 +51,20 @@ def get_news(
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
-    # akshare news columns: 关键词, 新闻标题, 新闻内容, 发布时间, 文章来源, 新闻链接
-    if "发布时间" in df.columns:
-        df["发布时间"] = pd.to_datetime(df["发布时间"], errors="coerce")
-        df = df[df["发布时间"].notna()]
-        df = df[(df["发布时间"] >= start_dt) & (df["发布时间"] <= end_dt + timedelta(days=1))]
-        df = df.sort_values("发布时间", ascending=False)
+    # akshare news column mapping (Chinese → English):
+    #   "发布时间" → pub_time,  "新闻标题" → title,
+    #   "新闻内容" → content,   "文章来源" → source,  "新闻链接" → url
+    PUB_TIME = "发布时间"
+    TITLE = "新闻标题"
+    SOURCE = "文章来源"
+    CONTENT = "新闻内容"
+    URL = "新闻链接"
+
+    if PUB_TIME in df.columns:
+        df[PUB_TIME] = pd.to_datetime(df[PUB_TIME], errors="coerce")
+        df = df[df[PUB_TIME].notna()]
+        df = df[(df[PUB_TIME] >= start_dt) & (df[PUB_TIME] <= end_dt + timedelta(days=1))]
+        df = df.sort_values(PUB_TIME, ascending=False)
 
     config = get_config()
     limit = config.get("news_article_limit", 20)
@@ -67,11 +75,11 @@ def get_news(
 
     news_str = ""
     for _, row in df.iterrows():
-        title = str(row.get("新闻标题", "")).strip()
-        source = str(row.get("文章来源", "")).strip()
-        content = str(row.get("新闻内容", "")).strip()
-        link = str(row.get("新闻链接", "")).strip()
-        pub_time = row.get("发布时间")
+        title = str(row.get(TITLE, "")).strip()
+        source = str(row.get(SOURCE, "")).strip()
+        content = str(row.get(CONTENT, "")).strip()
+        link = str(row.get(URL, "")).strip()
+        pub_time = row.get(PUB_TIME)
         pub_str = pub_time.strftime("%Y-%m-%d %H:%M") if pd.notna(pub_time) else ""
 
         if title:
@@ -134,7 +142,7 @@ def get_global_news(
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     start_dt = curr_dt - timedelta(days=look_back_days)
 
-    # Try to find a date column
+    # Try to find a date column (Chinese or English)
     date_col = None
     for candidate in ["发布时间", "date", "pub_date", "datetime"]:
         if candidate in df.columns:

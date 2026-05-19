@@ -176,12 +176,20 @@ def _download_ohlcv_akshare(
             max_retries=2,
         )
         if df is not None and not df.empty:
+            # Chinese column names are from the akshare API response — keys must stay as-is.
             col_map = {
-                "日期": "Date", "开盘": "Open", "最高": "High",
-                "最低": "Low", "收盘": "Close", "成交量": "Volume",
-                "成交额": "Amount", "振幅": "AmplitudePct",
-                "涨跌幅": "PctChange", "涨跌额": "PriceChange",
-                "换手率": "TurnoverPct", "股票代码": "Symbol",
+                "日期": "Date",          # Date
+                "开盘": "Open",          # Open price
+                "最高": "High",          # High price
+                "最低": "Low",           # Low price
+                "收盘": "Close",         # Close price
+                "成交量": "Volume",      # Trading volume
+                "成交额": "Amount",      # Trading amount (CNY)
+                "振幅": "AmplitudePct",  # Amplitude percentage
+                "涨跌幅": "PctChange",   # Price change percentage
+                "涨跌额": "PriceChange", # Price change absolute
+                "换手率": "TurnoverPct", # Turnover rate percentage
+                "股票代码": "Symbol",    # Stock symbol
             }
             df = df.rename(columns=col_map)
             df["Date"] = pd.to_datetime(df["Date"])

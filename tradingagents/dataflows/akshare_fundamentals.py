@@ -36,17 +36,17 @@ def get_fundamentals(
     try:
         ensure_ipv4()
 
-        # Company profile (巨潮 info优先, 东财 fallback)
+        # Company profile (CNINFO preferred, East Money fallback)
         try:
             profile = _ak_retry(ak.stock_profile_cninfo, symbol=code)
         except Exception:
             profile = _ak_retry(ak.stock_individual_info_em, symbol=code)
 
-        # Key financial indicators (东财)
+        # Key financial indicators (East Money)
         indicator_df = _ak_retry(
             ak.stock_financial_abstract_ths,
             symbol=code,
-            indicator="按报告期",
+            indicator="按报告期"  # "by reporting period",
         )
     except Exception as exc:
         return (
@@ -69,8 +69,15 @@ def get_fundamentals(
                     profile_dict[key] = val
 
         interesting_keys = [
-            "公司名称", "公司简称", "英文名称", "所属行业", "行业",
-            "上市日期", "总股本", "流通股", "注册资本",
+            "公司名称",   # Company name
+            "公司简称",   # Company short name
+            "英文名称",   # English name
+            "所属行业",   # Industry
+            "行业",       # Sector
+            "上市日期",   # Listing date
+            "总股本",     # Total shares
+            "流通股",     # Float shares
+            "注册资本",   # Registered capital,
             "Name", "Sector", "Industry", "Market Cap",
         ]
         for key in interesting_keys:
