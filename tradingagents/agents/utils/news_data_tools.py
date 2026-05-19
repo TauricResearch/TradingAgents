@@ -137,6 +137,19 @@ def get_relative_strength_context(
 
 
 @tool
+def get_trading_constraint_context(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share board-rule and special-treatment trading constraints for
+    a ticker.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_trading_constraint_context", ticker, curr_date)
+
+
+@tool
 def get_peer_comparison_context(
     ticker: Annotated[str, "Ticker symbol"],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],

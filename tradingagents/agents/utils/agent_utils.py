@@ -23,6 +23,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_sector_rotation_context,
     get_sector_strength_snapshot,
     get_relative_strength_context,
+    get_trading_constraint_context,
     get_peer_comparison_context,
     get_corporate_action_pressure_context,
     get_unusual_trading_activity,

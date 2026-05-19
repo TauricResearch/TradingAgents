@@ -29,6 +29,7 @@ from .a_share import (
     get_sector_rotation_context as get_akshare_sector_rotation_context,
     get_sector_strength_snapshot as get_akshare_sector_strength_snapshot,
     get_relative_strength_context as get_akshare_relative_strength_context,
+    get_trading_constraint_context as get_akshare_trading_constraint_context,
     get_peer_comparison_context as get_akshare_peer_comparison_context,
     get_corporate_action_pressure_context as get_akshare_corporate_action_pressure_context,
     get_unusual_trading_activity as get_akshare_unusual_trading_activity,
@@ -85,6 +86,7 @@ TOOLS_CATEGORIES = {
             "get_sector_rotation_context",
             "get_sector_strength_snapshot",
             "get_relative_strength_context",
+            "get_trading_constraint_context",
             "get_peer_comparison_context",
             "get_corporate_action_pressure_context",
             "get_unusual_trading_activity",
@@ -169,6 +171,9 @@ VENDOR_METHODS = {
     },
     "get_relative_strength_context": {
         "akshare": get_akshare_relative_strength_context,
+    },
+    "get_trading_constraint_context": {
+        "akshare": get_akshare_trading_constraint_context,
     },
     "get_peer_comparison_context": {
         "akshare": get_akshare_peer_comparison_context,

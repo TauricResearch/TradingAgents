@@ -225,6 +225,34 @@ def _expand_delimited_values(values: list[str], limit: int = 10) -> list[str]:
     return expanded
 
 
+def _infer_a_share_board_profile(ticker: str) -> tuple[str, str, str]:
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(normalized)
+    if normalized.endswith(".BJ"):
+        return (
+            "Beijing Stock Exchange",
+            "30%",
+            "Beijing-board names can be materially more volatile and less liquid than the main boards.",
+        )
+    if plain.startswith(("688", "689")):
+        return (
+            "STAR Market (科创板)",
+            "20%",
+            "STAR names follow a wider daily limit regime and can move more sharply around theme and policy catalysts.",
+        )
+    if plain.startswith(("300", "301")):
+        return (
+            "ChiNext (创业板)",
+            "20%",
+            "ChiNext names follow a wider daily limit regime and often carry higher momentum as well as sharper drawdown risk.",
+        )
+    return (
+        "Main Board",
+        "10%",
+        "Main-board names usually follow the standard A-share daily limit regime unless special treatment applies.",
+    )
+
+
 def _round_numeric_frame(df: pd.DataFrame) -> pd.DataFrame:
     rounded = df.copy()
     for column in rounded.columns:
@@ -1517,6 +1545,60 @@ def get_capital_flow_regime_context(ticker: str, curr_date: str, window: int = 1
     return "\n".join(sections).strip()
 
 
+def get_trading_constraint_context(ticker: str, curr_date: str) -> str:
+    """Summarise A-share board rules and special-treatment constraints."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(normalized)
+    board_label, price_limit, board_note = _infer_a_share_board_profile(normalized)
+    sections = [f"# A-share trading constraint context for {normalized}", ""]
+    errors = []
+
+    short_name = ""
+    profile_fetchers = [
+        getattr(ak, "stock_profile_cninfo", None),
+        getattr(ak, "stock_individual_info_em", None),
+    ]
+    for fetcher in profile_fetchers:
+        if fetcher is None:
+            continue
+        try:
+            profile_df = _call_akshare_api(fetcher, symbol=plain)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"profile: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+            continue
+        if profile_df.empty:
+            continue
+        names = _extract_text_values(profile_df, ["A股简称", "股票简称", "证券简称", "名称"], limit=1)
+        if names:
+            short_name = names[0]
+            break
+
+    is_st = bool(re.search(r"(^|[* ])ST", short_name.upper())) or "退" in short_name
+
+    sections.append("## Board profile")
+    if short_name:
+        sections.append(f"- Security short name: {short_name}")
+    sections.append(f"- Board: {board_label}")
+    sections.append(f"- Daily price-limit regime: {price_limit}")
+    sections.append(f"- Trade settlement reminder: T+1 sell constraint still applies to newly bought A-shares.")
+    sections.append("")
+
+    sections.append("## Constraint read")
+    if is_st:
+        sections.append("- Special treatment flag: ST / *ST detected from the security short name.")
+        sections.append("- Constraint implication: ST / *ST names often face a tighter 5% daily price limit and elevated delisting / headline risk.")
+    else:
+        sections.append("- Special treatment flag: no ST / *ST signal detected from the fetched security short name.")
+        sections.append(f"- Constraint implication: base board rule set appears to be the {price_limit} daily price-limit regime.")
+    sections.append(f"- Board implication: {board_note}")
+    sections.append("- Exit implication: A-share liquidity can deteriorate quickly near limit-up / limit-down states or suspension-style headlines.")
+
+    if errors:
+        sections.extend(["", "## Data retrieval notes"])
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_peer_comparison_context(ticker: str, curr_date: str, look_back_days: int = 20) -> str:
     """Compare an A-share ticker with a few industry/concept peers."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1632,6 +1714,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     action_pressure_text = get_corporate_action_pressure_context(ticker, start_date, end_date)
     unusual_text = get_unusual_trading_activity(ticker, start_date, end_date)
     regime_text = get_capital_flow_regime_context(ticker, curr_date)
+    constraint_text = get_trading_constraint_context(ticker, curr_date)
     peer_text = get_peer_comparison_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
@@ -1713,6 +1796,12 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Northbound positioning has been building over the sampled window, which supports persistence.")
     if "northbound positioning has been fading" in regime_text:
         flow.append("Northbound positioning has been fading over the sampled window, which weakens persistence.")
+    if "Special treatment flag: ST / *ST detected" in constraint_text:
+        risks.append("Special-treatment status is present, which raises regulatory, liquidity, and gap-risk sensitivity.")
+    if "Daily price-limit regime: 20%" in constraint_text:
+        risks.append("The stock sits in a 20% daily price-limit regime, so momentum and drawdown can both accelerate faster than the main board.")
+    if "Daily price-limit regime: 30%" in constraint_text:
+        risks.append("The stock sits in a 30% daily price-limit regime, which implies unusually high volatility and liquidity risk.")
     if "peer-relative strength looks constructive" in peer_text:
         flow.append("Peer-relative strength is constructive, suggesting the move is not just generic sector beta.")
     if "peer-relative strength looks weak" in peer_text:
@@ -1744,5 +1833,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", peer_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", constraint_text, "", peer_text])
     return "\n".join(sections).strip()
