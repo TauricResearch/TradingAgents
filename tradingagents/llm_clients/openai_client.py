@@ -146,6 +146,7 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort", "temperature",
     "api_key", "callbacks", "http_client", "http_async_client",
+    "default_headers",
 )
 
 # Provider base URLs. API-key env vars live in api_key_env.PROVIDER_API_KEY_ENV
@@ -163,6 +164,7 @@ _PROVIDER_BASE_URL = {
     "minimax":    "https://api.minimax.io/v1",
     "minimax-cn": "https://api.minimaxi.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
+    "github_copilot": "https://models.github.ai/inference",
     "ollama":     "http://localhost:11434/v1",
 }
 

@@ -153,6 +153,20 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
+    "github_copilot": {
+        "quick": [
+            ("OpenAI GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
+            ("OpenAI GPT-4o - Balanced multimodal", "gpt-4o"),
+            ("OpenAI o3 Mini - Lightweight reasoning", "o3-mini"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("OpenAI GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
+            ("OpenAI GPT-4o - Balanced multimodal", "gpt-4o"),
+            ("OpenAI o3 Mini - Lightweight reasoning", "o3-mini"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
@@ -173,6 +187,19 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-OSS:latest (20B)", "gpt-oss:latest"),
             ("Qwen3:latest (8B)", "qwen3:latest"),
             ("Custom model ID", "custom"),
+        ],
+    },
+    # OpenRouter: fetched dynamically. Azure: any deployed model name.
+    "ollama": {
+        "quick": [
+            ("Qwen3:latest (8B, local)", "qwen3:latest"),
+            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
+            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+        ],
+        "deep": [
+            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
+            ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
     },
 }
