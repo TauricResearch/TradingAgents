@@ -1599,6 +1599,75 @@ def get_trading_constraint_context(ticker: str, curr_date: str) -> str:
     return "\n".join(sections).strip()
 
 
+def get_limit_move_sentiment_context(curr_date: str) -> str:
+    """Summarise A-share limit-up / limit-down market temperature."""
+    query_date = format_date_for_api(curr_date)
+    sections = [f"# A-share limit-move sentiment context for {curr_date}", ""]
+    errors = []
+
+    limit_up_df = pd.DataFrame()
+    limit_down_df = pd.DataFrame()
+    limit_up_fetcher = getattr(ak, "stock_zt_pool_em", None)
+    limit_down_fetcher = getattr(ak, "stock_dt_pool_em", None)
+
+    if limit_up_fetcher is not None:
+        try:
+            limit_up_df = _call_akshare_api(limit_up_fetcher, date=query_date)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"limit_up: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+    if limit_down_fetcher is not None:
+        try:
+            limit_down_df = _call_akshare_api(limit_down_fetcher, date=query_date)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"limit_down: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    up_count = len(limit_up_df.index) if not limit_up_df.empty else 0
+    down_count = len(limit_down_df.index) if not limit_down_df.empty else 0
+
+    if up_count:
+        sections.append("## Limit-up pool")
+        sections.append(f"- Count: {up_count}")
+        sample_cols = [col for col in ["代码", "名称", "所属行业", "涨停原因类别", "连板数"] if col in limit_up_df.columns]
+        sample = limit_up_df.loc[:, sample_cols].head(5) if sample_cols else limit_up_df.head(5)
+        sections.append(sample.to_csv(index=False))
+        reasons = _extract_text_values(limit_up_df, ["涨停原因类别", "所属概念", "所属行业"], limit=5)
+        if reasons:
+            sections.append(f"Signal: limit-up leadership themes include {', '.join(reasons[:5])}.")
+        sections.append("")
+
+    if down_count:
+        sections.append("## Limit-down pool")
+        sections.append(f"- Count: {down_count}")
+        sample_cols = [col for col in ["代码", "名称", "所属行业", "跌停原因", "连续跌停"] if col in limit_down_df.columns]
+        sample = limit_down_df.loc[:, sample_cols].head(5) if sample_cols else limit_down_df.head(5)
+        sections.append(sample.to_csv(index=False))
+        reasons = _extract_text_values(limit_down_df, ["跌停原因", "所属行业", "所属概念"], limit=5)
+        if reasons:
+            sections.append(f"Signal: limit-down stress themes include {', '.join(reasons[:5])}.")
+        sections.append("")
+
+    if up_count or down_count:
+        sections.append("## Temperature read")
+        if up_count >= max(down_count * 2, 10):
+            sections.append("- Signal: speculative risk appetite looks hot, with limit-up breadth dominating limit-down stress.")
+        elif down_count >= max(up_count * 2, 5):
+            sections.append("- Signal: downside stress looks elevated, with limit-down breadth overwhelming upside momentum.")
+        else:
+            sections.append("- Signal: limit-up and limit-down breadth look mixed, suggesting a more selective tape.")
+        sections.append(
+            f"- Breadth snapshot: limit-up count={up_count}, limit-down count={down_count}, ratio={(up_count / max(down_count, 1)):.2f}."
+        )
+    elif errors:
+        return "未能稳定获取 A 股涨跌停情绪信息。\n\n" + "\n".join(errors[:5])
+    else:
+        return "未获取到可用的 A 股涨跌停情绪信息。"
+
+    if errors:
+        sections.extend(["", "## Data retrieval notes"])
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_peer_comparison_context(ticker: str, curr_date: str, look_back_days: int = 20) -> str:
     """Compare an A-share ticker with a few industry/concept peers."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1715,6 +1784,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     unusual_text = get_unusual_trading_activity(ticker, start_date, end_date)
     regime_text = get_capital_flow_regime_context(ticker, curr_date)
     constraint_text = get_trading_constraint_context(ticker, curr_date)
+    limit_move_text = get_limit_move_sentiment_context(curr_date)
     peer_text = get_peer_comparison_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
@@ -1802,6 +1872,10 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         risks.append("The stock sits in a 20% daily price-limit regime, so momentum and drawdown can both accelerate faster than the main board.")
     if "Daily price-limit regime: 30%" in constraint_text:
         risks.append("The stock sits in a 30% daily price-limit regime, which implies unusually high volatility and liquidity risk.")
+    if "speculative risk appetite looks hot" in limit_move_text:
+        flow.append("涨停 breadth is dominating跌停 stress, which points to a hot short-horizon tape.")
+    if "downside stress looks elevated" in limit_move_text:
+        risks.append("跌停 breadth is overwhelming limit-up momentum, which points to a fragile tape and weaker risk appetite.")
     if "peer-relative strength looks constructive" in peer_text:
         flow.append("Peer-relative strength is constructive, suggesting the move is not just generic sector beta.")
     if "peer-relative strength looks weak" in peer_text:
@@ -1833,5 +1907,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", constraint_text, "", peer_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", constraint_text, "", limit_move_text, "", peer_text])
     return "\n".join(sections).strip()

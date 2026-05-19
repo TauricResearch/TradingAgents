@@ -14,6 +14,7 @@ from tradingagents.dataflows.a_share import (
     get_company_event_signals,
     get_fundamentals,
     get_market_activity,
+    get_limit_move_sentiment_context,
     get_peer_comparison_context,
     get_relative_strength_context,
     get_sector_rotation_context,
@@ -477,6 +478,35 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Special treatment flag: ST / *ST detected", result)
         self.assertIn("tighter 5% daily price limit", result)
 
+    @patch("tradingagents.dataflows.a_share.ak.stock_dt_pool_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_zt_pool_em", create=True)
+    def test_get_limit_move_sentiment_context_reads_hot_tape(self, mock_zt_pool, mock_dt_pool):
+        mock_zt_pool.return_value = pd.DataFrame(
+            {
+                "代码": ["000001", "000002", "000003", "000004", "000005", "000006", "000007", "000008", "000009", "000010"],
+                "名称": [f"涨停股{i}" for i in range(10)],
+                "所属行业": ["AI"] * 10,
+                "涨停原因类别": ["算力"] * 10,
+                "连板数": [2] * 10,
+            }
+        )
+        mock_dt_pool.return_value = pd.DataFrame(
+            {
+                "代码": ["300001"],
+                "名称": ["跌停股1"],
+                "所属行业": ["地产"],
+                "跌停原因": ["业绩承压"],
+            }
+        )
+
+        result = get_limit_move_sentiment_context("2024-04-11")
+
+        self.assertIn("Limit-up pool", result)
+        self.assertIn("Limit-down pool", result)
+        self.assertIn("speculative risk appetite looks hot", result)
+        self.assertIn("limit-up count=10, limit-down count=1", result)
+
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -495,7 +525,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -531,6 +563,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Northbound holding changes are available", result)
         self.assertIn("Source Digests", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -551,7 +584,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -574,6 +609,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Sector / concept rotation context is available", result)
         self.assertIn("Board snapshot performance is available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -594,7 +630,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -614,6 +652,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("Broader board-strength rankings are available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -632,9 +671,11 @@ class AShareSupportTests(unittest.TestCase):
         mock_relative,
         mock_unusual,
         mock_regime,
-        mock_constraint,
         mock_peer,
+        mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -654,6 +695,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("relative-strength alpha versus the market benchmark is positive", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -676,7 +718,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -701,6 +745,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("elevated governance or legal headline risk", result)
         self.assertIn("Positive corporate-action offsets are strong enough", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -723,7 +768,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -746,6 +793,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("龙虎榜 / unusual-trading records are available", result)
         self.assertIn("席位明细 is available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -768,7 +816,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
@@ -791,6 +841,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Medium-horizon main-fund-flow regime looks supportive", result)
         self.assertIn("Northbound positioning has been building over the sampled window", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -811,7 +862,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
@@ -835,6 +888,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("institutional confirmation", result)
         self.assertIn("Margin-financing demand is rising", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -857,7 +911,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
@@ -878,6 +934,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("Peer-relative strength is constructive", result)
 
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
     @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
     @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
@@ -900,7 +957,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_regime,
         mock_peer,
         mock_constraint,
+        mock_limit_move,
     ):
+        mock_limit_move.return_value = "# A-share limit-move sentiment context for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 688111.SH"
         mock_activity.return_value = "# A-share market activity signals for 688111.SH"
         mock_sector.return_value = "# A-share sector rotation context for 688111.SH"
@@ -922,6 +981,52 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("Special-treatment status is present", result)
         self.assertIn("20% daily price-limit regime", result)
+
+    @patch("tradingagents.dataflows.a_share.get_limit_move_sentiment_context")
+    @patch("tradingagents.dataflows.a_share.get_trading_constraint_context")
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
+    @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
+    @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
+    @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_limit_move_sentiment_context(
+        self,
+        mock_events,
+        mock_activity,
+        mock_sector,
+        mock_strength,
+        mock_relative,
+        mock_pressure,
+        mock_unusual,
+        mock_regime,
+        mock_peer,
+        mock_constraint,
+        mock_limit_move,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
+        mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
+        mock_relative.return_value = "# A-share relative strength context for 002624.SZ"
+        mock_pressure.return_value = "# A-share corporate action pressure context for 002624.SZ"
+        mock_unusual.return_value = "# A-share unusual trading activity for 002624.SZ"
+        mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
+        mock_constraint.return_value = "# A-share trading constraint context for 002624.SZ"
+        mock_limit_move.return_value = "\n".join(
+            [
+                "# A-share limit-move sentiment context for 2024-04-11",
+                "- Signal: speculative risk appetite looks hot, with limit-up breadth dominating limit-down stress.",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("涨停 breadth is dominating跌停 stress", result)
 
     @patch("tradingagents.dataflows.y_finance._get_stock_stats_bulk")
     def test_indicator_window_falls_back_to_latest_available_trading_day(self, mock_bulk):

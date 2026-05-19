@@ -150,6 +150,17 @@ def get_trading_constraint_context(
 
 
 @tool
+def get_limit_move_sentiment_context(
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share涨停/跌停 broad tape temperature context.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_limit_move_sentiment_context", curr_date)
+
+
+@tool
 def get_peer_comparison_context(
     ticker: Annotated[str, "Ticker symbol"],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
