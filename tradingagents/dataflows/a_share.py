@@ -1517,6 +1517,110 @@ def get_capital_flow_regime_context(ticker: str, curr_date: str, window: int = 1
     return "\n".join(sections).strip()
 
 
+def get_peer_comparison_context(ticker: str, curr_date: str, look_back_days: int = 20) -> str:
+    """Compare an A-share ticker with a few industry/concept peers."""
+    normalized = normalize_ashare_symbol(ticker)
+    sections = [f"# A-share peer comparison context for {normalized}", ""]
+    errors = []
+
+    sector_text = get_sector_rotation_context(ticker, curr_date)
+    peer_names: list[str] = []
+    for line in sector_text.splitlines():
+        if line.startswith("Signal: representative peers in "):
+            peers = line.rsplit(": ", 1)[-1]
+            peer_names.extend([item.strip() for item in peers.split(",") if item.strip()])
+    peer_names = [name for name in peer_names if name][:4]
+
+    start_date = (pd.Timestamp(curr_date) - pd.Timedelta(days=max(look_back_days * 3, 60))).strftime("%Y-%m-%d")
+    target_df = _load_hist_df(ticker, start_date, curr_date)
+    target_return, _ = _compute_window_return(target_df, look_back_days)
+
+    if target_return is None:
+        return f"未获取到 {normalized} 的同行对比信息。"
+
+    sections.append("## Target return")
+    sections.append(f"- {normalized} return over ~{look_back_days} calendar days: {target_return * 100:.2f}%")
+    sections.append("")
+
+    board_fetchers = [
+        getattr(ak, "stock_board_industry_cons_em", None),
+        getattr(ak, "stock_board_concept_cons_em", None),
+    ]
+    peer_map: dict[str, str] = {}
+    for fetcher in board_fetchers:
+        if fetcher is None:
+            continue
+        for line in sector_text.splitlines():
+            if not line.startswith("## Industry board sample:") and not line.startswith("## Concept board sample:"):
+                continue
+            board_name = line.split(": ", 1)[1]
+            try:
+                board_df = _call_akshare_api(fetcher, symbol=board_name)
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"peer_board_{board_name}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+                continue
+            if board_df.empty:
+                continue
+            code_col = next((col for col in ["代码", "证券代码"] if col in board_df.columns), None)
+            name_col = next((col for col in ["名称", "股票名称"] if col in board_df.columns), None)
+            if code_col is None or name_col is None:
+                continue
+            for _, row in board_df.head(10).iterrows():
+                name = str(row[name_col]).strip()
+                code = str(row[code_col]).strip()
+                if name and code and name not in peer_map and code != to_plain_symbol(ticker):
+                    try:
+                        peer_map[name] = normalize_ashare_symbol(code)
+                    except ValueError:
+                        continue
+
+    comparison_rows = []
+    for peer_name in peer_names:
+        peer_symbol = peer_map.get(peer_name)
+        if not peer_symbol:
+            continue
+        try:
+            peer_df = _load_hist_df(peer_symbol, start_date, curr_date)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"peer_hist_{peer_symbol}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+            continue
+        peer_return, _ = _compute_window_return(peer_df, look_back_days)
+        if peer_return is None:
+            continue
+        comparison_rows.append(
+            {
+                "Peer": peer_name,
+                "Ticker": peer_symbol,
+                "ReturnPct": round(peer_return * 100, 2),
+                "ExcessVsTargetPct": round((target_return - peer_return) * 100, 2),
+            }
+        )
+
+    if comparison_rows:
+        compare_df = pd.DataFrame(comparison_rows).sort_values("ReturnPct", ascending=False)
+        sections.append("## Peer return comparison")
+        sections.append(compare_df.to_csv(index=False))
+        outperform = int((compare_df["ExcessVsTargetPct"] > 0).sum())
+        underperform = int((compare_df["ExcessVsTargetPct"] < 0).sum())
+        sections.append(
+            f"Signal: target outperforms {outperform} sampled peers and lags {underperform} sampled peers over the window."
+        )
+        if outperform > underperform:
+            sections.append("- Signal: peer-relative strength looks constructive.")
+        elif underperform > outperform:
+            sections.append("- Signal: peer-relative strength looks weak versus sampled peers.")
+        else:
+            sections.append("- Signal: peer-relative strength looks mixed versus sampled peers.")
+    else:
+        sections.append("## Peer return comparison")
+        sections.append("- No comparable peer return rows were assembled from the sampled board constituents.")
+
+    if errors:
+        sections.extend(["", "## Data retrieval notes"])
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1528,6 +1632,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     action_pressure_text = get_corporate_action_pressure_context(ticker, start_date, end_date)
     unusual_text = get_unusual_trading_activity(ticker, start_date, end_date)
     regime_text = get_capital_flow_regime_context(ticker, curr_date)
+    peer_text = get_peer_comparison_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -1608,6 +1713,10 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Northbound positioning has been building over the sampled window, which supports persistence.")
     if "northbound positioning has been fading" in regime_text:
         flow.append("Northbound positioning has been fading over the sampled window, which weakens persistence.")
+    if "peer-relative strength looks constructive" in peer_text:
+        flow.append("Peer-relative strength is constructive, suggesting the move is not just generic sector beta.")
+    if "peer-relative strength looks weak" in peer_text:
+        flow.append("Peer-relative strength looks weak versus sampled peers, which limits conviction.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -1635,5 +1744,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", peer_text])
     return "\n".join(sections).strip()

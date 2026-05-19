@@ -137,6 +137,20 @@ def get_relative_strength_context(
 
 
 @tool
+def get_peer_comparison_context(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "Lookback window for peer comparison"] = 20,
+) -> str:
+    """
+    Retrieve A-share peer-comparison context against sampled industry and
+    concept peers.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_peer_comparison_context", ticker, curr_date, look_back_days)
+
+
+@tool
 def get_corporate_action_pressure_context(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],

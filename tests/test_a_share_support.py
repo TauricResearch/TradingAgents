@@ -14,6 +14,7 @@ from tradingagents.dataflows.a_share import (
     get_company_event_signals,
     get_fundamentals,
     get_market_activity,
+    get_peer_comparison_context,
     get_relative_strength_context,
     get_sector_rotation_context,
     get_sector_strength_snapshot,
@@ -403,6 +404,63 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("main-fund-flow regime looks supportive", result)
         self.assertIn("northbound positioning has been building", result)
 
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share._load_hist_df")
+    @patch("tradingagents.dataflows.a_share.ak.stock_board_concept_cons_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_board_industry_cons_em", create=True)
+    def test_get_peer_comparison_context_summarizes_sampled_peer_returns(
+        self,
+        mock_industry_cons,
+        mock_concept_cons,
+        mock_hist,
+        mock_sector,
+    ):
+        mock_sector.return_value = "\n".join(
+            [
+                "# A-share sector rotation context for 002624.SZ",
+                "## Industry board sample: 消费电子",
+                "Signal: representative peers in 消费电子: 立讯精密, 歌尔股份, 蓝思科技",
+                "## Concept board sample: AI手机",
+            ]
+        )
+        mock_industry_cons.return_value = pd.DataFrame(
+            {
+                "代码": ["002475", "002241", "300433", "002624"],
+                "名称": ["立讯精密", "歌尔股份", "蓝思科技", "完美世界"],
+            }
+        )
+        mock_concept_cons.return_value = pd.DataFrame(
+            {
+                "代码": ["002475", "002241"],
+                "名称": ["立讯精密", "歌尔股份"],
+            }
+        )
+
+        def hist_side_effect(symbol, start_date, end_date):
+            close_map = {
+                "002624.SZ": [10.0, 12.0],
+                "002475.SZ": [10.0, 10.5],
+                "002241.SZ": [10.0, 10.2],
+                "300433.SZ": [10.0, 9.8],
+            }
+            return pd.DataFrame(
+                {
+                    "Date": ["2024-03-20", "2024-04-11"],
+                    "Close": close_map[symbol],
+                }
+            )
+
+        mock_hist.side_effect = hist_side_effect
+
+        result = get_peer_comparison_context("002624.SZ", "2024-04-11", 20)
+
+        self.assertIn("Peer return comparison", result)
+        self.assertIn("立讯精密", result)
+        self.assertIn("歌尔股份", result)
+        self.assertIn("target outperforms 3 sampled peers and lags 0 sampled peers", result)
+        self.assertIn("peer-relative strength looks constructive", result)
+
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
@@ -417,7 +475,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_relative,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
@@ -451,6 +511,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Northbound holding changes are available", result)
         self.assertIn("Source Digests", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
@@ -467,7 +528,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_relative,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
@@ -488,6 +551,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Sector / concept rotation context is available", result)
         self.assertIn("Board snapshot performance is available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
@@ -504,7 +568,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_relative,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
@@ -522,6 +588,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("Broader board-strength rankings are available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
@@ -538,7 +605,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_relative,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
@@ -556,6 +625,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("relative-strength alpha versus the market benchmark is positive", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
@@ -574,7 +644,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_pressure,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
@@ -597,6 +669,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("elevated governance or legal headline risk", result)
         self.assertIn("Positive corporate-action offsets are strong enough", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
@@ -615,7 +688,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_pressure,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
@@ -636,6 +711,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("龙虎榜 / unusual-trading records are available", result)
         self.assertIn("席位明细 is available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
@@ -654,7 +730,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_pressure,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
         mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
@@ -675,6 +753,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Medium-horizon main-fund-flow regime looks supportive", result)
         self.assertIn("Northbound positioning has been building over the sampled window", result)
 
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
     @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
     @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
@@ -691,7 +770,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_pressure,
         mock_unusual,
         mock_regime,
+        mock_peer,
     ):
+        mock_peer.return_value = "# A-share peer comparison context for 002624.SZ"
         mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
         mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_pressure.return_value = "# A-share corporate action pressure context for 002624.SZ"
@@ -712,6 +793,46 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("incremental buying pressure", result)
         self.assertIn("institutional confirmation", result)
         self.assertIn("Margin-financing demand is rising", result)
+
+    @patch("tradingagents.dataflows.a_share.get_peer_comparison_context")
+    @patch("tradingagents.dataflows.a_share.get_capital_flow_regime_context")
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
+    @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
+    @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_peer_comparison_context(
+        self,
+        mock_events,
+        mock_activity,
+        mock_sector,
+        mock_strength,
+        mock_relative,
+        mock_pressure,
+        mock_unusual,
+        mock_regime,
+        mock_peer,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
+        mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
+        mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
+        mock_pressure.return_value = "# A-share corporate action pressure context for 002624.SZ"
+        mock_unusual.return_value = "# A-share unusual trading activity for 002624.SZ"
+        mock_regime.return_value = "# A-share capital flow regime context for 2024-04-11"
+        mock_peer.return_value = "\n".join(
+            [
+                "# A-share peer comparison context for 002624.SZ",
+                "- Signal: peer-relative strength looks constructive.",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("Peer-relative strength is constructive", result)
 
     @patch("tradingagents.dataflows.y_finance._get_stock_stats_bulk")
     def test_indicator_window_falls_back_to_latest_available_trading_day(self, mock_bulk):
