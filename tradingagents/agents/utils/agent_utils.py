@@ -29,6 +29,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_peer_comparison_context,
     get_corporate_action_pressure_context,
     get_unusual_trading_activity,
+    get_lhb_seat_profile_context,
     get_capital_flow_regime_context,
     get_decision_signal_summary,
     get_xueqiu_sentiment,

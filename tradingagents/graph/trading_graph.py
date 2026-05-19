@@ -50,6 +50,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_peer_comparison_context,
     get_corporate_action_pressure_context,
     get_unusual_trading_activity,
+    get_lhb_seat_profile_context,
     get_capital_flow_regime_context,
     get_decision_signal_summary,
     get_xueqiu_sentiment,
@@ -191,6 +192,7 @@ class TradingAgentsGraph:
                     get_peer_comparison_context,
                     get_corporate_action_pressure_context,
                     get_unusual_trading_activity,
+                    get_lhb_seat_profile_context,
                     get_capital_flow_regime_context,
                 ]
             ),
@@ -200,6 +202,7 @@ class TradingAgentsGraph:
                     get_news,
                     get_xueqiu_sentiment,
                     get_caixin_news,
+                    get_lhb_seat_profile_context,
                 ]
             ),
             "news": ToolNode(
@@ -220,6 +223,7 @@ class TradingAgentsGraph:
                     get_peer_comparison_context,
                     get_corporate_action_pressure_context,
                     get_unusual_trading_activity,
+                    get_lhb_seat_profile_context,
                     get_capital_flow_regime_context,
                     get_decision_signal_summary,
                     get_caixin_news,

@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_company_event_signals,
     get_decision_signal_summary,
     get_global_news,
+    get_lhb_seat_profile_context,
     get_language_instruction,
     get_market_activity,
     get_news,
@@ -37,6 +38,7 @@ def create_news_analyst(llm):
                 get_company_event_signals,
                 get_market_activity,
                 get_unusual_trading_activity,
+                get_lhb_seat_profile_context,
                 get_decision_signal_summary,
                 get_policy_signal_context,
                 get_caixin_news,
@@ -47,7 +49,7 @@ def create_news_analyst(llm):
                 "You are an A-share news researcher tasked with analyzing recent company, market, and policy developments over the past week. "
                 f"Use `get_news` for {asset_label}-specific information packs, `get_global_news` for broader China market and policy context, "
                 "`get_company_announcements` for official exchange disclosures, `get_company_event_signals` for event summaries, `get_corporate_action_pressure_context` for supply / governance pressure scorecards, "
-                "`get_market_activity` for capital-flow / northbound / margin context, `get_unusual_trading_activity` for 龙虎榜 / unusual-trading participation, `get_decision_signal_summary` for a consolidated event-and-flow read, `get_policy_signal_context` for explicit policy / regulatory tone, and `get_caixin_news` for supplementary financial journalism when available. "
+                "`get_market_activity` for capital-flow / northbound / margin context, `get_unusual_trading_activity` for 龙虎榜 / unusual-trading participation, `get_lhb_seat_profile_context` for seat concentration and institutional-participation clues, `get_decision_signal_summary` for a consolidated event-and-flow read, `get_policy_signal_context` for explicit policy / regulatory tone, and `get_caixin_news` for supplementary financial journalism when available. "
                 "Weight official announcements and policy headlines heavily, because they often matter more than social chatter in A-share trading. "
                 "Highlight catalysts such as earnings pre-announcements, shareholder changes, regulation, sector policy, and trading suspensions when present. "
                 "Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."

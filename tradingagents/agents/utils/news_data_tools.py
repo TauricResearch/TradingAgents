@@ -215,6 +215,19 @@ def get_unusual_trading_activity(
 
 
 @tool
+def get_lhb_seat_profile_context(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share 龙虎榜 seat-profile context.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_lhb_seat_profile_context", ticker, start_date, end_date)
+
+
+@tool
 def get_capital_flow_regime_context(
     ticker: Annotated[str, "Ticker symbol"],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],

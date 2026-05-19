@@ -1479,6 +1479,118 @@ def get_unusual_trading_activity(ticker: str, start_date: str, end_date: str) ->
     return "\n".join(sections).strip()
 
 
+def get_lhb_seat_profile_context(ticker: str, start_date: str, end_date: str) -> str:
+    """Profile 龙虎榜 seat participation for a ticker over a date range."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    sections = [f"# A-share LHB seat profile context for {normalized}", ""]
+    errors = []
+
+    date_fetcher = getattr(ak, "stock_lhb_stock_detail_date_em", None)
+    side_fetcher = getattr(ak, "stock_lhb_stock_detail_em", None)
+    if date_fetcher is None or side_fetcher is None:
+        return f"A-share LHB seat-profile API unavailable for {normalized}."
+
+    try:
+        date_df = _call_akshare_api(date_fetcher, symbol=plain)
+    except Exception as exc:  # noqa: BLE001
+        return f"未能稳定获取 {normalized} 的龙虎榜席位画像。\n\n{type(exc).__name__}: {_safe_truncate(str(exc), 120)}"
+
+    if date_df.empty:
+        return f"未获取到 {normalized} 的龙虎榜席位画像。"
+
+    date_column = next((col for col in date_df.columns if "日期" in str(col)), None)
+    if date_column is None:
+        return f"未获取到 {normalized} 的龙虎榜席位日期字段。"
+
+    parsed_dates = pd.to_datetime(date_df[date_column], errors="coerce").dropna()
+    eligible = [
+        ts.strftime("%Y%m%d")
+        for ts in parsed_dates
+        if pd.Timestamp(start_date) <= ts <= pd.Timestamp(end_date)
+    ]
+    if not eligible:
+        return f"{start_date} 到 {end_date} 之间没有可用的龙虎榜席位画像。"
+
+    latest_date = sorted(eligible)[-1]
+    sections.append(f"## Latest profiled date")
+    sections.append(f"- {latest_date}")
+    sections.append("")
+
+    summary_rows = []
+    top_seats: list[str] = []
+    for flag in ["买入", "卖出"]:
+        try:
+            side_df = _call_akshare_api(side_fetcher, symbol=plain, date=latest_date, flag=flag)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"lhb_seat_{flag}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+            continue
+        if side_df.empty:
+            continue
+
+        seat_col = next((col for col in ["营业部名称", "席位名称"] if col in side_df.columns), None)
+        amount_candidates = ["净额", "买入金额", "卖出金额", "金额"]
+        amount_col = _find_first_numeric_column(side_df, amount_candidates)
+        if seat_col is None or amount_col is None:
+            continue
+
+        working = side_df.copy()
+        working[amount_col] = pd.to_numeric(working[amount_col], errors="coerce")
+        working = working.dropna(subset=[amount_col])
+        if working.empty:
+            continue
+
+        working = working.sort_values(amount_col, ascending=False)
+        top_sample = working.loc[:, [seat_col, amount_col]].head(5)
+        sections.append(f"## {flag}席位画像")
+        sections.append(top_sample.to_csv(index=False))
+
+        institution_hits = int(working[seat_col].astype(str).str.contains("机构专用", na=False).sum())
+        total_amount = float(working[amount_col].abs().sum())
+        top3_amount = float(working[amount_col].abs().head(3).sum())
+        concentration = top3_amount / total_amount if total_amount else 0.0
+        summary_rows.append(
+            {
+                "Side": flag,
+                "InstitutionSeats": institution_hits,
+                "Top3ConcentrationPct": round(concentration * 100, 2),
+                "SeatCount": int(len(working.index)),
+            }
+        )
+        top_seats.extend(working[seat_col].astype(str).head(3).tolist())
+        sections.append(
+            f"Signal: {flag} side institution seats={institution_hits}, top3 concentration={concentration * 100:.2f}%."
+        )
+        sections.append("")
+
+    if not summary_rows:
+        if errors:
+            return f"未能稳定获取 {normalized} 的龙虎榜席位画像。\n\n" + "\n".join(errors[:5])
+        return f"未获取到 {normalized} 的龙虎榜席位画像。"
+
+    summary_df = pd.DataFrame(summary_rows)
+    sections.append("## Seat-profile summary")
+    sections.append(summary_df.to_csv(index=False))
+
+    buy_row = next((row for row in summary_rows if row["Side"] == "买入"), None)
+    sell_row = next((row for row in summary_rows if row["Side"] == "卖出"), None)
+    if buy_row and buy_row["InstitutionSeats"] > 0:
+        sections.append("- Signal: institutional participation is visible on the buy side.")
+    if sell_row and sell_row["InstitutionSeats"] > 0:
+        sections.append("- Signal: institutional participation is visible on the sell side.")
+    if any(row["Top3ConcentrationPct"] >= 60 for row in summary_rows):
+        sections.append("- Signal: seat concentration is high, so short-horizon price action may be dominated by a few active participants.")
+    else:
+        sections.append("- Signal: seat concentration looks more dispersed, which lowers the odds of a single-seat squeeze dominating the move.")
+    if top_seats:
+        sections.append(f"- Signal: prominent seats include {', '.join(top_seats[:5])}.")
+
+    if errors:
+        sections.extend(["", "## Data retrieval notes"])
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_capital_flow_regime_context(ticker: str, curr_date: str, window: int = 10) -> str:
     """Summarise medium-horizon capital-flow regime for an A-share ticker."""
     normalized = normalize_ashare_symbol(ticker)

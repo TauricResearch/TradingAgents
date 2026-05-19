@@ -35,6 +35,7 @@ from .a_share import (
     get_peer_comparison_context as get_akshare_peer_comparison_context,
     get_corporate_action_pressure_context as get_akshare_corporate_action_pressure_context,
     get_unusual_trading_activity as get_akshare_unusual_trading_activity,
+    get_lhb_seat_profile_context as get_akshare_lhb_seat_profile_context,
     get_capital_flow_regime_context as get_akshare_capital_flow_regime_context,
 )
 from .alpha_vantage import (
@@ -94,6 +95,7 @@ TOOLS_CATEGORIES = {
             "get_peer_comparison_context",
             "get_corporate_action_pressure_context",
             "get_unusual_trading_activity",
+            "get_lhb_seat_profile_context",
             "get_capital_flow_regime_context",
             "get_decision_signal_summary",
             "get_xueqiu_sentiment",
@@ -193,6 +195,9 @@ VENDOR_METHODS = {
     },
     "get_unusual_trading_activity": {
         "akshare": get_akshare_unusual_trading_activity,
+    },
+    "get_lhb_seat_profile_context": {
+        "akshare": get_akshare_lhb_seat_profile_context,
     },
     "get_capital_flow_regime_context": {
         "akshare": get_akshare_capital_flow_regime_context,

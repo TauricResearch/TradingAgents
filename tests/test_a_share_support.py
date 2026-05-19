@@ -13,6 +13,7 @@ from tradingagents.dataflows.a_share import (
     get_decision_signal_summary,
     get_company_event_signals,
     get_fundamentals,
+    get_lhb_seat_profile_context,
     get_market_activity,
     get_limit_move_sentiment_context,
     get_peer_comparison_context,
@@ -382,6 +383,39 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Seat detail snapshot", result)
         self.assertIn("Recent LHB statistics", result)
         self.assertIn("龙虎榜净买额", result)
+
+    @patch("tradingagents.dataflows.a_share.ak.stock_lhb_stock_detail_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_lhb_stock_detail_date_em", create=True)
+    def test_get_lhb_seat_profile_context_summarizes_concentration_and_institutions(
+        self,
+        mock_lhb_dates,
+        mock_lhb_side,
+    ):
+        mock_lhb_dates.return_value = pd.DataFrame({"日期": ["2024-04-03"]})
+
+        def side_effect(symbol, date, flag):
+            if flag == "买入":
+                return pd.DataFrame(
+                    {
+                        "营业部名称": ["机构专用", "中信证券上海分公司", "国泰君安南京太平南路", "华泰证券总部"],
+                        "买入金额": [800.0, 300.0, 200.0, 100.0],
+                    }
+                )
+            return pd.DataFrame(
+                {
+                    "营业部名称": ["机构专用", "东方财富拉萨团结路", "银河证券绍兴营业部"],
+                    "卖出金额": [500.0, 200.0, 100.0],
+                }
+            )
+
+        mock_lhb_side.side_effect = side_effect
+
+        result = get_lhb_seat_profile_context("002624.SZ", "2024-04-01", "2024-04-10")
+
+        self.assertIn("Seat-profile summary", result)
+        self.assertIn("institutional participation is visible on the buy side", result)
+        self.assertIn("seat concentration is high", result)
+        self.assertIn("机构专用", result)
 
     @patch("tradingagents.dataflows.a_share.get_previous_trade_date")
     @patch("tradingagents.dataflows.a_share.ak.stock_margin_detail_szse", create=True)
