@@ -27,9 +27,17 @@ from .utils import safe_ticker_component
 
 # ── Akshare retry helper ────────────────────────────────────────────────
 
-def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 1.0, **kwargs):
-    """Call an akshare function with retry on transient network errors."""
+def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 2.0, **kwargs):
+    """Call an akshare function with retry on transient network errors.
+
+    Includes a pre-call delay to avoid hitting East Money rate limits
+    when multiple akshare functions are called in quick succession.
+    """
     import requests
+    import random
+
+    # Randomized pre-delay (0.5-1.5s) to avoid rate limiting
+    time.sleep(0.5 + random.random())
 
     last_exc = None
     for attempt in range(max_retries):
@@ -42,7 +50,8 @@ def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 1.0, **kwar
         ) as exc:
             last_exc = exc
             if attempt < max_retries - 1:
-                time.sleep(base_delay * (attempt + 1))
+                delay = base_delay * (2 ** attempt) + random.random()
+                time.sleep(delay)
     raise last_exc  # type: ignore[misc]
 
 
