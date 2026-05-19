@@ -137,6 +137,20 @@ def get_relative_strength_context(
 
 
 @tool
+def get_corporate_action_pressure_context(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share corporate-action pressure context derived from recent
+    announcement events.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_corporate_action_pressure_context", ticker, start_date, end_date)
+
+
+@tool
 def get_decision_signal_summary(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],

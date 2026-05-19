@@ -1205,6 +1205,96 @@ def get_relative_strength_context(ticker: str, curr_date: str, look_back_days: i
     return "\n".join(sections).strip()
 
 
+def get_corporate_action_pressure_context(ticker: str, start_date: str, end_date: str) -> str:
+    """Summarise A-share corporate-action pressure from announcement-derived events."""
+    normalized = normalize_ashare_symbol(ticker)
+    event_text = get_company_event_signals(ticker, start_date, end_date)
+    lines = [line.strip() for line in event_text.splitlines() if line.strip().startswith("- ")]
+
+    score_buckets = {
+        "supply_pressure": {"tags": {"shareholder_change", "lockup", "financing"}, "score": 0, "events": []},
+        "governance_pressure": {"tags": {"pledge", "litigation", "risk_warning", "suspension"}, "score": 0, "events": []},
+        "positive_offsets": {"tags": {"buyback", "contract_order", "earnings_preview", "dividend"}, "score": 0, "events": []},
+    }
+
+    for line in lines:
+        tag_match = re.search(r"tag=([a-z_]+)", line)
+        bias_match = re.search(r"bias=([a-z_]+)", line)
+        if not tag_match:
+            continue
+        tag = tag_match.group(1)
+        bias = bias_match.group(1) if bias_match else "neutral"
+        for bucket_name, bucket in score_buckets.items():
+            if tag not in bucket["tags"]:
+                continue
+            weight = 1
+            if bias == "negative" and bucket_name != "positive_offsets":
+                weight = 2
+            elif bias == "positive" and bucket_name == "positive_offsets":
+                weight = 2
+            bucket["score"] += weight
+            if len(bucket["events"]) < 4:
+                bucket["events"].append(line)
+
+    supply_score = score_buckets["supply_pressure"]["score"]
+    governance_score = score_buckets["governance_pressure"]["score"]
+    positive_score = score_buckets["positive_offsets"]["score"]
+
+    def describe_pressure(score: int) -> str:
+        if score >= 5:
+            return "high"
+        if score >= 2:
+            return "medium"
+        return "low"
+
+    sections = [
+        f"# A-share corporate action pressure context for {normalized}",
+        "",
+        "## Pressure scorecard",
+        f"- Supply / dilution pressure: {describe_pressure(supply_score)} (score={supply_score})",
+        f"- Governance / legal pressure: {describe_pressure(governance_score)} (score={governance_score})",
+        f"- Positive offset strength: {describe_pressure(positive_score)} (score={positive_score})",
+        "",
+        "## Interpretation",
+    ]
+
+    if supply_score >= 5:
+        sections.append("- Supply-side events such as reductions, lock-up expiry, or financing appear concentrated and deserve extra caution.")
+    elif supply_score >= 2:
+        sections.append("- Some supply-side pressure is present, but it does not dominate the event set.")
+    else:
+        sections.append("- No heavy supply-side pressure signal stands out from recent corporate actions.")
+
+    if governance_score >= 5:
+        sections.append("- Governance / legal style events are dense enough to materially raise headline risk.")
+    elif governance_score >= 2:
+        sections.append("- Governance / legal risk exists and should be tracked alongside price action.")
+    else:
+        sections.append("- No major governance / legal overhang dominates the current announcement mix.")
+
+    if positive_score >= 5:
+        sections.append("- Positive offsets such as buybacks, contracts, dividends, or earnings signals are materially present.")
+    elif positive_score >= 2:
+        sections.append("- There are some positive corporate-action offsets, but they do not fully erase the risk side.")
+    else:
+        sections.append("- Positive corporate-action offsets are limited in the current lookback window.")
+
+    sections.extend(["", "## Flagged events"])
+    for title, key in [
+        ("Supply / dilution flags", "supply_pressure"),
+        ("Governance / legal flags", "governance_pressure"),
+        ("Positive offset flags", "positive_offsets"),
+    ]:
+        sections.append(f"### {title}")
+        if score_buckets[key]["events"]:
+            sections.extend(score_buckets[key]["events"])
+        else:
+            sections.append("- No prominent events detected.")
+
+    sections.extend(["", "## Source Digest", "", event_text])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1213,6 +1303,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sector_text = get_sector_rotation_context(ticker, curr_date)
     strength_text = get_sector_strength_snapshot(curr_date)
     relative_text = get_relative_strength_context(ticker, curr_date)
+    action_pressure_text = get_corporate_action_pressure_context(ticker, start_date, end_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -1275,6 +1366,12 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Recent relative-strength alpha versus the market benchmark is positive, which supports momentum confirmation.")
     if "lagging its market benchmark" in relative_text:
         flow.append("Recent relative-strength alpha versus the market benchmark is negative, which tempers conviction.")
+    if "Supply / dilution pressure: high" in action_pressure_text:
+        dilution.append("Corporate-action pressure is elevated, especially around supply / dilution style events.")
+    if "Governance / legal pressure: high" in action_pressure_text:
+        risks.append("Corporate-action risk scorecard points to elevated governance or legal headline risk.")
+    if "Positive offset strength: high" in action_pressure_text:
+        catalysts.append("Positive corporate-action offsets are strong enough to partly cushion the pressure side.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -1302,5 +1399,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text])
     return "\n".join(sections).strip()

@@ -8,6 +8,7 @@ import pytest
 import tradingagents.default_config as default_config
 from tradingagents.dataflows.a_share import (
     get_balance_sheet,
+    get_corporate_action_pressure_context,
     get_decision_signal_summary,
     get_company_event_signals,
     get_fundamentals,
@@ -307,6 +308,28 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Relative strength alpha: 15.00%", result)
         self.assertIn("outperforming its market benchmark", result)
 
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_get_corporate_action_pressure_context_scores_supply_and_governance_risk(self, mock_events):
+        mock_events.return_value = "\n".join(
+            [
+                "# A-share company event signals for 002624.SZ",
+                "- 2024-04-01 | tag=shareholder_change | bias=negative | 股东减持计划",
+                "- 2024-04-02 | tag=lockup | bias=negative | 限售股解禁",
+                "- 2024-04-03 | tag=financing | bias=mixed | 定增预案",
+                "- 2024-04-04 | tag=risk_warning | bias=negative | 风险提示公告",
+                "- 2024-04-05 | tag=buyback | bias=positive | 回购股份公告",
+            ]
+        )
+
+        result = get_corporate_action_pressure_context("002624.SZ", "2024-04-01", "2024-04-10")
+
+        self.assertIn("Pressure scorecard", result)
+        self.assertIn("Supply / dilution pressure: high", result)
+        self.assertIn("Governance / legal pressure: medium", result)
+        self.assertIn("Positive offset strength: medium", result)
+        self.assertIn("减持计划", result)
+        self.assertIn("回购股份公告", result)
+
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_market_activity")
@@ -435,6 +458,41 @@ class AShareSupportTests(unittest.TestCase):
         result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
 
         self.assertIn("relative-strength alpha versus the market benchmark is positive", result)
+
+    @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
+    @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_corporate_action_pressure_context(
+        self,
+        mock_events,
+        mock_activity,
+        mock_sector,
+        mock_strength,
+        mock_relative,
+        mock_pressure,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
+        mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
+        mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
+        mock_pressure.return_value = "\n".join(
+            [
+                "# A-share corporate action pressure context for 002624.SZ",
+                "- Supply / dilution pressure: high (score=6)",
+                "- Governance / legal pressure: high (score=5)",
+                "- Positive offset strength: high (score=5)",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("Corporate-action pressure is elevated", result)
+        self.assertIn("elevated governance or legal headline risk", result)
+        self.assertIn("Positive corporate-action offsets are strong enough", result)
 
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")

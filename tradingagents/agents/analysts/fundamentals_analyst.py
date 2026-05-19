@@ -3,6 +3,7 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
     get_cashflow,
+    get_corporate_action_pressure_context,
     get_company_announcements,
     get_decision_signal_summary,
     get_company_event_signals,
@@ -33,6 +34,7 @@ def create_fundamentals_analyst(llm):
         if market_rule_context:
             tools.append(get_company_announcements)
             tools.append(get_company_event_signals)
+            tools.append(get_corporate_action_pressure_context)
             tools.append(get_decision_signal_summary)
 
         system_message = (
@@ -40,7 +42,7 @@ def create_fundamentals_analyst(llm):
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
             + (
-                " For A-shares, also use `get_company_announcements`, `get_company_event_signals`, and `get_decision_signal_summary` when official disclosures, funding activity, or shareholder events could materially affect the fundamental view."
+                " For A-shares, also use `get_company_announcements`, `get_company_event_signals`, `get_corporate_action_pressure_context`, and `get_decision_signal_summary` when official disclosures, funding activity, or shareholder events could materially affect the fundamental view."
                 if market_rule_context
                 else ""
             )

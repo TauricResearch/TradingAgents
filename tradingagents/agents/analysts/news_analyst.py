@@ -3,6 +3,7 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_caixin_news,
     get_company_announcements,
+    get_corporate_action_pressure_context,
     get_company_event_signals,
     get_decision_signal_summary,
     get_global_news,
@@ -30,6 +31,7 @@ def create_news_analyst(llm):
         if market_region == "cn_a" and asset_type == "stock":
             tools.extend([
                 get_company_announcements,
+                get_corporate_action_pressure_context,
                 get_company_event_signals,
                 get_market_activity,
                 get_decision_signal_summary,
@@ -40,7 +42,7 @@ def create_news_analyst(llm):
             system_message = (
                 "You are an A-share news researcher tasked with analyzing recent company, market, and policy developments over the past week. "
                 f"Use `get_news` for {asset_label}-specific information packs, `get_global_news` for broader China market and policy context, "
-                "`get_company_announcements` for official exchange disclosures, `get_company_event_signals` for event summaries, "
+                "`get_company_announcements` for official exchange disclosures, `get_company_event_signals` for event summaries, `get_corporate_action_pressure_context` for supply / governance pressure scorecards, "
                 "`get_market_activity` for capital-flow / northbound / margin context, `get_decision_signal_summary` for a consolidated event-and-flow read, and `get_caixin_news` for supplementary financial journalism when available. "
                 "Weight official announcements and policy headlines heavily, because they often matter more than social chatter in A-share trading. "
                 "Highlight catalysts such as earnings pre-announcements, shareholder changes, regulation, sector policy, and trading suspensions when present. "

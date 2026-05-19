@@ -44,6 +44,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_sector_rotation_context,
     get_sector_strength_snapshot,
     get_relative_strength_context,
+    get_corporate_action_pressure_context,
     get_decision_signal_summary,
     get_xueqiu_sentiment,
     get_caixin_news,
@@ -178,6 +179,7 @@ class TradingAgentsGraph:
                     get_sector_rotation_context,
                     get_sector_strength_snapshot,
                     get_relative_strength_context,
+                    get_corporate_action_pressure_context,
                 ]
             ),
             "social": ToolNode(
@@ -200,6 +202,7 @@ class TradingAgentsGraph:
                     get_sector_rotation_context,
                     get_sector_strength_snapshot,
                     get_relative_strength_context,
+                    get_corporate_action_pressure_context,
                     get_decision_signal_summary,
                     get_caixin_news,
                 ]
@@ -212,6 +215,7 @@ class TradingAgentsGraph:
                     get_cashflow,
                     get_income_statement,
                     get_company_event_signals,
+                    get_corporate_action_pressure_context,
                     get_decision_signal_summary,
                 ]
             ),
