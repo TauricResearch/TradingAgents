@@ -98,6 +98,18 @@ def get_market_activity(
 
 
 @tool
+def get_sector_rotation_context(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share industry / concept board context for a ticker.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_sector_rotation_context", ticker, curr_date)
+
+
+@tool
 def get_decision_signal_summary(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],

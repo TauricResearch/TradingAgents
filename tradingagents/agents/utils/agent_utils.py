@@ -20,6 +20,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_company_announcements,
     get_company_event_signals,
     get_market_activity,
+    get_sector_rotation_context,
     get_decision_signal_summary,
     get_xueqiu_sentiment,
     get_caixin_news,

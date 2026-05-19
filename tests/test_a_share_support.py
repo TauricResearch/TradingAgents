@@ -12,6 +12,7 @@ from tradingagents.dataflows.a_share import (
     get_company_event_signals,
     get_fundamentals,
     get_market_activity,
+    get_sector_rotation_context,
     get_stock_data,
 )
 from tradingagents.dataflows.config import set_config
@@ -199,6 +200,48 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Signal:", result)
         self.assertIn("Trend:", result)
 
+    @patch("tradingagents.dataflows.a_share.ak.stock_board_concept_cons_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_board_industry_cons_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_profile_cninfo", create=True)
+    def test_get_sector_rotation_context_summarizes_industry_and_concepts(
+        self,
+        mock_profile,
+        mock_industry_board,
+        mock_concept_board,
+    ):
+        mock_profile.return_value = pd.DataFrame(
+            {
+                "所属行业": ["消费电子"],
+                "所属概念": ["华为概念;AI手机"],
+            }
+        )
+        mock_industry_board.return_value = pd.DataFrame(
+            {
+                "代码": ["002624", "000001"],
+                "名称": ["完美世界", "平安银行"],
+                "涨跌幅": [2.0, 1.0],
+                "成交额": [100.0, 80.0],
+            }
+        )
+        mock_concept_board.return_value = pd.DataFrame(
+            {
+                "代码": ["002624", "300750"],
+                "名称": ["完美世界", "宁德时代"],
+                "涨跌幅": [3.0, 2.0],
+                "成交额": [120.0, 110.0],
+            }
+        )
+
+        result = get_sector_rotation_context("002624.SZ", "2024-04-11")
+
+        self.assertIn("Industry tags", result)
+        self.assertIn("消费电子", result)
+        self.assertIn("Concept / theme tags", result)
+        self.assertIn("华为概念;AI手机", result)
+        self.assertIn("Industry board sample", result)
+        self.assertIn("Concept board sample", result)
+        self.assertIn("Rotation takeaways", result)
+
     @patch("tradingagents.dataflows.a_share.get_market_activity")
     @patch("tradingagents.dataflows.a_share.get_company_event_signals")
     def test_get_decision_signal_summary_combines_event_and_activity_reads(
@@ -234,6 +277,31 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Shareholder reduction related events may pressure supply / sentiment.", result)
         self.assertIn("Northbound holding changes are available", result)
         self.assertIn("Source Digests", result)
+
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_sector_rotation_context(
+        self,
+        mock_events,
+        mock_activity,
+        mock_sector,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
+        mock_sector.return_value = "\n".join(
+            [
+                "# A-share sector rotation context for 002624.SZ",
+                "Signal: 消费电子 board snapshot mean 涨跌幅=1.50 across sampled constituents",
+                "## Rotation takeaways",
+                "- Primary industry context: 消费电子",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("Sector / concept rotation context is available", result)
+        self.assertIn("Board snapshot performance is available", result)
 
     @patch("tradingagents.dataflows.a_share.get_market_activity")
     @patch("tradingagents.dataflows.a_share.get_company_event_signals")

@@ -196,6 +196,20 @@ def _format_table(df: pd.DataFrame, title: str, rows: int = 10) -> str:
     return f"{title}\n\n{df.head(rows).to_csv(index=False)}"
 
 
+def _extract_text_values(df: pd.DataFrame, candidates: list[str], limit: int = 10) -> list[str]:
+    values: list[str] = []
+    for column in candidates:
+        if column not in df.columns:
+            continue
+        for value in df[column].dropna().astype(str):
+            clean = value.strip()
+            if clean and clean not in values:
+                values.append(clean)
+            if len(values) >= limit:
+                return values
+    return values
+
+
 def _round_numeric_frame(df: pd.DataFrame) -> pd.DataFrame:
     rounded = df.copy()
     for column in rounded.columns:
@@ -891,11 +905,135 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
     return "\n".join(sections).strip()
 
 
+def get_sector_rotation_context(ticker: str, curr_date: str) -> str:
+    """Summarise industry / concept board context for an A-share ticker."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    sections = [f"# A-share sector rotation context for {normalized}", ""]
+    errors = []
+
+    profile_fetchers = [
+        getattr(ak, "stock_profile_cninfo", None),
+        getattr(ak, "stock_individual_info_em", None),
+    ]
+    industry_names: list[str] = []
+    concept_names: list[str] = []
+
+    for fetcher in profile_fetchers:
+        if fetcher is None:
+            continue
+        try:
+            profile_df = _call_akshare_api(fetcher, symbol=plain)
+            if not profile_df.empty:
+                if not industry_names:
+                    industry_names = _extract_text_values(
+                        profile_df,
+                        ["所属行业", "行业", "申万行业", "所属东财行业"],
+                        limit=5,
+                    )
+                if not concept_names:
+                    concept_names = _extract_text_values(
+                        profile_df,
+                        ["所属概念", "概念", "概念题材", "涉及概念"],
+                        limit=10,
+                    )
+            if industry_names or concept_names:
+                break
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"profile: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    if industry_names:
+        sections.append("## Industry tags")
+        sections.extend(f"- {name}" for name in industry_names)
+        sections.append("")
+
+    if concept_names:
+        sections.append("## Concept / theme tags")
+        sections.extend(f"- {name}" for name in concept_names[:8])
+        sections.append("")
+
+    industry_board_fetcher = getattr(ak, "stock_board_industry_cons_em", None)
+    if industry_board_fetcher is not None and industry_names:
+        for industry_name in industry_names[:2]:
+            try:
+                df = _call_akshare_api(industry_board_fetcher, symbol=industry_name)
+                if df.empty:
+                    continue
+                board_df = df.copy()
+                sections.append(f"## Industry board sample: {industry_name}")
+                sample_columns = [col for col in ["代码", "名称", "最新价", "涨跌幅", "成交额"] if col in board_df.columns]
+                sample = board_df.loc[:, sample_columns].head(5) if sample_columns else board_df.head(5)
+                sections.append(sample.to_csv(index=False))
+                peer_names = _extract_text_values(board_df, ["名称", "股票名称"], limit=5)
+                if peer_names:
+                    sections.append(f"Signal: representative peers in {industry_name}: {', '.join(peer_names[:5])}")
+                change_col = _find_first_numeric_column(board_df, ["涨跌幅", "涨跌额"])
+                if change_col:
+                    values = pd.to_numeric(board_df[change_col], errors="coerce").dropna().head(10)
+                    if not values.empty:
+                        sections.append(
+                            f"Signal: {industry_name} board snapshot mean {change_col}={values.mean():.2f} across sampled constituents"
+                        )
+                sections.append("")
+                break
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"industry_board: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    concept_board_fetcher = getattr(ak, "stock_board_concept_cons_em", None)
+    if concept_board_fetcher is not None and concept_names:
+        for concept_name in concept_names[:2]:
+            try:
+                df = _call_akshare_api(concept_board_fetcher, symbol=concept_name)
+                if df.empty:
+                    continue
+                board_df = df.copy()
+                sections.append(f"## Concept board sample: {concept_name}")
+                sample_columns = [col for col in ["代码", "名称", "最新价", "涨跌幅", "成交额"] if col in board_df.columns]
+                sample = board_df.loc[:, sample_columns].head(5) if sample_columns else board_df.head(5)
+                sections.append(sample.to_csv(index=False))
+                peer_names = _extract_text_values(board_df, ["名称", "股票名称"], limit=5)
+                if peer_names:
+                    sections.append(f"Signal: representative peers in {concept_name}: {', '.join(peer_names[:5])}")
+                change_col = _find_first_numeric_column(board_df, ["涨跌幅", "涨跌额"])
+                if change_col:
+                    values = pd.to_numeric(board_df[change_col], errors="coerce").dropna().head(10)
+                    if not values.empty:
+                        sections.append(
+                            f"Signal: {concept_name} board snapshot mean {change_col}={values.mean():.2f} across sampled constituents"
+                        )
+                sections.append("")
+                break
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"concept_board: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    if len(sections) == 2:
+        if errors:
+            return (
+                f"未能稳定获取 {normalized} 的行业 / 概念联动信息。\n\n"
+                + "\n".join(errors[:5])
+            )
+        return f"未获取到 {normalized} 的行业 / 概念联动信息。"
+
+    sections.append("## Rotation takeaways")
+    if industry_names:
+        sections.append(f"- Primary industry context: {industry_names[0]}")
+    if concept_names:
+        sections.append(f"- Active concept / theme context: {', '.join(concept_names[:3])}")
+    sections.append("- Use this board context to judge whether the stock move is idiosyncratic or part of broader sector / theme rotation.")
+
+    if errors:
+        sections.append("")
+        sections.append("## Data retrieval notes")
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
     event_text = get_company_event_signals(ticker, start_date, end_date)
     activity_text = get_market_activity(ticker, curr_date)
+    sector_text = get_sector_rotation_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -948,6 +1086,10 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Margin-financing demand is rising, which can reinforce upside but also raise unwind risk.")
     if "short exposure increasing" in activity_text:
         flow.append("Short-side exposure is rising, which may reflect growing skepticism or hedging demand.")
+    if "Rotation takeaways" in sector_text:
+        flow.append("Sector / concept rotation context is available and should be used to separate stock-specific moves from board-wide moves.")
+    if "board snapshot mean 涨跌幅" in sector_text:
+        flow.append("Board snapshot performance is available, which helps judge whether relative strength is stock-specific or sector-driven.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -975,5 +1117,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text])
     return "\n".join(sections).strip()
