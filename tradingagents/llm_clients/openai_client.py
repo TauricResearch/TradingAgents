@@ -132,7 +132,9 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
         if get_capabilities(self.model_name).requires_reasoning_split:
-            payload.setdefault("reasoning_split", True)
+            extra_body = payload.get("extra_body") or {}
+            extra_body.setdefault("reasoning_split", True)
+            payload["extra_body"] = extra_body
         return payload
 
 
