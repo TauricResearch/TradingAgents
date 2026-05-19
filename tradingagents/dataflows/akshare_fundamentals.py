@@ -13,7 +13,7 @@ from typing import Annotated
 
 import pandas as pd
 
-from .a_share_common import normalize_ashare_symbol, to_plain_code
+from .a_share_common import normalize_ashare_symbol, to_plain_code, ensure_ipv4
 from .akshare_stock import _ak_retry
 
 
@@ -34,6 +34,8 @@ def get_fundamentals(
     code = to_plain_code(ticker)
 
     try:
+        ensure_ipv4()
+
         # Company profile (巨潮 info优先, 东财 fallback)
         try:
             profile = _ak_retry(ak.stock_profile_cninfo, symbol=code)

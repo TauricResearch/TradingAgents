@@ -14,6 +14,36 @@ from functools import lru_cache
 
 import pandas as pd
 
+# ── IPv4 workaround for broken IPv6 routes (e.g. macOS Surge proxy) ────
+_ipv4_patched = False
+
+
+def ensure_ipv4():
+    """Monkey-patch socket.getaddrinfo to prefer IPv4.
+
+    Called automatically before akshare network requests. Some networks
+    (macOS with Surge proxy, certain ISPs) have broken IPv6 routes to
+    East Money servers. This resolves ``RemoteDisconnected`` errors.
+    """
+    global _ipv4_patched
+    if _ipv4_patched:
+        return
+    import socket
+    _orig = socket.getaddrinfo
+
+    def _ipv4_first(host, port, family=0, type=0, proto=0, flags=0):
+        try:
+            results = _orig(host, port, socket.AF_INET, type, proto, flags)
+            if results:
+                return results
+        except socket.gaierror:
+            pass
+        return _orig(host, port, family, type, proto, flags)
+
+    socket.getaddrinfo = _ipv4_first
+    _ipv4_patched = True
+
+
 # ── Exchange prefix tables ──────────────────────────────────────────────
 _SH_PREFIXES = ("600", "601", "603", "605", "688", "689")
 _SZ_PREFIXES = ("000", "001", "002", "003", "300", "301")
@@ -91,6 +121,7 @@ def format_date_for_api(date_str: str) -> str:
 @lru_cache(maxsize=1)
 def _get_trade_dates_set() -> set[pd.Timestamp]:
     """Fetch the full A-share trade calendar from Sina and cache it."""
+    ensure_ipv4()
     import akshare as ak
 
     df = ak.tool_trade_date_hist_sina()

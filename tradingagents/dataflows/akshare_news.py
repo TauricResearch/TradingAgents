@@ -11,7 +11,7 @@ from typing import Annotated, Optional
 
 import pandas as pd
 
-from .a_share_common import normalize_ashare_symbol, to_plain_code
+from .a_share_common import normalize_ashare_symbol, to_plain_code, ensure_ipv4
 from .akshare_stock import _ak_retry
 from .config import get_config
 
@@ -27,6 +27,7 @@ def get_news(
 
     Uses East Money's individual stock news feed.
     """
+    ensure_ipv4()
     import akshare as ak
 
     normalized = normalize_ashare_symbol(ticker)
@@ -104,6 +105,7 @@ def get_global_news(
 
     Uses East Money's market news feed for Chinese market context.
     """
+    ensure_ipv4()
     import akshare as ak
 
     config = get_config()

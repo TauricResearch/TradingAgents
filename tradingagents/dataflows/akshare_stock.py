@@ -15,6 +15,7 @@ from typing import Annotated
 import pandas as pd
 
 from .a_share_common import (
+    ensure_ipv4,
     format_date_for_api,
     get_previous_trade_date,
     normalize_ashare_symbol,
@@ -55,6 +56,7 @@ def _download_ohlcv_akshare(
     The returned columns match what stockstats expects: Date, Open, High,
     Low, Close, Volume.
     """
+    ensure_ipv4()
     import akshare as ak
 
     code = to_plain_code(symbol)
