@@ -28,6 +28,12 @@ from .utils import safe_ticker_component
 
 # ── Akshare retry helper ────────────────────────────────────────────────
 
+def _ak_retry_pre_delay():
+    """Randomized pre-delay to avoid rate limiting."""
+    import random
+    time.sleep(0.5 + random.random())
+
+
 def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 2.0, **kwargs):
     """Call an akshare function with retry on transient network errors.
 
@@ -37,8 +43,7 @@ def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 2.0, **kwar
     import requests
     import random
 
-    # Randomized pre-delay (0.5-1.5s) to avoid rate limiting
-    time.sleep(0.5 + random.random())
+    _ak_retry_pre_delay()
 
     last_exc = None
     for attempt in range(max_retries):
@@ -61,44 +66,71 @@ def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 2.0, **kwar
 def _download_ohlcv_tencent(
     symbol: str, start_date: str, end_date: str
 ) -> pd.DataFrame:
-    """Download daily OHLCV via Tencent source as fallback.
+    """Download daily OHLCV via Tencent Finance HTTP API directly.
 
-    Uses akshare's ``stock_zh_a_hist_tx`` which connects to Tencent Finance
-    (proxy.finance.qq.com) — a different backend than East Money, useful
-    when the primary source is rate-limited.
+    Bypasses akshare's ``stock_zh_a_hist_tx`` (which uses mini-racer/V8)
+    and calls the Tencent Finance API directly via HTTP. This avoids the
+    V8 engine crash on macOS ARM64.
 
-    Note: Tencent source does not provide Volume, only amount (turnover).
+    The Tencent API returns the last N days of data (no date-range filter),
+    so we request a generous count and filter by date in Python.
     """
-    ensure_ipv4()
-    import akshare as ak
+    import requests
+    import json
+    import re
 
-    # Tencent expects exchange-prefixed symbol: sh600519, sz000001
+    ensure_ipv4()
+
     tx_symbol = to_exchange_prefix(symbol).lower()
 
-    df = _ak_retry(
-        ak.stock_zh_a_hist_tx,
-        symbol=tx_symbol,
-        start_date=format_date_for_api(start_date),
-        end_date=format_date_for_api(end_date),
-        adjust="qfq",
-    )
-    if df is None or df.empty:
+    # Request last 800 trading days (~3 years) — generous enough for any use
+    url = "https://proxy.finance.qq.com/ifzqgtimg/appstock/app/newfqkline/get"
+    params = {
+        "_var": "kline_dayqfq",
+        "param": f"{tx_symbol},day,,,800,qfq",
+    }
+
+    _ak_retry_pre_delay()
+    resp = requests.get(url, params=params, timeout=15)
+    resp.raise_for_status()
+
+    # Parse JS variable assignment: kline_dayqfq={...}
+    text = resp.text
+    match = re.search(r"=\s*(\{.+\})", text, re.DOTALL)
+    if not match:
         return pd.DataFrame()
 
-    # Tencent returns lowercase English columns: date, open, close, high, low, amount
-    col_map = {
-        "date": "Date",
-        "open": "Open",
-        "close": "Close",
-        "high": "High",
-        "low": "Low",
-        "amount": "Amount",
-    }
-    df = df.rename(columns=col_map)
+    data = json.loads(match.group(1))
+    d = data.get("data", {})
+    if isinstance(d, list):
+        return pd.DataFrame()  # empty response
+
+    klines = d.get(tx_symbol, {}).get("qfqday", [])
+    if not klines:
+        return pd.DataFrame()
+
+    # Parse into DataFrame
+    rows = []
+    for k in klines:
+        if len(k) < 6:
+            continue
+        rows.append({
+            "Date": k[0],
+            "Open": float(k[1]),
+            "Close": float(k[2]),
+            "High": float(k[3]),
+            "Low": float(k[4]),
+            "Volume": int(float(k[5])),
+        })
+
+    df = pd.DataFrame(rows)
     df["Date"] = pd.to_datetime(df["Date"])
-    # Tencent doesn't provide Volume — set to 0 so stockstats doesn't break
-    if "Volume" not in df.columns:
-        df["Volume"] = 0
+
+    # Filter by requested date range
+    start_dt = pd.Timestamp(start_date)
+    end_dt = pd.Timestamp(end_date)
+    df = df[(df["Date"] >= start_dt) & (df["Date"] <= end_dt)]
+
     return df
 
 
