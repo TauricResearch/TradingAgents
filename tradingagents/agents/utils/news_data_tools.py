@@ -151,6 +151,19 @@ def get_corporate_action_pressure_context(
 
 
 @tool
+def get_unusual_trading_activity(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share 龙虎榜 / unusual-trading activity context.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_unusual_trading_activity", ticker, start_date, end_date)
+
+
+@tool
 def get_decision_signal_summary(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],

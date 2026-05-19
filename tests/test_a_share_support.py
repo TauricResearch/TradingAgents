@@ -17,6 +17,7 @@ from tradingagents.dataflows.a_share import (
     get_sector_rotation_context,
     get_sector_strength_snapshot,
     get_stock_data,
+    get_unusual_trading_activity,
 )
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.interface import get_vendor, route_to_vendor
@@ -330,6 +331,54 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("减持计划", result)
         self.assertIn("回购股份公告", result)
 
+    @patch("tradingagents.dataflows.a_share.ak.stock_lhb_stock_statistic_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_lhb_stock_detail_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_lhb_stock_detail_date_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_lhb_detail_em", create=True)
+    def test_get_unusual_trading_activity_summarizes_lhb_records(
+        self,
+        mock_lhb_detail,
+        mock_lhb_dates,
+        mock_lhb_side,
+        mock_lhb_stats,
+    ):
+        mock_lhb_detail.return_value = pd.DataFrame(
+            {
+                "代码": ["002624"],
+                "名称": ["完美世界"],
+                "上榜日": ["2024-04-03"],
+                "龙虎榜净买额": [1000.0],
+                "换手率": [12.0],
+                "上榜原因": ["日涨幅偏离值达7%"],
+            }
+        )
+        mock_lhb_dates.return_value = pd.DataFrame({"日期": ["2024-04-03"]})
+        mock_lhb_side.return_value = pd.DataFrame(
+            {
+                "营业部名称": ["机构专用"],
+                "买入金额": [800.0],
+                "卖出金额": [100.0],
+            }
+        )
+        mock_lhb_stats.return_value = pd.DataFrame(
+            {
+                "代码": ["002624"],
+                "最近上榜日": ["2024-04-03"],
+                "上榜次数": [2],
+                "龙虎榜净买额": [1200.0],
+                "买方机构次数": [1],
+                "卖方机构次数": [0],
+            }
+        )
+
+        result = get_unusual_trading_activity("002624.SZ", "2024-04-01", "2024-04-10")
+
+        self.assertIn("LHB appearances", result)
+        self.assertIn("Seat detail snapshot", result)
+        self.assertIn("Recent LHB statistics", result)
+        self.assertIn("龙虎榜净买额", result)
+
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_market_activity")
@@ -340,7 +389,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_activity,
         mock_strength,
         mock_relative,
+        mock_unusual,
     ):
+        mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
         mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
         mock_events.return_value = "\n".join(
@@ -372,6 +423,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Northbound holding changes are available", result)
         self.assertIn("Source Digests", result)
 
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
@@ -384,7 +436,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_sector,
         mock_strength,
         mock_relative,
+        mock_unusual,
     ):
+        mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
         mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
@@ -403,6 +457,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Sector / concept rotation context is available", result)
         self.assertIn("Board snapshot performance is available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
@@ -415,7 +470,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_sector,
         mock_strength,
         mock_relative,
+        mock_unusual,
     ):
+        mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
@@ -431,6 +488,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("Broader board-strength rankings are available", result)
 
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
     @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
@@ -443,7 +501,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_sector,
         mock_strength,
         mock_relative,
+        mock_unusual,
     ):
+        mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
         mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
@@ -459,6 +519,7 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertIn("relative-strength alpha versus the market benchmark is positive", result)
 
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
     @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
@@ -473,7 +534,9 @@ class AShareSupportTests(unittest.TestCase):
         mock_strength,
         mock_relative,
         mock_pressure,
+        mock_unusual,
     ):
+        mock_unusual.return_value = "# A-share unusual trading activity for 2024-04-11"
         mock_events.return_value = "# A-share company event signals for 002624.SZ"
         mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
         mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
@@ -493,6 +556,42 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Corporate-action pressure is elevated", result)
         self.assertIn("elevated governance or legal headline risk", result)
         self.assertIn("Positive corporate-action offsets are strong enough", result)
+
+    @patch("tradingagents.dataflows.a_share.get_unusual_trading_activity")
+    @patch("tradingagents.dataflows.a_share.get_corporate_action_pressure_context")
+    @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
+    @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")
+    @patch("tradingagents.dataflows.a_share.get_sector_rotation_context")
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_unusual_trading_activity(
+        self,
+        mock_events,
+        mock_activity,
+        mock_sector,
+        mock_strength,
+        mock_relative,
+        mock_pressure,
+        mock_unusual,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "# A-share market activity signals for 002624.SZ"
+        mock_sector.return_value = "# A-share sector rotation context for 002624.SZ"
+        mock_strength.return_value = "# A-share sector strength snapshot for 2024-04-11"
+        mock_relative.return_value = "# A-share relative strength context for 2024-04-11"
+        mock_pressure.return_value = "# A-share corporate action pressure context for 002624.SZ"
+        mock_unusual.return_value = "\n".join(
+            [
+                "# A-share unusual trading activity for 002624.SZ",
+                "## LHB appearances",
+                "## Seat detail snapshot (20240403)",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("龙虎榜 / unusual-trading records are available", result)
+        self.assertIn("席位明细 is available", result)
 
     @patch("tradingagents.dataflows.a_share.get_relative_strength_context")
     @patch("tradingagents.dataflows.a_share.get_sector_strength_snapshot")

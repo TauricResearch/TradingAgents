@@ -27,6 +27,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_caixin_news,
     get_language_instruction,
     get_news,
+    get_unusual_trading_activity,
     get_xueqiu_sentiment,
 )
 from tradingagents.dataflows.reddit import fetch_reddit_posts
@@ -57,6 +58,7 @@ def create_sentiment_analyst(llm):
             news_block = get_news.func(ticker, start_date, end_date)
             xueqiu_block = get_xueqiu_sentiment.func(ticker)
             caixin_block = get_caixin_news.func(ticker, 10)
+            unusual_block = get_unusual_trading_activity.func(ticker, start_date, end_date)
             system_message = _build_cn_a_system_message(
                 ticker=ticker,
                 start_date=start_date,
@@ -64,6 +66,7 @@ def create_sentiment_analyst(llm):
                 news_block=news_block,
                 xueqiu_block=xueqiu_block,
                 caixin_block=caixin_block,
+                unusual_block=unusual_block,
             )
         else:
             # Pre-fetch all three sources. Each fetcher degrades gracefully and
@@ -187,6 +190,7 @@ def _build_cn_a_system_message(
     news_block: str,
     xueqiu_block: str,
     caixin_block: str,
+    unusual_block: str,
 ) -> str:
     return f"""You are an A-share market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three pre-fetched A-share-oriented sources.
 
@@ -213,20 +217,28 @@ Supplementary financial journalism, often useful for policy and sector framing.
 {caixin_block}
 <end_of_caixin>
 
+### 龙虎榜 / unusual-trading context
+Short-horizon participation and seat-concentration clues when available.
+
+<start_of_unusual_trading>
+{unusual_block}
+<end_of_unusual_trading>
+
 ## How to analyze this data
 
 1. Treat official facts, broker research, and policy-sensitive headlines as primary evidence.
 2. Use Xueqiu heat / ranking information as a retail-attention signal, not as proof of fundamentals.
-3. Pay attention to A-share-specific drivers: policy support, sector rotation, earnings pre-announcements, shareholder reductions/increases, trading suspensions, and risk warnings.
-4. When sources disagree, explain the divergence explicitly rather than forcing a single conclusion.
-5. Be honest about data quality. If one source is unavailable, lower confidence accordingly.
+3. Use 龙虎榜 / unusual-trading signals to judge whether attention looks flow-driven, speculative, or concentrated in a few active seats.
+4. Pay attention to A-share-specific drivers: policy support, sector rotation, earnings pre-announcements, shareholder reductions/increases, trading suspensions, and risk warnings.
+5. When sources disagree, explain the divergence explicitly rather than forcing a single conclusion.
+6. Be honest about data quality. If one source is unavailable, lower confidence accordingly.
 
 ## Output
 
 Produce a sentiment report covering, in order:
 
 1. Overall sentiment direction — Bullish / Bearish / Neutral / Mixed — with a confidence note.
-2. Source-by-source breakdown — what each of news pack / Xueqiu / Caixin suggests.
+2. Source-by-source breakdown — what each of news pack / Xueqiu / Caixin / 龙虎榜 context suggests.
 3. Key narratives and divergences across sources.
 4. Catalysts and risks for A-share traders.
 5. Markdown table summarizing the main signals, source, direction, and evidence.

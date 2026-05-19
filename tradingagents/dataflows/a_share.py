@@ -1295,6 +1295,117 @@ def get_corporate_action_pressure_context(ticker: str, start_date: str, end_date
     return "\n".join(sections).strip()
 
 
+def get_unusual_trading_activity(ticker: str, start_date: str, end_date: str) -> str:
+    """Summarise 龙虎榜 / unusual trading activity for an A-share ticker."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    sections = [f"# A-share unusual trading activity for {normalized}", ""]
+    errors = []
+
+    detail_fetcher = getattr(ak, "stock_lhb_detail_em", None)
+    if detail_fetcher is not None:
+        try:
+            detail_df = _call_akshare_api(
+                detail_fetcher,
+                start_date=format_date_for_api(start_date),
+                end_date=format_date_for_api(end_date),
+            )
+            if not detail_df.empty and "代码" in detail_df.columns:
+                matched = detail_df[detail_df["代码"].astype(str).str.upper() == plain].copy()
+                if not matched.empty:
+                    sections.append("## LHB appearances")
+                    sample_columns = [
+                        col for col in ["上榜日", "名称", "涨跌幅", "龙虎榜净买额", "换手率", "上榜原因", "解读"]
+                        if col in matched.columns
+                    ]
+                    sample = matched.loc[:, sample_columns].head(10) if sample_columns else matched.head(10)
+                    sections.append(sample.to_csv(index=False))
+                    if "龙虎榜净买额" in matched.columns:
+                        values = pd.to_numeric(matched["龙虎榜净买额"], errors="coerce").dropna()
+                        if not values.empty:
+                            sections.append(
+                                f"Signal: total sampled LHB net amount={values.sum():.2f}, mean={values.mean():.2f}"
+                            )
+                    if "上榜原因" in matched.columns:
+                        reasons = _extract_text_values(matched, ["上榜原因"], limit=5)
+                        if reasons:
+                            sections.append(f"Signal: repeated listing reasons include {', '.join(reasons)}")
+                    sections.append("")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"lhb_detail: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    date_fetcher = getattr(ak, "stock_lhb_stock_detail_date_em", None)
+    side_fetcher = getattr(ak, "stock_lhb_stock_detail_em", None)
+    if date_fetcher is not None and side_fetcher is not None:
+        try:
+            date_df = _call_akshare_api(date_fetcher, symbol=plain)
+            if not date_df.empty:
+                date_column = next((col for col in date_df.columns if "日期" in str(col)), None)
+                if date_column:
+                    parsed_dates = pd.to_datetime(date_df[date_column], errors="coerce").dropna()
+                    eligible = [
+                        ts.strftime("%Y%m%d")
+                        for ts in parsed_dates
+                        if pd.Timestamp(start_date) <= ts <= pd.Timestamp(end_date)
+                    ]
+                    if eligible:
+                        detail_date = sorted(eligible)[-1]
+                        sections.append(f"## Seat detail snapshot ({detail_date})")
+                        for flag in ["买入", "卖出"]:
+                            try:
+                                side_df = _call_akshare_api(side_fetcher, symbol=plain, date=detail_date, flag=flag)
+                            except Exception as exc:  # noqa: BLE001
+                                errors.append(f"lhb_side_{flag}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+                                continue
+                            if side_df.empty:
+                                continue
+                            sample_columns = [
+                                col for col in ["营业部名称", "买入金额", "卖出金额", "净额", "金额", "上榜日"]
+                                if col in side_df.columns
+                            ]
+                            sample = side_df.loc[:, sample_columns].head(5) if sample_columns else side_df.head(5)
+                            sections.append(f"### {flag}席位")
+                            sections.append(sample.to_csv(index=False))
+                        sections.append("")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"lhb_stock_detail_date: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    institution_fetcher = getattr(ak, "stock_lhb_stock_statistic_em", None)
+    if institution_fetcher is not None:
+        try:
+            stats_df = _call_akshare_api(institution_fetcher, symbol="近一月")
+            if not stats_df.empty and "代码" in stats_df.columns:
+                matched = stats_df[stats_df["代码"].astype(str).str.upper() == plain].copy()
+                if not matched.empty:
+                    sections.append("## Recent LHB statistics")
+                    sample_columns = [
+                        col for col in [
+                            "最近上榜日", "上榜次数", "龙虎榜净买额", "买方机构次数",
+                            "卖方机构次数", "机构买入净额", "近1个月涨跌幅"
+                        ]
+                        if col in matched.columns
+                    ]
+                    sample = matched.loc[:, sample_columns].head(3) if sample_columns else matched.head(3)
+                    sections.append(sample.to_csv(index=False))
+                    sections.append("")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"lhb_stat: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    if len(sections) == 2:
+        if errors:
+            return f"未能稳定获取 {normalized} 的龙虎榜 / 异动席位信息。\n\n" + "\n".join(errors[:5])
+        return f"未获取到 {normalized} 的龙虎榜 / 异动席位信息。"
+
+    sections.append("## Interpretation")
+    sections.append("- Use repeated appearances, net buy/sell direction, and seat concentration to judge whether short-term price action may be flow-driven.")
+    sections.append("- Treat 龙虎榜 signals as short-horizon trading context rather than standalone fundamental evidence.")
+    if errors:
+        sections.append("")
+        sections.append("## Data retrieval notes")
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1304,6 +1415,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     strength_text = get_sector_strength_snapshot(curr_date)
     relative_text = get_relative_strength_context(ticker, curr_date)
     action_pressure_text = get_corporate_action_pressure_context(ticker, start_date, end_date)
+    unusual_text = get_unusual_trading_activity(ticker, start_date, end_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -1372,6 +1484,10 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         risks.append("Corporate-action risk scorecard points to elevated governance or legal headline risk.")
     if "Positive offset strength: high" in action_pressure_text:
         catalysts.append("Positive corporate-action offsets are strong enough to partly cushion the pressure side.")
+    if "LHB appearances" in unusual_text:
+        flow.append("龙虎榜 / unusual-trading records are available and may explain part of the move as short-horizon flow rather than medium-term fundamentals.")
+    if "Seat detail snapshot" in unusual_text:
+        flow.append("席位明细 is available, which helps judge whether the move reflects concentrated trading participation.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -1399,5 +1515,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text])
     return "\n".join(sections).strip()

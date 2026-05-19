@@ -30,6 +30,7 @@ from .a_share import (
     get_sector_strength_snapshot as get_akshare_sector_strength_snapshot,
     get_relative_strength_context as get_akshare_relative_strength_context,
     get_corporate_action_pressure_context as get_akshare_corporate_action_pressure_context,
+    get_unusual_trading_activity as get_akshare_unusual_trading_activity,
 )
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
@@ -83,6 +84,7 @@ TOOLS_CATEGORIES = {
             "get_sector_strength_snapshot",
             "get_relative_strength_context",
             "get_corporate_action_pressure_context",
+            "get_unusual_trading_activity",
             "get_decision_signal_summary",
             "get_xueqiu_sentiment",
             "get_caixin_news",
@@ -166,6 +168,9 @@ VENDOR_METHODS = {
     },
     "get_corporate_action_pressure_context": {
         "akshare": get_akshare_corporate_action_pressure_context,
+    },
+    "get_unusual_trading_activity": {
+        "akshare": get_akshare_unusual_trading_activity,
     },
     "get_decision_signal_summary": {
         "akshare": get_akshare_decision_signal_summary,
