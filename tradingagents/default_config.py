@@ -50,4 +50,15 @@ DEFAULT_CONFIG = {
     # QuestDB connection (Franklin prod instance — used when data_vendors.core_stock_apis = "questdb")
     "questdb_host": os.getenv("QUESTDB_HOST", "192.168.1.41"),
     "questdb_http_port": int(os.getenv("QUESTDB_HTTP_PORT", "9000")),
+    # -- Confluence report publishing --------------------------------------
+    # Every call to ta.propagate() auto-publishes a timestamped report page:
+    #   Reports -> yyyy -> yyyy-mm -> yyyy-mm-dd HH:MM:SS ET · SYMBOL · Signal
+    # Set confluence_publish=False to disable without removing these keys.
+    # Required env vars in franklin.env:
+    #   CONFLUENCE_USER_EMAIL   sal.cobian@franklinfinancial.ai
+    #   CONFLUENCE_API_TOKEN    <atlassian api token>
+    "confluence_publish":         True,
+    "confluence_base_url":        "https://franklindigitalcorp.atlassian.net/wiki",
+    "confluence_space_key":       "trading",
+    "confluence_parent_page_id":  "1376579",   # Reports root page
 }

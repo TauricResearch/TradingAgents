@@ -345,7 +345,25 @@ class TradingAgentsGraph:
                 self.config["data_cache_dir"], company_name, str(trade_date)
             )
 
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        signal_string = self.process_signal(final_state["final_trade_decision"])
+
+        # -- publish report to Confluence ---------------------------------
+        if self.config.get("confluence_publish", True):
+            try:
+                from tradingagents.confluence_publisher import publish_report
+                page_url = publish_report(
+                    symbol=company_name,
+                    signal=signal_string,
+                    final_state=final_state,
+                    config=self.config,
+                )
+                if page_url:
+                    logger.info(f"[{company_name}] Confluence report: {page_url}")
+            except Exception as exc:
+                # Non-fatal: log and continue -- never block a trading decision
+                logger.warning(f"[{company_name}] Confluence publish failed: {exc}")
+
+        return final_state, signal_string
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
