@@ -8,11 +8,24 @@ vendor routing in ``interface.py`` can swap them transparently.
 from __future__ import annotations
 
 import math
+import sys
 import time
 from datetime import datetime
 from typing import Annotated
 
 import pandas as pd
+
+# ── Block mini-racer (V8 JS engine) from loading ────────────────────────
+# akshare bundles mini-racer as a dependency, but it crashes with SIGTRAP
+# on macOS ARM64 (address_pool_manager.cc FATAL). Since our data calls
+# don't need JS execution, we inject a dummy module to prevent loading.
+import types as _types
+
+_dummy_mr = _types.ModuleType("mini_racer")
+_dummy_mr.__version__ = "0.0.0-blocked"
+_dummy_mr.MiniRacer = type("MiniRacer", (), {"__init__": lambda s, *a, **k: None})
+sys.modules.setdefault("mini_racer", _dummy_mr)
+sys.modules.setdefault("py_mini_racer", _dummy_mr)
 
 from .a_share_common import (
     ensure_ipv4,
