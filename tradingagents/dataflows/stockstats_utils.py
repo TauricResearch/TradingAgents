@@ -119,6 +119,9 @@ class StockstatsUtils:
         ],
     ):
         data = load_ohlcv(symbol, curr_date)
+        latest_available_date = None
+        if not data.empty and "Date" in data.columns:
+            latest_available_date = pd.to_datetime(data["Date"]).max().strftime("%Y-%m-%d")
         df = wrap(data)
         df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
         curr_date_str = pd.to_datetime(curr_date).strftime("%Y-%m-%d")
@@ -130,4 +133,16 @@ class StockstatsUtils:
             indicator_value = matching_rows[indicator].values[0]
             return indicator_value
         else:
+            if latest_available_date and curr_date_str > latest_available_date:
+                latest_rows = df[df["Date"].str.startswith(latest_available_date)]
+                if not latest_rows.empty:
+                    latest_value = latest_rows[indicator].values[0]
+                    return (
+                        f"{latest_value} [fallback from {curr_date_str} "
+                        f"to latest available trading day {latest_available_date}]"
+                    )
+                return (
+                    "N/A: No daily bar available for this date yet; "
+                    f"latest available trading day is {latest_available_date}"
+                )
             return "N/A: Not a trading day (weekend or holiday)"

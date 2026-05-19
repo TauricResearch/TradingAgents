@@ -128,6 +128,37 @@ def _safe_truncate(text: str, limit: int = 160) -> str:
     return clean[: limit - 3] + "..."
 
 
+def _find_first_numeric_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    for column in candidates:
+        if column in df.columns:
+            values = pd.to_numeric(df[column], errors="coerce").dropna()
+            if not values.empty:
+                return column
+    return None
+
+
+def _describe_series_trend(values: pd.Series, label: str, positive_direction: str, negative_direction: str) -> str | None:
+    numeric = pd.to_numeric(values, errors="coerce").dropna()
+    if numeric.empty:
+        return None
+
+    latest = float(numeric.iloc[0])
+    summary = [f"latest {label}={latest:.2f}"]
+    if len(numeric) >= 2:
+        delta = float(numeric.iloc[0] - numeric.iloc[1])
+        direction = positive_direction if delta > 0 else negative_direction if delta < 0 else "flat"
+        summary.append(f"1-step delta={delta:.2f} ({direction})")
+    if len(numeric) >= 3:
+        mean_value = float(numeric.mean())
+        summary.append(f"recent mean={mean_value:.2f}")
+
+    positive_count = int((numeric > 0).sum())
+    negative_count = int((numeric < 0).sum())
+    if positive_count or negative_count:
+        summary.append(f"sign distribution +:{positive_count} / -:{negative_count}")
+    return ", ".join(summary)
+
+
 def _classify_event_tag(text: str) -> str:
     title = str(text or "")
     for tag, keywords in EVENT_TAG_RULES:
@@ -744,8 +775,9 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                 working = df.copy().head(5)
                 sections.append("## Individual fund flow")
                 sections.append(working.to_csv(index=False))
-                if "主力净流入-净额" in working.columns:
-                    values = pd.to_numeric(working["主力净流入-净额"], errors="coerce").dropna()
+                main_flow_col = _find_first_numeric_column(working, ["主力净流入-净额", "主力净流入净额"])
+                if main_flow_col:
+                    values = pd.to_numeric(working[main_flow_col], errors="coerce").dropna()
                     if not values.empty:
                         pos = int((values > 0).sum())
                         neg = int((values < 0).sum())
@@ -753,6 +785,14 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                         sections.append(
                             f"Signal: recent main-fund-flow observations positive={pos}, negative={neg}, latest={latest:.2f}"
                         )
+                        trend = _describe_series_trend(
+                            values,
+                            "main fund flow",
+                            "buying pressure strengthening",
+                            "selling pressure strengthening",
+                        )
+                        if trend:
+                            sections.append(f"Trend: {trend}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"fund_flow: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
 
@@ -764,13 +804,23 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                 working = df.copy().head(5)
                 sections.append("## Northbound holding activity")
                 sections.append(working.to_csv(index=False))
-                for col in ["持股数量", "HOLD_SHARES", "持股市值", "HOLD_MARKET_CAP"]:
-                    if col in working.columns:
-                        values = pd.to_numeric(working[col], errors="coerce").dropna()
-                        if len(values) >= 2:
-                            delta = values.iloc[0] - values.iloc[1]
-                            sections.append(f"Signal: northbound latest delta on {col} = {delta:.2f}")
-                            break
+                northbound_col = _find_first_numeric_column(
+                    working,
+                    ["持股数量", "HOLD_SHARES", "持股市值", "HOLD_MARKET_CAP"],
+                )
+                if northbound_col:
+                    values = pd.to_numeric(working[northbound_col], errors="coerce").dropna()
+                    if len(values) >= 2:
+                        delta = values.iloc[0] - values.iloc[1]
+                        sections.append(f"Signal: northbound latest delta on {northbound_col} = {delta:.2f}")
+                    trend = _describe_series_trend(
+                        values,
+                        f"northbound {northbound_col}",
+                        "northbound accumulation",
+                        "northbound reduction",
+                    )
+                    if trend:
+                        sections.append(f"Trend: {trend}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"northbound: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
 
@@ -804,6 +854,26 @@ def get_market_activity(ticker: str, curr_date: str) -> str:
                             val = pd.to_numeric(matched[col], errors="coerce").dropna()
                             if not val.empty:
                                 sections.append(f"Signal: latest {col} = {val.iloc[0]:.2f}")
+                    financing_col = _find_first_numeric_column(matched, ["融资余额", "融资买入额"])
+                    if financing_col:
+                        trend = _describe_series_trend(
+                            pd.to_numeric(matched[financing_col], errors="coerce"),
+                            financing_col,
+                            "leverage demand increasing",
+                            "leverage demand easing",
+                        )
+                        if trend:
+                            sections.append(f"Trend: {trend}")
+                    short_col = _find_first_numeric_column(matched, ["融券余额", "融券余量"])
+                    if short_col:
+                        trend = _describe_series_trend(
+                            pd.to_numeric(matched[short_col], errors="coerce"),
+                            short_col,
+                            "short exposure increasing",
+                            "short exposure easing",
+                        )
+                        if trend:
+                            sections.append(f"Trend: {trend}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"margin: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
 
@@ -866,6 +936,18 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Northbound holding changes are available and may help validate institutional appetite.")
     if "Margin trading detail" in activity_text:
         flow.append("Margin-trading detail is available; rising leverage can amplify both upside and downside.")
+    if "buying pressure strengthening" in activity_text:
+        flow.append("Main-fund-flow trend suggests incremental buying pressure rather than a one-day anomaly.")
+    if "selling pressure strengthening" in activity_text:
+        flow.append("Main-fund-flow trend suggests persistent selling pressure that deserves caution.")
+    if "northbound accumulation" in activity_text:
+        flow.append("Northbound positioning appears to be building, which can support institutional confirmation.")
+    if "northbound reduction" in activity_text:
+        flow.append("Northbound positioning appears to be trimming, which weakens external confirmation.")
+    if "leverage demand increasing" in activity_text:
+        flow.append("Margin-financing demand is rising, which can reinforce upside but also raise unwind risk.")
+    if "short exposure increasing" in activity_text:
+        flow.append("Short-side exposure is rising, which may reflect growing skepticism or hedging demand.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."

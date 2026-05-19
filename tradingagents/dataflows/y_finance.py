@@ -1,10 +1,13 @@
 from typing import Annotated
 from datetime import datetime
+import logging
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+
+logger = logging.getLogger(__name__)
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -55,6 +58,24 @@ def get_stock_stats_indicators_window(
     ],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
+
+    def _format_missing_value(date_str: str, latest_date: str | None, data: dict) -> str:
+        if (
+            latest_date
+            and date_str == curr_date
+            and latest_date in data
+        ):
+            latest_value = data[latest_date]
+            return (
+                f"{latest_value} [fallback from {curr_date} "
+                f"to latest available trading day {latest_date}]"
+            )
+        if latest_date and date_str == curr_date:
+            return (
+                "N/A: No daily bar available for this date yet; "
+                f"latest available trading day is {latest_date}"
+            )
+        return "N/A: Not a trading day (weekend or holiday)"
 
     best_ind_params = {
         # Moving Averages
@@ -141,6 +162,7 @@ def get_stock_stats_indicators_window(
     # Optimized: Get stock data once and calculate indicators for all dates
     try:
         indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
+        latest_available_date = indicator_data.pop("__latest_available_date__", None)
         
         # Generate the date range we need
         current_dt = curr_date_dt
@@ -153,7 +175,11 @@ def get_stock_stats_indicators_window(
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+                indicator_value = _format_missing_value(
+                    date_str,
+                    latest_available_date,
+                    indicator_data,
+                )
             
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
@@ -164,15 +190,14 @@ def get_stock_stats_indicators_window(
             ind_string += f"{date_str}: {value}\n"
         
     except Exception as e:
-        print(f"Error getting bulk stockstats data: {e}")
+        logger.warning("Error getting bulk stockstats data for %s %s on %s: %s", symbol, indicator, curr_date, e)
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
         while curr_date_dt >= before:
-            indicator_value = get_stockstats_indicator(
-                symbol, indicator, curr_date_dt.strftime("%Y-%m-%d")
-            )
-            ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            date_str = curr_date_dt.strftime("%Y-%m-%d")
+            indicator_value = get_stockstats_indicator(symbol, indicator, date_str)
+            ind_string += f"{date_str}: {indicator_value}\n"
             curr_date_dt = curr_date_dt - relativedelta(days=1)
 
     result_str = (
@@ -198,6 +223,10 @@ def _get_stock_stats_bulk(
     from stockstats import wrap
 
     data = load_ohlcv(symbol, curr_date)
+    latest_available_date = None
+    if not data.empty and "Date" in data.columns:
+        latest_available_date = pd.to_datetime(data["Date"]).max().strftime("%Y-%m-%d")
+
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
     
@@ -215,6 +244,8 @@ def _get_stock_stats_bulk(
             result_dict[date_str] = "N/A"
         else:
             result_dict[date_str] = str(indicator_value)
+
+    result_dict["__latest_available_date__"] = latest_available_date
     
     return result_dict
 
@@ -237,8 +268,12 @@ def get_stockstats_indicator(
             curr_date,
         )
     except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
+        logger.warning(
+            "Error getting stockstats indicator data for %s %s on %s: %s",
+            symbol,
+            indicator,
+            curr_date,
+            e,
         )
         return ""
 

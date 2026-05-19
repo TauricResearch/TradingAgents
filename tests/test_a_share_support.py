@@ -16,6 +16,7 @@ from tradingagents.dataflows.a_share import (
 )
 from tradingagents.dataflows.config import set_config
 from tradingagents.dataflows.interface import get_vendor, route_to_vendor
+from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
@@ -196,6 +197,7 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Northbound holding activity", result)
         self.assertIn("Margin trading detail", result)
         self.assertIn("Signal:", result)
+        self.assertIn("Trend:", result)
 
     @patch("tradingagents.dataflows.a_share.get_market_activity")
     @patch("tradingagents.dataflows.a_share.get_company_event_signals")
@@ -232,3 +234,42 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("Shareholder reduction related events may pressure supply / sentiment.", result)
         self.assertIn("Northbound holding changes are available", result)
         self.assertIn("Source Digests", result)
+
+    @patch("tradingagents.dataflows.a_share.get_market_activity")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    def test_decision_signal_summary_absorbs_flow_trend_clues(
+        self,
+        mock_events,
+        mock_activity,
+    ):
+        mock_events.return_value = "# A-share company event signals for 002624.SZ"
+        mock_activity.return_value = "\n".join(
+            [
+                "# A-share market activity signals for 002624.SZ",
+                "Trend: latest main fund flow=100.00, 1-step delta=20.00 (buying pressure strengthening)",
+                "Trend: latest northbound HOLD_SHARES=50.00, 1-step delta=5.00 (northbound accumulation)",
+                "Trend: latest 融资余额=80.00, 1-step delta=10.00 (leverage demand increasing)",
+            ]
+        )
+
+        result = get_decision_signal_summary("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("incremental buying pressure", result)
+        self.assertIn("institutional confirmation", result)
+        self.assertIn("Margin-financing demand is rising", result)
+
+    @patch("tradingagents.dataflows.y_finance._get_stock_stats_bulk")
+    def test_indicator_window_falls_back_to_latest_available_trading_day(self, mock_bulk):
+        mock_bulk.return_value = {
+            "2024-04-10": "1.23",
+            "2024-04-09": "1.11",
+            "__latest_available_date__": "2024-04-10",
+        }
+
+        result = get_stock_stats_indicators_window("002624.SS", "macd", "2024-04-11", 2)
+
+        self.assertIn(
+            "2024-04-11: 1.23 [fallback from 2024-04-11 to latest available trading day 2024-04-10]",
+            result,
+        )
+        self.assertIn("2024-04-10: 1.23", result)
