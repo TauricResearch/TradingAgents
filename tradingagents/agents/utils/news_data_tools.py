@@ -123,6 +123,20 @@ def get_sector_strength_snapshot(
 
 
 @tool
+def get_relative_strength_context(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "Lookback window for relative-strength comparison"] = 20,
+) -> str:
+    """
+    Retrieve A-share relative-strength context versus benchmark and board
+    rotation backdrop.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_relative_strength_context", ticker, curr_date, look_back_days)
+
+
+@tool
 def get_decision_signal_summary(
     ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],

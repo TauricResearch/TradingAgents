@@ -25,6 +25,8 @@ from .a_share_common import (
     to_plain_symbol,
     to_yfinance_symbol,
 )
+from .config import get_config
+from .stockstats_utils import load_ohlcv
 from .y_finance import get_stock_stats_indicators_window
 
 logger = logging.getLogger(__name__)
@@ -229,6 +231,41 @@ def _round_numeric_frame(df: pd.DataFrame) -> pd.DataFrame:
         if pd.api.types.is_numeric_dtype(rounded[column]):
             rounded[column] = rounded[column].round(4)
     return rounded
+
+
+def _compute_window_return(df: pd.DataFrame, look_back_days: int, price_col: str = "Close") -> tuple[float | None, str | None]:
+    if df.empty or price_col not in df.columns:
+        return None, None
+    working = df.copy()
+    working["Date"] = pd.to_datetime(working["Date"], errors="coerce")
+    working = working.dropna(subset=["Date", price_col]).sort_values("Date")
+    if working.empty:
+        return None, None
+    latest_date = working["Date"].iloc[-1]
+    start_cutoff = latest_date - pd.Timedelta(days=look_back_days)
+    window = working[working["Date"] >= start_cutoff]
+    if len(window) < 2:
+        window = working.tail(min(len(working), look_back_days + 1))
+    if len(window) < 2:
+        return None, latest_date.strftime("%Y-%m-%d")
+    start_price = float(window[price_col].iloc[0])
+    end_price = float(window[price_col].iloc[-1])
+    if start_price == 0:
+        return None, latest_date.strftime("%Y-%m-%d")
+    return (end_price - start_price) / start_price, latest_date.strftime("%Y-%m-%d")
+
+
+def _resolve_a_share_benchmark(symbol: str) -> str:
+    config = get_config()
+    explicit = config.get("benchmark_ticker")
+    if explicit:
+        return explicit
+    benchmark_map = config.get("benchmark_map", {})
+    normalized = normalize_ashare_symbol(symbol)
+    for suffix, benchmark in benchmark_map.items():
+        if suffix and normalized.endswith(suffix.upper()):
+            return benchmark
+    return benchmark_map.get(".SH", "000300.SS")
 
 
 def _filter_report_rows(df: pd.DataFrame, curr_date: str | None) -> pd.DataFrame:
@@ -1117,6 +1154,57 @@ def get_sector_strength_snapshot(curr_date: str, limit: int = 5) -> str:
     return "\n".join(sections).strip()
 
 
+def get_relative_strength_context(ticker: str, curr_date: str, look_back_days: int = 20) -> str:
+    """Summarise stock-relative strength versus benchmark and board context."""
+    normalized = normalize_ashare_symbol(ticker)
+    benchmark_symbol = _resolve_a_share_benchmark(ticker)
+    sections = [f"# A-share relative strength context for {normalized}", ""]
+
+    start_date = (pd.Timestamp(curr_date) - pd.Timedelta(days=max(look_back_days * 3, 60))).strftime("%Y-%m-%d")
+    stock_df = _load_hist_df(ticker, start_date, curr_date)
+    benchmark_df = load_ohlcv(benchmark_symbol, curr_date)
+    stock_return, stock_latest = _compute_window_return(stock_df, look_back_days)
+    benchmark_return, benchmark_latest = _compute_window_return(benchmark_df, look_back_days)
+
+    if stock_return is not None:
+        sections.append("## Stock vs benchmark")
+        sections.append(f"- Stock return over ~{look_back_days} calendar days: {stock_return * 100:.2f}%")
+        sections.append(f"- Stock latest available date: {stock_latest}")
+        sections.append(f"- Benchmark symbol: {benchmark_symbol}")
+        if benchmark_return is not None:
+            alpha = stock_return - benchmark_return
+            sections.append(f"- Benchmark return over ~{look_back_days} calendar days: {benchmark_return * 100:.2f}%")
+            sections.append(f"- Benchmark latest available date: {benchmark_latest}")
+            sections.append(f"- Relative strength alpha: {alpha * 100:.2f}%")
+            if alpha > 0.03:
+                sections.append("- Signal: stock is outperforming its market benchmark by a meaningful margin.")
+            elif alpha < -0.03:
+                sections.append("- Signal: stock is lagging its market benchmark by a meaningful margin.")
+            else:
+                sections.append("- Signal: stock is moving broadly in line with its market benchmark.")
+        sections.append("")
+
+    sector_text = get_sector_rotation_context(ticker, curr_date)
+    strength_text = get_sector_strength_snapshot(curr_date)
+    if "Rotation takeaways" in sector_text:
+        sections.append("## Board-relative read")
+        if "Industry tags" in sector_text:
+            industry_line = next((line for line in sector_text.splitlines() if line.startswith("- Primary industry context:")), None)
+            if industry_line:
+                sections.append(industry_line)
+        if "leading boards currently include" in strength_text:
+            sections.append("- Compare the stock's own return and momentum to whether its industry / concept appears among current leading boards.")
+        if "weakest boards currently include" in strength_text:
+            sections.append("- If the stock is holding up despite weak board leadership, treat that as possible idiosyncratic strength.")
+        sections.append("")
+
+    if len(sections) == 2:
+        return f"未获取到 {normalized} 的相对强弱信息。"
+
+    sections.extend(["## Source Digests", "", sector_text, "", strength_text])
+    return "\n".join(sections).strip()
+
+
 def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
     """Build a concise A-share decision summary from events and activity signals."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1124,6 +1212,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     activity_text = get_market_activity(ticker, curr_date)
     sector_text = get_sector_rotation_context(ticker, curr_date)
     strength_text = get_sector_strength_snapshot(curr_date)
+    relative_text = get_relative_strength_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
         return text.count(token)
@@ -1182,6 +1271,10 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("Board snapshot performance is available, which helps judge whether relative strength is stock-specific or sector-driven.")
     if "leading boards currently include" in strength_text:
         flow.append("Broader board-strength rankings are available, which helps place the ticker inside the current rotation leaderboard.")
+    if "outperforming its market benchmark" in relative_text:
+        flow.append("Recent relative-strength alpha versus the market benchmark is positive, which supports momentum confirmation.")
+    if "lagging its market benchmark" in relative_text:
+        flow.append("Recent relative-strength alpha versus the market benchmark is negative, which tempers conviction.")
 
     bias_line = (
         f"Event balance over the lookback window: positive={positive}, negative={negative}, mixed={mixed}."
@@ -1209,5 +1302,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text])
     return "\n".join(sections).strip()

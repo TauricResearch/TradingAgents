@@ -22,6 +22,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_market_activity,
     get_sector_rotation_context,
     get_sector_strength_snapshot,
+    get_relative_strength_context,
     get_decision_signal_summary,
     get_xueqiu_sentiment,
     get_caixin_news,
