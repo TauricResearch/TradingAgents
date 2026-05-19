@@ -110,6 +110,51 @@ POSITIVE_EVENT_TAGS = {"buyback", "contract_order", "earnings_preview", "dividen
 NEGATIVE_EVENT_TAGS = {"risk_warning", "litigation", "pledge", "lockup"}
 MIXED_EVENT_TAGS = {"shareholder_change", "financing", "restructuring", "suspension"}
 
+POLICY_SUPPORTIVE_KEYWORDS = (
+    "支持",
+    "鼓励",
+    "推进",
+    "提振",
+    "扩大",
+    "优化",
+    "减税",
+    "降准",
+    "降息",
+    "补贴",
+    "专项债",
+    "稳增长",
+)
+POLICY_RESTRICTIVE_KEYWORDS = (
+    "监管",
+    "从严",
+    "处罚",
+    "整治",
+    "问询",
+    "规范",
+    "风险提示",
+    "暂停",
+    "叫停",
+    "收紧",
+)
+POLICY_TOPIC_KEYWORDS = (
+    "证监会",
+    "交易所",
+    "国务院",
+    "央行",
+    "财政部",
+    "发改委",
+    "工信部",
+    "住建部",
+    "国资委",
+    "商务部",
+    "地产",
+    "算力",
+    "人工智能",
+    "新能源",
+    "半导体",
+    "汽车",
+)
+
 
 def _call_akshare_api(func, *args, retries: int = 2, retry_delay: float = 0.5, **kwargs):
     last_exc = None
@@ -1668,6 +1713,81 @@ def get_limit_move_sentiment_context(curr_date: str) -> str:
     return "\n".join(sections).strip()
 
 
+def get_policy_signal_context(curr_date: str, look_back_days: int = 7, limit: int = 20) -> str:
+    """Summarise recent China market-policy and regulatory signal flow."""
+    fetcher = getattr(ak, "stock_info_global_em", None)
+    if fetcher is None:
+        return "A-share policy news API unavailable."
+
+    try:
+        df = _call_akshare_api(fetcher)
+    except Exception as exc:  # noqa: BLE001
+        return f"未能稳定获取 A 股政策与监管语境。\n\n{type(exc).__name__}: {_safe_truncate(str(exc), 120)}"
+    if df.empty:
+        return "未获取到可用的 A 股政策与监管语境。"
+
+    filtered = df.copy()
+    if "发布时间" in filtered.columns:
+        filtered["发布时间"] = parse_date_column(filtered["发布时间"])
+        end = pd.Timestamp(curr_date) + timedelta(days=1) - timedelta(seconds=1)
+        start = end - timedelta(days=look_back_days)
+        filtered = filtered[(filtered["发布时间"] >= start) & (filtered["发布时间"] <= end)]
+        filtered = filtered.sort_values("发布时间", ascending=False)
+
+    if filtered.empty:
+        return f"{curr_date} 前 {look_back_days} 天没有可用的政策与监管快讯。"
+
+    text_cols = [col for col in ["标题", "摘要"] if col in filtered.columns]
+    if not text_cols:
+        return "可用市场快讯中没有足够的政策文本字段。"
+
+    working = filtered.head(limit).copy()
+    combined = (
+        working[text_cols].fillna("").astype(str).agg(" ".join, axis=1)
+    )
+    policy_mask = combined.map(
+        lambda text: any(keyword in text for keyword in POLICY_TOPIC_KEYWORDS + POLICY_SUPPORTIVE_KEYWORDS + POLICY_RESTRICTIVE_KEYWORDS)
+    )
+    working = working.loc[policy_mask].copy()
+    combined = combined.loc[policy_mask]
+
+    if working.empty:
+        return "近期市场快讯里没有明显的政策 / 监管主线。"
+
+    supportive = int(combined.map(lambda text: any(keyword in text for keyword in POLICY_SUPPORTIVE_KEYWORDS)).sum())
+    restrictive = int(combined.map(lambda text: any(keyword in text for keyword in POLICY_RESTRICTIVE_KEYWORDS)).sum())
+
+    topic_counts: dict[str, int] = {}
+    for text in combined:
+        for keyword in POLICY_TOPIC_KEYWORDS:
+            if keyword in text:
+                topic_counts[keyword] = topic_counts.get(keyword, 0) + 1
+
+    sections = [f"# A-share policy signal context for {curr_date}", ""]
+    sections.append("## Policy / regulation headlines")
+    sample_cols = [col for col in ["发布时间", "标题", "摘要", "链接"] if col in working.columns]
+    sample = working.loc[:, sample_cols].head(min(limit, 8)).copy() if sample_cols else working.head(min(limit, 8))
+    if "摘要" in sample.columns:
+        sample["摘要"] = sample["摘要"].map(lambda value: _safe_truncate(value, 140))
+    sections.append(sample.to_csv(index=False))
+    sections.append("")
+
+    sections.append("## Policy tone read")
+    sections.append(f"- Supportive-policy headline count: {supportive}")
+    sections.append(f"- Restrictive / regulatory-pressure headline count: {restrictive}")
+    if supportive > restrictive:
+        sections.append("- Signal: policy tone looks supportive on balance, which can help sector risk appetite and valuation tolerance.")
+    elif restrictive > supportive:
+        sections.append("- Signal: policy tone looks cautious / restrictive on balance, which can cap sentiment and increase compliance sensitivity.")
+    else:
+        sections.append("- Signal: policy tone looks mixed, so traders should avoid assuming a one-way macro tailwind.")
+
+    if topic_counts:
+        ordered_topics = sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)[:5]
+        sections.append(f"- Dominant policy topics: {', '.join(f'{topic}({count})' for topic, count in ordered_topics)}")
+    return "\n".join(sections).strip()
+
+
 def get_peer_comparison_context(ticker: str, curr_date: str, look_back_days: int = 20) -> str:
     """Compare an A-share ticker with a few industry/concept peers."""
     normalized = normalize_ashare_symbol(ticker)
@@ -1785,6 +1905,7 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     regime_text = get_capital_flow_regime_context(ticker, curr_date)
     constraint_text = get_trading_constraint_context(ticker, curr_date)
     limit_move_text = get_limit_move_sentiment_context(curr_date)
+    policy_text = get_policy_signal_context(curr_date)
     peer_text = get_peer_comparison_context(ticker, curr_date)
 
     def count_token(text: str, token: str) -> int:
@@ -1876,6 +1997,10 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
         flow.append("涨停 breadth is dominating跌停 stress, which points to a hot short-horizon tape.")
     if "downside stress looks elevated" in limit_move_text:
         risks.append("跌停 breadth is overwhelming limit-up momentum, which points to a fragile tape and weaker risk appetite.")
+    if "policy tone looks supportive" in policy_text:
+        catalysts.append("Policy / regulatory tone currently looks supportive, which can improve sector risk appetite and valuation tolerance.")
+    if "policy tone looks cautious / restrictive" in policy_text:
+        risks.append("Policy / regulatory tone currently looks cautious or restrictive, which can cap sentiment and raise compliance sensitivity.")
     if "peer-relative strength looks constructive" in peer_text:
         flow.append("Peer-relative strength is constructive, suggesting the move is not just generic sector beta.")
     if "peer-relative strength looks weak" in peer_text:
@@ -1907,5 +2032,5 @@ def get_decision_signal_summary(ticker: str, start_date: str, end_date: str, cur
     sections.extend(f"- {item}" for item in (dilution or ["No obvious dilution / supply-pressure event was detected from the current rule set."]))
     sections.extend(["", "## Capital Flow / Activity"])
     sections.extend(f"- {item}" for item in (flow or ["No additional flow / activity signal was retrieved beyond the base price and news context."]))
-    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", constraint_text, "", limit_move_text, "", peer_text])
+    sections.extend(["", "## Source Digests", "", event_text, "", activity_text, "", sector_text, "", strength_text, "", relative_text, "", action_pressure_text, "", unusual_text, "", regime_text, "", constraint_text, "", limit_move_text, "", policy_text, "", peer_text])
     return "\n".join(sections).strip()

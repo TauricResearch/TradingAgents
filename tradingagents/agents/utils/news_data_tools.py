@@ -161,6 +161,19 @@ def get_limit_move_sentiment_context(
 
 
 @tool
+def get_policy_signal_context(
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "Lookback window for policy and regulation headlines"] = 7,
+    limit: Annotated[int, "Maximum number of headlines to inspect"] = 20,
+) -> str:
+    """
+    Retrieve China policy / regulatory market context for A-share analysis.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_policy_signal_context", curr_date, look_back_days, limit)
+
+
+@tool
 def get_peer_comparison_context(
     ticker: Annotated[str, "Ticker symbol"],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],

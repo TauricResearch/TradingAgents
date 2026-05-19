@@ -25,6 +25,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_relative_strength_context,
     get_trading_constraint_context,
     get_limit_move_sentiment_context,
+    get_policy_signal_context,
     get_peer_comparison_context,
     get_corporate_action_pressure_context,
     get_unusual_trading_activity,
