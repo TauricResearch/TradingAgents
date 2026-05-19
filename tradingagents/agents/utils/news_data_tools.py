@@ -72,6 +72,32 @@ def get_company_announcements(
 
 
 @tool
+def get_company_event_signals(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve structured A-share company event signals derived from announcements.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_company_event_signals", ticker, start_date, end_date)
+
+
+@tool
+def get_market_activity(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve A-share market activity signals such as fund flow, northbound holdings,
+    and margin-trading context.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_market_activity", ticker, curr_date)
+
+
+@tool
 def get_xueqiu_sentiment(
     ticker: Annotated[str, "Ticker symbol"],
 ) -> str:

@@ -8,7 +8,9 @@ import pytest
 import tradingagents.default_config as default_config
 from tradingagents.dataflows.a_share import (
     get_balance_sheet,
+    get_company_event_signals,
     get_fundamentals,
+    get_market_activity,
     get_stock_data,
 )
 from tradingagents.dataflows.config import set_config
@@ -149,3 +151,41 @@ class AShareSupportTests(unittest.TestCase):
 
         self.assertEqual(TradingAgentsGraph._resolve_benchmark(mock_graph, "600519.SH"), "000300.SS")
         self.assertEqual(TradingAgentsGraph._resolve_benchmark(mock_graph, "000001.SZ"), "000300.SS")
+
+    @patch("tradingagents.dataflows.a_share.ak.stock_individual_notice_report", create=True)
+    def test_get_company_event_signals_summarizes_categories(self, mock_notice):
+        mock_notice.side_effect = [
+            pd.DataFrame({"公告日期": ["2024-04-01"], "公告标题": ["签署重大合同"], "公告类型": ["重大事项"], "网址": ["u1"]}),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            pd.DataFrame({"公告日期": ["2024-04-03"], "公告标题": ["股东减持计划"], "公告类型": ["持股变动"], "网址": ["u2"]}),
+        ]
+
+        result = get_company_event_signals("002624.SZ", "2024-04-01", "2024-04-10")
+
+        self.assertIn("重大事项", result)
+        self.assertIn("持股变动", result)
+        self.assertIn("签署重大合同", result)
+        self.assertIn("股东减持计划", result)
+
+    @patch("tradingagents.dataflows.a_share.get_previous_trade_date")
+    @patch("tradingagents.dataflows.a_share.ak.stock_margin_detail_szse", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_hsgt_individual_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_individual_fund_flow", create=True)
+    def test_get_market_activity_combines_multiple_sources(
+        self,
+        mock_fund_flow,
+        mock_hsgt,
+        mock_margin,
+        mock_prev_trade_date,
+    ):
+        mock_prev_trade_date.return_value = "2024-04-01"
+        mock_fund_flow.return_value = pd.DataFrame({"日期": ["2024-04-01"], "主力净流入-净额": [123.0]})
+        mock_hsgt.return_value = pd.DataFrame({"TRADE_DATE": ["2024-04-01"], "HOLD_SHARES": [456.0]})
+        mock_margin.return_value = pd.DataFrame({"证券代码": ["002624"], "融资余额": [789.0]})
+
+        result = get_market_activity("002624.SZ", "2024-04-02")
+
+        self.assertIn("Individual fund flow", result)
+        self.assertIn("Northbound holding activity", result)
+        self.assertIn("Margin trading detail", result)

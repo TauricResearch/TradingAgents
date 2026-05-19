@@ -18,6 +18,8 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news,
     get_company_announcements,
+    get_company_event_signals,
+    get_market_activity,
     get_xueqiu_sentiment,
     get_caixin_news,
 )

@@ -73,6 +73,11 @@ def to_yfinance_symbol(symbol: str) -> str:
     return f"{code}.{exchange}"
 
 
+def get_ashare_exchange(symbol: str) -> str:
+    """Return the exchange suffix (``SH``/``SZ``/``BJ``) for an A-share ticker."""
+    return normalize_ashare_symbol(symbol).split(".", 1)[1]
+
+
 def format_date_for_api(date_str: str) -> str:
     return pd.Timestamp(date_str).strftime("%Y%m%d")
 

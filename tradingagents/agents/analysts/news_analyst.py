@@ -3,8 +3,10 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_caixin_news,
     get_company_announcements,
+    get_company_event_signals,
     get_global_news,
     get_language_instruction,
+    get_market_activity,
     get_news,
 )
 from tradingagents.dataflows.config import get_config
@@ -27,6 +29,8 @@ def create_news_analyst(llm):
         if market_region == "cn_a" and asset_type == "stock":
             tools.extend([
                 get_company_announcements,
+                get_company_event_signals,
+                get_market_activity,
                 get_caixin_news,
             ])
 
@@ -34,7 +38,8 @@ def create_news_analyst(llm):
             system_message = (
                 "You are an A-share news researcher tasked with analyzing recent company, market, and policy developments over the past week. "
                 f"Use `get_news` for {asset_label}-specific information packs, `get_global_news` for broader China market and policy context, "
-                "`get_company_announcements` for official exchange disclosures, and `get_caixin_news` for supplementary financial journalism when available. "
+                "`get_company_announcements` for official exchange disclosures, `get_company_event_signals` for event summaries, "
+                "`get_market_activity` for capital-flow / northbound / margin context, and `get_caixin_news` for supplementary financial journalism when available. "
                 "Weight official announcements and policy headlines heavily, because they often matter more than social chatter in A-share trading. "
                 "Highlight catalysts such as earnings pre-announcements, shareholder changes, regulation, sector policy, and trading suspensions when present. "
                 "Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."

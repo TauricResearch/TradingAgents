@@ -21,8 +21,10 @@ from .a_share import (
     get_news as get_akshare_news,
     get_market_news as get_akshare_market_news,
     get_company_announcements as get_akshare_company_announcements,
+    get_company_event_signals as get_akshare_company_event_signals,
     get_xueqiu_sentiment as get_akshare_xueqiu_sentiment,
     get_caixin_news as get_akshare_caixin_news,
+    get_market_activity as get_akshare_market_activity,
 )
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
@@ -70,6 +72,8 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
             "get_company_announcements",
+            "get_company_event_signals",
+            "get_market_activity",
             "get_xueqiu_sentiment",
             "get_caixin_news",
         ]
@@ -134,6 +138,12 @@ VENDOR_METHODS = {
     },
     "get_company_announcements": {
         "akshare": get_akshare_company_announcements,
+    },
+    "get_company_event_signals": {
+        "akshare": get_akshare_company_event_signals,
+    },
+    "get_market_activity": {
+        "akshare": get_akshare_market_activity,
     },
     "get_xueqiu_sentiment": {
         "akshare": get_akshare_xueqiu_sentiment,

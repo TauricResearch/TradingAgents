@@ -15,7 +15,9 @@ except ImportError:  # pragma: no cover - covered indirectly via patched tests
 
 from .a_share_common import (
     format_date_for_api,
+    get_ashare_exchange,
     get_date_range,
+    get_previous_trade_date,
     normalize_ashare_symbol,
     parse_date_column,
     to_exchange_prefixed_symbol,
@@ -574,3 +576,146 @@ def get_company_announcements(ticker: str, start_date: str, end_date: str, categ
     if errors:
         output += "\n\n## Data retrieval notes\n\n" + "\n".join(f"- {item}" for item in errors[:5])
     return output
+
+
+def get_company_event_signals(ticker: str, start_date: str, end_date: str) -> str:
+    """Summarise announcement-derived event signals for A-share tickers."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    fetcher = getattr(ak, "stock_individual_notice_report", None)
+    if fetcher is None:
+        return f"A-share event-signal API unavailable for {normalized}"
+
+    categories = ["重大事项", "风险提示", "融资公告", "持股变动"]
+    sections = [f"# A-share company event signals for {normalized}", ""]
+    any_hits = False
+    errors = []
+
+    for category in categories:
+        try:
+            df = _call_akshare_api(
+                fetcher,
+                security=plain,
+                symbol=category,
+                begin_date=start_date,
+                end_date=end_date,
+            )
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{category}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+            continue
+
+        if df.empty:
+            continue
+
+        any_hits = True
+        working = df.copy()
+        date_col = next((c for c in ["公告日期", "NOTICE_DATE", "date"] if c in working.columns), None)
+        title_col = next((c for c in ["公告标题", "title", "名称"] if c in working.columns), None)
+        link_col = next((c for c in ["网址", "链接", "url"] if c in working.columns), None)
+        type_col = next((c for c in ["公告类型", "类型", "notice_type"] if c in working.columns), None)
+
+        if date_col:
+            working[date_col] = parse_date_column(working[date_col])
+            working = working.sort_values(date_col, ascending=False)
+
+        sections.append(f"## {category}")
+        sections.append(f"- Count: {len(working)}")
+        latest_rows = working.head(5)
+        for _, row in latest_rows.iterrows():
+            line = []
+            if date_col and pd.notna(row.get(date_col)):
+                line.append(pd.Timestamp(row[date_col]).strftime("%Y-%m-%d"))
+            if type_col and row.get(type_col):
+                line.append(str(row[type_col]))
+            if title_col and row.get(title_col):
+                line.append(_safe_truncate(row[title_col], 120))
+            if link_col and row.get(link_col):
+                line.append(str(row[link_col]))
+            sections.append("- " + " | ".join(line))
+        sections.append("")
+
+    if not any_hits:
+        if errors:
+            return (
+                f"{normalized} 在 {start_date} 到 {end_date} 之间未能稳定获取事件信号。\n\n"
+                + "\n".join(errors[:5])
+            )
+        return f"{normalized} 在 {start_date} 到 {end_date} 之间没有可识别的事件信号。"
+
+    if errors:
+        sections.append("## Data retrieval notes")
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
+def get_market_activity(ticker: str, curr_date: str) -> str:
+    """Combine fund flow, northbound holdings, and margin signals for A-shares."""
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    exchange = get_ashare_exchange(ticker)
+    market_code = exchange.lower()
+    sections = [f"# A-share market activity signals for {normalized}", ""]
+    errors = []
+
+    fund_flow_fetcher = getattr(ak, "stock_individual_fund_flow", None)
+    if fund_flow_fetcher is not None:
+        try:
+            df = _call_akshare_api(fund_flow_fetcher, stock=plain, market=market_code)
+            if not df.empty:
+                working = df.copy().head(5)
+                sections.append("## Individual fund flow")
+                sections.append(working.to_csv(index=False))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"fund_flow: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    northbound_fetcher = getattr(ak, "stock_hsgt_individual_em", None)
+    if northbound_fetcher is not None:
+        try:
+            df = _call_akshare_api(northbound_fetcher, symbol=plain)
+            if not df.empty:
+                working = df.copy().head(5)
+                sections.append("## Northbound holding activity")
+                sections.append(working.to_csv(index=False))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"northbound: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    trade_date = get_previous_trade_date(curr_date)
+    trade_date_compact = trade_date.replace("-", "")
+    if exchange == "SZ":
+        margin_fetcher = getattr(ak, "stock_margin_detail_szse", None)
+        margin_kwargs = {"date": trade_date_compact}
+    elif exchange == "SH":
+        margin_fetcher = getattr(ak, "stock_margin_detail_sse", None)
+        margin_kwargs = {"date": trade_date_compact}
+    else:
+        margin_fetcher = None
+        margin_kwargs = {}
+
+    if margin_fetcher is not None:
+        try:
+            df = _call_akshare_api(margin_fetcher, **margin_kwargs)
+            if not df.empty:
+                code_columns = [c for c in df.columns if "代码" in str(c) or "证券代码" in str(c)]
+                matched = pd.DataFrame()
+                for column in code_columns:
+                    matched = df[df[column].astype(str).str.contains(plain, na=False)]
+                    if not matched.empty:
+                        break
+                if not matched.empty:
+                    sections.append("## Margin trading detail")
+                    sections.append(matched.head(3).to_csv(index=False))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"margin: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+
+    if len(sections) == 2:
+        if errors:
+            return (
+                f"未能稳定获取 {normalized} 的市场活动信号。\n\n"
+                + "\n".join(errors[:5])
+            )
+        return f"未获取到 {normalized} 的市场活动信号。"
+
+    if errors:
+        sections.append("## Data retrieval notes")
+        sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
