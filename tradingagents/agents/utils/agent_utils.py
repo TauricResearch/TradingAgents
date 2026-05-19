@@ -16,7 +16,10 @@ from tradingagents.agents.utils.fundamental_data_tools import (
 from tradingagents.agents.utils.news_data_tools import (
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_company_announcements,
+    get_xueqiu_sentiment,
+    get_caixin_news,
 )
 
 
@@ -44,10 +47,15 @@ def build_instrument_context(ticker: str, asset_type: str = "stock") -> str:
         if asset_type == "crypto"
         else ""
     )
+    ticker_examples = "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
+    if asset_type == "stock" and ticker[:1].isdigit():
+        ticker_examples = (
+            "preserving any exchange suffix (e.g. `600519.SH`, `000001.SZ`, `430047.BJ`)."
+        )
     return (
         f"The {instrument_label} to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`, `-USD`)."
+        + ticker_examples
         + extra_hint
     )
 

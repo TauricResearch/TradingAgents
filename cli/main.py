@@ -505,14 +505,18 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK, 600519, 000001.SZ)",
             "SPY",
         )
     )
     selected_ticker = get_ticker()
     asset_type = detect_asset_type(selected_ticker)
+    market_region = detect_market_region(selected_ticker, asset_type)
     console.print(
         f"[green]Detected asset type:[/green] {asset_type.value}"
+    )
+    console.print(
+        f"[green]Detected market region:[/green] {market_region}"
     )
 
     # Step 2: Analysis date
@@ -625,6 +629,7 @@ def get_user_selections():
     return {
         "ticker": selected_ticker,
         "asset_type": asset_type.value,
+        "market_region": market_region,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
@@ -659,7 +664,7 @@ def get_ticker():
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         raise typer.Exit(1)
 
-    return (ticker.strip() or "SPY").upper()
+    return normalize_ticker_symbol(ticker.strip() or "SPY")
 
 
 def get_analysis_date():
@@ -992,6 +997,18 @@ def run_analysis(checkpoint: bool = False):
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
+    config["market_region"] = selections.get("market_region", "us")
+
+    if config["market_region"] == "cn_a":
+        config["data_vendors"] = {
+            "core_stock_apis": "akshare",
+            "technical_indicators": "akshare",
+            "fundamental_data": "akshare",
+            "news_data": "akshare",
+        }
+        config["benchmark_ticker"] = "000300.SS"
+        if selections.get("output_language") == "English":
+            config["output_language"] = "Chinese"
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()

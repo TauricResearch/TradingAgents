@@ -1,18 +1,20 @@
 import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
+import re
 
 import questionary
 from dotenv import find_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
+from tradingagents.dataflows.a_share_common import normalize_ashare_symbol
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK, 600519, 000001.SZ"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -46,7 +48,10 @@ def get_ticker() -> str:
 
 def normalize_ticker_symbol(ticker: str) -> str:
     """Normalize ticker input while preserving exchange suffixes."""
-    return ticker.strip().upper()
+    normalized = ticker.strip().upper()
+    if re.fullmatch(r"(SH|SZ|BJ)?\d{6}(\.(SH|SZ|BJ))?", normalized):
+        return normalize_ashare_symbol(normalized)
+    return normalized
 
 
 def detect_asset_type(ticker: str) -> AssetType:
@@ -54,6 +59,18 @@ def detect_asset_type(ticker: str) -> AssetType:
     if normalized_ticker.endswith(CRYPTO_SUFFIXES):
         return AssetType.CRYPTO
     return AssetType.STOCK
+
+
+def detect_market_region(ticker: str, asset_type: AssetType | None = None) -> str:
+    if asset_type is None:
+        asset_type = detect_asset_type(ticker)
+    if asset_type == AssetType.CRYPTO:
+        return "global"
+
+    normalized = normalize_ticker_symbol(ticker)
+    if re.fullmatch(r"\d{6}\.(SH|SZ|BJ)", normalized):
+        return "cn_a"
+    return "us"
 
 
 def filter_analysts_for_asset_type(

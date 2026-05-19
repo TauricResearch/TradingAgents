@@ -8,6 +8,7 @@ _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 # of the existing default, so users can keep writing plain strings in
 # their .env file.
 _ENV_OVERRIDES = {
+    "TRADINGAGENTS_MARKET_REGION":       "market_region",
     "TRADINGAGENTS_LLM_PROVIDER":         "llm_provider",
     "TRADINGAGENTS_DEEP_THINK_LLM":       "deep_think_llm",
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
@@ -50,6 +51,10 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
+    # Market mode / regional defaults
+    # ``us`` keeps the legacy behaviour. ``cn_a`` enables A-share-oriented
+    # data routing, benchmarks, and agent context when A-share tickers are used.
+    "market_region": "us",
     # LLM settings
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.4",
@@ -110,6 +115,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
     "benchmark_map": {
+        ".SH":  "000300.SS",  # SSE-listed A-shares -> CSI 300
+        ".SZ":  "000300.SS",  # SZSE-listed A-shares -> CSI 300
+        ".BJ":  "899050.BJ",  # Beijing Stock Exchange 50
         ".NS":  "^NSEI",    # NSE India (Nifty 50)
         ".BO":  "^BSESN",   # BSE India (Sensex)
         ".T":   "^N225",    # Tokyo (Nikkei 225)

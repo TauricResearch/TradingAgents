@@ -1,0 +1,576 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+import logging
+import math
+import time
+from types import SimpleNamespace
+
+import pandas as pd
+
+try:
+    import akshare as ak
+except ImportError:  # pragma: no cover - covered indirectly via patched tests
+    ak = SimpleNamespace()
+
+from .a_share_common import (
+    format_date_for_api,
+    get_date_range,
+    normalize_ashare_symbol,
+    parse_date_column,
+    to_exchange_prefixed_symbol,
+    to_plain_symbol,
+    to_yfinance_symbol,
+)
+from .y_finance import get_stock_stats_indicators_window
+
+logger = logging.getLogger(__name__)
+
+IMPORTANT_FINANCIAL_METRICS = [
+    "归母净利润",
+    "扣非净利润",
+    "营业总收入",
+    "基本每股收益",
+    "每股净资产",
+    "每股经营性现金流",
+    "销售毛利率",
+    "净资产收益率",
+    "资产负债率",
+]
+
+BALANCE_SHEET_COLUMNS = [
+    "REPORT_DATE_NAME",
+    "TOTAL_ASSETS",
+    "TOTAL_LIABILITIES",
+    "TOTAL_PARENT_EQUITY",
+    "MONETARYFUNDS",
+    "INVENTORY",
+    "ACCOUNTS_RECE",
+    "GOODWILL",
+]
+
+CASHFLOW_COLUMNS = [
+    "REPORT_DATE_NAME",
+    "NETCASH_OPERATE",
+    "NETCASH_INVEST",
+    "NETCASH_FINANCE",
+    "CCE_ADD",
+    "PAY_STAFF_CASH",
+    "PAY_ALL_TAX",
+]
+
+INCOME_COLUMNS = [
+    "REPORT_DATE_NAME",
+    "TOTAL_OPERATE_INCOME",
+    "OPERATE_PROFIT",
+    "TOTAL_PROFIT",
+    "NETPROFIT",
+    "PARENT_NETPROFIT",
+    "DEDUCT_PARENT_NETPROFIT",
+    "BASIC_EPS",
+]
+
+INDICATOR_DESCRIPTIONS = {
+    "close_50_sma": "50日简单移动平均线，用于识别中期趋势和动态支撑阻力。",
+    "close_200_sma": "200日简单移动平均线，用于识别长期趋势和牛熊切换。",
+    "close_10_ema": "10日指数移动平均线，用于捕捉更快的短期趋势变化。",
+    "macd": "MACD 指标，用于识别趋势变化与动量。",
+    "macds": "MACD 信号线，用于配合 MACD 判断金叉死叉。",
+    "macdh": "MACD 柱状图，用于衡量动量强弱变化。",
+    "rsi": "RSI 指标，用于识别超买超卖与背离。",
+    "boll": "布林带中轨，衡量价格相对中枢。",
+    "boll_ub": "布林带上轨，衡量价格上沿压力。",
+    "boll_lb": "布林带下轨，衡量价格下沿支撑。",
+    "atr": "ATR 波动率指标，用于仓位和止损参考。",
+    "vwma": "成交量加权均线，用于结合量价确认趋势。",
+    "mfi": "资金流量指标，用于衡量量价驱动的超买超卖。",
+}
+
+
+def _call_akshare_api(func, *args, retries: int = 2, retry_delay: float = 0.5, **kwargs):
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if attempt < retries:
+                time.sleep(retry_delay * (attempt + 1))
+                continue
+            raise last_exc
+
+
+def _safe_truncate(text: str, limit: int = 160) -> str:
+    clean = " ".join(str(text).split())
+    if len(clean) <= limit:
+        return clean
+    return clean[: limit - 3] + "..."
+
+
+def _format_table(df: pd.DataFrame, title: str, rows: int = 10) -> str:
+    if df.empty:
+        return f"{title}\n\n暂无数据。"
+    return f"{title}\n\n{df.head(rows).to_csv(index=False)}"
+
+
+def _round_numeric_frame(df: pd.DataFrame) -> pd.DataFrame:
+    rounded = df.copy()
+    for column in rounded.columns:
+        if pd.api.types.is_numeric_dtype(rounded[column]):
+            rounded[column] = rounded[column].round(4)
+    return rounded
+
+
+def _filter_report_rows(df: pd.DataFrame, curr_date: str | None) -> pd.DataFrame:
+    if df.empty or not curr_date:
+        return df
+    for column in ("REPORT_DATE", "NOTICE_DATE", "报告日期", "公告日期"):
+        if column in df.columns:
+            filtered = df.copy()
+            filtered[column] = parse_date_column(filtered[column])
+            cutoff = pd.Timestamp(curr_date)
+            filtered = filtered[filtered[column] <= cutoff]
+            return filtered.sort_values(column, ascending=False)
+    return df
+
+
+def _select_statement_columns(df: pd.DataFrame, preferred_columns: list[str]) -> pd.DataFrame:
+    available = [column for column in preferred_columns if column in df.columns]
+    if not available:
+        return df.head(8)
+    return df.loc[:, available].head(8)
+
+
+def _latest_abstract_snapshot(abstract_df: pd.DataFrame, curr_date: str | None) -> pd.DataFrame:
+    report_columns = [column for column in abstract_df.columns if str(column).isdigit()]
+    if not report_columns:
+        return pd.DataFrame()
+
+    parsed_dates = {
+        column: pd.to_datetime(str(column), format="%Y%m%d", errors="coerce")
+        for column in report_columns
+    }
+    if curr_date:
+        cutoff = pd.Timestamp(curr_date)
+        eligible = [column for column, value in parsed_dates.items() if pd.notna(value) and value <= cutoff]
+    else:
+        eligible = report_columns
+
+    if not eligible:
+        eligible = report_columns
+
+    latest_column = max(eligible, key=lambda column: parsed_dates[column])
+    filtered = abstract_df[abstract_df["指标"].isin(IMPORTANT_FINANCIAL_METRICS)][["指标", latest_column]].copy()
+    filtered.columns = ["指标", latest_column]
+    return filtered
+
+
+def _standardize_hist_df(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
+    renamed = df.rename(
+        columns={
+            "日期": "Date",
+            "date": "Date",
+            "开盘": "Open",
+            "open": "Open",
+            "最高": "High",
+            "high": "High",
+            "最低": "Low",
+            "low": "Low",
+            "收盘": "Close",
+            "close": "Close",
+            "成交量": "Volume",
+            "volume": "Volume",
+            "成交额": "Amount",
+            "amount": "Amount",
+            "振幅": "Amplitude",
+            "涨跌幅": "PctChange",
+            "涨跌额": "PriceChange",
+            "换手率": "TurnoverPct",
+        }
+    ).copy()
+    renamed["Date"] = pd.to_datetime(renamed["Date"], errors="coerce")
+    renamed = renamed.dropna(subset=["Date"]).sort_values("Date")
+    if "Volume" not in renamed.columns:
+        renamed["Volume"] = pd.NA
+    if "PctChange" not in renamed.columns:
+        renamed["PctChange"] = renamed["Close"].pct_change() * 100
+    if "PriceChange" not in renamed.columns:
+        renamed["PriceChange"] = renamed["Close"].diff()
+    renamed["Ticker"] = normalize_ashare_symbol(symbol)
+    preferred = [
+        "Date", "Ticker", "Open", "High", "Low", "Close", "Volume",
+        "Amount", "Amplitude", "PctChange", "PriceChange", "TurnoverPct",
+    ]
+    return renamed[[column for column in preferred if column in renamed.columns]]
+
+
+def _load_hist_df(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    plain_symbol = to_plain_symbol(symbol)
+    tx_symbol = to_exchange_prefixed_symbol(symbol).lower()
+    primary = getattr(ak, "stock_zh_a_hist", None)
+    fallback = getattr(ak, "stock_zh_a_hist_tx", None)
+
+    last_exc = None
+    if primary is not None:
+        try:
+            df = _call_akshare_api(
+                primary,
+                symbol=plain_symbol,
+                period="daily",
+                start_date=format_date_for_api(start_date),
+                end_date=format_date_for_api(end_date),
+                adjust="qfq",
+            )
+            if not df.empty:
+                return _standardize_hist_df(df, symbol)
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+
+    if fallback is not None:
+        df = _call_akshare_api(
+            fallback,
+            symbol=tx_symbol,
+            start_date=start_date,
+            end_date=end_date,
+            adjust="qfq",
+        )
+        return _standardize_hist_df(df, symbol)
+
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("AkShare A-share history APIs are unavailable.")
+
+
+def get_stock_data(symbol: str, start_date: str, end_date: str) -> str:
+    datetime.strptime(start_date, "%Y-%m-%d")
+    datetime.strptime(end_date, "%Y-%m-%d")
+
+    data = _load_hist_df(symbol, start_date, end_date)
+    if data.empty:
+        return f"No data found for A-share symbol '{normalize_ashare_symbol(symbol)}' between {start_date} and {end_date}"
+
+    numeric_columns = [column for column in data.columns if column not in ("Date", "Ticker")]
+    for column in numeric_columns:
+        data[column] = pd.to_numeric(data[column], errors="coerce").round(4)
+
+    header = f"# A-share stock data for {normalize_ashare_symbol(symbol)} from {start_date} to {end_date}\n"
+    header += f"# Total records: {len(data)}\n"
+    header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    return header + data.to_csv(index=False)
+
+
+def get_indicators(symbol: str, indicator: str, curr_date: str, look_back_days: int) -> str:
+    if indicator not in INDICATOR_DESCRIPTIONS:
+        raise ValueError(
+            f"Indicator {indicator} is not supported. Please choose from: {list(INDICATOR_DESCRIPTIONS.keys())}"
+        )
+    # Reuse the existing yfinance/stockstats indicator path, which is already
+    # stable in the upstream project. A-share tickers are converted to the
+    # yfinance exchange suffixes expected by Yahoo Finance, e.g. ``600519.SH``
+    # -> ``600519.SS``.
+    yf_symbol = to_yfinance_symbol(symbol)
+    result = get_stock_stats_indicators_window(
+        yf_symbol,
+        indicator,
+        curr_date,
+        look_back_days,
+    )
+    normalized = normalize_ashare_symbol(symbol)
+    return result.replace(yf_symbol, normalized)
+
+
+def get_fundamentals(ticker: str, curr_date: str | None = None) -> str:
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    sections = []
+
+    profile_fetcher = getattr(ak, "stock_profile_cninfo", None)
+    fallback_profile_fetcher = getattr(ak, "stock_individual_info_em", None)
+    intro_fetcher = getattr(ak, "stock_zyjs_ths", None)
+    business_fetcher = getattr(ak, "stock_zygc_em", None)
+    abstract_fetcher = getattr(ak, "stock_financial_abstract", None)
+
+    if profile_fetcher is not None:
+        try:
+            profile_df = _call_akshare_api(profile_fetcher, symbol=plain)
+            if not profile_df.empty:
+                sections.append(_format_table(profile_df, f"# A-share company profile for {normalized}", rows=10))
+        except Exception:  # noqa: BLE001
+            profile_df = pd.DataFrame()
+        else:
+            profile_df = profile_df
+    else:
+        profile_df = pd.DataFrame()
+
+    if profile_df.empty and fallback_profile_fetcher is not None:
+        try:
+            info_df = _call_akshare_api(fallback_profile_fetcher, symbol=plain)
+            if not info_df.empty:
+                sections.append(_format_table(info_df, f"# A-share company profile for {normalized}", rows=20))
+        except Exception:  # noqa: BLE001
+            pass
+
+    if intro_fetcher is not None:
+        try:
+            intro_df = _call_akshare_api(intro_fetcher, symbol=plain)
+            if not intro_df.empty:
+                sections.append(_format_table(intro_df, "## 主营业务简介", rows=10))
+        except Exception:  # noqa: BLE001
+            pass
+
+    if business_fetcher is not None:
+        try:
+            business_df = _call_akshare_api(business_fetcher, symbol=plain)
+            business_df = _filter_report_rows(business_df, curr_date)
+            if not business_df.empty:
+                sections.append(_format_table(_round_numeric_frame(business_df), "## 主营构成", rows=10))
+        except Exception:  # noqa: BLE001
+            pass
+
+    if abstract_fetcher is not None:
+        try:
+            abstract_df = _call_akshare_api(abstract_fetcher, symbol=plain)
+            snapshot = _latest_abstract_snapshot(abstract_df, curr_date)
+            if not snapshot.empty:
+                sections.append(_format_table(snapshot, "## 最新关键财务摘要", rows=20))
+        except Exception:  # noqa: BLE001
+            pass
+
+    if not sections:
+        return f"No A-share fundamentals data found for {normalized}"
+    return "\n\n".join(sections)
+
+
+def get_balance_sheet(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
+    exchange_symbol = to_exchange_prefixed_symbol(ticker)
+    if freq == "annual":
+        fetcher = getattr(ak, "stock_balance_sheet_by_yearly_em", None)
+    else:
+        fetcher = getattr(ak, "stock_balance_sheet_by_report_em", None)
+    if fetcher is None:
+        return f"A-share balance-sheet API unavailable for {normalize_ashare_symbol(ticker)}"
+    df = _call_akshare_api(fetcher, symbol=exchange_symbol)
+    filtered = _filter_report_rows(df, curr_date)
+    selected = _round_numeric_frame(_select_statement_columns(filtered, BALANCE_SHEET_COLUMNS))
+    return _format_table(selected, f"# A-share balance sheet for {normalize_ashare_symbol(ticker)} ({freq})", rows=8)
+
+
+def get_cashflow(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
+    exchange_symbol = to_exchange_prefixed_symbol(ticker)
+    if freq == "annual":
+        fetcher = getattr(ak, "stock_cash_flow_sheet_by_quarterly_em", None)
+    else:
+        fetcher = getattr(ak, "stock_cash_flow_sheet_by_report_em", None)
+    if fetcher is None:
+        return f"A-share cash-flow API unavailable for {normalize_ashare_symbol(ticker)}"
+    df = _call_akshare_api(fetcher, symbol=exchange_symbol)
+    filtered = _filter_report_rows(df, curr_date)
+    selected = _round_numeric_frame(_select_statement_columns(filtered, CASHFLOW_COLUMNS))
+    return _format_table(selected, f"# A-share cash flow for {normalize_ashare_symbol(ticker)} ({freq})", rows=8)
+
+
+def get_income_statement(ticker: str, freq: str = "quarterly", curr_date: str | None = None) -> str:
+    exchange_symbol = to_exchange_prefixed_symbol(ticker)
+    if freq == "annual":
+        fetcher = getattr(ak, "stock_profit_sheet_by_quarterly_em", None)
+    else:
+        fetcher = getattr(ak, "stock_profit_sheet_by_report_em", None)
+    if fetcher is None:
+        return f"A-share income-statement API unavailable for {normalize_ashare_symbol(ticker)}"
+    df = _call_akshare_api(fetcher, symbol=exchange_symbol)
+    filtered = _filter_report_rows(df, curr_date)
+    selected = _round_numeric_frame(_select_statement_columns(filtered, INCOME_COLUMNS))
+    return _format_table(selected, f"# A-share income statement for {normalize_ashare_symbol(ticker)} ({freq})", rows=8)
+
+
+def get_caixin_news(ticker: str, limit: int = 10) -> str:
+    fetcher = getattr(ak, "stock_news_main_cx", None)
+    if fetcher is None:
+        return f"Caixin news API unavailable for {normalize_ashare_symbol(ticker)}"
+
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    df = _call_akshare_api(fetcher)
+    if df.empty:
+        return f"未获取到财新新闻数据。"
+
+    matched = df.copy()
+    if "title" in matched.columns:
+        mask = matched["title"].astype(str).str.contains(plain, na=False) | matched["title"].astype(str).str.contains(normalized, na=False)
+        matched = matched[mask]
+    if matched.empty:
+        return f"财新新闻最近 100 条中未找到 {normalized} 相关资讯。"
+
+    lines = [f"# 财新新闻 — {normalized}", ""]
+    for _, row in matched.head(limit).iterrows():
+        title = row.get("title") or row.get("标题") or "No title"
+        summary = row.get("content") or row.get("摘要") or ""
+        link = row.get("url") or row.get("链接") or ""
+        lines.append(f"## {title}")
+        if summary:
+            lines.append(_safe_truncate(summary, 200))
+        if link:
+            lines.append(f"Link: {link}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def get_xueqiu_sentiment(ticker: str) -> str:
+    normalized = normalize_ashare_symbol(ticker)
+    fetchers = [
+        ("热度榜", getattr(ak, "stock_hot_rank_em", None)),
+        ("关注榜", getattr(ak, "stock_hot_follow_xq", None)),
+        ("讨论榜", getattr(ak, "stock_hot_tweet_xq", None)),
+        ("交易榜", getattr(ak, "stock_hot_deal_xq", None)),
+    ]
+    plain = to_plain_symbol(ticker)
+    sections = [f"# 雪球情绪数据 — {normalized}", ""]
+    hits = 0
+    for label, fetcher in fetchers:
+        if fetcher is None:
+            continue
+        try:
+            df = _call_akshare_api(fetcher)
+        except Exception:  # noqa: BLE001
+            continue
+        if df.empty:
+            continue
+        code_columns = [column for column in df.columns if "代码" in str(column) or "symbol" in str(column).lower()]
+        name_columns = [column for column in df.columns if "名称" in str(column) or "name" in str(column).lower()]
+        ranking_columns = [column for column in df.columns if "排名" in str(column) or "rank" in str(column).lower()]
+        mask = pd.Series(False, index=df.index)
+        for column in code_columns:
+            mask = mask | (df[column].astype(str).str.contains(plain, na=False))
+        matched = df[mask] if code_columns else pd.DataFrame()
+        if matched.empty:
+            continue
+        hits += 1
+        row = matched.iloc[0]
+        rank = row[ranking_columns[0]] if ranking_columns else "N/A"
+        name = row[name_columns[0]] if name_columns else plain
+        sections.append(f"## {label}")
+        sections.append(f"- 股票: {name}")
+        sections.append(f"- 排名: {rank}")
+        sections.append("")
+
+    if hits == 0:
+        return f"未在可用的雪球热度接口中找到 {normalized}。"
+    return "\n".join(sections).strip()
+
+
+def get_news(ticker: str, start_date: str, end_date: str) -> str:
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(ticker)
+    sections = []
+
+    research_fetcher = getattr(ak, "stock_research_report_em", None)
+    if research_fetcher is not None:
+        try:
+            df = _call_akshare_api(research_fetcher, symbol=plain)
+            if not df.empty:
+                if "日期" in df.columns:
+                    df["日期"] = parse_date_column(df["日期"])
+                    start = pd.Timestamp(start_date)
+                    end = pd.Timestamp(end_date) + timedelta(days=1) - timedelta(seconds=1)
+                    df = df[(df["日期"] >= start) & (df["日期"] <= end)]
+                if not df.empty:
+                    fmt = df.copy()
+                    if "东财评级" in fmt.columns and "报告名称" in fmt.columns:
+                        fmt["新闻标题"] = "[" + fmt["东财评级"].fillna("研报") + "] " + fmt["报告名称"].fillna("")
+                    selected_cols = [col for col in ["日期", "新闻标题", "机构", "行业评级", "报告名称"] if col in fmt.columns]
+                    if selected_cols:
+                        sections.append(_format_table(fmt[selected_cols], "## 券商研报（个股专项）", rows=20))
+        except Exception:  # noqa: BLE001
+            pass
+
+    stock_news_fetcher = getattr(ak, "stock_news_em", None)
+    if stock_news_fetcher is not None and not sections:
+        try:
+            df = _call_akshare_api(stock_news_fetcher, symbol=plain)
+            if not df.empty and "发布时间" in df.columns:
+                df["发布时间"] = parse_date_column(df["发布时间"])
+                start = pd.Timestamp(start_date)
+                end = pd.Timestamp(end_date) + timedelta(days=1) - timedelta(seconds=1)
+                df = df[(df["发布时间"] >= start) & (df["发布时间"] <= end)]
+                if not df.empty:
+                    formatted = df.loc[:, [col for col in ["发布时间", "文章来源", "新闻标题", "新闻内容", "新闻链接"] if col in df.columns]].copy()
+                    if "新闻内容" in formatted.columns:
+                        formatted["新闻内容"] = formatted["新闻内容"].map(_safe_truncate)
+                    sections.append(_format_table(formatted, f"# A-share company news for {normalized}", rows=20))
+        except Exception:  # noqa: BLE001
+            pass
+
+    market_context = get_market_news(end_date, look_back_days=max((pd.Timestamp(end_date) - pd.Timestamp(start_date)).days, 3), limit=6)
+    if market_context:
+        sections.append(market_context)
+
+    if not sections:
+        return f"No A-share news found for {normalized} between {start_date} and {end_date}"
+
+    return f"# A-share news pack for {normalized}\n\n" + "\n\n".join(sections)
+
+
+def get_market_news(curr_date: str, look_back_days: int = 7, limit: int = 10) -> str:
+    fetcher = getattr(ak, "stock_info_global_em", None)
+    if fetcher is None:
+        return "A-share market news API unavailable."
+    df = _call_akshare_api(fetcher)
+    if df.empty:
+        return "未获取到 A 股市场与宏观快讯。"
+
+    filtered = df.copy()
+    if "发布时间" in filtered.columns:
+        filtered["发布时间"] = parse_date_column(filtered["发布时间"])
+        end = pd.Timestamp(curr_date) + timedelta(days=1) - timedelta(seconds=1)
+        start = end - timedelta(days=look_back_days)
+        filtered = filtered[(filtered["发布时间"] >= start) & (filtered["发布时间"] <= end)]
+        filtered = filtered.sort_values("发布时间", ascending=False)
+    if filtered.empty:
+        return f"{curr_date} 前 {look_back_days} 天没有可用的市场快讯。"
+
+    columns = [column for column in ["发布时间", "标题", "摘要", "链接"] if column in filtered.columns]
+    formatted = filtered.loc[:, columns].head(limit).copy()
+    if "摘要" in formatted.columns:
+        formatted["摘要"] = formatted["摘要"].map(lambda value: _safe_truncate(value, 180))
+    return _format_table(formatted, "# A-share market and policy news", rows=limit)
+
+
+def get_company_announcements(ticker: str, start_date: str, end_date: str, category: str = "全部") -> str:
+    normalized_symbol = normalize_ashare_symbol(ticker)
+    plain_symbol = to_plain_symbol(ticker)
+    fetcher = getattr(ak, "stock_notice_report", None)
+    if fetcher is None:
+        return f"A-share announcements API unavailable for {normalized_symbol}"
+
+    frames = []
+    errors = []
+    for date_value in get_date_range(start_date, end_date):
+        try:
+            daily = _call_akshare_api(fetcher, symbol=category, date=format_date_for_api(date_value))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{date_value}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
+            continue
+        if daily.empty or "代码" not in daily.columns:
+            continue
+        matched = daily[daily["代码"].astype(str).str.upper() == plain_symbol]
+        if not matched.empty:
+            frames.append(matched)
+
+    if not frames:
+        if errors:
+            return (
+                f"{normalized_symbol} 在 {start_date} 到 {end_date} 之间未能稳定获取公告数据。\n\n"
+                + "\n".join(errors[:5])
+            )
+        return f"{normalized_symbol} 在 {start_date} 到 {end_date} 之间没有匹配的公告。"
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined["公告日期"] = parse_date_column(combined["公告日期"])
+    combined = combined.sort_values("公告日期", ascending=False).drop_duplicates(subset=["公告标题", "公告日期"])
+    formatted = combined.loc[:, [col for col in ["公告日期", "公告类型", "公告标题", "网址"] if col in combined.columns]].head(20).copy()
+    if "公告日期" in formatted.columns:
+        formatted["公告日期"] = formatted["公告日期"].dt.strftime("%Y-%m-%d")
+    output = _format_table(formatted, f"# A-share company announcements for {normalized_symbol}", rows=20)
+    if errors:
+        output += "\n\n## Data retrieval notes\n\n" + "\n".join(f"- {item}" for item in errors[:5])
+    return output

@@ -24,11 +24,14 @@ from datetime import datetime, timedelta
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    get_caixin_news,
     get_language_instruction,
     get_news,
+    get_xueqiu_sentiment,
 )
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
+from tradingagents.dataflows.config import get_config
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -48,22 +51,36 @@ def create_sentiment_analyst(llm):
         end_date = state["trade_date"]
         start_date = _seven_days_back(end_date)
         instrument_context = build_instrument_context(ticker)
+        market_region = str(get_config().get("market_region", "us")).lower()
 
-        # Pre-fetch all three sources. Each fetcher degrades gracefully and
-        # returns a string (no exceptions surface from here), so the LLM
-        # always sees something — either real data or a clear placeholder.
-        news_block = get_news.func(ticker, start_date, end_date)
-        stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
-        reddit_block = fetch_reddit_posts(ticker)
+        if market_region == "cn_a":
+            news_block = get_news.func(ticker, start_date, end_date)
+            xueqiu_block = get_xueqiu_sentiment.func(ticker)
+            caixin_block = get_caixin_news.func(ticker, 10)
+            system_message = _build_cn_a_system_message(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date,
+                news_block=news_block,
+                xueqiu_block=xueqiu_block,
+                caixin_block=caixin_block,
+            )
+        else:
+            # Pre-fetch all three sources. Each fetcher degrades gracefully and
+            # returns a string (no exceptions surface from here), so the LLM
+            # always sees something — either real data or a clear placeholder.
+            news_block = get_news.func(ticker, start_date, end_date)
+            stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
+            reddit_block = fetch_reddit_posts(ticker)
 
-        system_message = _build_system_message(
-            ticker=ticker,
-            start_date=start_date,
-            end_date=end_date,
-            news_block=news_block,
-            stocktwits_block=stocktwits_block,
-            reddit_block=reddit_block,
-        )
+            system_message = _build_system_message(
+                ticker=ticker,
+                start_date=start_date,
+                end_date=end_date,
+                news_block=news_block,
+                stocktwits_block=stocktwits_block,
+                reddit_block=reddit_block,
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -158,6 +175,61 @@ Produce a sentiment report covering, in order:
 3. **Divergences, alignments, and key narratives** across sources.
 4. **Catalysts and risks** surfaced by the data.
 5. **Markdown table** at the end summarizing key sentiment signals, their direction, source, and supporting evidence.
+
+{get_language_instruction()}"""
+
+
+def _build_cn_a_system_message(
+    *,
+    ticker: str,
+    start_date: str,
+    end_date: str,
+    news_block: str,
+    xueqiu_block: str,
+    caixin_block: str,
+) -> str:
+    return f"""You are an A-share market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three pre-fetched A-share-oriented sources.
+
+## Data sources (pre-fetched, in this prompt)
+
+### Company / research news pack
+This may include券商研报、公司相关新闻、以及市场背景快讯。
+
+<start_of_news>
+{news_block}
+<end_of_news>
+
+### Xueqiu sentiment / popularity signals
+Retail attention and ranking context from 雪球 interfaces when available.
+
+<start_of_xueqiu>
+{xueqiu_block}
+<end_of_xueqiu>
+
+### Caixin ticker-related coverage
+Supplementary financial journalism, often useful for policy and sector framing.
+
+<start_of_caixin>
+{caixin_block}
+<end_of_caixin>
+
+## How to analyze this data
+
+1. Treat official facts, broker research, and policy-sensitive headlines as primary evidence.
+2. Use Xueqiu heat / ranking information as a retail-attention signal, not as proof of fundamentals.
+3. Pay attention to A-share-specific drivers: policy support, sector rotation, earnings pre-announcements, shareholder reductions/increases, trading suspensions, and risk warnings.
+4. When sources disagree, explain the divergence explicitly rather than forcing a single conclusion.
+5. Be honest about data quality. If one source is unavailable, lower confidence accordingly.
+
+## Output
+
+Produce a sentiment report covering, in order:
+
+1. Overall sentiment direction — Bullish / Bearish / Neutral / Mixed — with a confidence note.
+2. Source-by-source breakdown — what each of news pack / Xueqiu / Caixin suggests.
+3. Key narratives and divergences across sources.
+4. Catalysts and risks for A-share traders.
+5. Markdown table summarizing the main signals, source, direction, and evidence.
 
 {get_language_instruction()}"""
 

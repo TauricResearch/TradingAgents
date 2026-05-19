@@ -25,6 +25,7 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.a_share_common import to_yfinance_symbol
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -36,7 +37,10 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_company_announcements,
+    get_xueqiu_sentiment,
+    get_caixin_news,
 )
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
@@ -170,6 +174,8 @@ class TradingAgentsGraph:
                 [
                     # News tools for social media analysis
                     get_news,
+                    get_xueqiu_sentiment,
+                    get_caixin_news,
                 ]
             ),
             "news": ToolNode(
@@ -178,6 +184,8 @@ class TradingAgentsGraph:
                     get_news,
                     get_global_news,
                     get_insider_transactions,
+                    get_company_announcements,
+                    get_caixin_news,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -228,8 +236,11 @@ class TradingAgentsGraph:
             end = start + timedelta(days=holding_days + 7)  # buffer for weekends/holidays
             end_str = end.strftime("%Y-%m-%d")
 
-            stock = yf.Ticker(ticker).history(start=trade_date, end=end_str)
-            bench = yf.Ticker(benchmark).history(start=trade_date, end=end_str)
+            yf_ticker = self._to_market_data_symbol(ticker)
+            yf_benchmark = self._to_market_data_symbol(benchmark)
+
+            stock = yf.Ticker(yf_ticker).history(start=trade_date, end=end_str)
+            bench = yf.Ticker(yf_benchmark).history(start=trade_date, end=end_str)
 
             if len(stock) < 2 or len(bench) < 2:
                 return None, None, None
@@ -251,6 +262,14 @@ class TradingAgentsGraph:
                 ticker, trade_date, benchmark, e,
             )
             return None, None, None
+
+    @staticmethod
+    def _to_market_data_symbol(ticker: str) -> str:
+        """Convert internal regional tickers to a yfinance-compatible symbol."""
+        ticker_upper = ticker.upper()
+        if ticker_upper.endswith((".SH", ".SZ", ".BJ")):
+            return to_yfinance_symbol(ticker_upper)
+        return ticker
 
     def _resolve_pending_entries(self, ticker: str) -> None:
         """Resolve pending log entries for ticker at the start of a new run.

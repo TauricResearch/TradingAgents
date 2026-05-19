@@ -1,6 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    get_caixin_news,
+    get_company_announcements,
     get_global_news,
     get_language_instruction,
     get_news,
@@ -13,6 +15,7 @@ def create_news_analyst(llm):
         current_date = state["trade_date"]
         asset_type = state.get("asset_type", "stock")
         asset_label = "company" if asset_type == "stock" else "asset"
+        market_region = str(get_config().get("market_region", "us")).lower()
         instrument_context = build_instrument_context(
             state["company_of_interest"], asset_type
         )
@@ -21,12 +24,28 @@ def create_news_analyst(llm):
             get_news,
             get_global_news,
         ]
+        if market_region == "cn_a" and asset_type == "stock":
+            tools.extend([
+                get_company_announcements,
+                get_caixin_news,
+            ])
 
-        system_message = (
-            f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for {asset_label}-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + get_language_instruction()
-        )
+        if market_region == "cn_a" and asset_type == "stock":
+            system_message = (
+                "You are an A-share news researcher tasked with analyzing recent company, market, and policy developments over the past week. "
+                f"Use `get_news` for {asset_label}-specific information packs, `get_global_news` for broader China market and policy context, "
+                "`get_company_announcements` for official exchange disclosures, and `get_caixin_news` for supplementary financial journalism when available. "
+                "Weight official announcements and policy headlines heavily, because they often matter more than social chatter in A-share trading. "
+                "Highlight catalysts such as earnings pre-announcements, shareholder changes, regulation, sector policy, and trading suspensions when present. "
+                "Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
+                + get_language_instruction()
+            )
+        else:
+            system_message = (
+                f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for {asset_label}-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+                + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+                + get_language_instruction()
+            )
 
         prompt = ChatPromptTemplate.from_messages(
             [

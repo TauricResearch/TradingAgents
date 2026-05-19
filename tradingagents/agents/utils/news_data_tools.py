@@ -55,3 +55,40 @@ def get_insider_transactions(
         str: A report of insider transaction data
     """
     return route_to_vendor("get_insider_transactions", ticker)
+
+
+@tool
+def get_company_announcements(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    category: Annotated[str, "Announcement category, e.g. 全部"] = "全部",
+) -> str:
+    """
+    Retrieve company announcements for a given ticker symbol.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_company_announcements", ticker, start_date, end_date, category)
+
+
+@tool
+def get_xueqiu_sentiment(
+    ticker: Annotated[str, "Ticker symbol"],
+) -> str:
+    """
+    Retrieve Xueqiu retail sentiment / ranking signals for an A-share ticker.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_xueqiu_sentiment", ticker)
+
+
+@tool
+def get_caixin_news(
+    ticker: Annotated[str, "Ticker symbol"],
+    limit: Annotated[int, "Max articles to return"] = 10,
+) -> str:
+    """
+    Retrieve ticker-related Caixin news snippets for A-share analysis.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_caixin_news", ticker, limit)
