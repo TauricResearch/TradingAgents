@@ -20,6 +20,7 @@ from .a_share_common import (
     get_previous_trade_date,
     normalize_ashare_symbol,
     to_plain_code,
+    to_exchange_prefix,
 )
 from .config import get_config
 from .utils import safe_ticker_component
@@ -57,10 +58,58 @@ def _ak_retry(func, *args, max_retries: int = 3, base_delay: float = 2.0, **kwar
 
 # ── OHLCV data ──────────────────────────────────────────────────────────
 
+def _download_ohlcv_tencent(
+    symbol: str, start_date: str, end_date: str
+) -> pd.DataFrame:
+    """Download daily OHLCV via Tencent source as fallback.
+
+    Uses akshare's ``stock_zh_a_hist_tx`` which connects to Tencent Finance
+    (proxy.finance.qq.com) — a different backend than East Money, useful
+    when the primary source is rate-limited.
+
+    Note: Tencent source does not provide Volume, only amount (turnover).
+    """
+    ensure_ipv4()
+    import akshare as ak
+
+    # Tencent expects exchange-prefixed symbol: sh600519, sz000001
+    tx_symbol = to_exchange_prefix(symbol).lower()
+
+    df = _ak_retry(
+        ak.stock_zh_a_hist_tx,
+        symbol=tx_symbol,
+        start_date=format_date_for_api(start_date),
+        end_date=format_date_for_api(end_date),
+        adjust="qfq",
+    )
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    # Tencent returns lowercase English columns: date, open, close, high, low, amount
+    col_map = {
+        "date": "Date",
+        "open": "Open",
+        "close": "Close",
+        "high": "High",
+        "low": "Low",
+        "amount": "Amount",
+    }
+    df = df.rename(columns=col_map)
+    df["Date"] = pd.to_datetime(df["Date"])
+    # Tencent doesn't provide Volume — set to 0 so stockstats doesn't break
+    if "Volume" not in df.columns:
+        df["Volume"] = 0
+    return df
+
+
 def _download_ohlcv_akshare(
     symbol: str, start_date: str, end_date: str
 ) -> pd.DataFrame:
-    """Download daily OHLCV via akshare and return a cleaned DataFrame.
+    """Download daily OHLCV via akshare with Tencent fallback.
+
+    Tries East Money (``stock_zh_a_hist``) first. On any connection error
+    (rate limiting, network issues), automatically falls back to Tencent
+    (``stock_zh_a_hist_tx``).
 
     The returned columns match what stockstats expects: Date, Open, High,
     Low, Close, Volume.
@@ -69,37 +118,42 @@ def _download_ohlcv_akshare(
     import akshare as ak
 
     code = to_plain_code(symbol)
-    df = _ak_retry(
-        ak.stock_zh_a_hist,
-        symbol=code,
-        period="daily",
-        start_date=format_date_for_api(start_date),
-        end_date=format_date_for_api(end_date),
-        adjust="qfq",
-    )
-    if df is None or df.empty:
-        return pd.DataFrame()
 
-    # akshare returns Chinese column names — map to English
-    col_map = {
-        "日期": "Date",
-        "开盘": "Open",
-        "最高": "High",
-        "最低": "Low",
-        "收盘": "Close",
-        "成交量": "Volume",
-        "成交额": "Amount",
-        "振幅": "AmplitudePct",
-        "涨跌幅": "PctChange",
-        "涨跌额": "PriceChange",
-        "换手率": "TurnoverPct",
-        "股票代码": "Symbol",
-    }
-    df = df.rename(columns=col_map)
-    df["Date"] = pd.to_datetime(df["Date"])
-    # Drop non-data columns (Symbol is metadata, not OHLCV)
-    drop_cols = [c for c in ["Symbol"] if c in df.columns]
-    return df.drop(columns=drop_cols, errors="ignore")
+    # ── Primary: East Money ──
+    try:
+        df = _ak_retry(
+            ak.stock_zh_a_hist,
+            symbol=code,
+            period="daily",
+            start_date=format_date_for_api(start_date),
+            end_date=format_date_for_api(end_date),
+            adjust="qfq",
+            max_retries=2,
+        )
+        if df is not None and not df.empty:
+            col_map = {
+                "日期": "Date", "开盘": "Open", "最高": "High",
+                "最低": "Low", "收盘": "Close", "成交量": "Volume",
+                "成交额": "Amount", "振幅": "AmplitudePct",
+                "涨跌幅": "PctChange", "涨跌额": "PriceChange",
+                "换手率": "TurnoverPct", "股票代码": "Symbol",
+            }
+            df = df.rename(columns=col_map)
+            df["Date"] = pd.to_datetime(df["Date"])
+            drop_cols = [c for c in ["Symbol"] if c in df.columns]
+            return df.drop(columns=drop_cols, errors="ignore")
+    except Exception:
+        pass  # fall through to Tencent
+
+    # ── Fallback: Tencent ──
+    try:
+        df = _download_ohlcv_tencent(symbol, start_date, end_date)
+        if df is not None and not df.empty:
+            return df
+    except Exception:
+        pass  # fall through to empty
+
+    return pd.DataFrame()
 
 
 def load_ohlcv_akshare(symbol: str, curr_date: str) -> pd.DataFrame:
@@ -172,11 +226,15 @@ def get_stock_data(
         if col in df.columns:
             df[col] = df[col].round(2)
 
+    # Detect which source was used based on Volume column
+    has_volume = "Volume" in df.columns and df["Volume"].sum() > 0
+    source = "akshare (East Money)" if has_volume else "akshare (Tencent)"
+
     csv_string = df.to_csv(index=False)
     header = (
         f"# A-share price data for {normalized} from {start_date} to {end_date}\n"
         f"# Total records: {len(df)}\n"
-        f"# Data source: akshare (East Money)\n"
+        f"# Data source: {source}\n"
         f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     )
     return header + csv_string
