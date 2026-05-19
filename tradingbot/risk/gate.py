@@ -139,7 +139,7 @@ class RiskGate:
                     reason=f"Cash ${account.cash:.2f} at minimum reserve "
                            f"${self._min_cash_reserve:.2f} — no buy allowed",
                 )
-            # Cap qty to what we can afford while keeping reserve
+            capped_qty = max_spend / price if price > 0 else 0
             capped_qty = max_spend / price
             logger.warning(
                 "Buy qty capped from %.4f to %.4f to maintain cash reserve", qty, capped_qty
