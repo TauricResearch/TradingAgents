@@ -16,6 +16,7 @@
 {"file":"2026-05-15-brief-research-registry-and-watchlist-seed.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-15-brief-watchlist-pattern-enrichment.md","date":"2026-05-15","status":"done","summary":"STL pattern features: 7 features from TIME benchmark, statsmodels STL + scipy FFT, --pattern flag on screen enrich","meta":{"epic":"WATCH-001","prs":["#23"]}}
 {"file":"2026-05-20-brief-markov-regime.md","date":"2026-05-20","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-20-brief-twelvedata-integration.md","date":"2026-05-20","status":"open","summary":"Twelve Data API integration: free-tier US equity pricing, batch endpoint, server-side technical indicators — replaces yfinance subprocess for US stocks","meta":{"tags":["pricing","data-source"]}}
 {"file":"2026-06-01-brief-bifrost-installation.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"alerts-phase2.md","date":"2026-05-11","status":"done","summary":"ALERTS-PHASE2: SQLite alerts table, CRUD CLI, matching engine, Telegram dispatch, dashboard route","meta":{"epic":"td-cbb2e9"}}
 {"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
