@@ -7,7 +7,8 @@ tags: [brief, WATCH-001, screening, enrichment]
 # Brief: WATCH-001 Pattern-Level Enrichment
 
 **Date:** 2026-05-15
-**Status:** Open
+**Status:** Done
+**Closed:** 2026-05-20
 **Epic ID:** WATCH-001
 **Source:** `docs/time-benchmark-takeaways.md` (from TIME benchmark paper, arXiv:2602.12147)
 

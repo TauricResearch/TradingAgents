@@ -58,6 +58,21 @@ function getFieldValue(
       return data.current_price ?? null
     case "sentiment_score":
       return data.sentiment_avg ?? null
+    // Pattern features (R08)
+    case "trend_strength":
+      return data.enrichment.trend_strength
+    case "trend_linearity":
+      return data.enrichment.trend_linearity
+    case "seasonality_strength":
+      return data.enrichment.seasonality_strength
+    case "seasonality_stability":
+      return data.enrichment.seasonality_stability
+    case "residual_acf1":
+      return data.enrichment.residual_acf1
+    case "spectral_entropy":
+      return data.enrichment.spectral_entropy
+    case "is_stationary":
+      return data.enrichment.is_stationary
     default:
       return null
   }

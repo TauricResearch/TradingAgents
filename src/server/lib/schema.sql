@@ -201,6 +201,14 @@ CREATE TABLE IF NOT EXISTS watchlist_enrichment (
     sector           TEXT,
     region           TEXT,
     source           TEXT DEFAULT 'yahoo_finance',
+    -- Pattern features (STL decomposition, TIME benchmark paper)
+    trend_strength       REAL,
+    trend_linearity      REAL,
+    seasonality_strength REAL,
+    seasonality_stability REAL,
+    residual_acf1        REAL,
+    spectral_entropy     REAL,
+    is_stationary        INTEGER,
     created_at       TEXT DEFAULT (datetime('now')),
     PRIMARY KEY (ticker, fetch_date)
 );

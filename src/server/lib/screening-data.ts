@@ -14,6 +14,14 @@ export type ScreenField =
   | "region"
   | "price"
   | "sentiment_score"
+  // Pattern features (R08 — STL decomposition)
+  | "trend_strength"
+  | "trend_linearity"
+  | "seasonality_strength"
+  | "seasonality_stability"
+  | "residual_acf1"
+  | "spectral_entropy"
+  | "is_stationary"
 
 export type ScreenOperator = "gt" | "lt" | "eq" | "gte" | "lte" | "in" | "bottom_pct" | "top_pct"
 
@@ -45,6 +53,14 @@ export interface EnrichmentRow {
   sector: string | null
   region: string | null
   source: string
+  // Pattern features (R08 — STL decomposition)
+  trend_strength: number | null
+  trend_linearity: number | null
+  seasonality_strength: number | null
+  seasonality_stability: number | null
+  residual_acf1: number | null
+  spectral_entropy: number | null
+  is_stationary: number | null
   created_at: string
 }
 
@@ -144,6 +160,46 @@ export function upsertEnrichment(enrichment: Omit<EnrichmentRow, "created_at">):
   )
 }
 
+export interface PatternFeatures {
+  trend_strength: number
+  trend_linearity: number
+  seasonality_strength: number
+  seasonality_stability: number
+  residual_acf1: number
+  spectral_entropy: number
+  is_stationary: number
+}
+
+/** Upsert pattern features into an existing enrichment row. */
+export function upsertPatternFeatures(
+  ticker: string,
+  fetchDate: string,
+  features: PatternFeatures,
+): void {
+  const db = DatabaseFactory.get()
+  db.query(
+    `UPDATE watchlist_enrichment SET
+       trend_strength = ?,
+       trend_linearity = ?,
+       seasonality_strength = ?,
+       seasonality_stability = ?,
+       residual_acf1 = ?,
+       spectral_entropy = ?,
+       is_stationary = ?
+     WHERE ticker = ? AND fetch_date = ?`,
+  ).run(
+    features.trend_strength,
+    features.trend_linearity,
+    features.seasonality_strength,
+    features.seasonality_stability,
+    features.residual_acf1,
+    features.spectral_entropy,
+    features.is_stationary,
+    ticker,
+    fetchDate,
+  )
+}
+
 // ── Normalization helpers ────────────────────────────────────────────────────────
 
 // Raw DB rows have REAL columns as strings; normalize to numbers
@@ -158,6 +214,13 @@ type RawEnrichmentRow = {
   sector: string | null
   region: string | null
   source: string
+  trend_strength: string | null
+  trend_linearity: string | null
+  seasonality_strength: string | null
+  seasonality_stability: string | null
+  residual_acf1: string | null
+  spectral_entropy: string | null
+  is_stationary: string | null
   created_at: string
 }
 
@@ -173,6 +236,15 @@ function normalizeEnrichmentRow(raw: RawEnrichmentRow): EnrichmentRow {
     sector: raw.sector,
     region: raw.region,
     source: raw.source,
+    trend_strength: raw.trend_strength != null ? parseFloat(raw.trend_strength) : null,
+    trend_linearity: raw.trend_linearity != null ? parseFloat(raw.trend_linearity) : null,
+    seasonality_strength:
+      raw.seasonality_strength != null ? parseFloat(raw.seasonality_strength) : null,
+    seasonality_stability:
+      raw.seasonality_stability != null ? parseFloat(raw.seasonality_stability) : null,
+    residual_acf1: raw.residual_acf1 != null ? parseFloat(raw.residual_acf1) : null,
+    spectral_entropy: raw.spectral_entropy != null ? parseFloat(raw.spectral_entropy) : null,
+    is_stationary: raw.is_stationary != null ? parseFloat(raw.is_stationary) : null,
     created_at: raw.created_at,
   }
 }

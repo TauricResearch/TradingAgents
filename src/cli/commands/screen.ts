@@ -27,6 +27,7 @@ import {
   type ScreenCondition,
   saveScreeningHistory,
   upsertEnrichment,
+  upsertPatternFeatures,
 } from "@server/lib/screening-data"
 import {
   type CandidateData,
@@ -166,6 +167,10 @@ const enrichCommand = defineCommand({
   args: {
     ticker: { type: "string", description: "Specific ticker" },
     all: { type: "boolean", description: "Enrich all watchlist candidates" },
+    pattern: {
+      type: "boolean",
+      description: "Also compute STL pattern features (requires 252 bars of price history)",
+    },
   },
   run: async (ctx) => {
     DatabaseFactory.connect(cfg.portfolio.db)
@@ -194,6 +199,12 @@ const enrichCommand = defineCommand({
         const result = await enrichFromYahoo(ticker)
         if (result) {
           upsertEnrichment({ ticker, fetch_date: today, ...result, source: "yahoo_finance" })
+
+          // Pattern features (R08 — STL decomposition)
+          if (ctx.args.pattern) {
+            await computeAndStorePatternFeatures(ticker, today)
+          }
+
           console.log(green(`  ${ticker}: enriched`))
         } else {
           console.log(yellow(`  ${ticker}: no data available`))
@@ -645,6 +656,66 @@ print(json.dumps({
     throw new Error(`enrichFromYahoo(${ticker}): ${err}`)
   })
   return JSON.parse(result.trim()) as YahooEnrichment
+}
+
+// ── Pattern Feature Computation ──────────────────────────────────────────────
+
+/**
+ * Compute STL pattern features for a ticker via the Python script,
+ * then upsert them into the enrichment row for today's date.
+ */
+async function computeAndStorePatternFeatures(ticker: string, fetchDate: string): Promise<void> {
+  const { spawn } = require("node:child_process")
+  const dbPath = cfg.portfolio.db
+
+  const result = await new Promise<string>((resolve, reject) => {
+    const child = spawn("python3", [
+      "scripts/py/compute_pattern_features.py",
+      ticker,
+      "--db",
+      dbPath,
+    ])
+    let out = ""
+    let errOut = ""
+    child.stdout?.on("data", (d: Buffer) => {
+      out += d.toString()
+    })
+    child.stderr?.on("data", (d: Buffer) => {
+      errOut += d.toString()
+    })
+    child.on("close", (code) => {
+      if (code === 0) resolve(out)
+      else reject(new Error(`python3 exit ${code}: ${errOut || "(no stderr)"}`))
+    })
+  })
+
+  const features = JSON.parse(result.trim()) as {
+    error?: string
+    trend_strength: number
+    trend_linearity: number
+    seasonality_strength: number
+    seasonality_stability: number
+    residual_acf1: number
+    spectral_entropy: number
+    is_stationary: number
+  }
+
+  if (features.error) {
+    console.log(yellow(`  ${ticker}: pattern skipped (${features.error})`))
+    return
+  }
+
+  upsertPatternFeatures(ticker, fetchDate, {
+    trend_strength: features.trend_strength,
+    trend_linearity: features.trend_linearity,
+    seasonality_strength: features.seasonality_strength,
+    seasonality_stability: features.seasonality_stability,
+    residual_acf1: features.residual_acf1,
+    spectral_entropy: features.spectral_entropy,
+    is_stationary: features.is_stationary,
+  })
+
+  console.log(green(`  ${ticker}: pattern features computed`))
 }
 
 // ── Headline Fetching ────────────────────────────────────────────────────────
