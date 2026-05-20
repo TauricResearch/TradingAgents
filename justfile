@@ -548,6 +548,28 @@ pr-fetch:
 pr-fetch-all:
     bash scripts/pr-fetch-all.sh
 
+# Check for new upstream commits (TauricResearch/TradingAgents)
+[group("pr")]
+check-upstream:
+    @echo "Fetching upstream..."
+    git fetch upstream
+    @echo ""
+    @echo "=== Upstream commits since last merge ==="
+    @git log HEAD..upstream/main --oneline
+    @echo ""
+    @if git log HEAD..upstream/main --oneline | grep -q .; then \
+      echo "💡 Run 'git merge upstream/main' to pull in changes"; \
+    else \
+      echo "✓ Up to date with upstream"; \
+    fi
+
+# Watch for new upstream releases (tag-based)
+[group("pr")]
+check-release:
+    @echo "=== Latest upstream release tags ==="
+    git fetch --tags upstream
+    git tag -l "v*" --sort=-v:refname | head -5
+
 [group("pr")]
 pr-summarize:
     bun scripts/pr-summarize.ts --write
