@@ -570,6 +570,13 @@ check-release:
     git fetch --tags upstream
     git tag -l "v*" --sort=-v:refname | head -5
 
+# Run pytest before merging new upstream commits
+# Usage: just test-upstream  (after git merge upstream/main)
+[group("pr")]
+test-upstream:
+    @echo "=== Running Python tests ==="
+    python3 -m pytest tests/ -q --tb=no
+
 [group("pr")]
 pr-summarize:
     bun scripts/pr-summarize.ts --write
