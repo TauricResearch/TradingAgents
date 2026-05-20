@@ -1,7 +1,8 @@
 # Brief: Alerts Fire Integration — HTTP Route for Alert Matching Engine
 
 **Date:** 2026-05-12
-**Status:** Open
+**Status:** Done
+**Closed:** 2026-05-20
 **Priority:** P2
 **Type:** Induced requirement (from code registry gap-finding)
 **Session:** ses_5c587d

@@ -24,7 +24,7 @@
 {"file":"archive/barnacle-system-2026-05-11/barnacle-scrubber-plan.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"brief-add-bridge-tests-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Add test coverage for the Python bridge and SSE streaming endpoints","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-add-scripts-type-check-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Add a CI gate for the scripts tier TypeScript config","meta":{"epic":"architecture-hardening"}}
-{"file":"brief-alert-fire-integration.md","date":"2026-05-13","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"brief-alert-fire-integration.md","date":"2026-05-13","status":"done","summary":"Alert Fire Integration: added POST /api/alerts/fire route, matching engine + dispatch via HTTP","meta":{"closed":"2026-05-20"}}
 {"file":"brief-collapse-registry-tooling-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Reduce 10 registry management scripts to 1-2 utilities","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-consolidate-cli-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Shrink 42 CLI commands to ~15 with proper subcommand grouping","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-consolidate-server-lib-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Merge paired thing.ts + thing-data.ts modules and consolidate subprocess spawning","meta":{"epic":"architecture-hardening"}}

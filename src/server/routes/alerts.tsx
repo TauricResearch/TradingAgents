@@ -134,7 +134,33 @@ alertsRouter.get("/check", (c) => {
   })
 })
 
-/** POST /api/alerts/check/fire — run matching engine and dispatch to channels */
+/** POST /api/alerts/fire — run matching engine and dispatch to channels */
+alertsRouter.post("/fire", async (c) => {
+  const db = DatabaseFactory.get()
+
+  const alerts = listAlerts()
+  const enabled = alerts.filter((a) => a.enabled)
+  const tickers = tickersFromAlerts(enabled)
+  const prices = loadPriceMap(tickers, db)
+  const triggered = matchAlerts(enabled, prices)
+
+  if (triggered.length > 0) {
+    const results = await dispatchAlerts(triggered)
+    const ts = new Date().toISOString()
+    for (let i = 0; i < triggered.length; i++) {
+      const r = results[i]
+      const ta = triggered[i]
+      if (r !== undefined && r.sent && ta) {
+        setLastTriggered(ta.alert.id, ts)
+      }
+    }
+    return c.json({ dispatched: results, triggered })
+  }
+
+  return c.json({ dispatched: [], triggered: [] })
+})
+
+/** POST /api/alerts/check/fire — alias for /fire (backward compat) */
 alertsRouter.post("/check/fire", async (c) => {
   const db = DatabaseFactory.get()
 
