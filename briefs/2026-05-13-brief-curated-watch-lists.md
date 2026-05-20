@@ -111,15 +111,15 @@ Structured output in both CLI and dashboard:
 
 Fetch recent news and analyst sentiment for watchlist candidates using `defuddle`:
 
-- [ ] **R07.1:** Fetch recent headlines for a ticker via `defuddle` (e.g., Yahoo Finance news page)
-- [ ] **R07.2:** Store each headline as a separate row in `watchlist_news_sentiment`; associate via `enrichment_id` foreign key to `watchlist_enrichment` (ticker + date)
-- [ ] **R07.3:** CLI command `trading screen enrich --sentiment --ticker <ticker>` to fetch and score recent news
-- [ ] **R07.4:** Screening engine includes sentiment score in priority ranking
-- [ ] **R07.5:** Dashboard shows news sentiment indicator (bullish/neutral/bearish) per candidate
+- [x] **R07.1:** Fetch recent headlines for a ticker via Google News RSS (~20 headlines per ticker, 1s rate limit between tickers)
+- [x] **R07.2:** Store each headline as a separate row in `watchlist_news_sentiment`
+- [x] **R07.3:** CLI command `trading screen enrich --sentiment --ticker <ticker>` to fetch and score recent news
+- [x] **R07.4:** Screening engine includes sentiment score in priority ranking
+- [x] **R07.5:** Dashboard shows news sentiment indicator (bullish/neutral/bearish) per candidate
 
 **Data model:** Headlines go to `watchlist_news_sentiment` (one row per headline, not aggregated JSON). The parent `watchlist_enrichment` row holds fundamentals. TTL: prune headlines older than 30 days via `DELETE FROM watchlist_news_sentiment WHERE published_date < date('now', '-30 days')`. The parent row is retained; only children are pruned.
 
-**Implementation note:** `defuddle` returns clean Markdown. Parse with regex or simple extraction. Respect rate limits — enforce minimum delay between fetches. Cache all results with 24h TTL.
+**Implementation note:** Yahoo Finance blocks automated access (consent wall). Google News RSS (`news.google.com/rss/search?q=TICKER+stock`) provides 30+ headlines per ticker with title, publication date, source, and description — parsed with regex, no XML dependency needed. Rate limit: 1s delay between tickers. Headlines pruned after 30 days.
 
 ---
 

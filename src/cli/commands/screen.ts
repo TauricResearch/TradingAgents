@@ -349,7 +349,11 @@ const sentimentCommand = defineCommand({
 
     console.log(`Fetching headlines for ${tickers.length} ticker(s)...`)
 
-    for (const ticker of tickers) {
+    for (let i = 0; i < tickers.length; i++) {
+      const ticker = tickers[i]!
+
+      // Rate limit: 1s delay between tickers (respect Google News RSS)
+      if (i > 0) await new Promise((r) => setTimeout(r, 1000))
       try {
         const enrichment = getLatestEnrichment(ticker)
         if (!enrichment) {
@@ -652,11 +656,91 @@ interface Headline {
   source: string
 }
 
-async function fetchHeadlines(_ticker: string): Promise<Headline[]> {
-  // Fetch from Yahoo Finance news page via defuddle-style approach
-  // For now, return empty array — defuddle integration is R07.1
-  // TODO: integrate defuddle/web_fetch
-  return []
+/**
+ * Fetch recent headlines for a ticker via Google News RSS.
+ * Returns up to 20 headlines, sorted newest-first.
+ *
+ * Implementation note: Uses regex-based RSS parsing to avoid adding an XML
+ * dependency. Google News RSS is a well-structured, predictable format.
+ * Rate limit: caller should enforce 1s delay between tickers.
+ */
+async function fetchHeadlines(ticker: string): Promise<Headline[]> {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(ticker)}+stock&hl=en-US&gl=US&ceid=US:en`
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10_000)
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; TradingAgents/1.0)" },
+      signal: controller.signal,
+    })
+  } catch (err) {
+    clearTimeout(timeout)
+    throw new Error(`fetchHeadlines(${ticker}): fetch failed: ${err}`)
+  }
+  clearTimeout(timeout)
+
+  if (!response.ok) {
+    throw new Error(`fetchHeadlines(${ticker}): Google News RSS returned ${response.status}`)
+  }
+
+  const xml = await response.text()
+
+  // Parse <item> elements with regex — RSS XML is predictable enough for this
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g
+  const headlines: Headline[] = []
+
+  let match = itemRegex.exec(xml)
+  while (match !== null) {
+    const item = match[1]!
+
+    const titleMatch = /<title>(.*?)<\/title>/s.exec(item)
+    const pubDateMatch = /<pubDate>(.*?)<\/pubDate>/s.exec(item)
+    const descMatch = /<description>(.*?)<\/description>/s.exec(item)
+    const sourceMatch = /<source[^>]*>(.*?)<\/source>/s.exec(item)
+
+    const rawTitle = titleMatch?.[1] ?? ""
+    const pubDate = pubDateMatch?.[1] ?? ""
+    const rawDesc = descMatch?.[1] ?? ""
+    const sourceName = sourceMatch?.[1] ?? ""
+
+    // Decode HTML entities
+    const decode = (s: string) =>
+      s
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
+
+    // Strip " - Source Name" suffix from title
+    const title = decode(rawTitle)
+      .replace(/\s*-\s*[^-]+$/, "")
+      .trim()
+
+    // Extract plain text from description (strip HTML tags + CDATA)
+    const desc = decode(rawDesc.replace(/<[^>]*>/g, "").replace(/<!\[CDATA\[|\]\]>/g, "")).trim()
+    const summary = desc.slice(0, 200)
+    const source = sourceName || "news"
+
+    // Parse date, fall back to today
+    let date: string
+    try {
+      date = new Date(pubDate).toISOString().split("T")[0]!
+    } catch {
+      date = new Date().toISOString().split("T")[0]!
+    }
+
+    headlines.push({ date, text: title, summary, source })
+
+    if (headlines.length >= 20) break
+    match = itemRegex.exec(xml)
+  }
+
+  return headlines
 }
 
 // ── Sentiment Scoring ─────────────────────────────────────────────────────────
