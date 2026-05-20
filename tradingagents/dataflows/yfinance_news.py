@@ -1,9 +1,12 @@
 """yfinance-based news data fetching functions."""
 
+from typing import Optional
+
 import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from .config import get_config
 from .stockstats_utils import yf_retry
 
 
@@ -64,9 +67,10 @@ def get_news_yfinance(
     Returns:
         Formatted string containing news articles
     """
+    article_limit = get_config()["news_article_limit"]
     try:
         stock = yf.Ticker(ticker)
-        news = yf_retry(lambda: stock.get_news(count=20))
+        news = yf_retry(lambda: stock.get_news(count=article_limit))
 
         if not news:
             return f"No news found for {ticker}"
@@ -106,27 +110,28 @@ def get_news_yfinance(
 
 def get_global_news_yfinance(
     curr_date: str,
-    look_back_days: int = 7,
-    limit: int = 10,
+    look_back_days: Optional[int] = None,
+    limit: Optional[int] = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
 
     Args:
         curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back
-        limit: Maximum number of articles to return
+        look_back_days: Number of days to look back. ``None`` falls back to
+            ``global_news_lookback_days`` from the active config.
+        limit: Maximum number of articles to return. ``None`` falls back to
+            ``global_news_article_limit`` from the active config.
 
     Returns:
         Formatted string containing global news articles
     """
-    # Search queries for macro/global news
-    search_queries = [
-        "stock market economy",
-        "Federal Reserve interest rates",
-        "inflation economic outlook",
-        "global markets trading",
-    ]
+    config = get_config()
+    if look_back_days is None:
+        look_back_days = config["global_news_lookback_days"]
+    if limit is None:
+        limit = config["global_news_article_limit"]
+    search_queries = config["global_news_queries"]
 
     all_news = []
     seen_titles = set()
