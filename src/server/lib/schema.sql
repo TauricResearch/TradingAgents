@@ -236,3 +236,35 @@ CREATE TABLE IF NOT EXISTS watchlist_screenings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_screenings_date ON watchlist_screenings(run_date);
+
+-- Markov Regime Detection (brief: 2026-05-20-brief-markov-regime.md)
+-- Stores daily state classifications and transition matrices per ticker
+
+CREATE TABLE IF NOT EXISTS regime_states (
+    ticker           TEXT NOT NULL,
+    date             TEXT NOT NULL,  -- YYYY-MM-DD
+    state            TEXT NOT NULL CHECK(state IN ('bull', 'bear', 'sideways')),
+    cumulative_return REAL NOT NULL,  -- 20-bar return as decimal
+    PRIMARY KEY (ticker, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_regime_states_ticker ON regime_states(ticker);
+CREATE INDEX IF NOT EXISTS idx_regime_states_date ON regime_states(date);
+
+CREATE TABLE IF NOT EXISTS regime_matrices (
+    ticker           TEXT NOT NULL,
+    as_of_date       TEXT NOT NULL,  -- YYYY-MM-DD — computed using data up to this date
+    bull_to_bull     REAL NOT NULL,
+    bull_to_sideways REAL NOT NULL,
+    bull_to_bear     REAL NOT NULL,
+    sideways_to_bull REAL NOT NULL,
+    sideways_to_sideways REAL NOT NULL,
+    sideways_to_bear REAL NOT NULL,
+    bear_to_bull     REAL NOT NULL,
+    bear_to_sideways REAL NOT NULL,
+    bear_to_bear     REAL NOT NULL,
+    PRIMARY KEY (ticker, as_of_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_regime_matrices_ticker ON regime_matrices(ticker);
+CREATE INDEX IF NOT EXISTS idx_regime_matrices_date ON regime_matrices(as_of_date);

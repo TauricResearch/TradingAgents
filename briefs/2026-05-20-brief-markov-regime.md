@@ -123,10 +123,13 @@ async function updateRegimeData(ticker: string): Promise<RegimeSignal>;
 
 ## Implementation Architecture
 
+### Dependencies
+- `mathjs` — matrix operations (power, multiply, column access)
+
 ### Location
 - `src/server/lib/markov/` — module root
 - `src/server/lib/markov/state.ts` — FR-1, FR-2
-- `src/server/lib/markov/matrix.ts` — FR-3, FR-4
+- `src/server/lib/markov/matrix.ts` — FR-3, FR-4 (uses mathjs)
 - `src/server/lib/markov/signal.ts` — FR-5, FR-6
 
 ### Data Layer
