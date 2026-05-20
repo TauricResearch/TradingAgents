@@ -62,7 +62,7 @@ alias hl-net-worth := hledger::hl-net-worth
 [group("bun")]
 check:
     just --unstable --fmt --check
-    bunx biome check src server cli scripts
+    bunx biome check src cli scripts
     tsc --project tsconfig.server.json --noEmit
     bun scripts/check-database-usage.ts
     bun scripts/check-import-boundaries.ts
@@ -89,17 +89,17 @@ convert-hex-oklch:
 # Format all files with Biome
 [group("bun")]
 format:
-    bunx biome format src server cli scripts --write
+    bunx biome format src cli scripts --write
 
 # Lint code with Biome (exit 0 = clean)
 [group("bun")]
 lint:
-    bunx biome check src server cli scripts
+    bunx biome check src cli scripts
 
 # Lint and auto-fix errors
 [group("bun")]
 lint-fix:
-    bunx biome check src server cli scripts --write
+    bunx biome check src cli scripts --write
 
 # Show portfolio holdings (LIVE, uses hledger + SQLite via dashboard)
 [group("bun")]

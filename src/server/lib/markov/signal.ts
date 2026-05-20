@@ -6,7 +6,7 @@
  */
 
 import type { TransitionMatrix } from "./matrix.js"
-import { getNextStateProbabilities } from "./matrix.js"
+import { getNextStateProbabilities, nDayProbabilities } from "./matrix.js"
 import type { MarketState } from "./state.js"
 
 export interface RegimeSignal {
@@ -98,11 +98,7 @@ export function buildNDaySignal(
   matrix: TransitionMatrix,
   nDays: number,
 ): NDaySignal {
-  // Import here to avoid circular deps
-  const { nDayProbabilities } = require("./matrix.js")
-
   const forecast = nDayProbabilities(matrix, currentState, nDays)
-  void computeSignal(matrix, currentState) // signal computed inside buildRegimeSignal
 
   return {
     ...buildRegimeSignal(ticker, date, currentState, matrix),
