@@ -27,6 +27,7 @@ const main = defineCommand({
     plan: () => import("./commands/plan.ts").then((m) => m.planCommand),
     portfolio: () => import("./commands/portfolio.ts").then((m) => m.portfolioCommand),
     prices: () => import("./commands/prices.ts").then((m) => m.pricesCommand),
+    regime: () => import("./commands/regime.ts").then((m) => m.regimeCommand),
     research: () => import("./commands/research.ts").then((m) => m.researchCommand),
     screen: () => import("./commands/screen.ts").then((m) => m.screenCommand),
     seed: () => import("./commands/seed.ts").then((m) => m.seedCommand),
