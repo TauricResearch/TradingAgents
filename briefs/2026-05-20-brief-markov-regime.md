@@ -3,6 +3,7 @@
 **Date:** 2026-05-20
 **Status:** Draft
 **Session:** markov-regime-v1
+**Ref:** [markov-hedge-fund-method](https://github.com/jackson-video-resources/markov-hedge-fund-method)
 
 ---
 

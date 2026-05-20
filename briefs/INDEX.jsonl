@@ -15,6 +15,7 @@
 {"file":"2026-05-13-brief-curated-watch-lists.md","date":"2026-05-13","status":"open","summary":"Automated watchlist curation: screening rules engine, fundamental data enrichment pipeline, CLI screen commands, dashboard curated-list views, weekly cadence","meta":{"epic":"WATCH-001"}}
 {"file":"2026-05-15-brief-research-registry-and-watchlist-seed.md","date":"2026-05-15","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-15-brief-watchlist-pattern-enrichment.md","date":"2026-05-15","status":"open","summary":"WATCH-001 enhancement: add STL pattern features (trend, seasonality, entropy, stationarity) to screening enrichment","meta":{"epic":"WATCH-001","tags":["screening","enrichment","pattern-features"]}}
+{"file":"2026-05-20-brief-markov-regime.md","date":"2026-05-20","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-06-01-brief-bifrost-installation.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"alerts-phase2.md","date":"2026-05-11","status":"done","summary":"ALERTS-PHASE2: SQLite alerts table, CRUD CLI, matching engine, Telegram dispatch, dashboard route","meta":{"epic":"td-cbb2e9"}}
 {"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -40,6 +41,7 @@
 {"file":"brief-trading-benchmark.md","date":"2026-05-08","status":"done","summary":"Trading Benchmark Command: compare portfolio returns vs passive benchmark index via `trading benchmark`","meta":{"epic":null}}
 {"file":"brief-trim-justfile-2026-05-14.md","date":"2026-05-14","status":"superseded","summary":"Reduce the justfile from 812 lines to ~400 by removing thin aliases and redundant recipes","meta":{"epic":"architecture-hardening"}}
 {"file":"datatype-sparklines.md","date":"2026-05-02","status":"done","summary":"DataType variable font integration for dashboard inline charts (sparklines, bars, pies)","meta":{"epic":null}}
+{"file":"eodhd-pricing-brief.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"epic-architecture-hardening.md","date":"2026-05-14","status":"done","summary":"ARCH-HARDEN-001: Flense barnacles, harden boundaries, consolidate surface, reorganise folders. 8 stories in dependency order.","meta":{"epic":"ARCH-HARDEN-001"}}
 {"file":"epic-daily-price-records.md","date":"2026-05-02","status":"done","summary":"Daily OHLCV price records for all holdings via Yahoo Finance + sync scripts","meta":{"epic":null}}
 {"file":"epic-dashboard-v1.md","date":"2026-05-02","status":"done","summary":"Dashboard v1: pipeline to intelligence — positions, analysis, signals, watchlist","meta":{"epic":null}}
@@ -49,5 +51,8 @@
 {"file":"epic-script-migration.md","date":"2026-05-12","status":"done","summary":"Migrate trade-calculator.ts from scripts/ to src/lib/ — business logic belongs in the project, not the operational layer","meta":{"epic":"SCRIPTS-001"}}
 {"file":"epic-trade-calculator.md","date":"2026-05-07","status":"done","summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders","meta":{"epic":null}}
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
+{"file":"kpdf-local-brief.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"task-at-a-time-brief.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"task-at-a-time-implementation.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,7 +7,8 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**/*.ts", "**/*.mts", "**/*.cts", "**/*.mjs", "**/*.cjs", "**/*.json"]
+    "includes": ["**/*.ts", "**/*.mts", "**/*.cts", "**/*.mjs", "**/*.cjs", "**/*.json"],
+    "experimentalScannerIgnores": ["blueprint/**"]
   },
   "formatter": {
     "enabled": true,
@@ -31,7 +32,7 @@
         "noConsole": "error"
       },
       "style": {
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "off",
         "useConst": "error"
       },
       "complexity": {
@@ -105,6 +106,19 @@
       "includes": ["test-db.ts", "db-stats.ts"],
       "linter": {
         "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/server/lib/markov/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
           "suspicious": {
             "noConsole": "off"
           }

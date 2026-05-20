@@ -4,6 +4,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# blueprint silo
+blueprint/
+
 # C extensions
 *.so
 

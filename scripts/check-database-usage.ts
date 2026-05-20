@@ -9,7 +9,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-const EXCLUDED_DIRS = ["node_modules", ".git", "debriefs", "briefs"]
+const EXCLUDED_DIRS = ["node_modules", ".git", "debriefs", "briefs", "blueprint"]
 const ALLOWED_FILE = join("src", "lib", "db.ts")
 
 function walk(dir: string, files: string[] = []): string[] {
