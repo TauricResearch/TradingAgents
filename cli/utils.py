@@ -265,6 +265,7 @@ def select_llm_provider() -> tuple[str, str | None]:
     # (convention from the broader Ollama ecosystem); falls back to the
     # localhost default when unset.
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    llamacpp_url = os.environ.get("LLAMACPP_BASE_URL") or "http://localhost:8080/v1"
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
@@ -277,7 +278,10 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
+        ("Groq", "groq", "https://api.groq.com/openai/v1"),
+        ("NVIDIA", "nvidia", "https://integrate.api.nvidia.com/v1"),
         ("Ollama", "ollama", ollama_url),
+        ("Llama.cpp", "llamacpp", llamacpp_url),
     ]
 
     choice = questionary.select(
@@ -470,6 +474,31 @@ def confirm_ollama_endpoint(url: str) -> None:
         console.print(
             f"[yellow]Note: {url!r} doesn't include port 11434. "
             f"Make sure your remote ollama-serve listens on the port "
+            f"shown above.[/yellow]"
+        )
+
+
+def confirm_llamacpp_endpoint(url: str) -> None:
+    """Show the resolved llama.cpp endpoint after provider selection.
+
+    Surfaces which URL we'll actually hit, where it came from
+    (LLAMACPP_BASE_URL vs default), and a soft warning if the URL
+    looks misconfigured.
+    """
+    from_env = os.environ.get("LLAMACPP_BASE_URL")
+    origin = " (from LLAMACPP_BASE_URL)" if from_env and from_env == url else ""
+    console.print(f"[green]✓ Using llama.cpp at {url}{origin}[/green]")
+
+    if not url.startswith(("http://", "https://")):
+        console.print(
+            f"[yellow]Note: {url!r} is missing a scheme. "
+            f"llama.cpp server typically expects a URL like "
+            f"http://<host>:8080/v1.[/yellow]"
+        )
+    elif ":8080" not in url and "://localhost" not in url and "://127.0.0.1" not in url:
+        console.print(
+            f"[yellow]Note: {url!r} doesn't include port 8080. "
+            f"Make sure your llama.cpp server listens on the port "
             f"shown above.[/yellow]"
         )
 

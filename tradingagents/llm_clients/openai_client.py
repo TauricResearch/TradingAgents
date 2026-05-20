@@ -157,7 +157,10 @@ _PROVIDER_BASE_URL = {
     "minimax":    "https://api.minimax.io/v1",
     "minimax-cn": "https://api.minimaxi.com/v1",
     "openrouter": "https://openrouter.ai/api/v1",
+    "nvidia":     "https://integrate.api.nvidia.com/v1",
+    "groq":       "https://api.groq.com/openai/v1",
     "ollama":     "http://localhost:11434/v1",
+    "llamacpp":   "http://localhost:8080/v1",
 }
 
 
@@ -172,6 +175,10 @@ def _resolve_provider_base_url(provider: str) -> Optional[str]:
     """
     if provider == "ollama":
         env_url = os.environ.get("OLLAMA_BASE_URL")
+        if env_url:
+            return env_url
+    if provider == "llamacpp":
+        env_url = os.environ.get("LLAMACPP_BASE_URL")
         if env_url:
             return env_url
     return _PROVIDER_BASE_URL.get(provider)

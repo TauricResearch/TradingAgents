@@ -577,6 +577,10 @@ def get_user_selections():
     if selected_llm_provider == "ollama":
         confirm_ollama_endpoint(backend_url)
 
+    # Same for llama.cpp: surface the resolved endpoint before model selection.
+    if selected_llm_provider == "llamacpp":
+        confirm_llamacpp_endpoint(backend_url)
+
     # Confirm the provider's API key is present; prompt the user to paste
     # one and persist it to .env if it's missing, so the analysis run
     # doesn't fail later at the first API call.
