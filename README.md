@@ -139,6 +139,7 @@ from the host. To have reports appear on your host filesystem instead — e.g.
 under `./tradingagents_data/logs/<TICKER>/<DATE>/reports/` — set
 `TRADINGAGENTS_DATA_DIR` in `.env` to a host path before bringing the stack up:
 ```bash
+mkdir -p ./tradingagents_data
 echo "TRADINGAGENTS_DATA_DIR=./tradingagents_data" >> .env
 docker compose run --rm tradingagents
 ```
