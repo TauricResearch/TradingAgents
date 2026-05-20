@@ -14,12 +14,53 @@ Build a Markov regime detection engine that classifies market state (bull/bear/s
 
 ## Background
 
-Based on the "Hedge Fund Method" quant strategy. Core insight: markets exist in discrete states, and state transitions follow a Markov chain. By computing the transition matrix from historical price data, we can:
-1. Classify today's state (bull/bear/sideways)
-2. Compute probability distribution for tomorrow's state
-3. Generate a trading signal: `P(bull) - P(bear)` → direction + magnitude
+Based on the "Hedge Fund Method" quant strategy (Rowan's framework). Core insight: markets exist in discrete states, and state transitions follow a Markov chain.
 
-This is pure math. No indicators, no "feel." It outputs a signal score.
+### The 10 Steps (from video)
+
+| Step | Name | Description |
+|------|------|-------------|
+| 1 | **Define States** | Bull (≥+5% 20-bar return), Bear (≤-5%), Sideways (between) |
+| 2 | **Compute Today's State** | Look back 20 bars, calculate cumulative return, classify |
+| 3 | **Markov Property** | Only today's state matters — past is irrelevant beyond current state |
+| 4 | **Transition Matrix** | Build 3×3 matrix: P(next_state | current_state) from all historical transitions |
+| 5 | **Persistence / Stickiness** | Diagonal cells show state "stickiness" — bull/bear markets persist |
+| 6 | **Squaring the Matrix** | P² = 2-day forecast, P³ = 3-day, etc. (diminishing signal over time) |
+| 7 | **Stationary Distribution** | As N→∞, matrix converges → no meaningful signal beyond ~7-10 days |
+| 8 | **Signal Generation** | `Signal = P(bull | today) - P(bear | today)` → direction + magnitude |
+| 9 | **Walk-Forward Backtesting** | Recompute matrix for every historical day (no data leakage) |
+| 10 | **Hidden Markov Model** | Data-driven state discovery (future phase — not in scope) |
+
+### Walk-Forward Backtesting
+
+The key insight: standard backtesting has **data leakage** — you train on the full history including the test period. Walk-forward fixes this by:
+
+1. For each historical day T, compute matrix using only data up to T
+2. Apply signal on day T+1
+3. Roll forward one day, repeat
+
+**Computational cost:** For 500 days of history, you'd compute 500 separate matrices. Naive approach: O(n²) — each matrix takes O(n) to build from n days of data.
+
+**Optimization:** The matrix on day T+1 is similar to day T. Only the new transition (state[T-1]→state[T]) and oldest transition are different. We can:
+
+1. **Incremental updates:** Maintain running counts, update in O(1) per day
+2. **Batch pre-computation:** Compute all states upfront in one pass, then build matrices from transition counts
+3. **Sliding window:** Use a lookback window (e.g., 252 trading days = 1 year) instead of full history
+
+**Proposed implementation:**
+```typescript
+// One-pass: compute all historical states
+const states = generateStateStream(ticker, prices, dates);
+
+// Batch: build matrix for each day using data up to that day
+for (let i = MIN_HISTORY; i < states.length; i++) {
+  const slice = states.slice(Math.max(0, i - WINDOW_SIZE), i);
+  const matrix = buildTransitionMatrix(slice.map(s => s.state));
+  // Record matrix + signal
+}
+```
+
+**Practical constraint:** For daily use, we only need to recompute today's matrix from full history — not the full historical walk-forward. The walk-forward is for **backtesting only**, not live trading.
 
 ---
 
@@ -231,7 +272,7 @@ bun run cli regime AAPL --forecast 2
 - UI, dashboard, or HTTP routes
 - Execution/ordering (signals only, no broker integration)
 - Hidden Markov Model (FR-10 from video) — future phase
-- Walk-forward backtesting framework — future phase
+- Walk-forward backtesting — Phase 2 (compute matrices for historical days)
 
 ---
 
