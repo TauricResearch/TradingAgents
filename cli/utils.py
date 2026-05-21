@@ -275,6 +275,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
         ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
         ("MiniMax", "minimax", "https://api.minimax.io/v1"),
+        ("Astraflow", "astraflow", "https://api-us-ca.umodelverse.ai/v1"),
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
@@ -434,6 +435,33 @@ def ask_minimax_region() -> tuple[str, str]:
             questionary.Choice(
                 "China — api.minimaxi.com (uses MINIMAX_CN_API_KEY)",
                 value=("minimax-cn", "https://api.minimaxi.com/v1"),
+            ),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_astraflow_region() -> tuple[str, str]:
+    """Ask which Astraflow region (global vs China) to use.
+
+    Astraflow by UCloud exposes two endpoints with separate accounts —
+    a key from one region does NOT authenticate against the other.
+    Returns (provider_key, backend_url).
+    """
+    return questionary.select(
+        "Select Astraflow region:",
+        choices=[
+            questionary.Choice(
+                "Global — api-us-ca.umodelverse.ai (uses ASTRAFLOW_API_KEY)",
+                value=("astraflow", "https://api-us-ca.umodelverse.ai/v1"),
+            ),
+            questionary.Choice(
+                "China — api.modelverse.cn (uses ASTRAFLOW_CN_API_KEY)",
+                value=("astraflow-cn", "https://api.modelverse.cn/v1"),
             ),
         ],
         style=questionary.Style([

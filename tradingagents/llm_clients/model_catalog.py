@@ -153,6 +153,38 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
+    # Astraflow: same model IDs across global (api-us-ca.umodelverse.ai) and
+    # China (api.modelverse.cn) endpoints; both provider keys share one list.
+    # Astraflow supports 200+ models — these are popular OpenAI-compatible picks.
+    # Users can select any model they have access to via "Custom model ID".
+    "astraflow": {
+        "quick": [
+            ("GPT-4.1 Mini - Fast, cost-efficient", "gpt-4.1-mini"),
+            ("GPT-4.1 Nano - Cheapest, high-volume tasks", "gpt-4.1-nano"),
+            ("DeepSeek V3 - Strong coding and reasoning", "deepseek-chat"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
+            ("DeepSeek R1 - Advanced reasoning", "deepseek-reasoner"),
+            ("GPT-4o - Multimodal flagship", "gpt-4o"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "astraflow-cn": {
+        "quick": [
+            ("GPT-4.1 Mini - Fast, cost-efficient", "gpt-4.1-mini"),
+            ("GPT-4.1 Nano - Cheapest, high-volume tasks", "gpt-4.1-nano"),
+            ("DeepSeek V3 - Strong coding and reasoning", "deepseek-chat"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
+            ("DeepSeek R1 - Advanced reasoning", "deepseek-reasoner"),
+            ("GPT-4o - Multimodal flagship", "gpt-4o"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels

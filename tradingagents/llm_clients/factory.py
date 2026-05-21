@@ -8,6 +8,7 @@ _OPENAI_COMPATIBLE = (
     "qwen", "qwen-cn",
     "glm", "glm-cn",
     "minimax", "minimax-cn",
+    "astraflow", "astraflow-cn",
     "ollama", "openrouter",
 )
 

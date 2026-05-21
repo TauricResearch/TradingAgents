@@ -30,6 +30,10 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "minimax":    "MINIMAX_API_KEY",
     "minimax-cn": "MINIMAX_CN_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
+    # Astraflow by UCloud — dual-region OpenAI-compatible platform (200+ models).
+    # Global and China endpoints use separate accounts; keys are not interchangeable.
+    "astraflow":    "ASTRAFLOW_API_KEY",
+    "astraflow-cn": "ASTRAFLOW_CN_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
 }
