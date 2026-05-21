@@ -155,6 +155,15 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
+
+### Tushare and AkShare data sources
+
+TradingAgents does not currently support switching Yahoo Finance-style data access to Tushare or AkShare only through configuration.
+
+For China A-share workflows, Tushare or AkShare support requires a dedicated data vendor adapter so that price, fundamentals, technical indicators, and news data are normalized into the same format expected by the existing analysts.
+
+AkShare support is being explored in a separate draft contribution. Until that lands, users should treat Tushare/AkShare as unsupported in the main package.
+
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
