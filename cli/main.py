@@ -1006,7 +1006,6 @@ def run_analysis(checkpoint: bool = False):
             "fundamental_data": "akshare",
             "news_data": "akshare",
         }
-        config["benchmark_ticker"] = "000300.SS"
         if selections.get("output_language") == "English":
             config["output_language"] = "Chinese"
 

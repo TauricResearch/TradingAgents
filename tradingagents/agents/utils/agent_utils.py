@@ -1,3 +1,5 @@
+import re
+
 from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
@@ -55,9 +57,17 @@ def get_language_instruction() -> str:
 
 
 def is_a_share_ticker(ticker: str) -> bool:
-    """Return True when ``ticker`` looks like an exchange-qualified A-share."""
-    ticker_upper = ticker.strip().upper()
-    return ticker_upper.endswith((".SH", ".SZ", ".BJ"))
+    """Return True when ``ticker`` looks like a common A-share ticker format."""
+    ticker_upper = ticker.strip().upper().replace(" ", "")
+    return any(
+        re.fullmatch(pattern, ticker_upper)
+        for pattern in (
+            r"\d{6}\.(SH|SZ|BJ)",
+            r"(SH|SZ|BJ)\d{6}",
+            r"\d{6}",
+            r"(SH|SZ|BJ)\d{6}\.(SH|SZ|BJ)",
+        )
+    )
 
 
 def build_market_rule_context(ticker: str, asset_type: str = "stock") -> str:

@@ -37,6 +37,11 @@ def normalize_ashare_symbol(symbol: str) -> str:
     if not normalized:
         raise ValueError("Ticker symbol cannot be empty.")
 
+    prefixed_suffix_match = re.fullmatch(r"(SH|SZ|BJ)(\d{6})\.(SH|SZ|BJ)", normalized)
+    if prefixed_suffix_match:
+        _, code, exchange = prefixed_suffix_match.groups()
+        return f"{code}.{exchange}"
+
     exchange_prefix_match = re.fullmatch(r"(SH|SZ|BJ)(\d{6})", normalized)
     if exchange_prefix_match:
         exchange, code = exchange_prefix_match.groups()
