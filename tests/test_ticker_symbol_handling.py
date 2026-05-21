@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
 import cli.main as cli_main
@@ -14,6 +15,7 @@ from tradingagents.agents.utils.agent_utils import (
     build_market_rule_context,
     is_a_share_ticker,
 )
+from tradingagents.dataflows.a_share_common import get_previous_trade_date
 
 
 @pytest.mark.unit
@@ -42,6 +44,18 @@ class TickerSymbolHandlingTests(unittest.TestCase):
         self.assertEqual(build_market_rule_context("AAPL"), "")
         self.assertTrue(is_a_share_ticker("600519"))
         self.assertTrue(is_a_share_ticker("SH600519"))
+
+    @patch(
+        "tradingagents.dataflows.a_share_common.get_trade_calendar",
+        return_value=(
+            pd.Timestamp("2026-05-16"),
+            pd.Timestamp("2026-05-19"),
+            pd.Timestamp("2026-05-21"),
+        ),
+    )
+    def test_get_previous_trade_date_returns_latest_trading_day_on_or_before_target(self, _mock_calendar):
+        self.assertEqual(get_previous_trade_date("2026-05-20"), "2026-05-19")
+        self.assertEqual(get_previous_trade_date("2026-05-21"), "2026-05-21")
 
     def test_run_analysis_keeps_bj_benchmark_auto_mapping(self):
         captured = {}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 from functools import lru_cache
 import re
 from types import SimpleNamespace
@@ -107,10 +108,10 @@ def get_previous_trade_date(date_str: str) -> str:
         return pd.Timestamp(date_str).strftime("%Y-%m-%d")
 
     target = pd.Timestamp(date_str).normalize()
-    eligible = [trade_date for trade_date in calendar if trade_date <= target]
-    if not eligible:
+    idx = bisect.bisect_right(calendar, target)
+    if idx == 0:
         raise ValueError(f"No A-share trading date found on or before {date_str}.")
-    return eligible[-1].strftime("%Y-%m-%d")
+    return calendar[idx - 1].strftime("%Y-%m-%d")
 
 
 def get_date_range(start_date: str, end_date: str) -> list[str]:
