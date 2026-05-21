@@ -89,3 +89,22 @@ def test_ingest_chunk_messages_keeps_distinct_messages_without_ids():
 
     assert [content for _, content in message_buffer.messages] == ["first", "second"]
     assert [name for name, _ in message_buffer.tool_calls] == ["tool_a", "tool_b"]
+
+
+def test_ingest_chunk_messages_allows_missing_tool_call_fields():
+    message_buffer = FakeMessageBuffer()
+    chunk = {"messages": [FakeMessage("m1", "same", [{"name": "tool_a"}, object()])]}
+
+    ingest_chunk_messages(message_buffer, chunk, fake_classifier)
+
+    assert message_buffer.tool_calls == [("tool_a", None), (None, None)]
+
+
+def test_ingest_chunk_messages_distinguishes_none_and_string_none_content_without_ids():
+    message_buffer = FakeMessageBuffer()
+    chunk = {"messages": [FakeMessage(None, None), FakeMessage(None, "None")]}
+
+    ingest_chunk_messages(message_buffer, chunk, fake_classifier)
+
+    assert message_buffer.messages == [("Agent", "None")]
+    assert len(message_buffer._processed_message_fingerprints) == 2

@@ -1,14 +1,22 @@
 import json
 
 
-def _tool_call_signature(tool_call):
+def _tool_call_value(tool_call, key):
     if isinstance(tool_call, dict):
-        name = tool_call["name"]
-        args = tool_call["args"]
-    else:
-        name = tool_call.name
-        args = tool_call.args
+        return tool_call.get(key)
+    return getattr(tool_call, key, None)
+
+
+def _tool_call_signature(tool_call):
+    name = _tool_call_value(tool_call, "name")
+    args = _tool_call_value(tool_call, "args")
     return (name, json.dumps(args, sort_keys=True, default=str))
+
+
+def _content_fingerprint(content):
+    if isinstance(content, str):
+        return ("str", content.strip())
+    return (type(content).__name__, repr(content))
 
 
 def _message_fingerprint(message, msg_type, content):
@@ -16,7 +24,7 @@ def _message_fingerprint(message, msg_type, content):
     return (
         message.__class__.__name__,
         msg_type,
-        content.strip() if isinstance(content, str) else str(content),
+        _content_fingerprint(content),
         tool_calls,
     )
 
@@ -39,9 +47,8 @@ def ingest_chunk_messages(message_buffer, chunk, classify_message_type) -> None:
         if content and content.strip():
             message_buffer.add_message(msg_type, content)
 
-        if hasattr(message, "tool_calls") and message.tool_calls:
-            for tool_call in message.tool_calls:
-                if isinstance(tool_call, dict):
-                    message_buffer.add_tool_call(tool_call["name"], tool_call["args"])
-                else:
-                    message_buffer.add_tool_call(tool_call.name, tool_call.args)
+        for tool_call in getattr(message, "tool_calls", []) or []:
+            message_buffer.add_tool_call(
+                _tool_call_value(tool_call, "name"),
+                _tool_call_value(tool_call, "args"),
+            )
