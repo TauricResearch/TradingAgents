@@ -16,6 +16,8 @@
 {"file":"just/just-command-runner-best-practices.md","date":"2026-05-08","status":"active","summary":"Best practices for just command runner: shebangs, doc attributes, modules","meta":{"type":"reference","topic":"just"}}
 {"file":"just/just-global-and-user.md","date":"2026-05-08","status":"active","summary":"Global and user-level just command configuration patterns","meta":{"type":"reference","topic":"just"}}
 {"file":"just/just-project-level-commands.md","date":"2026-05-08","status":"active","summary":"Project-level just commands: per-directory Justfiles and module imports","meta":{"type":"reference","topic":"just"}}
+{"file":"kalman/kalman-filter.md","date":"2026-05-21","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"kalman/other-filters.md","date":"2026-05-21","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"karpathy-claude.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"meyka-insider-tracker.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"momentum-trading-with-eodhd.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
