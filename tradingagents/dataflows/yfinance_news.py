@@ -7,7 +7,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
-from .stockstats_utils import yf_retry
+from .stockstats_utils import yf_retry, ensure_yf_proxy
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -69,6 +69,7 @@ def get_news_yfinance(
     """
     article_limit = get_config()["news_article_limit"]
     try:
+        ensure_yf_proxy()
         stock = yf.Ticker(ticker)
         news = yf_retry(lambda: stock.get_news(count=article_limit))
 
@@ -137,6 +138,7 @@ def get_global_news_yfinance(
     seen_titles = set()
 
     try:
+        ensure_yf_proxy()
         for query in search_queries:
             search = yf_retry(lambda q=query: yf.Search(
                 query=q,

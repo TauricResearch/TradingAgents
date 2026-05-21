@@ -17,6 +17,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_YF_PROXY":             "yf_proxy",
 }
 
 
@@ -108,6 +109,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # based on the ticker's exchange suffix. SPY remains the US default
     # so the reflection label keeps reading "Alpha vs SPY" for US tickers
     # while non-US tickers get their regional index automatically.
+    # yfinance proxy. Priority: TRADINGAGENTS_YF_PROXY > HTTPS_PROXY > HTTP_PROXY > None.
+    # Example: "http://127.0.0.1:7890"
+    "yf_proxy": None,
     "benchmark_ticker": None,
     "benchmark_map": {
         ".NS":  "^NSEI",    # NSE India (Nifty 50)

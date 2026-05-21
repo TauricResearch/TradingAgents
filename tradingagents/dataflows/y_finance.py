@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date, ensure_yf_proxy
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -16,6 +16,7 @@ def get_YFin_data_online(
     datetime.strptime(end_date, "%Y-%m-%d")
 
     # Create ticker object
+    ensure_yf_proxy()
     ticker = yf.Ticker(symbol.upper())
 
     # Fetch historical data for the specified date range
@@ -251,6 +252,7 @@ def get_fundamentals(
 ):
     """Get company fundamentals overview from yfinance."""
     try:
+        ensure_yf_proxy()
         ticker_obj = yf.Ticker(ticker.upper())
         info = yf_retry(lambda: ticker_obj.info)
 
@@ -309,6 +311,7 @@ def get_balance_sheet(
 ):
     """Get balance sheet data from yfinance."""
     try:
+        ensure_yf_proxy()
         ticker_obj = yf.Ticker(ticker.upper())
 
         if freq.lower() == "quarterly":
@@ -341,6 +344,7 @@ def get_cashflow(
 ):
     """Get cash flow data from yfinance."""
     try:
+        ensure_yf_proxy()
         ticker_obj = yf.Ticker(ticker.upper())
 
         if freq.lower() == "quarterly":
@@ -373,6 +377,7 @@ def get_income_statement(
 ):
     """Get income statement data from yfinance."""
     try:
+        ensure_yf_proxy()
         ticker_obj = yf.Ticker(ticker.upper())
 
         if freq.lower() == "quarterly":
@@ -403,6 +408,7 @@ def get_insider_transactions(
 ):
     """Get insider transactions data from yfinance."""
     try:
+        ensure_yf_proxy()
         ticker_obj = yf.Ticker(ticker.upper())
         data = yf_retry(lambda: ticker_obj.insider_transactions)
         

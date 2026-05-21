@@ -1,5 +1,6 @@
 import time
 import logging
+import random
 
 import pandas as pd
 import yfinance as yf
@@ -13,20 +14,68 @@ from .utils import safe_ticker_component
 logger = logging.getLogger(__name__)
 
 
-def yf_retry(func, max_retries=3, base_delay=2.0):
+def _get_yf_proxy() -> str | None:
+    """Return proxy URL from config or env vars (TRADINGAGENTS_YF_PROXY > HTTPS_PROXY > HTTP_PROXY)."""
+    proxy = (
+        os.environ.get("TRADINGAGENTS_YF_PROXY")
+        or get_config().get("yf_proxy")
+        or os.environ.get("HTTPS_PROXY")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("http_proxy")
+    )
+    return proxy or None
+
+
+def ensure_yf_proxy() -> None:
+    """Inject proxy into HTTPS_PROXY/HTTP_PROXY so yfinance's curl_cffi session picks it up.
+
+    yfinance >= 0.2.x uses curl_cffi internally and rejects external requests.Session objects.
+    The only supported proxy mechanism is the standard HTTPS_PROXY / HTTP_PROXY env vars,
+    which curl_cffi reads automatically. This function sets them if not already present.
+    """
+    proxy = _get_yf_proxy()
+    if proxy:
+        os.environ.setdefault("HTTPS_PROXY", proxy)
+        os.environ.setdefault("HTTP_PROXY", proxy)
+
+# Transient network errors that are safe to retry
+_RETRYABLE_ERRORS = (
+    ConnectionError,
+    TimeoutError,
+    OSError,
+)
+
+
+def yf_retry(func, max_retries=6, base_delay=5.0, max_delay=120.0):
     """Execute a yfinance call with exponential backoff on rate limits.
 
-    yfinance raises YFRateLimitError on HTTP 429 responses but does not
-    retry them internally. This wrapper adds retry logic specifically
-    for rate limits. Other exceptions propagate immediately.
+    Retries on YFRateLimitError (HTTP 429) and transient network errors.
+    Uses exponential backoff with random jitter to avoid thundering herd.
     """
     for attempt in range(max_retries + 1):
         try:
             return func()
-        except YFRateLimitError:
+        except YFRateLimitError as e:
             if attempt < max_retries:
-                delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                delay += random.uniform(0, delay * 0.2)  # ±20% jitter
+                logger.warning(
+                    f"Yahoo Finance rate limited, retrying in {delay:.0f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
+            else:
+                logger.error("Yahoo Finance rate limit exceeded after all retries.")
+                raise
+        except _RETRYABLE_ERRORS as e:
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                delay += random.uniform(0, delay * 0.2)
+                logger.warning(
+                    f"Yahoo Finance network error ({type(e).__name__}), "
+                    f"retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(delay)
             else:
                 raise
@@ -74,6 +123,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     if os.path.exists(data_file):
         data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
     else:
+        ensure_yf_proxy()
         data = yf_retry(lambda: yf.download(
             symbol,
             start=start_str,
