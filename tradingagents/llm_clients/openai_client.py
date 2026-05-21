@@ -135,7 +135,10 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
             # reasoning_split goes in extra_body so the OpenAI SDK doesn't
             # reject it as an unknown top-level kwarg (openai SDK >= 1.56
             # validates top-level params against Completions.create signature).
-            payload.setdefault("extra_body", {})["reasoning_split"] = True
+            payload.pop("reasoning_split", None)
+            extra_body = payload.get("extra_body") or {}
+            extra_body["reasoning_split"] = True
+            payload["extra_body"] = extra_body
         return payload
 
 
