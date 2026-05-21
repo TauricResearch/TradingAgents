@@ -120,6 +120,18 @@ function truncate(doc: string, maxLen: number): string {
   return `${space > maxLen * 0.5 ? end.slice(0, space) : doc.slice(0, maxLen - 1)}…`
 }
 
+/** Classify a source file by its directory path. */
+function classifyFileType(file: string): string {
+  if (file.startsWith("cli/commands/")) return "cli"
+  if (file.startsWith("server/routes/")) return "route"
+  if (file.startsWith("server/views/")) return "view"
+  if (file.startsWith("server/lib/")) return "lib"
+  if (file === "server/index.tsx") return "entry"
+  if (file.startsWith("server/")) return "server"
+  if (file.startsWith("scripts/")) return "script"
+  return "module"
+}
+
 function main() {
   const apply = Bun.argv.includes("--apply")
 
@@ -147,11 +159,13 @@ function main() {
     }
 
     const summary = doc ? truncate(doc, 120) : entry.summary
+    const type = classifyFileType(entry.file)
     const enriched: EnrichedEntry = {
       ...entry,
       summary,
       meta: {
         ...entry.meta,
+        type,
         ...(doc ? { description: doc } : {}),
       },
     }
