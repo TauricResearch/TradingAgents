@@ -16,6 +16,7 @@ from tradingagents.dataflows.a_share import (
     get_lhb_seat_profile_context,
     get_market_activity,
     get_limit_move_sentiment_context,
+    get_news_source_status,
     get_peer_comparison_context,
     get_policy_signal_context,
     get_relative_strength_context,
@@ -146,6 +147,105 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("最新关键财务摘要", result)
         self.assertIn("归母净利润", result)
 
+    @patch("tradingagents.dataflows.a_share.ak.stock_info_global_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_news_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_profile_cninfo", create=True)
+    def test_get_news_can_include_keyword_linked_company_mentions(
+        self,
+        mock_profile,
+        mock_stock_news,
+        mock_global_news,
+    ):
+        mock_profile.return_value = pd.DataFrame(
+            {
+                "A股简称": ["完美世界"],
+                "曾用简称": ["完美环球"],
+            }
+        )
+        mock_stock_news.return_value = pd.DataFrame(
+            {
+                "发布时间": [],
+                "新闻标题": [],
+                "新闻内容": [],
+                "新闻链接": [],
+            }
+        )
+        mock_global_news.return_value = pd.DataFrame(
+            {
+                "发布时间": ["2026-05-19 10:00:00", "2026-05-19 11:00:00"],
+                "标题": ["异环开启新一轮测试", "无关新闻"],
+                "摘要": ["市场关注完美世界旗下异环进展", "其他公司事项"],
+                "链接": ["u1", "u2"],
+            }
+        )
+        set_config({"a_share_news_aliases": {"002624.SZ": ["异环"]}})
+
+        from tradingagents.dataflows.a_share import get_news
+
+        result = get_news("002624.SZ", "2026-05-13", "2026-05-20")
+
+        self.assertIn("Keyword-linked company mentions", result)
+        self.assertIn("异环开启新一轮测试", result)
+        self.assertIn("完美世界旗下异环进展", result)
+        self.assertIn("HeuristicScore", result)
+        self.assertIn("匹配关键词", result)
+
+    @patch("tradingagents.dataflows.a_share.ak.stock_info_global_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_news_em", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_profile_cninfo", create=True)
+    def test_get_news_searches_company_short_name_not_just_ticker_code(
+        self,
+        mock_profile,
+        mock_stock_news,
+        mock_global_news,
+    ):
+        mock_profile.return_value = pd.DataFrame(
+            {
+                "A股简称": ["完美世界"],
+                "公司名称": ["完美世界股份有限公司"],
+            }
+        )
+
+        def _side_effect(symbol):
+            if symbol == "完美世界":
+                return pd.DataFrame(
+                    {
+                        "发布时间": ["2026-05-19 10:00:00"],
+                        "文章来源": ["测试来源"],
+                        "新闻标题": ["完美世界新游动态"],
+                        "新闻内容": ["围绕完美世界新品展开的报道"],
+                        "新闻链接": ["u1"],
+                    }
+                )
+            return pd.DataFrame(
+                {
+                    "发布时间": [],
+                    "文章来源": [],
+                    "新闻标题": [],
+                    "新闻内容": [],
+                    "新闻链接": [],
+                }
+            )
+
+        mock_stock_news.side_effect = _side_effect
+        mock_global_news.return_value = pd.DataFrame(
+            {
+                "发布时间": [],
+                "标题": [],
+                "摘要": [],
+                "链接": [],
+            }
+        )
+
+        from tradingagents.dataflows.a_share import get_news
+
+        result = get_news("002624.SZ", "2026-05-13", "2026-05-20")
+
+        self.assertIn("完美世界新游动态", result)
+        self.assertIn("匹配关键词", result)
+        self.assertIn("完美世界", result)
+        self.assertIn("HeuristicReason", result)
+
     def test_resolve_benchmark_maps_a_share_suffixes(self):
         mock_graph = type(
             "MockGraph",
@@ -185,6 +285,97 @@ class AShareSupportTests(unittest.TestCase):
         self.assertIn("tag=shareholder_change", result)
         self.assertIn("bias=positive", result)
         self.assertIn("bias=negative", result)
+
+    @patch("tradingagents.dataflows.a_share.ak.stock_notice_report", create=True)
+    @patch("tradingagents.dataflows.a_share.ak.stock_individual_notice_report", create=True)
+    def test_get_company_event_signals_falls_back_to_generic_announcements_when_specialized_feed_breaks(
+        self,
+        mock_notice,
+        mock_notice_report,
+    ):
+        mock_notice.side_effect = KeyError("代码")
+        mock_notice_report.return_value = pd.DataFrame(
+            {
+                "证券代码": ["002624"],
+                "公告日期": ["2024-04-03"],
+                "公告类型": ["持股变动"],
+                "公告标题": ["股东减持计划公告"],
+            }
+        )
+
+        result = get_company_event_signals("002624.SZ", "2024-04-01", "2024-04-10")
+
+        self.assertIn("公告回退事件流", result)
+        self.assertIn("tag=shareholder_change", result)
+        self.assertIn("bias=negative", result)
+
+    @patch("tradingagents.dataflows.a_share.get_caixin_news")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    @patch("tradingagents.dataflows.a_share.get_company_announcements")
+    @patch("tradingagents.dataflows.a_share.get_market_news")
+    @patch("tradingagents.dataflows.a_share.get_news")
+    def test_get_news_source_status_reports_primary_coverage(
+        self,
+        mock_news,
+        mock_market_news,
+        mock_announcements,
+        mock_event_signals,
+        mock_caixin,
+    ):
+        mock_news.return_value = "\n".join(
+            [
+                "# A-share news pack for 002624.SZ",
+                "## 券商研报（个股专项）",
+            ]
+        )
+        mock_market_news.return_value = "# A-share market and policy news"
+        mock_announcements.return_value = "# A-share company announcements for 002624.SZ"
+        mock_event_signals.return_value = "# A-share company event signals for 002624.SZ"
+        mock_caixin.return_value = "# 财新新闻 — 002624.SZ"
+
+        result = get_news_source_status("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("Company news: primary", result)
+        self.assertIn("Company announcements: available", result)
+        self.assertIn("Event signals: primary", result)
+        self.assertIn("Caixin supplement: available", result)
+
+    @patch("tradingagents.dataflows.a_share.get_caixin_news")
+    @patch("tradingagents.dataflows.a_share.get_company_event_signals")
+    @patch("tradingagents.dataflows.a_share.get_company_announcements")
+    @patch("tradingagents.dataflows.a_share.get_market_news")
+    @patch("tradingagents.dataflows.a_share.get_news")
+    def test_get_news_source_status_reports_fallback_and_empty_cases(
+        self,
+        mock_news,
+        mock_market_news,
+        mock_announcements,
+        mock_event_signals,
+        mock_caixin,
+    ):
+        mock_news.return_value = "\n".join(
+            [
+                "# A-share news pack for 002624.SZ",
+                "# A-share market and policy news",
+            ]
+        )
+        mock_market_news.return_value = "2024-04-11 前 7 天没有可用的市场快讯。"
+        mock_announcements.return_value = "002624.SZ 在 2024-04-01 到 2024-04-10 之间没有匹配的公告。"
+        mock_event_signals.return_value = "\n".join(
+            [
+                "# A-share company event signals for 002624.SZ",
+                "## 公告回退事件流",
+            ]
+        )
+        mock_caixin.return_value = "财新新闻最近 100 条中未找到 002624.SZ 相关资讯。"
+
+        result = get_news_source_status("002624.SZ", "2024-04-01", "2024-04-10", "2024-04-11")
+
+        self.assertIn("Company news: market-context-only", result)
+        self.assertIn("Market / policy news: no-data", result)
+        self.assertIn("Company announcements: no-data", result)
+        self.assertIn("Event signals: fallback", result)
+        self.assertIn("Caixin supplement: optional-empty", result)
 
     @patch("tradingagents.dataflows.a_share.get_previous_trade_date")
     @patch("tradingagents.dataflows.a_share.ak.stock_margin_detail_szse", create=True)

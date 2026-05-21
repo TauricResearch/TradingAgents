@@ -85,6 +85,21 @@ def get_company_event_signals(
 
 
 @tool
+def get_news_source_status(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve an A-share news/announcement source coverage summary showing
+    whether primary sources, fallbacks, or empty results were used.
+    Uses the configured news_data vendor.
+    """
+    return route_to_vendor("get_news_source_status", ticker, start_date, end_date, curr_date)
+
+
+@tool
 def get_market_activity(
     ticker: Annotated[str, "Ticker symbol"],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],

@@ -19,6 +19,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_global_news,
     get_company_announcements,
     get_company_event_signals,
+    get_news_source_status,
     get_market_activity,
     get_sector_rotation_context,
     get_sector_strength_snapshot,

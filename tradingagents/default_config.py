@@ -95,6 +95,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
+    # Optional A-share alias expansion for ticker-news search. Use this to
+    # include product names, project codenames, or other market shorthand
+    # that may appear in headlines without the listed company name.
+    "a_share_news_aliases": {},
+    # A-share news retrieval strategy
+    "a_share_news_candidate_limit": 30,      # merged candidate cap before rerank
+    "a_share_news_llm_rerank_top_k": 12,     # only top heuristic candidates are sent to the LLM
+    "a_share_news_use_llm_relevance": True,  # use a small LLM pass to judge hidden relevance when possible
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {

@@ -22,6 +22,7 @@ from .a_share import (
     get_market_news as get_akshare_market_news,
     get_company_announcements as get_akshare_company_announcements,
     get_company_event_signals as get_akshare_company_event_signals,
+    get_news_source_status as get_akshare_news_source_status,
     get_xueqiu_sentiment as get_akshare_xueqiu_sentiment,
     get_caixin_news as get_akshare_caixin_news,
     get_market_activity as get_akshare_market_activity,
@@ -85,6 +86,7 @@ TOOLS_CATEGORIES = {
             "get_insider_transactions",
             "get_company_announcements",
             "get_company_event_signals",
+            "get_news_source_status",
             "get_market_activity",
             "get_sector_rotation_context",
             "get_sector_strength_snapshot",
@@ -165,6 +167,9 @@ VENDOR_METHODS = {
     },
     "get_company_event_signals": {
         "akshare": get_akshare_company_event_signals,
+    },
+    "get_news_source_status": {
+        "akshare": get_akshare_news_source_status,
     },
     "get_market_activity": {
         "akshare": get_akshare_market_activity,

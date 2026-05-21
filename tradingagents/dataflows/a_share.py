@@ -4,10 +4,12 @@ from datetime import datetime, timedelta
 import logging
 import math
 import re
+import threading
 import time
 from types import SimpleNamespace
 
 import pandas as pd
+from pydantic import BaseModel, Field
 
 try:
     import akshare as ak
@@ -26,10 +28,19 @@ from .a_share_common import (
     to_yfinance_symbol,
 )
 from .config import get_config
+from ..llm_clients import create_llm_client
 from .stockstats_utils import load_ohlcv
 from .y_finance import get_stock_stats_indicators_window
 
 logger = logging.getLogger(__name__)
+
+# Some AkShare endpoints rely on ``py_mini_racer`` to execute JS for request
+# signing (for example THS fund-flow pages). That runtime is not safe to
+# initialize concurrently in our current macOS / Python 3.13 environment and
+# can crash the whole process inside ``libmini_racer``. LangGraph may invoke
+# multiple tools in parallel, so we serialize AkShare calls at the module
+# boundary to keep the process stable.
+_AKSHARE_API_LOCK = threading.RLock()
 
 IMPORTANT_FINANCIAL_METRICS = [
     "归母净利润",
@@ -156,11 +167,18 @@ POLICY_TOPIC_KEYWORDS = (
 )
 
 
+class _NewsRelevanceDecision(BaseModel):
+    relevant: bool = Field(description="Whether the article is materially relevant to the company.")
+    confidence: int = Field(description="Integer confidence from 1 to 5.")
+    reason: str = Field(description="Short explanation of why the article is or is not relevant.")
+
+
 def _call_akshare_api(func, *args, retries: int = 2, retry_delay: float = 0.5, **kwargs):
     last_exc = None
     for attempt in range(retries + 1):
         try:
-            return func(*args, **kwargs)
+            with _AKSHARE_API_LOCK:
+                return func(*args, **kwargs)
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             if attempt < retries:
@@ -256,6 +274,262 @@ def _extract_text_values(df: pd.DataFrame, candidates: list[str], limit: int = 1
             if len(values) >= limit:
                 return values
     return values
+
+
+def _get_a_share_news_aliases(ticker: str) -> list[str]:
+    config = get_config()
+    alias_map = config.get("a_share_news_aliases", {}) or {}
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(normalized)
+    aliases: list[str] = []
+    for key in (normalized, plain):
+        for value in alias_map.get(key, []) or []:
+            clean = str(value).strip()
+            if clean and clean not in aliases:
+                aliases.append(clean)
+    return aliases
+
+
+def _get_a_share_news_keywords(ticker: str) -> list[str]:
+    normalized = normalize_ashare_symbol(ticker)
+    plain = to_plain_symbol(normalized)
+    keywords: list[str] = [normalized, plain]
+
+    profile_fetchers = [
+        getattr(ak, "stock_profile_cninfo", None),
+        getattr(ak, "stock_individual_info_em", None),
+    ]
+    for fetcher in profile_fetchers:
+        if fetcher is None:
+            continue
+        try:
+            profile_df = _call_akshare_api(fetcher, symbol=plain)
+        except Exception:  # noqa: BLE001
+            continue
+        if profile_df.empty:
+            continue
+        for column in ["A股简称", "证券简称", "股票简称", "名称", "曾用简称", "公司名称"]:
+            if column not in profile_df.columns:
+                continue
+            for value in profile_df[column].dropna().astype(str):
+                for item in re.split(r"[>,，、/|\\s]+", value.replace(">>", ">")):
+                    clean = item.strip()
+                    if clean and clean not in keywords:
+                        keywords.append(clean)
+        if len(keywords) > 2:
+            break
+
+    for alias in _get_a_share_news_aliases(ticker):
+        if alias not in keywords:
+            keywords.append(alias)
+
+    return keywords
+
+
+def _match_keyword_news_rows(
+    df: pd.DataFrame,
+    keywords: list[str],
+    text_columns: list[str],
+) -> pd.DataFrame:
+    if df.empty or not keywords:
+        return pd.DataFrame()
+    pattern = "|".join(re.escape(keyword) for keyword in keywords if keyword)
+    if not pattern:
+        return pd.DataFrame()
+
+    mask = pd.Series(False, index=df.index)
+    for column in text_columns:
+        if column in df.columns:
+            mask = mask | df[column].astype(str).str.contains(pattern, na=False, case=False)
+    return df[mask]
+
+
+def _fetch_keyword_news_df(
+    ticker: str,
+    start_date: str,
+    end_date: str,
+    keywords: list[str],
+) -> pd.DataFrame:
+    fetcher = getattr(ak, "stock_news_em", None)
+    if fetcher is None:
+        return pd.DataFrame()
+
+    frames = []
+    for keyword in keywords[:8]:
+        try:
+            df = _call_akshare_api(fetcher, symbol=keyword)
+        except Exception:  # noqa: BLE001
+            continue
+        if df.empty or "发布时间" not in df.columns:
+            continue
+        working = df.copy()
+        working["发布时间"] = parse_date_column(working["发布时间"])
+        start = pd.Timestamp(start_date)
+        end = pd.Timestamp(end_date) + timedelta(days=1) - timedelta(seconds=1)
+        working = working[(working["发布时间"] >= start) & (working["发布时间"] <= end)]
+        if working.empty:
+            continue
+        working["匹配关键词"] = keyword
+        frames.append(working)
+
+    if not frames:
+        return pd.DataFrame()
+
+    combined = pd.concat(frames, ignore_index=True)
+    dedupe_cols = [col for col in ["新闻标题", "发布时间"] if col in combined.columns]
+    if dedupe_cols:
+        combined = combined.drop_duplicates(subset=dedupe_cols)
+    return combined.sort_values("发布时间", ascending=False)
+
+
+def _collect_company_context_for_news(ticker: str) -> dict[str, object]:
+    plain = to_plain_symbol(ticker)
+    keywords = _get_a_share_news_keywords(ticker)
+    industry_names: list[str] = []
+    business_terms: list[str] = []
+    profile_fetchers = [
+        getattr(ak, "stock_profile_cninfo", None),
+        getattr(ak, "stock_individual_info_em", None),
+        getattr(ak, "stock_zyjs_ths", None),
+    ]
+    for fetcher in profile_fetchers:
+        if fetcher is None:
+            continue
+        try:
+            profile_df = _call_akshare_api(fetcher, symbol=plain)
+        except Exception:  # noqa: BLE001
+            continue
+        if profile_df.empty:
+            continue
+        if not industry_names:
+            industry_names = _extract_text_values(
+                profile_df,
+                ["所属行业", "行业", "申万行业", "所属东财行业"],
+                limit=4,
+            )
+        if not business_terms:
+            business_terms = _expand_delimited_values(
+                _extract_text_values(
+                    profile_df,
+                    ["主营业务", "产品类型", "产品名称", "主营构成"],
+                    limit=12,
+                ),
+                limit=12,
+            )
+        if industry_names or business_terms:
+            break
+    return {
+        "keywords": keywords,
+        "industry_names": industry_names,
+        "business_terms": business_terms,
+    }
+
+
+def _heuristic_news_relevance_score(row: pd.Series, company_context: dict[str, object]) -> tuple[int, str]:
+    keywords = [str(item) for item in company_context.get("keywords", [])]
+    industry_names = [str(item) for item in company_context.get("industry_names", [])]
+    business_terms = [str(item) for item in company_context.get("business_terms", [])]
+    text_parts = [str(row.get(col, "")) for col in ["新闻标题", "新闻内容", "标题", "摘要", "内容"]]
+    text = " ".join(text_parts)
+    score = 0
+    reasons: list[str] = []
+
+    direct_hits = [keyword for keyword in keywords if keyword and keyword in text]
+    if direct_hits:
+        score += 6
+        reasons.append(f"direct keyword hit: {', '.join(direct_hits[:3])}")
+
+    industry_hits = [name for name in industry_names if name and name in text]
+    if industry_hits:
+        score += 2
+        reasons.append(f"industry hit: {', '.join(industry_hits[:2])}")
+
+    matched_business_terms = [term for term in business_terms if term and len(term) >= 2 and term in text]
+    if matched_business_terms:
+        score += min(4, len(matched_business_terms))
+        reasons.append(f"business-term hit: {', '.join(matched_business_terms[:3])}")
+
+    if any(token in text for token in ("新游", "版号", "上线", "测试", "影视", "短剧", "游戏")):
+        score += 1
+        reasons.append("generic entertainment/product catalyst wording")
+
+    return score, "; ".join(reasons) if reasons else "no obvious match"
+
+
+def _get_relevance_llm():
+    config = get_config()
+    if not config.get("a_share_news_use_llm_relevance", True):
+        return None
+    try:
+        client = create_llm_client(
+            provider=config["llm_provider"],
+            model=config["quick_think_llm"],
+            base_url=config.get("backend_url"),
+            reasoning_effort=config.get("openai_reasoning_effort"),
+            thinking_level=config.get("google_thinking_level"),
+            effort=config.get("anthropic_effort"),
+        )
+        llm = client.get_llm()
+        return llm.with_structured_output(_NewsRelevanceDecision)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("A-share news relevance LLM unavailable, falling back to heuristics: %s", exc)
+        return None
+
+
+def _llm_rerank_news_candidates(
+    candidates: pd.DataFrame,
+    ticker: str,
+    company_context: dict[str, object],
+) -> pd.DataFrame:
+    llm = _get_relevance_llm()
+    if llm is None or candidates.empty:
+        return candidates
+
+    company_label = ", ".join([str(item) for item in company_context.get("keywords", [])[:5]])
+    industry_label = ", ".join([str(item) for item in company_context.get("industry_names", [])[:3]])
+    business_label = ", ".join([str(item) for item in company_context.get("business_terms", [])[:6]])
+    decisions: list[dict[str, object]] = []
+
+    for idx, row in candidates.iterrows():
+        title = str(row.get("新闻标题") or row.get("标题") or "")
+        summary = str(row.get("新闻内容") or row.get("摘要") or row.get("内容") or "")
+        prompt = (
+            f"Ticker: {ticker}\n"
+            f"Known company names / aliases: {company_label}\n"
+            f"Industry labels: {industry_label}\n"
+            f"Business clues: {business_label}\n"
+            f"Article title: {title}\n"
+            f"Article summary: {summary}\n\n"
+            "Decide whether this article is materially relevant to the company. "
+            "Mark relevant=true when the article is directly about the company, its products, "
+            "its projects, its subsidiaries, its securities activity, or a clearly attributable catalyst. "
+            "Mark relevant=false when the link is only broad sector noise or ambiguous macro chatter."
+        )
+        try:
+            result = llm.invoke(prompt)
+            decisions.append(
+                {
+                    "idx": idx,
+                    "relevant": bool(result.relevant),
+                    "confidence": int(result.confidence),
+                    "reason": str(result.reason),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("A-share news relevance LLM failed on one candidate, using heuristic fallback: %s", exc)
+            return candidates
+
+    decision_df = pd.DataFrame(decisions)
+    if decision_df.empty:
+        return candidates
+    relevant = decision_df[decision_df["relevant"]].copy()
+    if relevant.empty:
+        return candidates.head(5)
+    relevant = relevant.sort_values(["confidence"], ascending=False)
+    ranked = candidates.loc[relevant["idx"].tolist()].copy()
+    ranked["相关性说明"] = relevant["reason"].tolist()
+    ranked["LLM相关性置信度"] = relevant["confidence"].tolist()
+    return ranked
 
 
 def _expand_delimited_values(values: list[str], limit: int = 10) -> list[str]:
@@ -680,7 +954,8 @@ def get_xueqiu_sentiment(ticker: str) -> str:
 
 def get_news(ticker: str, start_date: str, end_date: str) -> str:
     normalized = normalize_ashare_symbol(ticker)
-    plain = to_plain_symbol(ticker)
+    company_context = _collect_company_context_for_news(ticker)
+    keywords = [str(item) for item in company_context.get("keywords", [])]
     sections = []
 
     research_fetcher = getattr(ak, "stock_research_report_em", None)
@@ -703,24 +978,113 @@ def get_news(ticker: str, start_date: str, end_date: str) -> str:
         except Exception:  # noqa: BLE001
             pass
 
-    stock_news_fetcher = getattr(ak, "stock_news_em", None)
-    if stock_news_fetcher is not None and not sections:
+    company_news_df = _fetch_keyword_news_df(ticker, start_date, end_date, keywords)
+    if not company_news_df.empty:
+        company_news_df = company_news_df.copy()
+        heuristic_scores = []
+        heuristic_reasons = []
+        for _, row in company_news_df.iterrows():
+            score, reason = _heuristic_news_relevance_score(row, company_context)
+            heuristic_scores.append(score)
+            heuristic_reasons.append(reason)
+        company_news_df["HeuristicScore"] = heuristic_scores
+        company_news_df["HeuristicReason"] = heuristic_reasons
+        company_news_df = company_news_df.sort_values(["HeuristicScore", "发布时间"], ascending=[False, False])
+
+        rerank_top_k = int(get_config().get("a_share_news_llm_rerank_top_k", 12))
+        reranked_head = _llm_rerank_news_candidates(company_news_df.head(rerank_top_k), ticker, company_context)
+        tail = company_news_df.iloc[rerank_top_k:]
+        company_news_df = pd.concat([reranked_head, tail], ignore_index=True)
+        if "LLM相关性置信度" in company_news_df.columns:
+            company_news_df = company_news_df.sort_values(
+                ["LLM相关性置信度", "HeuristicScore", "发布时间"],
+                ascending=[False, False, False],
+            )
+        else:
+            company_news_df = company_news_df.sort_values(["HeuristicScore", "发布时间"], ascending=[False, False])
+
+        candidate_limit = int(get_config().get("a_share_news_candidate_limit", 30))
+        company_news_df = company_news_df.head(candidate_limit)
+        formatted_columns = [
+            "发布时间",
+            "文章来源",
+            "匹配关键词",
+            "HeuristicScore",
+            "HeuristicReason",
+            "LLM相关性置信度",
+            "相关性说明",
+            "新闻标题",
+            "新闻内容",
+            "新闻链接",
+        ]
+        formatted = company_news_df.loc[:, [col for col in formatted_columns if col in company_news_df.columns]].copy()
+        if "新闻内容" in formatted.columns:
+            formatted["新闻内容"] = formatted["新闻内容"].map(_safe_truncate)
+        sections.append(_format_table(formatted, f"# A-share company news for {normalized}", rows=20))
+
+    keyword_news_fetcher = getattr(ak, "stock_info_global_em", None)
+    if keyword_news_fetcher is not None and keywords:
         try:
-            df = _call_akshare_api(stock_news_fetcher, symbol=plain)
+            df = _call_akshare_api(keyword_news_fetcher)
             if not df.empty and "发布时间" in df.columns:
                 df["发布时间"] = parse_date_column(df["发布时间"])
                 start = pd.Timestamp(start_date)
                 end = pd.Timestamp(end_date) + timedelta(days=1) - timedelta(seconds=1)
                 df = df[(df["发布时间"] >= start) & (df["发布时间"] <= end)]
-                if not df.empty:
-                    formatted = df.loc[:, [col for col in ["发布时间", "文章来源", "新闻标题", "新闻内容", "新闻链接"] if col in df.columns]].copy()
-                    if "新闻内容" in formatted.columns:
-                        formatted["新闻内容"] = formatted["新闻内容"].map(_safe_truncate)
-                    sections.append(_format_table(formatted, f"# A-share company news for {normalized}", rows=20))
+                matched = _match_keyword_news_rows(
+                    df,
+                    keywords,
+                    ["标题", "摘要", "内容"],
+                )
+                if not matched.empty:
+                    matched = matched.copy()
+                    matched["匹配关键词"] = matched.apply(
+                        lambda row: next(
+                            (
+                                keyword for keyword in keywords
+                                if keyword and keyword in " ".join(
+                                    str(row.get(col, "")) for col in ["标题", "摘要", "内容"]
+                                )
+                            ),
+                            "",
+                        ),
+                        axis=1,
+                    )
+                    heuristic_scores = []
+                    heuristic_reasons = []
+                    for _, row in matched.iterrows():
+                        score, reason = _heuristic_news_relevance_score(row, company_context)
+                        heuristic_scores.append(score)
+                        heuristic_reasons.append(reason)
+                    matched["HeuristicScore"] = heuristic_scores
+                    matched["HeuristicReason"] = heuristic_reasons
+                    matched = matched.sort_values(["HeuristicScore", "发布时间"], ascending=[False, False])
+                    rerank_top_k = int(get_config().get("a_share_news_llm_rerank_top_k", 12))
+                    reranked_head = _llm_rerank_news_candidates(matched.head(rerank_top_k), ticker, company_context)
+                    tail = matched.iloc[rerank_top_k:]
+                    matched = pd.concat([reranked_head, tail], ignore_index=True)
+                    if "LLM相关性置信度" in matched.columns:
+                        matched = matched.sort_values(
+                            ["LLM相关性置信度", "HeuristicScore", "发布时间"],
+                            ascending=[False, False, False],
+                        )
+                    formatted = matched.loc[:, [col for col in ["发布时间", "匹配关键词", "HeuristicScore", "HeuristicReason", "LLM相关性置信度", "相关性说明", "标题", "摘要", "链接"] if col in matched.columns]].copy()
+                    if "摘要" in formatted.columns:
+                        formatted["摘要"] = formatted["摘要"].map(lambda value: _safe_truncate(value, 180))
+                    sections.append(
+                        _format_table(
+                            formatted,
+                            f"## Keyword-linked company mentions ({', '.join(keywords[:6])})",
+                            rows=20,
+                        )
+                    )
         except Exception:  # noqa: BLE001
             pass
 
-    market_context = get_market_news(end_date, look_back_days=max((pd.Timestamp(end_date) - pd.Timestamp(start_date)).days, 3), limit=6)
+    try:
+        market_context = get_market_news(end_date, look_back_days=max((pd.Timestamp(end_date) - pd.Timestamp(start_date)).days, 3), limit=6)
+    except Exception:  # noqa: BLE001
+        market_context = ""
     if market_context:
         sections.append(market_context)
 
@@ -755,12 +1119,17 @@ def get_market_news(curr_date: str, look_back_days: int = 7, limit: int = 10) ->
     return _format_table(formatted, "# A-share market and policy news", rows=limit)
 
 
-def get_company_announcements(ticker: str, start_date: str, end_date: str, category: str = "全部") -> str:
+def _fetch_company_announcements_df(
+    ticker: str,
+    start_date: str,
+    end_date: str,
+    category: str = "全部",
+) -> tuple[pd.DataFrame, list[str]]:
     normalized_symbol = normalize_ashare_symbol(ticker)
     plain_symbol = to_plain_symbol(ticker)
     fetcher = getattr(ak, "stock_notice_report", None)
     if fetcher is None:
-        return f"A-share announcements API unavailable for {normalized_symbol}"
+        return pd.DataFrame(), [f"A-share announcements API unavailable for {normalized_symbol}"]
 
     frames = []
     errors = []
@@ -770,13 +1139,37 @@ def get_company_announcements(ticker: str, start_date: str, end_date: str, categ
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{date_value}: {type(exc).__name__}: {_safe_truncate(str(exc), 100)}")
             continue
-        if daily.empty or "代码" not in daily.columns:
+        if daily.empty:
             continue
-        matched = daily[daily["代码"].astype(str).str.upper() == plain_symbol]
+
+        code_col = next((col for col in ["代码", "证券代码", "股票代码"] if col in daily.columns), None)
+        if code_col is not None:
+            matched = daily[daily[code_col].astype(str).str.upper() == plain_symbol]
+        else:
+            title_col = next((col for col in ["公告标题", "标题", "名称"] if col in daily.columns), None)
+            matched = daily if title_col is not None else pd.DataFrame()
         if not matched.empty:
             frames.append(matched)
 
     if not frames:
+        return pd.DataFrame(), errors
+
+    combined = pd.concat(frames, ignore_index=True)
+    date_col = next((col for col in ["公告日期", "NOTICE_DATE", "日期", "date"] if col in combined.columns), None)
+    if date_col:
+        combined[date_col] = parse_date_column(combined[date_col])
+        combined = combined.sort_values(date_col, ascending=False)
+    title_col = next((col for col in ["公告标题", "标题", "名称"] if col in combined.columns), None)
+    dedupe_cols = [col for col in [title_col, date_col] if col]
+    if dedupe_cols:
+        combined = combined.drop_duplicates(subset=dedupe_cols)
+    return combined, errors
+
+
+def get_company_announcements(ticker: str, start_date: str, end_date: str, category: str = "全部") -> str:
+    normalized_symbol = normalize_ashare_symbol(ticker)
+    combined, errors = _fetch_company_announcements_df(ticker, start_date, end_date, category)
+    if combined.empty:
         if errors:
             return (
                 f"{normalized_symbol} 在 {start_date} 到 {end_date} 之间未能稳定获取公告数据。\n\n"
@@ -784,12 +1177,14 @@ def get_company_announcements(ticker: str, start_date: str, end_date: str, categ
             )
         return f"{normalized_symbol} 在 {start_date} 到 {end_date} 之间没有匹配的公告。"
 
-    combined = pd.concat(frames, ignore_index=True)
-    combined["公告日期"] = parse_date_column(combined["公告日期"])
-    combined = combined.sort_values("公告日期", ascending=False).drop_duplicates(subset=["公告标题", "公告日期"])
-    formatted = combined.loc[:, [col for col in ["公告日期", "公告类型", "公告标题", "网址"] if col in combined.columns]].head(20).copy()
-    if "公告日期" in formatted.columns:
-        formatted["公告日期"] = formatted["公告日期"].dt.strftime("%Y-%m-%d")
+    date_col = next((col for col in ["公告日期", "NOTICE_DATE", "日期", "date"] if col in combined.columns), None)
+    type_col = next((col for col in ["公告类型", "类型", "notice_type"] if col in combined.columns), None)
+    title_col = next((col for col in ["公告标题", "标题", "名称"] if col in combined.columns), None)
+    link_col = next((col for col in ["网址", "链接", "url"] if col in combined.columns), None)
+
+    formatted = combined.loc[:, [col for col in [date_col, type_col, title_col, link_col] if col]].head(20).copy()
+    if date_col and date_col in formatted.columns:
+        formatted[date_col] = pd.to_datetime(formatted[date_col], errors="coerce").dt.strftime("%Y-%m-%d")
     output = _format_table(formatted, f"# A-share company announcements for {normalized_symbol}", rows=20)
     if errors:
         output += "\n\n## Data retrieval notes\n\n" + "\n".join(f"- {item}" for item in errors[:5])
@@ -866,6 +1261,40 @@ def get_company_event_signals(ticker: str, start_date: str, end_date: str) -> st
         sections.append("")
 
     if not any_hits:
+        fallback_df, fallback_errors = _fetch_company_announcements_df(ticker, start_date, end_date, "全部")
+        errors.extend(fallback_errors[:5])
+        if not fallback_df.empty:
+            any_hits = True
+            working = fallback_df.copy()
+            date_col = next((c for c in ["公告日期", "NOTICE_DATE", "日期", "date"] if c in working.columns), None)
+            title_col = next((c for c in ["公告标题", "标题", "名称"] if c in working.columns), None)
+            type_col = next((c for c in ["公告类型", "类型", "notice_type"] if c in working.columns), None)
+
+            sections.append("## 公告回退事件流")
+            sections.append(f"- Count: {len(working)}")
+            latest_rows = working.head(8)
+            for _, row in latest_rows.iterrows():
+                line = []
+                title_value = str(row.get(title_col, "")) if title_col else ""
+                tag = _classify_event_tag(title_value)
+                bias = _tag_bias(tag, title_value)
+                tag_counter[tag] = tag_counter.get(tag, 0) + 1
+                bias_counter[bias] = bias_counter.get(bias, 0) + 1
+                event_examples.setdefault(tag, [])
+                if title_value and len(event_examples[tag]) < 2:
+                    event_examples[tag].append(_safe_truncate(title_value, 60))
+                if date_col and pd.notna(row.get(date_col)):
+                    line.append(pd.Timestamp(row[date_col]).strftime("%Y-%m-%d"))
+                if type_col and row.get(type_col):
+                    line.append(str(row[type_col]))
+                line.append(f"tag={tag}")
+                line.append(f"bias={bias}")
+                if title_col and row.get(title_col):
+                    line.append(_safe_truncate(row[title_col], 120))
+                sections.append("- " + " | ".join(line))
+            sections.append("")
+
+    if not any_hits:
         if errors:
             return (
                 f"{normalized} 在 {start_date} 到 {end_date} 之间未能稳定获取事件信号。\n\n"
@@ -892,6 +1321,109 @@ def get_company_event_signals(ticker: str, start_date: str, end_date: str) -> st
     if errors:
         sections.append("## Data retrieval notes")
         sections.extend(f"- {item}" for item in errors[:5])
+    return "\n".join(sections).strip()
+
+
+def get_news_source_status(ticker: str, start_date: str, end_date: str, curr_date: str) -> str:
+    """Summarise whether A-share news inputs came from primary sources, fallbacks, or no data."""
+    normalized = normalize_ashare_symbol(ticker)
+    news_text = get_news(ticker, start_date, end_date)
+    market_text = get_market_news(
+        curr_date,
+        look_back_days=max((pd.Timestamp(end_date) - pd.Timestamp(start_date)).days, 3),
+        limit=6,
+    )
+    announcement_text = get_company_announcements(ticker, start_date, end_date)
+    event_text = get_company_event_signals(ticker, start_date, end_date)
+    caixin_text = get_caixin_news(ticker)
+
+    sections = [f"# A-share news source status for {normalized}", ""]
+
+    company_status = "unknown"
+    company_evidence = ""
+    if "## 券商研报（个股专项）" in news_text:
+        company_status = "primary"
+        company_evidence = "券商研报（个股专项）"
+    elif f"# A-share company news for {normalized}" in news_text:
+        company_status = "fallback"
+        company_evidence = "东方财富个股新闻"
+    elif news_text.startswith(f"# A-share news pack for {normalized}") and "# A-share market and policy news" in news_text:
+        company_status = "market-context-only"
+        company_evidence = "仅拼入市场/政策新闻，未见公司专项新闻段"
+    elif news_text == f"No A-share news found for {normalized} between {start_date} and {end_date}":
+        company_status = "no-data"
+        company_evidence = "未找到公司新闻"
+    sections.append(f"- Company news: {company_status}" + (f" | source={company_evidence}" if company_evidence else ""))
+
+    market_status = "unknown"
+    market_evidence = ""
+    if market_text.startswith("# A-share market and policy news"):
+        market_status = "available"
+        market_evidence = "东方财富市场/政策快讯"
+    elif "没有可用的市场快讯" in market_text or "未获取到 A 股市场与宏观快讯" in market_text:
+        market_status = "no-data"
+        market_evidence = _safe_truncate(market_text, 80)
+    elif "API unavailable" in market_text:
+        market_status = "unavailable"
+        market_evidence = _safe_truncate(market_text, 80)
+    sections.append(f"- Market / policy news: {market_status}" + (f" | source={market_evidence}" if market_evidence else ""))
+
+    announcement_status = "unknown"
+    announcement_evidence = ""
+    if announcement_text.startswith(f"# A-share company announcements for {normalized}"):
+        announcement_status = "available"
+        announcement_evidence = "东方财富公告中心"
+    elif "没有匹配的公告" in announcement_text:
+        announcement_status = "no-data"
+        announcement_evidence = "时间窗口内未匹配到公告"
+    elif "未能稳定获取公告数据" in announcement_text:
+        announcement_status = "retrieval-unstable"
+        announcement_evidence = "公告接口返回不稳定"
+    sections.append(f"- Company announcements: {announcement_status}" + (f" | source={announcement_evidence}" if announcement_evidence else ""))
+
+    event_status = "unknown"
+    event_evidence = ""
+    if "## 公告回退事件流" in event_text:
+        event_status = "fallback"
+        event_evidence = "从通用公告流回退生成事件标签"
+    elif event_text.startswith(f"# A-share company event signals for {normalized}"):
+        event_status = "primary"
+        event_evidence = "个股公告事件流"
+    elif "没有可识别的事件信号" in event_text:
+        event_status = "no-data"
+        event_evidence = "没有可分类事件"
+    elif "未能稳定获取事件信号" in event_text:
+        event_status = "retrieval-unstable"
+        event_evidence = "事件接口返回不稳定"
+    sections.append(f"- Event signals: {event_status}" + (f" | source={event_evidence}" if event_evidence else ""))
+
+    caixin_status = "optional-empty"
+    caixin_evidence = ""
+    if caixin_text.startswith(f"# 财新新闻 — {normalized}"):
+        caixin_status = "available"
+        caixin_evidence = "财新新闻"
+    elif "未找到" in caixin_text:
+        caixin_status = "optional-empty"
+        caixin_evidence = "最近样本中未命中该股票"
+    elif "未获取到财新新闻数据" in caixin_text:
+        caixin_status = "retrieval-unstable"
+        caixin_evidence = "财新新闻接口空返回"
+    elif "API unavailable" in caixin_text:
+        caixin_status = "unavailable"
+        caixin_evidence = "环境里没有可用财新接口"
+    sections.append(f"- Caixin supplement: {caixin_status}" + (f" | source={caixin_evidence}" if caixin_evidence else ""))
+
+    sections.extend(
+        [
+            "",
+            "## Interpretation",
+            "- `primary` means the preferred source produced ticker-specific content.",
+            "- `fallback` means the preferred source did not hold and a secondary source was used.",
+            "- `market-context-only` means the company-specific news pack was empty but broader market / policy context was still available.",
+            "- `retrieval-unstable` means the system hit an interface or structure problem, so missing content should not be read as evidence of absence.",
+            "- `no-data` means the query window returned no matching content from that source family.",
+        ]
+    )
     return "\n".join(sections).strip()
 
 

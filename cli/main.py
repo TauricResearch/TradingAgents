@@ -1087,7 +1087,15 @@ def run_analysis(checkpoint: bool = False):
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    # Avoid Rich's stdout/stderr FileProxy during shutdown. Some background
+    # callbacks and library cleanup paths may flush very late in interpreter
+    # teardown, which can trigger ``ImportError: sys.meta_path is None``.
+    with Live(
+        layout,
+        refresh_per_second=4,
+        redirect_stdout=False,
+        redirect_stderr=False,
+    ) as live:
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
