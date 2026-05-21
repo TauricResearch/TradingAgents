@@ -29,14 +29,35 @@ load_dotenv()
 
 import streamlit as st
 
+from tradingbot.dashboard.i18n import t, language_selector
+
 logging.basicConfig(level=logging.WARNING)
 
 # ── Page config (must be first Streamlit call) ─────────────────────────
 st.set_page_config(
-    page_title="TradingAgents Dashboard",
+    page_title=t("app.page_title"),
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+# Hide Streamlit's built-in chrome (⋮ menu, top header bar, "Made with Streamlit" footer,
+# Deploy button, and the running-status indicator) so all visible UI is under our control.
+st.markdown(
+    """
+    <style>
+      #MainMenu {visibility: hidden !important;}
+      header {visibility: hidden !important; height: 0 !important;}
+      footer {visibility: hidden !important;}
+      [data-testid="stToolbar"] {visibility: hidden !important; height: 0 !important; position: fixed !important;}
+      [data-testid="stStatusWidget"] {visibility: hidden !important;}
+      [data-testid="stDecoration"] {visibility: hidden !important;}
+      [data-testid="stMainMenu"] {visibility: hidden !important;}
+      [data-testid="stHeader"] {visibility: hidden !important; height: 0 !important;}
+      .stDeployButton {display: none !important;}
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -85,13 +106,20 @@ def _get_config():
 
 # ── Sidebar ────────────────────────────────────────────────────────────
 
+PAGE_KEYS = ["nav.portfolio", "nav.performance", "nav.trades", "nav.signals", "nav.risk"]
+
+
 def render_sidebar(config):
-    st.sidebar.title("TradingAgents Bot")
-    st.sidebar.caption(f"Last refresh: {datetime.now().strftime('%H:%M:%S')}")
+    language_selector()
+    st.sidebar.markdown("---")
+
+    st.sidebar.title(t("app.sidebar.title"))
+    st.sidebar.caption(t("app.sidebar.last_refresh", time=datetime.now().strftime("%H:%M:%S")))
 
     broker_type = config.get("broker", "mock")
     paper = config.get("paper_trading", True)
-    mode_label = f"{'PAPER' if paper else 'LIVE'} — {broker_type.upper()}"
+    mode_word = t("app.sidebar.mode_paper") if paper else t("app.sidebar.mode_live")
+    mode_label = f"{mode_word} — {broker_type.upper()}"
     colour = "#4CAF50" if paper else "#F44336"
     st.sidebar.markdown(
         f'<div style="background:{colour};color:white;padding:6px 10px;border-radius:6px;'
@@ -100,37 +128,46 @@ def render_sidebar(config):
     )
 
     st.sidebar.markdown("---")
-    page = st.sidebar.radio(
-        "Navigate",
-        ["Portfolio", "Performance", "Trade History", "Agent Reasoning", "Risk Monitor"],
+    page_key = st.sidebar.radio(
+        t("app.sidebar.navigate"),
+        PAGE_KEYS,
         index=0,
+        format_func=lambda k: t(k),
     )
 
     st.sidebar.markdown("---")
     watchlist = config.get("watchlist", [])
-    st.sidebar.markdown("**Watchlist**")
+    st.sidebar.markdown(t("app.sidebar.watchlist"))
     st.sidebar.code(", ".join(watchlist))
 
     st.sidebar.markdown("---")
-    if st.sidebar.button("Refresh Data"):
+    if st.sidebar.button(t("app.sidebar.refresh")):
         st.cache_resource.clear()
         st.rerun()
 
-    return page
+    return page_key
 
 
 # ── Quick trade panel (sidebar) ────────────────────────────────────────
 
 def render_quick_trade(config, broker, db):
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**Quick Trade (Manual)**")
-    ticker_in = st.sidebar.text_input("Ticker", key="qt_ticker").upper().strip()
-    side_in = st.sidebar.selectbox("Side", ["BUY", "SELL"], key="qt_side")
-    qty_in = st.sidebar.number_input("Shares", min_value=0.001, value=1.0, step=0.1, key="qt_qty")
+    st.sidebar.markdown(t("qt.header"))
+    ticker_in = st.sidebar.text_input(t("qt.ticker"), key="qt_ticker").upper().strip()
+    side_options = ["BUY", "SELL"]
+    side_in = st.sidebar.selectbox(
+        t("qt.side"),
+        side_options,
+        key="qt_side",
+        format_func=lambda s: t("qt.side.buy") if s == "BUY" else t("qt.side.sell"),
+    )
+    qty_in = st.sidebar.number_input(
+        t("qt.qty"), min_value=0.001, value=1.0, step=0.1, key="qt_qty"
+    )
 
-    if st.sidebar.button("Submit Manual Order", key="qt_submit"):
+    if st.sidebar.button(t("qt.submit"), key="qt_submit"):
         if not ticker_in:
-            st.sidebar.error("Enter a ticker first.")
+            st.sidebar.error(t("qt.err.no_ticker"))
             return
         from tradingbot.broker.base import OrderSide, OrderType
         from tradingbot.portfolio.manager import PortfolioManager
@@ -139,8 +176,10 @@ def render_quick_trade(config, broker, db):
         try:
             order = broker.submit_order(ticker_in, qty_in, side, OrderType.MARKET)
             pm = PortfolioManager(broker, db)
-            pm.record_trade(order, signal="MANUAL", agent_reasoning="Manual order from dashboard")
-            st.sidebar.success(f"Order filled: {qty_in:.4f} @ ${order.filled_avg_price:.2f}")
+            pm.record_trade(order, signal="MANUAL", agent_reasoning=t("qt.reasoning"))
+            st.sidebar.success(
+                t("qt.success", qty=f"{qty_in:.4f}", price=f"{order.filled_avg_price:.2f}")
+            )
         except Exception as exc:
             st.sidebar.error(str(exc))
 
@@ -152,30 +191,30 @@ def main():
     page = render_sidebar(config)
     render_quick_trade(config, _get_broker(), _get_db())
 
-    st.title("📈 TradingAgents Auto-Trading Dashboard")
+    st.title(t("app.title"))
 
     broker = _get_broker()
     db = _get_db()
     pm = _get_portfolio_manager()
 
-    if page == "Portfolio":
+    if page == "nav.portfolio":
         from tradingbot.dashboard.components import portfolio_view
         portfolio_view.render(broker, pm)
 
-    elif page == "Performance":
+    elif page == "nav.performance":
         from tradingbot.dashboard.components import performance_view
         performance_view.render(pm)
 
-    elif page == "Trade History":
+    elif page == "nav.trades":
         from tradingbot.dashboard.components import trades_view
         trades_view.render(pm, config)
 
-    elif page == "Agent Reasoning":
+    elif page == "nav.signals":
         from tradingbot.dashboard.components import signals_view
         graph = _get_trading_graph()
         signals_view.render(graph, config)
 
-    elif page == "Risk Monitor":
+    elif page == "nav.risk":
         from tradingbot.dashboard.components import risk_view
         risk_view.render(broker, db, config)
 

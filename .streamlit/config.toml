@@ -1,0 +1,11 @@
+[client]
+# Hide Streamlit's built-in toolbar (Deploy button, ⋮ menu, status indicator)
+# so the dashboard chrome is fully under our control and i18n.
+toolbarMode = "minimal"
+showErrorDetails = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"

@@ -3,9 +3,11 @@
 import plotly.graph_objects as go
 import streamlit as st
 
+from tradingbot.dashboard.i18n import t
+
 
 def render(broker, db, config):
-    st.subheader("Risk Monitor")
+    st.subheader(t("risk.subheader"))
 
     account = broker.get_account()
     positions = broker.get_positions()
@@ -22,32 +24,34 @@ def render(broker, db, config):
     min_cash = config.get("min_cash_reserve", 1_000.0)
 
     # ── Circuit breaker status ─────────────────────────────────────────
-    st.markdown("#### Circuit Breaker")
+    st.markdown(t("risk.cb.header"))
     if snap:
         daily_pnl_pct = snap.daily_pnl_pct * 100
         breached = daily_pnl_pct < daily_limit
         if breached:
             st.error(
-                f"CIRCUIT BREAKER ACTIVE — Daily P&L: {daily_pnl_pct:.2f}% "
-                f"(limit: {daily_limit:.2f}%). No new buys today."
+                t("risk.cb.active",
+                  pnl=f"{daily_pnl_pct:.2f}",
+                  limit=f"{daily_limit:.2f}")
             )
         else:
             st.success(
-                f"Circuit breaker OK — Daily P&L: {daily_pnl_pct:+.2f}% "
-                f"(limit: {daily_limit:.2f}%)"
+                t("risk.cb.ok",
+                  pnl=f"{daily_pnl_pct:+.2f}",
+                  limit=f"{daily_limit:.2f}")
             )
     else:
-        st.info("No intraday snapshot yet — circuit breaker inactive.")
+        st.info(t("risk.cb.no_snapshot"))
 
     # ── Exposure gauge ─────────────────────────────────────────────────
-    st.markdown("#### Total Exposure")
+    st.markdown(t("risk.exposure.header"))
     col1, col2 = st.columns(2)
     with col1:
         fig = go.Figure(go.Indicator(
             mode="gauge+number+delta",
             value=invested_pct,
             delta={"reference": max_exposure, "suffix": "%"},
-            title={"text": "Portfolio Invested (%)"},
+            title={"text": t("risk.exposure.gauge")},
             gauge={
                 "axis": {"range": [0, 100]},
                 "bar": {"color": "#2196F3"},
@@ -71,47 +75,57 @@ def render(broker, db, config):
         # Cash reserve check
         cash_ok = account.cash >= min_cash
         st.metric(
-            "Available Cash",
+            t("risk.exposure.cash"),
             f"${account.cash:,.2f}",
-            delta=f"Reserve: ${min_cash:,.2f}",
+            delta=t("risk.exposure.reserve", reserve=f"{min_cash:,.2f}"),
             delta_color="normal" if cash_ok else "inverse",
         )
-        st.metric("Invested Value", f"${invested:,.2f}")
-        st.metric("Exposure", f"{invested_pct:.1f}% / {max_exposure:.0f}% cap")
+        st.metric(t("risk.exposure.invested"), f"${invested:,.2f}")
+        st.metric(
+            t("risk.exposure.label"),
+            t("risk.exposure.cap", pct=f"{invested_pct:.1f}", cap=f"{max_exposure:.0f}"),
+        )
         if not cash_ok:
-            st.warning(f"Cash ${account.cash:,.2f} is below minimum reserve ${min_cash:,.2f}.")
+            st.warning(
+                t("risk.exposure.warn_cash",
+                  cash=f"{account.cash:,.2f}",
+                  reserve=f"{min_cash:,.2f}")
+            )
 
     # ── Per-position concentration ─────────────────────────────────────
     if positions:
-        st.markdown("#### Position Concentration")
+        st.markdown(t("risk.conc.header"))
+        x_label = t("risk.conc.x")
+        y_label = t("risk.conc.y")
+        over_label = t("risk.conc.over")
+        within_label = t("risk.conc.within")
+
         data = {
-            "Ticker": [p.ticker for p in positions],
-            "Value ($)": [p.market_value for p in positions],
-            "% of Portfolio": [p.market_value / portfolio_value * 100 if portfolio_value else 0
-                               for p in positions],
-            "Cap (%)": [max_single] * len(positions),
+            x_label: [p.ticker for p in positions],
+            y_label: [p.market_value / portfolio_value * 100 if portfolio_value else 0
+                      for p in positions],
         }
 
         import plotly.express as px
         fig2 = px.bar(
-            x=data["Ticker"],
-            y=data["% of Portfolio"],
-            text=[f"{v:.1f}%" for v in data["% of Portfolio"]],
-            labels={"x": "Ticker", "y": "% of Portfolio"},
-            title=f"Position Sizes vs {max_single:.0f}% Single-Position Cap",
+            x=data[x_label],
+            y=data[y_label],
+            text=[f"{v:.1f}%" for v in data[y_label]],
+            labels={"x": x_label, "y": y_label},
+            title=t("risk.conc.title", cap=f"{max_single:.0f}"),
             color=[
-                "Over limit" if v > max_single else "Within limit"
-                for v in data["% of Portfolio"]
+                over_label if v > max_single else within_label
+                for v in data[y_label]
             ],
-            color_discrete_map={"Within limit": "#4CAF50", "Over limit": "#F44336"},
+            color_discrete_map={within_label: "#4CAF50", over_label: "#F44336"},
         )
         fig2.add_hline(
             y=max_single,
             line_dash="dash",
             line_color="red",
-            annotation_text=f"Cap {max_single:.0f}%",
+            annotation_text=t("risk.conc.cap_line", cap=f"{max_single:.0f}"),
         )
         fig2.update_traces(textposition="outside")
         st.plotly_chart(fig2, use_container_width=True)
     else:
-        st.info("No open positions — nothing to monitor.")
+        st.info(t("risk.empty"))
