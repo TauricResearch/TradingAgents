@@ -1,5 +1,9 @@
 """
-TradingAgents Auto-Trading Dashboard
+TradingAgents Auto-Trading Dashboard.
+
+URL routing (via st.navigation):
+  /         dashboard (default, requires auth)
+  /login    login / register page (public)
 
 Launch with:
     streamlit run tradingbot/dashboard/app.py
@@ -11,13 +15,14 @@ Environment variables (same as run_bot.py / tradingbot/config.py):
     TRADINGBOT_BROKER       mock | alpaca
     ALPACA_API_KEY / ALPACA_API_SECRET
     TRADINGBOT_DB_PATH      path to SQLite DB
+    TRADINGBOT_USERS_DB     path to users SQLite DB
+    TRADINGBOT_SESSION_SECRET / TRADINGBOT_SESSION_SECRET_PATH
 """
 
-import os
-import sys
 import logging
+import sys
+from datetime import datetime
 from pathlib import Path
-from datetime import date, datetime
 
 # Make sure the project root is on the path so all imports resolve.
 _ROOT = Path(__file__).resolve().parent.parent.parent
@@ -29,9 +34,12 @@ load_dotenv()
 
 import streamlit as st
 
-from tradingbot.dashboard.i18n import t, language_selector
+from tradingbot.auth import clear_session, restore_session, save_session
+from tradingbot.dashboard.auth_app import get_auth_service, render_auth_flow
+from tradingbot.dashboard.i18n import language_selector, t
 
 logging.basicConfig(level=logging.WARNING)
+
 
 # ── Page config (must be first Streamlit call) ─────────────────────────
 st.set_page_config(
@@ -55,6 +63,8 @@ st.markdown(
       [data-testid="stMainMenu"] {visibility: hidden !important;}
       [data-testid="stHeader"] {visibility: hidden !important; height: 0 !important;}
       .stDeployButton {display: none !important;}
+      /* st.navigation's auto-injected page list — we drive routing ourselves */
+      [data-testid="stSidebarNav"] {display: none !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -94,8 +104,8 @@ def _get_portfolio_manager():
 @st.cache_resource
 def _get_trading_graph():
     """Load TradingAgentsGraph — expensive, cached for the session."""
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
     from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
     return TradingAgentsGraph(config=DEFAULT_CONFIG)
 
 
@@ -112,6 +122,23 @@ PAGE_KEYS = ["nav.portfolio", "nav.performance", "nav.trades", "nav.signals", "n
 def render_sidebar(config):
     language_selector()
     st.sidebar.markdown("---")
+
+    username = st.session_state.get("auth_user")
+    if username:
+        st.sidebar.markdown(t("auth.sidebar.signed_in_as", name=username))
+        if st.sidebar.button(t("auth.sidebar.logout"), key="logout_btn"):
+            # We can't clear the cookie + redirect from here directly — the
+            # iframe that would write `document.cookie = ""` is queued via
+            # st.components.v1.html, but st.switch_page discards the queue,
+            # and a same-render st.stop() leaves the user staring at the
+            # dashboard. Instead: pop the in-memory session, set a one-shot
+            # flag, and switch to /login. The login page handles the cookie
+            # clear in a render that actually completes normally.
+            for k in ("auth_user", "auth_mode", "_sidebar_opened"):
+                st.session_state.pop(k, None)
+            st.session_state["_just_logged_out"] = True
+            st.switch_page(_LOGIN_PAGE)
+        st.sidebar.markdown("---")
 
     st.sidebar.title(t("app.sidebar.title"))
     st.sidebar.caption(t("app.sidebar.last_refresh", time=datetime.now().strftime("%H:%M:%S")))
@@ -170,8 +197,8 @@ def render_quick_trade(config, broker, db):
             st.sidebar.error(t("qt.err.no_ticker"))
             return
         from tradingbot.broker.base import OrderSide, OrderType
+        from tradingbot.portfolio.database import PortfolioDatabase  # noqa: F401
         from tradingbot.portfolio.manager import PortfolioManager
-        from tradingbot.portfolio.database import PortfolioDatabase
         side = OrderSide.BUY if side_in == "BUY" else OrderSide.SELL
         try:
             order = broker.submit_order(ticker_in, qty_in, side, OrderType.MARKET)
@@ -184,9 +211,107 @@ def render_quick_trade(config, broker, db):
             st.sidebar.error(str(exc))
 
 
-# ── Main ───────────────────────────────────────────────────────────────
+# ── Page: /login ───────────────────────────────────────────────────────
 
-def main():
+def _login_page():
+    # One-shot logout flag: came from /'s logout button. Clear the cookie
+    # here (this page completes a normal render, so the iframe gets flushed)
+    # and skip the auto-restore step that would otherwise re-log them in.
+    if st.session_state.pop("_just_logged_out", False):
+        clear_session()
+    else:
+        # Refresh-friendly auth restore from signed cookie.
+        if restore_session():
+            st.switch_page(_DASHBOARD_PAGE)
+
+    # Login page: hide sidebar entirely AND constrain the main column to
+    # a narrow, centred card so it doesn't inherit the dashboard's wide layout.
+    st.markdown(
+        """
+        <style>
+          html, body, #root, [data-testid="stAppViewContainer"] {
+            height: 100vh !important;
+            min-height: 100vh !important;
+          }
+          [data-testid="stSidebar"] {display: none !important;}
+          [data-testid="collapsedControl"] {display: none !important;}
+          section.main,
+          [data-testid="stMain"] {
+            min-height: 100vh !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+          }
+          [data-testid="stMainBlockContainer"],
+          section.main > div.block-container,
+          .block-container {
+            max-width: 720px !important;
+            width: 100% !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Render the auth flow. On success, auth_app sets st.session_state["auth_user"]
+    # then reruns; we catch that on the next pass and switch_page to /.
+    # The dashboard page is responsible for issuing the persistence cookie —
+    # st.rerun / st.switch_page discard any pending st.markdown JS, so we
+    # only inject cookie-writes from a page that finishes a normal render.
+    render_auth_flow(get_auth_service())
+
+    if st.session_state.get("auth_user"):
+        st.switch_page(_DASHBOARD_PAGE)
+
+
+# ── Page: / (dashboard) ────────────────────────────────────────────────
+
+def _dashboard_page():
+    # Refresh-friendly auth restore from signed cookie.
+    username = restore_session()
+    if not username:
+        st.switch_page(_LOGIN_PAGE)
+
+    # Refresh the signed cookie every render so the logged-in session keeps
+    # rolling. Doing it here (a page that completes normally) is the only
+    # reliable place — st.rerun / st.switch_page would discard the JS write.
+    save_session(username)
+
+    # On the first dashboard render of a session, programmatically open the
+    # sidebar — `initial_sidebar_state="expanded"` only applies on the very
+    # first page load, and the user often lands here after a /login → /
+    # navigation where Streamlit has remembered the previous collapsed state.
+    # Note: <script> inside st.markdown is stripped; components.html runs in
+    # an iframe whose JS *does* execute and can touch window.parent.
+    if not st.session_state.get("_sidebar_opened"):
+        st.session_state["_sidebar_opened"] = True
+        import streamlit.components.v1 as components
+        components.html(
+            """
+            <script>
+              (function () {
+                const tryOpen = (tries) => {
+                  const doc = window.parent.document;
+                  // If sidebar already has measurable width, it's open.
+                  const sidebar = doc.querySelector('[data-testid="stSidebar"]');
+                  if (sidebar && sidebar.getBoundingClientRect().width > 100) return;
+                  const btn = doc.querySelector('[data-testid="collapsedControl"] button')
+                           || doc.querySelector('[data-testid="stSidebarCollapseButton"] button');
+                  if (btn) { btn.click(); return; }
+                  if (tries > 0) setTimeout(() => tryOpen(tries - 1), 100);
+                };
+                tryOpen(20);
+              })();
+            </script>
+            """,
+            height=0,
+        )
+
     config = _get_config()
     page = render_sidebar(config)
     render_quick_trade(config, _get_broker(), _get_db())
@@ -219,5 +344,24 @@ def main():
         risk_view.render(broker, db, config)
 
 
-if __name__ == "__main__":
-    main()
+# ── Routing ────────────────────────────────────────────────────────────
+
+_DASHBOARD_PAGE = st.Page(
+    _dashboard_page,
+    url_path="",
+    title=t("app.page_title"),
+    default=True,
+)
+_LOGIN_PAGE = st.Page(
+    _login_page,
+    url_path="login",
+    title=t("auth.app.title"),
+)
+
+
+def main():
+    nav = st.navigation([_DASHBOARD_PAGE, _LOGIN_PAGE], position="hidden")
+    nav.run()
+
+
+main()

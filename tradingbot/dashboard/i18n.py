@@ -251,6 +251,72 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "tv.closed.col.pnl_pct":     {"zh": "盈亏 %",                                   "en": "P&L %"},
     "tv.closed.col.entry_sig":   {"zh": "建仓信号",                                "en": "Entry Signal"},
     "tv.closed.col.exit_sig":    {"zh": "平仓信号",                                "en": "Exit Signal"},
+
+    # ── auth (login / register) ───────────────────────────────────────────
+    "auth.app.title":            {"zh": "TradingAgents 登录",                       "en": "TradingAgents Sign-in"},
+    "auth.brand":                {"zh": "📈 TradingAgents",                         "en": "📈 TradingAgents"},
+    "auth.tagline":              {"zh": "多智能体自动交易平台",                       "en": "Multi-agent auto-trading platform"},
+
+    # Mode switch
+    "auth.mode.login":           {"zh": "🔐 登录",                                  "en": "🔐 Sign in"},
+    "auth.mode.register":        {"zh": "📝 注册",                                  "en": "📝 Sign up"},
+
+    # Login — tab labels
+    "auth.tab.password":         {"zh": "账号密码",                                  "en": "Password"},
+    "auth.tab.sms":              {"zh": "手机验证码",                                "en": "SMS code"},
+
+    # Login — password
+    "auth.login.subheader":      {"zh": "登录",                                     "en": "Sign in"},
+    "auth.login.caption":        {"zh": "使用账号密码或手机验证码登录。",                "en": "Sign in with a password or an SMS verification code."},
+    "auth.login.identifier":     {"zh": "用户名或手机号",                              "en": "Username or phone"},
+    "auth.login.password":       {"zh": "密码",                                     "en": "Password"},
+    "auth.login.submit":         {"zh": "登录",                                     "en": "Sign in"},
+    "auth.login.success":        {"zh": "登录成功，欢迎 {name}！",                     "en": "Signed in. Welcome, {name}!"},
+
+    # Login — SMS code
+    "auth.sms.phone":            {"zh": "手机号",                                   "en": "Phone"},
+    "auth.sms.code":             {"zh": "验证码",                                   "en": "Verification code"},
+    "auth.sms.send":             {"zh": "发送验证码",                                "en": "Send code"},
+    "auth.sms.resend":           {"zh": "{sec}s 后可重发",                          "en": "Resend in {sec}s"},
+    "auth.sms.submit":           {"zh": "验证并登录",                                "en": "Verify & sign in"},
+    "auth.sms.sent":             {"zh": "验证码已发送（开发环境请查看控制台）。",          "en": "Verification code sent (check the console in dev mode)."},
+    "auth.sms.dev_hint":         {"zh": "开发模式验证码：{code}",                     "en": "Dev-mode code: {code}"},
+
+    # Register
+    "auth.register.subheader":   {"zh": "注册新账户",                                "en": "Create an account"},
+    "auth.register.caption":     {"zh": "填写下列信息以创建账户。带 * 为必填项。",        "en": "Fill in the details below. Fields marked * are required."},
+    "auth.register.username":    {"zh": "用户名 *",                                 "en": "Username *"},
+    "auth.register.username_hint":{"zh": "3–32 位字母 / 数字 / 下划线。",              "en": "3–32 chars, letters/digits/underscore."},
+    "auth.register.phone":       {"zh": "手机号 *",                                 "en": "Phone *"},
+    "auth.register.phone_hint":  {"zh": "纯数字，可选 + 前缀（例如 +8613800138000）。",  "en": "Digits with optional leading + (e.g. +14155551234)."},
+    "auth.register.email":       {"zh": "邮箱（可选）",                              "en": "Email (optional)"},
+    "auth.register.password":    {"zh": "密码 *",                                  "en": "Password *"},
+    "auth.register.password_hint":{"zh": "至少 8 位。",                              "en": "At least 8 characters."},
+    "auth.register.confirm":     {"zh": "确认密码 *",                               "en": "Confirm password *"},
+    "auth.register.submit":      {"zh": "注册",                                     "en": "Sign up"},
+    "auth.register.success":     {"zh": "注册成功，请使用新账户登录。",                 "en": "Account created. Please sign in."},
+    "auth.register.to_login":    {"zh": "已有账号？返回登录",                          "en": "Already have an account? Sign in"},
+    "auth.login.to_register":    {"zh": "还没有账号？立即注册",                        "en": "No account yet? Sign up"},
+
+    # Errors (mapped from AuthError.code)
+    "auth.err.username_invalid":  {"zh": "用户名格式不合法。",                          "en": "Invalid username format."},
+    "auth.err.phone_invalid":     {"zh": "手机号格式不合法。",                          "en": "Invalid phone number."},
+    "auth.err.email_invalid":     {"zh": "邮箱格式不合法。",                            "en": "Invalid email address."},
+    "auth.err.password_too_short":{"zh": "密码至少 8 位。",                            "en": "Password must be at least 8 characters."},
+    "auth.err.password_mismatch": {"zh": "两次输入的密码不一致。",                       "en": "Passwords do not match."},
+    "auth.err.username_taken":    {"zh": "该用户名已被注册。",                          "en": "Username is already taken."},
+    "auth.err.phone_taken":       {"zh": "该手机号已被注册。",                          "en": "Phone number is already registered."},
+    "auth.err.missing_credentials":{"zh": "请填写完整的登录信息。",                       "en": "Please enter your credentials."},
+    "auth.err.invalid_credentials":{"zh": "用户名或密码错误。",                          "en": "Invalid username or password."},
+    "auth.err.phone_not_registered":{"zh": "该手机号尚未注册。",                         "en": "This phone is not registered."},
+    "auth.err.code_not_requested": {"zh": "请先发送验证码。",                           "en": "Request a code first."},
+    "auth.err.code_expired":       {"zh": "验证码已过期，请重新发送。",                   "en": "Code expired — request a new one."},
+    "auth.err.code_invalid":       {"zh": "验证码不正确。",                             "en": "Incorrect verification code."},
+    "auth.err.unknown":            {"zh": "出现未知错误：{detail}",                     "en": "Unknown error: {detail}"},
+
+    # Session (sidebar greeting + logout)
+    "auth.sidebar.signed_in_as":   {"zh": "已登录：**{name}**",                         "en": "Signed in as **{name}**"},
+    "auth.sidebar.logout":         {"zh": "退出登录",                                  "en": "Sign out"},
 }
 
 

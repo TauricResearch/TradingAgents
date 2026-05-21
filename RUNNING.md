@@ -205,7 +205,7 @@ RiskGate 的限制是硬约束，LLM 不能绕过。
 
 ---
 
-## 5. 入口四：Streamlit 仪表盘
+## 5. 入口四：Streamlit 仪表盘（含登录页）
 
 ```bash
 python run_dashboard.py
@@ -213,7 +213,7 @@ python run_dashboard.py
 streamlit run tradingbot/dashboard/app.py
 ```
 
-打开 `http://localhost:8501`，五个页面：
+打开 `http://localhost:8501`：未登录会先看到 **登录 / 注册** 页（账号密码 + 手机验证码两种登录方式），登录成功后进入五个页面：
 
 - **Portfolio** — 实时持仓 / 资金分布
 - **Performance** — 净值曲线 / 回撤 / Sharpe / 胜率
@@ -221,7 +221,18 @@ streamlit run tradingbot/dashboard/app.py
 - **Agent Reasoning** — 12 个 tab 拆开看每个 agent 的输出；也可现场触发新分析
 - **Risk Monitor** — 熔断状态 / 总敞口 / 单票集中度
 
-仪表盘和机器人共享 `~/.tradingagents/tradingbot.db`，机器人是否在运行都能看。侧边栏的 Quick Trade 可以从 UI 直接手动下单。
+仪表盘和机器人共享 `~/.tradingagents/tradingbot.db`，机器人是否在运行都能看。侧边栏的 Quick Trade 可以从 UI 直接手动下单。侧边栏顶部显示当前登录用户，"退出登录" 清除会话并回到登录页。
+
+**用户存储**：独立 sqlite 文件 `~/.tradingagents/users.db`（用 `TRADINGBOT_USERS_DB` 覆盖路径）。
+**手机验证码**：仓库尚未接入短信通道；开发期间验证码会打印到运行 streamlit 的终端，并在登录页 `st.info` 显示。生产部署前请改 `tradingbot/auth/service.py::send_sms_code` 接入真实 SMS provider。
+
+只想单跑登录/注册页（不进 dashboard）：
+
+```bash
+python run_auth.py
+# 或
+streamlit run tradingbot/dashboard/auth_app.py
+```
 
 ---
 
@@ -238,7 +249,127 @@ docker compose run --rm tradingagents
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
-数据卷 `tradingagents_data` 挂在容器内 `/home/appuser/.tradingagents`，跨容器保留 memory log 和 checkpoint。
+数据卷 `tradingagents_data` 挂在容器内 `/home/appuser/.tradingagents`，跨容器保留 memory log、checkpoint **以及 users.db**。
+
+### 6.1 用 Docker 跑仪表盘（含登录页）
+
+当前 `Dockerfile` 的 `ENTRYPOINT` 是 CLI (`tradingagents`)，跑 dashboard 时覆盖一下即可：
+
+```bash
+docker compose run --rm --service-ports \
+  -p 8501:8501 \
+  --entrypoint "" tradingagents \
+  python -m streamlit run tradingbot/dashboard/app.py \
+    --server.address 0.0.0.0 \
+    --server.port 8501 \
+    --server.headless true
+```
+
+打开宿主机 `http://localhost:8501`，先注册再登录。`users.db` 写到 `tradingagents_data` 卷，容器重启不丢用户。
+
+如果要把 dashboard 做成长驻服务，建议在 `docker-compose.yml` 新增一个 service：
+
+```yaml
+  dashboard:
+    build: .
+    entrypoint: ""
+    command: >
+      python -m streamlit run tradingbot/dashboard/app.py
+      --server.address 0.0.0.0
+      --server.port 8501
+      --server.headless true
+    env_file: [.env]
+    ports: ["8501:8501"]
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    restart: unless-stopped
+```
+
+启动：`docker compose up -d dashboard`。
+
+---
+
+## 6A. 服务器部署（裸机 / VM）
+
+```bash
+# 1. 同步代码
+git clone <repo> && cd TradingAgents
+git checkout phase/6-login-page
+
+# 2. Python 环境
+uv sync                              # 或 python3.13 -m venv .venv && pip install .
+
+# 3. 配置
+cp .env.example .env && vi .env       # 填 LLM / broker / 风控 / TRADINGBOT_USERS_DB
+
+# 4. 启动（前台）
+./start.sh dashboard
+# 或后台 systemd / pm2 / supervisord（见下）
+```
+
+最小 systemd unit：
+
+```ini
+# /etc/systemd/system/tradingagents-dashboard.service
+[Unit]
+Description=TradingAgents Dashboard (Streamlit, with login gate)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/TradingAgents
+EnvironmentFile=/opt/TradingAgents/.env
+ExecStart=/opt/TradingAgents/.venv/bin/python -m streamlit run \
+  /opt/TradingAgents/tradingbot/dashboard/app.py \
+  --server.address 0.0.0.0 --server.port 8501 --server.headless true
+Restart=on-failure
+User=tradingagents
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now tradingagents-dashboard
+```
+
+### Nginx 反向代理（推荐放公网用）
+
+Streamlit 走 WebSocket，必须开 `Upgrade` 头：
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name dashboard.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/dashboard.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dashboard.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8501;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        "upgrade";
+        proxy_read_timeout 86400;
+    }
+}
+```
+
+### 部署前必做的安全清单
+
+1. **HTTPS 必须开启**——登录走明文密码，没有 TLS 等于裸奔。
+2. **修改默认密码哈希参数前先评估**：当前 `service.py` 用 `scrypt(n=2**14, r=8, p=1)`，单次 ~50ms，CPU 受限机器要注意。
+3. **接真实 SMS provider**：替换 `tradingbot/auth/service.py::send_sms_code`，目前是 `print + logger.warning` 桩。
+4. **users.db 备份**：和 `tradingbot.db` 一起放在 `~/.tradingagents/`，定期备份卷或单独 `sqlite3 .backup`。
+5. **Streamlit 没有内置 CSRF/速率限制**：公网部署建议 Nginx 加 `limit_req`，或前置 Cloudflare。
+6. **会话存储**：当前 `auth_user` 存在 `st.session_state`，重启 streamlit 即失效；如果要"记住我"必须自己加 cookie/token 层。
+7. **`.env` 不要提交**，并确保 systemd 单元里 `EnvironmentFile` 文件权限 `chmod 600`。
 
 ---
 
