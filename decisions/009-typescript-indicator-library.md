@@ -1,7 +1,7 @@
 ---
 date: 2026-05-21
 updated_by: agent
-status: Proposed
+status: Accepted
 ---
 
 # Decision: TypeScript-only Indicator Library
