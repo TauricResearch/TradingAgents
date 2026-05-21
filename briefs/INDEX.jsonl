@@ -57,3 +57,5 @@
 {"file":"task-at-a-time-implementation.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
+{"file":"epic-technical-indicators-scan.md","date":"2026-05-21","status":"open","summary":"SCAN-001: momentum mean-reversion scan engine — indicator library, CLI, DB layer. 6 entry gates + 3 exit triggers.","meta":{"epic":"SCAN-001","td":"td-e7284c"}}
+{"file":"brief-stock-card-view-2026-05-21.md","date":"2026-05-21","status":"open","summary":"Stock card component: price + sparkline + indicator strip + scan signal + actions. Replaces table-based positions view with card grid.","meta":{"td":"td-904dd7","depends_on":"SCAN-001"}}
