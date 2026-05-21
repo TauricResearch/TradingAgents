@@ -7,19 +7,21 @@
  *   trading regime AAPL              # current state + signal
  *   trading regime AAPL --forecast 2 # 2-day forecast
  *   trading regime AAPL --store      # persist to DB
+ *   trading regime AAPL --json       # machine-readable JSON output
  */
 
-import { DatabaseFactory } from "@lib/db"
-import { cfg } from "@lib/settings"
 import { defineCommand } from "citty"
+import { DatabaseFactory } from "../../server/lib/db.ts"
 import {
+  buildRegimeSignal,
   buildTransitionMatrix,
+  generateStateStream,
   getPersistence,
   nDayProbabilities,
-} from "../../server/lib/markov/matrix.ts"
-import { insertRegimeMatrix, upsertRegimeState } from "../../server/lib/markov/regime-data.ts"
-import { buildRegimeSignal, signalToPositionSize } from "../../server/lib/markov/signal.ts"
-import { generateStateStream } from "../../server/lib/markov/state.ts"
+  signalToPositionSize,
+  updateRegimeData,
+} from "../../server/lib/markov/index.ts"
+import { cfg } from "../../server/lib/settings.ts"
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +49,13 @@ function getPriceHistory(ticker: string): { prices: number[]; dates: string[] } 
     .all(ticker) as Array<{ date: string; close: number }>
 
   if (rows.length < 2) {
-    throw new Error(`Insufficient price history for ${ticker}: ${rows.length} bars (need ≥2)`)
+    const msg = JSON.stringify({
+      error: `Insufficient price history for ${ticker}`,
+      detail: `${rows.length} bars (need ≥2)`,
+      hint: `Sync prices first: trading prices sync --ticker ${ticker}`,
+    })
+    console.error(msg)
+    process.exit(1)
   }
 
   return {
@@ -77,10 +85,15 @@ export const regimeCommand = defineCommand({
       type: "boolean",
       description: "Persist state and matrix to database",
     },
+    "--json": {
+      type: "boolean",
+      description: "Output as JSON (for scripting)",
+    },
   },
   run: async (ctx) => {
     const ticker = ctx.args.ticker as string
     const forecastDays = parseInt((ctx.args.forecast as string) ?? "0", 10) || 0
+    const asJson = (ctx.args.json as boolean) ?? false
 
     DatabaseFactory.connect(cfg.portfolio.db)
 
@@ -89,96 +102,129 @@ export const regimeCommand = defineCommand({
       const { prices, dates } = getPriceHistory(ticker)
 
       // Step 2: Classify states from returns
-      const dailyReturns: number[] = []
-      for (let i = 1; i < prices.length; i++) {
-        dailyReturns.push((prices[i]! - prices[i - 1]!) / prices[i - 1]!)
-      }
-
       const stateStream = generateStateStream(ticker, prices, dates)
       const states = stateStream.map((s) => s.state)
 
       if (states.length < 20) {
-        throw new Error(
-          `Insufficient state history for ${ticker}: ${states.length} states (need ≥20 for reliable signal)`,
-        )
+        const err = {
+          error: `Insufficient state history for ${ticker}`,
+          detail: `${states.length} states (need ≥20 for reliable signal)`,
+          hint: `Sync more price data: trading prices sync --ticker ${ticker}`,
+        }
+        if (asJson) {
+          console.log(JSON.stringify(err))
+          process.exit(1)
+        }
+        console.error(red(`Error: ${err.error}`))
+        console.error(red(`  ${err.detail}`))
+        process.exit(1)
       }
 
-      // Step 3: Build transition matrix
+      // Step 3: Build transition matrix (for display + non-store signal)
       const matrix = buildTransitionMatrix(states)
       const currentState = states[states.length - 1]!
       const currentDate = dates[dates.length - 1]!
       const lookbackDays = dates.length
 
-      // Step 4: Generate signal
-      const signal = buildRegimeSignal(ticker, currentDate, currentState, matrix)
-
-      // Step 5: Persist if requested
-      if (ctx.args.store) {
-        // Store the latest state
-        upsertRegimeState({
-          ticker,
-          date: currentDate,
-          state: currentState,
-          cumulative_return: dailyReturns.slice(-20).reduce((a, b) => a + b, 0),
-        })
-        // Store the matrix
-        insertRegimeMatrix(ticker, currentDate, matrix)
-      }
+      // Step 4-5: Generate signal and persist if requested
+      // When --store, use updateRegimeData (FR-6 full pipeline with persistence)
+      const signal = ctx.args.store
+        ? updateRegimeData(ticker)
+        : buildRegimeSignal(ticker, currentDate, currentState, matrix)
 
       // ── Output ──────────────────────────────────────────────────────────────
 
       const ndays = forecastDays
       const fcast = ndays > 0 ? nDayProbabilities(matrix, currentState, ndays) : null
+      const pers = getPersistence(matrix)
 
-      console.log("")
-      console.log(cyan(`=== Regime: ${ticker} ===`))
-      console.log("")
-      console.log(`${"State:".padEnd(20)} ${signal.currentState.toUpperCase()}`)
-      console.log(`${"Date:".padEnd(20)} ${currentDate}`)
-      console.log(`${"Lookback:".padEnd(20)} ${lookbackDays} bars`)
-      console.log("")
-      console.log(
-        `${"Signal:".padEnd(20)} ${signal.signal >= 0 ? green("") : red("")}${signal.signal.toFixed(4)}\x1b[0m`,
-      )
-      console.log(`${"Direction:".padEnd(20)} ${signal.signalDirection}`)
-      console.log(`${"Magnitude:".padEnd(20)} ${signal.signalMagnitude.toFixed(4)}`)
-      console.log(
-        `${"Position size:".padEnd(20)} ${(signalToPositionSize(signal.signalMagnitude) * 100).toFixed(1)}%`,
-      )
-      console.log("")
+      if (asJson) {
+        const output: Record<string, unknown> = {
+          ticker,
+          date: currentDate,
+          state: signal.currentState,
+          lookbackDays,
+          signal: signal.signal,
+          signalDirection: signal.signalDirection,
+          signalMagnitude: signal.signalMagnitude,
+          positionSizePct: signalToPositionSize(signal.signalMagnitude) * 100,
+          probabilities: {
+            pBull: signal.pBull,
+            pSideways: signal.pSideways,
+            pBear: signal.pBear,
+          },
+          persistence: pers,
+        }
+        if (fcast) {
+          output.forecast = {
+            days: ndays,
+            pBull: fcast.bull,
+            pSideways: fcast.sideways,
+            pBear: fcast.bear,
+            signal: fcast.bull - fcast.bear,
+          }
+        }
+        if (ctx.args.store) output.persisted = true
+        console.log(JSON.stringify(output, null, 2))
+      } else {
+        console.log("")
+        console.log(cyan(`=== Regime: ${ticker} ===`))
+        console.log("")
+        console.log(`${"State:".padEnd(20)} ${signal.currentState.toUpperCase()}`)
+        console.log(`${"Date:".padEnd(20)} ${currentDate}`)
+        console.log(`${"Lookback:".padEnd(20)} ${lookbackDays} bars`)
+        console.log("")
+        console.log(
+          `${"Signal:".padEnd(20)} ${signal.signal >= 0 ? green("") : red("")}${signal.signal.toFixed(4)}\x1b[0m`,
+        )
+        console.log(`${"Direction:".padEnd(20)} ${signal.signalDirection}`)
+        console.log(`${"Magnitude:".padEnd(20)} ${signal.signalMagnitude.toFixed(4)}`)
+        console.log(
+          `${"Position size:".padEnd(20)} ${(signalToPositionSize(signal.signalMagnitude) * 100).toFixed(1)}%`,
+        )
+        console.log("")
 
-      // Probabilities
-      console.log("Transition probabilities (from today → tomorrow):")
-      console.log(`  P(bull):     ${signal.pBull.toFixed(4)}`)
-      console.log(`  P(sideways): ${signal.pSideways.toFixed(4)}`)
-      console.log(`  P(bear):     ${signal.pBear.toFixed(4)}`)
-      console.log("")
+        console.log("Transition probabilities (from today → tomorrow):")
+        console.log(`  P(bull):     ${signal.pBull.toFixed(4)}`)
+        console.log(`  P(sideways): ${signal.pSideways.toFixed(4)}`)
+        console.log(`  P(bear):     ${signal.pBear.toFixed(4)}`)
+        console.log("")
 
-      if (fcast) {
-        console.log(`${ndays}-day forecast:`)
-        console.log(`  P(bull):     ${fcast.bull.toFixed(4)}`)
-        console.log(`  P(sideways): ${fcast.sideways.toFixed(4)}`)
-        console.log(`  P(bear):     ${fcast.bear.toFixed(4)}`)
-        console.log(`  Signal:      ${(fcast.bull - fcast.bear).toFixed(4)}`)
+        if (fcast) {
+          console.log(`${ndays}-day forecast:`)
+          console.log(`  P(bull):     ${fcast.bull.toFixed(4)}`)
+          console.log(`  P(sideways): ${fcast.sideways.toFixed(4)}`)
+          console.log(`  P(bear):     ${fcast.bear.toFixed(4)}`)
+          console.log(`  Signal:      ${(fcast.bull - fcast.bear).toFixed(4)}`)
+          console.log("")
+        }
+
+        console.log("Persistence (stickiness):")
+        console.log(`  Bull:     ${pers.bull.toFixed(4)}`)
+        console.log(`  Sideways: ${pers.sideways.toFixed(4)}`)
+        console.log(`  Bear:     ${pers.bear.toFixed(4)}`)
+        console.log("")
+
+        if (ctx.args.store) {
+          console.log(green("✓ persisted to DB"))
+        } else {
+          console.log("Run with --store to persist.")
+        }
         console.log("")
       }
-
-      // Persistence diagonal
-      const pers = getPersistence(matrix)
-      console.log("Persistence (stickiness):")
-      console.log(`  Bull:     ${pers.bull.toFixed(4)}`)
-      console.log(`  Sideways: ${pers.sideways.toFixed(4)}`)
-      console.log(`  Bear:     ${pers.bear.toFixed(4)}`)
-      console.log("")
-
-      if (ctx.args.store) {
-        console.log(green("✓ persisted to DB"))
-      } else {
-        console.log("Run with --store to persist.")
-      }
-      console.log("")
     } catch (err) {
-      console.error(red(`Error: ${err}`))
+      const message = err instanceof Error ? err.message : String(err)
+      if (asJson) {
+        console.log(
+          JSON.stringify({
+            error: message,
+            detail: "Regime computation failed",
+            hint: `Check price data is synced: trading prices sync --ticker ${ticker}`,
+          }),
+        )
+      } else {
+        console.error(red(`Error: ${message}`))
+      }
       process.exit(1)
     }
   },

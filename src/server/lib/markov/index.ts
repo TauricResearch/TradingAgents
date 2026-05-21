@@ -12,6 +12,16 @@ import {
   validateMatrix,
 } from "./matrix.js"
 import {
+  type DailyState,
+  getLatestRegimeMatrix,
+  getLatestRegimeState,
+  getRegimeStates,
+  insertRegimeMatrix,
+  insertRegimeStates,
+  updateRegimeData,
+  upsertRegimeState,
+} from "./regime-data.js"
+import {
   buildNDaySignal,
   buildRegimeSignal,
   computeSignal,
@@ -22,7 +32,6 @@ import {
 import {
   classifyState,
   computeCumulativeReturns,
-  type DailyState,
   generateStateStream,
   getCurrentState,
   type MarketState,
@@ -40,8 +49,13 @@ export {
   type DailyState,
   generateStateStream,
   getCurrentState,
+  getLatestRegimeMatrix,
+  getLatestRegimeState,
   getNextStateProbabilities,
   getPersistence,
+  getRegimeStates,
+  insertRegimeMatrix,
+  insertRegimeStates,
   type MarketState,
   type NDaySignal,
   nDayMatrix,
@@ -52,6 +66,8 @@ export {
   signalToPositionSize,
   smokeTest,
   type TransitionMatrix,
+  updateRegimeData,
+  upsertRegimeState,
   validateMatrix,
 }
 

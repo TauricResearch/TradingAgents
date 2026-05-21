@@ -7,16 +7,14 @@
 
 import { DatabaseFactory } from "@lib/db"
 import type { TransitionMatrix } from "./matrix.js"
-import type { MarketState } from "./state.js"
+import { buildTransitionMatrix } from "./matrix.js"
+import { buildRegimeSignal, type RegimeSignal } from "./signal.js"
+import { type DailyState, generateStateStream, type MarketState } from "./state.js"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export interface DailyState {
-  ticker: string
-  date: string
-  state: MarketState
-  cumulative_return: number
-}
+// Re-export DailyState from state.ts for convenience
+export type { DailyState }
 
 type DbRegimeState = {
   ticker: string
@@ -49,7 +47,7 @@ export function upsertRegimeState(state: DailyState): void {
   db.query(
     `INSERT OR REPLACE INTO regime_states (ticker, date, state, cumulative_return)
      VALUES (?, ?, ?, ?)`,
-  ).run(state.ticker, state.date, state.state, state.cumulative_return)
+  ).run(state.ticker, state.date, state.state, state.cumulativeReturn)
 }
 
 /**
@@ -62,7 +60,7 @@ export function insertRegimeStates(states: DailyState[]): void {
      VALUES (?, ?, ?, ?)`,
   )
   for (const s of states) {
-    stmt.run(s.ticker, s.date, s.state, s.cumulative_return)
+    stmt.run(s.ticker, s.date, s.state, s.cumulativeReturn)
   }
 }
 
@@ -78,7 +76,7 @@ export function getRegimeStates(ticker: string): DailyState[] {
     ticker: r.ticker,
     date: r.date,
     state: r.state as MarketState,
-    cumulative_return: parseFloat(String(r.cumulative_return)),
+    cumulativeReturn: parseFloat(String(r.cumulative_return)),
   }))
 }
 
@@ -95,7 +93,7 @@ export function getLatestRegimeState(ticker: string): DailyState | null {
     ticker: row.ticker,
     date: row.date,
     state: row.state as MarketState,
-    cumulative_return: parseFloat(String(row.cumulative_return)),
+    cumulativeReturn: parseFloat(String(row.cumulative_return)),
   }
 }
 
@@ -129,6 +127,69 @@ export function insertRegimeMatrix(
     matrix.bear_to_sideways,
     matrix.bear_to_bear,
   )
+}
+
+// ── Orchestration (FR-6) ─────────────────────────────────────────────────────
+
+/**
+ * Update regime data for a ticker: read prices, classify states, build matrix,
+ * persist to DB, and return the current RegimeSignal.
+ *
+ * This is the primary entry point for the daily regime update pipeline.
+ */
+export function updateRegimeData(ticker: string): RegimeSignal {
+  const db = DatabaseFactory.get()
+
+  // 1. Read price history
+  const rows = db
+    .query("SELECT date, close FROM prices WHERE ticker = ? ORDER BY date ASC")
+    .all(ticker) as Array<{ date: string; close: number }>
+
+  if (rows.length < 21) {
+    throw new Error(
+      `Insufficient price history for ${ticker}: ${rows.length} bars (need ≥21 for 20-bar lookback)`,
+    )
+  }
+
+  const prices = rows.map((r) => parseFloat(String(r.close)))
+  const dates = rows.map((r) => r.date)
+
+  // 2. Classify states from price history
+  const stateStream = generateStateStream(ticker, prices, dates)
+  const states = stateStream.map((s) => s.state)
+
+  if (states.length < 20) {
+    throw new Error(
+      `Insufficient state history for ${ticker}: ${states.length} states (need ≥20 for reliable signal)`,
+    )
+  }
+
+  // 3. Build transition matrix
+  const matrix = buildTransitionMatrix(states)
+  const currentState = states[states.length - 1]!
+  const currentDate = dates[dates.length - 1]!
+
+  // 4. Generate signal
+  const signal = buildRegimeSignal(ticker, currentDate, currentState, matrix)
+
+  // 5. Persist states and matrix
+  insertRegimeStates(stateStream)
+
+  // Compute cumulative return for the latest state
+  const lookbackPrices = prices.slice(-21)
+  const cumulativeReturn =
+    (lookbackPrices[lookbackPrices.length - 1]! - lookbackPrices[0]!) / lookbackPrices[0]!
+
+  upsertRegimeState({
+    ticker,
+    date: currentDate,
+    state: currentState,
+    cumulativeReturn: cumulativeReturn,
+  })
+
+  insertRegimeMatrix(ticker, currentDate, matrix)
+
+  return signal
 }
 
 /**

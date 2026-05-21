@@ -422,11 +422,4 @@ export const researchCommand = defineCommand({
     coverage: () => coverageCommand,
     analyze: () => analyzeCommand,
   },
-  run: () => {
-    // Default: show coverage if no subcommand given
-    console.log("Usage: trading research <coverage|analyze>")
-    console.log("  trading research coverage      — watchlist coverage by research doc")
-    console.log("  trading research analyze TICKER — run TradingAgents analysis")
-    process.exit(1)
-  },
 })
