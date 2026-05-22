@@ -114,6 +114,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".BO":  "^BSESN",   # BSE India (Sensex)
         ".T":   "^N225",    # Tokyo (Nikkei 225)
         ".HK":  "^HSI",     # Hong Kong (Hang Seng)
+        ".KS":  "^KS11",    # Korea KOSPI
+        ".KQ":  "^KQ11",    # Korea KOSDAQ
         ".L":   "^FTSE",    # London (FTSE 100)
         ".TO":  "^GSPTSE",  # Toronto (TSX Composite)
         ".AX":  "^AXJO",    # Australia (ASX 200)

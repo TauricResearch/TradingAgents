@@ -1,0 +1,37 @@
+{
+  "updated_at": "2026-05-22 11:10 KST",
+  "metrics": {
+    "provider": "openai",
+    "language": "Korean",
+    "tests": "251 passed, 1 skipped",
+    "korea_vendor": "pykrx + yfinance fallback",
+    "optional_sources": "OpenDART, Naver Search API"
+  },
+  "steps": [
+    {
+      "title": "Korean ticker routing",
+      "status": "done",
+      "note": ".KS/.KQ tickers route to korea_stock before yfinance when the default vendor is selected."
+    },
+    {
+      "title": "KRX price data",
+      "status": "done",
+      "note": "pykrx OHLCV is preferred, with yfinance fallback for missing or failed responses."
+    },
+    {
+      "title": "DART filings and financials",
+      "status": "done",
+      "note": "Enable with DART_API_KEY or OPENDART_API_KEY. Missing credentials degrade to analyst notes."
+    },
+    {
+      "title": "Korean-language news",
+      "status": "done",
+      "note": "Enable with NAVER_CLIENT_ID/NAVER_CLIENT_SECRET or NAVER_NEWS_CLIENT_ID/NAVER_NEWS_CLIENT_SECRET."
+    }
+  ],
+  "log": [
+    "Added Korean-market data path for KOSPI/KOSDAQ tickers.",
+    "Documented user-supplied API keys in README and .env.example.",
+    "All enrichment sources are fail-soft so baseline reports continue."
+  ]
+}

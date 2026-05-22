@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradingAgents Korea Progress</title>
+  <style>
+    :root {
+      --bg: #0b0d10; --panel: #14171c; --panel2:#101318; --ink:#f2f4f8; --muted:#9aa4b2;
+      --line:#252b34; --accent:#7dd3fc; --good:#86efac; --warn:#fde68a; --todo:#64748b;
+      --radius: 18px; --shadow: 0 18px 60px rgba(0,0,0,.35);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background: radial-gradient(circle at top left, rgba(125,211,252,.14), transparent 34%), var(--bg); color:var(--ink); }
+    main { max-width: 1120px; margin: 0 auto; padding: 42px 22px 70px; }
+    header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin-bottom:26px; }
+    h1 { margin:0; font-size: clamp(30px, 5vw, 54px); letter-spacing:-.05em; line-height:.95; }
+    .subtitle { margin: 14px 0 0; color:var(--muted); font-size:16px; line-height:1.65; max-width:720px; }
+    .badge { border:1px solid var(--line); border-radius:999px; padding:10px 14px; background:rgba(20,23,28,.72); color:var(--accent); white-space:nowrap; font-size:13px; }
+    .grid { display:grid; grid-template-columns: 1.2fr .8fr; gap:18px; }
+    @media (max-width: 860px) { .grid, header { grid-template-columns:1fr; display:block; } .badge{display:inline-block;margin-top:18px;} }
+    .card { background: linear-gradient(180deg, rgba(20,23,28,.95), rgba(16,19,24,.95)); border:1px solid var(--line); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); }
+    .card h2 { margin:0 0 16px; font-size:18px; letter-spacing:-.02em; }
+    .progress { height:13px; background:#1e2530; border-radius:99px; overflow:hidden; border:1px solid #2c3441; }
+    .bar { height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--good)); transition: width .5s ease; }
+    .steps { display:grid; gap:10px; margin-top:18px; }
+    .step { display:grid; grid-template-columns: 24px 1fr auto; gap:12px; align-items:center; padding:13px 14px; background:rgba(255,255,255,.025); border:1px solid var(--line); border-radius:14px; }
+    .dot { width:12px; height:12px; border-radius:50%; background:var(--todo); box-shadow:0 0 0 5px rgba(100,116,139,.12); justify-self:center; }
+    .step.done .dot { background:var(--good); box-shadow:0 0 0 5px rgba(134,239,172,.12); }
+    .step.active .dot { background:var(--accent); box-shadow:0 0 0 5px rgba(125,211,252,.16); animation:pulse 1.6s infinite; }
+    @keyframes pulse { 50% { transform: scale(1.25); } }
+    .step-title { font-weight:700; }
+    .step-note { color:var(--muted); font-size:13px; margin-top:3px; line-height:1.45; }
+    .status { font-size:12px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:5px 9px; }
+    .metric-row { display:grid; grid-template-columns:1fr auto; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+    .metric-row:last-child { border-bottom:0; }
+    .label { color:var(--muted); }
+    code { color:#bae6fd; background:#0b1220; border:1px solid #1f2a3a; padding:2px 6px; border-radius:7px; }
+    .log { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; line-height:1.6; color:#cbd5e1; max-height:260px; overflow:auto; background:#090b0f; border:1px solid var(--line); border-radius:14px; padding:14px; white-space:pre-wrap; }
+    a { color: var(--accent); text-decoration: none; }
+    .footer { color:var(--muted); margin-top:16px; font-size:12px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>TradingAgents<br/>Korea Track</h1>
+      <p class="subtitle">한국 종목 데이터 수집 → 한국 뉴스/공시/커뮤니티 확장 → 구조화 signal → paper trading → broker API 자동매매 순서로 진행 상황을 보는 대시보드.</p>
+    </div>
+    <div class="badge" id="updated">loading…</div>
+  </header>
+  <section class="grid">
+    <div class="card">
+      <h2>진행률</h2>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="steps" id="steps"></div>
+    </div>
+    <aside class="card">
+      <h2>현재 설정</h2>
+      <div id="metrics"></div>
+          <p class="footer">Local preview: <code>python -m http.server 8787 --directory dashboard</code>. Copy <code>status.example.json</code> to <code>status.json</code> for a live local status file.</p>
+    </aside>
+  </section>
+  <section class="card" style="margin-top:18px">
+    <h2>작업 로그</h2>
+    <div class="log" id="log">loading…</div>
+  </section>
+</main>
+<script>
+const fallback = {
+  updated_at: new Date().toISOString(),
+  metrics: { provider:'openai', language:'Korean', tests:'pending' },
+  steps: [], log: ['status.json not loaded yet']
+};
+function badge(status){ return status === 'done' ? '완료' : status === 'active' ? '진행중' : '대기'; }
+function render(data){
+  const rawSteps = data.steps || data.tasks || [];
+  const steps = rawSteps.map(s => ({
+    title: s.title || s.name || 'Untitled step',
+    note: s.note || '',
+    status: s.status === 'completed' ? 'done' : s.status === 'in_progress' ? 'active' : s.status
+  }));
+  document.getElementById('updated').textContent = 'updated · ' + (data.updated_at || 'unknown');
+  const done = steps.filter(s => s.status === 'done').length;
+  const total = steps.length || 1;
+  document.getElementById('bar').style.width = Math.round(done/total*100) + '%';
+  document.getElementById('steps').innerHTML = steps.map(s => `<div class="step ${s.status}"><div class="dot"></div><div><div class="step-title">${s.title}</div><div class="step-note">${s.note || ''}</div></div><div class="status">${badge(s.status)}</div></div>`).join('');
+  document.getElementById('metrics').innerHTML = Object.entries(data.metrics || {}).map(([k,v]) => `<div class="metric-row"><div class="label">${k}</div><div><code>${v}</code></div></div>`).join('');
+  document.getElementById('log').textContent = (data.log || steps.map(s => `${s.status}: ${s.title}${s.note ? ' — ' + s.note : ''}`)).join('\n');
+}
+fetch('./status.json?ts=' + Date.now()).then(r=>r.json()).then(render).catch(()=>render(fallback));
+setInterval(() => fetch('./status.json?ts=' + Date.now()).then(r=>r.json()).then(render).catch(()=>{}), 10000);
+</script>
+</body>
+</html>

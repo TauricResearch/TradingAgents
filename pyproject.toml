@@ -19,6 +19,7 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=2.0.0",
     "pandas>=2.3.0",
     "parsel>=1.10.0",
+    "pykrx>=1.0.45",
     "pytz>=2025.2",
     "questionary>=2.1.0",
     "redis>=6.2.0",

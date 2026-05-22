@@ -28,6 +28,7 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
+- [2026-05] **Korean market data path** added for KOSPI/KOSDAQ tickers (`.KS`, `.KQ`) with pykrx-first OHLCV, optional OpenDART filings/financial statements, Naver Korean-language news augmentation, and regional benchmark mapping (`^KS11`, `^KQ11`).
 - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support, `TRADINGAGENTS_*` env-var configurability with API-key auto-detection, remote Ollama support, non-US alpha benchmarks, and ticker path-traversal hardening. See [CHANGELOG.md](CHANGELOG.md) for the full list.
 - [2026-04] **TradingAgents v0.2.4** released with structured-output agents (Research Manager, Trader, Portfolio Manager), LangGraph checkpoint resume, persistent decision log, DeepSeek/Qwen/GLM/Azure provider support, Docker, and a Windows UTF-8 encoding fix.
 - [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.
@@ -151,6 +152,11 @@ export MINIMAX_API_KEY=...         # MiniMax — Global (api.minimax.io, M2.x, 2
 export MINIMAX_CN_API_KEY=...      # MiniMax — China (api.minimaxi.com, M2.x, 204K ctx)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+
+# Optional Korean-market enrichment for .KS/.KQ tickers
+export DART_API_KEY=...            # OpenDART filings and financial statements
+export NAVER_CLIENT_ID=...         # Naver Search API client ID for Korean news
+export NAVER_CLIENT_SECRET=...     # Naver Search API client secret
 ```
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
@@ -161,6 +167,31 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
+
+### Korean Market Data
+
+KOSPI and KOSDAQ tickers use Yahoo-style suffixes such as `005930.KS` and `247540.KQ`. When a Korean ticker is analyzed and the default Yahoo data path is selected, TradingAgents automatically tries the Korea-specific vendor before falling back to Yahoo Finance.
+
+The Korea path includes:
+- pykrx-first OHLCV for KRX-native prices and trading values, with yfinance fallback when pykrx is unavailable or returns no rows.
+- Best-effort pykrx investor supply/demand sections when KRX exposes the data for the requested window.
+- Regional benchmark mapping for reflection/alpha calculations: `.KS` → `^KS11`, `.KQ` → `^KQ11`.
+- Optional OpenDART context when `DART_API_KEY` or `OPENDART_API_KEY` is set: listed-company corp-code mapping, recent disclosure links, and annual financial-statement summaries.
+- Optional Korean-language news when Naver Search API credentials are set via either `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` or `NAVER_NEWS_CLIENT_ID`/`NAVER_NEWS_CLIENT_SECRET`.
+
+Minimal setup for Korean-market enrichment:
+```bash
+cp .env.example .env
+# Fill in your LLM provider key, then optionally add:
+# DART_API_KEY=...
+# NAVER_CLIENT_ID=...
+# NAVER_CLIENT_SECRET=...
+
+tradingagents
+# Try: 005930.KS or 247540.KQ
+```
+
+All Korean-market enrichments are fail-soft. Missing credentials, API errors, or empty upstream responses are surfaced as analyst notes while the baseline report continues.
 
 ### CLI Usage
 

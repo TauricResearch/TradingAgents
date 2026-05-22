@@ -23,6 +23,18 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .korea_stock import (
+    is_korean_ticker,
+    get_stock_data as get_korea_stock_data,
+    get_indicators as get_korea_indicators,
+    get_fundamentals as get_korea_fundamentals,
+    get_balance_sheet as get_korea_balance_sheet,
+    get_cashflow as get_korea_cashflow,
+    get_income_statement as get_korea_income_statement,
+    get_news as get_korea_news,
+    get_global_news as get_korea_global_news,
+    get_insider_transactions as get_korea_insider_transactions,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -63,6 +75,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "korea_stock",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -71,41 +84,50 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "korea_stock": get_korea_stock_data,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "korea_stock": get_korea_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "korea_stock": get_korea_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "korea_stock": get_korea_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "korea_stock": get_korea_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "korea_stock": get_korea_income_statement,
     },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "korea_stock": get_korea_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "korea_stock": get_korea_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+        "korea_stock": get_korea_insider_transactions,
     },
 }
 
@@ -136,6 +158,19 @@ def route_to_vendor(method: str, *args, **kwargs):
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
+
+    # Korean listed tickers should use the Korean vendor first when the user is
+    # otherwise on the default Yahoo path.  This keeps US/global behavior
+    # unchanged while letting .KS/.KQ tickers pick up Korean-market context and
+    # future Korea-only sources automatically.
+    if (
+        args
+        and isinstance(args[0], str)
+        and is_korean_ticker(args[0])
+        and "korea_stock" not in primary_vendors
+        and primary_vendors == ["yfinance"]
+    ):
+        primary_vendors = ["korea_stock", *primary_vendors]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
