@@ -76,6 +76,41 @@ FTS_TABLE = (
     """,
 )
 
+# Triggers to keep the FTS5 content table in sync with the trades table.
+# Without these, inserting/updating/deleting rows in `trades` directly
+# would leave trades_fts stale (FTS5 content tables don't auto-update).
+FTS_TRIGGERS = [
+    (
+        "trades_ai",
+        """
+        CREATE TRIGGER IF NOT EXISTS trades_ai AFTER INSERT ON trades BEGIN
+            INSERT INTO trades_fts(rowid, ticker, regime, signal, scenario, analysts_fired, notes)
+            VALUES (new.rowid, new.ticker, new.regime, new.signal, new.scenario, new.analysts_fired, new.notes);
+        END
+        """,
+    ),
+    (
+        "trades_ad",
+        """
+        CREATE TRIGGER IF NOT EXISTS trades_ad AFTER DELETE ON trades BEGIN
+            INSERT INTO trades_fts(trades_fts, rowid, ticker, regime, signal, scenario, analysts_fired, notes)
+            VALUES ('delete', old.rowid, old.ticker, old.regime, old.signal, old.scenario, old.analysts_fired, old.notes);
+        END
+        """,
+    ),
+    (
+        "trades_au",
+        """
+        CREATE TRIGGER IF NOT EXISTS trades_au AFTER UPDATE ON trades BEGIN
+            INSERT INTO trades_fts(trades_fts, rowid, ticker, regime, signal, scenario, analysts_fired, notes)
+            VALUES ('delete', old.rowid, old.ticker, old.regime, old.signal, old.scenario, old.analysts_fired, old.notes);
+            INSERT INTO trades_fts(rowid, ticker, regime, signal, scenario, analysts_fired, notes)
+            VALUES (new.rowid, new.ticker, new.regime, new.signal, new.scenario, new.analysts_fired, new.notes);
+        END
+        """,
+    ),
+]
+
 
 def table_exists(conn: sqlite3.Connection, name: str) -> bool:
     row = conn.execute(
@@ -117,8 +152,10 @@ def migrate(db_path: str) -> None:
         # FTS5 virtual table
         fts_name, fts_ddl = FTS_TABLE
         fts_already = table_exists(conn, fts_name)
+        fts_ok = False
         try:
             conn.execute(fts_ddl)
+            fts_ok = True
         except sqlite3.OperationalError as exc:
             # FTS5 not available in this SQLite build
             print(
@@ -137,6 +174,27 @@ def migrate(db_path: str) -> None:
             else:
                 print(f"  Created: '{fts_name}' (virtual/FTS5)")
                 created += 1
+
+        # FTS5 sync triggers — keep index in sync with direct inserts/updates/deletes
+        if fts_ok:
+            for trigger_name, trigger_ddl in FTS_TRIGGERS:
+                try:
+                    conn.execute(trigger_ddl)
+                    # triggers don't appear in sqlite_master by CREATE IF NOT EXISTS result,
+                    # so just confirm they exist after execution
+                    exists = conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='trigger' AND name=?",
+                        (trigger_name,),
+                    ).fetchone()
+                    if exists:
+                        print(f"  Trigger ready: '{trigger_name}'")
+                    else:
+                        print(f"  Created trigger: '{trigger_name}'")
+                except sqlite3.OperationalError as exc:
+                    print(
+                        f"  WARNING: Could not create trigger '{trigger_name}': {exc}",
+                        file=sys.stderr,
+                    )
 
     conn.close()
     total = created + existed

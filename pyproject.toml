@@ -30,6 +30,10 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    # Dashboard dependencies (optional — only needed when running the dashboard process)
+    "dash>=2.18.0",
+    "plotly>=5.24.0",
+    "scipy>=1.14.0",
 ]
 
 [project.scripts]
