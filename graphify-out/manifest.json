@@ -1,0 +1,542 @@
+{
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/test.py": {
+    "mtime": 1779403421.496398,
+    "ast_hash": "0d6f696cb722d43b8e4358084f6d709d",
+    "semantic_hash": "0d6f696cb722d43b8e4358084f6d709d"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/main.py": {
+    "mtime": 1779403421.4960835,
+    "ast_hash": "c4ca94e81e6459ed5d73d8c283b9a191",
+    "semantic_hash": "c4ca94e81e6459ed5d73d8c283b9a191"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_structured_agents.py": {
+    "mtime": 1779403421.4978304,
+    "ast_hash": "0f283139813755984bb1252a456d0317",
+    "semantic_hash": "0f283139813755984bb1252a456d0317"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_minimax.py": {
+    "mtime": 1779403421.4974675,
+    "ast_hash": "93ece32623e30415fbb2ebafed9704af",
+    "semantic_hash": "93ece32623e30415fbb2ebafed9704af"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/conftest.py": {
+    "mtime": 1779403421.4965425,
+    "ast_hash": "38a6a8ea0a7b76ceb79da16fda59398c",
+    "semantic_hash": "38a6a8ea0a7b76ceb79da16fda59398c"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_ollama_base_url.py": {
+    "mtime": 1779403421.4976163,
+    "ast_hash": "3b419ec3c1c40e46f35d0901086f05a1",
+    "semantic_hash": "3b419ec3c1c40e46f35d0901086f05a1"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_capabilities.py": {
+    "mtime": 1779403421.4968326,
+    "ast_hash": "442d96db9ca010e8df5aef098e3d3d80",
+    "semantic_hash": "442d96db9ca010e8df5aef098e3d3d80"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_signal_processing.py": {
+    "mtime": 1779403421.4977415,
+    "ast_hash": "bab9965c1ac6b198dc072a87cb03c07c",
+    "semantic_hash": "bab9965c1ac6b198dc072a87cb03c07c"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/__init__.py": {
+    "mtime": 1779403421.4964743,
+    "ast_hash": "68b329da9893e34099c7d8ad5cb9c940",
+    "semantic_hash": "68b329da9893e34099c7d8ad5cb9c940"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_model_validation.py": {
+    "mtime": 1779403421.4975371,
+    "ast_hash": "2ca93f42f9ab69fb3403fbb63a703be7",
+    "semantic_hash": "2ca93f42f9ab69fb3403fbb63a703be7"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_dataflows_config.py": {
+    "mtime": 1779403421.4970438,
+    "ast_hash": "05a17308044f69455a5a59c9c53c8cb4",
+    "semantic_hash": "05a17308044f69455a5a59c9c53c8cb4"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_safe_ticker_component.py": {
+    "mtime": 1779403421.4976776,
+    "ast_hash": "539ffd0ede420d4410adc332e5dc7cb6",
+    "semantic_hash": "539ffd0ede420d4410adc332e5dc7cb6"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_analyst_execution.py": {
+    "mtime": 1779403421.496624,
+    "ast_hash": "44a5bb1ee4d8e852d64324d053713f32",
+    "semantic_hash": "44a5bb1ee4d8e852d64324d053713f32"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_checkpoint_resume.py": {
+    "mtime": 1779403421.4969137,
+    "ast_hash": "cb3ffec4239bb5debabd1d1a884c525c",
+    "semantic_hash": "cb3ffec4239bb5debabd1d1a884c525c"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_ticker_symbol_handling.py": {
+    "mtime": 1779403421.4979126,
+    "ast_hash": "f4ffaf707f5808767b6400b4b7f0fc3a",
+    "semantic_hash": "f4ffaf707f5808767b6400b4b7f0fc3a"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_google_api_key.py": {
+    "mtime": 1779403421.4972377,
+    "ast_hash": "4e3402e62a65f69ee55c5fcf81ab4e2e",
+    "semantic_hash": "4e3402e62a65f69ee55c5fcf81ab4e2e"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_env_overrides.py": {
+    "mtime": 1779403421.497181,
+    "ast_hash": "ed9d706d6eaa01bb2292d5b25bf1a659",
+    "semantic_hash": "ed9d706d6eaa01bb2292d5b25bf1a659"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_deepseek_reasoning.py": {
+    "mtime": 1779403421.4971201,
+    "ast_hash": "819616748a7c3fa682292ec67c484e8e",
+    "semantic_hash": "819616748a7c3fa682292ec67c484e8e"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_api_key_env.py": {
+    "mtime": 1779403421.4967444,
+    "ast_hash": "285e7210816a4c9a55f59bf9f045641f",
+    "semantic_hash": "285e7210816a4c9a55f59bf9f045641f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_crypto_asset_mode.py": {
+    "mtime": 1779403421.496981,
+    "ast_hash": "31f675671d81d2b362975d1b3db01a26",
+    "semantic_hash": "31f675671d81d2b362975d1b3db01a26"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_memory_log.py": {
+    "mtime": 1779403421.4973722,
+    "ast_hash": "8c2cdebe4f1086d76c322fa0b4e929c5",
+    "semantic_hash": "8c2cdebe4f1086d76c322fa0b4e929c5"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tests/test_anthropic_effort.py": {
+    "mtime": 1779403421.496681,
+    "ast_hash": "3f2e7905e249a4e793ab4f665b633e55",
+    "semantic_hash": "3f2e7905e249a4e793ab4f665b633e55"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/config.py": {
+    "mtime": 1779403421.4955053,
+    "ast_hash": "274b370b2e21b67b0ff4c6f8e0f7cd8b",
+    "semantic_hash": "274b370b2e21b67b0ff4c6f8e0f7cd8b"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/models.py": {
+    "mtime": 1779403421.495715,
+    "ast_hash": "e73c553574bc21d4418755316806491f",
+    "semantic_hash": "e73c553574bc21d4418755316806491f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/__init__.py": {
+    "mtime": 1779403421.4953704,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/utils.py": {
+    "mtime": 1779403421.4959636,
+    "ast_hash": "d9543349db7bd9c11516acde744f8b33",
+    "semantic_hash": "d9543349db7bd9c11516acde744f8b33"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/main.py": {
+    "mtime": 1779403421.495618,
+    "ast_hash": "002bf257813972cd4272b87be7e75743",
+    "semantic_hash": "002bf257813972cd4272b87be7e75743"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/announcements.py": {
+    "mtime": 1779403421.4954512,
+    "ast_hash": "c0dce97bf8815a2ea9273adde1d2122c",
+    "semantic_hash": "c0dce97bf8815a2ea9273adde1d2122c"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/stats_handler.py": {
+    "mtime": 1779403421.495872,
+    "ast_hash": "fed5efefe48d04d81f02f1e5a524ecbb",
+    "semantic_hash": "fed5efefe48d04d81f02f1e5a524ecbb"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/__init__.py": {
+    "mtime": 1779403421.4980185,
+    "ast_hash": "1c3f34556f95f4a8a85b51cd47563243",
+    "semantic_hash": "1c3f34556f95f4a8a85b51cd47563243"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/default_config.py": {
+    "mtime": 1779403421.5010314,
+    "ast_hash": "7794c0a50e1a8e5c5983535072b05e92",
+    "semantic_hash": "7794c0a50e1a8e5c5983535072b05e92"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/analyst_execution.py": {
+    "mtime": 1779403421.5011857,
+    "ast_hash": "76cfe250d4be4b2d362b3658c6353db0",
+    "semantic_hash": "76cfe250d4be4b2d362b3658c6353db0"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/reflection.py": {
+    "mtime": 1779403421.5014691,
+    "ast_hash": "be2cdb144fe7b46a19894f4184e4f78f",
+    "semantic_hash": "be2cdb144fe7b46a19894f4184e4f78f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/checkpointer.py": {
+    "mtime": 1779403421.5012605,
+    "ast_hash": "0ed1e3772a355fa1f9296be6477f4a03",
+    "semantic_hash": "0ed1e3772a355fa1f9296be6477f4a03"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/__init__.py": {
+    "mtime": 1779403421.5011203,
+    "ast_hash": "8c67780df1e8db2667f19ddf3b1575c8",
+    "semantic_hash": "8c67780df1e8db2667f19ddf3b1575c8"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/trading_graph.py": {
+    "mtime": 1779403421.5017083,
+    "ast_hash": "a084b99987ee32dd8eab8751f25b51f4",
+    "semantic_hash": "a084b99987ee32dd8eab8751f25b51f4"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/conditional_logic.py": {
+    "mtime": 1779403421.5013309,
+    "ast_hash": "ab964a5e32a835745e7a1c5f4d46c321",
+    "semantic_hash": "ab964a5e32a835745e7a1c5f4d46c321"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/setup.py": {
+    "mtime": 1779403421.5015604,
+    "ast_hash": "1afdc0f7207a1ba55237e8e07189dce2",
+    "semantic_hash": "1afdc0f7207a1ba55237e8e07189dce2"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/propagation.py": {
+    "mtime": 1779403421.5014014,
+    "ast_hash": "06573c8707ea43cc98c99a813579f1f8",
+    "semantic_hash": "06573c8707ea43cc98c99a813579f1f8"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/graph/signal_processing.py": {
+    "mtime": 1779403421.5016205,
+    "ast_hash": "e5c1bfa9d65568fe7ba4de14394f3ab6",
+    "semantic_hash": "e5c1bfa9d65568fe7ba4de14394f3ab6"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/__init__.py": {
+    "mtime": 1779403421.498106,
+    "ast_hash": "8e8e58a1529e1bf3ee0c4a40e5abcf30",
+    "semantic_hash": "8e8e58a1529e1bf3ee0c4a40e5abcf30"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/schemas.py": {
+    "mtime": 1779403421.4991844,
+    "ast_hash": "b1376249a304b82369af19255a60ab28",
+    "semantic_hash": "b1376249a304b82369af19255a60ab28"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/researchers/bull_researcher.py": {
+    "mtime": 1779403421.4988246,
+    "ast_hash": "a23f9a8b7ad18293e07a0540c9864f55",
+    "semantic_hash": "a23f9a8b7ad18293e07a0540c9864f55"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/researchers/bear_researcher.py": {
+    "mtime": 1779403421.4987624,
+    "ast_hash": "80d099efd919d86092a5acc025be92d9",
+    "semantic_hash": "80d099efd919d86092a5acc025be92d9"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/risk_mgmt/conservative_debator.py": {
+    "mtime": 1779403421.4990392,
+    "ast_hash": "0ce4359fab4d90d26d0adad5cbf3c64f",
+    "semantic_hash": "0ce4359fab4d90d26d0adad5cbf3c64f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/risk_mgmt/aggressive_debator.py": {
+    "mtime": 1779403421.4989417,
+    "ast_hash": "08c5c21f1c72c4a7c5ddab83b2386d03",
+    "semantic_hash": "08c5c21f1c72c4a7c5ddab83b2386d03"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/risk_mgmt/neutral_debator.py": {
+    "mtime": 1779403421.4991107,
+    "ast_hash": "fa524283adc36e713d0661d27626005f",
+    "semantic_hash": "fa524283adc36e713d0661d27626005f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/trader/trader.py": {
+    "mtime": 1779403421.4992864,
+    "ast_hash": "372957f4e1957597567af857633e8b80",
+    "semantic_hash": "372957f4e1957597567af857633e8b80"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/managers/portfolio_manager.py": {
+    "mtime": 1779403421.498602,
+    "ast_hash": "78a0faf408c815e74202974c14c4b996",
+    "semantic_hash": "78a0faf408c815e74202974c14c4b996"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/managers/research_manager.py": {
+    "mtime": 1779403421.4986682,
+    "ast_hash": "d6929e7bf166bbc9ad86dc4c8cffe034",
+    "semantic_hash": "d6929e7bf166bbc9ad86dc4c8cffe034"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/fundamental_data_tools.py": {
+    "mtime": 1779403421.4995754,
+    "ast_hash": "b465c35448c2ddd57bcecf6a66d9cde6",
+    "semantic_hash": "b465c35448c2ddd57bcecf6a66d9cde6"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/memory.py": {
+    "mtime": 1779403421.4996471,
+    "ast_hash": "e9849ba47bbba3296f16268cd7c6552b",
+    "semantic_hash": "e9849ba47bbba3296f16268cd7c6552b"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/agent_utils.py": {
+    "mtime": 1779403421.4994626,
+    "ast_hash": "72f98146b01ac5ab17ca02d2740e2dd0",
+    "semantic_hash": "72f98146b01ac5ab17ca02d2740e2dd0"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/rating.py": {
+    "mtime": 1779403421.49976,
+    "ast_hash": "1a5fea2ea2aa431e1d0c7521c6d80577",
+    "semantic_hash": "1a5fea2ea2aa431e1d0c7521c6d80577"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/news_data_tools.py": {
+    "mtime": 1779403421.4997032,
+    "ast_hash": "ee5227db0c2914e5688356cbe32e1e63",
+    "semantic_hash": "ee5227db0c2914e5688356cbe32e1e63"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/agent_states.py": {
+    "mtime": 1779403421.4993932,
+    "ast_hash": "4a4cfc74bc15de58a505196e35761c0a",
+    "semantic_hash": "4a4cfc74bc15de58a505196e35761c0a"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/structured.py": {
+    "mtime": 1779403421.4998274,
+    "ast_hash": "ffabcc89d7d79fc8c8921f07e44f56eb",
+    "semantic_hash": "ffabcc89d7d79fc8c8921f07e44f56eb"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/core_stock_tools.py": {
+    "mtime": 1779403421.4995208,
+    "ast_hash": "f3e112f57f60813f50bc15126ca82b49",
+    "semantic_hash": "f3e112f57f60813f50bc15126ca82b49"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/utils/technical_indicators_tools.py": {
+    "mtime": 1779403421.499897,
+    "ast_hash": "0b4e44be1d39136d7806020def041407",
+    "semantic_hash": "0b4e44be1d39136d7806020def041407"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/analysts/market_analyst.py": {
+    "mtime": 1779403421.498288,
+    "ast_hash": "fd496cbede89d99a75bdd819351a7e76",
+    "semantic_hash": "fd496cbede89d99a75bdd819351a7e76"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/analysts/social_media_analyst.py": {
+    "mtime": 1779403421.4985018,
+    "ast_hash": "65f9b02601a2b4156f9ffa99751eef4c",
+    "semantic_hash": "65f9b02601a2b4156f9ffa99751eef4c"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/analysts/news_analyst.py": {
+    "mtime": 1779403421.4983466,
+    "ast_hash": "9997198a5ca155dea0180588eeadbe59",
+    "semantic_hash": "9997198a5ca155dea0180588eeadbe59"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/analysts/sentiment_analyst.py": {
+    "mtime": 1779403421.4984264,
+    "ast_hash": "06293581be6ca5ff602782d775ebfb15",
+    "semantic_hash": "06293581be6ca5ff602782d775ebfb15"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/agents/analysts/fundamentals_analyst.py": {
+    "mtime": 1779403421.4982018,
+    "ast_hash": "60d33d7f5ecb34b232749bee7c78fb8b",
+    "semantic_hash": "60d33d7f5ecb34b232749bee7c78fb8b"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/config.py": {
+    "mtime": 1779403421.5004587,
+    "ast_hash": "f2b25ab627918e8b1f93dd5c998401a5",
+    "semantic_hash": "f2b25ab627918e8b1f93dd5c998401a5"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/interface.py": {
+    "mtime": 1779403421.5005307,
+    "ast_hash": "1b24589ca35149441739fd35f5141e2d",
+    "semantic_hash": "1b24589ca35149441739fd35f5141e2d"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/__init__.py": {
+    "mtime": 1779403421.4999511,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/stocktwits.py": {
+    "mtime": 1779403421.500724,
+    "ast_hash": "4c8c1d2c72f78f31531e6536457844fd",
+    "semantic_hash": "4c8c1d2c72f78f31531e6536457844fd"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/stockstats_utils.py": {
+    "mtime": 1779403421.5006654,
+    "ast_hash": "7d204c243f26595f7e8e00872e831d8c",
+    "semantic_hash": "7d204c243f26595f7e8e00872e831d8c"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/alpha_vantage_indicator.py": {
+    "mtime": 1779403421.5002806,
+    "ast_hash": "3ce7f3de6fcf01a715941602acacde87",
+    "semantic_hash": "3ce7f3de6fcf01a715941602acacde87"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/y_finance.py": {
+    "mtime": 1779403421.5008647,
+    "ast_hash": "fd524b15be3173a6275321fce0de0fc7",
+    "semantic_hash": "fd524b15be3173a6275321fce0de0fc7"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/utils.py": {
+    "mtime": 1779403421.5007873,
+    "ast_hash": "7d92e5a7b1607665890afe03adfa16f3",
+    "semantic_hash": "7d92e5a7b1607665890afe03adfa16f3"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/alpha_vantage_common.py": {
+    "mtime": 1779403421.500121,
+    "ast_hash": "a779bdd3a5417362619ece670771f155",
+    "semantic_hash": "a779bdd3a5417362619ece670771f155"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/alpha_vantage_news.py": {
+    "mtime": 1779403421.5003524,
+    "ast_hash": "510980d6df733117d420eabb8190112f",
+    "semantic_hash": "510980d6df733117d420eabb8190112f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/alpha_vantage_stock.py": {
+    "mtime": 1779403421.5004108,
+    "ast_hash": "d2373a9c5e47741317a932396f809f33",
+    "semantic_hash": "d2373a9c5e47741317a932396f809f33"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/alpha_vantage_fundamentals.py": {
+    "mtime": 1779403421.5001922,
+    "ast_hash": "b147b6739a05a43936622b12171768bc",
+    "semantic_hash": "b147b6739a05a43936622b12171768bc"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/reddit.py": {
+    "mtime": 1779403421.5005956,
+    "ast_hash": "0907e8d1b2b60e6fbc30e28fac402213",
+    "semantic_hash": "0907e8d1b2b60e6fbc30e28fac402213"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/alpha_vantage.py": {
+    "mtime": 1779403421.500036,
+    "ast_hash": "addd08d317e5a34a8958379f21a51049",
+    "semantic_hash": "addd08d317e5a34a8958379f21a51049"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/dataflows/yfinance_news.py": {
+    "mtime": 1779403421.500951,
+    "ast_hash": "2aad65a5454e4cc4a7c487eda26101ef",
+    "semantic_hash": "2aad65a5454e4cc4a7c487eda26101ef"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/validators.py": {
+    "mtime": 1779403421.502602,
+    "ast_hash": "5638a6d39753b4d99d0125a1c927c50f",
+    "semantic_hash": "5638a6d39753b4d99d0125a1c927c50f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/base_client.py": {
+    "mtime": 1779403421.5021248,
+    "ast_hash": "b5eb1177bcc5058eb5df51ecfa6f8b46",
+    "semantic_hash": "b5eb1177bcc5058eb5df51ecfa6f8b46"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/azure_client.py": {
+    "mtime": 1779403421.502071,
+    "ast_hash": "e7dcddd69dff894fe1eb66add38797ea",
+    "semantic_hash": "e7dcddd69dff894fe1eb66add38797ea"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/__init__.py": {
+    "mtime": 1779403421.5019023,
+    "ast_hash": "6403ee6ff0028d88ec197ddc28462f09",
+    "semantic_hash": "6403ee6ff0028d88ec197ddc28462f09"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/factory.py": {
+    "mtime": 1779403421.5022678,
+    "ast_hash": "13c0f887b0c818a29087b8822924a550",
+    "semantic_hash": "13c0f887b0c818a29087b8822924a550"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/google_client.py": {
+    "mtime": 1779403421.5023215,
+    "ast_hash": "51c32ea5024f058b332a49e2ec2cff72",
+    "semantic_hash": "51c32ea5024f058b332a49e2ec2cff72"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/model_catalog.py": {
+    "mtime": 1779403421.5024104,
+    "ast_hash": "31de71a0035aa971a962bcaea9a830c6",
+    "semantic_hash": "31de71a0035aa971a962bcaea9a830c6"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/capabilities.py": {
+    "mtime": 1779403421.502206,
+    "ast_hash": "6bae1c2cb26af7dbbb1f1ff7efaabe4d",
+    "semantic_hash": "6bae1c2cb26af7dbbb1f1ff7efaabe4d"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/api_key_env.py": {
+    "mtime": 1779403421.5020137,
+    "ast_hash": "65760be394e84bfd5ec4b7134bdd5b27",
+    "semantic_hash": "65760be394e84bfd5ec4b7134bdd5b27"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/openai_client.py": {
+    "mtime": 1779403421.5025089,
+    "ast_hash": "1b852c4bb1e69880b574e19b1f925f00",
+    "semantic_hash": "1b852c4bb1e69880b574e19b1f925f00"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/anthropic_client.py": {
+    "mtime": 1779403421.5019636,
+    "ast_hash": "73d740f7c427d35056b332b80872ba5b",
+    "semantic_hash": "73d740f7c427d35056b332b80872ba5b"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/scripts/smoke_structured_output.py": {
+    "mtime": 1779403421.4963465,
+    "ast_hash": "dfa1e498123b60d4c91c113b80fa4c56",
+    "semantic_hash": "dfa1e498123b60d4c91c113b80fa4c56"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/requirements.txt": {
+    "mtime": 1779403421.4962244,
+    "ast_hash": "8cf8463b34caa8ac871a52d5dd7ad1ef",
+    "semantic_hash": "8cf8463b34caa8ac871a52d5dd7ad1ef"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/CHANGELOG.md": {
+    "mtime": 1779403421.4864366,
+    "ast_hash": "ca0e852ea5c80b5a778922ee99ac27fb",
+    "semantic_hash": "ca0e852ea5c80b5a778922ee99ac27fb"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/README.md": {
+    "mtime": 1779403421.486717,
+    "ast_hash": "e3a92d836b1f4726388a1bb134551fa7",
+    "semantic_hash": "e3a92d836b1f4726388a1bb134551fa7"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/docker-compose.yml": {
+    "mtime": 1779403421.4960284,
+    "ast_hash": "be4ca4ce21074a57dea6791e8e1403ce",
+    "semantic_hash": "be4ca4ce21074a57dea6791e8e1403ce"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/cli/static/welcome.txt": {
+    "mtime": 1779403421.4958072,
+    "ast_hash": "eece957f7b9d61b1d3e0ffaa13c9ee74",
+    "semantic_hash": "eece957f7b9d61b1d3e0ffaa13c9ee74"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/tradingagents/llm_clients/TODO.md": {
+    "mtime": 1779403421.5018172,
+    "ast_hash": "5408786d80246203279e2f957661e6f7",
+    "semantic_hash": "5408786d80246203279e2f957661e6f7"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/TauricResearch.png": {
+    "mtime": 1779403421.4869378,
+    "ast_hash": "fc1788d11571f9cf491388742860f019",
+    "semantic_hash": "fc1788d11571f9cf491388742860f019"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/researcher.png": {
+    "mtime": 1779403421.4932578,
+    "ast_hash": "40cf4d70ed8f8c828a5a54469d7f03ad",
+    "semantic_hash": "40cf4d70ed8f8c828a5a54469d7f03ad"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/trader.png": {
+    "mtime": 1779403421.4947724,
+    "ast_hash": "f07a05b4be1cbdad01a24caf37e030b1",
+    "semantic_hash": "f07a05b4be1cbdad01a24caf37e030b1"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/analyst.png": {
+    "mtime": 1779403421.487474,
+    "ast_hash": "93096fff6ed78bfb3aeeacadf7169546",
+    "semantic_hash": "93096fff6ed78bfb3aeeacadf7169546"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/schema.png": {
+    "mtime": 1779403421.4943516,
+    "ast_hash": "b1d6a9e2d0d3987ba2cc4b9e859afc30",
+    "semantic_hash": "b1d6a9e2d0d3987ba2cc4b9e859afc30"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/wechat.png": {
+    "mtime": 1779403421.495305,
+    "ast_hash": "3a42783c8efb5eabe98f1116634e70f1",
+    "semantic_hash": "3a42783c8efb5eabe98f1116634e70f1"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/risk.png": {
+    "mtime": 1779403421.4937127,
+    "ast_hash": "749e3f0a9c0f9928e93786e860592594",
+    "semantic_hash": "749e3f0a9c0f9928e93786e860592594"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/cli/cli_transaction.png": {
+    "mtime": 1779403421.4928558,
+    "ast_hash": "4ab6758ca0d5201f881fb010c063238f",
+    "semantic_hash": "4ab6758ca0d5201f881fb010c063238f"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/cli/cli_technical.png": {
+    "mtime": 1779403421.4911907,
+    "ast_hash": "439f6740a4b455bf4d05756f9eb537be",
+    "semantic_hash": "439f6740a4b455bf4d05756f9eb537be"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/cli/cli_news.png": {
+    "mtime": 1779403421.4896,
+    "ast_hash": "396432d87fe7e404843c56a1b93fddf9",
+    "semantic_hash": "396432d87fe7e404843c56a1b93fddf9"
+  },
+  "/Users/luca/Library/CloudStorage/GoogleDrive-l.manca03@gmail.com/Il mio Drive/Github/trading-agent/assets/cli/cli_init.png": {
+    "mtime": 1779403421.4878778,
+    "ast_hash": "28b84708d06f7d4328b0d15219df731c",
+    "semantic_hash": "28b84708d06f7d4328b0d15219df731c"
+  }
+}
