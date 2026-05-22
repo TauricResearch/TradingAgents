@@ -767,21 +767,42 @@ function TypingIndicator({ agentName }) {
 }
 
 /* ── Token Gate ──────────────────────────────────────────────────── */
-function TokenGate({ onUnlock }) {
+function TokenGate({ onUnlock, apiBase }) {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
+  const [validating, setValidating] = useState(false);
   const { urlToken } = useQueryParams();
 
   useEffect(() => {
     if (urlToken) {
-      onUnlock(urlToken);
+      verifyAndUnlock(urlToken);
     }
   }, []);
+
+  async function verifyAndUnlock(token) {
+    setValidating(true);
+    setError('');
+    try {
+      const resp = await fetch(`${apiBase}/auth/verify?token=${encodeURIComponent(token)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        onUnlock(token);
+      } else {
+        const data = await resp.json().catch(() => ({}));
+        setError(data.detail || `Invalid token (HTTP ${resp.status}). Check your API token and try again.`);
+      }
+    } catch (err) {
+      setError(`Cannot reach the backend at ${apiBase}. Is the server running?`);
+    } finally {
+      setValidating(false);
+    }
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
     if (!input.trim()) { setError('A token is required to enter The Bazaar.'); return; }
-    onUnlock(input.trim());
+    verifyAndUnlock(input.trim());
   }
 
   return (
@@ -796,13 +817,28 @@ function TokenGate({ onUnlock }) {
           value={input}
           onChange={e => { setInput(e.target.value); setError(''); }}
           autoFocus
+          disabled={validating}
         />
-        <button type="submit">Enter the Marketplace</button>
+        <button type="submit" disabled={validating}>
+          {validating ? 'Verifying...' : 'Enter the Marketplace'}
+        </button>
         {error && <div className="token-error">{error}</div>}
       </form>
     </div>
   );
 }
+
+/* ── DeepSeek Model Presets ─────────────────────────────────────── */
+const DEEPSEEK_PRESETS = [
+  { id: 'v4pro', label: 'V4 Pro + Flash', desc: 'Best quality, fast aux',
+    llm_provider: 'deepseek', deep_think_llm: 'deepseek-v4-pro', quick_think_llm: 'deepseek-v4-flash' },
+  { id: 'v4pro-chat', label: 'V4 Pro + Chat', desc: 'Best quality, balanced aux',
+    llm_provider: 'deepseek', deep_think_llm: 'deepseek-v4-pro', quick_think_llm: 'deepseek-chat' },
+  { id: 'chat', label: 'Chat (Balanced)', desc: 'Good quality, lower cost',
+    llm_provider: 'deepseek', deep_think_llm: 'deepseek-chat', quick_think_llm: 'deepseek-chat' },
+  { id: 'r1', label: 'R1 Reasoning', desc: 'Deep reasoning, slower',
+    llm_provider: 'deepseek', deep_think_llm: 'deepseek-r1', quick_think_llm: 'deepseek-v4-flash' },
+];
 
 /* ── Bazaar Input Screen ─────────────────────────────────────────── */
 function BazaarInput({ onSubmit, isSubmitting, prefillTicker }) {
@@ -813,6 +849,7 @@ function BazaarInput({ onSubmit, isSubmitting, prefillTicker }) {
   });
   const [analysts, setAnalysts] = useState(['market','social','news','fundamentals']);
   const [depth, setDepth] = useState('standard');
+  const [modelPreset, setModelPreset] = useState('v4pro');
 
   useEffect(() => {
     if (prefillTicker) setTicker(prefillTicker);
@@ -827,7 +864,16 @@ function BazaarInput({ onSubmit, isSubmitting, prefillTicker }) {
   function handleSummon(e) {
     e.preventDefault();
     if (!ticker.trim()) return;
-    onSubmit({ ticker: ticker.trim().toUpperCase(), date, analysts, depth });
+    const preset = DEEPSEEK_PRESETS.find(p => p.id === modelPreset) || DEEPSEEK_PRESETS[0];
+    onSubmit({
+      ticker: ticker.trim().toUpperCase(),
+      date,
+      analysts,
+      depth,
+      llm_provider: preset.llm_provider,
+      deep_think_llm: preset.deep_think_llm,
+      quick_think_llm: preset.quick_think_llm,
+    });
   }
 
   const agentEntries = Object.values(AGENTS).slice(0, 4); // core 4 analysts
@@ -880,6 +926,18 @@ function BazaarInput({ onSubmit, isSubmitting, prefillTicker }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">LLM Model (DeepSeek only)</label>
+            <select className="form-input" value={modelPreset}
+                    onChange={e => setModelPreset(e.target.value)}>
+              {DEEPSEEK_PRESETS.map(p => (
+                <option key={p.id} value={p.id}>{p.label} — {p.desc}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -1155,7 +1213,7 @@ function App() {
   const { apiBase, urlToken } = useQueryParams();
   const [screen, setScreen] = useState('dashboard'); // dashboard | input | debate | ledger
   const [token, setToken] = useState(() => localStorage.getItem('bazaar_token') || '');
-  const [showTokenGate, setShowTokenGate] = useState(!urlToken && !localStorage.getItem('bazaar_token'));
+  const [showTokenGate, setShowTokenGate] = useState(!localStorage.getItem('bazaar_token'));
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingAgent, setStreamingAgent] = useState('');
@@ -1183,7 +1241,7 @@ function App() {
     setMessages(prev => [...prev, { agent, content, kind, timestamp, id: Date.now() + Math.random() }]);
   }
 
-  async function handleSubmit({ ticker, date, analysts, depth }) {
+  async function handleSubmit({ ticker, date, analysts, depth, llm_provider, deep_think_llm, quick_think_llm }) {
     setScreen('debate');
     setCurrentTicker(ticker);
     setCurrentDate(date);
@@ -1205,6 +1263,9 @@ function App() {
           date,
           analysts,
           research_depth: depth,
+          llm_provider,
+          deep_think_llm,
+          quick_think_llm,
         }),
       });
 
@@ -1377,7 +1438,7 @@ function App() {
   }, []);
 
   if (showTokenGate) {
-    return <TokenGate onUnlock={handleTokenUnlock} />;
+    return <TokenGate onUnlock={handleTokenUnlock} apiBase={apiBase} />;
   }
 
   return (
