@@ -66,14 +66,16 @@ def _socks_patched_socket():
         proxy_part = all_proxy[len("socks5://"):]
         phost, _, pport = proxy_part.partition(":")
         socks.set_default_proxy(socks.SOCKS5, phost, int(pport or "1080"))
-        original = _socket_module.socket
-        _socket_module.socket = socks.socksocket
-        try:
-            yield
-        finally:
-            _socket_module.socket = original
     except Exception:
+        # Couldn't parse/set proxy — run without it.
         yield
+        return
+    original = _socket_module.socket
+    _socket_module.socket = socks.socksocket
+    try:
+        yield
+    finally:
+        _socket_module.socket = original
 
 # email -> (code, expires_at, attempts)
 _OTP_STORE: dict[str, tuple[str, float, int]] = {}
