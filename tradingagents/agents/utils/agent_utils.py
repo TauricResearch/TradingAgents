@@ -65,6 +65,22 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def build_cacheable_system_content(text: str, llm: object, ttl: str = "5m"):
+    """Return a cacheable Anthropic system block when the model supports it."""
+    class_name = llm.__class__.__name__.lower()
+    module_name = llm.__class__.__module__.lower()
+    is_anthropic = "anthropic" in class_name or "anthropic" in module_name
+    if not is_anthropic or not text.strip():
+        return text
+    return [
+        {
+            "type": "text",
+            "text": text,
+            "cache_control": {"type": "ephemeral", "ttl": ttl},
+        }
+    ]
+
+
 def _clean_identity_value(value: Any) -> str | None:
     """Return a trimmed string, or None for empty / placeholder-ish values."""
     if not isinstance(value, str):
@@ -212,6 +228,5 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
 
 

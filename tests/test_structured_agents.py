@@ -1,4 +1,4 @@
-"""Tests for structured-output agents (Trader, Research Manager, Sentiment Analyst).
+"""Tests for structured-output agents and their shared invocation behavior.
 
 The Portfolio Manager has its own coverage in tests/test_memory_log.py
 (which exercises the full memory-log → PM injection cycle).  This file
@@ -13,6 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
+from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
     PortfolioDecision,
@@ -152,6 +153,25 @@ def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = Non
     return llm
 
 
+def _structured_portfolio_llm(
+    captured: dict,
+    decision: PortfolioDecision | None = None,
+):
+    if decision is None:
+        decision = PortfolioDecision(
+            rating=PortfolioRating.HOLD,
+            executive_summary="Keep exposure steady while setup matures.",
+            investment_thesis="Balanced risk-reward.",
+        )
+    structured = MagicMock()
+    structured.invoke.side_effect = lambda prompt: (
+        captured.__setitem__("prompt", prompt) or decision
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = structured
+    return llm
+
+
 @pytest.mark.unit
 def test_invoke_structured_falls_back_when_result_is_none():
     # A thinking model can answer in plain text, leaving the parser with None.
@@ -211,6 +231,18 @@ class TestTraderAgent:
         trader = create_trader(llm)
         result = trader(_make_trader_state())
         assert result["trader_investment_plan"] == plain_response
+
+    def test_reuses_shared_structured_cache(self):
+        captured = {}
+        llm = _structured_trader_llm(captured)
+        cache = {}
+        trader = create_trader(llm, cache=cache)
+
+        trader(_make_trader_state())
+        trader(_make_trader_state())
+
+        assert llm.with_structured_output.return_value.invoke.call_count == 1
+        assert cache
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +316,17 @@ class TestResearchManagerAgent:
         result = rm(_make_rm_state())
         assert result["investment_plan"] == plain_response
 
+    def test_reuses_shared_structured_cache(self):
+        captured = {}
+        llm = _structured_rm_llm(captured)
+        cache = {}
+        rm = create_research_manager(llm, cache=cache)
+
+        rm(_make_rm_state())
+        rm(_make_rm_state())
+
+        assert llm.with_structured_output.return_value.invoke.call_count == 1
+        assert cache
 
 # ---------------------------------------------------------------------------
 # Sentiment Analyst: schema, render, structured happy path + fallback
@@ -406,3 +449,34 @@ class TestSentimentAnalystAgent:
         llm.with_structured_output.return_value = structured
         llm.invoke.return_value = MagicMock(content=plain)
         assert create_sentiment_analyst(llm)(_make_sentiment_state())["sentiment_report"] == plain
+
+@pytest.mark.unit
+class TestPortfolioManagerAgent:
+    def test_reuses_shared_structured_cache(self):
+        captured = {}
+        llm = _structured_portfolio_llm(captured)
+        cache = {}
+        pm = create_portfolio_manager(llm, cache=cache)
+
+        state = {
+            "company_of_interest": "NVDA",
+            "risk_debate_state": {
+                "history": "Risk debate history.",
+                "aggressive_history": "",
+                "conservative_history": "",
+                "neutral_history": "",
+                "current_aggressive_response": "",
+                "current_conservative_response": "",
+                "current_neutral_response": "",
+                "judge_decision": "",
+                "count": 1,
+            },
+            "investment_plan": "Plan A",
+            "trader_investment_plan": "Plan B",
+        }
+
+        pm(state)
+        pm(state)
+
+        assert llm.with_structured_output.return_value.invoke.call_count == 1
+        assert cache
