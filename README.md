@@ -274,3 +274,6 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+## Indian Market Support
+
+TradingAgents can be used to analyze Indian stocks listed on NSE and BSE exchanges using their respective ticker symbols (e.g., RELIANCE.NS, TCS.NS).
