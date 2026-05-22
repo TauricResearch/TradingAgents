@@ -36,6 +36,26 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def build_cacheable_system_content(text: str, llm: object, ttl: str = "5m"):
+    """Return a cacheable Anthropic system block when the model supports it.
+
+    Non-Anthropic providers keep the plain string so the prompt shape stays
+    unchanged for OpenAI-compatible and Google models.
+    """
+    class_name = llm.__class__.__name__.lower()
+    module_name = llm.__class__.__module__.lower()
+    is_anthropic = "anthropic" in class_name or "anthropic" in module_name
+    if not is_anthropic or not text.strip():
+        return text
+    return [
+        {
+            "type": "text",
+            "text": text,
+            "cache_control": {"type": "ephemeral", "ttl": ttl},
+        }
+    ]
+
+
 def build_instrument_context(ticker: str, asset_type: str = "stock") -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
     instrument_label = "asset" if asset_type == "crypto" else "instrument"
