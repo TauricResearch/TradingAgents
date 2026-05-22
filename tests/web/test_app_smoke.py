@@ -12,6 +12,7 @@ from web.streaming import (
     _emit_risk_team_events,
     sse,
 )
+from web import app as web_app
 
 
 def test_index_returns_ok():
@@ -33,6 +34,20 @@ def test_clear_checkpoints_returns_deleted_count(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"cleared": 3}
+
+
+def test_main_runs_without_reloader(monkeypatch):
+    call = {}
+
+    def fake_run(*args, **kwargs):
+        call["args"] = args
+        call["kwargs"] = kwargs
+
+    monkeypatch.setattr(web_app.uvicorn, "run", fake_run)
+
+    web_app.main()
+
+    assert call["kwargs"]["reload"] is False
 
 
 def test_saved_reports_lists_state_logs(tmp_path, monkeypatch):

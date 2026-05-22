@@ -492,13 +492,14 @@ def stream_analysis(request: AnalysisRequest, run_id: str) -> Iterator[str]:
     for event in accumulator.complete_all_agents():
         yield event
 
-    decision = graph.process_signal(final_state["final_trade_decision"])
+    final_trade_decision = _clean_text(final_state.get("final_trade_decision"))
+    decision = graph.process_signal(final_trade_decision)
     graph.curr_state = final_state
     graph._log_state(request.analysis_date, final_state)
     graph.memory_log.store_decision(
         ticker=request.ticker,
         trade_date=request.analysis_date,
-        final_trade_decision=final_state["final_trade_decision"],
+        final_trade_decision=final_trade_decision,
     )
     if config.get("checkpoint_enabled"):
         clear_checkpoint(config["data_cache_dir"], request.ticker, request.analysis_date)
@@ -533,68 +534,68 @@ def _stream_chunk_events(
     stats_handler: Any,
     start_time: float,
 ) -> Iterator[str]:
-        messages = list(chunk.get("messages", []))
-        new_start_index = accumulator.new_message_start_index(messages)
-        for position, message in enumerate(messages):
-            if position < new_start_index and getattr(message, "id", None) is None:
-                continue
-            if not accumulator.is_new_id_message(message):
-                continue
+    messages = list(chunk.get("messages", []))
+    new_start_index = accumulator.new_message_start_index(messages)
+    for position, message in enumerate(messages):
+        if position < new_start_index and getattr(message, "id", None) is None:
+            continue
+        if not accumulator.is_new_id_message(message):
+            continue
 
-            msg_type, content = _classify_message_type(message)
-            if content and content.strip():
-                yield _event(
-                    "message",
-                    {
-                        "timestamp": _timestamp(),
-                        "message_type": msg_type,
-                        "content": content,
-                    },
-                )
+        msg_type, content = _classify_message_type(message)
+        if content and content.strip():
+            yield _event(
+                "message",
+                {
+                    "timestamp": _timestamp(),
+                    "message_type": msg_type,
+                    "content": content,
+                },
+            )
 
-            for tool_call in getattr(message, "tool_calls", []) or []:
-                tool_name, tool_args = _tool_call_parts(tool_call)
-                yield _event(
-                    "tool_call",
-                    {
-                        "timestamp": _timestamp(),
-                        "name": tool_name,
-                        "args": _json_safe(tool_args),
-                    },
-                )
+        for tool_call in getattr(message, "tool_calls", []) or []:
+            tool_name, tool_args = _tool_call_parts(tool_call)
+            yield _event(
+                "tool_call",
+                {
+                    "timestamp": _timestamp(),
+                    "name": tool_name,
+                    "args": _json_safe(tool_args),
+                },
+            )
 
-        for event in accumulator.emit_analyst_statuses(
-            chunk,
-            analyst_wall_time_tracker,
-            sync_analyst_tracker_from_chunk,
+    for event in accumulator.emit_analyst_statuses(
+        chunk,
+        analyst_wall_time_tracker,
+        sync_analyst_tracker_from_chunk,
+    ):
+        yield event
+
+    if chunk.get("investment_debate_state"):
+        for event in _emit_research_team_events(
+            accumulator,
+            chunk["investment_debate_state"],
         ):
             yield event
 
-        if chunk.get("investment_debate_state"):
-            for event in _emit_research_team_events(
-                accumulator,
-                chunk["investment_debate_state"],
-            ):
-                yield event
-
-        if chunk.get("trader_investment_plan"):
-            report_event = accumulator.update_report_section(
-                "trader_investment_plan", chunk["trader_investment_plan"]
-            )
-            if report_event is not None:
-                yield report_event
-            status_event = accumulator.update_agent_status("Trader", "completed")
-            if status_event is not None:
-                yield status_event
-            status_event = accumulator.update_agent_status("Aggressive Analyst", "in_progress")
-            if status_event is not None:
-                yield status_event
-
-        if chunk.get("risk_debate_state"):
-            for event in _emit_risk_team_events(accumulator, chunk["risk_debate_state"]):
-                yield event
-
-        yield _event(
-            "stats",
-            _stats_payload(stats_handler, start_time, analyst_wall_time_tracker),
+    if chunk.get("trader_investment_plan"):
+        report_event = accumulator.update_report_section(
+            "trader_investment_plan", chunk["trader_investment_plan"]
         )
+        if report_event is not None:
+            yield report_event
+        status_event = accumulator.update_agent_status("Trader", "completed")
+        if status_event is not None:
+            yield status_event
+        status_event = accumulator.update_agent_status("Aggressive Analyst", "in_progress")
+        if status_event is not None:
+            yield status_event
+
+    if chunk.get("risk_debate_state"):
+        for event in _emit_risk_team_events(accumulator, chunk["risk_debate_state"]):
+            yield event
+
+    yield _event(
+        "stats",
+        _stats_payload(stats_handler, start_time, analyst_wall_time_tracker),
+    )

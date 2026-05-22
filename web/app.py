@@ -14,7 +14,6 @@ from web.streaming import sse, stream_analysis
 
 
 STATIC_DIR = Path(__file__).parent / "static"
-STATIC_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="TradingAgentsWeb")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -114,4 +113,4 @@ def analyze(request: AnalysisRequest):
 
 
 def main() -> None:
-    uvicorn.run("web.app:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("web.app:app", host="127.0.0.1", port=8000, reload=False)
