@@ -129,6 +129,7 @@ class TradingAgentsGraph:
         self.quick_thinking_llm = quick_client.get_llm()
 
         self.memory_log = TradingMemoryLog(self.config)
+        self.structured_output_cache: dict[str, str] = {}
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -143,6 +144,7 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            self.structured_output_cache,
         )
 
         self.propagator = Propagator(
@@ -418,6 +420,7 @@ class TradingAgentsGraph:
         PortfolioRating enum.
         """
         self.ticker = company_name
+        self.structured_output_cache.clear()
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)
