@@ -1,28 +1,25 @@
-FROM python:3.12-slim AS builder
+# Intentionally minimal — no secrets, no config, no credentials.
+# The image is public and safe to push to any registry.
+#
+# Everything runtime-specific (LLM provider, API keys, skill config)
+# lives in the Fly.io persistent volume at /opt/data and is injected
+# via `fly secrets set` or configured via `fly ssh console` after deploy.
+#
+# Deploy order:
+#   1. fly deploy          — boots gateway, mounts volume
+#   2. fly ssh console     — configure LLM, install seed skills, run migrations
+#   3. fly secrets set     — inject credentials, restart
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+FROM nousresearch/hermes-agent:main
 
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Hermes tool wrappers: tradingagents, ib_executor, telegram
+COPY hermes_tools/ /opt/hermes_tools/
 
-WORKDIR /build
-COPY . .
-RUN pip install --no-cache-dir .
+# System prompt loaded by Hermes at startup
+COPY hermes_config/system_prompt.md /opt/hermes_config/system_prompt.md
 
-FROM python:3.12-slim
+# Seed skills installed once via SSH: trade-setup, risk-rules, position-sizing
+COPY hermes_config/seed_skills/ /opt/seed_skills/
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-RUN useradd --create-home appuser \
- && install -d -m 0755 -o appuser -g appuser /home/appuser/.tradingagents
-USER appuser
-WORKDIR /home/appuser/app
-
-COPY --from=builder --chown=appuser:appuser /build .
-
-ENTRYPOINT ["tradingagents"]
+# One-time setup scripts run via SSH after first deploy
+COPY scripts/ /opt/scripts/

@@ -1,0 +1,97 @@
+# Fly.io deployment config for the TradingAgents Hermes gateway.
+#
+# Two processes share the same image:
+#   gateway   — main Hermes agent; internal only, never public
+#   dashboard — Hermes built-in dashboard; reach via `fly proxy` or SSH tunnel
+#
+# Secrets (set via `fly secrets set`, never committed):
+#   ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USER_ID
+#   IB_GATEWAY_HOST, IB_GATEWAY_PORT, IB_ACCOUNT_ID
+
+app = "trading-agents"
+primary_region = "syd"
+
+kill_signal  = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  # No build args — everything baked into the base image or mounted at runtime.
+
+[env]
+  HERMES_DATA_DIR     = "/opt/data"
+  HERMES_LOG_LEVEL    = "INFO"
+  HERMES_SYSTEM_PROMPT = "/opt/hermes_config/system_prompt.md"
+
+[deploy]
+  # Nothing to run at release time — schema migration is run manually via
+  # `fly ssh console` after first deploy: python /opt/scripts/migrate_schema.py
+
+[mounts]
+  source      = "hermes_data"
+  destination = "/opt/data"   # maps to ~/.hermes inside the container
+
+# ---------------------------------------------------------------------------
+# Process: gateway
+# The main Hermes agent. Handles tool calls, memory, crons, self-improvement.
+# Internal port 8080 — never exposed to the public internet.
+# ---------------------------------------------------------------------------
+[[processes]]
+  name    = "gateway"
+  command = "hermes gateway --data-dir /opt/data --port 8080"
+
+[[vm]]
+  processes  = ["gateway"]
+  size       = "shared-cpu-2x"   # LangGraph multi-agent analysis is CPU-heavy
+
+[[services]]
+  protocol    = "tcp"
+  processes   = ["gateway"]
+  internal_port = 8080
+
+  # No [[services.ports]] block — gateway is internal only.
+  # Reach it via: fly proxy 8080:8080 -a trading-agents
+
+  [services.concurrency]
+    type       = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+# ---------------------------------------------------------------------------
+# Process: dashboard
+# Hermes built-in dashboard. Configuration UI, skill manager, agent monitor.
+# Internal port 3000 — exposed via fly proxy or SSH tunnel, not publicly.
+# ---------------------------------------------------------------------------
+[[processes]]
+  name    = "dashboard"
+  command = "hermes dashboard --data-dir /opt/data --port 3000"
+
+[[vm]]
+  processes  = ["dashboard"]
+  size       = "shared-cpu-1x"
+
+[[services]]
+  protocol      = "tcp"
+  processes     = ["dashboard"]
+  internal_port = 3000
+
+  # No [[services.ports]] block — dashboard is internal only.
+  # Reach it via: fly proxy 3000:3000 -a trading-agents
+
+  [services.concurrency]
+    type       = "requests"
+    hard_limit = 10
+    soft_limit = 8
+
+# ---------------------------------------------------------------------------
+# Checks — gateway liveness probe (internal, no public exposure needed)
+# ---------------------------------------------------------------------------
+[[checks]]
+  name     = "gateway-alive"
+  port     = 8080
+  type     = "http"
+  path     = "/health"
+  interval = "30s"
+  timeout  = "5s"
+  grace_period = "60s"
+  processes = ["gateway"]
