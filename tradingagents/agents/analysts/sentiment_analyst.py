@@ -59,7 +59,7 @@ def create_sentiment_analyst(llm):
         reddit_block = fetch_reddit_posts(ticker)
 
         system_message = build_cacheable_system_content(
-            _build_system_message(llm),
+            _build_system_message(),
             llm,
         )
 
@@ -68,38 +68,17 @@ def create_sentiment_analyst(llm):
                 SystemMessage(content=system_message),
                 (
                     "human",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " Analysis context:\n"
                     "- Current date: {current_date}\n"
                     "- Instrument context: {instrument_context}\n\n"
-                    "## Data sources (pre-fetched, in this prompt)\n\n"
-                    "### News headlines — Yahoo Finance, past 7 days\n"
-                    "Institutional framing. Fact-driven, slower-moving signal.\n\n"
+                    "Pre-fetched data:\n\n"
+                    "News headlines — Yahoo Finance, past 7 days\n"
                     "<start_of_news>\n{news_block}\n<end_of_news>\n\n"
-                    "### StockTwits messages — retail-trader social platform indexed by cashtag\n"
-                    "Fast-moving signal. Each message carries a user-labeled sentiment tag (Bullish / Bearish / no-label) plus the message body.\n\n"
+                    "StockTwits messages — retail-trader social platform indexed by cashtag\n"
                     "<start_of_stocktwits>\n{stocktwits_block}\n<end_of_stocktwits>\n\n"
-                    "### Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)\n"
-                    "Community discussion. Engagement signal via upvote score and comment count. Subreddit character matters (r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term).\n\n"
+                    "Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)\n"
                     "<start_of_reddit>\n{reddit_block}\n<end_of_reddit>\n\n"
-                    "## How to analyze this data (best practices)\n\n"
-                    "1. **Read the StockTwits Bullish/Bearish ratio as a leading retail-sentiment signal.** A 70/30 bullish/bearish split is moderately bullish; ≥90/10 may indicate over-extension and contrarian risk; 50/50 is uncertainty. Sample size matters — base rates on the actual message count, not percentages alone.\n\n"
-                    "2. **Look for cross-source divergences.** If news framing is bearish but StockTwits is overwhelmingly bullish, that mismatch is itself a signal — it can mean retail is leaning into a thesis the news flow hasn't caught up to (or vice versa, that retail is chasing while institutions are cautious).\n\n"
-                    "3. **Weight Reddit posts by engagement.** A 400-upvote / 200-comment thread reflects community attention; a 3-upvote post is noise. Read the body excerpts for context — the title alone often misleads.\n\n"
-                    "4. **Distinguish opinion from event.** A news headline (\"Nvidia announces $500M Corning deal\") is an event; a StockTwits post (\"buying NVDA, this is going to moon\") is opinion. Both are inputs but should be weighted differently in your conclusions.\n\n"
-                    "5. **Identify recurring narrative themes.** What topic keeps coming up across sources? That's the dominant narrative driving current sentiment.\n\n"
-                    "6. **Be honest about data limits.** If StockTwits returned only a handful of messages, or one or more sources returned an \"<unavailable>\" placeholder, the sentiment read is less robust — flag this caveat explicitly. If the sources are silent on a given subreddit, say so.\n\n"
-                    "7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc.\n\n"
-                    "8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.\n\n"
-                    "## Output\n\n"
-                    "Produce a sentiment report covering, in order:\n\n"
-                    "1. **Overall sentiment direction** — Bullish / Bearish / Neutral / Mixed — with a brief confidence note based on data quality and sample size.\n"
-                    "2. **Source-by-source breakdown** — what each of news / StockTwits / Reddit is telling you, with specific evidence (cite message counts, ratios, notable posts).\n"
-                    "3. **Divergences, alignments, and key narratives** across sources.\n"
-                    "4. **Catalysts and risks** surfaced by the data.\n"
-                    "5. **Markdown table** at the end summarizing key sentiment signals, their direction, source, and supporting evidence.",
+                    "Use the pre-fetched data to produce a comprehensive sentiment report with source-by-source evidence, divergences, catalysts, risks, and a final markdown table.",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -124,10 +103,16 @@ def create_sentiment_analyst(llm):
     return sentiment_analyst_node
 
 
-def _build_system_message(llm) -> str:
+def _build_system_message() -> str:
     """Build the static sentiment-analyst system message."""
     return (
-        "You are a helpful AI assistant, collaborating with other assistants."
+        "You are a financial market sentiment analyst."
+        " Analyze the provided data sources carefully and write a balanced, evidence-based report."
+        " Read StockTwits sentiment as a leading retail signal, look for cross-source divergences,"
+        " weight Reddit by engagement, distinguish opinion from event, identify recurring narratives,"
+        " flag data limits honestly, and surface catalysts and risks."
+        " Produce the report in this order: overall sentiment direction, source-by-source breakdown,"
+        " divergences and key narratives, catalysts and risks, and a markdown table summary."
         " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
         " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
         + get_language_instruction()
