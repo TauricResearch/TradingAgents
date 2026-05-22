@@ -84,24 +84,12 @@ def create_sentiment_analyst(llm):
                     "human",
                     "Today's date is {current_date}; treat it as 'now' for all analysis.\n"
                     "Instrument context: {instrument_context}\n"
-                    "Analysis context:\n"
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    # No tool-calling here: the data is pre-fetched into the
-                    # prompt, so tool-range wording would only invite a
-                    # hallucinated tool call (#1130).
-                    " " + NO_EXTERNAL_TOOLS +
-                    "\n\n"
-                    "## Data sources (pre-fetched, in this prompt)\n\n"
-                    "### News headlines — Yahoo Finance, past 7 days\n"
-                    "Institutional framing. Fact-driven, slower-moving signal.\n\n"
+                    "Pre-fetched data:\n\n"
+                    "News headlines — Yahoo Finance, past 7 days\n"
                     "<start_of_news>\n{news_block}\n<end_of_news>\n\n"
-                    "### StockTwits messages — retail-trader social platform indexed by cashtag\n"
-                    "Fast-moving signal. Each message carries a user-labeled sentiment tag (Bullish / Bearish / no-label) plus the message body.\n\n"
+                    "StockTwits messages — retail-trader social platform indexed by cashtag\n"
                     "<start_of_stocktwits>\n{stocktwits_block}\n<end_of_stocktwits>\n\n"
-                    "### Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)\n"
-                    "Community discussion. Engagement signal via upvote score and comment count. Subreddit character matters (r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term).\n\n"
+                    "Reddit posts — r/wallstreetbets, r/stocks, r/investing (past 7 days)\n"
                     "<start_of_reddit>\n{reddit_block}\n<end_of_reddit>\n\n"
                     "Use these sources to fill the structured sentiment-report fields.",
                 ),
