@@ -285,6 +285,36 @@ trading:
 analyze:
     source .venv/bin/activate && python scripts/py/analyze_stream.py 'SPY' --date today --debates 1
 
+# Markov regime detection: state, transition matrix, and trading signal
+[group("run")]
+regime TICKER="AAPL":
+    bun run src/cli/main.ts regime {{ TICKER }}
+
+# Regime analysis + persist to DB
+[group("run")]
+regime-store TICKER="AAPL":
+    bun run src/cli/main.ts regime {{ TICKER }} --store
+
+# Regime analysis with N-day forecast (e.g. DAYS=2)
+[group("run")]
+regime-forecast TICKER="AAPL" DAYS="2":
+    bun run src/cli/main.ts regime {{ TICKER }} --forecast {{ DAYS }}
+
+# Regime analysis as JSON (for scripting)
+[group("run")]
+regime-json TICKER="AAPL":
+    bun run src/cli/main.ts regime {{ TICKER }} --json
+
+# Full regime pipeline: compute + forecast + persist
+[group("run")]
+regime-full TICKER="AAPL" DAYS="2":
+    bun run src/cli/main.ts regime {{ TICKER }} --store --forecast {{ DAYS }}
+
+# Run Markov regime detection unit tests
+[group("bun")]
+markov-test:
+    bun --tsconfig=tsconfig.server.json -e "import { runAllTests, smokeTest } from './src/server/lib/markov/index.ts'; runAllTests(); smokeTest();"
+
 # ── Database ───────────────────────────────────────────────────────────────
 #   Backup, restore, and maintenance.
 
