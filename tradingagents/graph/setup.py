@@ -20,6 +20,7 @@ class GraphSetup:
         deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
+        structured_output_cache: Dict[str, str],
         analyst_concurrency_limit: int = 1,
     ):
         """Initialize with required components."""
@@ -27,6 +28,7 @@ class GraphSetup:
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
+        self.structured_output_cache = structured_output_cache
         self.analyst_concurrency_limit = analyst_concurrency_limit
 
     def setup_graph(
@@ -56,14 +58,23 @@ class GraphSetup:
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(self.quick_thinking_llm)
         bear_researcher_node = create_bear_researcher(self.quick_thinking_llm)
-        research_manager_node = create_research_manager(self.deep_thinking_llm)
-        trader_node = create_trader(self.quick_thinking_llm)
+        research_manager_node = create_research_manager(
+            self.deep_thinking_llm,
+            cache=self.structured_output_cache,
+        )
+        trader_node = create_trader(
+            self.quick_thinking_llm,
+            cache=self.structured_output_cache,
+        )
 
         # Create risk analysis nodes
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        portfolio_manager_node = create_portfolio_manager(self.deep_thinking_llm)
+        portfolio_manager_node = create_portfolio_manager(
+            self.deep_thinking_llm,
+            cache=self.structured_output_cache,
+        )
 
         # Create workflow
         workflow = StateGraph(AgentState)

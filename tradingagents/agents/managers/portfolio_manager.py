@@ -21,7 +21,7 @@ from tradingagents.agents.utils.structured import (
 )
 
 
-def create_portfolio_manager(llm):
+def create_portfolio_manager(llm, cache=None):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
@@ -69,6 +69,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts.{
             prompt,
             render_pm_decision,
             "Portfolio Manager",
+            cache=cache,
         )
 
         new_risk_debate_state = {

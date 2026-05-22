@@ -17,7 +17,7 @@ from tradingagents.agents.utils.structured import (
 )
 
 
-def create_trader(llm):
+def create_trader(llm, cache=None):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
     def trader_node(state, name):
@@ -55,6 +55,7 @@ def create_trader(llm):
             messages,
             render_trader_proposal,
             "Trader",
+            cache=cache,
         )
 
         return {
