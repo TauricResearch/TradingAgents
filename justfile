@@ -235,7 +235,7 @@ wt-delete NAME:
 #   S08 brief: agent scripts archived. Use 'td --help' for task management.
 #   (agent-*.ts scripts moved to archive/)
 
-# Orientation: branch, git status, last commit, in-flight tasks
+# Orientation: branch, git status, last commit, in-flight tasks, and upstream PR status
 [group("agent")]
 orient:
     #!/usr/bin/env bash
@@ -248,6 +248,11 @@ orient:
     last=$(git log -1 --format="%cr (%ci)" 2>/dev/null || echo "unknown")
     echo "Last commit: $last"
     echo ""
+    if command -v gh &> /dev/null; then
+        echo "=== UPSTREAM PR STATUS ==="
+        gh pr status 2>/dev/null | sed 's/^/  /' || echo "  (gh query failed/unauthenticated)"
+        echo ""
+    fi
     td current 2>/dev/null | head -5 || true
     echo ""
     td list --status in_progress 2>/dev/null | grep -E "^  td-" | head -10 || echo "  (no in-progress tasks)"

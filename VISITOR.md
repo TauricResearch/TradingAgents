@@ -1,141 +1,71 @@
-# TradingAgents — Visitor Orientation
+# TradingAgents — Visitor & Auditor Orientation
 
-> **Boot time:** ~60 seconds. Read this file, run the commands at the bottom.
-
----
-
-## What This Does
-
-**Multi-agent LLM trading framework** with a web dashboard. Python core (`tradingagents/` package) wrapped by a Bun/Hono server. The dashboard never forks or modifies the core — communication is via subprocess bridge only.
-
-```
-Core (Python)              Bridge (JSON lines)           Dashboard (Bun/Hono)
-─────────────              ───────────────────           ───────────────────
-TradingAgentsGraph  ──►  scripts/py/analyze_stream.py  ──►  SSE → browser
-                         (stdout: JSON lines only)
-```
+> **Boot Time:** ~30 seconds. This guide is tailored for AI agents, review substrates, and developers visiting the workspace to perform self-directed reviews, audits, or code explorations.
 
 ---
 
-## Critical Files (Don't Break)
+## 1. Single Source of Truth (SSOT)
 
-| File | Why protected |
-|------|---------------|
-| `justfile` | Quality gate — `just check` enforces biome + tsc + DB validation |
-| `biome.json` | Malformation kills all linting |
-| `tsconfig.server.json` | Wrong paths break type checking silently |
-| `src/server/lib/db.ts` | `DatabaseFactory` — enforces WAL mode + pragmas for all SQL |
-| `src/server/lib/schema.sql` | Schema drift corrupts data |
-| `pyproject.toml` | Dependency tree corruption breaks the pipeline |
+All project rules, coding standards, database conventions, and file-protection guidelines are declared strictly in [AGENTS.md](file:///Users/petersmith/dev/github/tradingagents/AGENTS.md). 
 
-**Rules:**
-- Database → use `DatabaseFactory.get()`, never `new Database()`
-- Frontend → HTMX + SSR only. No SPA frameworks.
-- Python bridge → JSON lines only. No Rich, no ANSI.
+> [!IMPORTANT]
+> **Do not duplicate rules:** To prevent documentation drift, always reference [AGENTS.md](file:///Users/petersmith/dev/github/tradingagents/AGENTS.md) as the authoritative reference for:
+> - Hard rules (e.g. `DatabaseFactory` only, absolute PR-merge constraints)
+> - Critical protected files (e.g. `schema.sql`, `justfile`, Hono database layers)
+> - Language boundaries (Python 3.13 langgraph core vs. Bun/TypeScript dashboard)
 
 ---
 
-## Language Boundary
+## 2. Exploring the Workspace
 
-| System | Language | Boundary |
-|--------|----------|----------|
-| `tradingagents/` core | Python 3.13 | **Never modify** |
-| `src/cli/main.py` | Python | Allowed |
-| `scripts/py/analyze_stream.py` | Python | Bridge only — JSON lines, no Rich |
-| Everything else | TypeScript (Bun) | Dashboard, tooling, scripts |
+This repository is self-indexing. To locate files, verify endpoints, or trace architectural history, read these indexing registries:
 
----
+| Registry / Index | Purpose | Target Format |
+|------------------|---------|---------------|
+| [code/INDEX.jsonl](file:///Users/petersmith/dev/github/tradingagents/code/INDEX.jsonl) | CLI & server command registry | JSON Lines mapping commands to files |
+| [playbooks/REGISTRY.jsonl](file:///Users/petersmith/dev/github/tradingagents/playbooks/REGISTRY.jsonl) | System playbooks registry | Master index of development guides |
+| [debriefs/INDEX.jsonl](file:///Users/petersmith/dev/github/tradingagents/debriefs/INDEX.jsonl) | Retrospective history index | Historical debriefs from past sessions |
+| [briefs/INDEX.jsonl](file:///Users/petersmith/dev/github/tradingagents/briefs/INDEX.jsonl) | System tasks and briefs index | Completed and active task briefs |
 
-## Architecture in One Paragraph
-
-**Python core:** LangGraph workflow with specialized LLM agents (Analyst Team → Research Team [Bull/Bear debate] → Trader → Risk Management → Portfolio Manager).
-
-**Bun server:** 11-tab dashboard, HTMX + JSX SSR, SQLite via `DatabaseFactory`, hLedger as authoritative source for positions.
-
-**Bridge:** `scripts/py/analyze_stream.py` writes JSON lines to stdout. Bun reads and streams as SSE events (`start`, `agent_report`, `debate_round`, `decision`, `complete`, `error`).
-
-**Persistence layers:** SQLite (signals, analyses, watchlist) → hLedger (positions, cash) → memory log (decision history) → YAML exit plans.
+For a high-level conceptual diagram and architectural design, consult [ARCHITECTURE.md](file:///Users/petersmith/dev/github/tradingagents/ARCHITECTURE.md).
 
 ---
 
-## Active Conventions (Highlight)
+## 3. Workflow & Task Gating
 
-| Convention | Reason |
-|------------|--------|
-| `justfile` lowercase | Formatter compatibility |
-| `.tsx` for JSX files | Biome parser requirement |
-| `Bun.spawn` over `execSync` | Streaming support, no quoting bugs |
-| No `new Database()` | Factory enforces WAL + consistency |
-| 30-file PR cap | Reviewable, bisectable |
-| One commit per logical change | Revert is fast; forward-fix is slow |
+We use a local task database CLI (`td`) to track session states and claim issues:
 
-Full list: `playbooks/conventions-playbook.md`
+- `just orient` — Check current branch, status, and active tasks.
+- `td usage --new-session` — Register your current session identity on boot.
+- `td next` — Locate the highest priority open task.
+- `td start <task-id>` — Claim and start working on a task.
+- `td review <task-id>` — Request review once complete.
+
+*Full workflow details: [playbooks/td-playbook.md](file:///Users/petersmith/dev/github/tradingagents/playbooks/td-playbook.md)*
 
 ---
 
-## Workflow (td-based)
+## 4. Current Context Diagnostics
+
+Run the following commands to inspect the live status of the workspace:
 
 ```bash
-just orient           # git status, branch, last commit
-td usage --new-session # register session
-td next               # pick up highest priority issue
-```
-
-For multi-issue work:
-```bash
-td ws start "name"    # open work session
-td ws tag <ids>       # claim issues
-```
-
-On session end:
-```bash
-td handoff <id>       # capture state (REQUIRED)
-```
-
-Full protocol: `playbooks/td-playbook.md`
-
----
-
-## Current Context
-
-```bash
-# Run these to see live state:
+# Verify active branch and last commit
 echo "=== BRANCH ===" && git branch --show-current
 echo "=== LAST COMMIT ===" && git log -1 --oneline
+
+# View open issues and review statuses in the td tracker
 echo "=== OPEN ISSUES ===" && td list --json 2>/dev/null | jq '.issues[] | select(.status == "open") | .title' 2>/dev/null || echo "(td not available)"
 echo "=== IN REVIEW ===" && td reviewable 2>/dev/null || echo "(td not available)"
 ```
 
-**Quick reference:**
-
-| What's open | What needs review |
-|-------------|-------------------|
-| Run `td next` | Run `td reviewable` |
-
 ---
 
-## If You Get Stuck
+## 5. Auditor / Explorer Onboarding Checklist
 
-1. **Check for barnacles** — `playbooks/conventions-playbook.md` → Barnacle Inspection Prompt
-2. **Architecture questions** → `ARCHITECTURE.md` is the single source of truth
-3. **DB issues** → Use `DatabaseFactory` only; check `schema.sql`
-4. **Python bridge** → `scripts/py/analyze_stream.py` is the only Bun↔Python path
+If you are starting a self-directed audit or exploration session, execute these steps:
 
----
-
-## First Session Commands
-
-```bash
-# Orientation
-just orient
-git fetch origin
-
-# Register session
-td usage --new-session
-
-# Check for barnacles
-cat playbooks/conventions-playbook.md | grep -A 30 "Barnacle Inspection Prompt"
-
-# Start working
-td next
-```
+1. **Orient:** Run `just orient` to see the current git status and branch.
+2. **Verify Integrity:** Run `just check` to ensure all type-checkers, lints, and database checks are passing cleanly.
+3. **Register:** Run `td usage --new-session` to configure your session context.
+4. **Scan Registries:** Explore [code/INDEX.jsonl](file:///Users/petersmith/dev/github/tradingagents/code/INDEX.jsonl) and [playbooks/REGISTRY.jsonl](file:///Users/petersmith/dev/github/tradingagents/playbooks/REGISTRY.jsonl) to trace current components and architectural playbooks.

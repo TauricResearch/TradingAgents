@@ -47,3 +47,4 @@
 {"file":"reviews/review-td-f42750.md","date":"2026-05-08","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"session-prompt-holdings-jsx.md","date":"2026-05-05","status":"done","summary":"Next session prompt: complete Holdings JSX refactor with external script extraction","meta":{"epic":"td-8dd762","adr":null,"session":null}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{"template":true}}
+{"file":"debrief-orientation-procedures-2026-05-22.md","date":"2026-05-22","status":"done","summary":"Orientation review: analyzed orientation gaps, identified remote PR merge delinquency, and planned pre-push / upstream status alignment","meta":{"epic":"td-6731ce","session":"ses_ab6c57"}}

@@ -10,6 +10,7 @@
 - **NEVER run git clean, rm -rf, or destructive shell commands** without explicit user permission
 - **NEVER modify AGENTS.md** without explicit user authorization
 - **ALWAYS ask** before modifying or removing user data
+- **NEVER push directly to remote \`main\`** — all updates to upstream remote \`main\` must strictly be merged through approved GitHub Pull Requests (PRs). Local merges to \`main\` are only permitted for local checking/validation.
 
 ## CRITICAL FILES
 
@@ -77,6 +78,7 @@ Two systems, one codebase:
 - **Commit cadence.** One logical change per commit. If checks fail: revert first, diagnose second.
 - **30-file PR cap.** If diff exceeds 30 files, split. Stack branches, don't bundle.
 - **Pre-PR gates:** `just check` green → semantic review → docs check.
+- **GitHub PR Integration:** Push features to remote branch, create PR, wait for server-side reviews and CI checks, and merge via GitHub PR only. Never merge locally and push to remote \`main\`. See [git-workflow-playbook.md](file:///Users/petersmith/dev/github/tradingagents/playbooks/git-workflow-playbook.md).
 
 Detailed conventions: `playbooks/conventions-playbook.md`
 Detailed TD protocol: `playbooks/td-playbook.md`

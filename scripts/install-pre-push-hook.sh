@@ -12,14 +12,42 @@ HOOK_FILE="${HOOK_DIR}/pre-push"
 
 cat > "${HOOK_FILE}" << 'HOOK'
 #!/bin/bash
-# Pre-push hook: regenerate GitNexus diagrams if pushed commits change source files.
+# Pre-push hook:
+# 1. Prevent direct pushes to main branch
+# 2. Regenerate GitNexus diagrams if pushed commits change source files.
 #
 # The hook receives pushed refs on stdin:
 #   <local_ref> <local_sha> <remote_ref> <remote_sha>
 
+# Branch protection configuration
+protected_branch="main"
+
 HAS_SOURCE_CHANGES=false
 
+# Store refs in an array to process multiple times if needed
+refs=()
 while read -r local_ref local_sha remote_ref remote_sha; do
+    refs+=("$local_ref $local_sha $remote_ref $remote_sha")
+done
+
+# Step 1: Enforce branch protection check
+for ref_line in "${refs[@]}"; do
+    read -r local_ref local_sha remote_ref remote_sha <<< "$ref_line"
+    
+    # Check if target remote ref is refs/heads/main
+    if [ "$remote_ref" = "refs/heads/$protected_branch" ]; then
+        echo ""
+        echo "❌ ERROR: Direct pushes to '$protected_branch' are forbidden on this repository!"
+        echo "   Please create a feature branch, push it, and merge via GitHub Pull Request."
+        echo ""
+        exit 1
+    fi
+done
+
+# Step 2: Determine if source files changed for diagram regeneration
+for ref_line in "${refs[@]}"; do
+    read -r local_ref local_sha remote_ref remote_sha <<< "$ref_line"
+
     # Skip empty or deleted refs
     [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
     [ "$remote_sha" = "0000000000000000000000000000000000000000" ] && remote_sha=""
@@ -76,5 +104,7 @@ HOOK
 chmod +x "${HOOK_FILE}"
 echo "Installed pre-push hook to: ${HOOK_FILE}"
 echo ""
-echo "This hook will auto-regenerate GitNexus diagrams on every push"
-echo "where source files have changed in the commits being pushed."
+echo "This hook will:"
+echo " 1. Block direct pushes to the 'main' branch to protect the repository."
+echo " 2. Auto-regenerate GitNexus diagrams on every push where source files change."
+
