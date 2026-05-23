@@ -261,10 +261,12 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
-    # Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
-    # (convention from the broader Ollama ecosystem); falls back to the
-    # localhost default when unset.
-    ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    # Resolve local-runtime URLs through the same function the LLM client uses
+    # so default values and env-var overrides live in exactly one place.
+    # Imported lazily to avoid pulling langchain_openai into CLI startup.
+    from tradingagents.llm_clients.openai_client import resolve_provider_base_url
+    ollama_url = resolve_provider_base_url("ollama")
+    lmstudio_url = resolve_provider_base_url("lmstudio")
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
@@ -278,6 +280,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
+        ("LM Studio", "lmstudio", lmstudio_url),
     ]
 
     choice = questionary.select(
@@ -449,7 +452,7 @@ def confirm_ollama_endpoint(url: str) -> None:
 
     Surfaces three things the user benefits from seeing before model
     selection: which URL we'll actually hit, where it came from
-    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    (OLLAMA_BASE_URL vs default), and a soft warning if the URL is
     missing the scheme/port that ollama-serve expects. The warning is
     advisory only — we don't reject malformed input, since the user may
     be doing something deliberately unusual (e.g. a reverse-proxy path).
@@ -470,6 +473,31 @@ def confirm_ollama_endpoint(url: str) -> None:
         console.print(
             f"[yellow]Note: {url!r} doesn't include port 11434. "
             f"Make sure your remote ollama-serve listens on the port "
+            f"shown above.[/yellow]"
+        )
+
+
+def confirm_lmstudio_endpoint(url: str) -> None:
+    """Show the resolved LM Studio endpoint after provider selection.
+
+    Mirrors confirm_ollama_endpoint: surfaces the URL, its origin
+    (LMSTUDIO_BASE_URL vs default), and soft warnings for missing scheme
+    or unexpected port. LM Studio's default server port is 1234.
+    """
+    from_env = os.environ.get("LMSTUDIO_BASE_URL")
+    origin = " (from LMSTUDIO_BASE_URL)" if from_env and from_env == url else ""
+    console.print(f"[green]✓ Using LM Studio at {url}{origin}[/green]")
+
+    if not url.startswith(("http://", "https://")):
+        console.print(
+            f"[yellow]Note: {url!r} is missing a scheme. "
+            f"LM Studio typically expects a URL like "
+            f"http://<host>:1234/v1.[/yellow]"
+        )
+    elif ":1234" not in url and "://localhost" not in url and "://127.0.0.1" not in url:
+        console.print(
+            f"[yellow]Note: {url!r} doesn't include port 1234. "
+            f"Make sure your LM Studio server listens on the port "
             f"shown above.[/yellow]"
         )
 

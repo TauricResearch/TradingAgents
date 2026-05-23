@@ -1,6 +1,7 @@
 """Shared pytest fixtures that prevent CI hangs when API keys are absent."""
 
 import os
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,6 +34,29 @@ _API_KEY_ENV_VARS = (
 def _dummy_api_keys(monkeypatch):
     for env_var in _API_KEY_ENV_VARS:
         monkeypatch.setenv(env_var, os.environ.get(env_var, "placeholder"))
+
+
+@pytest.fixture()
+def stub_questionary(monkeypatch):
+    """Inject a questionary stub so cli.utils can be imported/reloaded in any env.
+
+    Returns the MagicMock so tests can configure ``.select.return_value`` and
+    inspect ``.select.call_args_list``.  ``questionary.Choice`` is wired up to
+    record its ``(label, value)`` constructor args as plain attributes so tests
+    can inspect the choices passed to the provider dropdown without depending
+    on questionary's internal repr.
+    """
+    mock_q = MagicMock()
+
+    class _Choice:
+        """Minimal questionary.Choice stand-in that exposes .value."""
+        def __init__(self, label, value=None):
+            self.label = label
+            self.value = value
+
+    mock_q.Choice.side_effect = _Choice
+    monkeypatch.setitem(sys.modules, "questionary", mock_q)
+    return mock_q
 
 
 @pytest.fixture()

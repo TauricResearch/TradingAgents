@@ -24,7 +24,7 @@ def test_every_select_llm_provider_choice_has_an_entry():
         "qwen", "qwen-cn",
         "glm", "glm-cn",
         "minimax", "minimax-cn",
-        "openrouter", "azure", "ollama",
+        "openrouter", "azure", "ollama", "lmstudio",
     }
     assert expected.issubset(PROVIDER_API_KEY_ENV.keys())
 

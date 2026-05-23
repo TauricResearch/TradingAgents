@@ -153,6 +153,24 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
+    # LM Studio: model IDs are set by the loaded model inside LM Studio.
+    # Labels omit a "local" marker since LMSTUDIO_BASE_URL lets users point
+    # at a non-localhost server. "Custom model ID" lets users enter the exact
+    # identifier shown in their LM Studio server tab.
+    "lmstudio": {
+        "quick": [
+            ("Llama 3.2 3B Instruct", "meta-llama-3.2-3b-instruct"),
+            ("Phi 4 Mini Instruct (3.8B)", "phi-4-mini-instruct"),
+            ("Qwen 2.5 7B Instruct", "qwen2.5-7b-instruct"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Llama 3.3 70B Instruct", "meta-llama-3.3-70b-instruct"),
+            ("Qwen 2.5 72B Instruct", "qwen2.5-72b-instruct"),
+            ("Mistral Small 22B Instruct", "mistral-small-22b-instruct-2409"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels
