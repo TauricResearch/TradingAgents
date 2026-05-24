@@ -24,12 +24,12 @@ The codebase uses `TEST_MODE=1` to switch from LIVE to TEST:
 
 ```bash
 # LIVE mode (default)
-bun run server/index.tsx           # uses portfolio.db
+bun run src/server/index.tsx      # uses portfolio.db
 bun scripts/seed_database.ts        # seeds portfolio.db
 just trading AAPL                   # uses portfolio.db
 
 # TEST mode
-TEST_MODE=1 bun run server/index.tsx   # uses test_portfolio.db
+TEST_MODE=1 bun run src/server/index.tsx  # uses test_portfolio.db
 TEST_MODE=1 bun scripts/seed_database.ts --db ./test_portfolio.db
 ```
 
@@ -84,7 +84,7 @@ cp backups/portfolio-2026-05-07-09-15-00.db portfolio.db
 cp backups/test_portfolio-2026-05-07-09-15-00.db test_portfolio.db
 
 # Restart server
-bun run server/index.tsx
+bun run src/server/index.tsx
 ```
 
 ---
@@ -95,7 +95,7 @@ bun run server/index.tsx
 
 1. **All new features start in TEST mode**
    ```bash
-   TEST_MODE=1 bun run server/index.tsx
+   TEST_MODE=1 bun run src/server/index.tsx
    # Verify feature works with test data
    ```
 
@@ -107,7 +107,7 @@ bun run server/index.tsx
 3. **Only verified features touch LIVE database**
    ```bash
    # After tests pass, run in LIVE mode
-   bun run server/index.tsx
+   bun run src/server/index.tsx
    ```
 
 ### Rule: Never Mix Data
@@ -152,7 +152,7 @@ just backups-list
 cp backups/portfolio-2026-05-07-09-15-00.db portfolio.db
 
 # 4. Restart
-bun run server/index.tsx
+bun run src/server/index.tsx
 ```
 
 ### Scenario 2: Corrupted TEST database
@@ -196,8 +196,8 @@ Before any database-modifying operation:
 | Backup TEST | `just backup-test` |
 | List backups | `just backups-list` |
 | Prune old backups | `just backups-prune 7` |
-| Start server (LIVE) | `bun run server/index.tsx` |
-| Start server (TEST) | `TEST_MODE=1 bun run server/index.tsx` |
+| Start server (LIVE) | `bun run src/server/index.tsx` |
+| Start server (TEST) | `TEST_MODE=1 bun run src/server/index.tsx` |
 | Reset TEST DB | `TEST_MODE=1 bash scripts/init-test-db.sh --reset` |
 | Seed TEST DB | `TEST_MODE=1 bun scripts/seed_database.ts` |
 | Check DB path | `sqlite3 portfolio.db "PRAGMA database_list"` |

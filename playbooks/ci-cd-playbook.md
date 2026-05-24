@@ -164,8 +164,8 @@ Edit `.tradingagents/gitnexus-diagrams.json`:
     {"name": "NewSymbol", "depth": 1}
   ],
   "files": [
-    "server/index.tsx",
-    "cli/trading/main.ts"
+    "src/server/index.tsx",
+    "src/cli/trading/main.ts"
   ]
 }
 ```

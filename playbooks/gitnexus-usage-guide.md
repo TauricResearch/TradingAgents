@@ -152,8 +152,8 @@ gitnexus cypher "
 **Expected result:**
 ```
 | f.name              | f.filePath                        |
-| calculateTradePlan  | server/lib/trade-calculator.ts    |
-| calculateATR        | server/lib/trade-calculator.ts    |
+| calculateTradePlan  | src/server/lib/trade-calculator.ts    |
+| calculateATR        | src/server/lib/trade-calculator.ts    |
 | getPlatform         | cli/trading/lib/platforms.ts      |
 | validateMode        | cli/trading/lib/platforms.ts      |
 | ...                 | ...                               |
@@ -203,7 +203,7 @@ gitnexus impact getPlatform
 
 **Step 2: Check for hardcoded platform names**
 ```bash
-grep -r "ig\|ajbell\|aviva\|nsandi" cli/trading server/routes tests/ \
+grep -r "ig\|ajbell\|aviva\|nsandi" src/cli/ src/server/routes tests/ \
   --include="*.ts" --include="*.tsx"
 # → Find all references to update
 ```

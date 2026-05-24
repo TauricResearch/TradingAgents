@@ -145,8 +145,8 @@ Peak is 12 (`parse_rating`, `render_diagrams:run`). Utility functions like `safe
 | File | Lines | Symbols | Why it's fine |
 |------|------:|--------:|---------------|
 | `cli/main.py` | 1221 | 156 | 125 are Typer command variables — structural, not complex. Split if it passes ~1500 lines. |
-| `server/index.tsx` | 183 | 81 | 34 route definitions + 32 file imports — route registry, correctly centralised. |
-| `server/lib/intel-compute.ts` | 416 | 73 | 66 consts — computation module, density is appropriate. |
+| `src/server/index.tsx` | 183 | 81 | 34 route definitions + 32 file imports — route registry, correctly centralised. |
+| `src/server/lib/intel-compute.ts` | 416 | 73 | 66 consts — computation module, density is appropriate. |
 | `tradingagents/agents/utils/agent_states.py` | 73 | 58 | TypedDict definitions — 58 symbols in 73 lines is just type declarations. |
 
 ### Cross-community flows

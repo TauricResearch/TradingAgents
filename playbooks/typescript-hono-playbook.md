@@ -13,8 +13,8 @@
 
 ## File extensions
 
-- `server/**/*.ts` — plain TypeScript (routes, lib utilities)
-- `server/**/*.tsx` — Hono route handlers that return JSX (SSR views)
+- `src/server/**/*.ts` — plain TypeScript (routes, lib utilities)
+- `src/server/**/*.tsx` — Hono route handlers that return JSX (SSR views)
 - `scripts/**/*.ts` — Bun scripts (run with `bun run scripts/...`)
 
 ---
@@ -25,10 +25,10 @@ These rules are enforced by `scripts/check-view-scripts.ts`. `just check` will f
 
 | Invariant | Enforcement |
 |---|---|
-| **No inline scripts in views** | `check-view-scripts.ts` scans `server/views/*.tsx` for `<script>` without `src`, `dangerouslySetInnerHTML`, and `function xxxScript()` |
-| **serveStatic locked to `./server/static`** | `check-view-scripts.ts` verifies `server/index.tsx` contains `root: "./server/static"` |
+| **No inline scripts in views** | `check-view-scripts.ts` scans `src/server/views/*.tsx` for `<script>` without `src`, `dangerouslySetInnerHTML`, and `function xxxScript()` |
+| **serveStatic locked to `./src/server/static`** | `check-view-scripts.ts` verifies `src/server/index.tsx` contains `root: "./src/server/static"` |
 | **HTML partials over JSON for display views** | Any view that just shows data must use `hx-get` to an `/api/.../html` route |
-| **Client JS only in `server/static/scripts/*.js`** | Interactivity that HTMX cannot handle goes in external files, loaded via `<script src>` |
+| **Client JS only in `src/server/static/scripts/*.js`** | Interactivity that HTMX cannot handle goes in external files, loaded via `<script src>` |
 
 **If `just check` fails, you cannot commit. Fix the view first.**
 
@@ -59,7 +59,7 @@ export function PositionsTable({ positions }: { positions: PositionRow[] }) {
 
 **Correct pattern — client-side JS (when HTMX can't handle it):**
 ```typescript
-// Put the JS in server/static/scripts/xxx.js, reference with <script src>
+// Put the JS in src/server/static/scripts/xxx.js, reference with <script src>
 export function AnalysisView() {
   return (
     <>
@@ -246,7 +246,7 @@ return c.html(<div class="error-card"><strong>Error</strong><br />{(e as Error).
 
 ## Database — DatabaseFactory only
 
-All SQLite access goes through `server/lib/db.ts` → `DatabaseFactory`.
+All SQLite access goes through `src/server/lib/db.ts` → `DatabaseFactory`.
 - Never use `new Database()` directly
 - Always `parseFloat()` on SQLite REAL columns
 
@@ -279,5 +279,5 @@ just lint-fix
 tsc --project tsconfig.server.json --noEmit
 
 # Server port (default 3000)
-TA_DASHBOARD_PORT=3000 bun run server/index.tsx
+TA_DASHBOARD_PORT=3000 bun run src/server/index.tsx
 ```

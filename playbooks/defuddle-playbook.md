@@ -131,6 +131,21 @@ Defuddle's `useAsync: true` (default) fetches from third-party APIs
 when no server-rendered content is found (e.g., Twitter/X via FxTwitter API).
 Set `useAsync: false` to disable this fallback.
 
+### PR Review Feedback Loop & Private Repositories
+
+When using `defuddle` to extract pull request reviews and comments (e.g., to feed CodeRabbit or Qodo feedback back to agent sessions), pay attention to repository visibility:
+
+- **Public Repositories:** You can safely pull comments directly via the hosted endpoint:
+  ```bash
+  curl defuddle.md/https://github.com/pjsvis/TradingAgents/pull/28
+  ```
+- **Private Repositories:** The hosted `defuddle.md` endpoint has no access to private repositories and will return `404` or redirect to login. In these cases, use the local **`gh` CLI** as a native authenticated fallback to pull comments into your workspace:
+  ```bash
+  # Fetch all PR review comments in markdown-friendly format
+  gh pr view <pr-number> --comments > scratch/pr-<pr-number>-review.md
+  ```
+
+
 ### Forcing Content Area
 
 If auto-detection picks the wrong content, use `contentSelector`:

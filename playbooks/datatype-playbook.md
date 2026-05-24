@@ -7,7 +7,7 @@
 ## Font File
 
 ```
-server/static/fonts/Datatype.woff2  (82 KB, variable font)
+src/server/static/fonts/Datatype.woff2  (82 KB, variable font)
 ```
 
 **Must be the variable font.** The static woff2 from Fontsource has no GSUB table and will not render charts.
@@ -61,7 +61,7 @@ Every element that contains Datatype expressions **must** have:
 
 ## JSX Component
 
-`server/views/datatype.tsx` provides a typed helper:
+`src/server/views/datatype.tsx` provides a typed helper:
 
 ```tsx
 import { DatatypeChart } from "./views/datatype.tsx";
@@ -149,7 +149,7 @@ See `briefs/datatype-sparklines.md` for full implementation plan.
 cd /Users/petersmith/Dev/GitHub/TradingAgents
 .venv/bin/python3 -c "
 from fontTools.ttLib import TTFont
-f = TTFont('server/static/fonts/Datatype.woff2')
+f = TTFont('src/server/static/fonts/Datatype.woff2')
 print('GSUB:', 'GSUB' in f)
 print('calt:', 'calt' in [r.FeatureTag for r in f['GSUB'].table.FeatureList.FeatureRecord])
 print('Glyphs:', f['maxp'].numGlyphs)  # Should be ~10,850
@@ -163,7 +163,7 @@ print('Glyphs:', f['maxp'].numGlyphs)  # Should be ~10,850
 cd /tmp && rm -rf datatype
 git clone --depth 1 https://github.com/franktisellano/datatype.git
 cp datatype/fonts/variable/Datatype\[wdth,wght\].woff2 \
-  /path/to/TradingAgents/server/static/fonts/Datatype.woff2
+  /path/to/TradingAgents/src/server/static/fonts/Datatype.woff2
 ```
 
 ## Limitations

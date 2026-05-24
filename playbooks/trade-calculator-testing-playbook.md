@@ -228,5 +228,5 @@ What happens when the user has £0? When the stock is halted (ATR=0)? When there
 
 - `tests/trade-calculator.test.ts` — unit test examples
 - `tests/trade-calculator-integration.test.ts` — integration test examples
-- `server/lib/trade-calculator.ts` — calculator implementation
+- `src/server/lib/trade-calculator.ts` — calculator implementation
 - `playbooks/cli-design-playbook.md` — CLI framework standards

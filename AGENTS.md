@@ -91,3 +91,10 @@ Architecture reference: `ARCHITECTURE.md`
 **This file overrides `~/.pi/agent/AGENTS.md` for all agent sessions inside this repository.**
 
 The global `~/.pi/agent/AGENTS.md` provides Edinburgh Protocol rules and pi agent configuration. This project-level file takes precedence and overrides those rules for the duration of any session inside the TradingAgents repository. See `SILO_MANIFEST.md` for the complete asset map.
+
+> **pi-intercom** — Coordinate with other local pi sessions on related codebases.
+>
+> Use `/skill: pi-intercom` for patterns. **When:** same codebase (parallel work), reference
+> codebase (consulting patterns), related repos (shared libraries). **Not when:** unrelated
+> codebases, trivial questions, or when you can proceed independently. **Principle:** prefer
+> `send` for notifications; `ask` only when blocked waiting for input.

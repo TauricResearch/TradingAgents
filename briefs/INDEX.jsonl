@@ -17,8 +17,9 @@
 {"file":"2026-05-15-brief-watchlist-pattern-enrichment.md","date":"2026-05-15","status":"done","summary":"STL pattern features: 7 features from TIME benchmark, statsmodels STL + scipy FFT, --pattern flag on screen enrich","meta":{"epic":"WATCH-001","prs":["#23"]}}
 {"file":"2026-05-20-brief-markov-regime.md","date":"2026-05-20","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"2026-05-20-brief-twelvedata-integration.md","date":"2026-05-20","status":"done","summary":"Twelve Data API integration: US equity pricing via free tier, batch endpoint, yfinance fallback","meta":{"prs":["#26"]}}
-{"file":"2026-06-01-brief-bifrost-installation.md","date":"2026-06-01","status":"active","summary":"(auto-generated — add description)","meta":{}}
+{"file":"2026-05-23-brief-google-design-md.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"alerts-phase2.md","date":"2026-05-11","status":"done","summary":"ALERTS-PHASE2: SQLite alerts table, CRUD CLI, matching engine, Telegram dispatch, dashboard route","meta":{"epic":"td-cbb2e9"}}
+{"file":"archive/2026-06-01-brief-bifrost-installation.md","date":"2026-05-24","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-removal.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-barnacle-scraper-prompt.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"archive/barnacle-system-2026-05-11/2026-05-11-brief-reintegration-protocol.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -36,9 +37,11 @@
 {"file":"brief-harden-python-bridge-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Add timeout, heartbeat, and real-time streaming to the Python subprocess bridge","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-implement-pino-logging-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Replace scattered console.* calls with structured Pino logging system. Machine-parseable JSON, request-scoped logging, env-appropriate output."}
 {"file":"brief-justfile-overhaul-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Reduce justfile from 124 recipes/812 lines to ~60/~400: fix broken items, collapse reg/gn/agent groups, reorganize by domain, trim aliases","meta":{"epic":"architecture-hardening"}}
+{"file":"brief-orientation-alignment-2026-05-22.md","date":"2026-05-22","status":"active","summary":"Orientation alignment: consolidate VISITOR.md for audit agents, add upstream status to just orient, and implement git pre-push hook for main","meta":{"epic":"td-6731ce"}}
 {"file":"brief-portfolio-intelligence.md","date":"2026-05-02","status":"done","summary":"Unified Portfolio Intelligence: accounts, allocation bar, spread bets, cash breakdown","meta":{"epic":null}}
 {"file":"brief-remove-agent-ceremony-2026-05-14.md","date":"2026-05-14","status":"done","summary":"Replace the 5-file, 678-line agent coordination system with a minimal alternative","meta":{"epic":"architecture-hardening"}}
 {"file":"brief-static-assets-2026-05-05.md","date":"2026-05-05","status":"done","summary":"Static client-side scripts for dashboard: external JS files, HTMX partials","meta":{"epic":null}}
+{"file":"brief-stock-card-view-2026-05-21.md","date":"2026-05-21","status":"open","summary":"Stock card component: price + sparkline + indicator strip + scan signal + actions. Replaces table-based positions view with card grid.","meta":{"td":"td-904dd7","depends_on":"SCAN-001"}}
 {"file":"brief-trading-benchmark.md","date":"2026-05-08","status":"done","summary":"Trading Benchmark Command: compare portfolio returns vs passive benchmark index via `trading benchmark`","meta":{"epic":null}}
 {"file":"brief-trim-justfile-2026-05-14.md","date":"2026-05-14","status":"superseded","summary":"Reduce the justfile from 812 lines to ~400 by removing thin aliases and redundant recipes","meta":{"epic":"architecture-hardening"}}
 {"file":"datatype-sparklines.md","date":"2026-05-02","status":"done","summary":"DataType variable font integration for dashboard inline charts (sparklines, bars, pies)","meta":{"epic":null}}
@@ -50,6 +53,7 @@
 {"file":"epic-demo-execution-pipeline.md","date":"2026-05-10","status":"done","summary":"DEMO-EXEC-001: Wire analysis pipeline to IG demo execution — --yes, --dry-run, plan stop loss, analysis linkage, analyze --execute (all 5 stories closed)","meta":{"epic":"DEMO-EXEC-001","stories":["S01","S02","S03","S04","S05"]}}
 {"file":"epic-ig-api-validation.md","date":"2026-05-07","status":"done","summary":"IG API validation: test real order placement, connectivity config, instrument data","meta":{"epic":null}}
 {"file":"epic-script-migration.md","date":"2026-05-12","status":"done","summary":"Migrate trade-calculator.ts from scripts/ to src/lib/ — business logic belongs in the project, not the operational layer","meta":{"epic":"SCRIPTS-001"}}
+{"file":"epic-technical-indicators-scan.md","date":"2026-05-21","status":"open","summary":"SCAN-001: momentum mean-reversion scan engine — indicator library, CLI, DB layer. 6 entry gates + 3 exit triggers.","meta":{"epic":"SCAN-001","td":"td-e7284c"}}
 {"file":"epic-trade-calculator.md","date":"2026-05-07","status":"done","summary":"Strategic trade calculator: ATR-14, Fibonacci targets, position sizing, bracket orders","meta":{"epic":null}}
 {"file":"epic-unified-cli.md","date":"2026-05-07","status":"done","summary":"Unified Trading CLI with citty framework: plan command, platform config, IG integration","meta":{"epic":"td-d19b7c"}}
 {"file":"kpdf-local-brief.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
@@ -57,6 +61,3 @@
 {"file":"task-at-a-time-implementation.md","date":"2026-05-19","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"TEMPLATE.md","date":"2026-05-11","status":"active","summary":"(auto-generated — add description)","meta":{}}
 {"file":"upstream-issue-debate-state-logging.md","date":"2026-05-07","status":"done","summary":"Upstream issue: state log serialization omits debate counter fields in TradingAgents","meta":{"epic":null}}
-{"file":"epic-technical-indicators-scan.md","date":"2026-05-21","status":"open","summary":"SCAN-001: momentum mean-reversion scan engine — indicator library, CLI, DB layer. 6 entry gates + 3 exit triggers.","meta":{"epic":"SCAN-001","td":"td-e7284c"}}
-{"file":"brief-stock-card-view-2026-05-21.md","date":"2026-05-21","status":"open","summary":"Stock card component: price + sparkline + indicator strip + scan signal + actions. Replaces table-based positions view with card grid.","meta":{"td":"td-904dd7","depends_on":"SCAN-001"}}
-{"file":"brief-orientation-alignment-2026-05-22.md","date":"2026-05-22","status":"active","summary":"Orientation alignment: consolidate VISITOR.md for audit agents, add upstream status to just orient, and implement git pre-push hook for main","meta":{"epic":"td-6731ce"}}

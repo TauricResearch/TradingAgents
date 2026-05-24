@@ -91,7 +91,7 @@ Update prices manually or via `just hl-update-prices` (hLedger fetches from Yaho
 
 ## Dashboard Integration
 
-The server reads hLedger via `server/lib/hledger.ts`:
+The server reads hLedger via `src/server/lib/hledger.ts`:
 
 - `GET /api/holdings` → holdings (ticker, qty, cost basis) + cash balances
 - `GET /api/holdings/prices` → price history

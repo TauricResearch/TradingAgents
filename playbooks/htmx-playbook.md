@@ -7,9 +7,9 @@ Establish definitive standards for structuring server-rendered HTML views using 
 This playbook governs the structure of all HTML-returning endpoints and associated client-side assets. Compliance is enforced via build gates (`just check`).
 
 The architecture mandates a three-layer pattern for HTML-returning routes:
-1.  `server/lib/{route}-data.ts`: Data fetching, transformation, and caching logic.
-2.  `server/views/{component}.tsx`: Presentation-only JSX components.
-3.  `server/routes/{route}.tsx`: Thin route handlers wiring data to JSX and handling response type.
+1.  `src/server/lib/{route}-data.ts`: Data fetching, transformation, and caching logic.
+2.  `src/server/views/{component}.tsx`: Presentation-only JSX components.
+3.  `src/server/routes/{route}.tsx`: Thin route handlers wiring data to JSX and handling response type.
 
 ## Standards & Patterns
 
@@ -19,11 +19,11 @@ Always use the `.tsx` extension for route files that return JSX, even if they co
 
 ### 2. Data Extraction Before Presentation
 
-Always extract data-fetching and transformation logic into dedicated files within `server/lib/` before writing the corresponding JSX view component.
+Always extract data-fetching and transformation logic into dedicated files within `src/server/lib/` before writing the corresponding JSX view component.
 
 **Pattern:**
 ```typescript
-// server/lib/signals-data.ts
+// src/server/lib/signals-data.ts
 export async function fetchSignalsWithHistory(
   ticker: string | undefined,
   platform: string | undefined,
@@ -34,11 +34,11 @@ export async function fetchSignalsWithHistory(
 
 ### 3. JSX Component Structure
 
-Define presentation logic exclusively in JSX components within `server/views/`.
+Define presentation logic exclusively in JSX components within `src/server/views/`.
 
 **Pattern:**
 ```tsx
-// server/views/signals-view.tsx
+// src/server/views/signals-view.tsx
 export function SignalsViewHtml({ signals, priceData }: Props) {
   return (
     <table id="signals-table">
@@ -58,7 +58,7 @@ Route handlers must only orchestrate data fetching and response rendering.
 
 **Pattern:**
 ```tsx
-// server/routes/signals.tsx
+// src/server/routes/signals.tsx
 import { SignalsViewHtml } from "../views/signals-view.tsx";
 
 signalsRouter.get("/view/html", async (c) => {
@@ -144,11 +144,11 @@ html += '<button data-ticker="' + _esc(item.ticker) + '">Analyze</button>';
 
 Sanitize all user-facing or AI-generated text fields before writing to the database to prevent secret leakage.
 
-*   Apply `sanitizeForDb()` from `server/lib/sanitize.ts` to all relevant text inputs (e.g., thesis, notes) prior to database execution.
+*   Apply `sanitizeForDb()` from `src/server/lib/sanitize.ts` to all relevant text inputs (e.g., thesis, notes) prior to database execution.
 
 ### 12. Client-Side JavaScript Management
 
-All non-trivial client-side JavaScript must reside in external files within `server/static/scripts/`.
+All non-trivial client-side JavaScript must reside in external files within `src/server/static/scripts/`.
 
 *   Load common utilities once in `Layout.tsx` via `<script src="/static/scripts/common.js" />`.
 *   Load view-specific scripts once per view component via `<script src="/static/scripts/view-name.js" />`.
@@ -189,7 +189,7 @@ If rendering content styled with the Datatype font, ensure the containing elemen
 
 | Pattern | Rationale | Correct Alternative |
 | :--- | :--- | :--- |
-| Inline `<script>{...}</script>` | Hono HTML-encodes quotes, breaking JS syntax. | Extract to `server/static/scripts/*.js` and use `<script src>`. |
+| Inline `<script>{...}</script>` | Hono HTML-encodes quotes, breaking JS syntax. | Extract to `src/server/static/scripts/*.js` and use `<script src>`. |
 | `dangerouslySetInnerHTML={{ __html: ... }}` for scripts | Non-cacheable, duplicates code, bypasses linting. | Extract to external JS file. |
 | `hx-get` on JSON endpoints | HTMX swaps raw JSON into the DOM, breaking layout. | Use standard `fetch()` for JSON APIs. |
 | React-style `style={{...}}` | Hono JSX requires string values for the `style` attribute. | Use `<div style="color:red;">`. |
@@ -237,12 +237,12 @@ var short = item.lesson.split(/\r?\n/)[0];  // matches actual \n or \r\n
 | HTMX Request | `HX-Request: true` header present | Use `pageOrPartial` → `c.html()` → Partial View |
 | JSON API Interaction | Endpoint returns `application/json` | Use JavaScript `fetch()` |
 | Dynamic HTML Injection | Building HTML via string concatenation | Use `_esc()` utility on all dynamic text/attributes. |
-| Client Scripting | Any non-trivial client behavior required | Extract to `server/static/scripts/*.js` and load via `<script src>`. |
+| Client Scripting | Any non-trivial client behavior required | Extract to `src/server/static/scripts/*.js` and load via `<script src>`. |
 
 ## Validation / How to Verify Compliance
 
 1.  **Build Gate Check:** Execute `just check`. This validates against banned inline script patterns in view files.
-2.  **Static Asset Check:** Verify that all JavaScript logic is external. Inspect `server/views/*.tsx` for any `<script>` tags or `dangerouslySetInnerHTML` blocks containing JavaScript logic.
+2.  **Static Asset Check:** Verify that all JavaScript logic is external. Inspect `src/server/views/*.tsx` for any `<script>` tags or `dangerouslySetInnerHTML` blocks containing JavaScript logic.
 3.  **DOCTCYPE Check:** Inspect the source of any direct URL navigation (e.g., `/portfolio`) to confirm the response begins with `<!DOCTYPE html>`.
 4.  **Static Serving Check:** Verify asset serving configuration by checking HTTP response codes for static files:
     ```bash

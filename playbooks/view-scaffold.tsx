@@ -1,12 +1,12 @@
 /** @jsxImportSource hono/jsx */
 /**
- * VIEW SCAFFOLD — copy this to server/views/[name].tsx
+ * VIEW SCAFFOLD — copy this to src/server/views/[name].tsx
  *
  * Rules for new views:
  * 1. If the view just displays data: use hx-get to an /api/.../html route.
  *    NO client-side JS needed.
  * 2. If the view needs client interactivity (SSE, complex forms, drag-drop):
- *    Put the JS in server/static/scripts/[name].js and reference with <script src>.
+ *    Put the JS in src/server/static/scripts/[name].js and reference with <script src>.
  * 3. NEVER use dangerouslySetInnerHTML for scripts.
  * 4. NEVER define function xxxScript() in a view file.
  * 5. NEVER use <script>{`...`}</script> literal blocks.

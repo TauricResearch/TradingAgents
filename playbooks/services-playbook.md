@@ -113,16 +113,14 @@ child.unref()  // Does NOT help — the pipe streams hold references
 
 ### Stop Protocol
 
-```
-STOP:
-  1. Read PID from server.pid
-  2. If no PID file → not running
-  3. If PID not alive → stale file, remove it
-  4. Send SIGTERM to PID
-  5. Wait up to 5s, poll every 500ms
-  6. If still alive → SIGKILL
-  7. Remove PID file
-```
+Use `just srv stop`. It handles PID detection, SIGTERM/SIGKILL, and cleanup automatically.
+
+| Step | Handled by `just srv stop` |
+|------|---------------------------|
+| PID detection + liveness check | ✅ |
+| SIGTERM → wait 5s → SIGKILL | ✅ |
+| Stale PID file removal | ✅ |
+| PID file cleanup | ✅ |
 
 ### Log Rotation
 
