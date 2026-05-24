@@ -34,6 +34,11 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
 
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
+    if "Date" not in data.columns:
+        for candidate in ("index", "Datetime", "date"):
+            if candidate in data.columns:
+                data = data.rename(columns={candidate: "Date"})
+                break
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"])
 
@@ -83,6 +88,14 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             auto_adjust=True,
         ))
         data = data.reset_index()
+        # yfinance >=1.4 leaves the index unnamed, so reset_index() produces
+        # a column called "index" instead of "Date". Rename so downstream
+        # _clean_dataframe (which expects "Date") keeps working.
+        if "Date" not in data.columns:
+            for candidate in ("index", "Datetime", "date"):
+                if candidate in data.columns:
+                    data = data.rename(columns={candidate: "Date"})
+                    break
         data.to_csv(data_file, index=False, encoding="utf-8")
 
     data = _clean_dataframe(data)
