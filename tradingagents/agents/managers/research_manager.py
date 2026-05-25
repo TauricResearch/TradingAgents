@@ -11,10 +11,12 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.audit.prompt_registry import default_registry
 
 
-def create_research_manager(llm):
+def create_research_manager(llm, prompt_registry=None):
     structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
+    registry = prompt_registry or default_registry()
 
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
@@ -22,25 +24,14 @@ def create_research_manager(llm):
 
         investment_debate_state = state["investment_debate_state"]
 
-        prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
-
-{instrument_context}
-
----
-
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
-- **Overweight**: Constructive view; recommend gradually increasing exposure
-- **Hold**: Balanced view; recommend maintaining the current position
-- **Underweight**: Cautious view; recommend trimming exposure
-- **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
-
-Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
-
----
-
-**Debate History:**
-{history}""" + get_language_instruction()
+        version = state.get("prompt_versions", {}).get("managers/research_manager", "v1")
+        prompt, prompt_hash = registry.render(
+            "managers/research_manager",
+            version=version,
+            instrument_context=instrument_context,
+            history=history,
+            language_instruction=get_language_instruction(),
+        )
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,
@@ -48,6 +39,13 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
             prompt,
             render_research_plan,
             "Research Manager",
+            config={
+                "metadata": {
+                    "prompt_key": "managers/research_manager",
+                    "prompt_version": version,
+                    "prompt_hash": prompt_hash,
+                }
+            },
         )
 
         new_investment_debate_state = {

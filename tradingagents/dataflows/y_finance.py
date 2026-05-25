@@ -4,8 +4,13 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
+from .snapshots import snapshot
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
 
+@snapshot(
+    kind="prices", source="yfinance",
+    scope_arg="symbol", date_arg="end_date",
+)
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -47,6 +52,10 @@ def get_YFin_data_online(
 
     return header + csv_string
 
+@snapshot(
+    kind="indicatorswindow", source="yfinance",
+    scope_arg="symbol", date_arg="curr_date",
+)
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
@@ -219,6 +228,10 @@ def _get_stock_stats_bulk(
     return result_dict
 
 
+@snapshot(
+    kind="indicator", source="yfinance",
+    scope_arg="symbol", date_arg="curr_date",
+)
 def get_stockstats_indicator(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
@@ -245,6 +258,10 @@ def get_stockstats_indicator(
     return str(indicator_value)
 
 
+@snapshot(
+    kind="fundamentals", source="yfinance",
+    scope_arg="ticker", date_arg="curr_date",
+)
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
@@ -302,6 +319,10 @@ def get_fundamentals(
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
 
 
+@snapshot(
+    kind="balancesheet", source="yfinance",
+    scope_arg="ticker", date_arg="curr_date",
+)
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
@@ -334,6 +355,10 @@ def get_balance_sheet(
         return f"Error retrieving balance sheet for {ticker}: {str(e)}"
 
 
+@snapshot(
+    kind="cashflow", source="yfinance",
+    scope_arg="ticker", date_arg="curr_date",
+)
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
@@ -366,6 +391,10 @@ def get_cashflow(
         return f"Error retrieving cash flow for {ticker}: {str(e)}"
 
 
+@snapshot(
+    kind="income", source="yfinance",
+    scope_arg="ticker", date_arg="curr_date",
+)
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",

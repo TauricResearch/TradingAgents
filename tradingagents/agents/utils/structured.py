@@ -51,6 +51,8 @@ def invoke_structured_or_freetext(
     prompt: Any,
     render: Callable[[T], str],
     agent_name: str,
+    *,
+    config: Optional[dict] = None,
 ) -> str:
     """Run the structured call and render to markdown; fall back to free-text on any failure.
 
@@ -58,10 +60,16 @@ def invoke_structured_or_freetext(
     invocations, a list of message dicts for chat models that take that
     shape). The same value is forwarded to the free-text path so the
     fallback sees the same input the structured call did.
+
+    ``config`` is forwarded to ``invoke(prompt, config=...)`` so callers
+    can attach metadata (T1.4 uses this to carry prompt provenance —
+    ``prompt_key`` / ``prompt_version`` / ``prompt_hash`` — into the
+    LangChain callback metadata, which TraceCallback then records).
     """
+    invoke_kwargs = {"config": config} if config is not None else {}
     if structured_llm is not None:
         try:
-            result = structured_llm.invoke(prompt)
+            result = structured_llm.invoke(prompt, **invoke_kwargs)
             return render(result)
         except Exception as exc:
             logger.warning(
@@ -69,5 +77,5 @@ def invoke_structured_or_freetext(
                 agent_name, exc,
             )
 
-    response = plain_llm.invoke(prompt)
+    response = plain_llm.invoke(prompt, **invoke_kwargs)
     return response.content

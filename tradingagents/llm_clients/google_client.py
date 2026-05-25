@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient, apply_determinism_kwargs, normalize_content
 from .validators import validate_model
 
 
@@ -55,6 +55,15 @@ class GoogleClient(BaseLLMClient):
             else:
                 # Gemini 2.5: map to thinking_budget
                 llm_kwargs["thinking_budget"] = -1 if thinking_level == "high" else 0
+
+        # T0.1 — pin deterministic generation params.
+        apply_determinism_kwargs(
+            llm_kwargs,
+            model=self.model,
+            temperature=self.kwargs.get("llm_temperature"),
+            seed=self.kwargs.get("llm_seed"),
+            provider="google",
+        )
 
         return NormalizedChatGoogleGenerativeAI(**llm_kwargs)
 

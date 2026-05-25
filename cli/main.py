@@ -993,8 +993,20 @@ def run_analysis(checkpoint: bool = False):
     config["output_language"] = selections.get("output_language", "English")
     config["checkpoint_enabled"] = checkpoint
 
-    # Create stats callback handler for tracking LLM/tool calls
-    stats_handler = StatsCallbackHandler()
+    # Create stats callback handler for tracking LLM/tool calls.
+    # T0.5 — when enabled, every LLM call also lands as one line in
+    # ``audit_dir/calls/{session_id}.jsonl`` so post-run drift detection
+    # and replay (Phase 1) can attribute behavior to a specific provider
+    # snapshot. Disable via ``audit_jsonl_calls_enabled=False``.
+    audit_jsonl_path = None
+    if config.get("audit_jsonl_calls_enabled", True):
+        from pathlib import Path as _Path
+        import uuid as _uuid
+        audit_root = _Path(
+            config.get("audit_dir") or _Path.home() / ".tradingagents" / "audit"
+        ).expanduser()
+        audit_jsonl_path = audit_root / "calls" / f"{_uuid.uuid4()}.jsonl"
+    stats_handler = StatsCallbackHandler(jsonl_path=audit_jsonl_path)
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import uuid
 from pathlib import Path
 import json
 from datetime import datetime, timedelta
@@ -16,6 +17,7 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.llm_clients import create_llm_client
 
 from tradingagents.agents import *
+from tradingagents.audit import TraceCallback
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import TradingMemoryLog
 from tradingagents.dataflows.utils import safe_ticker_component
@@ -39,7 +41,13 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
-from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
+from .checkpointer import (
+    archive_checkpoint,
+    checkpoint_step,
+    clear_checkpoint,
+    get_checkpointer,
+    thread_id,
+)
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -67,7 +75,25 @@ class TradingAgentsGraph:
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
-        self.callbacks = callbacks or []
+        # T1.2 — when full-trace audit is enabled (default), prepend a
+        # TraceCallback to whatever callbacks the caller supplied. We
+        # prepend rather than append so the audit callback observes the
+        # event before any user-provided side effect can mutate state.
+        # The instance is stored so callers can read it post-run for
+        # inspection or replay tooling (T1.7).
+        user_callbacks = list(callbacks) if callbacks else []
+        if self.config.get("audit_full_trace_enabled", True):
+            audit_root = Path(
+                self.config.get("audit_dir") or Path.home() / ".tradingagents" / "audit"
+            ).expanduser()
+            trace_path = audit_root / "traces" / f"{uuid.uuid4()}.jsonl"
+            self.trace_callback: Optional[TraceCallback] = TraceCallback(
+                jsonl_path=trace_path,
+            )
+            self.callbacks = [self.trace_callback, *user_callbacks]
+        else:
+            self.trace_callback = None
+            self.callbacks = user_callbacks
 
         # Update the interface's config
         set_config(self.config)
@@ -137,6 +163,14 @@ class TradingAgentsGraph:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
+
+        # T0.1 — universal determinism kwargs. Each client decides whether
+        # to actually apply them based on model capability; here we just
+        # forward whatever's in config so the user can override per-run.
+        if "llm_temperature" in self.config:
+            kwargs["llm_temperature"] = self.config["llm_temperature"]
+        if "llm_seed" in self.config:
+            kwargs["llm_seed"] = self.config["llm_seed"]
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
@@ -378,6 +412,27 @@ class TradingAgentsGraph:
 
         # Clear checkpoint on successful completion to avoid stale state.
         if self.config.get("checkpoint_enabled"):
+            # T0.4 — archive the thread's checkpoint rows to the audit
+            # store BEFORE clearing from the active DB.  This gives every
+            # successful run a self-contained, per-(ticker, date)
+            # checkpoint snapshot that survives the next ``propagate``
+            # call. Disable by setting ``audit_archive_checkpoints=False``
+            # to revert to the pre-audit behaviour.
+            if self.config.get("audit_archive_checkpoints", True):
+                try:
+                    archive_checkpoint(
+                        self.config["data_cache_dir"],
+                        company_name,
+                        str(trade_date),
+                        archive_dir=self.config.get("audit_dir"),
+                    )
+                except Exception as e:
+                    # Archive failures must not break the user's run —
+                    # the cost is weaker audit coverage, not a bad trade.
+                    logger.warning(
+                        "checkpoint archive failed for %s %s: %s",
+                        company_name, trade_date, e,
+                    )
             clear_checkpoint(
                 self.config["data_cache_dir"], company_name, str(trade_date)
             )

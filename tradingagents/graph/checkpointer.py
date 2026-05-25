@@ -9,7 +9,7 @@ import hashlib
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Optional
 
 from langgraph.checkpoint.sqlite import SqliteSaver
 
@@ -88,3 +88,98 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
         pass
     finally:
         conn.close()
+
+
+def archive_checkpoint(
+    data_dir: str | Path,
+    ticker: str,
+    date: str,
+    archive_dir: Optional[str | Path] = None,
+) -> Optional[Path]:
+    """Copy the rows for one ``(ticker, date)`` thread to a standalone DB (T0.4).
+
+    The active checkpoint store is per-ticker and holds rows for every
+    date ever run against that ticker.  For audit we want each
+    ``(ticker, date)`` pair extracted into its own standalone DB so that
+    a regulator asking "show me your decision process on 2026-01-15"
+    receives one self-contained file rather than a co-mingled per-ticker
+    history.
+
+    The destination path is ``{archive_dir}/checkpoints/{TICKER}/{date}.db``;
+    ``archive_dir`` defaults to ``~/.tradingagents/audit``. An existing
+    archive at the same path is overwritten — re-running the same
+    ``(ticker, date)`` should produce an updated, not stacked, record.
+    The active DB is left untouched; the caller is expected to invoke
+    :func:`clear_checkpoint` afterwards.
+
+    Returns the path of the written archive, or ``None`` if the source
+    DB has no rows for this thread (e.g. checkpointing was disabled).
+    """
+    src_db = _db_path(data_dir, ticker)
+    if not src_db.exists():
+        return None
+
+    tid = thread_id(ticker, date)
+
+    # Quick existence check on the source so we don't materialise an empty
+    # destination DB just to throw it away.
+    src = sqlite3.connect(str(src_db))
+    try:
+        try:
+            cur = src.execute(
+                "SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?", (tid,)
+            )
+            (n_rows,) = cur.fetchone()
+        except sqlite3.OperationalError:
+            # The active DB hasn't been initialised by SqliteSaver yet
+            # — nothing to archive.
+            return None
+    finally:
+        src.close()
+
+    if n_rows == 0:
+        return None
+
+    # Resolve destination layout.
+    archive_root = Path(
+        archive_dir or Path.home() / ".tradingagents" / "audit"
+    ).expanduser()
+    safe = safe_ticker_component(ticker).upper()
+    archive_subdir = archive_root / "checkpoints" / safe
+    archive_subdir.mkdir(parents=True, exist_ok=True)
+    dest_path = archive_subdir / f"{date}.db"
+    # Overwrite, don't stack: an updated run for the same (ticker, date)
+    # is more useful than a chain of partial archives.
+    if dest_path.exists():
+        dest_path.unlink()
+
+    # Create destination schema via SqliteSaver.setup, then copy rows.
+    src = sqlite3.connect(str(src_db))
+    dest = sqlite3.connect(str(dest_path))
+    try:
+        saver = SqliteSaver(dest)
+        saver.setup()
+
+        for table in ("checkpoints", "writes"):
+            try:
+                cur = src.execute(
+                    f"SELECT * FROM {table} WHERE thread_id = ?", (tid,)
+                )
+            except sqlite3.OperationalError:
+                continue
+            rows = cur.fetchall()
+            if not rows:
+                continue
+            cols = [d[0] for d in cur.description]
+            placeholders = ",".join("?" for _ in cols)
+            dest.executemany(
+                f"INSERT INTO {table} ({','.join(cols)}) "
+                f"VALUES ({placeholders})",
+                rows,
+            )
+        dest.commit()
+    finally:
+        src.close()
+        dest.close()
+
+    return dest_path

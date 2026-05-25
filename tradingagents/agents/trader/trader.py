@@ -15,10 +15,12 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.audit.prompt_registry import default_registry
 
 
-def create_trader(llm):
+def create_trader(llm, prompt_registry=None):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
+    registry = prompt_registry or default_registry()
 
     def trader_node(state, name):
         company_name = state["company_of_interest"]
@@ -26,27 +28,29 @@ def create_trader(llm):
         instrument_context = build_instrument_context(company_name, asset_type)
         investment_plan = state["investment_plan"]
 
+        # Trader uses two templates (system + user) rather than one
+        # combined prompt. Record both hashes in metadata so the trace
+        # can reconstruct either side independently.
+        versions = state.get("prompt_versions", {})
+        sys_v = versions.get("trader/trader_system", "v1")
+        usr_v = versions.get("trader/trader_user", "v1")
+
+        system_content, system_hash = registry.render(
+            "trader/trader_system",
+            version=sys_v,
+            language_instruction=get_language_instruction(),
+        )
+        user_content, user_hash = registry.render(
+            "trader/trader_user",
+            version=usr_v,
+            company_name=company_name,
+            instrument_context=instrument_context,
+            investment_plan=investment_plan,
+        )
+
         messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a trading agent analyzing market data to make investment decisions. "
-                    "Based on your analysis, provide a specific recommendation to buy, sell, or hold. "
-                    "Anchor your reasoning in the analysts' reports and the research plan."
-                    + get_language_instruction()
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Based on a comprehensive analysis by a team of analysts, here is an investment "
-                    f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
-                    f"insights from current technical market trends, macroeconomic indicators, and "
-                    f"social media sentiment. Use this plan as a foundation for evaluating your next "
-                    f"trading decision.\n\nProposed Investment Plan: {investment_plan}\n\n"
-                    f"Leverage these insights to make an informed and strategic decision."
-                ),
-            },
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": user_content},
         ]
 
         trader_plan = invoke_structured_or_freetext(
@@ -55,6 +59,14 @@ def create_trader(llm):
             messages,
             render_trader_proposal,
             "Trader",
+            config={
+                "metadata": {
+                    "prompt_key": "trader/messages",
+                    "prompt_version": f"system={sys_v},user={usr_v}",
+                    "prompt_hash_system": system_hash,
+                    "prompt_hash_user": user_hash,
+                }
+            },
         )
 
         return {

@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient, apply_determinism_kwargs, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
 
@@ -226,6 +226,16 @@ class OpenAIClient(BaseLLMClient):
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+
+        # T0.1 — pin deterministic generation params. Must happen AFTER
+        # user-provided kwargs so the user can still override per-call.
+        apply_determinism_kwargs(
+            llm_kwargs,
+            model=self.model,
+            temperature=self.kwargs.get("llm_temperature"),
+            seed=self.kwargs.get("llm_seed"),
+            provider=self.provider,
+        )
 
         # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.

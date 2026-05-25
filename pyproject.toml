@@ -40,6 +40,10 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+# T1.4 — versioned prompt templates ship as data files alongside the
+# code that loads them via PromptRegistry.  Without this, ``pip install``
+# would drop the .txt files and every agent would fail at first render.
+tradingagents = ["prompts/**/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

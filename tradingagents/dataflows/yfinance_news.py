@@ -7,6 +7,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from .config import get_config
+from .snapshots import GLOBAL_SCOPE, replay_formatted, write_snapshot
 from .stockstats_utils import yf_retry
 
 
@@ -67,13 +68,31 @@ def get_news_yfinance(
     Returns:
         Formatted string containing news articles
     """
+    # T0.3 — replay path. The scope/date pair anchors the cache.  The trade
+    # date is end_date because the function is called from analyst nodes
+    # whose temporal anchor is "as of end_date".  start_date is in the
+    # snapshot params for full reproducibility but does not enter the key.
+    cached, hit = replay_formatted(
+        kind="news", source="yfinance", scope=ticker, date=end_date,
+    )
+    if hit:
+        return cached
+
     article_limit = get_config()["news_article_limit"]
     try:
         stock = yf.Ticker(ticker)
         news = yf_retry(lambda: stock.get_news(count=article_limit))
 
         if not news:
-            return f"No news found for {ticker}"
+            output = f"No news found for {ticker}"
+            write_snapshot(
+                kind="news", source="yfinance", scope=ticker, date=end_date,
+                params={"ticker": ticker, "start_date": start_date, "end_date": end_date,
+                        "article_limit": article_limit},
+                raw_response=[],
+                formatted_output=output,
+            )
+            return output
 
         # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -100,11 +119,26 @@ def get_news_yfinance(
             filtered_count += 1
 
         if filtered_count == 0:
-            return f"No news found for {ticker} between {start_date} and {end_date}"
+            output = f"No news found for {ticker} between {start_date} and {end_date}"
+        else:
+            output = f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
-        return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
+        # T0.3 — persist the raw upstream payload alongside the formatted
+        # string so a future audit can re-format under different rules
+        # without re-fetching, and an immediate replay sees byte-identical
+        # context.
+        write_snapshot(
+            kind="news", source="yfinance", scope=ticker, date=end_date,
+            params={"ticker": ticker, "start_date": start_date, "end_date": end_date,
+                    "article_limit": article_limit},
+            raw_response=news,
+            formatted_output=output,
+        )
+        return output
 
     except Exception as e:
+        # Errors are not snapshotted — re-running an error case must
+        # re-attempt the fetch, not replay a stale failure.
         return f"Error fetching news for {ticker}: {str(e)}"
 
 
@@ -126,6 +160,16 @@ def get_global_news_yfinance(
     Returns:
         Formatted string containing global news articles
     """
+    # T0.3 — replay path for the global-news scope. Global news isn't
+    # tied to a ticker, so the cache key uses the reserved GLOBAL_SCOPE
+    # constant.
+    cached, hit = replay_formatted(
+        kind="globalnews", source="yfinance",
+        scope=GLOBAL_SCOPE, date=curr_date,
+    )
+    if hit:
+        return cached
+
     config = get_config()
     if look_back_days is None:
         look_back_days = config["global_news_lookback_days"]
@@ -162,7 +206,16 @@ def get_global_news_yfinance(
                 break
 
         if not all_news:
-            return f"No global news found for {curr_date}"
+            output = f"No global news found for {curr_date}"
+            write_snapshot(
+                kind="globalnews", source="yfinance",
+                scope=GLOBAL_SCOPE, date=curr_date,
+                params={"curr_date": curr_date, "look_back_days": look_back_days,
+                        "limit": limit, "queries": list(search_queries)},
+                raw_response=[],
+                formatted_output=output,
+            )
+            return output
 
         # Calculate date range
         curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -196,7 +249,16 @@ def get_global_news_yfinance(
                 news_str += f"Link: {link}\n"
             news_str += "\n"
 
-        return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
+        output = f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
+        write_snapshot(
+            kind="globalnews", source="yfinance",
+            scope=GLOBAL_SCOPE, date=curr_date,
+            params={"curr_date": curr_date, "look_back_days": look_back_days,
+                    "limit": limit, "queries": list(search_queries)},
+            raw_response=all_news[:limit],
+            formatted_output=output,
+        )
+        return output
 
     except Exception as e:
         return f"Error fetching global news: {str(e)}"
