@@ -1118,7 +1118,10 @@ def run_analysis(checkpoint: bool = False):
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
+        audit_callbacks = [graph.trace_callback] if graph.trace_callback else []
+        args = graph.propagator.get_graph_args(
+            callbacks=[stats_handler, *audit_callbacks]
+        )
 
         # Stream the analysis
         trace = []

@@ -106,8 +106,14 @@ class TradingAgentsGraph:
         llm_kwargs = self._get_provider_kwargs()
 
         # Add callbacks to kwargs if provided (passed to LLM constructor)
-        if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
+         # Callbacks are registered at graph-stream level (via the
+        # propagator's get_graph_args), NOT here. Registering at LLM
+        # constructor level would only fire on_chat_model_* events
+        # and miss everything LangGraph does between nodes —
+        # ToolNode, chain transitions, node enter/exit. The
+        # stream-level registration sees all of them uniformly and
+        # LangChain's callback chain propagates down to the LLM,
+        # so we don't lose LLM events either.
 
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
