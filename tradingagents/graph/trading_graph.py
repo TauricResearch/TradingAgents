@@ -73,11 +73,6 @@ class TradingAgentsGraph:
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
-        # IIC-FORGE: derivatives analysis is mandatory on every run, regardless
-        # of how the caller (CLI or programmatic) sets ``selected_analysts``.
-        if "derivatives" not in selected_analysts:
-            selected_analysts = list(selected_analysts) + ["derivatives"]
-
         # Update the interface's config
         set_config(self.config)
 
