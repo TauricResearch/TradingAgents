@@ -18,6 +18,9 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_DEEPSEEK_REASONING_EFFORT": "deepseek_reasoning_effort",
+    "TRADINGAGENTS_IIC_DB_PATH":          "iic_db_path",
+    "TRADINGAGENTS_IIC_DATA_DIR":         "iic_data_dir",
+    "TRADINGAGENTS_COST_GUARD_ENABLED":   "cost_guard_enabled",
 }
 
 
@@ -47,6 +50,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
     "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
+    # IIC-FORGE F1 — persistence + data layout
+    "iic_db_path": os.path.join(_TRADINGAGENTS_HOME, "iic.db"),
+    "iic_data_dir": os.path.join(_TRADINGAGENTS_HOME, "data"),
+    # IIC-FORGE F1 — cost guards (coded but disabled by default — see
+    # docs/superpowers/specs/2026-05-25-iic-forge-program-design.md Appendix A).
+    "cost_guard_enabled": False,
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
