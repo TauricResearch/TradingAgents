@@ -28,18 +28,18 @@ class TestPortOpen(unittest.TestCase):
 
     def test_returns_bool_type(self):
         from cli.main import _port_open
-        with patch("socket.create_connection", side_effect=OSError):
+        with patch("cli.main.socket.create_connection", side_effect=OSError):
             result = _port_open(9999)
         self.assertIsInstance(result, bool)
 
     def test_connection_refused_is_false(self):
         from cli.main import _port_open
-        with patch("socket.create_connection", side_effect=ConnectionRefusedError):
+        with patch("cli.main.socket.create_connection", side_effect=ConnectionRefusedError):
             self.assertFalse(_port_open(7788))
 
     def test_os_error_is_false(self):
         from cli.main import _port_open
-        with patch("socket.create_connection", side_effect=OSError):
+        with patch("cli.main.socket.create_connection", side_effect=OSError):
             self.assertFalse(_port_open(7788))
 
     def test_successful_connection_is_closed(self):
@@ -47,7 +47,7 @@ class TestPortOpen(unittest.TestCase):
         mock_ctx = MagicMock()
         mock_ctx.__enter__ = MagicMock(return_value=MagicMock())
         mock_ctx.__exit__ = MagicMock(return_value=False)
-        with patch("socket.create_connection", return_value=mock_ctx):
+        with patch("cli.main.socket.create_connection", return_value=mock_ctx):
             result = _port_open(7788)
         self.assertTrue(result)
         mock_ctx.__exit__.assert_called_once()
