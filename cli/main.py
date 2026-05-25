@@ -21,6 +21,7 @@ from rich.align import Align
 from rich.rule import Rule
 import socket
 import subprocess
+import sys
 import webbrowser
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -1270,22 +1271,23 @@ def run_analysis(checkpoint: bool = False):
                 _manifest = Path(__file__).resolve().parent.parent / "scripts" / "generate_manifest.py"
                 if _manifest.exists():
                     subprocess.run(
-                        ["python", str(_manifest)],
+                        [sys.executable, str(_manifest)],
                         check=False,
                         capture_output=True,
                     )
                 _serve = Path(__file__).resolve().parent.parent / "serve.py"
                 if not _port_open(7788) and _serve.exists():
                     subprocess.Popen(
-                        ["python", str(_serve)],
+                        [sys.executable, str(_serve)],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
                     time.sleep(1.0)
-                _url = f"http://localhost:7788/Trading%20Reports.html#/r/{save_path.name}"
-                webbrowser.open(_url)
-                console.print(f"\n[bold cyan]Report viewer opened in browser[/bold cyan]")
-                console.print(f"  [dim]URL:[/dim] {_url}")
+                if _port_open(7788):
+                    _url = f"http://localhost:7788/Trading%20Reports.html#/r/{save_path.name}"
+                    if webbrowser.open(_url):
+                        console.print(f"\n[bold cyan]Report viewer opened in browser[/bold cyan]")
+                        console.print(f"  [dim]URL:[/dim] {_url}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
