@@ -1260,11 +1260,12 @@ def run_analysis(checkpoint: bool = False):
             meta = {}
             try:
                 import yfinance as yf
-                info = yf.Ticker(selections["ticker"]).fast_info
+                ticker_obj = yf.Ticker(selections["ticker"])
+                info = ticker_obj.fast_info
                 price = getattr(info, "last_price", None) or getattr(info, "previous_close", None)
                 if price:
                     meta["current_price"] = round(float(price), 4)
-                long_name = yf.Ticker(selections["ticker"]).info.get("longName", "")
+                long_name = ticker_obj.info.get("longName", "")
                 if long_name:
                     meta["company"] = long_name
             except Exception:
