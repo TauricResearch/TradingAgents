@@ -1265,6 +1265,27 @@ def run_analysis(checkpoint: bool = False):
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            _viewer = Path(__file__).resolve().parent.parent / "Trading Reports.html"
+            if _viewer.exists():
+                _manifest = Path(__file__).resolve().parent.parent / "scripts" / "generate_manifest.py"
+                if _manifest.exists():
+                    subprocess.run(
+                        ["python", str(_manifest)],
+                        check=False,
+                        capture_output=True,
+                    )
+                _serve = Path(__file__).resolve().parent.parent / "serve.py"
+                if not _port_open(7788) and _serve.exists():
+                    subprocess.Popen(
+                        ["python", str(_serve)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    time.sleep(1.0)
+                _url = f"http://localhost:7788/Trading%20Reports.html#/r/{save_path.name}"
+                webbrowser.open(_url)
+                console.print(f"\n[bold cyan]Report viewer opened in browser[/bold cyan]")
+                console.print(f"  [dim]URL:[/dim] {_url}")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
