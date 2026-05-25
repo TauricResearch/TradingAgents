@@ -170,7 +170,18 @@ class TestApplyDeterminismKwargs:
 
 @pytest.mark.unit
 class TestOpenAIClientDeterminism:
-    def test_default_pins_temperature_and_seed(self, monkeypatch):
+    def test_default_pins_temperature_and_drops_seed_for_responses_api(self, monkeypatch):
+        """Native OpenAI uses the Responses API, which rejects ``seed``.
+
+        Temperature=0 still provides greedy-sampling determinism on
+        Responses API; bit-perfect seed-driven reproducibility is
+        unavailable on this path. This is a documented OpenAI API
+        limitation, not a regression in T0.1.
+
+        Third-party OpenAI-compatible providers (xAI, OpenRouter)
+        keep seed because they use Chat Completions — see
+        test_xai_provider_gets_seed.
+        """
         captured = _capture_openai_kwargs(monkeypatch)
         openai_mod.OpenAIClient(
             model="gpt-4.1",
@@ -179,9 +190,20 @@ class TestOpenAIClientDeterminism:
             llm_seed=42,
         ).get_llm()
         assert captured["kwargs"]["temperature"] == 0.0
-        assert captured["kwargs"]["seed"] == 42
+        assert "seed" not in captured["kwargs"]
+        assert captured["kwargs"].get("use_responses_api") is True
 
-    def test_gpt5_with_reasoning_effort_skips_temperature(self, monkeypatch):
+    def test_gpt5_with_reasoning_effort_skips_temperature_and_seed(self, monkeypatch):
+        """Two independent skip conditions stack:
+
+        1) GPT-5 + reasoning_effort skips temperature (the API would
+           400 otherwise — handled by the capability table).
+        2) Native OpenAI provider routes to Responses API, which
+           rejects seed regardless of the model.
+
+        gpt-5 + reasoning_effort + openai hits both, so neither
+        parameter appears in the final kwargs.
+        """
         captured = _capture_openai_kwargs(monkeypatch)
         openai_mod.OpenAIClient(
             model="gpt-5.4",
@@ -190,9 +212,8 @@ class TestOpenAIClientDeterminism:
             llm_temperature=0.0,
             llm_seed=42,
         ).get_llm()
-        # No temperature (would 400), but seed still pinned for reproducibility
         assert "temperature" not in captured["kwargs"]
-        assert captured["kwargs"]["seed"] == 42
+        assert "seed" not in captured["kwargs"]
         assert captured["kwargs"]["reasoning_effort"] == "high"
 
     def test_xai_provider_gets_seed(self, monkeypatch):

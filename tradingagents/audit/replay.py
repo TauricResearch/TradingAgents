@@ -279,9 +279,29 @@ class Replayer:
             if r.get("type") != "llm_end":
                 continue
             payload = r.get("payload") or {}
-            llm_output = (payload.get("response") or {}).get("llm_output") or {}
+            response = payload.get("response") or {}
+
+            # Chat Completions API path: model + fingerprint live on
+            # response.llm_output (the legacy envelope).
+            llm_output = response.get("llm_output") or {}
             fp = llm_output.get("system_fingerprint")
             model = llm_output.get("model_name") or llm_output.get("model")
+
+            # Responses API path (native OpenAI gpt-4o, gpt-5.x):
+            # llm_output is empty; model_name lives on
+            # generations[0][0].message.response_metadata.
+            # system_fingerprint is NOT exposed by Responses API
+            # (documented OpenAI limitation).
+            if not (fp and model):
+                gens = response.get("generations") or []
+                first_gen_list = gens[0] if gens else []
+                first_gen = first_gen_list[0] if first_gen_list else None
+                msg = (first_gen or {}).get("message") if isinstance(first_gen, dict) else None
+                resp_meta = msg.get("response_metadata") if isinstance(msg, dict) else None
+                if isinstance(resp_meta, dict):
+                    fp = fp or resp_meta.get("system_fingerprint")
+                    model = model or resp_meta.get("model_name") or resp_meta.get("model")
+
             if fp and fp not in fingerprints:
                 fingerprints.append(fp)
             if model and model not in models:
