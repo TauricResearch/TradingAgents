@@ -69,3 +69,48 @@ def record_cost(
         (run_id, provider, model, in_tokens, out_tokens, usd_estimate),
     )
     conn.commit()
+
+
+# --------------------------------------------------------------------
+# briefs
+# --------------------------------------------------------------------
+
+def insert_brief(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    mode: str,
+    scope: str,
+    generated_ts: str,
+    content_path: str,
+    run_ids: Iterable[str],
+    parent_brief_id: Optional[str] = None,
+) -> None:
+    conn.execute(
+        "INSERT INTO briefs (brief_id, mode, scope, generated_ts, content_path, "
+        "run_ids, parent_brief_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (brief_id, mode, scope, generated_ts, content_path,
+         json.dumps(list(run_ids)), parent_brief_id),
+    )
+    conn.commit()
+
+
+# --------------------------------------------------------------------
+# brief_actions
+# --------------------------------------------------------------------
+
+def insert_brief_action(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    action_type: str,
+    action_params: dict,
+    expires_at: str,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO brief_actions (brief_id, action_type, action_params, "
+        "state, expires_at) VALUES (?, ?, ?, 'pending', ?)",
+        (brief_id, action_type, json.dumps(action_params), expires_at),
+    )
+    conn.commit()
+    return cur.lastrowid
