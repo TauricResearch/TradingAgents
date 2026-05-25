@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import json
 import typer
 import questionary
 from pathlib import Path
@@ -1254,6 +1255,23 @@ def run_analysis(checkpoint: bool = False):
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+
+            # Write meta.json with current_price and company info
+            meta = {}
+            try:
+                import yfinance as yf
+                info = yf.Ticker(selections["ticker"]).fast_info
+                price = getattr(info, "last_price", None) or getattr(info, "previous_close", None)
+                if price:
+                    meta["current_price"] = round(float(price), 4)
+                long_name = yf.Ticker(selections["ticker"]).info.get("longName", "")
+                if long_name:
+                    meta["company"] = long_name
+            except Exception:
+                pass
+            meta["ticker"] = selections["ticker"]
+            meta["analysis_date"] = selections["analysis_date"]
+            (save_path / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
