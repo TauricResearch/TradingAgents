@@ -237,10 +237,17 @@ class OpenAIClient(BaseLLMClient):
             provider=self.provider,
         )
 
-        # Native OpenAI: use Responses API for consistent behavior across
+           # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
+            # T0.1 caveat: OpenAI Responses API rejects `seed` (it's a
+            # Chat Completions parameter). Drop it for native OpenAI;
+            # temperature=0 still provides greedy-sampling determinism.
+            # For third-party OpenAI-compatible providers (xAI,
+            # OpenRouter, Ollama) seed stays because they use Chat
+            # Completions.
+            llm_kwargs.pop("seed", None)
 
         # Provider-specific quirks live in their own subclasses so the
         # base NormalizedChatOpenAI stays free of provider branches.
