@@ -19,6 +19,7 @@ ANALYST_ORDER = [
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Derivatives Analyst (mandatory)", AnalystType.DERIVATIVES),
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
@@ -102,7 +103,13 @@ def get_analysis_date() -> str:
 
 
 def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType]:
-    """Select analysts using an interactive checkbox."""
+    """Select analysts using an interactive checkbox.
+
+    The Derivatives Analyst is mandatory on every run (enforced in
+    ``TradingAgentsGraph.__init__``); it is shown pre-checked here so the
+    CLI's selection matches the graph-level guarantee, and re-added below
+    in case the user unchecks it.
+    """
     available_analysts = filter_analysts_for_asset_type(
         [value for _, value in ANALYST_ORDER],
         asset_type,
@@ -110,11 +117,15 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
-            questionary.Choice(display, value=value)
+            questionary.Choice(
+                display,
+                value=value,
+                checked=(value == AnalystType.DERIVATIVES),
+            )
             for display, value in ANALYST_ORDER
             if value in available_analysts
         ],
-        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done\n- Note: Derivatives Analyst is mandatory and will be re-added if you uncheck it",
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
             [
@@ -129,6 +140,9 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType
     if not choices:
         console.print("\n[red]No analysts selected. Exiting...[/red]")
         exit(1)
+
+    if AnalystType.DERIVATIVES not in choices:
+        choices.append(AnalystType.DERIVATIVES)
 
     return choices
 

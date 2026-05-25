@@ -149,7 +149,9 @@ activemq-data/
 
 # Environments
 .env
+.env.example
 .envrc
+docker-compose.yml
 .venv
 env/
 venv/
@@ -217,3 +219,7 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Local artifacts
+Miniconda3-latest-Linux-x86_64.sh
+reports/

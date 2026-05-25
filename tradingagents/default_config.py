@@ -17,6 +17,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_RISK_ROUNDS":      "max_risk_discuss_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_DEEPSEEK_REASONING_EFFORT": "deepseek_reasoning_effort",
 }
 
 
@@ -51,9 +52,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.4",
-    "quick_think_llm": "gpt-5.4-mini",
+    "llm_provider": "deepseek",
+    "deep_think_llm": "deepseek-v4-pro",     # V4 thinking flagship; deep reasoning / synthesis (effort=max)
+    "quick_think_llm": "deepseek-v4-flash",  # V4 thinking fast model; analyst tool loops (default effort)
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a
@@ -62,8 +63,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "backend_url": None,
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
-    "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "openai_reasoning_effort": "max",    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    "deepseek_reasoning_effort": "max",            # "high", "medium", "low"
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
@@ -71,16 +73,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
     # Debate and discussion settings
-    "max_debate_rounds": 1,
-    "max_risk_discuss_rounds": 1,
+    "max_debate_rounds": 3,
+    "max_risk_discuss_rounds": 3,
     "max_recur_limit": 100,
-    "analyst_concurrency_limit": 1,
+    "analyst_concurrency_limit": 5,
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.
-    "news_article_limit": 20,             # max articles per ticker (ticker-news)
-    "global_news_article_limit": 10,      # max articles for global/macro news
-    "global_news_lookback_days": 7,       # macro news lookback window
+    "news_article_limit": 30,             # max articles per ticker (ticker-news)
+    "global_news_article_limit": 20,      # max articles for global/macro news
+    "global_news_lookback_days": 14,       # macro news lookback window
     # Search queries used by get_global_news for macro headlines. Extend or
     # replace to broaden geographic / sector coverage.
     "global_news_queries": [
@@ -97,11 +99,20 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "options_data": "yfinance",          # Options: yfinance (Polygon/Futu via Epic B fallback chain)
+        "osint_social": "telegram",          # Options: telegram (Telegram); X tool routes to "x" vendor automatically
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # Futu OpenD gateway (Epic B). The daemon must be running and logged in;
+    # leave the host/port at defaults unless OpenD is on a different machine.
+    "futu_opend_host": "127.0.0.1",
+    "futu_opend_port": 11111,
+    # Curated Telegram channels for OSINT digest (Epic B). Add `@handle`
+    # entries; balance regions deliberately.
+    "telegram_channels": [],
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all
     # tickers; leave it None to use ``benchmark_map`` for auto-detection

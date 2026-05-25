@@ -30,7 +30,19 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    # tabulate is required by pandas.DataFrame.to_markdown — used by the
+    # yfinance options vendor in tradingagents/dataflows/yfinance_options.py.
+    "tabulate>=0.9",
 ]
+
+[project.optional-dependencies]
+# Optional vendors enabled via IIC-FORGE-02. Install with:
+#   pip install -e .[polygon,futu,osint]
+# Each vendor's module raises DataVendorError on missing creds/deps so the
+# default install still runs end-to-end with yfinance alone.
+polygon = []  # uses requests (already a core dep); add "polygon-api-client>=1.14.0" if you prefer the official SDK
+futu = ["futu-api>=9.0"]
+osint = ["telethon>=1.36", "tweepy>=4.14"]
 
 [project.scripts]
 tradingagents = "cli.main:app"

@@ -38,6 +38,10 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.derivatives_tools import (
+    get_options_chain,
+    get_options_overview,
+)
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -52,7 +56,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=["market", "social", "news", "fundamentals", "derivatives"],
         debug=False,
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
@@ -69,6 +73,11 @@ class TradingAgentsGraph:
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
+        # IIC-FORGE: derivatives analysis is mandatory on every run, regardless
+        # of how the caller (CLI or programmatic) sets ``selected_analysts``.
+        if "derivatives" not in selected_analysts:
+            selected_analysts = list(selected_analysts) + ["derivatives"]
+
         # Update the interface's config
         set_config(self.config)
 
@@ -76,24 +85,26 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
-
-        # Add callbacks to kwargs if provided (passed to LLM constructor)
+        # Initialize LLMs with provider-specific thinking configuration.
+        # Per-tier kwargs let DeepSeek attach reasoning_effort to the deep
+        # client only (quick model stays at default thinking effort).
+        deep_kwargs = self._get_provider_kwargs("deep")
+        quick_kwargs = self._get_provider_kwargs("quick")
         if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
+            deep_kwargs["callbacks"] = self.callbacks
+            quick_kwargs["callbacks"] = self.callbacks
 
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **deep_kwargs,
         )
         quick_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["quick_think_llm"],
             base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            **quick_kwargs,
         )
 
         self.deep_thinking_llm = deep_client.get_llm()
@@ -133,8 +144,9 @@ class TradingAgentsGraph:
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
-        """Get provider-specific kwargs for LLM client creation."""
+    def _get_provider_kwargs(self, tier: str = "deep") -> Dict[str, Any]:
+        """Get provider-specific kwargs. ``tier`` is "deep" or "quick";
+        high-cost reasoning settings are attached to the deep tier only."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
 
@@ -152,6 +164,15 @@ class TradingAgentsGraph:
             effort = self.config.get("anthropic_effort")
             if effort:
                 kwargs["effort"] = effort
+
+        elif provider == "deepseek":
+            # reasoning_effort applies to V4 thinking models; only the DEEP
+            # tier gets the explicit (max) setting. The quick tier runs at
+            # DeepSeek's default thinking effort with no override.
+            if tier == "deep":
+                effort = self.config.get("deepseek_reasoning_effort")
+                if effort:
+                    kwargs["reasoning_effort"] = effort
 
         return kwargs
 
@@ -187,6 +208,13 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                ]
+            ),
+            "derivatives": ToolNode(
+                [
+                    # Options / derivatives tools
+                    get_options_overview,
+                    get_options_chain,
                 ]
             ),
         }
@@ -393,6 +421,7 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "derivatives_report": final_state.get("derivatives_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
