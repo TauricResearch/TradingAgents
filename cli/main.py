@@ -1034,12 +1034,12 @@ def run_analysis(checkpoint: bool = False):
     # Track start time for elapsed display
     start_time = time.time()
 
-    # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
-    results_dir.mkdir(parents=True, exist_ok=True)
-    report_dir = results_dir / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    log_file = results_dir / "message_tool.log"
+    # Create per-run directory under TRADINGAGENTS_RESULTS_DIR; log + post-run
+    # report bundle co-locate here so each run is a single self-contained dir.
+    run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = Path(config["results_dir"]) / f"{selections['ticker']}_{run_timestamp}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    log_file = run_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
 
     def save_message_decorator(obj, func_name):
@@ -1052,7 +1052,7 @@ def run_analysis(checkpoint: bool = False):
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
-    
+
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
         @wraps(func)
@@ -1064,23 +1064,8 @@ def run_analysis(checkpoint: bool = False):
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
-    def save_report_section_decorator(obj, func_name):
-        func = getattr(obj, func_name)
-        @wraps(func)
-        def wrapper(section_name, content):
-            func(section_name, content)
-            if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
-                content = obj.report_sections[section_name]
-                if content:
-                    file_name = f"{section_name}.md"
-                    text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
-                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
-                        f.write(text)
-        return wrapper
-
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
     message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
-    message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
 
     # Now start the display layout
     layout = create_layout()
@@ -1255,14 +1240,12 @@ def run_analysis(checkpoint: bool = False):
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    # Prompt to save report
+    # Prompt to save report — defaults to the same per-run dir that holds the log.
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
-            default=str(default_path)
+            default=str(run_dir)
         ).strip()
         save_path = Path(save_path_str)
         try:
