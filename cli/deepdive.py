@@ -52,11 +52,12 @@ def _run_one_persona(persona: Persona, ticker: str, trade_date: str, config: dic
 
 def _build_secretary(config: dict) -> Secretary:
     from tradingagents.llm_clients.factory import create_llm_client
-    llm = create_llm_client(
+    client = create_llm_client(
         provider=config["llm_provider"],
         model=config["deep_think_llm"],
         base_url=config.get("backend_url"),
     )
+    llm = client.get_llm()  # unwrap to the underlying LangChain chat model
     conn = iic_connect(config["iic_db_path"])
     return Secretary(conn=conn, data_dir=config["iic_data_dir"], llm=llm)
 
