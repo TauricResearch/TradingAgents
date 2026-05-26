@@ -13,6 +13,7 @@ Verifies the four exit-gate clauses from §7 F1 of the program design:
 
 import os
 import pytest
+from datetime import date, timedelta
 from pathlib import Path
 
 from tradingagents.persistence.db import connect
@@ -29,10 +30,17 @@ def test_f1_exit_gate_deepdive_aapl(tmp_path):
     db_path = str(tmp_path / "iic.db")
     data_dir = str(tmp_path / "data")
 
+    # Use a trade_date well in the past so yfinance / stockstats have real
+    # historical OHLCV both before AND after it. The engine fetches a
+    # forward-looking window from trade_date; using today's date causes
+    # "$AAPL: possibly delisted; no price data found" because the future
+    # data doesn't exist yet. 20 trading days is enough buffer.
+    trade_date = (date.today() - timedelta(days=30)).isoformat()
+
     from cli.deepdive import run_deepdive
     brief_id = run_deepdive(
         ticker="AAPL",
-        trade_date="2026-05-25",
+        trade_date=trade_date,
         parallel=True,
         config_overrides={"iic_db_path": db_path, "iic_data_dir": data_dir},
     )
@@ -64,7 +72,7 @@ def test_f1_exit_gate_deepdive_aapl(tmp_path):
     assert brief_row["scope"] == "AAPL"
 
     # Exit-gate clause 4: brief markdown has the three sections.
-    brief_path = Path(data_dir) / brief_row["content_path"]
+    brief_path = tmp_path / "data" / brief_row["content_path"]
     assert brief_path.exists()
     text = brief_path.read_text(encoding="utf-8")
     assert "Consensus" in text
