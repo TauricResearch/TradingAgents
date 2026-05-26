@@ -31,6 +31,8 @@ from api.db import (
     cancel_request,
     create_batch_schedule,
     create_request,
+    delete_batch_schedule,
+    get_batch_schedule,
     get_llm_calls_by_provider_between,
     get_llm_usage_by_provider_between,
     get_llm_role_stats_between,
@@ -42,6 +44,7 @@ from api.db import (
     list_batch_schedules,
     list_requests,
     mark_stale_running_requests,
+    update_batch_schedule_config,
     update_batch_schedule_run,
 )
 from api.schemas import (
@@ -49,20 +52,25 @@ from api.schemas import (
     BatchScheduleCreateRequest,
     BatchScheduleItem,
     BatchScheduleListResponse,
+    BatchScheduleRerunRequest,
+    BatchScheduleUpdateRequest,
     CancelAllResponse,
     CancelResponse,
     EnvVarUpdateRequest,
     EnvVarValueResponse,
+    LatestRecommendationResponse,
     RequestListResponse,
     RequestStatus,
     SubmitResponse,
+    VaultRefreshResponse,
 )
+from api.vault import VaultError, refresh_runtime_env_from_vault
 from api.worker import ANALYSIS_DIR, get_live_provider_calls, task_queue, worker_loop
 
 _API_VERSION = "1.0.0"
 _NUM_WORKERS = 1
 _NUM_SCHEDULERS = 1
-_SUPPORTED_PROVIDERS = {"ollama", "google"}
+_SUPPORTED_PROVIDERS = {"ollama", "google", "openrouter"}
 _SUPPORTED_BATCH_FREQUENCIES = {"daily", "weekly", "monthly"}
 _ROOT_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _ROOT_DIR / ".env"
@@ -253,6 +261,15 @@ def _upsert_env_file_value(var_name: str, value: str) -> None:
     _ENV_FILE.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
+def _refresh_vault_keys_and_persist() -> dict:
+    summary = refresh_runtime_env_from_vault()
+    for key in summary.get("keys", []):
+        val = os.getenv(key)
+        if val is not None:
+            _upsert_env_file_value(key, val)
+    return summary
+
+
 def _build_batch_schedule_item(row: dict, base_url: str) -> BatchScheduleItem:
     latest_request_id = row.get("latest_request_id")
     latest_logs_url: Optional[str] = None
@@ -397,13 +414,12 @@ def _render_closed_requests_html(items: list[RequestStatus]) -> str:
 </head>
 <body>
     <main class=\"wrap\">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:0 0 12px">
             <a href="/ui" style="background:#374151;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Operations</a>
             <a href="/batching" style="background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Batching</a>
             <a href="/completed" style="background:#111827;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Completed</a>
             <a href="/requests/closed?format=html" style="background:#7c3aed;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Closed</a>
             <a href="/settings" style="background:#1d4ed8;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Settings</a>
-            <a href="/api-definition" style="background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">API Definition</a>
         </div>
         <h1>Closed Requests</h1>
         <p class=\"sub\">Each request appears on its own line with direct links to analysis and logs.</p>
@@ -416,6 +432,12 @@ def _render_closed_requests_html(items: list[RequestStatus]) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        _refresh_vault_keys_and_persist()
+    except VaultError as exc:
+        # Keep service booting even if Vault is temporarily unavailable.
+        print(f"[Vault] startup refresh failed: {exc}")
+
     await init_db(DB_PATH)
     await mark_stale_running_requests(db_path=DB_PATH)
     await _enqueue_due_pending_requests_once()
@@ -448,6 +470,9 @@ app = FastAPI(
 )
 
 
+_HAS_MCP_SERVER = (_ROOT_DIR / "mcp_server" / "tradingagents_mcp_server.py").exists()
+
+
 @app.get("/", include_in_schema=False)
 async def root_redirect():
     """Redirect browser users to the built-in lightweight UI."""
@@ -458,6 +483,24 @@ async def root_redirect():
 async def api_definition():
     """Explicit OpenAPI endpoint alias."""
     return app.openapi()
+
+
+@app.get("/mcp-server", response_class=JSONResponse)
+async def mcp_server_definition():
+    """Return MCP server endpoint/usage metadata when MCP server is available."""
+    if not _HAS_MCP_SERVER:
+        raise HTTPException(status_code=404, detail="MCP server is not available in this deployment")
+    return JSONResponse(
+        content={
+            "name": "tradingagents-api",
+            "run_command": "tradingagents-mcp",
+            "transport": "stdio",
+            "env": {
+                "TRADINGAGENTS_API_BASE_URL": "http://localhost:9000",
+            },
+            "documentation": "Use the tradingagents-mcp command to start the MCP server.",
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +525,13 @@ async def submit_analysis(body: AnalyzeRequest, request: Request):
 
     llm_provider = (body.llm_provider or "ollama").strip().lower()
     if llm_provider not in _SUPPORTED_PROVIDERS:
-        raise HTTPException(status_code=400, detail="llm_provider must be one of: ollama, google")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "llm_provider must be one of: "
+                + ", ".join(sorted(_SUPPORTED_PROVIDERS))
+            ),
+        )
 
     req_id = await create_request(ticker, analysis_date, llm_provider=llm_provider, db_path=DB_PATH)
     await task_queue.put((req_id, ticker, analysis_date))
@@ -588,7 +637,13 @@ async def create_batched_schedule(body: BatchScheduleCreateRequest, request: Req
 
     llm_provider = (body.llm_provider or "").strip().lower()
     if llm_provider not in _SUPPORTED_PROVIDERS:
-        raise HTTPException(status_code=400, detail="llm_provider must be one of: ollama, google")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "llm_provider must be one of: "
+                + ", ".join(sorted(_SUPPORTED_PROVIDERS))
+            ),
+        )
 
     frequency = (body.frequency or "").strip().lower()
     if frequency not in _SUPPORTED_BATCH_FREQUENCIES:
@@ -616,6 +671,94 @@ async def create_batched_schedule(body: BatchScheduleCreateRequest, request: Req
     }
     base_url = str(request.base_url).rstrip("/")
     return _build_batch_schedule_item(row, base_url)
+
+
+@app.delete("/batching/schedules/{schedule_id}", response_class=JSONResponse)
+async def delete_batched_schedule(schedule_id: str):
+    """Delete a recurring batch schedule entry."""
+    deleted = await delete_batch_schedule(schedule_id=schedule_id, db_path=DB_PATH)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Batch schedule not found")
+    return JSONResponse(content={"id": schedule_id, "deleted": True})
+
+
+@app.put("/batching/schedules/{schedule_id}", response_model=BatchScheduleItem)
+async def update_batched_schedule(schedule_id: str, body: BatchScheduleUpdateRequest, request: Request):
+    """Update provider/frequency for future runs of one schedule."""
+    schedule = await get_batch_schedule(schedule_id=schedule_id, db_path=DB_PATH)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Batch schedule not found")
+
+    llm_provider = (body.llm_provider or "").strip().lower()
+    if llm_provider not in _SUPPORTED_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "llm_provider must be one of: "
+                + ", ".join(sorted(_SUPPORTED_PROVIDERS))
+            ),
+        )
+
+    frequency = (body.frequency or "").strip().lower()
+    if frequency not in _SUPPORTED_BATCH_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="frequency must be one of: daily, weekly, monthly")
+
+    # Rebase next run from now so updated cadence applies immediately to subsequent schedule triggers.
+    next_run_at = _next_run_utc_iso(frequency)
+    updated = await update_batch_schedule_config(
+        schedule_id=schedule_id,
+        llm_provider=llm_provider,
+        frequency=frequency,
+        next_run_at=next_run_at,
+        db_path=DB_PATH,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Batch schedule not found")
+
+    rows = await list_batch_schedules(db_path=DB_PATH)
+    row = next((r for r in rows if r.get("id") == schedule_id), None)
+    if not row:
+        raise HTTPException(status_code=404, detail="Batch schedule not found")
+    base_url = str(request.base_url).rstrip("/")
+    return _build_batch_schedule_item(row, base_url)
+
+
+@app.post("/batching/schedules/{schedule_id}/rerun", response_model=SubmitResponse, status_code=202)
+async def rerun_batched_schedule(schedule_id: str, body: BatchScheduleRerunRequest):
+    """Trigger an immediate rerun for one schedule using the selected provider."""
+    schedule = await get_batch_schedule(schedule_id=schedule_id, db_path=DB_PATH)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Batch schedule not found")
+
+    llm_provider = (body.llm_provider or "").strip().lower()
+    if llm_provider not in _SUPPORTED_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "llm_provider must be one of: "
+                + ", ".join(sorted(_SUPPORTED_PROVIDERS))
+            ),
+        )
+
+    now_iso = _utc_now().isoformat()
+    analysis_date = _latest_business_date_iso()
+    req_id = await create_request(
+        ticker=schedule["ticker"],
+        analysis_date=analysis_date,
+        llm_provider=llm_provider,
+        available_after=now_iso,
+        db_path=DB_PATH,
+    )
+    await task_queue.put((req_id, schedule["ticker"], analysis_date))
+
+    return SubmitResponse(
+        request_id=req_id,
+        ticker=schedule["ticker"],
+        analysis_date=analysis_date,
+        llm_provider=llm_provider,
+        status="pending",
+        submitted_at=now_iso,
+    )
 
 
 @app.post("/requests/{request_id}/cancel", response_model=CancelResponse)
@@ -678,6 +821,39 @@ async def set_env_var(var_name: str, body: EnvVarUpdateRequest):
     os.environ[name] = body.value
     _upsert_env_file_value(name, body.value)
     return EnvVarValueResponse(name=name, value=body.value, exists=True)
+
+
+@app.post("/vault/refresh", response_model=VaultRefreshResponse)
+async def force_refresh_vault_keys():
+    """Force immediate reload of configured API keys from HashiCorp Vault."""
+    try:
+        summary = _refresh_vault_keys_and_persist()
+    except VaultError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return VaultRefreshResponse(**summary)
+
+
+@app.get("/recommendations/latest/{ticker}", response_model=LatestRecommendationResponse)
+async def latest_recommendation_for_ticker(ticker: str, provider: Optional[str] = None):
+    """Return latest completed recommendation for a stock ticker, if available."""
+    cleaned_ticker = ticker.strip().upper()
+    if not cleaned_ticker:
+        raise HTTPException(status_code=400, detail="ticker must not be empty")
+
+    normalized_provider = (provider or "").strip().lower() or None
+    rows = await get_recommendation_history(
+        ticker=cleaned_ticker,
+        llm_provider=normalized_provider,
+        limit=1,
+        db_path=DB_PATH,
+    )
+    latest = rows[0] if rows else None
+    return LatestRecommendationResponse(
+        ticker=cleaned_ticker,
+        provider=normalized_provider,
+        available=latest is not None,
+        latest=latest,
+    )
 
 
 @app.get("/metrics/llm-calls/today", response_class=JSONResponse)
@@ -798,13 +974,12 @@ async def ui():
 <body>
     <div class=\"wrap\">
         <h1>TradingAgents Operations</h1>
-        <div style=\"margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap\">
+        <div style=\"margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center\">
             <a href=\"/ui\" style=\"background:#374151;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600\">Operations</a>
             <a href=\"/batching\" style=\"background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600\">Batching</a>
             <a href=\"/completed\" style=\"background:#111827;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600\">Completed</a>
             <a href=\"/requests/closed?format=html\" style=\"background:#7c3aed;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600\">Closed</a>
             <a href=\"/settings\" style=\"background:#1d4ed8;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600\">Settings</a>
-            <a href=\"/api-definition\" style=\"background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600\">API Definition</a>
         </div>
         <div class=\"grid\">
             <section class=\"card\">
@@ -815,6 +990,7 @@ async def ui():
                     <select id="new-provider" style="padding:8px;border:1px solid #d1d5db;border-radius:8px">
                         <option value="ollama" selected>Ollama (default)</option>
                         <option value="google">Google Gemini</option>
+                        <option value="openrouter">OpenRouter (free models)</option>
                     </select>
                     <button id="create-request" class="primary">Create</button>
                 </div>
@@ -973,6 +1149,13 @@ async def batching_page():
         .history th, .history td { border-bottom:1px solid #e5e7eb; text-align:left; padding:8px 10px; font-size:13px; }
         .history th { background:#f8fafc; }
         .final-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; white-space:pre-wrap; word-break:break-word; }
+        .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .mini-btn { border:0; border-radius:8px; padding:6px 10px; cursor:pointer; font-weight:700; font-size:12px; }
+        .danger { background:#dc2626; color:#fff; }
+        .secondary { background:#1d4ed8; color:#fff; }
+        .warning { background:#0f766e; color:#fff; }
+        .row-provider { min-width:130px; padding:6px 8px; font-size:12px; border-radius:8px; }
+        .row-frequency { min-width:120px; padding:6px 8px; font-size:12px; border-radius:8px; display:none; }
         @media (max-width: 960px) {
             .toolbar { grid-template-columns: 1fr; }
         }
@@ -985,13 +1168,12 @@ async def batching_page():
                 <h1>Batching</h1>
                 <p class=\"muted\">Create and monitor recurring ticker runs by provider and frequency.</p>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;flex:1 1 100%">
                 <a href="/ui" style="background:#374151;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Operations</a>
                 <a href="/batching" style="background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Batching</a>
                 <a href="/completed" style="background:#111827;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Completed</a>
                 <a href="/requests/closed?format=html" style="background:#7c3aed;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Closed</a>
                 <a href="/settings" style="background:#1d4ed8;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Settings</a>
-                <a href="/api-definition" style="background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">API Definition</a>
             </div>
         </div>
 
@@ -1006,6 +1188,7 @@ async def batching_page():
                     <select id=\"provider\">
                         <option value=\"ollama\">Ollama</option>
                         <option value=\"google\">Google</option>
+                        <option value="openrouter">OpenRouter</option>
                     </select>
                 </div>
                 <div>
@@ -1033,6 +1216,7 @@ async def batching_page():
                             <th>Last Run Date & Time</th>
                             <th>Latest Run Logs</th>
                             <th>Latest Analysis</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id=\"rows\"></tbody>
@@ -1069,6 +1253,8 @@ async def batching_page():
     </div>
 
     <script>
+        let editingScheduleId = null;
+
         function safe(value) {
             return (value || '').toString().replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
         }
@@ -1089,6 +1275,20 @@ async def batching_page():
                 const rec = item.latest_recommendation || '—';
                 const logs = item.latest_logs_url ? `<a class="link" href="${safe(item.latest_logs_url)}" target="_blank">Logs</a>` : '—';
                 const analysis = item.latest_analysis_url ? `<a class="link" href="${safe(item.latest_analysis_url)}" target="_blank">Analysis</a>` : '—';
+                const providerSelect = `
+                    <select class="row-provider" data-provider-id="${safe(item.id)}">
+                        <option value="ollama" ${item.llm_provider === 'ollama' ? 'selected' : ''}>Ollama</option>
+                        <option value="google" ${item.llm_provider === 'google' ? 'selected' : ''}>Google</option>
+                        <option value="openrouter" ${item.llm_provider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
+                    </select>
+                `;
+                const frequencySelect = `
+                    <select class="row-frequency" data-frequency-id="${safe(item.id)}">
+                        <option value="daily" ${item.frequency === 'daily' ? 'selected' : ''}>Daily</option>
+                        <option value="weekly" ${item.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+                        <option value="monthly" ${item.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
+                    </select>
+                `;
                 const recLink = rec === '—'
                     ? '—'
                     : `<a href="#" class="rec-link" data-rec-ticker="${safe(item.ticker)}" data-rec-provider="${safe(item.llm_provider)}" title="${safe(rec)}">${safe(rec)}</a>`;
@@ -1101,6 +1301,15 @@ async def batching_page():
                     <td>${formatTime(item.last_run_at)}</td>
                     <td>${logs}</td>
                     <td>${analysis}</td>
+                    <td>
+                        <div class="actions">
+                            ${providerSelect}
+                            ${frequencySelect}
+                            <button class="mini-btn warning" data-edit-id="${safe(item.id)}" data-editing="false">Edit</button>
+                            <button class="mini-btn secondary" data-rerun-id="${safe(item.id)}">Rerun</button>
+                            <button class="mini-btn danger" data-delete-id="${safe(item.id)}">Delete</button>
+                        </div>
+                    </td>
                 `;
                 root.appendChild(tr);
             }
@@ -1113,6 +1322,104 @@ async def batching_page():
                     await showRecommendationHistory(ticker, provider);
                 });
             });
+
+            root.querySelectorAll('[data-delete-id]').forEach((el) => {
+                el.addEventListener('click', async () => {
+                    const id = el.getAttribute('data-delete-id');
+                    await deleteSchedule(id || '');
+                });
+            });
+
+            root.querySelectorAll('[data-rerun-id]').forEach((el) => {
+                el.addEventListener('click', async () => {
+                    const id = el.getAttribute('data-rerun-id');
+                    await rerunSchedule(id || '');
+                });
+            });
+
+            root.querySelectorAll('[data-edit-id]').forEach((el) => {
+                el.addEventListener('click', async () => {
+                    const id = el.getAttribute('data-edit-id');
+                    await toggleEditSave(id || '', el);
+                });
+            });
+        }
+
+        async function toggleEditSave(scheduleId, buttonEl) {
+            const message = document.getElementById('message');
+            if (!scheduleId || !buttonEl) return;
+
+            const providerEl = document.querySelector(`[data-provider-id="${CSS.escape(scheduleId)}"]`);
+            const frequencyEl = document.querySelector(`[data-frequency-id="${CSS.escape(scheduleId)}"]`);
+            if (!providerEl || !frequencyEl) return;
+
+            const editing = buttonEl.getAttribute('data-editing') === 'true';
+            if (!editing) {
+                if (editingScheduleId && editingScheduleId !== scheduleId) {
+                    message.textContent = 'Save or reload the currently edited row before editing another.';
+                    return;
+                }
+                editingScheduleId = scheduleId;
+                frequencyEl.style.display = 'inline-block';
+                buttonEl.setAttribute('data-editing', 'true');
+                buttonEl.textContent = 'Save';
+                message.textContent = 'Edit mode enabled. Update provider/frequency and click Save.';
+                return;
+            }
+
+            const llm_provider = providerEl.value || 'ollama';
+            const frequency = frequencyEl.value || 'daily';
+            const res = await fetch(`/batching/schedules/${encodeURIComponent(scheduleId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ llm_provider, frequency }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                message.textContent = `Save failed: ${data.detail || 'request error'}`;
+                return;
+            }
+
+            editingScheduleId = null;
+            message.textContent = `Schedule updated: ${data.ticker} (${data.llm_provider}, ${data.frequency})`;
+            await loadSchedules();
+        }
+
+        async function deleteSchedule(scheduleId) {
+            const message = document.getElementById('message');
+            if (!scheduleId) return;
+            const ok = window.confirm('Delete this stock from batch schedules?');
+            if (!ok) return;
+
+            const res = await fetch(`/batching/schedules/${encodeURIComponent(scheduleId)}`, {
+                method: 'DELETE',
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                message.textContent = `Delete failed: ${data.detail || 'request error'}`;
+                return;
+            }
+            message.textContent = 'Schedule deleted successfully.';
+            await loadSchedules();
+        }
+
+        async function rerunSchedule(scheduleId) {
+            const message = document.getElementById('message');
+            if (!scheduleId) return;
+            const providerEl = document.querySelector(`[data-provider-id="${CSS.escape(scheduleId)}"]`);
+            const llm_provider = (providerEl && providerEl.value) ? providerEl.value : 'ollama';
+
+            const res = await fetch(`/batching/schedules/${encodeURIComponent(scheduleId)}/rerun`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ llm_provider }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                message.textContent = `Rerun failed: ${data.detail || 'request error'}`;
+                return;
+            }
+            message.textContent = `Rerun queued for ${data.ticker} (${data.llm_provider})`;
         }
 
         async function showRecommendationHistory(ticker, provider) {
@@ -1191,7 +1498,10 @@ async def batching_page():
             }
         });
         loadSchedules();
-        setInterval(loadSchedules, 10000);
+        setInterval(() => {
+            if (editingScheduleId) return;
+            loadSchedules();
+        }, 10000);
     </script>
 </body>
 </html>
@@ -1201,6 +1511,11 @@ async def batching_page():
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page():
     """Settings screen for runtime environment values and usage metrics."""
+    mcp_button = (
+        '<a class="ghost-btn mcp" href="/mcp-server" target="_blank" rel="noopener noreferrer">MCP Server</a>'
+        if _HAS_MCP_SERVER
+        else ""
+    )
     return """
 <!doctype html>
 <html>
@@ -1219,6 +1534,8 @@ async def settings_page():
         input { width:100%; border:1px solid #c9d6e8; border-radius:10px; padding:10px; font-size:14px; }
         .row { display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
         button { border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700; background:linear-gradient(135deg,#0284c7,#0ea5e9); color:#fff; }
+        .ghost-btn { display:inline-block; text-decoration:none; border-radius:10px; padding:10px 14px; font-weight:700; background:#1d4ed8; color:#fff; }
+        .ghost-btn.mcp { background:#0f766e; }
         code { background:#e2e8f0; border-radius:6px; padding:2px 6px; }
         table { width:100%; border-collapse: collapse; margin-top:10px; }
         th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #e2e8f0; font-size:13px; }
@@ -1228,16 +1545,20 @@ async def settings_page():
 <body>
     <main class=\"wrap\">
         <div class=\"card\">
-            <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
                 <a href="/ui" style="background:#374151;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Operations</a>
                 <a href="/batching" style="background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Batching</a>
                 <a href="/completed" style="background:#111827;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Completed</a>
                 <a href="/requests/closed?format=html" style="background:#7c3aed;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Closed</a>
                 <a href="/settings" style="background:#1d4ed8;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">Settings</a>
-                <a href="/api-definition" style="background:#0f766e;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600">API Definition</a>
             </div>
             <h1>Settings</h1>
             <p class="muted">View and update any key from your <code>.env</code>. Type a key name to add or update it.</p>
+            <div class="row" style="margin:8px 0 14px">
+                <a class="ghost-btn" href="/docs" target="_blank" rel="noopener noreferrer">Swagger Definition</a>
+                <a class="ghost-btn" href="/api-definition" target="_blank" rel="noopener noreferrer">API Definition</a>
+                __MCP_BUTTON__
+            </div>
             <label for="envName">.env key name</label>
             <input id="envName" type="text" placeholder="e.g. GOOGLE_API_KEY" />
             <label for="envValue">.env key value</label>
@@ -1245,6 +1566,7 @@ async def settings_page():
             <div class=\"row\">
                 <button id=\"save\">Save Key</button>
                 <button id=\"reload\" type=\"button\">Force Reload</button>
+                <button id="vaultRefresh" type="button">Refresh From Vault</button>
                 <button id="toggleValue" type="button">Show/Hide Value</button>
                 <span id=\"msg\" class=\"muted\"></span>
             </div>
@@ -1431,6 +1753,23 @@ async def settings_page():
             await Promise.all([loadEnvList(), loadTodayCalls()]);
         }
 
+        async function refreshFromVault() {
+            const msg = document.getElementById('msg');
+            msg.textContent = 'Refreshing from Vault...';
+            const res = await fetch('/vault/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                msg.textContent = `Vault refresh failed: ${data.detail || 'request error'}`;
+                return;
+            }
+            msg.textContent = `Vault refresh complete. Updated ${Number(data.updated || 0)} key(s).`;
+            await Promise.all([loadEnvList(), loadTodayCalls()]);
+        }
+
         function toggleValueVisibility() {
             const input = document.getElementById('envValue');
             input.type = input.type === 'password' ? 'text' : 'password';
@@ -1438,12 +1777,13 @@ async def settings_page():
 
         document.getElementById('save').addEventListener('click', save);
         document.getElementById('reload').addEventListener('click', reloadAll);
+        document.getElementById('vaultRefresh').addEventListener('click', refreshFromVault);
         document.getElementById('toggleValue').addEventListener('click', toggleValueVisibility);
         reloadAll();
     </script>
 </body>
 </html>
-    """
+    """.replace("__MCP_BUTTON__", mcp_button)
 
 
 # ---------------------------------------------------------------------------

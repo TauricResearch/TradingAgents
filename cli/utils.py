@@ -178,15 +178,28 @@ def _fetch_openrouter_models() -> List[Tuple[str, str]]:
         return []
 
 
+def _prefer_openrouter_free_models(models: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """Return models ordered with free OpenRouter models first."""
+    free_models: List[Tuple[str, str]] = []
+    paid_models: List[Tuple[str, str]] = []
+    for name, mid in models:
+        model_id = (mid or "").strip().lower()
+        if model_id.endswith(":free"):
+            free_models.append((name, mid))
+        else:
+            paid_models.append((name, mid))
+    return free_models + paid_models
+
+
 def select_openrouter_model() -> str:
-    """Select an OpenRouter model from the newest available, or enter a custom ID."""
-    models = _fetch_openrouter_models()
+    """Select an OpenRouter model, preferring free-tier models first."""
+    models = _prefer_openrouter_free_models(_fetch_openrouter_models())
 
     choices = [questionary.Choice(name, value=mid) for name, mid in models[:5]]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
     choice = questionary.select(
-        "Select OpenRouter Model (latest available):",
+        "Select OpenRouter Model (free models first):",
         choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
@@ -198,7 +211,7 @@ def select_openrouter_model() -> str:
 
     if choice is None or choice == "custom":
         return questionary.text(
-            "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
+            "Enter OpenRouter model ID (e.g. deepseek/deepseek-r1-0528:free):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
         ).ask().strip()
 

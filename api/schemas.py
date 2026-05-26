@@ -16,7 +16,7 @@ class AnalyzeRequest(BaseModel):
     )
     llm_provider: Optional[str] = Field(
         None,
-        description="LLM provider to use for this request. Defaults to ollama.",
+        description="LLM provider to use for this request. Defaults to ollama. Supported: ollama, google, openrouter.",
     )
 
 
@@ -71,8 +71,17 @@ class CancelAllResponse(BaseModel):
 
 class BatchScheduleCreateRequest(BaseModel):
     ticker: str = Field(..., description="Stock ticker symbol, e.g. NVDA")
-    llm_provider: str = Field(..., description="Provider for scheduled runs: ollama or google")
+    llm_provider: str = Field(..., description="Provider for scheduled runs: ollama, google, or openrouter")
     frequency: str = Field(..., description="Run frequency: daily, weekly, or monthly")
+
+
+class BatchScheduleRerunRequest(BaseModel):
+    llm_provider: str = Field(..., description="Provider to use for this rerun: ollama, google, or openrouter")
+
+
+class BatchScheduleUpdateRequest(BaseModel):
+    llm_provider: str = Field(..., description="Updated provider for future scheduled runs")
+    frequency: str = Field(..., description="Updated frequency for future scheduled runs: daily, weekly, or monthly")
 
 
 class BatchScheduleItem(BaseModel):
@@ -101,3 +110,18 @@ class EnvVarValueResponse(BaseModel):
     name: str
     value: Optional[str] = None
     exists: bool
+
+
+class VaultRefreshResponse(BaseModel):
+    enabled: bool
+    updated: int
+    keys: list[str]
+    skipped: list[str]
+    message: str
+
+
+class LatestRecommendationResponse(BaseModel):
+    ticker: str
+    provider: Optional[str] = None
+    available: bool
+    latest: Optional[dict] = None

@@ -2,7 +2,8 @@
 run_ollama.py — Quick-start TradingAgents with local Ollama and free yfinance data.
 
 Available local models (from http://localhost:11434):
-    - gemma4:26b      (25.8B  — best reasoning, recommended default)
+    - qwen3:latest    (8B     — recommended default)
+    - gemma4:26b      (25.8B  — strongest reasoning)
   - gpt-oss:20b     (20.9B  — good reasoning)
     - gemma4:e2b      (5.1B   — fast, lower-quality option)
   - gemma3n:latest  (6.9B)
@@ -22,8 +23,8 @@ OLLAMA_BASE_URL = "http://localhost:11434/v1"
 
 # Choose models from what is available locally in Ollama.
 # Adjust these to your preference.
-DEEP_THINK_MODEL  = "gemma4:26b"   # large model for complex reasoning
-QUICK_THINK_MODEL = "gemma4:26b"   # quality-first default for better decisions
+DEEP_THINK_MODEL  = "qwen3:latest"   # provider-specific default for Ollama
+QUICK_THINK_MODEL = "qwen3:latest"   # provider-specific default for Ollama
 
 
 def build_config() -> dict:

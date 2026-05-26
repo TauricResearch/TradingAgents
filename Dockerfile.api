@@ -10,6 +10,7 @@ WORKDIR /build
 COPY pyproject.toml ./
 COPY tradingagents/ ./tradingagents/
 COPY cli/ ./cli/
+COPY mcp_server/ ./mcp_server/
 
 # Install the core package
 RUN pip install --no-cache-dir .
@@ -47,6 +48,7 @@ WORKDIR /app
 COPY --chown=appuser:appuser tradingagents/ ./tradingagents/
 COPY --chown=appuser:appuser cli/ ./cli/
 COPY --chown=appuser:appuser api/ ./api/
+COPY --chown=appuser:appuser mcp_server/ ./mcp_server/
 
 EXPOSE 9000
 

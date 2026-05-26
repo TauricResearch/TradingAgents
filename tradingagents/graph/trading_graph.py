@@ -143,6 +143,12 @@ class TradingAgentsGraph:
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
+        elif provider == "openrouter":
+            # Free-tier OpenRouter models enforce strict per-minute rate limits and
+            # can be globally congested.  max_retries tells the underlying openai
+            # SDK to honour the Retry-After header and automatically back off.
+            kwargs["max_retries"] = int(self.config.get("openrouter_max_retries", 6))
+
         elif provider == "openai":
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:

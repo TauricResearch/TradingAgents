@@ -169,6 +169,51 @@ async def list_batch_schedules(db_path: str = DB_PATH) -> list[dict]:
             return [dict(r) for r in rows]
 
 
+async def get_batch_schedule(schedule_id: str, db_path: str = DB_PATH) -> Optional[dict]:
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, ticker, llm_provider, frequency, created_at, updated_at, last_run_at, next_run_at
+            FROM batch_schedules
+            WHERE id = ?
+            """,
+            (schedule_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def delete_batch_schedule(schedule_id: str, db_path: str = DB_PATH) -> bool:
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            "DELETE FROM batch_schedules WHERE id = ?",
+            (schedule_id,),
+        )
+        await db.commit()
+        return (cursor.rowcount or 0) > 0
+
+
+async def update_batch_schedule_config(
+    schedule_id: str,
+    llm_provider: str,
+    frequency: str,
+    next_run_at: str,
+    db_path: str = DB_PATH,
+) -> bool:
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            """
+            UPDATE batch_schedules
+            SET llm_provider = ?, frequency = ?, next_run_at = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (llm_provider.lower(), frequency.lower(), next_run_at, _now_iso(), schedule_id),
+        )
+        await db.commit()
+        return (cursor.rowcount or 0) > 0
+
+
 async def get_recommendation_history(
     ticker: str,
     llm_provider: Optional[str] = None,

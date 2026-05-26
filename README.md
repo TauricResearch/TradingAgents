@@ -133,6 +133,82 @@ For local models with Ollama:
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
+### REST API + External Vault Runtime Keys
+
+The API container can load API keys from HashiCorp Vault (KV v2) at startup and on demand.
+Vault is intentionally decoupled from the main project compose so API rebuilds do not affect secret storage.
+
+1. Start a persistent local Vault stack (separate compose project):
+
+```bash
+docker compose -f vault-local/docker-compose.yml up -d
+```
+
+2. Initialize/unseal and optionally seed provider keys:
+
+```powershell
+./scripts/vault_local_bootstrap.ps1
+```
+
+3. Set Vault variables in `.env` for the API container:
+
+```bash
+VAULT_ENABLED=true
+VAULT_ADDR=http://host.docker.internal:8200
+VAULT_TOKEN=<your-root-or-app-token>
+VAULT_KV_MOUNT=secret
+VAULT_KV_PATH=tradingagents/api-keys
+VAULT_KEYS=GOOGLE_API_KEY,OPENROUTER_API_KEY
+```
+
+4. Start API:
+
+```bash
+docker compose up -d --build tradingagents-api
+```
+
+At startup, TradingAgents API refreshes configured keys from Vault. You can force refresh with:
+
+```bash
+curl -X POST http://localhost:9000/vault/refresh
+```
+
+To stop local Vault while keeping persistent data:
+
+```bash
+docker compose -f vault-local/docker-compose.yml down
+```
+
+Latest recommendation for a ticker:
+
+```bash
+curl "http://localhost:9000/recommendations/latest/NVDA"
+```
+
+### MCP Server for TradingAgents API
+
+An MCP server is included to expose REST endpoints as MCP tools.
+
+Run it with:
+
+```bash
+tradingagents-mcp
+```
+
+Environment variable:
+
+```bash
+TRADINGAGENTS_API_BASE_URL=http://localhost:9000
+```
+
+Exposed MCP tools include:
+- `health_check`
+- `submit_analysis`
+- `get_request_status`
+- `get_latest_recommendation`
+- `force_vault_refresh`
+- `get_runtime_env_value`
+
 ### Required APIs
 
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:

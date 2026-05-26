@@ -1,0 +1,13 @@
+services:
+  vault:
+    image: hashicorp/vault:1.18
+    container_name: tradingagents-vault-local
+    command: vault server -config=/vault/config/vault.hcl
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./data:/vault/data
+      - ../vault-config:/vault/config:ro
+    restart: unless-stopped

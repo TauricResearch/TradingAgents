@@ -30,13 +30,15 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "mcp>=1.9.0",
 ]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-mcp = "mcp_server.tradingagents_mcp_server:main"
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "mcp_server*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
