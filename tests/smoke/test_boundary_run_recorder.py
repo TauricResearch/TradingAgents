@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch
-from pathlib import Path
 
 
 pytestmark = pytest.mark.smoke
@@ -56,8 +55,12 @@ def test_run_recorder_node_fires_for_every_persona_in_deepdive(tmp_path, monkeyp
         with patch("tradingagents.secretary.service.synthesize_brief", return_value={
             "consensus": "x", "divergence": "y", "recommendation": "HOLD", "raw": "..."
         }):
+            # parallel=False: sequential execution makes invocations list deterministic.
             run_deepdive(ticker="AAPL", trade_date="2026-05-25", parallel=False)
 
+    # Each persona must fire exactly once — guard against both missing and duplicate fires.
+    assert len(invocations) == 3, \
+        f"Expected 3 Run Recorder invocations (one per persona), got {len(invocations)}: {invocations}"
     persona_ids_seen = {pid for _, pid in invocations}
     assert persona_ids_seen == {"macro", "value", "momentum"}, \
         f"Run Recorder fired for {persona_ids_seen}, not all three personas"
