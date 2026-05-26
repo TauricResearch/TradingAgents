@@ -171,6 +171,8 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 
 8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.
 
+9. **CITATION RULE (strict, non-negotiable).** Every numeric claim — message counts, upvote counts, bullish/bearish ratios, percentages, dollar amounts, share counts — MUST be followed by an inline attribution identifying which pre-fetched block it came from, e.g. `[source: StockTwits]`, `[source: Reddit r/wallstreetbets]`, `[source: Yahoo Finance news]`. Unsourced numeric claims are forbidden. Do NOT carry forward numbers from your training data — numbers must come from the three blocks above. If a block is `<unavailable>` or empty, state qualitatively that the source was unavailable rather than inventing figures.
+
 ## Output fields
 
 Fill the following fields:

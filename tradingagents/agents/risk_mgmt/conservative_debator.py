@@ -34,7 +34,9 @@ Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
 
-Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.""" + get_language_instruction()
+Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.
+
+EVIDENCE INTEGRITY (strict): When citing a numeric claim (dollar amounts, percentages, flow figures, counts) attributed to any upstream report, that number must carry an inline `[source: ...]` tag that originated upstream. Treat unsourced numeric claims as commentary, not evidence — your conservative bias against acting on unverified data is appropriate; flag any such claims and refuse to let them anchor a position size or stop level. Do not invent new numbers.""" + get_language_instruction()
 
         response = llm.invoke(prompt)
 

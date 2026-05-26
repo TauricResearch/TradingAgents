@@ -22,6 +22,13 @@ def create_news_analyst(llm):
 
         system_message = (
             f"You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for {asset_label}-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            + """
+
+CITATION RULE (strict, non-negotiable):
+- Every numeric claim — dollar amounts, percentages, share counts, dates, counts of any kind — MUST be immediately followed by an inline citation in the form `[source: <publication-name-or-url>]` derived from the tool output you actually consumed.
+- Unsourced numeric claims are forbidden. If you cannot cite a number, state the trend qualitatively instead (e.g. "ETF flows turned negative in recent weeks" rather than fabricating "$2.26B in ETF outflows").
+- Do NOT carry forward numbers from your model's training data; numbers must come from this run's tool calls.
+- If a tool call returns nothing for a topic, say "no recent news retrieved on X" rather than guessing."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             + get_language_instruction()
         )

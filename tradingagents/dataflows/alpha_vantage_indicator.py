@@ -31,30 +31,44 @@ def get_indicator(
         "close_50_sma": ("50 SMA", "close"),
         "close_200_sma": ("200 SMA", "close"),
         "close_10_ema": ("10 EMA", "close"),
+        "close_20_ema": ("20 EMA", "close"),
+        "close_50_ema": ("50 EMA", "close"),
         "macd": ("MACD", "close"),
         "macds": ("MACD Signal", "close"),
         "macdh": ("MACD Histogram", "close"),
         "rsi": ("RSI", "close"),
+        "kdjk": ("Stochastic K", None),     # via STOCH endpoint (SlowK column)
+        "kdjd": ("Stochastic D", None),     # via STOCH endpoint (SlowD column)
+        "cci": ("CCI", None),
+        "adx": ("ADX", None),
         "boll": ("Bollinger Middle", "close"),
         "boll_ub": ("Bollinger Upper Band", "close"),
         "boll_lb": ("Bollinger Lower Band", "close"),
         "atr": ("ATR", None),
-        "vwma": ("VWMA", "close")
+        "mfi": ("MFI", None),
+        "vwma": ("VWMA", "close"),
     }
 
     indicator_descriptions = {
         "close_50_sma": "50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.",
         "close_200_sma": "200 SMA: A long-term trend benchmark. Usage: Confirm overall market trend and identify golden/death cross setups. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.",
         "close_10_ema": "10 EMA: A responsive short-term average. Usage: Capture quick shifts in momentum and potential entry points. Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals.",
+        "close_20_ema": "20 EMA: The most-watched intermediate trend line. Usage: Dynamic support/resistance in trending markets; price holding the 20 EMA = trend intact. Tips: Bridges the gap between 10 EMA (noisy) and 50 SMA (laggy).",
+        "close_50_ema": "50 EMA: Medium-term EMA — reacts faster than 50 SMA at the same window. Usage: Use instead of 50 SMA when you want quicker trend-change confirmation. Tips: Often used as a stop-loss reference in trend-following strategies.",
         "macd": "MACD: Computes momentum via differences of EMAs. Usage: Look for crossovers and divergence as signals of trend changes. Tips: Confirm with other indicators in low-volatility or sideways markets.",
         "macds": "MACD Signal: An EMA smoothing of the MACD line. Usage: Use crossovers with the MACD line to trigger trades. Tips: Should be part of a broader strategy to avoid false positives.",
         "macdh": "MACD Histogram: Shows the gap between the MACD line and its signal. Usage: Visualize momentum strength and spot divergence early. Tips: Can be volatile; complement with additional filters in fast-moving markets.",
-        "rsi": "RSI: Measures momentum to flag overbought/oversold conditions. Usage: Apply 70/30 thresholds and watch for divergence to signal reversals. Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis.",
+        "rsi": "RSI: Measures momentum to flag overbought/oversold conditions. Usage: Apply 70/30 thresholds and watch for divergence to signal reversals. Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis (ADX).",
+        "kdjk": "KDJ-K (via Stochastic SlowK): Faster oscillator than RSI; ranges 0–100. Usage: Crosses above K-D = bullish; crosses below = bearish. Above 80 = overbought, below 20 = oversold. Tips: KDJ catches turning points RSI misses in range-bound markets; pair with kdjd.",
+        "kdjd": "KDJ-D (via Stochastic SlowD): Smoothed K. Usage: K crossing D is the canonical signal. D acts as confirmation. Tips: Use with kdjk; together they're more robust than RSI in choppy regimes.",
+        "cci": "CCI: Commodity Channel Index. Measures deviation from mean price. Usage: ±100 = standard overbought/oversold (fade); ±200 = breakout zone (follow). Tips: Dual-purpose — interpret CCI based on regime: trending → follow extremes, ranging → fade them.",
+        "adx": "ADX: Average Directional Index. Measures TREND STRENGTH (not direction). Usage: ADX > 25 = strong trend (ride it, don't fade); ADX < 20 = ranging market (fade extremes). Tips: Critical context for RSI/CCI/KDJ — overbought in strong trend ≠ overbought in chop. Always include in your selection.",
         "boll": "Bollinger Middle: A 20 SMA serving as the basis for Bollinger Bands. Usage: Acts as a dynamic benchmark for price movement. Tips: Combine with the upper and lower bands to effectively spot breakouts or reversals.",
         "boll_ub": "Bollinger Upper Band: Typically 2 standard deviations above the middle line. Usage: Signals potential overbought conditions and breakout zones. Tips: Confirm signals with other tools; prices may ride the band in strong trends.",
         "boll_lb": "Bollinger Lower Band: Typically 2 standard deviations below the middle line. Usage: Indicates potential oversold conditions. Tips: Use additional analysis to avoid false reversal signals.",
         "atr": "ATR: Averages true range to measure volatility. Usage: Set stop-loss levels and adjust position sizes based on current market volatility. Tips: It's a reactive measure, so use it as part of a broader risk management strategy.",
-        "vwma": "VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses."
+        "mfi": "MFI: The Money Flow Index is a momentum indicator that uses both price and volume to measure buying and selling pressure. Usage: Identify overbought (>80) or oversold (<20) conditions and confirm the strength of trends or reversals. Tips: Use alongside RSI or MACD to confirm signals; divergence between price and MFI can indicate potential reversals.",
+        "vwma": "VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.",
     }
 
     if indicator not in supported_indicators:
@@ -95,6 +109,22 @@ def get_indicator(
                 "symbol": symbol,
                 "interval": interval,
                 "time_period": "10",
+                "series_type": series_type,
+                "datatype": "csv"
+            })
+        elif indicator == "close_20_ema":
+            data = _make_api_request("EMA", {
+                "symbol": symbol,
+                "interval": interval,
+                "time_period": "20",
+                "series_type": series_type,
+                "datatype": "csv"
+            })
+        elif indicator == "close_50_ema":
+            data = _make_api_request("EMA", {
+                "symbol": symbol,
+                "interval": interval,
+                "time_period": "50",
                 "series_type": series_type,
                 "datatype": "csv"
             })
@@ -142,6 +172,38 @@ def get_indicator(
                 "time_period": str(time_period),
                 "datatype": "csv"
             })
+        elif indicator == "adx":
+            # Alpha Vantage ADX endpoint. Default time_period=14.
+            data = _make_api_request("ADX", {
+                "symbol": symbol,
+                "interval": interval,
+                "time_period": str(time_period),
+                "datatype": "csv"
+            })
+        elif indicator in ("kdjk", "kdjd"):
+            # Alpha Vantage's STOCH endpoint returns SlowK and SlowD columns.
+            # KDJ is the same family; map kdjk→SlowK and kdjd→SlowD. The
+            # smoothing parameters differ slightly from stockstats KDJ but
+            # the signal interpretation is functionally identical.
+            data = _make_api_request("STOCH", {
+                "symbol": symbol,
+                "interval": interval,
+                "datatype": "csv"
+            })
+        elif indicator == "cci":
+            data = _make_api_request("CCI", {
+                "symbol": symbol,
+                "interval": interval,
+                "time_period": "20",
+                "datatype": "csv"
+            })
+        elif indicator == "mfi":
+            data = _make_api_request("MFI", {
+                "symbol": symbol,
+                "interval": interval,
+                "time_period": str(time_period),
+                "datatype": "csv"
+            })
         elif indicator == "vwma":
             # Alpha Vantage doesn't have direct VWMA, so we'll return an informative message
             # In a real implementation, this would need to be calculated from OHLCV data
@@ -165,8 +227,15 @@ def get_indicator(
         col_name_map = {
             "macd": "MACD", "macds": "MACD_Signal", "macdh": "MACD_Hist",
             "boll": "Real Middle Band", "boll_ub": "Real Upper Band", "boll_lb": "Real Lower Band",
-            "rsi": "RSI", "atr": "ATR", "close_10_ema": "EMA",
-            "close_50_sma": "SMA", "close_200_sma": "SMA"
+            "rsi": "RSI", "atr": "ATR",
+            "close_10_ema": "EMA", "close_20_ema": "EMA", "close_50_ema": "EMA",
+            "close_50_sma": "SMA", "close_200_sma": "SMA",
+            # New indicators
+            "adx": "ADX",
+            "kdjk": "SlowK",          # STOCH endpoint returns SlowK + SlowD
+            "kdjd": "SlowD",
+            "cci": "CCI",
+            "mfi": "MFI",
         }
 
         target_col_name = col_name_map.get(indicator)

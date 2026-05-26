@@ -4,7 +4,14 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .stockstats_utils import (
+    StockstatsUtils,
+    _clean_dataframe,
+    yf_retry,
+    load_ohlcv,
+    filter_financials_by_date,
+    _min_bars_required,
+)
 from .symbol_utils import normalize_symbol, NoMarketDataError
 
 def get_YFin_data_online(
@@ -79,6 +86,16 @@ def get_stock_stats_indicators_window(
             "Usage: Capture quick shifts in momentum and potential entry points. "
             "Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals."
         ),
+        "close_20_ema": (
+            "20 EMA: The most-watched intermediate trend line. "
+            "Usage: Dynamic support/resistance in trending markets; price holding the 20 EMA = trend intact. "
+            "Tips: Bridges the gap between 10 EMA (noisy) and 50 SMA (laggy)."
+        ),
+        "close_50_ema": (
+            "50 EMA: Medium-term EMA — reacts faster than 50 SMA at the same window. "
+            "Usage: Use instead of 50 SMA when you want quicker trend-change confirmation. "
+            "Tips: Often used as a stop-loss reference in trend-following strategies."
+        ),
         # MACD Related
         "macd": (
             "MACD: Computes momentum via differences of EMAs. "
@@ -99,7 +116,28 @@ def get_stock_stats_indicators_window(
         "rsi": (
             "RSI: Measures momentum to flag overbought/oversold conditions. "
             "Usage: Apply 70/30 thresholds and watch for divergence to signal reversals. "
-            "Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis."
+            "Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis (ADX)."
+        ),
+        "kdjk": (
+            "KDJ-K: Stochastic K line. Faster oscillator than RSI; ranges 0–100. "
+            "Usage: Crosses above K-D = bullish; crosses below = bearish. Above 80 = overbought, below 20 = oversold. "
+            "Tips: KDJ catches turning points RSI misses in range-bound markets; pair with kdjd."
+        ),
+        "kdjd": (
+            "KDJ-D: Stochastic D line — smoothed K. "
+            "Usage: K crossing D is the canonical signal. D acts as confirmation. "
+            "Tips: Use with kdjk; together they're more robust than RSI in choppy regimes."
+        ),
+        "cci": (
+            "CCI: Commodity Channel Index. Measures deviation from mean price. "
+            "Usage: ±100 = standard overbought/oversold (fade); ±200 = breakout zone (follow). "
+            "Tips: Dual-purpose — interpret CCI based on regime: trending → follow extremes, ranging → fade them."
+        ),
+        # Trend Strength
+        "adx": (
+            "ADX: Average Directional Index. Measures TREND STRENGTH (not direction). "
+            "Usage: ADX > 25 = strong trend (ride it, don't fade); ADX < 20 = ranging market (fade extremes). "
+            "Tips: Critical context for RSI/CCI/KDJ — overbought in strong trend ≠ overbought in chop. Always include in your selection."
         ),
         # Volatility Indicators
         "boll": (
@@ -144,49 +182,86 @@ def get_stock_stats_indicators_window(
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
 
-    # Optimized: Get stock data once and calculate indicators for all dates
+    # Optimized: Get stock data once and calculate indicators for all dates.
+    # The bulk dict contains ONLY trading days (rows present in OHLCV).
+    # Non-trading days (weekends/holidays) simply aren't keys.
+    trading_day_lines = []
+    non_trading_day_count = 0
+    insufficient_history_count = 0
+
     try:
-        indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
-        
-        # Generate the date range we need
+        indicator_data, total_bars_at_curr = _get_stock_stats_bulk(
+            symbol, indicator, curr_date
+        )
+
+        # Apply the same strict-window guard the single-value path uses:
+        # if total available bars < indicator's required window, the entire
+        # range is unreliable — return one explicit ERROR_INSUFFICIENT_HISTORY
+        # instead of a list of fabricable values.
+        min_bars = _min_bars_required(indicator)
+        if min_bars and total_bars_at_curr < min_bars:
+            return (
+                f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
+                f"ERROR_INSUFFICIENT_HISTORY: indicator '{indicator}' requires at "
+                f"least {min_bars} prior bars but only {total_bars_at_curr} are "
+                f"available for {symbol} on or before {curr_date}. "
+                f"Any value computed from a partial window is misleading. "
+                f"Do NOT approximate or treat partial-window values as valid; "
+                f"report the data gap explicitly in your report.\n\n"
+                + best_ind_params.get(indicator, "No description available.")
+            )
+
         current_dt = curr_date_dt
-        date_values = []
-        
         while current_dt >= before:
             date_str = current_dt.strftime('%Y-%m-%d')
-            
-            # Look up the indicator value for this date
             if date_str in indicator_data:
-                indicator_value = indicator_data[date_str]
+                value = indicator_data[date_str]
+                if value == "__NAN__":
+                    # Indicator window not yet filled on this specific date,
+                    # even though prior days were OK (early in history).
+                    insufficient_history_count += 1
+                    trading_day_lines.append(
+                        f"{date_str}: ERROR_INSUFFICIENT_HISTORY (window not filled)"
+                    )
+                else:
+                    trading_day_lines.append(f"{date_str}: {value}")
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
-            
-            date_values.append((date_str, indicator_value))
+                non_trading_day_count += 1
             current_dt = current_dt - relativedelta(days=1)
-        
-        # Build the result string
-        ind_string = ""
-        for date_str, value in date_values:
-            ind_string += f"{date_str}: {value}\n"
+
+        ind_string = "\n".join(trading_day_lines) + "\n"
 
     except NoMarketDataError:
         raise  # Unknown/delisted symbol — let the router emit the sentinel
     except Exception as e:
         print(f"Error getting bulk stockstats data: {e}")
-        # Fallback to original implementation if bulk method fails
+        # Fallback to per-day calls (now also using structured ERROR_* tokens
+        # via the patched StockstatsUtils.get_stock_stats).
         ind_string = ""
-        curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        while curr_date_dt >= before:
+        current_dt = curr_date_dt
+        while current_dt >= before:
             indicator_value = get_stockstats_indicator(
-                symbol, indicator, curr_date_dt.strftime("%Y-%m-%d")
+                symbol, indicator, current_dt.strftime("%Y-%m-%d")
             )
-            ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
-            curr_date_dt = curr_date_dt - relativedelta(days=1)
+            ind_string += f"{current_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            current_dt = current_dt - relativedelta(days=1)
+
+    footer_parts = []
+    if non_trading_day_count:
+        footer_parts.append(
+            f"[{non_trading_day_count} non-trading days (weekends/holidays) in window — excluded from list above]"
+        )
+    if insufficient_history_count:
+        footer_parts.append(
+            f"[{insufficient_history_count} trading days had insufficient history for '{indicator}' window — flagged inline]"
+        )
+    footer = ("\n" + "\n".join(footer_parts) + "\n") if footer_parts else ""
 
     result_str = (
         f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
         + ind_string
-        + "\n\n"
+        + footer
+        + "\n"
         + best_ind_params.get(indicator, "No description available.")
     )
 
@@ -197,34 +272,41 @@ def _get_stock_stats_bulk(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to calculate"],
     curr_date: Annotated[str, "current date for reference"]
-) -> dict:
+):
     """
     Optimized bulk calculation of stock stats indicators.
     Fetches data once and calculates indicator for all available dates.
-    Returns dict mapping date strings to indicator values.
+
+    Returns a 2-tuple ``(date_to_value, total_bars_at_curr)``:
+      - ``date_to_value``: dict mapping trading-day ``YYYY-MM-DD`` strings to
+        either the numeric value as ``str(...)`` OR the sentinel ``"__NAN__"``
+        when the indicator's rolling window is not yet filled on that date.
+      - ``total_bars_at_curr``: number of OHLCV bars available on or before
+        ``curr_date`` — used by callers to apply the strict-window guard.
     """
     from stockstats import wrap
 
     data = load_ohlcv(symbol, curr_date)
     df = wrap(data)
     df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-    
+
     # Calculate the indicator for all rows at once
     df[indicator]  # This triggers stockstats to calculate the indicator
-    
-    # Create a dictionary mapping date strings to indicator values
+
     result_dict = {}
     for _, row in df.iterrows():
         date_str = row["Date"]
         indicator_value = row[indicator]
-        
-        # Handle NaN/None values
         if pd.isna(indicator_value):
-            result_dict[date_str] = "N/A"
+            # Sentinel — distinct from "weekend/holiday" (which is just
+            # absence from this dict). The outer loop translates this into
+            # an ERROR_INSUFFICIENT_HISTORY message for that specific date.
+            result_dict[date_str] = "__NAN__"
         else:
             result_dict[date_str] = str(indicator_value)
-    
-    return result_dict
+
+    total_bars_at_curr = int(len(df))
+    return result_dict, total_bars_at_curr
 
 
 def get_stockstats_indicator(
