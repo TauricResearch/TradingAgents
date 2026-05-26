@@ -191,10 +191,12 @@ def get_indicator(
                 "datatype": "csv"
             })
         elif indicator == "cci":
+            # Use the caller's time_period (default 14) so AV matches the
+            # 14-period CCI that stockstats computes on yfinance.
             data = _make_api_request("CCI", {
                 "symbol": symbol,
                 "interval": interval,
-                "time_period": "20",
+                "time_period": str(time_period),
                 "datatype": "csv"
             })
         elif indicator == "mfi":

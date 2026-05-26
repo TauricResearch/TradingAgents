@@ -81,6 +81,10 @@ def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
 
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
+    # Empty inputs short-circuit — the rename/parse/fillna steps below all
+    # assume at least one row exists and will raise KeyError on Date access.
+    if data.empty:
+        return data
     data = _ensure_date_column(data)
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"])

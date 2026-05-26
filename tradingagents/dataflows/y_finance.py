@@ -235,16 +235,30 @@ def get_stock_stats_indicators_window(
         raise  # Unknown/delisted symbol — let the router emit the sentinel
     except Exception as e:
         print(f"Error getting bulk stockstats data: {e}")
-        # Fallback to per-day calls (now also using structured ERROR_* tokens
-        # via the patched StockstatsUtils.get_stock_stats).
-        ind_string = ""
+        # Fallback to per-day calls. Apply the same structured-token handling
+        # as the bulk path so the output format stays consistent: weekends
+        # get summarized in the footer, insufficient-history days get flagged
+        # inline, NaN values get flagged inline, and the counters drive the
+        # footer message — all just like the happy path above.
+        fallback_lines = []
         current_dt = curr_date_dt
         while current_dt >= before:
-            indicator_value = get_stockstats_indicator(
-                symbol, indicator, current_dt.strftime("%Y-%m-%d")
-            )
-            ind_string += f"{current_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            date_str = current_dt.strftime("%Y-%m-%d")
+            indicator_value = get_stockstats_indicator(symbol, indicator, date_str)
+            value_str = str(indicator_value)
+            if "ERROR_NON_TRADING_DAY" in value_str:
+                non_trading_day_count += 1
+            elif "ERROR_INSUFFICIENT_HISTORY" in value_str:
+                insufficient_history_count += 1
+                fallback_lines.append(
+                    f"{date_str}: ERROR_INSUFFICIENT_HISTORY (window not filled)"
+                )
+            elif "ERROR_VALUE_NAN" in value_str:
+                fallback_lines.append(f"{date_str}: ERROR_VALUE_NAN")
+            else:
+                fallback_lines.append(f"{date_str}: {indicator_value}")
             current_dt = current_dt - relativedelta(days=1)
+        ind_string = "\n".join(fallback_lines) + "\n"
 
     footer_parts = []
     if non_trading_day_count:
