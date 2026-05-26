@@ -1,387 +1,565 @@
-# Graph Report - .  (2026-05-22)
+# Graph Report - .  (2026-05-26)
 
 ## Corpus Check
-- 108 files · ~207,744 words
+- 135 files · ~344,536 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1148 nodes · 1733 edges · 80 communities (70 shown, 10 thin omitted)
-- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 336 edges (avg confidence: 0.71)
-- Token cost: 8,200 input · 3,100 output
+- 1192 nodes · 818 edges · 610 communities (282 shown, 328 thin omitted)
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 142 edges (avg confidence: 0.62)
+- Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Portfolio Rating Schemas|Portfolio Rating Schemas]]
-- [[_COMMUNITY_System Concepts & Overview|System Concepts & Overview]]
-- [[_COMMUNITY_OpenAI-Compatible LLM Clients|OpenAI-Compatible LLM Clients]]
-- [[_COMMUNITY_Memory Log Test Fixtures I|Memory Log Test Fixtures I]]
-- [[_COMMUNITY_Model Capabilities & Validation|Model Capabilities & Validation]]
-- [[_COMMUNITY_Alpha Vantage Data Flows|Alpha Vantage Data Flows]]
-- [[_COMMUNITY_Graph Checkpoint System|Graph Checkpoint System]]
-- [[_COMMUNITY_Memory Log Test Fixtures II|Memory Log Test Fixtures II]]
-- [[_COMMUNITY_CLI Entry & User Config|CLI Entry & User Config]]
-- [[_COMMUNITY_Model Catalog & Ollama Tests|Model Catalog & Ollama Tests]]
-- [[_COMMUNITY_System Architecture Diagram|System Architecture Diagram]]
-- [[_COMMUNITY_CLI News Analysis UI|CLI News Analysis UI]]
-- [[_COMMUNITY_Signal Processing Engine|Signal Processing Engine]]
-- [[_COMMUNITY_CLI Display & Message Rendering|CLI Display & Message Rendering]]
-- [[_COMMUNITY_Decision Propagation|Decision Propagation]]
-- [[_COMMUNITY_Agent Setup & Orchestration|Agent Setup & Orchestration]]
-- [[_COMMUNITY_Memory Utilities & Tests|Memory Utilities & Tests]]
-- [[_COMMUNITY_Analyst Execution Timing|Analyst Execution Timing]]
-- [[_COMMUNITY_CLI Technical Analysis UI|CLI Technical Analysis UI]]
-- [[_COMMUNITY_API Key Management|API Key Management]]
-- [[_COMMUNITY_Data Flow Utilities|Data Flow Utilities]]
-- [[_COMMUNITY_StockStats & yFinance Utils|StockStats & yFinance Utils]]
-- [[_COMMUNITY_Memory Log Test Fixtures III|Memory Log Test Fixtures III]]
-- [[_COMMUNITY_MiniMax LLM Client|MiniMax LLM Client]]
-- [[_COMMUNITY_Graph Setup & Init|Graph Setup & Init]]
-- [[_COMMUNITY_Sentiment & Social Analysts|Sentiment & Social Analysts]]
-- [[_COMMUNITY_Data Flow Interface Layer|Data Flow Interface Layer]]
-- [[_COMMUNITY_Graph Conditional Logic|Graph Conditional Logic]]
-- [[_COMMUNITY_CLI Stats & Callbacks|CLI Stats & Callbacks]]
-- [[_COMMUNITY_Google Gemini LLM Client|Google Gemini LLM Client]]
-- [[_COMMUNITY_Data Flow Configuration|Data Flow Configuration]]
-- [[_COMMUNITY_CLI Transaction UI|CLI Transaction UI]]
-- [[_COMMUNITY_Env Override Tests|Env Override Tests]]
-- [[_COMMUNITY_Anthropic LLM Client|Anthropic LLM Client]]
-- [[_COMMUNITY_Base LLM Client Interface|Base LLM Client Interface]]
-- [[_COMMUNITY_OpenRouter Model Selection|OpenRouter Model Selection]]
-- [[_COMMUNITY_Anthropic Effort Tests|Anthropic Effort Tests]]
-- [[_COMMUNITY_OpenAI LLM Client|OpenAI LLM Client]]
-- [[_COMMUNITY_CLI Init & Defaults UI|CLI Init & Defaults UI]]
-- [[_COMMUNITY_Asset Type & Analyst Filtering|Asset Type & Analyst Filtering]]
-- [[_COMMUNITY_Risk Analyst Profiles|Risk Analyst Profiles]]
-- [[_COMMUNITY_Azure OpenAI Client|Azure OpenAI Client]]
-- [[_COMMUNITY_Analyst Roles UI|Analyst Roles UI]]
-- [[_COMMUNITY_Trader Decision UI|Trader Decision UI]]
-- [[_COMMUNITY_Anthropic Chat Client|Anthropic Chat Client]]
-- [[_COMMUNITY_Model Validation Tests|Model Validation Tests]]
-- [[_COMMUNITY_Model Registry & Validators|Model Registry & Validators]]
-- [[_COMMUNITY_Fundamental Data Tools|Fundamental Data Tools]]
-- [[_COMMUNITY_Graph Reflection|Graph Reflection]]
-- [[_COMMUNITY_Graph Module Init|Graph Module Init]]
-- [[_COMMUNITY_Agent State Management|Agent State Management]]
-- [[_COMMUNITY_yFinance News Data|yFinance News Data]]
-- [[_COMMUNITY_BullBear Researcher UI|Bull/Bear Researcher UI]]
-- [[_COMMUNITY_CLI Token Formatting|CLI Token Formatting]]
-- [[_COMMUNITY_Structured Output Tests|Structured Output Tests]]
-- [[_COMMUNITY_Memory Log Legacy Tests|Memory Log Legacy Tests]]
-- [[_COMMUNITY_OHLCV Data Loading|OHLCV Data Loading]]
-- [[_COMMUNITY_Memory Log Test Core|Memory Log Test Core]]
-- [[_COMMUNITY_CLI Announcements|CLI Announcements]]
-- [[_COMMUNITY_Ticker Input & Normalization|Ticker Input & Normalization]]
-- [[_COMMUNITY_Test Fixtures & Conftest|Test Fixtures & Conftest]]
-- [[_COMMUNITY_Reddit Data Flows|Reddit Data Flows]]
-- [[_COMMUNITY_Default Config System|Default Config System]]
-- [[_COMMUNITY_WeChat Community Image|WeChat Community Image]]
-- [[_COMMUNITY_StockTwits Data Flows|StockTwits Data Flows]]
-- [[_COMMUNITY_Core Stock Data Tools|Core Stock Data Tools]]
-- [[_COMMUNITY_Tauric Research Branding|Tauric Research Branding]]
-- [[_COMMUNITY_Portfolio Manager Memory Test|Portfolio Manager Memory Test]]
-- [[_COMMUNITY_Social Media Analyst Stub|Social Media Analyst Stub]]
-- [[_COMMUNITY_Anthropic Effort Rationale|Anthropic Effort Rationale]]
-- [[_COMMUNITY_Base Client Rationale I|Base Client Rationale I]]
-- [[_COMMUNITY_Base Client Rationale II|Base Client Rationale II]]
+- [[_COMMUNITY_Portfolio Management & Graph Execution|Portfolio Management & Graph Execution]]
+- [[_COMMUNITY_Global Configuration & Utilities|Global Configuration & Utilities]]
+- [[_COMMUNITY_Analyst Sub-Agents & Rating System|Analyst Sub-Agents & Rating System]]
+- [[_COMMUNITY_Market & News Analysis (Apple Focus)|Market & News Analysis (Apple Focus)]]
+- [[_COMMUNITY_Project Documentation & Historical Context|Project Documentation & Historical Context]]
+- [[_COMMUNITY_DeepSeek LLM Integration & Testing|DeepSeek LLM Integration & Testing]]
+- [[_COMMUNITY_Alpha Vantage Dataflows & API Requests|Alpha Vantage Dataflows & API Requests]]
+- [[_COMMUNITY_Financial Fundamentals & News API|Financial Fundamentals & News API]]
+- [[_COMMUNITY_Structured Agent Schemas & State|Structured Agent Schemas & State]]
+- [[_COMMUNITY_Ollama Integration & Env-Var Overrides|Ollama Integration & Env-Var Overrides]]
+- [[_COMMUNITY_Multi-Provider LLM Support & Docker|Multi-Provider LLM Support & Docker]]
+- [[_COMMUNITY_Agent Team Workflows & UI Feedback|Agent Team Workflows & UI Feedback]]
+- [[_COMMUNITY_API Key Management & Env Mapping|API Key Management & Env Mapping]]
+- [[_COMMUNITY_Community 15|Community 15]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
+- [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
+- [[_COMMUNITY_Community 22|Community 22]]
+- [[_COMMUNITY_Community 23|Community 23]]
+- [[_COMMUNITY_Community 24|Community 24]]
+- [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
+- [[_COMMUNITY_Community 27|Community 27]]
+- [[_COMMUNITY_Community 28|Community 28]]
+- [[_COMMUNITY_Community 29|Community 29]]
+- [[_COMMUNITY_Community 30|Community 30]]
+- [[_COMMUNITY_Community 31|Community 31]]
+- [[_COMMUNITY_Community 32|Community 32]]
+- [[_COMMUNITY_Community 33|Community 33]]
+- [[_COMMUNITY_Community 34|Community 34]]
+- [[_COMMUNITY_Community 35|Community 35]]
+- [[_COMMUNITY_Community 36|Community 36]]
+- [[_COMMUNITY_Community 37|Community 37]]
+- [[_COMMUNITY_Community 38|Community 38]]
+- [[_COMMUNITY_Community 39|Community 39]]
+- [[_COMMUNITY_Community 40|Community 40]]
+- [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
+- [[_COMMUNITY_Community 43|Community 43]]
+- [[_COMMUNITY_Community 44|Community 44]]
+- [[_COMMUNITY_Community 45|Community 45]]
+- [[_COMMUNITY_Community 46|Community 46]]
+- [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
+- [[_COMMUNITY_Community 49|Community 49]]
+- [[_COMMUNITY_Community 50|Community 50]]
+- [[_COMMUNITY_Community 51|Community 51]]
+- [[_COMMUNITY_Community 52|Community 52]]
+- [[_COMMUNITY_Community 53|Community 53]]
+- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
+- [[_COMMUNITY_Community 68|Community 68]]
+- [[_COMMUNITY_Community 69|Community 69]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 78|Community 78]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 80|Community 80]]
+- [[_COMMUNITY_Community 81|Community 81]]
+- [[_COMMUNITY_Community 82|Community 82]]
+- [[_COMMUNITY_Community 83|Community 83]]
+- [[_COMMUNITY_Community 84|Community 84]]
+- [[_COMMUNITY_Community 85|Community 85]]
+- [[_COMMUNITY_Community 86|Community 86]]
+- [[_COMMUNITY_Community 87|Community 87]]
+- [[_COMMUNITY_Community 88|Community 88]]
+- [[_COMMUNITY_Community 89|Community 89]]
+- [[_COMMUNITY_Community 107|Community 107]]
+- [[_COMMUNITY_Community 108|Community 108]]
+- [[_COMMUNITY_Community 109|Community 109]]
+- [[_COMMUNITY_Community 110|Community 110]]
+- [[_COMMUNITY_Community 111|Community 111]]
+- [[_COMMUNITY_Community 123|Community 123]]
+- [[_COMMUNITY_Community 143|Community 143]]
+- [[_COMMUNITY_Community 152|Community 152]]
+- [[_COMMUNITY_Community 157|Community 157]]
+- [[_COMMUNITY_Community 158|Community 158]]
+- [[_COMMUNITY_Community 159|Community 159]]
+- [[_COMMUNITY_Community 162|Community 162]]
+- [[_COMMUNITY_Community 163|Community 163]]
+- [[_COMMUNITY_Community 164|Community 164]]
+- [[_COMMUNITY_Community 165|Community 165]]
+- [[_COMMUNITY_Community 166|Community 166]]
+- [[_COMMUNITY_Community 172|Community 172]]
+- [[_COMMUNITY_Community 173|Community 173]]
+- [[_COMMUNITY_Community 174|Community 174]]
+- [[_COMMUNITY_Community 175|Community 175]]
+- [[_COMMUNITY_Community 176|Community 176]]
+- [[_COMMUNITY_Community 177|Community 177]]
+- [[_COMMUNITY_Community 178|Community 178]]
+- [[_COMMUNITY_Community 179|Community 179]]
+- [[_COMMUNITY_Community 180|Community 180]]
+- [[_COMMUNITY_Community 181|Community 181]]
+- [[_COMMUNITY_Community 182|Community 182]]
+- [[_COMMUNITY_Community 183|Community 183]]
+- [[_COMMUNITY_Community 184|Community 184]]
+- [[_COMMUNITY_Community 185|Community 185]]
+- [[_COMMUNITY_Community 253|Community 253]]
+- [[_COMMUNITY_Community 254|Community 254]]
+- [[_COMMUNITY_Community 255|Community 255]]
+- [[_COMMUNITY_Community 256|Community 256]]
+- [[_COMMUNITY_Community 257|Community 257]]
+- [[_COMMUNITY_Community 258|Community 258]]
+- [[_COMMUNITY_Community 259|Community 259]]
+- [[_COMMUNITY_Community 260|Community 260]]
+- [[_COMMUNITY_Community 261|Community 261]]
+- [[_COMMUNITY_Community 262|Community 262]]
+- [[_COMMUNITY_Community 263|Community 263]]
+- [[_COMMUNITY_Community 264|Community 264]]
+- [[_COMMUNITY_Community 265|Community 265]]
+- [[_COMMUNITY_Community 266|Community 266]]
+- [[_COMMUNITY_Community 267|Community 267]]
+- [[_COMMUNITY_Community 268|Community 268]]
+- [[_COMMUNITY_Community 269|Community 269]]
+- [[_COMMUNITY_Community 270|Community 270]]
+- [[_COMMUNITY_Community 271|Community 271]]
+- [[_COMMUNITY_Community 272|Community 272]]
+- [[_COMMUNITY_Community 273|Community 273]]
+- [[_COMMUNITY_Community 274|Community 274]]
+- [[_COMMUNITY_Community 275|Community 275]]
+- [[_COMMUNITY_Community 276|Community 276]]
+- [[_COMMUNITY_Community 277|Community 277]]
+- [[_COMMUNITY_Community 278|Community 278]]
+- [[_COMMUNITY_Community 279|Community 279]]
+- [[_COMMUNITY_Community 280|Community 280]]
+- [[_COMMUNITY_Community 281|Community 281]]
+- [[_COMMUNITY_Community 282|Community 282]]
+- [[_COMMUNITY_Community 283|Community 283]]
+- [[_COMMUNITY_Community 284|Community 284]]
+- [[_COMMUNITY_Community 285|Community 285]]
+- [[_COMMUNITY_Community 286|Community 286]]
+- [[_COMMUNITY_Community 287|Community 287]]
+- [[_COMMUNITY_Community 288|Community 288]]
+- [[_COMMUNITY_Community 289|Community 289]]
+- [[_COMMUNITY_Community 290|Community 290]]
+- [[_COMMUNITY_Community 291|Community 291]]
+- [[_COMMUNITY_Community 292|Community 292]]
+- [[_COMMUNITY_Community 293|Community 293]]
+- [[_COMMUNITY_Community 294|Community 294]]
+- [[_COMMUNITY_Community 295|Community 295]]
+- [[_COMMUNITY_Community 296|Community 296]]
+- [[_COMMUNITY_Community 297|Community 297]]
+- [[_COMMUNITY_Community 298|Community 298]]
+- [[_COMMUNITY_Community 302|Community 302]]
+- [[_COMMUNITY_Community 303|Community 303]]
+- [[_COMMUNITY_Community 304|Community 304]]
+- [[_COMMUNITY_Community 306|Community 306]]
+- [[_COMMUNITY_Community 308|Community 308]]
+- [[_COMMUNITY_Community 309|Community 309]]
+- [[_COMMUNITY_Community 310|Community 310]]
+- [[_COMMUNITY_Community 311|Community 311]]
+- [[_COMMUNITY_Community 312|Community 312]]
+- [[_COMMUNITY_Community 313|Community 313]]
+- [[_COMMUNITY_Community 314|Community 314]]
+- [[_COMMUNITY_Community 315|Community 315]]
+- [[_COMMUNITY_Community 316|Community 316]]
+- [[_COMMUNITY_Community 317|Community 317]]
+- [[_COMMUNITY_Community 318|Community 318]]
+- [[_COMMUNITY_Community 319|Community 319]]
+- [[_COMMUNITY_Community 320|Community 320]]
+- [[_COMMUNITY_Community 321|Community 321]]
+- [[_COMMUNITY_Community 322|Community 322]]
+- [[_COMMUNITY_Community 323|Community 323]]
+- [[_COMMUNITY_Community 324|Community 324]]
+- [[_COMMUNITY_Community 325|Community 325]]
+- [[_COMMUNITY_Community 326|Community 326]]
+- [[_COMMUNITY_Community 327|Community 327]]
+- [[_COMMUNITY_Community 328|Community 328]]
+- [[_COMMUNITY_Community 338|Community 338]]
+- [[_COMMUNITY_Community 339|Community 339]]
+- [[_COMMUNITY_Community 340|Community 340]]
+- [[_COMMUNITY_Community 341|Community 341]]
+- [[_COMMUNITY_Community 342|Community 342]]
+- [[_COMMUNITY_Community 343|Community 343]]
+- [[_COMMUNITY_Community 344|Community 344]]
+- [[_COMMUNITY_Community 345|Community 345]]
+- [[_COMMUNITY_Community 346|Community 346]]
+- [[_COMMUNITY_Community 347|Community 347]]
+- [[_COMMUNITY_Community 348|Community 348]]
+- [[_COMMUNITY_Community 349|Community 349]]
+- [[_COMMUNITY_Community 350|Community 350]]
+- [[_COMMUNITY_Community 351|Community 351]]
+- [[_COMMUNITY_Community 352|Community 352]]
+- [[_COMMUNITY_Community 353|Community 353]]
+- [[_COMMUNITY_Community 360|Community 360]]
+- [[_COMMUNITY_Community 361|Community 361]]
+- [[_COMMUNITY_Community 362|Community 362]]
+- [[_COMMUNITY_Community 363|Community 363]]
+- [[_COMMUNITY_Community 364|Community 364]]
+- [[_COMMUNITY_Community 368|Community 368]]
+- [[_COMMUNITY_Community 369|Community 369]]
+- [[_COMMUNITY_Community 378|Community 378]]
+- [[_COMMUNITY_Community 379|Community 379]]
+- [[_COMMUNITY_Community 380|Community 380]]
+- [[_COMMUNITY_Community 381|Community 381]]
+- [[_COMMUNITY_Community 382|Community 382]]
+- [[_COMMUNITY_Community 383|Community 383]]
+- [[_COMMUNITY_Community 384|Community 384]]
+- [[_COMMUNITY_Community 385|Community 385]]
+- [[_COMMUNITY_Community 386|Community 386]]
+- [[_COMMUNITY_Community 387|Community 387]]
+- [[_COMMUNITY_Community 388|Community 388]]
+- [[_COMMUNITY_Community 399|Community 399]]
+- [[_COMMUNITY_Community 400|Community 400]]
+- [[_COMMUNITY_Community 401|Community 401]]
+- [[_COMMUNITY_Community 402|Community 402]]
+- [[_COMMUNITY_Community 403|Community 403]]
+- [[_COMMUNITY_Community 404|Community 404]]
+- [[_COMMUNITY_Community 405|Community 405]]
+- [[_COMMUNITY_Community 406|Community 406]]
+- [[_COMMUNITY_Community 407|Community 407]]
+- [[_COMMUNITY_Community 408|Community 408]]
+- [[_COMMUNITY_Community 409|Community 409]]
+- [[_COMMUNITY_Community 417|Community 417]]
+- [[_COMMUNITY_Community 418|Community 418]]
+- [[_COMMUNITY_Community 419|Community 419]]
+- [[_COMMUNITY_Community 420|Community 420]]
+- [[_COMMUNITY_Community 421|Community 421]]
+- [[_COMMUNITY_Community 422|Community 422]]
+- [[_COMMUNITY_Community 425|Community 425]]
+- [[_COMMUNITY_Community 426|Community 426]]
+- [[_COMMUNITY_Community 427|Community 427]]
+- [[_COMMUNITY_Community 431|Community 431]]
+- [[_COMMUNITY_Community 432|Community 432]]
+- [[_COMMUNITY_Community 433|Community 433]]
+- [[_COMMUNITY_Community 434|Community 434]]
+- [[_COMMUNITY_Community 437|Community 437]]
+- [[_COMMUNITY_Community 438|Community 438]]
+- [[_COMMUNITY_Community 439|Community 439]]
+- [[_COMMUNITY_Community 440|Community 440]]
+- [[_COMMUNITY_Community 441|Community 441]]
+- [[_COMMUNITY_Community 442|Community 442]]
+- [[_COMMUNITY_Community 443|Community 443]]
+- [[_COMMUNITY_Community 444|Community 444]]
+- [[_COMMUNITY_Community 445|Community 445]]
+- [[_COMMUNITY_Community 446|Community 446]]
+- [[_COMMUNITY_Community 447|Community 447]]
+- [[_COMMUNITY_Community 448|Community 448]]
+- [[_COMMUNITY_Community 449|Community 449]]
+- [[_COMMUNITY_Community 450|Community 450]]
+- [[_COMMUNITY_Community 451|Community 451]]
+- [[_COMMUNITY_Community 452|Community 452]]
+- [[_COMMUNITY_Community 464|Community 464]]
+- [[_COMMUNITY_Community 465|Community 465]]
+- [[_COMMUNITY_Community 466|Community 466]]
+- [[_COMMUNITY_Community 467|Community 467]]
+- [[_COMMUNITY_Community 468|Community 468]]
+- [[_COMMUNITY_Community 469|Community 469]]
+- [[_COMMUNITY_Community 470|Community 470]]
+- [[_COMMUNITY_Community 471|Community 471]]
+- [[_COMMUNITY_Community 472|Community 472]]
+- [[_COMMUNITY_Community 473|Community 473]]
+- [[_COMMUNITY_Community 474|Community 474]]
+- [[_COMMUNITY_Community 475|Community 475]]
+- [[_COMMUNITY_Community 476|Community 476]]
+- [[_COMMUNITY_Community 477|Community 477]]
+- [[_COMMUNITY_Community 478|Community 478]]
+- [[_COMMUNITY_Community 479|Community 479]]
+- [[_COMMUNITY_Community 480|Community 480]]
+- [[_COMMUNITY_Community 481|Community 481]]
+- [[_COMMUNITY_Community 482|Community 482]]
+- [[_COMMUNITY_Community 483|Community 483]]
+- [[_COMMUNITY_Community 487|Community 487]]
+- [[_COMMUNITY_Community 488|Community 488]]
+- [[_COMMUNITY_Community 489|Community 489]]
+- [[_COMMUNITY_Community 490|Community 490]]
+- [[_COMMUNITY_Community 491|Community 491]]
+- [[_COMMUNITY_Community 492|Community 492]]
+- [[_COMMUNITY_Community 493|Community 493]]
+- [[_COMMUNITY_Community 494|Community 494]]
+- [[_COMMUNITY_Community 495|Community 495]]
+- [[_COMMUNITY_Community 496|Community 496]]
+- [[_COMMUNITY_Community 498|Community 498]]
+- [[_COMMUNITY_Community 504|Community 504]]
+- [[_COMMUNITY_Community 505|Community 505]]
+- [[_COMMUNITY_Community 506|Community 506]]
+- [[_COMMUNITY_Community 507|Community 507]]
+- [[_COMMUNITY_Community 508|Community 508]]
+- [[_COMMUNITY_Community 509|Community 509]]
+- [[_COMMUNITY_Community 510|Community 510]]
+- [[_COMMUNITY_Community 511|Community 511]]
+- [[_COMMUNITY_Community 512|Community 512]]
+- [[_COMMUNITY_Community 513|Community 513]]
+- [[_COMMUNITY_Community 514|Community 514]]
+- [[_COMMUNITY_Community 515|Community 515]]
+- [[_COMMUNITY_Community 516|Community 516]]
+- [[_COMMUNITY_Community 517|Community 517]]
+- [[_COMMUNITY_Community 518|Community 518]]
+- [[_COMMUNITY_Community 519|Community 519]]
+- [[_COMMUNITY_Community 520|Community 520]]
+- [[_COMMUNITY_Community 521|Community 521]]
+- [[_COMMUNITY_Community 522|Community 522]]
+- [[_COMMUNITY_Community 523|Community 523]]
+- [[_COMMUNITY_Community 524|Community 524]]
+- [[_COMMUNITY_Community 525|Community 525]]
+- [[_COMMUNITY_Community 526|Community 526]]
+- [[_COMMUNITY_Community 527|Community 527]]
+- [[_COMMUNITY_Community 528|Community 528]]
+- [[_COMMUNITY_Community 529|Community 529]]
+- [[_COMMUNITY_Community 530|Community 530]]
+- [[_COMMUNITY_Community 531|Community 531]]
+- [[_COMMUNITY_Community 532|Community 532]]
+- [[_COMMUNITY_Community 533|Community 533]]
+- [[_COMMUNITY_Community 534|Community 534]]
+- [[_COMMUNITY_Community 538|Community 538]]
+- [[_COMMUNITY_Community 539|Community 539]]
+- [[_COMMUNITY_Community 540|Community 540]]
+- [[_COMMUNITY_Community 541|Community 541]]
+- [[_COMMUNITY_Community 542|Community 542]]
+- [[_COMMUNITY_Community 543|Community 543]]
+- [[_COMMUNITY_Community 544|Community 544]]
+- [[_COMMUNITY_Community 549|Community 549]]
+- [[_COMMUNITY_Community 550|Community 550]]
+- [[_COMMUNITY_Community 551|Community 551]]
+- [[_COMMUNITY_Community 552|Community 552]]
+- [[_COMMUNITY_Community 553|Community 553]]
+- [[_COMMUNITY_Community 554|Community 554]]
+- [[_COMMUNITY_Community 559|Community 559]]
+- [[_COMMUNITY_Community 560|Community 560]]
+- [[_COMMUNITY_Community 561|Community 561]]
+- [[_COMMUNITY_Community 562|Community 562]]
+- [[_COMMUNITY_Community 563|Community 563]]
+- [[_COMMUNITY_Community 564|Community 564]]
+- [[_COMMUNITY_Community 565|Community 565]]
+- [[_COMMUNITY_Community 566|Community 566]]
+- [[_COMMUNITY_Community 567|Community 567]]
+- [[_COMMUNITY_Community 568|Community 568]]
+- [[_COMMUNITY_Community 576|Community 576]]
+- [[_COMMUNITY_Community 577|Community 577]]
+- [[_COMMUNITY_Community 578|Community 578]]
+- [[_COMMUNITY_Community 579|Community 579]]
+- [[_COMMUNITY_Community 580|Community 580]]
+- [[_COMMUNITY_Community 581|Community 581]]
+- [[_COMMUNITY_Community 582|Community 582]]
+- [[_COMMUNITY_Community 584|Community 584]]
+- [[_COMMUNITY_Community 589|Community 589]]
+- [[_COMMUNITY_Community 590|Community 590]]
+- [[_COMMUNITY_Community 591|Community 591]]
+- [[_COMMUNITY_Community 592|Community 592]]
+- [[_COMMUNITY_Community 593|Community 593]]
+- [[_COMMUNITY_Community 595|Community 595]]
+- [[_COMMUNITY_Community 596|Community 596]]
+- [[_COMMUNITY_Community 597|Community 597]]
+- [[_COMMUNITY_Community 598|Community 598]]
+- [[_COMMUNITY_Community 599|Community 599]]
+- [[_COMMUNITY_Community 600|Community 600]]
+- [[_COMMUNITY_Community 601|Community 601]]
+- [[_COMMUNITY_Community 602|Community 602]]
+- [[_COMMUNITY_Community 603|Community 603]]
+- [[_COMMUNITY_Community 604|Community 604]]
+- [[_COMMUNITY_Community 605|Community 605]]
+- [[_COMMUNITY_Community 606|Community 606]]
+- [[_COMMUNITY_Community 607|Community 607]]
+- [[_COMMUNITY_Community 608|Community 608]]
+- [[_COMMUNITY_Community 609|Community 609]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `make_log()` - 40 edges
-2. `TestTradingMemoryLogCore` - 37 edges
-3. `TestDeferredReflection` - 28 edges
-4. `TradingAgentsGraph` - 27 edges
-5. `TradingMemoryLog` - 26 edges
-6. `get_capabilities()` - 25 edges
-7. `get_user_selections()` - 22 edges
-8. `run_analysis()` - 20 edges
-9. `TestPortfolioManagerInjection` - 18 edges
-10. `Propagator` - 18 edges
+1. `TradingAgentsGraph` - 18 edges
+2. `Research Team` - 18 edges
+3. `BaseLLMClient` - 13 edges
+4. `TradingAgents Multi-Agent Framework` - 12 edges
+5. `get_language_instruction()` - 11 edges
+6. `Propagator` - 10 edges
+7. `PortfolioRating` - 10 edges
+8. `TestPortfolioManagerInjection` - 9 edges
+9. `NormalizedChatOpenAI` - 9 edges
+10. `DeepSeekChatOpenAI` - 9 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `DummyLLMClient` --uses--> `BaseLLMClient`  [INFERRED]
-  tests/test_model_validation.py → tradingagents/llm_clients/base_client.py
-- `ModelValidationTests` --uses--> `BaseLLMClient`  [INFERRED]
-  tests/test_model_validation.py → tradingagents/llm_clients/base_client.py
-- `test_api_key_handling()` --calls--> `GoogleClient`  [INFERRED]
-  tests/test_google_api_key.py → tradingagents/llm_clients/google_client.py
-- `test_known_providers_resolve()` --calls--> `get_api_key_env()`  [INFERRED]
-  tests/test_api_key_env.py → tradingagents/llm_clients/api_key_env.py
-- `test_ollama_has_no_key()` --calls--> `get_api_key_env()`  [INFERRED]
-  tests/test_api_key_env.py → tradingagents/llm_clients/api_key_env.py
+- `Analyst Team` --shares_data_with--> `Research Team`  [INFERRED]
+  README.md → assets/cli/cli_news.png
+- `TradingAgents CLI` --references--> `Analyst Team`  [EXTRACTED]
+  assets/cli/cli_init.png → README.md
+- `Research Team` --references--> `Research Manager`  [EXTRACTED]
+  assets/cli/cli_news.png → CHANGELOG.md
+- `CLI Main Entry Point (cli.main)` --implements--> `TradingAgents CLI`  [EXTRACTED]
+  README.md → assets/cli/cli_init.png
+- `TestRenderTraderProposal` --uses--> `PortfolioRating`  [INFERRED]
+  tests/test_structured_agents.py → tradingagents/agents/schemas.py
 
 ## Hyperedges (group relationships)
-- **Analyst Team Members** — concept_fundamentals_analyst, concept_sentiment_analyst, concept_news_analyst, concept_technical_analyst [EXTRACTED 1.00]
 - **Structured Output Decision Agents** — concept_research_manager, concept_trader_agent, concept_portfolio_manager [EXTRACTED 1.00]
 - **Supported LLM Providers** — concept_minimax_provider, concept_deepseek_provider, concept_qwen_provider, concept_glm_provider, concept_openrouter_provider, concept_azure_openai_provider, concept_ollama_support [EXTRACTED 1.00]
+- **Analyst Team Members** — concept_fundamentals_analyst, concept_sentiment_analyst, concept_news_analyst, concept_technical_analyst [EXTRACTED 1.00]
 - **Docker Compose Services** — concept_docker_service_tradingagents, concept_docker_service_ollama, concept_docker_service_tradingagents_ollama [EXTRACTED 1.00]
+- **LLM Provider Abstraction Pattern** — tests_test_capabilities_capability_table, tests_test_minimax_reasoning_split_rationale, tests_test_deepseek_reasoning_propagation, tests_test_anthropic_effort_gate [EXTRACTED 0.95]
+- **Graph Resilience and Memory Flow** — tests_test_checkpoint_resume_mechanism, tests_test_memory_log_trading_memory_log, tests_test_memory_log_deferred_reflection [INFERRED 0.80]
+- **Risk Debate Multi-Agent Team** — risk_mgmt_conservative_debator_create_conservative_debator, risk_mgmt_aggressive_debator_create_aggressive_debator, risk_mgmt_neutral_debator_create_neutral_debator [INFERRED 0.95]
+- **Moncler Investment Debate** — 2_research_bull_moncler_bull_case, 2_research_bear_moncler_bear_case, 2_research_manager_moncler_evaluation [EXTRACTED 1.00]
+- **NVDA Earnings Analysis Team** — 1_analysts_market_nvda_technical, 1_analysts_sentiment_nvda_sentiment [EXTRACTED 1.00]
 
-## Communities (80 total, 10 thin omitted)
+## Communities (610 total, 328 thin omitted)
 
-### Community 0 - "Portfolio Rating Schemas"
+### Community 0 - "Portfolio Management & Graph Execution"
 Cohesion: 0.08
-Nodes (37): PortfolioRating, Pydantic schemas used by agents that produce structured output.  The framework's, Structured transaction proposal produced by the Trader.      The trader reads th, Render a TraderProposal to markdown.      The trailing ``FINAL TRANSACTION PROPO, Render a PortfolioDecision back to the markdown shape the rest of the system exp, 5-tier rating used by the Research Manager and Portfolio Manager., 3-tier transaction direction used by the Trader.      The Trader's job is to tra, Structured investment plan produced by the Research Manager.      Hand-off to th (+29 more)
+Nodes (30): PortfolioDecision, PortfolioRating, Propagator, Reflector, GraphSetup, Extract the 5-tier portfolio rating from the Portfolio Manager's decision.  The, SignalProcessor, TradingAgentsGraph (+22 more)
 
-### Community 1 - "System Concepts & Overview"
-Cohesion: 0.05
-Nodes (49): TradingAgents Changelog, Alpha Vantage Data Provider, Analyst Team, TradingAgents arXiv Paper (2412.20138), Azure OpenAI Provider, Per-Agent BM25 Memory (Deprecated), LangGraph Checkpoint Resume, CLI Main Entry Point (cli.main) (+41 more)
-
-### Community 2 - "OpenAI-Compatible LLM Clients"
-Cohesion: 0.07
-Nodes (26): BaseModel, ChatOpenAI, DeepSeekChatOpenAI, _input_to_messages(), NormalizedChatOpenAI, ChatOpenAI with normalized content output and capability-aware binding.      The, Normalise a langchain LLM input to a list of message objects.      Accepts a lis, DeepSeek-specific overrides on top of the OpenAI-compatible client.      Thinkin (+18 more)
-
-### Community 3 - "Memory Log Test Fixtures I"
-Cohesion: 0.09
-Nodes (14): make_log(), Calling store_decision twice with same (ticker, date) stores only one entry., batch_update_with_outcomes resolves multiple pending entries in one write., Rating: X' label wins even when an opposing rating word appears earlier in prose, LLM decision containing '---' must not corrupt the entry., Only the n_same most recent same-ticker entries are included., Only the n_cross most recent cross-ticker entries are included., **Rating**: Buy — markdown bold around the label must not prevent parsing. (+6 more)
-
-### Community 4 - "Model Capabilities & Validation"
-Cohesion: 0.09
-Nodes (16): get_capabilities(), ModelCapabilities, Declarative per-model capability table for OpenAI-compatible providers.  This is, Resolve capabilities by exact ID, then pattern, then default., What an OpenAI-compatible model accepts at the API level., Unit tests for the LLM capability table., deepseek-chat must NOT match the v\\d regex., Capability rows are immutable so they can be safely shared. (+8 more)
-
-### Community 5 - "Alpha Vantage Data Flows"
-Cohesion: 0.08
-Nodes (31): AlphaVantageRateLimitError, _filter_csv_by_date_range(), format_datetime_for_api(), get_api_key(), _make_api_request(), Retrieve the API key for Alpha Vantage from environment variables., Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage A, Exception raised when Alpha Vantage API rate limit is exceeded. (+23 more)
-
-### Community 6 - "Graph Checkpoint System"
-Cohesion: 0.09
-Nodes (25): checkpoint_step(), clear_all_checkpoints(), clear_checkpoint(), _db_path(), get_checkpointer(), has_checkpoint(), LangGraph checkpoint support for resumable analysis runs.  Per-ticker SQLite dat, Return the SQLite checkpoint DB path for a ticker. (+17 more)
-
-### Community 7 - "Memory Log Test Fixtures II"
+### Community 1 - "Global Configuration & Utilities"
 Cohesion: 0.06
-Nodes (16): Only the matching entry is modified; all other entries remain unchanged., A pre-existing .tmp file is overwritten; the log is correctly updated., All fields intact and blank line between tag and DECISION preserved after update, Return figures are present in the human message sent to the LLM., Empty DataFrame → returns (None, None, None), no crash., SPY having fewer rows than the stock must not raise IndexError., config['benchmark_ticker'] wins for every ticker., Known suffixes route to their regional index. (+8 more)
+Nodes (13): StockstatsUtils, get_config(), yfinance-based news data fetching functions., get_YFin_data_online, get_news_yfinance, get_stock_stats_indicators_window, load_ohlcv, stockstats (+5 more)
 
-### Community 8 - "CLI Entry & User Config"
+### Community 2 - "Analyst Sub-Agents & Rating System"
 Cohesion: 0.09
-Nodes (30): get_analysis_date(), get_ticker(), get_user_selections(), Get all user selections before starting the analysis display., Get ticker symbol from user input, preserving exchange suffixes., Get the analysis date from user input., ask_anthropic_effort(), ask_gemini_thinking_config() (+22 more)
+Nodes (26): create_fundamentals_analyst(), create_market_analyst(), create_news_analyst(), create_sentiment_analyst(), 5-Tier Rating System, Analyst Team, Fundamentals Analyst, News Analyst (+18 more)
 
-### Community 9 - "Model Catalog & Ollama Tests"
-Cohesion: 0.08
-Nodes (26): get_model_options(), Return shared model options for a provider and selection mode., Tests for OLLAMA_BASE_URL env-var override across CLI and client paths., If user sets OLLAMA_BASE_URL=0.0.0.128, advise on the expected shape., A remote host with no :11434 gets a soft hint about port mismatch., Local host without port shouldn't trigger the remote-port hint., Labels should no longer claim '(local)' since the endpoint is dynamic., Ollama users with custom-pulled models can pick 'Custom model ID'. (+18 more)
-
-### Community 10 - "System Architecture Diagram"
-Cohesion: 0.08
-Nodes (29): Aggressive Risk Profile, Analyst, Bearish Researcher, Bloomberg, Bullish Researcher, Company Profile, Conservative Risk Profile, Discussion (+21 more)
-
-### Community 11 - "CLI News Analysis UI"
+### Community 3 - "Market & News Analysis (Apple Focus)"
 Cohesion: 0.09
-Nodes (28): News Analysis Panel, Analyst Team, Bear Researcher Agent, Bull Researcher Agent, get_global_news Tool, get_google_news Tool, get_stock_news Tool, Macroeconomic Environment Analysis (+20 more)
+Nodes (32): AAPL Social Sentiment Analysis, Apple Inc. Financial Analysis, Fundamentals Analyst, Global Economic Trends and Sector Insights, Analyst Roles UI Overview, Market Analyst, News Analyst, Tech Sector Growth Key Points (+24 more)
 
-### Community 12 - "Signal Processing Engine"
-Cohesion: 0.11
-Nodes (11): Read the 5-tier rating out of a Portfolio Manager decision., Return one of Buy / Overweight / Hold / Underweight / Sell., SignalProcessor, Tests for the shared rating heuristic and the SignalProcessor adapter.  The Port, SignalProcessor must not invoke the LLM it was constructed with —         the ra, TestParseRating, TestSignalProcessor, Append pending entry at end of propagate(). No LLM call. (+3 more)
+### Community 4 - "Project Documentation & Historical Context"
+Cohesion: 0.09
+Nodes (28): TradingAgents Changelog, Alpha Vantage Data Provider, TradingAgents arXiv Paper (2412.20138), Per-Agent BM25 Memory (Deprecated), LangGraph Checkpoint Resume, CLI Main Entry Point (cli.main), Configurable Alpha Benchmark (Non-US), Persistent Decision Log (+20 more)
 
-### Community 13 - "CLI Display & Message Rendering"
-Cohesion: 0.13
-Nodes (17): analyze(), classify_message_type(), create_layout(), display_complete_report(), extract_content_string(), MessageBuffer, Save complete analysis report to disk with organized subfolders., Display the complete analysis report sequentially (avoids truncation). (+9 more)
-
-### Community 14 - "Decision Propagation"
+### Community 5 - "DeepSeek LLM Integration & Testing"
 Cohesion: 0.12
-Nodes (16): PortfolioDecision, Structured output produced by the Portfolio Manager.      The model fills every, Propagator, Handles state initialization and propagation through the graph., Initialize with configuration parameters., Get arguments for the graph invocation.          Args:             callbacks: Op, create_portfolio_manager(), _make_pm_state() (+8 more)
+Nodes (10): DeepSeekChatOpenAI, NormalizedChatOpenAI, _Pick, Tests for DeepSeekChatOpenAI thinking-mode behaviour.  Two pieces verified:  1., _Sample, TestBaseClassIsolation, TestDeepSeekLiveStructuredOutput, TestDeepSeekReasoningContent (+2 more)
 
-### Community 15 - "Agent Setup & Orchestration"
+### Community 6 - "Alpha Vantage Dataflows & API Requests"
+Cohesion: 0.09
+Nodes (15): _make_api_request, route_to_vendor(), get_fundamentals, get_indicator, get_news, get_stock, tradingagents/dataflows/alpha_vantage_common.py, tradingagents/dataflows/alpha_vantage_fundamentals.py (+7 more)
+
+### Community 7 - "Financial Fundamentals & News API"
 Cohesion: 0.10
-Nodes (12): create_fundamentals_analyst(), create_market_analyst(), create_news_analyst(), Set up and compile the agent workflow graph.          Args:             selected, Portfolio Manager: synthesises the risk-analyst debate into the final decision., Research Manager: turns the bull/bear debate into a structured investment plan f, create_bear_researcher(), create_bull_researcher() (+4 more)
+Nodes (3): AlphaVantageRateLimitError, get_api_key_env(), Canonical provider -> API-key env-var mapping.  A single source of truth for whi
 
-### Community 16 - "Memory Utilities & Tests"
-Cohesion: 0.11
-Nodes (10): propagate() completes and stores the decision after the redesign., Append-only markdown decision log for TradingAgents., Replace pending tag and append REFLECTION section using atomic write.          F, Append-only markdown log of trading decisions and reflections., Apply multiple outcome updates in a single read + atomic write.          Each el, Drop oldest resolved blocks when their count exceeds max_entries.          Pendi, Parse all entries from log. Returns list of dicts., Return entries with outcome:pending (for Phase B). (+2 more)
+### Community 9 - "Structured Agent Schemas & State"
+Cohesion: 0.18
+Nodes (11): Pydantic schemas used by agents that produce structured output.  The framework's, ResearchPlan, TraderAction, TraderProposal, _make_rm_state(), Tests for structured-output agents (Trader and Research Manager).  The Portfolio, _structured_rm_llm(), TestRenderResearchPlan (+3 more)
 
-### Community 17 - "Analyst Execution Timing"
-Cohesion: 0.15
-Nodes (8): AnalystExecutionPlan, AnalystNodeSpec, AnalystWallTimeTracker, build_analyst_execution_plan(), get_initial_analyst_node(), sync_analyst_tracker_from_chunk(), AnalystExecutionPlanTests, AnalystWallTimeTrackerTests
-
-### Community 18 - "CLI Technical Analysis UI"
-Cohesion: 0.10
-Nodes (22): Analyst Team, Bear Researcher Agent, Bull Researcher Agent, get_state_indicators_report_inline Tool Call, Market Analysis Output, Market Analyst Agent, Message Feed / Tool Call Log, News Analyst Agent (+14 more)
-
-### Community 19 - "API Key Management"
-Cohesion: 0.11
-Nodes (17): get_api_key_env(), Return the env var name for `provider`'s API key, or None if not applicable., cli_utils(), Tests for the canonical provider->env-var mapping and the CLI key-prompt helper., When key is missing, user-pasted value must be written to .env AND os.environ., Empty prompt response (user cancelled) must not write to .env., An existing .env with other keys must be preserved on writeback., select_llm_provider() must not present a provider the mapping doesn't know about (+9 more)
-
-### Community 20 - "Data Flow Utilities"
-Cohesion: 0.13
-Nodes (6): Validate ``value`` is safe to interpolate into a filesystem path.      Tickers c, safe_ticker_component(), Log the final state to a JSON file., Tests for the ticker path-component validator that blocks directory traversal., Sanity: sanitized values stay within base when joined., TestSafeTickerComponent
-
-### Community 21 - "StockStats & yFinance Utils"
-Cohesion: 0.15
-Nodes (19): filter_financials_by_date(), Execute a yfinance call with exponential backoff on rate limits.      yfinance r, Drop financial statement columns (fiscal period timestamps) after curr_date., yf_retry(), get_balance_sheet(), get_cashflow(), get_fundamentals(), get_income_statement() (+11 more)
-
-### Community 22 - "Memory Log Test Fixtures III"
-Cohesion: 0.11
-Nodes (10): Without max_entries, all resolved entries are kept., When max_entries is set and exceeded, oldest resolved entries are pruned., Pending entries (unresolved) are kept regardless of the cap., No rotation when resolved count <= max_entries., Store a decision then immediately resolve it via the API., Same-ticker entries in same-ticker section; cross-ticker entries in cross-ticker, Cross-ticker entries show only the REFLECTION text, not the full DECISION., More than 5 same-ticker completed entries → only 5 injected. (+2 more)
-
-### Community 23 - "MiniMax LLM Client"
-Cohesion: 0.19
-Nodes (10): MinimaxChatOpenAI, MiniMax-specific overrides on top of the OpenAI-compatible client.      M2.x rea, _client(), _Pick, Tests for MinimaxChatOpenAI quirks.  Verifies the subclass injects ``reasoning_s, If the user explicitly sets reasoning_split, don't override it         (setdefau, Coding Plan / MiniMax-Text-01 / any non-M2-prefixed model must NOT         recei, M2.x models route through the capability table — tool_choice is     suppressed b (+2 more)
-
-### Community 24 - "Graph Setup & Init"
+### Community 11 - "Multi-Provider LLM Support & Docker"
 Cohesion: 0.14
-Nodes (11): GraphSetup, Handles the setup and configuration of the agent graph., Initialize with required components., Get provider-specific kwargs for LLM client creation., Create tool nodes for different data sources using abstract methods., Pick the benchmark ticker for alpha calculation against ``ticker``.          ``c, Fetch raw and alpha return for ticker over holding_days from trade_date., Resolve pending log entries for ticker at the start of a new run.          Fetch (+3 more)
+Nodes (16): Azure OpenAI Provider, DeepSeek LLM Provider, Docker Service: ollama, Docker Service: tradingagents, Docker Service: tradingagents-ollama, Docker Support, get_llm() LLM Factory Function, GLM (Zhipu) LLM Provider (+8 more)
 
-### Community 25 - "Sentiment & Social Analysts"
-Cohesion: 0.12
-Nodes (13): _build_system_message(), create_sentiment_analyst(), create_social_media_analyst(), Sentiment analyst — multi-source sentiment analysis for a target ticker.  Previo, Assemble the sentiment-analyst system message with structured data blocks., Deprecated alias for :func:`create_sentiment_analyst`.      Kept so existing cod, Create a sentiment analyst node for the trading graph.      Pre-fetches news + S, TickerSymbolHandlingTests (+5 more)
-
-### Community 26 - "Data Flow Interface Layer"
-Cohesion: 0.15
-Nodes (14): get_category_for_method(), get_vendor(), Get the category that contains the specified method., Get the configured vendor for a data category or specific tool method.     Tool-, Route method calls to appropriate vendor implementation with fallback support., route_to_vendor(), get_global_news(), get_insider_transactions() (+6 more)
-
-### Community 27 - "Graph Conditional Logic"
-Cohesion: 0.12
-Nodes (9): ConditionalLogic, Initialize with configuration parameters., Determine if market analysis should continue., Determine if sentiment-analyst tool round should continue.          Method name, Determine if news analysis should continue., Determine if fundamentals analysis should continue., Determine if debate should continue., Determine if risk analysis should continue. (+1 more)
-
-### Community 28 - "CLI Stats & Callbacks"
-Cohesion: 0.13
-Nodes (8): BaseCallbackHandler, Callback handler that tracks LLM calls, tool calls, and token usage., Increment LLM call counter when an LLM starts., Increment LLM call counter when a chat model starts., Extract token usage from LLM response., Increment tool call counter when a tool starts., Return current statistics., StatsCallbackHandler
-
-### Community 29 - "Google Gemini LLM Client"
-Cohesion: 0.15
-Nodes (10): ChatGoogleGenerativeAI, GoogleClient, NormalizedChatGoogleGenerativeAI, ChatGoogleGenerativeAI with normalized content output.      Gemini 3 models retu, Client for Google Gemini models., Return configured ChatGoogleGenerativeAI instance., Validate model for Google., Verify GoogleClient accepts unified api_key parameter. (+2 more)
-
-### Community 30 - "Data Flow Configuration"
-Cohesion: 0.22
-Nodes (8): get_config(), initialize_config(), Initialize the configuration with default values., Update the configuration with custom values.      Dict-valued keys (e.g. ``data_, Get the current configuration., set_config(), DataflowsConfigIsolationTests, Config isolation: get/set must not leak nested-dict references.
-
-### Community 31 - "CLI Transaction UI"
+### Community 13 - "Agent Team Workflows & UI Feedback"
 Cohesion: 0.19
 Nodes (14): Analyst Team Agent, Bull Call Spread SPY Trade Recommendation, CLI Transaction Screenshot, Market Analyst Sub-Agent, Message Flow Panel - Agent Communications, News Analyst Sub-Agent, Portfolio Management Decision Output, Portfolio Management Agent (+6 more)
 
-### Community 32 - "Env Override Tests"
+### Community 15 - "Community 15"
 Cohesion: 0.21
-Nodes (13): Tests for TRADINGAGENTS_* env-var overlay onto DEFAULT_CONFIG., Set/clear env vars then reload default_config to re-evaluate DEFAULT_CONFIG., Empty TRADINGAGENTS_* values must not clobber the built-in default., Garbage int values should surface a ValueError at import, not silently misconfig, Env vars outside _ENV_OVERRIDES must not bleed into DEFAULT_CONFIG., _reload_with_env(), test_bool_coercion(), test_empty_env_value_is_passthrough() (+5 more)
+Nodes (12): Aggressive Risk Profile, Bearish Researcher, Bullish Researcher, Conservative Risk Profile, Discussion, Execution, Manager, Neutral Risk Profile (+4 more)
 
-### Community 33 - "Anthropic LLM Client"
-Cohesion: 0.17
-Nodes (9): BaseLLMClient, AnthropicClient, Client for Anthropic Claude models., Validate model for Anthropic., AzureOpenAIClient, Client for Azure OpenAI deployments.      Requires environment variables:, Azure accepts any deployed model name., create_llm_client() (+1 more)
-
-### Community 34 - "Base LLM Client Interface"
-Cohesion: 0.21
-Nodes (6): ABC, BaseLLMClient, Abstract base class for LLM clients., Return the provider name used in warning messages., Warn when the model is outside the known list for the provider., validate_model()
-
-### Community 35 - "OpenRouter Model Selection"
-Cohesion: 0.17
-Nodes (12): _fetch_openrouter_models(), _prompt_custom_model_id(), Fetch available models from the OpenRouter API., Select an OpenRouter model from the newest available, or enter a custom ID., Prompt user to type a custom model ID., Select a model for the given provider and mode (quick/deep)., Select shallow thinking llm engine using an interactive selection., Select deep thinking llm engine using an interactive selection. (+4 more)
-
-### Community 36 - "Anthropic Effort Tests"
-Cohesion: 0.26
-Nodes (8): _capture_kwargs(), Tests for Anthropic effort-parameter gating (#831).  Haiku 4.5 (and current Haik, Default is conservative — unknown models don't get effort to avoid 400s., Skipping effort must not break other passthrough kwargs., test_current_opus_and_sonnet_receive_effort(), test_future_opus_sonnet_inherit_effort_via_pattern(), test_haiku_does_not_receive_effort(), TestEffortGate
-
-### Community 37 - "OpenAI LLM Client"
-Cohesion: 0.18
-Nodes (7): Canonical provider -> API-key env-var mapping.  A single source of truth for whi, OpenAIClient, Default base URL for ``provider``, with env-var overrides where defined.      Cu, Client for OpenAI, Ollama, OpenRouter, and xAI providers.      For native OpenAI, Return configured ChatOpenAI instance., Validate model for the provider., _resolve_provider_base_url()
-
-### Community 38 - "CLI Init & Defaults UI"
+### Community 16 - "Community 16"
 Cohesion: 0.25
-Nodes (11): cli.main Entry Point, Default Ticker: SPY, CLI Init Screenshot, Tauric Research (github.com/TauricResearch), Ticker Symbol Input (Step 1), TradingAgents CLI, Analyst Team (Step I), Portfolio Management (Step V) (+3 more)
+Nodes (11): NVIDIA Corporation (NVDA), Blackwell Architecture, US-Iran Tensions, Vera Rubin Architecture, Bear Thesis, Bull Thesis, Research Manager Underweight Rating, Aggressive Risk Stance (+3 more)
 
-### Community 39 - "Asset Type & Analyst Filtering"
+### Community 17 - "Community 17"
+Cohesion: 0.20
+Nodes (11): Analyst, Market Data Sources, Researcher, Yahoo Finance, Bear Researcher Agent, Bull Researcher Agent, Research Team, Bear Researcher Agent (+3 more)
+
+### Community 18 - "Community 18"
+Cohesion: 0.24
+Nodes (7): ModelCapabilities, Declarative per-model capability table for OpenAI-compatible providers.  This is, Unit tests for the LLM capability table., TestDefault, TestExactIdMatches, TestMinimaxExactMatches, TestPatternMatches
+
+### Community 19 - "Community 19"
 Cohesion: 0.22
-Nodes (5): detect_asset_type(), filter_analysts_for_asset_type(), Select analysts using an interactive checkbox., select_analysts(), CryptoAssetModeTests
+Nodes (11): AzureOpenAIClient, GoogleClient, BaseLLMClient, create_llm_client, langchain_google_genai, langchain_openai, normalize_content, tradingagents/llm_clients/azure_client.py (+3 more)
 
-### Community 40 - "Risk Analyst Profiles"
+### Community 20 - "Community 20"
 Cohesion: 0.27
 Nodes (10): Balanced Perspective on Apple Investment, Buy Recommendation for Apple, Conservative Investment Strategy with Risk Mitigation, Risk Analyst Roles Diagram, High-Reward High-Risk Investment Strategy, Manager Agent, Neutral Analyst, Report (+2 more)
 
-### Community 41 - "Azure OpenAI Client"
-Cohesion: 0.20
-Nodes (6): AzureChatOpenAI, NormalizedAzureChatOpenAI, AzureChatOpenAI with normalized content output., Return configured AzureChatOpenAI instance., normalize_content(), Normalize LLM response content to a plain string.      Multiple providers (OpenA
+### Community 21 - "Community 21"
+Cohesion: 0.22
+Nodes (10): get_state_indicators_report_inline Tool Call, Market Analysis Output, Message Feed / Tool Call Log, Recommendations Section, CLI Technical Analysis Screenshot, SPY Symbol Analysis, Summary of Market Conditions, Technical Indicators (MACD, RSI, ATR, Bollinger Bands, SMA) (+2 more)
 
-### Community 42 - "Analyst Roles UI"
-Cohesion: 0.39
-Nodes (9): AAPL Social Sentiment Analysis, Apple Inc. Financial Analysis, Fundamentals Analyst, Global Economic Trends and Sector Insights, Analyst Roles UI Overview, Market Analyst, News Analyst, Social Media Analyst (+1 more)
+### Community 23 - "Community 23"
+Cohesion: 0.27
+Nodes (8): AnthropicClient, NormalizedChatAnthropic, AzureOpenAIClient, NormalizedAzureChatOpenAI, BaseLLMClient, NormalizedChatGoogleGenerativeAI, DummyLLMClient, ModelValidationTests
 
-### Community 43 - "Trader Decision UI"
+### Community 24 - "Community 24"
 Cohesion: 0.28
 Nodes (9): Apple Inc., BUY Apple Shares Decision, Trader UI Diagram, Key Points Summary, Market Opportunities Evaluation, Trading Reasoning, Buy Recommendation, Trader Agent (+1 more)
 
-### Community 44 - "Anthropic Chat Client"
+### Community 26 - "Community 26"
+Cohesion: 0.32
+Nodes (8): Default Ticker: SPY, CLI Init Screenshot, Tauric Research (github.com/TauricResearch), Ticker Symbol Input (Step 1), TradingAgents CLI, Portfolio Management (Step V), Risk Management (Step IV), Trader (Step III)
+
+### Community 27 - "Community 27"
 Cohesion: 0.25
-Nodes (6): ChatAnthropic, NormalizedChatAnthropic, Whether Anthropic accepts the ``effort`` parameter for this model., ChatAnthropic with normalized content output.      Claude models with extended t, Return configured ChatAnthropic instance., _supports_effort()
+Nodes (8): Bloomberg, EODHD APIs, FinHub, News Sources, Reddit, Reuters, Social Media Sources, Twitter / X
 
-### Community 46 - "Model Registry & Validators"
-Cohesion: 0.22
-Nodes (6): get_known_models(), Shared model catalog for CLI selections and validation., Build known model names from the shared CLI catalog., Model name validators for each provider., Check if model name is valid for the given provider.      For ollama, openrouter, validate_model()
+### Community 28 - "Community 28"
+Cohesion: 0.25
+Nodes (8): Analyst Team, Market Analyst Agent, News Analyst Agent, Portfolio Management Team, Agent Progress Panel, Risk Management Team, Social Analyst Agent, Trading Team
 
-### Community 47 - "Fundamental Data Tools"
-Cohesion: 0.22
-Nodes (8): get_balance_sheet(), get_cashflow(), get_fundamentals(), get_income_statement(), Retrieve comprehensive fundamental data for a given ticker symbol.     Uses the, Retrieve balance sheet data for a given ticker symbol.     Uses the configured f, Retrieve cash flow statement data for a given ticker symbol.     Uses the config, Retrieve income statement data for a given ticker symbol.     Uses the configure
-
-### Community 48 - "Graph Reflection"
+### Community 29 - "Community 29"
 Cohesion: 0.29
-Nodes (5): Initialize the reflector with an LLM., Concise prompt for reflect_on_final_decision (Phase B log entries).          Pro, Single reflection call on the final trade decision with outcome context., Handles reflection on trading decisions., Reflector
+Nodes (6): AnalystType, AssetType, detect_asset_type(), select_analysts(), Enum, CryptoAssetModeTests
 
-### Community 50 - "Agent State Management"
-Cohesion: 0.32
-Nodes (6): Create the initial state for the agent graph., MessagesState, TypedDict, AgentState, InvestDebateState, RiskDebateState
+### Community 31 - "Community 31"
+Cohesion: 0.25
+Nodes (3): OpenAIClient, main(), End-to-end smoke for structured-output agents against a real LLM provider.  Runs
 
-### Community 51 - "yFinance News Data"
-Cohesion: 0.32
-Nodes (7): _extract_article_data(), get_global_news_yfinance(), get_news_yfinance(), yfinance-based news data fetching functions., Retrieve global/macro economic news using yfinance Search.      Args:         cu, Extract article data from yfinance news format (handles nested 'content' structu, Retrieve news for a specific stock ticker using yfinance.      Args:         tic
+### Community 32 - "Community 32"
+Cohesion: 0.29
+Nodes (7): Moncler Fundamentals Analysis, Moncler Technical Analysis, Moncler Bear Case, Moncler Bull Case, Moncler PM Decision, Moncler S.p.A. (MONC.MI), Inventory Buildup Concern
 
-### Community 52 - "Bull/Bear Researcher UI"
+### Community 33 - "Community 33"
 Cohesion: 0.57
 Nodes (7): Bearish Analyst, Apple Investment Risks Report, Bullish Analyst, Apple Investment Outlook Report, Analyst Debate Mechanism, Dual Analyst Bull-Bear Research Pattern, Researcher Diagram Image
 
-### Community 53 - "CLI Token Formatting"
-Cohesion: 0.29
-Nodes (6): format_tokens(), format_tool_args(), Count reports that are finalized (their finalizing agent is completed)., Format token count for display., Format tool arguments for terminal display., update_display()
-
-### Community 54 - "Structured Output Tests"
-Cohesion: 0.48
-Nodes (6): main(), _make_pm_state(), _make_rm_state(), _make_trader_state(), _print_section(), End-to-end smoke for structured-output agents against a real LLM provider.  Runs
-
-### Community 55 - "Memory Log Legacy Tests"
-Cohesion: 0.29
-Nodes (4): FinancialSituationMemory must not be importable from the memory module., rank_bm25 must not be present in the memory module namespace., TradingAgentsGraph must not expose reflect_and_remember., TestLegacyRemoval
-
-### Community 56 - "OHLCV Data Loading"
+### Community 35 - "Community 35"
 Cohesion: 0.38
-Nodes (6): _clean_dataframe(), get_stock_stats(), load_ohlcv(), Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill, Fetch OHLCV data with caching, filtered to prevent look-ahead bias.      Downloa, StockstatsUtils
+Nodes (5): MinimaxChatOpenAI, _Pick, Tests for MinimaxChatOpenAI quirks.  Verifies the subclass injects ``reasoning_s, TestMinimaxReasoningSplit, TestMinimaxStructuredOutputDispatch
 
-### Community 57 - "Memory Log Test Core"
-Cohesion: 0.33
-Nodes (4): _price_df(), Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy, Only 1 data point available → returns (None, None, None), no crash., Minimal DataFrame matching yfinance .history() output shape.
-
-### Community 58 - "CLI Announcements"
+### Community 39 - "Community 39"
 Cohesion: 0.40
-Nodes (4): display_announcements(), fetch_announcements(), Fetch announcements from endpoint. Returns dict with announcements and settings., Display announcements panel. Prompts for Enter if require_attention is True.
+Nodes (4): MessageBuffer, run_analysis(), StatsCallbackHandler, get_ticker()
 
-### Community 59 - "Ticker Input & Normalization"
-Cohesion: 0.40
-Nodes (4): get_ticker(), normalize_ticker_symbol(), Prompt the user to enter a ticker symbol., Normalize ticker input while preserving exchange suffixes.
-
-### Community 61 - "Reddit Data Flows"
+### Community 41 - "Community 41"
 Cohesion: 0.50
-Nodes (4): fetch_reddit_posts(), _fetch_subreddit(), Reddit search fetcher for ticker-specific discussion posts.  Uses Reddit's publi, Fetch recent Reddit posts mentioning ``ticker`` across finance     subreddits an
+Nodes (4): NVDA Technical Analysis, NVDA Sentiment Analysis, NVIDIA Corporation (NVDA), AI Infrastructure Tailwind
 
-### Community 62 - "Default Config System"
-Cohesion: 0.50
-Nodes (4): _apply_env_overrides(), _coerce(), Coerce env-var string to the type of the existing default value., Apply TRADINGAGENTS_* env vars to the config dict in-place.
-
-### Community 63 - "WeChat Community Image"
+### Community 42 - "Community 42"
 Cohesion: 0.67
 Nodes (4): Trading Research Community, TradingResearch小助手 WeChat Contact, WeChat QR Code Image, WeChat Platform
 
-### Community 64 - "StockTwits Data Flows"
+### Community 44 - "Community 44"
 Cohesion: 0.50
-Nodes (3): fetch_stocktwits_messages(), StockTwits public symbol-stream fetcher.  StockTwits exposes a per-symbol messag, Fetch recent StockTwits messages for ``ticker`` and return them as a     formatt
+Nodes (4): Company Profile, Financial History, Fundamentals Data Sources, Insider Transactions
+
+### Community 46 - "Community 46"
+Cohesion: 0.67
+Nodes (4): Anthropic Effort Parameter Gate, LLM Capability Table, DeepSeek Reasoning Propagation, MiniMax Reasoning Split
 
 ## Knowledge Gaps
-- **84 isolated node(s):** `AnalystNodeSpec`, `StockstatsUtils`, `CLI Welcome ASCII Banner`, `Fundamentals Analyst`, `News Analyst` (+79 more)
+- **109 isolated node(s):** `DataflowsConfigIsolationTests`, `_SimpleState`, `TickerSymbolHandlingTests`, `TestEffortGate`, `AnalystNodeSpec` (+104 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **328 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `TradingAgentsGraph` connect `Graph Setup & Init` to `Memory Log Test Fixtures I`, `Graph Checkpoint System`, `Memory Log Test Fixtures II`, `Signal Processing Engine`, `CLI Display & Message Rendering`, `Decision Propagation`, `Memory Utilities & Tests`, `Graph Module Init`, `Agent State Management`, `Graph Reflection`, `Data Flow Utilities`, `Memory Log Legacy Tests`, `Graph Conditional Logic`?**
-  _High betweenness centrality (0.239) - this node is a cross-community bridge._
-- **Why does `create_llm_client()` connect `Anthropic LLM Client` to `Base LLM Client Interface`, `OpenAI LLM Client`, `Structured Output Tests`, `Graph Setup & Init`, `Google Gemini LLM Client`?**
-  _High betweenness centrality (0.148) - this node is a cross-community bridge._
-- **Why does `run_analysis()` connect `CLI Display & Message Rendering` to `CLI Entry & User Config`, `Analyst Execution Timing`, `CLI Token Formatting`, `Graph Setup & Init`, `CLI Stats & Callbacks`?**
-  _High betweenness centrality (0.143) - this node is a cross-community bridge._
-- **Are the 6 inferred relationships involving `TestTradingMemoryLogCore` (e.g. with `TradingMemoryLog` and `PortfolioDecision`) actually correct?**
-  _`TestTradingMemoryLogCore` has 6 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 6 inferred relationships involving `TestDeferredReflection` (e.g. with `TradingMemoryLog` and `PortfolioDecision`) actually correct?**
-  _`TestDeferredReflection` has 6 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 15 inferred relationships involving `TradingAgentsGraph` (e.g. with `TestTradingMemoryLogCore` and `TestDeferredReflection`) actually correct?**
-  _`TradingAgentsGraph` has 15 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 13 inferred relationships involving `TradingMemoryLog` (e.g. with `TestTradingMemoryLogCore` and `TestDeferredReflection`) actually correct?**
-  _`TradingMemoryLog` has 13 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `TradingAgentsGraph` connect `Portfolio Management & Graph Execution` to `Community 25`, `Community 39`?**
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `Research Team` connect `Community 17` to `Analyst Sub-Agents & Rating System`, `Market & News Analysis (Apple Focus)`, `Project Documentation & Historical Context`, `Community 44`, `Community 15`, `Community 26`, `Community 27`, `Community 28`?**
+  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+- **Why does `OpenAIClient` connect `Community 31` to `Community 36`, `DeepSeek LLM Integration & Testing`, `Financial Fundamentals & News API`, `Community 18`, `Community 23`, `Community 30`?**
+  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+- **Are the 9 inferred relationships involving `TradingAgentsGraph` (e.g. with `TestTradingMemoryLogCore` and `TestDeferredReflection`) actually correct?**
+  _`TradingAgentsGraph` has 9 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 2 inferred relationships involving `Research Team` (e.g. with `Analyst Team` and `Trader (Step III)`) actually correct?**
+  _`Research Team` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 12 inferred relationships involving `BaseLLMClient` (e.g. with `DummyLLMClient` and `ModelValidationTests`) actually correct?**
+  _`BaseLLMClient` has 12 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `Tests for structured-output agents (Trader and Research Manager).  The Portfolio`, `Build a MagicMock LLM whose with_structured_output binding captures the     prom`, `The RM prompt must list all five tiers so the schema enum matches user expectati` to the rest of the system?**
+  _428 weakly-connected nodes found - possible documentation gaps or missing edges._
