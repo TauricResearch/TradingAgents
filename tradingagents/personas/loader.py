@@ -9,8 +9,9 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 
-# Keep this list in sync with tradingagents.cli.models.AnalystType.
-_VALID_ANALYSTS = {"market", "news", "sentiment", "fundamentals", "derivatives", "social"}
+# Keep this list in sync with tradingagents.cli.models.AnalystType / ANALYST_NODE_SPECS.
+# Note: the sentiment analyst's key in the graph is "social" (historical naming).
+_VALID_ANALYSTS = {"market", "news", "fundamentals", "derivatives", "social"}
 
 
 class LLMSettings(BaseModel):
