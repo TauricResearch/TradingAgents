@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple
 
 import questionary
-from dotenv import find_dotenv, set_key
+from dotenv import find_dotenv, load_dotenv, set_key
 from rich.console import Console
 
 from cli.models import AnalystType, AssetType
@@ -11,6 +11,8 @@ from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
+
+_DOTENV_LOADED = False
 
 TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
 
@@ -22,6 +24,34 @@ ANALYST_ORDER = [
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
+
+
+def load_cli_env() -> None:
+    """Load project .env once so CLI prompts can see TRADINGAGENTS_* overrides."""
+    global _DOTENV_LOADED
+
+    if _DOTENV_LOADED:
+        return
+
+    env_path = find_dotenv(usecwd=True)
+
+    if env_path:
+        load_dotenv(env_path, override=False)
+
+    _DOTENV_LOADED = True
+
+
+def _env_value(name: str) -> str | None:
+    load_cli_env()
+
+    value = os.environ.get(name)
+
+    if value is None:
+        return None
+
+    value = value.strip()
+
+    return value or None
 
 
 def get_ticker() -> str:
@@ -61,6 +91,7 @@ def filter_analysts_for_asset_type(
 ) -> List[AnalystType]:
     if asset_type != AssetType.CRYPTO:
         return analysts
+
     return [
         analyst
         for analyst in analysts
@@ -76,6 +107,7 @@ def get_analysis_date() -> str:
     def validate_date(date_str: str) -> bool:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
             return False
+
         try:
             datetime.strptime(date_str, "%Y-%m-%d")
             return True
@@ -107,6 +139,7 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType
         [value for _, value in ANALYST_ORDER],
         asset_type,
     )
+
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
@@ -135,9 +168,7 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType
 
 def select_research_depth() -> int:
     """Select research depth using an interactive selection."""
-
-    # Define research depth options with their corresponding values
-    DEPTH_OPTIONS = [
+    depth_options = [
         ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
         ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
         ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
@@ -146,7 +177,8 @@ def select_research_depth() -> int:
     choice = questionary.select(
         "Select Your [Research Depth]:",
         choices=[
-            questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
+            questionary.Choice(display, value=value)
+            for display, value in depth_options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -168,6 +200,7 @@ def select_research_depth() -> int:
 def _fetch_openrouter_models() -> List[Tuple[str, str]]:
     """Fetch available models from the OpenRouter API."""
     import requests
+
     try:
         resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
         resp.raise_for_status()
@@ -189,11 +222,13 @@ def select_openrouter_model() -> str:
         "Select OpenRouter Model (latest available):",
         choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style([
-            ("selected", "fg:magenta noinherit"),
-            ("highlighted", "fg:magenta noinherit"),
-            ("pointer", "fg:magenta noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:magenta noinherit"),
+                ("highlighted", "fg:magenta noinherit"),
+                ("pointer", "fg:magenta noinherit"),
+            ]
+        ),
     ).ask()
 
     if choice is None or choice == "custom":
@@ -215,6 +250,20 @@ def _prompt_custom_model_id() -> str:
 
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
+    env_var = (
+        "TRADINGAGENTS_QUICK_THINK_LLM"
+        if mode.lower() == "quick"
+        else "TRADINGAGENTS_DEEP_THINK_LLM"
+    )
+
+    env_model = _env_value(env_var)
+
+    if env_model:
+        console.print(
+            f"[green]✓ Using {mode}-thinking model from {env_var}: {env_model}[/green]"
+        )
+        return env_model
+
     if provider.lower() == "openrouter":
         return select_openrouter_model()
 
@@ -259,14 +308,29 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
 
+
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
-    # Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
-    # (convention from the broader Ollama ecosystem); falls back to the
-    # localhost default when unset.
+    env_provider = _env_value("TRADINGAGENTS_LLM_PROVIDER")
+
+    if env_provider:
+        env_backend_url = _env_value("TRADINGAGENTS_LLM_BACKEND_URL")
+        provider = env_provider.lower()
+
+        console.print(
+            f"[green]✓ Using LLM provider from TRADINGAGENTS_LLM_PROVIDER: {provider}[/green]"
+        )
+
+        if env_backend_url:
+            console.print(
+                f"[green]✓ Using backend URL from TRADINGAGENTS_LLM_BACKEND_URL: {env_backend_url}[/green]"
+            )
+
+        return provider, env_backend_url
+
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
-    # (display_name, provider_key, base_url)
-    PROVIDERS = [
+
+    providers = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
@@ -284,7 +348,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         "Select your LLM Provider:",
         choices=[
             questionary.Choice(display, value=(provider_key, url))
-            for display, provider_key, url in PROVIDERS
+            for display, provider_key, url in providers
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -295,7 +359,7 @@ def select_llm_provider() -> tuple[str, str | None]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
         console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
@@ -311,14 +375,17 @@ def ask_openai_reasoning_effort() -> str:
         questionary.Choice("High (More thorough)", "high"),
         questionary.Choice("Low (Faster)", "low"),
     ]
+
     return questionary.select(
         "Select Reasoning Effort:",
         choices=choices,
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -336,11 +403,13 @@ def ask_anthropic_effort() -> str | None:
             questionary.Choice("Medium (balanced)", "medium"),
             questionary.Choice("Low (faster, cheaper)", "low"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -356,11 +425,13 @@ def ask_gemini_thinking_config() -> str | None:
             questionary.Choice("Enable Thinking (recommended)", "high"),
             questionary.Choice("Minimal/Disable Thinking", "minimal"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:green noinherit"),
-            ("highlighted", "fg:green noinherit"),
-            ("pointer", "fg:green noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -382,11 +453,13 @@ def ask_glm_region() -> tuple[str, str]:
                 value=("glm-cn", "https://open.bigmodel.cn/api/paas/v4/"),
             ),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -409,11 +482,13 @@ def ask_qwen_region() -> tuple[str, str]:
                 value=("qwen-cn", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             ),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -436,11 +511,13 @@ def ask_minimax_region() -> tuple[str, str]:
                 value=("minimax-cn", "https://api.minimaxi.com/v1"),
             ),
         ],
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -449,7 +526,7 @@ def confirm_ollama_endpoint(url: str) -> None:
 
     Surfaces three things the user benefits from seeing before model
     selection: which URL we'll actually hit, where it came from
-    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    (`OLLAMA_BASE_URL` vs default), and a soft warning if the URL is
     missing the scheme/port that ollama-serve expects. The warning is
     advisory only — we don't reject malformed input, since the user may
     be doing something deliberately unusual (e.g. a reverse-proxy path).
@@ -465,8 +542,6 @@ def confirm_ollama_endpoint(url: str) -> None:
             f"http://<host>:11434/v1.[/yellow]"
         )
     elif ":11434" not in url and "://localhost" not in url and "://127.0.0.1" not in url:
-        # Soft hint when the port differs from the ollama-serve default
-        # and the host isn't local (where users sometimes proxy on :80).
         console.print(
             f"[yellow]Note: {url!r} doesn't include port 11434. "
             f"Make sure your remote ollama-serve listens on the port "
@@ -485,24 +560,28 @@ def ensure_api_key(provider: str) -> Optional[str]:
     Returns None for providers that do not require a key (e.g. ollama)
     and for providers not found in the canonical mapping.
     """
+    load_cli_env()
+
     env_var = get_api_key_env(provider)
     if env_var is None:
-        return None  # ollama / unknown — no key check possible
+        return None
 
     existing = os.environ.get(env_var)
     if existing:
         return existing
 
-    console.print(
-        f"\n[yellow]{env_var} is not set in your environment.[/yellow]"
-    )
+    console.print(f"\n[yellow]{env_var} is not set in your environment.[/yellow]")
+
     key = questionary.password(
         f"Paste your {env_var} (will be saved to .env):",
-        style=questionary.Style([
-            ("text", "fg:cyan"),
-            ("highlighted", "noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("text", "fg:cyan"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
     ).ask()
+
     if not key:
         console.print(
             f"[red]Skipped. API calls will fail until {env_var} is set.[/red]"
@@ -535,11 +614,13 @@ def ask_output_language() -> str:
             questionary.Choice("Russian (Русский)", "Russian"),
             questionary.Choice("Custom language", "custom"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:yellow noinherit"),
-            ("highlighted", "fg:yellow noinherit"),
-            ("pointer", "fg:yellow noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:yellow noinherit"),
+                ("highlighted", "fg:yellow noinherit"),
+                ("pointer", "fg:yellow noinherit"),
+            ]
+        ),
     ).ask()
 
     if choice == "custom":
