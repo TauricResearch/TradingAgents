@@ -35,6 +35,9 @@ dependencies = [
 [project.scripts]
 tradingagents = "cli.main:app"
 
+[project.optional-dependencies]
+bedrock = ["langchain-aws>=1.5.0"]
+
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
 

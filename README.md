@@ -157,6 +157,8 @@ For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
+For AWS Bedrock, set `llm_provider: "bedrock"` and ensure your AWS credentials are configured (via `~/.aws/credentials`, environment variables, or IAM role). Set `AWS_DEFAULT_REGION` and optionally `AWS_PROFILE`. Install the extra dependency with `pip install .[bedrock]`. Use cross-region inference profile IDs (e.g. `us.anthropic.claude-opus-4-6-v1`) as model names.
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
