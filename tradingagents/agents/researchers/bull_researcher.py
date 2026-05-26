@@ -1,7 +1,16 @@
 from tradingagents.agents.utils.agent_utils import get_language_instruction
+from tradingagents.audit.prompt_registry import default_registry
 
 
-def create_bull_researcher(llm):
+def create_bull_researcher(llm, prompt_registry=None):
+    """Create the Bull researcher node.
+
+    ``prompt_registry`` accepts a :class:`PromptRegistry` for tests that
+    want to point at a custom prompts directory; the default uses the
+    process-wide registry which reads from ``tradingagents/prompts/``.
+    """
+    registry = prompt_registry or default_registry()
+
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
@@ -20,26 +29,34 @@ def create_bull_researcher(llm):
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        version = state.get("prompt_versions", {}).get("researchers/bull_researcher", "v1")
+        prompt, prompt_hash = registry.render(
+            "researchers/bull_researcher",
+            version=version,
+            target_label=target_label,
+            fundamentals_label=fundamentals_label,
+            market_research_report=market_research_report,
+            sentiment_report=sentiment_report,
+            news_report=news_report,
+            fundamentals_report=fundamentals_report,
+            history=history,
+            current_response=current_response,
+            language_instruction=get_language_instruction(),
+        )
 
-Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
-- Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
-
-Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-{fundamentals_label}: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bear argument: {current_response}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
-""" + get_language_instruction()
-
-        response = llm.invoke(prompt)
+        # Tag the LLM call with prompt provenance so TraceCallback's
+        # metadata-extraction path picks it up automatically (no
+        # callback changes required).
+        response = llm.invoke(
+            prompt,
+            config={
+                "metadata": {
+                    "prompt_key": "researchers/bull_researcher",
+                    "prompt_version": version,
+                    "prompt_hash": prompt_hash,
+                }
+            },
+        )
 
         argument = f"Bull Analyst: {response.content}"
 

@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from langchain_anthropic import ChatAnthropic
 
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient, apply_determinism_kwargs, normalize_content
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
@@ -60,6 +60,16 @@ class AnthropicClient(BaseLLMClient):
             if key == "effort" and not _supports_effort(self.model):
                 continue
             llm_kwargs[key] = self.kwargs[key]
+
+        # T0.1 — pin deterministic generation params (skipped automatically
+        # when effort=high enables extended thinking, which rejects temperature).
+        apply_determinism_kwargs(
+            llm_kwargs,
+            model=self.model,
+            temperature=self.kwargs.get("llm_temperature"),
+            seed=self.kwargs.get("llm_seed"),
+            provider="anthropic",
+        )
 
         return NormalizedChatAnthropic(**llm_kwargs)
 

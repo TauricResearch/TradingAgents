@@ -19,10 +19,12 @@ from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.audit.prompt_registry import default_registry
 
 
-def create_portfolio_manager(llm):
+def create_portfolio_manager(llm, prompt_registry=None):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
+    registry = prompt_registry or default_registry()
 
     def portfolio_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
@@ -39,29 +41,17 @@ def create_portfolio_manager(llm):
             else ""
         )
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
-
-{instrument_context}
-
----
-
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
-
-**Context:**
-- Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
-{lessons_line}
-**Risk Analysts Debate History:**
-{history}
-
----
-
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+        version = state.get("prompt_versions", {}).get("managers/portfolio_manager", "v1")
+        prompt, prompt_hash = registry.render(
+            "managers/portfolio_manager",
+            version=version,
+            instrument_context=instrument_context,
+            research_plan=research_plan,
+            trader_plan=trader_plan,
+            lessons_line=lessons_line,
+            history=history,
+            language_instruction=get_language_instruction(),
+        )
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
@@ -69,6 +59,13 @@ Be decisive and ground every conclusion in specific evidence from the analysts.{
             prompt,
             render_pm_decision,
             "Portfolio Manager",
+            config={
+                "metadata": {
+                    "prompt_key": "managers/portfolio_manager",
+                    "prompt_version": version,
+                    "prompt_hash": prompt_hash,
+                }
+            },
         )
 
         new_risk_debate_state = {

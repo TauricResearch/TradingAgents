@@ -23,6 +23,15 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+try:
+    from yfinance.exceptions import YFRateLimitError
+except ImportError:
+    # Older yfinance versions don't expose YFRateLimitError as a clean
+    # import path. Fall back to a sentinel class that never matches a
+    # real exception, so the except clause below degrades gracefully
+    # instead of crashing at import time.
+    class YFRateLimitError(Exception):
+        pass
 
 # Configuration and routing logic
 from .config import get_config
@@ -156,7 +165,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
+        except (AlphaVantageRateLimitError, YFRateLimitError):
             continue  # Only rate limits trigger fallback
 
     raise RuntimeError(f"No available vendor for '{method}'")

@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from .api_key_env import get_api_key_env
-from .base_client import BaseLLMClient, normalize_content
+from .base_client import BaseLLMClient, apply_determinism_kwargs, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
 
@@ -227,10 +227,27 @@ class OpenAIClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
-        # Native OpenAI: use Responses API for consistent behavior across
+        # T0.1 — pin deterministic generation params. Must happen AFTER
+        # user-provided kwargs so the user can still override per-call.
+        apply_determinism_kwargs(
+            llm_kwargs,
+            model=self.model,
+            temperature=self.kwargs.get("llm_temperature"),
+            seed=self.kwargs.get("llm_seed"),
+            provider=self.provider,
+        )
+
+           # Native OpenAI: use Responses API for consistent behavior across
         # all model families. Third-party providers use Chat Completions.
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
+            # T0.1 caveat: OpenAI Responses API rejects `seed` (it's a
+            # Chat Completions parameter). Drop it for native OpenAI;
+            # temperature=0 still provides greedy-sampling determinism.
+            # For third-party OpenAI-compatible providers (xAI,
+            # OpenRouter, Ollama) seed stays because they use Chat
+            # Completions.
+            llm_kwargs.pop("seed", None)
 
         # Provider-specific quirks live in their own subclasses so the
         # base NormalizedChatOpenAI stays free of provider branches.
