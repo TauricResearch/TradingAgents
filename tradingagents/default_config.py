@@ -52,8 +52,8 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "memory_log_max_entries": None,
     # LLM settings
     "llm_provider": "google",
-    "deep_think_llm": "gemini-3-flash-preview",
-    "quick_think_llm": "gemini-3.1-flash-lite-preview",
+    "deep_think_llm": "gemini-2.5-pro",
+    "quick_think_llm": "gemini-2.5-flash-lite",
     # When None, each provider's client falls back to its own default endpoint
     # (api.openai.com for OpenAI, generativelanguage.googleapis.com for Gemini, ...).
     # The CLI overrides this per provider when the user picks one. Keeping a

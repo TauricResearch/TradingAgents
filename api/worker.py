@@ -84,6 +84,8 @@ _executor = ThreadPoolExecutor(max_workers=1)
 GOOGLE_429_RETRY_DELAY_SECONDS = 300
 GOOGLE_429_MAX_RETRIES = 1
 GOOGLE_MISSING_KEY_RETRY_DELAY_SECONDS = 60
+OPENROUTER_429_RETRY_DELAY_SECONDS = 70  # free-tier rate limits reset per minute
+OPENROUTER_429_MAX_RETRIES = 2
 
 # Populated by main.py at startup
 task_queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
@@ -91,6 +93,7 @@ task_queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
 SUPPORTED_PROVIDERS = {
     "ollama",
     "google",
+    "openrouter",
 }
 
 
@@ -112,6 +115,13 @@ def _is_google_429_error(exc: Exception, provider: Optional[str]) -> bool:
         or "rate limit" in msg
         or "retry" in msg
     )
+
+
+def _is_openrouter_429_error(exc: Exception, provider: Optional[str]) -> bool:
+    if (provider or "").strip().lower() != "openrouter":
+        return False
+    msg = str(exc).lower()
+    return "429" in msg or "rate limit" in msg or "too many requests" in msg
 
 
 def _google_daily_call_limit() -> int:
@@ -143,14 +153,22 @@ def _pick_provider_config(request_provider: Optional[str]) -> tuple[str, Optiona
 
     if provider == "google":
         backend_url = os.getenv("GOOGLE_BASE_URL") or None
-        deep_model = os.getenv("GOOGLE_DEEP_THINK_MODEL", "gemini-3-flash-preview")
-        quick_model = os.getenv("GOOGLE_QUICK_THINK_MODEL", "gemini-3.1-flash-lite-preview")
+        deep_model = os.getenv("GOOGLE_DEEP_THINK_MODEL", "gemini-2.5-pro")
+        quick_model = os.getenv("GOOGLE_QUICK_THINK_MODEL", "gemini-2.5-flash-lite")
+        return provider, backend_url, deep_model, quick_model
+
+    if provider == "openrouter":
+        backend_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        # Default to free-tier models on OpenRouter; callers can override via env vars.
+        deep_model = os.getenv("OPENROUTER_DEEP_THINK_MODEL", "deepseek/deepseek-r1-0528:free")
+        quick_model = os.getenv("OPENROUTER_QUICK_THINK_MODEL", "qwen/qwen3-coder:free")
         return provider, backend_url, deep_model, quick_model
 
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     backend_url = ollama_host.rstrip("/") + "/v1"
-    deep_model = os.getenv("DEEP_THINK_MODEL", "gemma4:26b")
-    quick_model = os.getenv("QUICK_THINK_MODEL", "gemma4:26b")
+    # Keep Ollama defaults on Qwen models unless explicitly overridden.
+    deep_model = os.getenv("DEEP_THINK_MODEL", "qwen3:latest")
+    quick_model = os.getenv("QUICK_THINK_MODEL", "qwen3:latest")
     return provider, backend_url, deep_model, quick_model
 
 
@@ -460,7 +478,11 @@ async def worker_loop(db_path: str = DB_PATH) -> None:
                 continue
 
         attempt = 0
-        max_attempts = GOOGLE_429_MAX_RETRIES + 1
+        _provider_lower = (request_provider or "").strip().lower()
+        if _provider_lower == "openrouter":
+            max_attempts = OPENROUTER_429_MAX_RETRIES + 1
+        else:
+            max_attempts = GOOGLE_429_MAX_RETRIES + 1
         while attempt < max_attempts:
             try:
                 recommendation, filename, stats, provider, deep_model, quick_model, estimated_cost_usd, agent_recommendations = await loop.run_in_executor(
@@ -482,17 +504,27 @@ async def worker_loop(db_path: str = DB_PATH) -> None:
                 break
             except Exception as exc:
                 attempt += 1
-                can_retry = attempt < max_attempts and _is_google_429_error(exc, request_provider)
+                is_google_429 = _is_google_429_error(exc, request_provider)
+                is_or_429 = _is_openrouter_429_error(exc, request_provider)
+                can_retry = attempt < max_attempts and (is_google_429 or is_or_429)
                 if can_retry:
+                    if is_or_429:
+                        delay = OPENROUTER_429_RETRY_DELAY_SECONDS
+                        max_r = OPENROUTER_429_MAX_RETRIES
+                        label = "OpenRouter"
+                    else:
+                        delay = GOOGLE_429_RETRY_DELAY_SECONDS
+                        max_r = GOOGLE_429_MAX_RETRIES
+                        label = "Google"
                     _append_request_log(
                         req_id,
                         (
-                            "Detected Google 429 quota/rate-limit error. "
-                            f"Waiting {GOOGLE_429_RETRY_DELAY_SECONDS}s before retry "
-                            f"({attempt}/{GOOGLE_429_MAX_RETRIES})."
+                            f"Detected {label} 429 rate-limit error. "
+                            f"Waiting {delay}s before retry "
+                            f"({attempt}/{max_r})."
                         ),
                     )
-                    await asyncio.sleep(GOOGLE_429_RETRY_DELAY_SECONDS)
+                    await asyncio.sleep(delay)
                     row_after_wait = await get_request(req_id, db_path=db_path)
                     if not row_after_wait or row_after_wait.get("status") != "running":
                         break
