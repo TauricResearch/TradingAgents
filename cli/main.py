@@ -1281,5 +1281,10 @@ def analyze(
     run_analysis(checkpoint=checkpoint)
 
 
+# Bottom-of-file import avoids circular-import risk; cli.deepdive must not
+# import from cli.main. Registering here keeps the command alongside app().
+from cli.deepdive import deepdive as _deepdive_cmd
+app.command(name="deepdive")(_deepdive_cmd)
+
 if __name__ == "__main__":
     app()
