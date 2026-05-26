@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS memories (
     component       TEXT NOT NULL,              -- e.g. "decision_log", future: "bull", "bear", ...
     situation_md    TEXT NOT NULL,
     outcome         TEXT,
-    vec_id          INTEGER REFERENCES vec_index(vec_id),
+    vec_id          INTEGER,                        -- FK to vec_index.rowid; enforced in app layer (virtual tables cannot be FK targets in SQLite)
     created_ts      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_memories_partition ON memories(persona_id, component);
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS outcome_log (
     decision        TEXT NOT NULL,
     outcome_md      TEXT NOT NULL,
     pnl_proxy       REAL,                       -- set by F2 reflection loop
-    vec_id          INTEGER REFERENCES vec_index(vec_id),
+    vec_id          INTEGER,                        -- FK to vec_index.rowid; enforced in app layer (virtual tables cannot be FK targets in SQLite)
     tags            TEXT,                       -- JSON
     created_ts      TEXT NOT NULL
 );
