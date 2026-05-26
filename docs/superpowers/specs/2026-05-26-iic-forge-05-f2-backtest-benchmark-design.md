@@ -26,8 +26,9 @@
 - §8 Reflection / outcome_log integration
 - §9 Testing strategy
 - §10 Risks (F2 additions to the program register)
-- §11 Out of scope
-- §12 Open questions deferred to implementation
+- §11 Always-on operation (24/7)
+- §12 Out of scope
+- §13 Open questions deferred to implementation
 
 ---
 
@@ -35,13 +36,14 @@
 
 F2 ships a **forward-testing harness** with a **real-time leaderboard** over the SQLite store F1 built. The harness has one code path that handles both live forward tests (held 30 calendar days from `today`) and back-dated runs (the exit-gate path, where `start_date = today − 30 days` so the window has already elapsed). The same shape later powers F5's brief-scoped backtests.
 
-Three things change relative to F1:
+Four things change relative to F1:
 
 1. **Persona prompts go from cosmetic to behaviorally meaningful.** `system_prompt_fragment` and `risk_debate.weights` get wired into the agent prompts and the risk-debate aggregation. Without this, F2's per-persona comparison is reporting numbers against three near-identical strategies.
 2. **A new `tradingagents.backtest` package** owns the forward-test lifecycle, the leaderboard, and the deterministic Markdown report. No schema changes — the `backtests` and `backtest_runs` tables F1 designed upfront are exactly the shape we need.
-3. **The reflection / scoring story gains a persona-aware path.** The existing `_resolve_pending_entries` reflection loop continues writing to the legacy filesystem `memory_log`, untouched. F2 adds a second write path: when a forward test matures, one `outcome_log` row is written keyed by the original `run_id`, tagged with `persona_id` and `backtest_id`.
+3. **A multi-source, resolution-agnostic price layer** lands as a first-class abstraction. `PriceFallbackChain` mirrors the agents' existing fallback chain (yfinance → polygon → alpha_vantage → futu); F2 implements only the yfinance adapter, but the `PriceSource` protocol and `Resolution` enum make registering Polygon / Futu / a 1-min source later a single-file addition.
+4. **The reflection / scoring story gains a persona-aware path.** The existing `_resolve_pending_entries` reflection loop continues writing to the legacy filesystem `memory_log`, untouched. F2 adds a second write path: when a forward test matures, one `outcome_log` row is written keyed by the original `run_id`, tagged with `persona_id` and `backtest_id`.
 
-The exit gate is a single CLI invocation that takes ~15 minutes of compute, writes 15 `backtest_runs` rows (5 tickers × 3 personas) into one `backtests` row, and produces a Markdown report whose content is byte-equal on rerun modulo a single timestamp line.
+The exit gate is a single CLI invocation that takes ~15 minutes of compute, writes 15 `backtest_runs` rows (5 tickers × 3 personas) into one `backtests` row, and produces a Markdown report whose content is byte-equal on rerun modulo a single timestamp line. 24/7 operation is supported via a `forge backtest sweep` one-shot maturation pass (cronnable) and a `forge backtest watch` long-running daemon (the always-on path); both share the same maturation logic and survive restarts cleanly because all state is in SQLite.
 
 ## 2 · Anchoring decisions
 
@@ -78,6 +80,14 @@ A thin wrapper around yfinance / Polygon / Alpha Vantage calls asserts `returned
 
 The `backtests` and `backtest_runs` tables F1 designed are sufficient. All forward-test lifecycle state lives in the JSON `backtest_runs.metrics` column, with documented shape (§4).
 
+### D7 — Multi-source price data via fallback chain; resolution-agnostic from day one
+
+A `PriceSource` protocol with a `PriceFallbackChain` mirrors the agents' existing `DataVendorError` fallback (program §8 R8). Default chain: yfinance → polygon → alpha_vantage → futu. F2 implements only the yfinance adapter; the others are stub registrations the user (or F3) fills in later — but the abstraction is in place so adding a source is "register one more `PriceSource` implementation."
+
+**Resolution is parameterized from the API down.** `PriceSource.get_bars(ticker, start, end, resolution)` accepts `Resolution.DAILY` or `Resolution.ONE_MIN`. The simulator operates on whatever return-series length the `Bars` object carries — 22 datapoints (daily) or ~8,580 (1-min over 30 days) — without code change. F2 ships `DAILY` only; `ONE_MIN` raises `NotImplementedError` from the yfinance adapter (yfinance is limited to ~7 days of 1-min data, insufficient for 30-day forward tests). When Polygon or another paid source is registered with `ONE_MIN` support, `harness.run_watchlist(..., resolution=Resolution.ONE_MIN)` works with no harness, simulator, or report changes.
+
+**Contradictions across sources are NOT reconciled.** F2 trusts the highest-priority available source. Same philosophy as the agents.
+
 ## 3 · Architecture and module layout
 
 ### New `tradingagents.backtest` package
@@ -88,13 +98,48 @@ The harness is a peer to `tradingagents.secretary` — it owns its DB writes, it
 tradingagents/backtest/
 ├── __init__.py
 ├── harness.py          # BacktestHarness — orchestrator for both invocation modes
-├── simulator.py        # Pure functions: signal → position → daily PnL over a window
-├── prices.py           # yfinance fetcher + in-process cache (deterministic per backtest)
-├── strict_historical.py # The trade_date <= cutoff assertion wrapper
-├── leaderboard.py      # Read-only aggregations over backtest_runs (lazy MTM)
+├── simulator.py        # Pure functions: signal → position → return-series PnL (resolution-agnostic)
+├── prices.py           # PriceSource protocol, PriceFallbackChain, Resolution enum, Bars dataclass
+├── sources/
+│   ├── __init__.py
+│   ├── yfinance_source.py     # F2 ships this one; daily only
+│   ├── polygon_source.py      # stub registration; user fills in later
+│   ├── alpha_vantage_source.py# stub registration; user fills in later
+│   └── futu_source.py         # stub registration; user fills in later
+├── strict_historical.py # The trade_date <= cutoff assertion wrapper (applies across sources)
+├── leaderboard.py      # Read-only aggregations over backtest_runs (lazy MTM via PriceFallbackChain)
 ├── report.py           # Deterministic Markdown report renderer
-└── reflection.py       # On-close hook — writes one outcome_log row per matured forward test
+├── reflection.py       # On-close hook — writes one outcome_log row per matured forward test
+└── sweep.py            # Stateless maturation pass — used by `forge backtest sweep` and `watch`
 ```
+
+**`PriceSource` protocol sketch:**
+
+```python
+class Resolution(StrEnum):
+    DAILY = "1d"
+    ONE_MIN = "1m"
+
+@dataclass(frozen=True)
+class Bars:
+    ticker: str
+    resolution: Resolution
+    bars: list[tuple[datetime, float]]   # (timestamp, close_price)
+    source: str                          # e.g., "yfinance" — set by the producer
+
+class PriceSource(Protocol):
+    name: str
+    supports: set[Resolution]
+    def get_bars(self, ticker: str, start: date, end: date, resolution: Resolution) -> Bars: ...
+
+class PriceFallbackChain:
+    def __init__(self, sources: list[PriceSource]): ...  # ordered by priority
+    def get_bars(self, ticker, start, end, resolution=Resolution.DAILY) -> Bars:
+        # try each source that `supports` the resolution; return the first success
+        # if all fail, raise PriceDataUnavailable (caught by harness → status=errored)
+```
+
+The simulator consumes `Bars` without caring whether it's 22 daily closes or 8,580 1-min bars — the return-series math is identical at both resolutions.
 
 ### `tradingagents.personas` extensions
 
@@ -111,10 +156,14 @@ Both are pure helper modules — they take an existing prompt string (or risk-de
 ```
 cli/forge.py  (new Typer command group, registered in cli/main.py)
   forge backtest start --watchlist=AAPL,MSFT,GOOG,NVDA,TSLA --start-date=2026-04-26
+                       [--resolution=daily|1min]    # default daily; 1min raises NotImplementedError until a 1min source is registered
+                       [--sources=yfinance,polygon] # override fallback chain order
   forge backtest start --brief-id=<id>
   forge backtest leaderboard [--open|--closed|--all] [--persona=macro]
   forge backtest report <backtest_id>
-  forge backtest close <btr_id>   # manual maturation (mostly for tests)
+  forge backtest sweep                              # one-shot: mature any open tests whose scheduled_close_date <= today
+  forge backtest watch [--interval=300]             # long-running: loop sweep every N seconds (default 5 min)
+  forge backtest close <btr_id>                     # manual single-test maturation (mostly for tests)
 ```
 
 The CLI is the user-facing surface for F2 until F5 puts a Streamlit dashboard on top.
@@ -199,26 +248,32 @@ Fixed columns: `btr_id`, `backtest_id`, `persona_id`, `ticker`. All lifecycle st
   "benchmark": "SPY",
   "benchmark_entry_price": 521.12,
   "scheduled_close_date": "2026-05-26",
+  "resolution": "1d",                       // "1d" | "1m"
+  "price_source": "yfinance",               // string if uniform; list-of-pairs e.g. [["yfinance","2026-04-26..2026-05-10"],["polygon","2026-05-11..2026-05-26"]] if mixed
 
   // populated on close:
   "close_date": "2026-05-26",
   "exit_price": 219.30,
   "benchmark_exit_price": 528.05,
-  "total_return": 0.0274,          // signal-adjusted: position * (exit - entry) / entry
+  "total_return": 0.0274,                   // signal-adjusted: position * (exit - entry) / entry
   "benchmark_return": 0.0133,
-  "alpha": 0.0141,                  // total_return - benchmark_return
-  "daily_returns": [...],            // 22 trading-day series, signal-adjusted
-  "sharpe": 1.42,                    // annualized from daily_returns
+  "alpha": 0.0141,                          // total_return - benchmark_return
+  "returns": [...],                         // signal-adjusted return series at the run's resolution
+                                             //   daily: ~22 datapoints; 1min: ~8580 datapoints over 30 days
+  "sharpe": 1.42,                           // annualized from `returns` (annualization factor depends on resolution)
   "max_drawdown": -0.018,
-  "win_rate_daily": 0.59,            // fraction of daily_returns > 0
+  "win_rate": 0.59,                         // fraction of `returns` > 0
   "holding_days_elapsed": 30,
 
   // populated only when status = errored:
-  "error": "string"
+  "error": "string",                        // includes which source(s) failed when relevant
+  "errored_sources": ["yfinance", "polygon"]
 }
 ```
 
-**Why store the daily return series?** The leaderboard needs intraday MTM. Sharpe needs a return series. Storing 22 daily mark-to-market datapoints on close means reports never re-fetch prices — they aggregate from frozen JSON, which is what makes the report byte-equal on rerun.
+**Why store the return series?** The leaderboard needs intraday MTM. Sharpe needs a return series. Storing the full mark-to-market datapoints on close means reports never re-fetch prices — they aggregate from frozen JSON, which is what makes the report byte-equal on rerun. At daily resolution the series is ~22 points; at 1-min over 30 days it's ~8,580 points, still well within SQLite TEXT-column limits.
+
+**Annualization factor for Sharpe:** `√252` for daily, `√(252 × 390)` for 1-min (US market). Stored alongside `sharpe` implicitly via `resolution`; the simulator picks the right factor.
 
 ### Foreign-key threading
 
@@ -388,7 +443,8 @@ Following F1 conventions: `unit` (default, fast, isolated), `integration` (real 
 |---|---|---|---|
 | **R-F2-1** | **Look-ahead data leakage** from data-flow tools that ignore `trade_date` | High | `--strict-historical` assertion at boundary; default ON when `start_date < today`. Failed assertion stops the run loudly. |
 | **R-F2-2** | **Persona wiring is "loaded but cosmetic"** — fragment is injected but LLM ignores it | Med | Boundary test asserts fragment IS in prompts. Exit-gate report itself is the real validation: if Sharpe spread across personas is < 0.1 absolute across all tickers, wiring is cosmetic and the design needs revisiting. Soft warning in smoke test, not hard fail. |
-| **R-F2-3** | **yfinance flakiness** — partial / missing historical bars cause some forward tests to error | Med | Errored tests tagged `status=errored` in `metrics`; report shows them in a separate section. Re-run resumes only errored rows. |
+| **R-F2-3** | **yfinance flakiness** — partial / missing historical bars cause some forward tests to error | Med | `PriceFallbackChain` (D7) tries the next source on per-bar failure. F2 ships yfinance-only so this risk is real until a second source is registered; `errored_sources` in metrics surfaces it. Errored tests tagged `status=errored`; report shows them in a separate section. |
+| **R-F2-3b** | **Source contradictions** — two sources give different prices for the same (ticker, date) | Low | F2 does NOT reconcile. Uses the highest-priority available source. Per-window source recorded in `metrics.price_source` for audit. Reconciliation is a deliberate non-goal — the program is decision-support, not a reference data product. |
 | **R-F2-4** | **stockstats vwma/macdh `Date` KeyError** (known, see [saved memory](../../../.claude/projects/-home-ziwei-huang-TradingAgents/memory/stockstats-vwma-macdh-date-error.md)) surfaces during 15 graph runs | Low | Non-blocking — those two indicators silently fail and the analyst proceeds. **Defer fix beyond F2**, document in exit-gate report header. |
 | **R-F2-5** | **Sharpe-from-N=22 is noisy** | Med | Report shows Sharpe with explicit "30-day sample" caveat. Win-rate-daily (N=22) is the more stable comparator; flag as primary exit-gate metric. |
 | **R-F2-6** | **Brief-scoped mode untested end-to-end** in F2 (F5 is the consumer) | Low | Unit test mocks an F5-style call; asserts the harness reads `briefs.run_ids`, opens forward tests, never re-invokes the graph. End-to-end validation deferred to F5. |
@@ -399,24 +455,69 @@ Following F1 conventions: `unit` (default, fast, isolated), `integration` (real 
 - R10 (over-trusting framework alpha) — F2 is the first-class mitigation. Exit-gate report is the artifact; R-F2-2 calibrates how seriously to take it.
 - R3 (synthesis prompt averages disagreement away) — F2 makes this measurable for the first time. If the wiring is real but the persona spread is tiny, that's evidence the synthesis prompt or the personas themselves need work.
 
-## 11 · Out of scope
+## 11 · Always-on operation (24/7)
 
-- **Scheduled / cron close-sweeps for live forward tests** — F4 will own scheduling. In F2, live tests are matured manually via `forge backtest close <btr_id>` or as a side-effect of leaderboard queries seeing `today ≥ scheduled_close_date`.
+The IIC-FORGE system is designed to run continuously without shutdown (program design P5 — local-first, low-ops). F2 must not introduce gaps in that posture. Forward tests opened by deep-dives or scheduled morning runs must mature automatically at day 30, even with no human in the loop and no leaderboard query running.
+
+### Durability across restarts
+
+All forward-test state lives in SQLite (`backtests` + `backtest_runs.metrics`). A crash, restart, OS update, or power loss never destroys a forward test — on restart, open tests are still queryable and the next sweep matures any whose `scheduled_close_date <= today`. There is **no in-memory state** the harness needs to preserve. This property comes for free from F1's persistence design; F2 just doesn't break it.
+
+### Two entry points for maturation
+
+Both use the same underlying logic in `sweep.py`:
+
+| Command | Shape | When to use |
+|---|---|---|
+| `forge backtest sweep` | One-shot: query open tests, mature the matured ones, exit. | Cron timer, systemd `OnCalendar=*:0/15`, CI tests, manual user checks. The canonical primitive. |
+| `forge backtest watch [--interval=300]` | Long-running: loop the sweep every N seconds (default 5 min). | Always-on systemd service. The "no external scheduler needed" path. |
+
+`watch` is `sweep` in a `while True: sweep(); sleep(interval)` wrapper with signal handling for graceful shutdown. No extra primitives — both paths exercise the same `sweep.run_maturation_pass()` function, which is what the F2 tests target.
+
+### Recording results
+
+When `sweep` matures a test, it writes (atomically per row):
+1. Final metrics into `backtest_runs.metrics` (status `open` → `closed`).
+2. One `outcome_log` row tagged `{persona_id, backtest_id, source: "forward_test"}`.
+3. Sweep summary line into `data/logs/sweep-YYYY-MM-DD.log` for operability.
+
+Failures during maturation (transient API errors, missing exit price across all sources) write `status=errored` to that row and continue with other rows — one bad row does not stop the sweep. A subsequent sweep retries errored rows whose `scheduled_close_date <= today` ONLY if a new flag is set; by default errored rows stay errored to avoid retry-storms. (Retry behavior is one of the §13 implementation calls.)
+
+### Handoff to F4
+
+F4's queue + worker will wrap `forge backtest sweep` as one of its job types. At that point, `forge backtest watch` becomes redundant (the queue worker takes over the scheduling responsibility) but harmless. **F2 doesn't need to anticipate F4** — both `sweep` and `watch` keep working unchanged once F4 ships. Same primitive, different invoker.
+
+### What 24/7 does NOT require in F2
+
+- Streaming price feeds (polling per sweep is sufficient at daily resolution).
+- A separate process supervisor (systemd / launchd is the right tool).
+- Distributed locking (single secretary process owns DB writes per program design R5).
+- Hot-reloading of persona configs (restart the watch process; takes seconds).
+
+## 12 · Out of scope
+
 - **Streamlit dashboard for the leaderboard** — F5 territory. F2 ships the CLI surface only.
 - **Transaction costs, slippage, borrow fees, leverage** — keep the simulator pure. Add later if measured alpha demands it.
 - **Signal-weighted positions via `confidence`** — `confidence` is still `None` in F1's RunRecorder. F2 sticks with discrete ±1/0 positions.
 - **Multi-period rebalancing** — one decision held for the full window; no rebalance.
 - **Walk-forward / cross-validation** — out of scope; the watchlist mode is single-window forward testing.
-- **A `prices` table for snapshotted daily closes** — F2 fetches yfinance lazily and caches in-process per backtest. F4 can add a `prices` snapshot table later if reproducibility against live data drifts (yfinance occasionally revises historicals).
+- **A `prices` table for snapshotted daily closes** — F2 fetches via `PriceFallbackChain` and caches in-process per backtest. F4 or later can add a `prices` snapshot table if reproducibility against live data drifts (yfinance occasionally revises historicals).
 - **Retiring the legacy filesystem `memory_log`** — both reflection paths coexist; retirement decision deferred.
+- **1-min resolution implementation** — designed for via the `Resolution` enum and `PriceSource` API (D7); F2 ships `DAILY` only. Implementation lands when a paid 1-min source (Polygon / Alpha Vantage premium) is registered.
+- **Non-yfinance `PriceSource` adapters** — stubs only in F2; the user registers real adapters as needed. The fallback chain is in place from day one.
+- **F4-scale scheduling** — `forge backtest watch` covers single-process 24/7 in F2; F4 wraps `sweep` into the queue when it ships.
+- **Source contradiction reconciliation** — F2 trusts the highest-priority available source; cross-source price audit / quality scoring is a separate concern.
 
-## 12 · Open questions deferred to implementation
+## 13 · Open questions deferred to implementation
 
 1. **Calendar handling for `start_date + 30 calendar days`** — if the resulting `end_date` lands on a weekend or US market holiday, the simulator uses the last available trading day's close. Implementation owner picks the convention (probably: forward to next trading day at most 3 days, else error).
 2. **`risk_debate.weights` normalization** — apply as raw multipliers, or normalize to sum to 1.0 across roles first? Implementation owner picks; document the choice in `risk_weights.py`.
 3. **Buy-and-hold baseline aggregation** — report per-ticker AND a 5-ticker equal-weight basket, vs. just the basket. Probably both (cheap to add).
 4. **Persona inclusion in the exit-gate CLI** — accept `--personas=macro,value,momentum` for explicit listing, or default to all YAMLs in `tradingagents/personas/`? Probably default-all with override-by-flag.
 5. **Per-channel `exit_price`** — close-of-day price on `end_date`, or VWAP, or open-of-next-day? Close-of-day is simplest and matches the daily return series. Default to close-of-day; document the choice.
+6. **Errored-row retry behavior in `sweep`** — by default errored rows stay errored to avoid retry storms. A `--retry-errored` flag on `sweep` could be added later; not required for F2.
+7. **`watch` interval default** — 5 minutes (300s) is the proposed default. Implementation owner can tune; nothing depends on the exact value.
+8. **PriceFallbackChain construction site** — built once at `BacktestHarness` init from `default_config.backtest_price_sources` (a config key listing source names in priority order), or constructed per-call? Probably once-at-init for cache reuse.
 
 These are calls the implementer can make as they go without re-opening the design.
 
