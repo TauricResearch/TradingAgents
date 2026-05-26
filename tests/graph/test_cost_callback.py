@@ -31,3 +31,19 @@ def test_callback_handles_missing_token_usage():
     result = LLMResult(generations=[[Generation(text="x")]], llm_output={})
     cb.on_llm_end(result)  # must not raise
     assert cb.totals_by_model() == {}
+
+
+@pytest.mark.unit
+def test_cost_guard_disabled_by_default_does_not_raise(monkeypatch):
+    from tradingagents.graph.cost_callback import CostGuard
+    guard = CostGuard(per_run_token_budget=10)  # absurdly low
+    # With enabled=False, even exceeding the budget must not raise.
+    guard.check_or_raise(total_tokens=10_000_000)
+
+
+@pytest.mark.unit
+def test_cost_guard_enabled_raises_when_over_budget():
+    from tradingagents.graph.cost_callback import CostGuard, CostGuardExceeded
+    guard = CostGuard(per_run_token_budget=100, enabled=True)
+    with pytest.raises(CostGuardExceeded):
+        guard.check_or_raise(total_tokens=101)

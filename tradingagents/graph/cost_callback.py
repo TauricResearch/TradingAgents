@@ -40,3 +40,34 @@ class RunCostCallback(BaseCallbackHandler):
 
     def totals_by_model(self) -> Dict[str, Dict[str, int]]:
         return dict(self._totals)
+
+
+class CostGuardExceeded(RuntimeError):
+    """Raised when a run's token spend exceeds the configured per-run budget."""
+
+
+class CostGuard:
+    """Per-run token-budget enforcement.
+
+    Per IIC-FORGE program design Appendix A, this ship with ``enabled=False``.
+    Measurement (via ``RunCostCallback``) is always on; enforcement is gated.
+    Flip ``enabled=True`` (or set ``TRADINGAGENTS_COST_GUARD_ENABLED=1``) only
+    after collecting empirical cost data via the F5 dashboard.
+    """
+
+    def __init__(
+        self,
+        *,
+        per_run_token_budget: int,
+        enabled: bool = False,
+    ) -> None:
+        self._budget = per_run_token_budget
+        self._enabled = enabled
+
+    def check_or_raise(self, *, total_tokens: int) -> None:
+        if not self._enabled:
+            return  # measurement only — no enforcement during F0–F5
+        if total_tokens > self._budget:
+            raise CostGuardExceeded(
+                f"token spend {total_tokens} > budget {self._budget}"
+            )
