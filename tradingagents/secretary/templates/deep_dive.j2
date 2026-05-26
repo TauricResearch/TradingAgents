@@ -1,0 +1,30 @@
+# Deep-Dive Brief — {{ ticker }}
+
+_Generated {{ trade_date }} — IIC Secretary_
+
+---
+
+## Consensus
+
+{{ synthesis.consensus }}
+
+## Divergence
+
+{{ synthesis.divergence }}
+
+## Recommendation
+
+{{ synthesis.recommendation }}
+
+---
+
+## Per-persona detail
+
+{% for run in persona_runs %}
+### {{ run.persona_id }} — {{ run.decision }}
+
+{{ run.final_trade_decision }}
+
+---
+
+{% endfor %}
