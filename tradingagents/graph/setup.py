@@ -30,7 +30,8 @@ class GraphSetup:
         self.analyst_concurrency_limit = analyst_concurrency_limit
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals", "derivatives"]
+        self, selected_analysts=["market", "social", "news", "fundamentals", "derivatives"],
+        run_recorder_node=None,
     ):
         """Set up and compile the agent workflow graph.
 
@@ -154,6 +155,11 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Portfolio Manager", END)
+        if run_recorder_node is not None:
+            workflow.add_node("Run Recorder", run_recorder_node)
+            workflow.add_edge("Portfolio Manager", "Run Recorder")
+            workflow.add_edge("Run Recorder", END)
+        else:
+            workflow.add_edge("Portfolio Manager", END)
 
         return workflow

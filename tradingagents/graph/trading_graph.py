@@ -80,6 +80,12 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
+        # IIC-FORGE F1: token accumulator — must be in self.callbacks BEFORE
+        # the LLM clients are constructed, so the LLM clients pick it up.
+        from tradingagents.graph.cost_callback import RunCostCallback
+        self._cost_cb = RunCostCallback()
+        self.callbacks = list(self.callbacks or []) + [self._cost_cb]
+
         # Initialize LLMs with provider-specific thinking configuration.
         # Per-tier kwargs let DeepSeek attach reasoning_effort to the deep
         # client only (quick model stays at default thinking effort).
@@ -106,6 +112,22 @@ class TradingAgentsGraph:
         self.quick_thinking_llm = quick_client.get_llm()
         
         self.memory_log = TradingMemoryLog(self.config)
+
+        # IIC-FORGE F1: per-run id + persistence + Run Recorder
+        import uuid
+        from tradingagents.persistence.db import connect as _iic_connect
+        from tradingagents.graph.run_recorder import RunRecorder, make_run_recorder_node
+
+        self.run_id = uuid.uuid4().hex
+        self._iic_conn = _iic_connect(self.config["iic_db_path"])
+        self.run_recorder = RunRecorder(
+            conn=self._iic_conn,
+            data_dir=self.config["iic_data_dir"],
+            run_id=self.run_id,
+            persona_id=self.config.get("persona_id"),
+            cost_callback=self._cost_cb,
+        )
+        run_recorder_node = make_run_recorder_node(self.run_recorder)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -135,7 +157,9 @@ class TradingAgentsGraph:
         self.log_states_dict = {}  # date to full state dict
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts)
+        self.workflow = self.graph_setup.setup_graph(
+            selected_analysts, run_recorder_node=run_recorder_node
+        )
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
 
@@ -364,6 +388,12 @@ class TradingAgentsGraph:
             company_name, trade_date, asset_type=asset_type, past_context=past_context
         )
         args = self.propagator.get_graph_args()
+
+        from datetime import datetime, timezone
+        self.run_recorder.start(
+            ticker=init_agent_state.get("company_of_interest", "UNKNOWN"),
+            started_ts=datetime.now(timezone.utc).isoformat(),
+        )
 
         # Inject thread_id so same ticker+date resumes, different date starts fresh.
         if self.config.get("checkpoint_enabled"):
