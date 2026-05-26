@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 import datetime
 import typer
 import questionary
@@ -19,6 +20,8 @@ from rich.tree import Tree
 from rich import box
 from rich.align import Align
 from rich.rule import Rule
+
+import tradingagents  # This triggers load_dotenv() to load .env file
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.analyst_execution import (
@@ -527,13 +530,20 @@ def get_user_selections():
     analysis_date = get_analysis_date()
 
     # Step 3: Output language
-    console.print(
-        create_question_box(
-            "Step 3: Output Language",
-            "Select the language for analyst reports and final decision"
+    # Check if the environment variable is explicitly set
+    raw_output_language = os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE")
+    if raw_output_language:
+        configured_output_language = DEFAULT_CONFIG.get("output_language", "English")
+        console.print(f"[green]✓ Loaded Output Language from env: {configured_output_language}[/green]")
+        output_language = configured_output_language
+    else:
+        console.print(
+            create_question_box(
+                "Step 3: Output Language",
+                "Select the language for analyst reports and final decision"
+            )
         )
-    )
-    output_language = ask_output_language()
+        output_language = ask_output_language()
 
     # Step 4: Select analysts
     console.print(
@@ -555,41 +565,62 @@ def get_user_selections():
     selected_research_depth = select_research_depth()
 
     # Step 6: LLM Provider
-    console.print(
-        create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+    # Check if environment variables are explicitly set
+    raw_llm_provider = os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+    if raw_llm_provider:
+        selected_llm_provider = raw_llm_provider
+        backend_url = DEFAULT_CONFIG.get("backend_url")
+        console.print(f"[green]✓ Loaded LLM Provider from env: {selected_llm_provider}[/green]")
+        if backend_url:
+            console.print(f"[green]✓ Loaded Backend URL from env: {backend_url}[/green]")
+        # Still need to check API key
+        ensure_api_key(selected_llm_provider)
+    else:
+        console.print(
+            create_question_box(
+                "Step 6: LLM Provider", "Select your LLM provider"
+            )
         )
-    )
-    selected_llm_provider, backend_url = select_llm_provider()
+        selected_llm_provider, backend_url = select_llm_provider()
 
-    # Providers with regional endpoints prompt for the region as a secondary
-    # step so the main dropdown stays clean (mainland China and international
-    # accounts cannot share API keys).
-    if selected_llm_provider == "qwen":
-        selected_llm_provider, backend_url = ask_qwen_region()
-    elif selected_llm_provider == "minimax":
-        selected_llm_provider, backend_url = ask_minimax_region()
-    elif selected_llm_provider == "glm":
-        selected_llm_provider, backend_url = ask_glm_region()
+        # Providers with regional endpoints prompt for the region as a secondary
+        # step so the main dropdown stays clean (mainland China and international
+        # accounts cannot share API keys).
+        if selected_llm_provider == "qwen":
+            selected_llm_provider, backend_url = ask_qwen_region()
+        elif selected_llm_provider == "minimax":
+            selected_llm_provider, backend_url = ask_minimax_region()
+        elif selected_llm_provider == "glm":
+            selected_llm_provider, backend_url = ask_glm_region()
 
-    # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
-    # before model selection so it's obvious where we're connecting.
-    if selected_llm_provider == "ollama":
-        confirm_ollama_endpoint(backend_url)
+        # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
+        # before model selection so it's obvious where we're connecting.
+        if selected_llm_provider == "ollama":
+            confirm_ollama_endpoint(backend_url)
 
-    # Confirm the provider's API key is present; prompt the user to paste
-    # one and persist it to .env if it's missing, so the analysis run
-    # doesn't fail later at the first API call.
-    ensure_api_key(selected_llm_provider)
+        # Confirm the provider's API key is present; prompt the user to paste
+        # one and persist it to .env if it's missing, so the analysis run
+        # doesn't fail later at the first API call.
+        ensure_api_key(selected_llm_provider)
 
     # Step 7: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+    # Check if environment variables are explicitly set
+    raw_deep_llm = os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM")
+    raw_shallow_llm = os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM")
+    if raw_deep_llm or raw_shallow_llm:
+        configured_shallow = DEFAULT_CONFIG.get("quick_think_llm")
+        configured_deep = DEFAULT_CONFIG.get("deep_think_llm")
+        console.print(f"[green]✓ Loaded Thinking Agents from env: shallow={configured_shallow}, deep={configured_deep}[/green]")
+        selected_shallow_thinker = configured_shallow
+        selected_deep_thinker = configured_deep
+    else:
+        console.print(
+            create_question_box(
+                "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            )
         )
-    )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     # Step 8: Provider-specific thinking configuration
     thinking_level = None
