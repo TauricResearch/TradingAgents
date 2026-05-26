@@ -47,14 +47,24 @@ def connect(db_path: str) -> sqlite3.Connection:
         conn.executescript(f.read())
 
     # vec_index is a virtual table; CREATE VIRTUAL TABLE doesn't support
-    # IF NOT EXISTS in older SQLite, so guard manually.
+    # IF NOT EXISTS in older SQLite, so guard manually. We also wrap the
+    # CREATE in a try/except because the SELECT→CREATE pair is NOT atomic:
+    # when multiple threads call connect() concurrently on the same DB
+    # (e.g. F1's deepdive launches three personas in parallel), two threads
+    # can both observe the table as missing and race to create it. The
+    # loser sees "table vec_index already exists" — which is harmless and
+    # exactly what we want either way.
     existing = conn.execute(
         "SELECT name FROM sqlite_master WHERE name='vec_index'"
     ).fetchone()
     if existing is None:
-        conn.execute(
-            "CREATE VIRTUAL TABLE vec_index USING vec0(embedding float[384])"
-        )
+        try:
+            conn.execute(
+                "CREATE VIRTUAL TABLE vec_index USING vec0(embedding float[384])"
+            )
+        except sqlite3.OperationalError as e:
+            if "already exists" not in str(e):
+                raise
 
     conn.commit()
     return conn

@@ -60,3 +60,23 @@ def test_vec_index_virtual_table_exists(tmp_db):
     ))
     assert rows, "vec_index virtual table must be created at connect-time"
     conn.close()
+
+
+@pytest.mark.unit
+def test_concurrent_connect_does_not_race_on_vec_index(tmp_db):
+    """Regression: F1's deepdive opens three connections in parallel threads.
+    Two of them used to race on CREATE VIRTUAL TABLE vec_index, with the
+    loser crashing as `sqlite3.OperationalError: table vec_index already
+    exists`. The fix wraps the CREATE in try/except 'already exists'."""
+    from concurrent.futures import ThreadPoolExecutor
+    from tradingagents.persistence.db import connect
+
+    def _open():
+        c = connect(tmp_db)
+        c.close()
+        return True
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        results = [f.result() for f in [ex.submit(_open) for _ in range(8)]]
+
+    assert all(results), "every concurrent connect() must succeed"
