@@ -62,9 +62,22 @@ def _build_secretary(config: dict) -> Secretary:
     return Secretary(conn=conn, data_dir=config["iic_data_dir"], llm=llm)
 
 
-def run_deepdive(*, ticker: str, trade_date: str, parallel: bool = True) -> str:
-    """Programmatic entry point — returns the brief_id."""
+def run_deepdive(
+    *,
+    ticker: str,
+    trade_date: str,
+    parallel: bool = True,
+    config_overrides: dict | None = None,
+) -> str:
+    """Programmatic entry point — returns the brief_id.
+
+    ``config_overrides`` is merged on top of DEFAULT_CONFIG. Tests use this
+    to route persistence to a tmp directory without relying on env vars
+    (which DEFAULT_CONFIG snapshots at import time).
+    """
     config = dict(DEFAULT_CONFIG)
+    if config_overrides:
+        config.update(config_overrides)
     personas: List[Persona] = load_all_personas(_personas_dir())
     if not personas:
         raise RuntimeError(f"No personas found in {_personas_dir()}")

@@ -21,18 +21,24 @@ from tradingagents.persistence.db import connect
 pytestmark = pytest.mark.integration
 
 
-def test_f1_exit_gate_deepdive_aapl(tmp_path, monkeypatch):
-    if not os.environ.get("DEEPSEEK_API_KEY"):
-        pytest.skip("DEEPSEEK_API_KEY not set")
+def test_f1_exit_gate_deepdive_aapl(tmp_path):
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key or api_key == "placeholder":
+        pytest.skip("DEEPSEEK_API_KEY not set (or placeholder from conftest)")
 
-    monkeypatch.setenv("TRADINGAGENTS_IIC_DB_PATH", str(tmp_path / "iic.db"))
-    monkeypatch.setenv("TRADINGAGENTS_IIC_DATA_DIR", str(tmp_path / "data"))
+    db_path = str(tmp_path / "iic.db")
+    data_dir = str(tmp_path / "data")
 
     from cli.deepdive import run_deepdive
-    brief_id = run_deepdive(ticker="AAPL", trade_date="2026-05-25", parallel=True)
+    brief_id = run_deepdive(
+        ticker="AAPL",
+        trade_date="2026-05-25",
+        parallel=True,
+        config_overrides={"iic_db_path": db_path, "iic_data_dir": data_dir},
+    )
     assert brief_id
 
-    conn = connect(str(tmp_path / "iic.db"))
+    conn = connect(db_path)
 
     # Exit-gate clause 1: three persona runs.
     runs = list(conn.execute("SELECT persona_id, status, decision FROM runs"))
@@ -43,7 +49,7 @@ def test_f1_exit_gate_deepdive_aapl(tmp_path, monkeypatch):
 
     # Exit-gate clause 2: per-analyst markdown on disk.
     for r in conn.execute("SELECT run_id, artifact_dir FROM runs"):
-        run_path = tmp_path / "data" / r["artifact_dir"]
+        run_path = Path(data_dir) / r["artifact_dir"]
         assert run_path.exists(), f"missing artifact dir for {r['run_id']}"
         assert (run_path / "meta.json").exists()
         # At least one analyst MD should be present.
@@ -58,7 +64,7 @@ def test_f1_exit_gate_deepdive_aapl(tmp_path, monkeypatch):
     assert brief_row["scope"] == "AAPL"
 
     # Exit-gate clause 4: brief markdown has the three sections.
-    brief_path = tmp_path / "data" / brief_row["content_path"]
+    brief_path = Path(data_dir) / brief_row["content_path"]
     assert brief_path.exists()
     text = brief_path.read_text(encoding="utf-8")
     assert "Consensus" in text
