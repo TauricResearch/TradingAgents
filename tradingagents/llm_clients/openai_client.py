@@ -11,28 +11,44 @@ from .validators import validate_model
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
-    """ChatOpenAI with normalized content output and capability-aware binding.
+    """对 ChatOpenAI 的标准化封装，解决跨 provider 的兼容性问题。
 
-    The Responses API returns content as a list of typed blocks
-    (reasoning, text, etc.). ``invoke`` normalizes to string for
-    consistent downstream handling.
+    问题一：OpenAI Responses API 返回 content 为 block 列表（reasoning + text），
+    下游 agent 期望纯字符串。invoke() 通过 normalize_content() 归一化。
 
-    ``with_structured_output`` consults the per-model capability table
-    (``capabilities.get_capabilities``) to pick the method and to decide
-    whether ``tool_choice`` may be sent. Models that reject ``tool_choice``
-    (e.g. DeepSeek V4 and reasoner — per their official tool-calling
-    guide) still bind the schema as a tool, but no ``tool_choice``
-    parameter is sent.
+    问题二：不同模型支持不同的结构化输出方式（function_calling / json_mode），
+    且部分模型（DeepSeek V4、MiniMax M2.x）会拒绝 tool_choice 参数。
+    with_structured_output() 通过 capabilities.get_capabilities() 查询模型能力，
+    自动选择正确方法，并对拒绝 tool_choice 的模型抑制该参数。
 
-    Provider-specific quirks beyond structured-output (e.g. DeepSeek's
-    reasoning_content roundtrip) live in subclasses so this base class
-    stays small.
+    各 provider 特有的行为（如 DeepSeek 的 reasoning_content 往返、
+    MiniMax 的 reasoning_split）放在对应 subclass 中，保持此类简洁。
     """
 
     def invoke(self, input, config=None, **kwargs):
+        """调用父类 invoke 并将响应内容归一化为字符串。
+
+        Responses API 返回 [{type: reasoning}, {type: text, ...}] 列表，
+        下游期望 string；normalize_content 提取并拼接所有 text block。
+        """
         return normalize_content(super().invoke(input, config, **kwargs))
 
     def with_structured_output(self, schema, *, method=None, **kwargs):
+        """根据模型能力选择结构化输出方法，处理 provider 兼容性问题。
+
+        Args:
+            schema: Pydantic model 或 dict，期望 LLM 输出的结构
+            method: 强制指定方法（function_calling / json_mode / reflexion），
+                   不指定则使用模型偏好默认值
+            **kwargs: 透传给父类 with_structured_output
+
+        Raises:
+            NotImplementedError: 当模型没有任何结构化输出能力时
+
+        注意: 某些模型（DeepSeek V4、MiniMax M2.x）拒绝 tool_choice 参数，
+        但接受 tools 数组。此处通过 setdefault("tool_choice", None) 抑制参数，
+        同时保留 schema 作为 tool 绑定——与 DeepSeek 官方示例行为一致。
+        """
         caps = get_capabilities(self.model_name)
         if caps.preferred_structured_method == "none":
             raise NotImplementedError(
@@ -40,9 +56,6 @@ class NormalizedChatOpenAI(ChatOpenAI):
                 f"agent factories will fall back to free-text generation."
             )
         method = method or caps.preferred_structured_method
-        # When the model rejects tool_choice, suppress langchain's hardcoded
-        # value. The schema is still bound as a tool — exactly what
-        # DeepSeek's official tool-calling examples do.
         if method == "function_calling" and not caps.supports_tool_choice:
             kwargs.setdefault("tool_choice", None)
         return super().with_structured_output(schema, method=method, **kwargs)
