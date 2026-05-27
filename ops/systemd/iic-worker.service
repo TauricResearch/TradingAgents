@@ -1,0 +1,28 @@
+# /etc/systemd/system/iic-worker.service
+#
+# IIC-FORGE F4 — worker service
+# Polls queue_jobs every 2s, leases one job at a time, runs 3 personas
+# in parallel inside the job. MemoryMax allows for 3-persona parallelism;
+# the F1 deep-dive baseline uses ~2GB RSS at peak.
+
+[Unit]
+Description=IIC-FORGE — F4 worker (queue_jobs → briefs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=iic
+WorkingDirectory=/home/iic/TradingAgents/TradingAgents
+EnvironmentFile=/home/iic/TradingAgents/TradingAgents/.env
+ExecStart=/home/iic/TradingAgents/TradingAgents/.venv/bin/python -m tradingagents.orchestrator.worker
+Restart=on-failure
+RestartSec=30
+MemoryMax=4G
+CPUQuota=200%
+TimeoutStopSec=1500
+StandardOutput=append:/var/log/iic/worker.log
+StandardError=append:/var/log/iic/worker.log
+
+[Install]
+WantedBy=multi-user.target
