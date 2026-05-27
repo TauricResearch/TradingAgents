@@ -48,10 +48,33 @@ with tab_briefs:
                     st.markdown(body_path.read_text())
 
 with tab_costs:
-    st.header("Costs (placeholder — see Task 17)")
+    st.header("Daily cost trend")
+    from tradingagents.dashboard.panels.costs import fetch_daily_cost_trend
+    rows = fetch_daily_cost_trend(_conn(), days=30)
+    if not rows:
+        st.info("No cost data yet.")
+    else:
+        import altair as alt
+        import pandas as pd
+        df = pd.DataFrame(rows)
+        chart = alt.Chart(df).mark_line(point=True).encode(
+            x="day:T", y="total_usd:Q", color="model:N",
+        )
+        st.altair_chart(chart, use_container_width=True)
+        st.dataframe(df, use_container_width=True)
 
 with tab_queue:
-    st.header("Queue (placeholder — see Task 17)")
+    st.header("Queue status")
+    from tradingagents.dashboard.panels.queue import (
+        fetch_queue_depth, fetch_recent_jobs, fetch_worker_heartbeat,
+    )
+    cols = st.columns(4)
+    depth = fetch_queue_depth(_conn())
+    for col, state in zip(cols, ["queued", "running", "done", "error"]):
+        col.metric(state, depth.get(state, 0))
+    st.subheader("Recent jobs")
+    st.dataframe(fetch_recent_jobs(_conn(), limit=10), use_container_width=True)
+    st.caption(f"worker heartbeat: {fetch_worker_heartbeat(_conn()) or '(never)'}")
 
 with tab_actions:
     st.header("Actions (placeholder — see Task 18)")
