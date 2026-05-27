@@ -21,6 +21,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_IIC_DB_PATH":          "iic_db_path",
     "TRADINGAGENTS_IIC_DATA_DIR":         "iic_data_dir",
     "TRADINGAGENTS_COST_GUARD_ENABLED":   "cost_guard_enabled",
+    "TRADINGAGENTS_ORCHESTRATOR_ENABLED": "orchestrator_enabled",
 }
 
 
@@ -80,6 +81,23 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "macro": True,
         "x": False,   # off by default per spec D8 / R-F3-3
     },
+    # IIC-FORGE F4 — autonomous trigger loop (orchestrator)
+    "orchestrator_enabled": False,
+    "promoter_poll_interval_s": 10,
+    "promoter_batch_size": 50,
+    "alert_cooldown_min": 60,
+    "alert_salience_threshold": 0.7,
+    "alert_ticker_confidence_threshold": 0.8,
+    "worker_poll_interval_s": 2,
+    "worker_job_timeout_min": 20,
+    "max_concurrent_jobs": 1,
+    # Cost guards (program-spec Appendix A: enabled=False during F0–F5)
+    "trigger_backpressure_enabled": False,
+    "trigger_backpressure_max_pending": 20,
+    "trigger_daily_rate_enabled": False,
+    "trigger_daily_rate_max_jobs": 200,
+    "daily_budget_enabled": False,
+    "daily_budget_usd": 10.0,
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
