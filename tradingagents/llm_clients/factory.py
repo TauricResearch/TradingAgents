@@ -54,4 +54,8 @@ def create_llm_client(
         from .azure_client import AzureOpenAIClient
         return AzureOpenAIClient(model, base_url, **kwargs)
 
+    if provider_lower in ("openai-oauth", "openai_oauth"):
+        from .openai_oauth_client import OpenAIOAuthClient
+        return OpenAIOAuthClient(model, base_url, **kwargs)
+
     raise ValueError(f"Unsupported LLM provider: {provider}")
