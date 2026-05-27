@@ -77,3 +77,54 @@ def deepdive(
     brief_id = run_deepdive(ticker=ticker.upper(), trade_date=td, parallel=parallel)
     typer.echo(f"brief_id: {brief_id}")
     typer.echo(f"brief markdown: {config['iic_data_dir']}/briefs/{brief_id}.md")
+
+    # F5: post-delivery prompts (backtest y/N + refinement loop)
+    from tradingagents.persistence.db import connect as iic_connect
+    conn = iic_connect(config["iic_db_path"])
+    post_delivery_prompts(brief_id=brief_id, conn=conn)
+
+
+def post_delivery_prompts(*, brief_id: str, conn) -> None:
+    """Interactive post-delivery prompts: backtest y/N + refinement loop.
+
+    Backtest: writes a run_backtest brief_action with state='accepted' on 'y'.
+    Refinement: loop reading non-empty lines, each becomes a refine_brief action.
+    Empty input exits the loop.
+    """
+    import sys
+    from datetime import datetime, timedelta, timezone
+    from tradingagents import default_config as _dc
+    from tradingagents.persistence import store
+
+    expires_hours = _dc.DEFAULT_CONFIG["refinement"]["action_expires_hours"]
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=expires_hours)).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
+
+    sys.stdout.write("\nRun a backtest on these strategies? [y/N]: ")
+    sys.stdout.flush()
+    ans = sys.stdin.readline().strip().lower()
+    if ans == "y":
+        aid = store.insert_brief_action(
+            conn, brief_id=brief_id, action_type="run_backtest",
+            action_params={}, expires_at=expires_at,
+        )
+        store.update_action_state(conn, action_id=aid, state="accepted",
+                                  responded_at=now)
+        sys.stdout.write(f"  → queued (action_id={aid})\n")
+
+    while True:
+        sys.stdout.write("Anything to refine? (free text, or Enter to finish): ")
+        sys.stdout.flush()
+        line = sys.stdin.readline()
+        if not line:
+            break
+        text = line.strip()
+        if not text:
+            break
+        aid = store.insert_brief_action(
+            conn, brief_id=brief_id, action_type="refine_brief",
+            action_params={"reply_text": text}, expires_at=expires_at,
+        )
+        store.update_action_state(conn, action_id=aid, state="accepted",
+                                  responded_at=now)
+        sys.stdout.write(f"  → queued (action_id={aid})\n")
