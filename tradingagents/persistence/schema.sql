@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS events (
     salience        REAL,
     raw_path        TEXT,
     deduped_of      TEXT REFERENCES events(event_id),
-    status          TEXT NOT NULL                                -- "new" | "triaged" | "discarded"
+    status          TEXT NOT NULL                                -- "new" | "triaged" | "discarded" | "duplicate"
 );
 
 CREATE TABLE IF NOT EXISTS event_ticker (
@@ -173,3 +173,40 @@ CREATE TABLE IF NOT EXISTS deliveries (
     status          TEXT NOT NULL,                               -- "sent" | "failed" | "skipped"
     sent_ts         TEXT
 );
+
+-- ============================================================
+-- F3 sensing/triage append-only tables (added by IIC-FORGE-06)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS ingest_cursor (
+    source     TEXT PRIMARY KEY,           -- e.g., "polygon_news"
+    cursor     TEXT NOT NULL,              -- adapter-specific opaque payload
+    updated_ts TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tickers (
+    ticker     TEXT PRIMARY KEY,           -- "AAPL", "BTC-USD"
+    exchange   TEXT NOT NULL,              -- "NASDAQ" | "NYSE" | "ARCA" | "CRYPTO"
+    name       TEXT NOT NULL,
+    aliases    TEXT,                       -- JSON array: ["Apple", "Apple Computer"]
+    active     INTEGER NOT NULL DEFAULT 1, -- 0 = delisted (filtered)
+    updated_ts TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tickers_active ON tickers(active);
+
+CREATE TABLE IF NOT EXISTS event_fingerprints (
+    fingerprint TEXT NOT NULL,             -- external_id or sha256 hex
+    kind        TEXT NOT NULL,             -- 'external_id' | 'sha256'
+    event_id    TEXT NOT NULL REFERENCES events(event_id) ON DELETE CASCADE,
+    source      TEXT NOT NULL,
+    created_ts  TEXT NOT NULL,
+    PRIMARY KEY (fingerprint, kind)
+);
+CREATE INDEX IF NOT EXISTS idx_event_fingerprints_event ON event_fingerprints(event_id);
+
+CREATE TABLE IF NOT EXISTS event_embeddings (
+    event_id   TEXT PRIMARY KEY REFERENCES events(event_id) ON DELETE CASCADE,
+    vec_id     INTEGER NOT NULL,           -- app-layer FK to vec_index.rowid
+    created_ts TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_event_embeddings_vec ON event_embeddings(vec_id);

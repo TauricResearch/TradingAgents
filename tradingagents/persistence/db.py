@@ -20,6 +20,8 @@ _EXPECTED_TABLES: Set[str] = {
     "backtests", "backtest_runs",
     "events", "event_ticker", "watchlist",
     "queue_jobs", "deliveries",
+    # F3:
+    "ingest_cursor", "tickers", "event_fingerprints", "event_embeddings",
 }
 
 
