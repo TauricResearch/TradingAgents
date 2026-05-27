@@ -126,6 +126,7 @@ class TradingAgentsGraph:
             run_id=self.run_id,
             persona_id=self.config.get("persona_id"),
             cost_callback=self._cost_cb,
+            queue_job_id=self.config.get("queue_job_id"),
         )
         run_recorder_node = make_run_recorder_node(self.run_recorder)
 

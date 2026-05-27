@@ -47,12 +47,14 @@ class RunRecorder:
         run_id: str,
         persona_id: Optional[str],
         cost_callback: Any,        # RunCostCallback (duck-typed to ease mocking)
+        queue_job_id: Optional[int] = None,
     ) -> None:
         self._conn = conn
         self._data_dir = Path(data_dir)
         self._run_id = run_id
         self._persona_id = persona_id
         self._cost_callback = cost_callback
+        self._queue_job_id = queue_job_id
         self._artifact_dir_rel = f"runs/{run_id}"
 
     def start(self, ticker: str, *, started_ts: str) -> None:
@@ -63,6 +65,7 @@ class RunRecorder:
             persona_id=self._persona_id,
             started_ts=started_ts,
             artifact_dir=self._artifact_dir_rel,
+            queue_job_id=self._queue_job_id,
         )
 
     def record(self, state: Dict[str, Any]) -> Dict[str, Any]:

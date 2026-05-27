@@ -23,11 +23,13 @@ def insert_run(
     started_ts: str,
     artifact_dir: str,
     trigger_id: Optional[str] = None,
+    queue_job_id: Optional[int] = None,
 ) -> None:
     conn.execute(
         "INSERT INTO runs (run_id, ticker, persona_id, started_ts, status, "
-        "trigger_id, artifact_dir) VALUES (?, ?, ?, ?, 'running', ?, ?)",
-        (run_id, ticker, persona_id, started_ts, trigger_id, artifact_dir),
+        "trigger_id, artifact_dir, queue_job_id) VALUES (?, ?, ?, ?, 'running', ?, ?, ?)",
+        (run_id, ticker, persona_id, started_ts, trigger_id, artifact_dir,
+         queue_job_id),
     )
     conn.commit()
 
