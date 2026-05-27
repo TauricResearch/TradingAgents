@@ -67,11 +67,12 @@ HOLD — low-confidence call.
 
 
 @pytest.mark.unit
-def test_compose_morning_digest_and_event_alert_are_stubs(db_and_dirs):
+def test_compose_morning_digest_is_stub(db_and_dirs):
+    """compose_morning_digest is still stubbed (lands in F5).
+    compose_event_alert is implemented in F4 — see
+    tests/orchestrator/test_compose_event_alert.py for its tests."""
     from tradingagents.secretary.service import Secretary
     conn, data_dir = db_and_dirs
     sec = Secretary(conn=conn, data_dir=data_dir, llm=MagicMock())
     with pytest.raises(NotImplementedError):
         sec.compose_morning_digest(watchlist=["AAPL"], ts="2026-05-25T00:00:00Z")
-    with pytest.raises(NotImplementedError):
-        sec.compose_event_alert(event_id="x")
