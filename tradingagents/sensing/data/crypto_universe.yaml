@@ -1,0 +1,62 @@
+# Top-20 crypto static reference. Maintained manually; re-evaluate quarterly.
+# Format: list of {ticker, name, aliases}. Exchange is always "CRYPTO".
+- ticker: BTC-USD
+  name: Bitcoin
+  aliases: [BTC, Bitcoin]
+- ticker: ETH-USD
+  name: Ethereum
+  aliases: [ETH, Ether, Ethereum]
+- ticker: USDT-USD
+  name: Tether
+  aliases: [USDT, Tether]
+- ticker: BNB-USD
+  name: BNB
+  aliases: [BNB, Binance Coin]
+- ticker: SOL-USD
+  name: Solana
+  aliases: [SOL, Solana]
+- ticker: USDC-USD
+  name: USD Coin
+  aliases: [USDC]
+- ticker: XRP-USD
+  name: XRP
+  aliases: [XRP, Ripple]
+- ticker: DOGE-USD
+  name: Dogecoin
+  aliases: [DOGE, Dogecoin]
+- ticker: ADA-USD
+  name: Cardano
+  aliases: [ADA, Cardano]
+- ticker: TRX-USD
+  name: TRON
+  aliases: [TRX, TRON]
+- ticker: AVAX-USD
+  name: Avalanche
+  aliases: [AVAX, Avalanche]
+- ticker: TON-USD
+  name: Toncoin
+  aliases: [TON, Toncoin]
+- ticker: SHIB-USD
+  name: Shiba Inu
+  aliases: [SHIB]
+- ticker: LINK-USD
+  name: Chainlink
+  aliases: [LINK, Chainlink]
+- ticker: DOT-USD
+  name: Polkadot
+  aliases: [DOT, Polkadot]
+- ticker: BCH-USD
+  name: Bitcoin Cash
+  aliases: [BCH]
+- ticker: MATIC-USD
+  name: Polygon
+  aliases: [MATIC, Polygon network]
+- ticker: NEAR-USD
+  name: NEAR Protocol
+  aliases: [NEAR]
+- ticker: LTC-USD
+  name: Litecoin
+  aliases: [LTC, Litecoin]
+- ticker: UNI-USD
+  name: Uniswap
+  aliases: [UNI, Uniswap]
