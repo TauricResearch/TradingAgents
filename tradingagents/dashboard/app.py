@@ -77,4 +77,35 @@ with tab_queue:
     st.caption(f"worker heartbeat: {fetch_worker_heartbeat(_conn()) or '(never)'}")
 
 with tab_actions:
-    st.header("Actions (placeholder — see Task 18)")
+    st.header("Brief actions")
+    from tradingagents.dashboard.panels.actions import (
+        fetch_pending_actions, fetch_recent_actioned,
+    )
+    st.subheader("Pending")
+    pending = fetch_pending_actions(_conn())
+    st.dataframe(pending or [{"info": "no pending"}], use_container_width=True)
+    st.subheader("Recently actioned")
+    actioned = fetch_recent_actioned(_conn(), limit=20)
+    st.dataframe(actioned or [{"info": "none yet"}], use_container_width=True)
+
+
+# Refinement-form route: ?brief_id=<id>
+qp = st.query_params
+if "brief_id" in qp:
+    from tradingagents.dashboard.action_form import submit_backtest, submit_refinement
+    bid = qp["brief_id"]
+    st.divider()
+    st.header(f"Follow up on brief {bid}")
+    with st.form("action_form"):
+        do_backtest = st.checkbox("Run backtest on these strategies")
+        refinement = st.text_area("Refinement (free text)", "")
+        submitted = st.form_submit_button("Submit")
+    if submitted:
+        if do_backtest:
+            aid = submit_backtest(conn=_conn(), brief_id=bid, config=DEFAULT_CONFIG)
+            st.success(f"Backtest queued (action_id={aid})")
+        if refinement.strip():
+            aid = submit_refinement(
+                conn=_conn(), brief_id=bid, reply_text=refinement, config=DEFAULT_CONFIG,
+            )
+            st.success(f"Refinement queued (action_id={aid})")
