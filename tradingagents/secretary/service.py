@@ -58,6 +58,10 @@ def render_event_alert(
     )
 
 
+class RefinementDepthExceeded(Exception):
+    """Raised when refinement chain would exceed configured max_depth."""
+
+
 class Secretary:
     def __init__(
         self,
@@ -306,3 +310,71 @@ class Secretary:
             run_ids=all_run_ids,
         )
         return brief_id
+
+    # ----- F5: refinement -----
+    def compose_refinement(
+        self, *, parent_brief_id: str, overrides: dict, reply_text: str,
+    ) -> str:
+        from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.secretary.morning import run_one_ticker
+
+        parent = store.load_brief(self._conn, parent_brief_id)
+        if parent is None:
+            raise ValueError(f"parent brief not found: {parent_brief_id}")
+
+        max_depth = DEFAULT_CONFIG["refinement"]["max_depth"]
+        if parent["refine_depth"] >= max_depth:
+            raise RefinementDepthExceeded(
+                f"parent depth {parent['refine_depth']} >= max_depth {max_depth}"
+            )
+
+        scope = parent["scope"]
+        ticker = scope if not scope.startswith("[") else json.loads(scope)[0]
+
+        config = dict(DEFAULT_CONFIG)
+        if overrides.get("personas"):
+            config["_persona_filter"] = overrides["personas"]
+        if overrides.get("risk_tilt"):
+            config["_risk_tilt"] = overrides["risk_tilt"]
+        if overrides.get("horizon"):
+            config["_horizon"] = overrides["horizon"]
+        if overrides.get("analysts"):
+            config["_analysts_override"] = overrides["analysts"]
+
+        ts = datetime.now(timezone.utc).isoformat()
+        run_ids, synthesis = run_one_ticker(
+            ticker=ticker, trade_date=ts[:10],
+            config=config, conn=self._conn, data_dir=self._data_dir,
+        )
+
+        new_brief_id = uuid.uuid4().hex
+        brief_path = self._data_dir / "briefs" / f"{new_brief_id}.md"
+        brief_path.parent.mkdir(parents=True, exist_ok=True)
+        body = (
+            f"# Refined Deep-Dive — {ticker}\n"
+            f"_brief: `{new_brief_id}` · refining `{parent_brief_id}` · "
+            f"depth {parent['refine_depth'] + 1}_\n\n"
+            f"## User refinement\n> {reply_text}\n\n"
+            f"## Consensus\n{synthesis.get('consensus','')}\n\n"
+            f"## Divergence\n{synthesis.get('divergence','')}\n\n"
+            f"## Recommendation\n{synthesis.get('recommendation','')}\n"
+        )
+        brief_path.write_text(body)
+
+        store.insert_brief(
+            self._conn,
+            brief_id=new_brief_id,
+            mode="deep_dive",
+            scope=ticker,
+            generated_ts=ts,
+            content_path=str(brief_path.relative_to(self._data_dir)),
+            run_ids=run_ids,
+            parent_brief_id=parent_brief_id,
+        )
+        store.update_brief_refine_metadata(
+            self._conn,
+            brief_id=new_brief_id,
+            refine_depth=parent["refine_depth"] + 1,
+            refine_overrides=overrides,
+        )
+        return new_brief_id
