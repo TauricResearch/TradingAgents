@@ -116,3 +116,69 @@ def sense_sweep_watchlist() -> None:
     conn = _conn()
     n = sweep_expired(conn)
     console.print(f"pruned {n} expired watchlist row(s)")
+
+
+# ---------------------------------------------------------------------
+# orchestrator sub-app (F4)
+# ---------------------------------------------------------------------
+
+orch_app = typer.Typer(name="orchestrator", help="F4 promoter + worker controls")
+app.add_typer(orch_app, name="orchestrator")
+
+
+@orch_app.command("promoter")
+def orchestrator_promoter() -> None:
+    """Run the promoter loop in the foreground (systemd wraps this)."""
+    import logging
+    from tradingagents.orchestrator.promoter import main
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    main()
+
+
+@orch_app.command("worker")
+def orchestrator_worker() -> None:
+    """Run the worker loop in the foreground (systemd wraps this)."""
+    import logging
+    from tradingagents.orchestrator.worker import main
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    main()
+
+
+@orch_app.command("status")
+def orchestrator_status() -> None:
+    """Quick view of queue depth + recent jobs + today's spend."""
+    from tradingagents.orchestrator import queue_store
+    conn = _conn()
+    pending = queue_store.pending_count(conn)
+    today_enqueued = queue_store.daily_enqueue_count(conn)
+    today_cost = queue_store.daily_cost_total(conn)
+
+    console.print(f"pending (queued+running): [bold]{pending}[/bold]")
+    console.print(f"enqueued today          : {today_enqueued}")
+    console.print(f"spend today (USD)       : ${today_cost:.4f}")
+
+    rows = list(conn.execute(
+        "SELECT job_id, job_type, state, enqueued_ts, finished_ts, "
+        "brief_id, cost_usd, error "
+        "FROM queue_jobs ORDER BY job_id DESC LIMIT 10"
+    ))
+    if not rows:
+        console.print("(no jobs)")
+        return
+    t = Table("id", "type", "state", "enqueued", "finished", "brief", "$", "err")
+    for r in rows:
+        t.add_row(
+            str(r["job_id"]), r["job_type"], r["state"],
+            (r["enqueued_ts"] or "")[:19],
+            (r["finished_ts"] or "")[:19],
+            (r["brief_id"] or "")[:8],
+            f"{(r['cost_usd'] or 0.0):.4f}",
+            (r["error"] or "")[:40],
+        )
+    console.print(t)
