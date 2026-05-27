@@ -190,3 +190,6 @@ def orchestrator_status() -> None:
 from cli.morning import morning_app, digest_app  # noqa: E402
 app.add_typer(morning_app, name="morning-digest")
 app.add_typer(digest_app, name="digest")
+
+from cli.action_handler import action_handler_app  # noqa: E402
+app.add_typer(action_handler_app, name="action-handler")

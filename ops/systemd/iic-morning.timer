@@ -1,0 +1,11 @@
+[Unit]
+Description=IIC-FORGE morning digest timer
+Requires=iic-morning.service
+
+[Timer]
+OnCalendar=*-*-* 07:00:00
+Persistent=true
+Unit=iic-morning.service
+
+[Install]
+WantedBy=timers.target

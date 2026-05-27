@@ -1,0 +1,11 @@
+[Unit]
+Description=IIC-FORGE morning digest — oneshot
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ziwei-huang/TradingAgents
+ExecStart=/home/ziwei-huang/TradingAgents/.venv/bin/forge morning-digest now
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/home/ziwei-huang/TradingAgents/.env
