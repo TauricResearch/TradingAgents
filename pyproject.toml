@@ -55,6 +55,7 @@ sensing = [
 dev = [
     "fakeredis>=2.20",                 # async-compatible Redis fake for unit tests
     "pytest-asyncio>=0.23",            # async test support (declared with asyncio_mode=auto below)
+    "freezegun>=1.4",                  # F4: deterministic time control for cooldown tests
 ]
 
 [project.scripts]
