@@ -110,3 +110,71 @@ class DedupeStage1:
         )
         await self._redis.sadd(self._sha_key(), fp)
         await self._redis.expire(self._sha_key(), self._ttl_seconds)
+
+
+import struct
+
+
+class DedupeStage2:
+    """Semantic dedupe via sqlite-vec cosine over the last N hours.
+
+    Embeds the candidate text, runs a K-NN MATCH against vec_index, then
+    filters joined event_embeddings + events for the freshness window.
+    Returns the matching event_id if cosine >= threshold, else None.
+    """
+
+    def __init__(
+        self,
+        *,
+        conn: sqlite3.Connection,
+        embedder,                        # Embedder protocol
+        cosine_threshold: float,
+        window_hours: int,
+    ) -> None:
+        self._conn = conn
+        self._embedder = embedder
+        self._threshold = cosine_threshold
+        self._window_hours = window_hours
+
+    def _pack(self, vec) -> bytes:
+        return bytes(struct.pack(f"{len(vec)}f", *vec))
+
+    def check(self, text: str) -> Optional[str]:
+        vec = self._embedder.embed(text)
+        # sqlite-vec's vec0 KNN requires `k = N` or LIMIT INSIDE the MATCH query —
+        # it cannot push LIMIT down through joins. Pull k nearest neighbours first,
+        # then filter for freshness and pick the best survivor.
+        rows = self._conn.execute(
+            """
+            WITH knn AS (
+                SELECT rowid, distance
+                FROM vec_index
+                WHERE embedding MATCH ? AND k = 5
+            )
+            SELECT ev.event_id,
+                   (1.0 - knn.distance) AS cosine
+            FROM knn
+            JOIN event_embeddings ee ON ee.vec_id = knn.rowid
+            JOIN events ev ON ev.event_id = ee.event_id
+            WHERE ev.ingested_ts > datetime('now', ?)
+              AND ev.status != 'duplicate'
+            ORDER BY knn.distance ASC
+            LIMIT 1
+            """,
+            (self._pack(vec), f"-{self._window_hours} hours"),
+        ).fetchall()
+        if not rows:
+            return None
+        top = rows[0]
+        return top["event_id"] if top["cosine"] >= self._threshold else None
+
+    def record(self, *, text: str, event_id: str) -> int:
+        """Insert vector into vec_index + event_embeddings; return vec_id."""
+        from tradingagents.persistence.store import insert_event_embedding
+        vec = self._embedder.embed(text)
+        cur = self._conn.execute(
+            "INSERT INTO vec_index (embedding) VALUES (?)", (self._pack(vec),),
+        )
+        vec_id = cur.lastrowid
+        insert_event_embedding(self._conn, event_id=event_id, vec_id=vec_id)
+        return vec_id
