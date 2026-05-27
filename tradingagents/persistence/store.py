@@ -199,9 +199,12 @@ def upsert_watchlist(
 
 def get_active_watchlist(conn: sqlite3.Connection) -> list[str]:
     """Tickers that are either user-curated (ttl_until IS NULL) or not yet expired."""
+    # datetime() normalizes ISO `T` + `+00:00` to SQLite's `YYYY-MM-DD HH:MM:SS`
+    # form so same-day comparisons work (raw string compare silently fails when
+    # one side has `T` and the other has a space).
     rows = conn.execute(
         "SELECT ticker FROM watchlist "
-        "WHERE ttl_until IS NULL OR ttl_until > datetime('now')"
+        "WHERE ttl_until IS NULL OR datetime(ttl_until) > datetime('now')"
     )
     return [r["ticker"] for r in rows]
 
