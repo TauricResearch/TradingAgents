@@ -7,7 +7,7 @@ disagreement, not average it away. Disagreement is signal.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 _SYNTHESIS_TEMPLATE = """You are the IIC Secretary. Three persona investment teams have each produced
@@ -61,13 +61,24 @@ def synthesize_brief(
     llm: Any,
     ticker: str,
     persona_runs: List[Dict[str, Any]],
+    event_context: Optional[str] = None,
 ) -> Dict[str, str]:
     """Call the LLM with the synthesis prompt; parse into 3 sections.
+
+    When ``event_context`` is non-empty (event_alert mode), it is prepended
+    to the prompt as the trigger context. None / empty ≡ deep-dive mode.
 
     Returns dict with keys ``consensus``, ``divergence``, ``recommendation``,
     plus ``raw`` (the full LLM response text).
     """
     prompt = build_synthesis_prompt(ticker=ticker, persona_runs=persona_runs)
+    if event_context:
+        prompt = (
+            f"TRIGGER EVENT for {ticker}:\n\n{event_context}\n\n"
+            f"Synthesize the three persona reports below into a terse "
+            f"consensus / divergence / recommendation for this event.\n\n"
+            + prompt
+        )
     response = llm.invoke(prompt)
     raw = getattr(response, "content", str(response))
     return {
