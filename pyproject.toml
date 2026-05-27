@@ -46,6 +46,16 @@ dependencies = [
 polygon = []  # uses requests (already a core dep); add "polygon-api-client>=1.14.0" if you prefer the official SDK
 futu = ["futu-api>=9.0"]
 osint = ["telethon>=1.36", "tweepy>=4.14"]
+sensing = [
+    "telethon>=1.36",                  # F3 telegram adapter (also in osint for F0)
+    "tweepy>=4.14",                    # F3 x adapter
+    "feedparser>=6.0",                 # F3 rss adapter
+    "sentence-transformers>=2.5",      # 384-dim local embedder; matches vec_index schema
+]
+dev = [
+    "fakeredis>=2.20",                 # async-compatible Redis fake for unit tests
+    "pytest-asyncio>=0.23",            # async test support (declared with asyncio_mode=auto below)
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
@@ -59,6 +69,7 @@ cli = ["static/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
 markers = [
     "unit: fast isolated unit tests",
     "integration: tests requiring external services",
