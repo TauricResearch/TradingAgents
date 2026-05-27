@@ -7,7 +7,6 @@ runs sequentially (used by tests and for deterministic debugging).
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date as _date
 from pathlib import Path
 from typing import List
@@ -17,37 +16,12 @@ import typer
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.personas.loader import Persona, load_all_personas
 from tradingagents.persistence.db import connect as iic_connect
+from tradingagents.secretary.persona_runner import run_personas_parallel
 from tradingagents.secretary.service import Secretary
 
 
 def _personas_dir() -> str:
     return str(Path(__file__).resolve().parent.parent / "tradingagents" / "personas")
-
-
-def _run_one_persona(persona: Persona, ticker: str, trade_date: str, config: dict) -> str:
-    """Construct a TradingAgentsGraph with the persona overlay, propagate, return run_id."""
-    # Build a per-run config overlay.
-    overlay = dict(config)
-    overlay["persona_id"] = persona.id
-    overlay["deep_think_llm"] = persona.llm.deep_think_llm
-    overlay["quick_think_llm"] = persona.llm.quick_think_llm
-    if persona.llm.deepseek_reasoning_effort is not None:
-        overlay["deepseek_reasoning_effort"] = persona.llm.deepseek_reasoning_effort
-
-    # Compute selected_analysts from the persona's include list.
-    selected = list(persona.analysts.include)
-
-    # Import here to avoid heavy imports at module import time.
-    from tradingagents.graph.trading_graph import TradingAgentsGraph
-
-    graph = TradingAgentsGraph(
-        config=overlay,
-        selected_analysts=selected,
-    )
-    # propagate(company_name, trade_date) is the public entry point confirmed
-    # in tradingagents/graph/trading_graph.py line 342.
-    graph.propagate(ticker, trade_date)
-    return graph.run_id
 
 
 def _build_secretary(config: dict) -> Secretary:
@@ -82,13 +56,10 @@ def run_deepdive(
     if not personas:
         raise RuntimeError(f"No personas found in {_personas_dir()}")
 
-    if parallel:
-        with ThreadPoolExecutor(max_workers=len(personas)) as ex:
-            futures = [ex.submit(_run_one_persona, p, ticker, trade_date, config)
-                       for p in personas]
-            run_ids = [f.result() for f in futures]
-    else:
-        run_ids = [_run_one_persona(p, ticker, trade_date, config) for p in personas]
+    run_ids = run_personas_parallel(
+        personas=personas, ticker=ticker, trade_date=trade_date,
+        config=config, parallel=parallel,
+    )
 
     sec = _build_secretary(config)
     return sec.compose_deep_dive(ticker=ticker, run_ids=run_ids, trade_date=trade_date)
