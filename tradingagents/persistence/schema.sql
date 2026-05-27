@@ -210,3 +210,26 @@ CREATE TABLE IF NOT EXISTS event_embeddings (
     created_ts TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_event_embeddings_vec ON event_embeddings(vec_id);
+
+-- ============================================================
+-- F4 orchestrator append-only columns (added by IIC-FORGE-07)
+-- ============================================================
+-- NOTE: ALTER TABLE ADD COLUMN is NOT idempotent in SQLite. The db.py
+-- migration layer wraps these statements to swallow "duplicate column
+-- name" errors, allowing connect() to be called repeatedly. Do NOT add
+-- IF NOT EXISTS — sqlite does not support it on ALTER TABLE.
+
+ALTER TABLE queue_jobs ADD COLUMN trigger_event_id  TEXT REFERENCES events(event_id);
+ALTER TABLE queue_jobs ADD COLUMN run_ids           TEXT;
+ALTER TABLE queue_jobs ADD COLUMN brief_id          TEXT REFERENCES briefs(brief_id);
+ALTER TABLE queue_jobs ADD COLUMN cost_usd          REAL;
+ALTER TABLE queue_jobs ADD COLUMN error             TEXT;
+
+ALTER TABLE briefs     ADD COLUMN trigger_event_id  TEXT REFERENCES events(event_id);
+
+ALTER TABLE runs       ADD COLUMN queue_job_id      INTEGER REFERENCES queue_jobs(job_id);
+
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_trigger_event
+    ON queue_jobs(trigger_event_id);
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_state_enqueued
+    ON queue_jobs(state, enqueued_ts);
