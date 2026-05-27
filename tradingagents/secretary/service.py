@@ -233,6 +233,76 @@ class Secretary:
         )
         return brief_id
 
-    # ----- Stubs for later phases -----
-    def compose_morning_digest(self, *, watchlist: List[str], ts: str) -> str:
-        raise NotImplementedError("compose_morning_digest lands in F5")
+    # ----- F5: morning digest -----
+    def compose_morning_digest(
+        self, *, watchlist: List[str] | None, ts: str,
+    ) -> str:
+        from tradingagents.default_config import DEFAULT_CONFIG
+        from tradingagents.secretary.morning import run_one_ticker
+
+        if watchlist is None:
+            rows = self._conn.execute(
+                "SELECT ticker FROM watchlist "
+                "WHERE ttl_until IS NULL OR ttl_until > datetime('now') "
+                "ORDER BY ticker"
+            ).fetchall()
+            watchlist = [r[0] for r in rows]
+
+        per_ticker_sections: list[dict] = []
+        all_run_ids: list[str] = []
+        for tk in watchlist:
+            try:
+                run_ids, synthesis = run_one_ticker(
+                    ticker=tk,
+                    trade_date=ts[:10],
+                    config=DEFAULT_CONFIG,
+                    conn=self._conn,
+                    data_dir=self._data_dir,
+                )
+                per_ticker_sections.append({
+                    "ticker": tk,
+                    "consensus": synthesis.get("consensus", ""),
+                    "divergence": synthesis.get("divergence", ""),
+                    "recommendation": synthesis.get("recommendation", ""),
+                })
+                all_run_ids.extend(run_ids)
+            except Exception as exc:  # noqa: BLE001 — per-ticker isolation
+                per_ticker_sections.append({
+                    "ticker": tk,
+                    "consensus": "(data error)",
+                    "divergence": f"(data error: {exc})",
+                    "recommendation": "(data error)",
+                })
+
+        brief_id = uuid.uuid4().hex
+        brief_path = self._data_dir / "briefs" / f"{brief_id}.md"
+        brief_path.parent.mkdir(parents=True, exist_ok=True)
+
+        body_lines = [
+            f"# Morning Digest — {ts[:10]}",
+            f"_brief: `{brief_id}` · {len(watchlist)} ticker(s)_",
+            "",
+        ]
+        for sec in per_ticker_sections:
+            body_lines += [
+                f"## {sec['ticker']}",
+                "",
+                "**Consensus:** " + sec["consensus"],
+                "",
+                "**Divergence:** " + sec["divergence"],
+                "",
+                "**Recommendation:** " + sec["recommendation"],
+                "",
+            ]
+        brief_path.write_text("\n".join(body_lines))
+
+        store.insert_brief(
+            self._conn,
+            brief_id=brief_id,
+            mode="morning_digest",
+            scope=json.dumps(list(watchlist)),
+            generated_ts=ts,
+            content_path=str(brief_path.relative_to(self._data_dir)),
+            run_ids=all_run_ids,
+        )
+        return brief_id
