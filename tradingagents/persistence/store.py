@@ -310,3 +310,111 @@ def get_brief(
     return conn.execute(
         "SELECT * FROM briefs WHERE brief_id = ?", (brief_id,)
     ).fetchone()
+
+
+# --------------------------------------------------------------------
+# F5 deliveries + brief_actions helpers
+# --------------------------------------------------------------------
+
+def insert_delivery(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    channel: str,
+    status: str,
+    sent_ts: Optional[str],
+    channel_ref: Optional[str],
+    skip_reason: Optional[str],
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO deliveries (brief_id, channel, status, sent_ts, channel_ref, skip_reason) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (brief_id, channel, status, sent_ts, channel_ref, skip_reason),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def resolve_brief_id_by_channel_ref(
+    conn: sqlite3.Connection, *, channel: str, channel_ref: str,
+) -> Optional[str]:
+    row = conn.execute(
+        "SELECT brief_id FROM deliveries WHERE channel = ? AND channel_ref = ? "
+        "ORDER BY delivery_id DESC LIMIT 1",
+        (channel, channel_ref),
+    ).fetchone()
+    return row[0] if row else None
+
+
+def fetch_actions(conn: sqlite3.Connection, *, state: str) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM brief_actions WHERE state = ? ORDER BY action_id",
+        (state,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def fetch_accepted_undispatched(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM brief_actions "
+        "WHERE state = 'accepted' "
+        "  AND result_backtest_id IS NULL "
+        "  AND result_brief_id IS NULL "
+        "ORDER BY action_id"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_action_state(
+    conn: sqlite3.Connection, *, action_id: int, state: str, responded_at: Optional[str] = None,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET state = ?, responded_at = ? WHERE action_id = ?",
+        (state, responded_at, action_id),
+    )
+    conn.commit()
+
+
+def mark_action_done(
+    conn: sqlite3.Connection,
+    *,
+    action_id: int,
+    result_backtest_id: Optional[int] = None,
+    result_brief_id: Optional[str] = None,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET result_backtest_id = ?, result_brief_id = ? "
+        "WHERE action_id = ?",
+        (result_backtest_id, result_brief_id, action_id),
+    )
+    conn.commit()
+
+
+def expire_lapsed_actions(conn: sqlite3.Connection) -> int:
+    cur = conn.execute(
+        "UPDATE brief_actions SET state = 'expired' "
+        "WHERE state = 'pending' AND expires_at < datetime('now')"
+    )
+    conn.commit()
+    return cur.rowcount
+
+
+def load_brief(conn: sqlite3.Connection, brief_id: str) -> Optional[dict]:
+    row = conn.execute(
+        "SELECT * FROM briefs WHERE brief_id = ?", (brief_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def update_brief_refine_metadata(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    refine_depth: int,
+    refine_overrides: dict,
+) -> None:
+    conn.execute(
+        "UPDATE briefs SET refine_depth = ?, refine_overrides = ? WHERE brief_id = ?",
+        (refine_depth, json.dumps(refine_overrides), brief_id),
+    )
+    conn.commit()
