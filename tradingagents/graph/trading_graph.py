@@ -388,6 +388,9 @@ class TradingAgentsGraph:
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date, asset_type=asset_type, past_context=past_context
         )
+        # IIC-FORGE F4: event-context injection — seed event text into state.
+        # Empty string when not in event_alert mode (deep-dive path unchanged).
+        init_agent_state["event_context_text"] = self.config.get("event_context", "") or ""
         args = self.propagator.get_graph_args()
 
         from datetime import datetime, timezone
