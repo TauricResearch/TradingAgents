@@ -40,6 +40,21 @@ def render_deep_dive(
     )
 
 
+def render_event_alert(
+    *,
+    ticker: str,
+    event: Dict[str, Any],
+    synthesis: Dict[str, str],
+    persona_runs: List[Dict[str, Any]],
+) -> str:
+    return _env.get_template("event_alert.j2").render(
+        ticker=ticker,
+        event=event,
+        synthesis=synthesis,
+        persona_runs=persona_runs,
+    )
+
+
 class Secretary:
     def __init__(
         self,
