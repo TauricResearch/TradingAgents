@@ -233,3 +233,16 @@ CREATE INDEX IF NOT EXISTS idx_queue_jobs_trigger_event
     ON queue_jobs(trigger_event_id);
 CREATE INDEX IF NOT EXISTS idx_queue_jobs_state_enqueued
     ON queue_jobs(state, enqueued_ts);
+
+-- ============================================================
+-- F5 delivery + operations append-only columns (added by IIC-FORGE-08)
+-- ============================================================
+ALTER TABLE deliveries ADD COLUMN skip_reason       TEXT;
+ALTER TABLE deliveries ADD COLUMN channel_ref       TEXT;
+ALTER TABLE briefs     ADD COLUMN refine_depth      INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE briefs     ADD COLUMN refine_overrides  TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_deliveries_brief
+    ON deliveries(brief_id);
+CREATE INDEX IF NOT EXISTS idx_brief_actions_pending_expires
+    ON brief_actions(state, expires_at) WHERE state = 'pending';
