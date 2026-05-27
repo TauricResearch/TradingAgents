@@ -56,6 +56,30 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # IIC-FORGE F1 — cost guards (coded but disabled by default — see
     # docs/superpowers/specs/2026-05-25-iic-forge-program-design.md Appendix A).
     "cost_guard_enabled": False,
+    # IIC-FORGE F3 — always-on sensing + triage
+    "sensing_redis_url": "redis://127.0.0.1:6379/0",
+    "sensing_ingest_stream": "ingest:raw",
+    "sensing_consumer_group": "triage",
+    "sensing_dead_stream": "ingest:dead",
+    "sensing_triage_consumers": 4,
+    "sensing_triage_max_failures": 5,
+    "sensing_dedupe_cosine_threshold": 0.92,
+    "sensing_dedupe_window_hours": 24,
+    "sensing_fingerprint_ttl_hours": 72,
+    "sensing_watchlist_salience_threshold": 0.7,
+    "sensing_watchlist_confidence_threshold": 0.8,
+    "sensing_watchlist_ttl_days": 7,
+    "sensing_watchlist_refresh_seconds": 60,
+    "sensing_salience_cache_ttl_seconds": 86400,
+    "sensing_embedder_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "sensing_adapters_enabled": {
+        "polygon_news": True,
+        "telegram": True,
+        "rss": True,
+        "gdelt": True,
+        "macro": True,
+        "x": False,   # off by default per spec D8 / R-F3-3
+    },
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
