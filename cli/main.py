@@ -41,6 +41,14 @@ app = typer.Typer(
     add_completion=True,  # Enable shell completion
 )
 
+# IIC-FORGE F2/F3 ops sub-app. Guarded so failures inside cli/forge.py don't
+# break the main CLI.
+try:
+    from cli.forge import app as _forge_app
+    app.add_typer(_forge_app, name="forge")
+except ImportError:
+    pass
+
 
 # Create a deque to store recent messages with a maximum length
 class MessageBuffer:
