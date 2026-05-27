@@ -182,3 +182,11 @@ def orchestrator_status() -> None:
             (r["error"] or "")[:40],
         )
     console.print(t)
+
+
+# ---------------------------------------------------------------------
+# F5: morning-digest + digest sub-apps
+# ---------------------------------------------------------------------
+from cli.morning import morning_app, digest_app  # noqa: E402
+app.add_typer(morning_app, name="morning-digest")
+app.add_typer(digest_app, name="digest")
