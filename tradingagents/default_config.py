@@ -181,4 +181,57 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".AX":  "^AXJO",    # Australia (ASX 200)
         "":     "SPY",      # default for US-listed tickers (no suffix)
     },
+    # ============================================================
+    # F5 — Delivery + operations
+    # ============================================================
+    "delivery": {
+        "enabled_channels": ["email", "cli"],
+        "quiet_hours": {
+            "enabled": True,
+            "start": "22:00",
+            "end": "07:00",
+        },
+        "digest_modes": {
+            "telegram": "terse",
+            "email": "full",
+            "cli": "full",
+        },
+    },
+    "telegram_bot": {
+        "enabled": False,
+        "allowed_chat_ids": [],
+        "poll_interval_seconds": 1,
+    },
+    "smtp": {
+        "enabled": False,
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "from_addr": "watter008@gmail.com",
+        "to_addrs": ["watter008@gmail.com"],
+    },
+    "morning_digest": {
+        "schedule_local_time": "07:00",
+        "watchlist_source": "db",
+    },
+    "refinement": {
+        "max_depth": 3,
+        "classifier_llm": "quick_think_llm",
+        "action_expires_hours": 24,
+    },
+    "action_handler": {
+        "tick_interval_seconds": 5,
+    },
+    "dashboard": {
+        "enabled": False,
+        "port": 8501,
+        "bind_address": "127.0.0.1",
+    },
+    "refinement_chain_budget": {
+        "enabled": False,
+        "max_usd_per_chain": 10.0,
+    },
+    "morning_digest_token_ceiling": {
+        "enabled": False,
+        "max_in_tokens": 500_000,
+    },
 })
