@@ -168,3 +168,189 @@ class Triage:
         return TriageResult(event_id=ev_id, status="triaged",
                             salience=score.salience,
                             matched_tickers=score.matched_tickers)
+
+
+# ----------------------------------------------------------------------
+# Consume loop + dead-letter sweep + systemd entry point
+# ----------------------------------------------------------------------
+
+async def dead_letter_sweep(
+    r: aioredis.Redis,
+    *,
+    src_stream: str,
+    group: str,
+    dead_stream: str,
+    max_deliveries: int,
+) -> int:
+    """Move PEL entries with delivery_count >= max_deliveries to ``dead_stream``.
+
+    Returns # of messages moved. Safe to call repeatedly.
+    """
+    pending = await r.xpending_range(src_stream, group,
+                                      min="-", max="+", count=200)
+    moved = 0
+    for p in pending:
+        # max_deliveries is the threshold "this many failed attempts means dead";
+        # so times_delivered < max_deliveries → keep trying, otherwise → move.
+        if int(p["times_delivered"]) < max_deliveries:
+            continue
+        msg_id = p["message_id"]
+        # Read the message to copy it.
+        items = await r.xrange(src_stream, min=msg_id, max=msg_id)
+        if not items:
+            await r.xack(src_stream, group, msg_id)
+            continue
+        _, fields = items[0]
+        await r.xadd(dead_stream, fields)
+        await r.xack(src_stream, group, msg_id)
+        moved += 1
+    return moved
+
+
+def _decode_fields(raw_fields):
+    """Normalize bytes-or-str fields to a flat str dict."""
+    out = {}
+    for k, v in raw_fields.items():
+        if isinstance(k, bytes):
+            k = k.decode("utf-8")
+        if isinstance(v, bytes):
+            v = v.decode("utf-8")
+        out[k] = v
+    return out
+
+
+# Attach to Triage as methods.
+async def _consume_once(self, *, group: str, consumer: str, stream: str,
+                         block_ms: int, batch: int) -> int:
+    """Read one XREADGROUP batch and process each envelope.
+
+    Successful envelopes are XACKed. Failures leave the message on the
+    Pending Entries List, where dead_letter_sweep picks them up after
+    max_deliveries retries.
+    """
+    try:
+        result = await self._redis.xreadgroup(
+            groupname=group, consumername=consumer,
+            streams={stream: ">"}, count=batch, block=block_ms,
+        )
+    except Exception:
+        log.exception("XREADGROUP failed"); return 0
+    if not result:
+        return 0
+    handled = 0
+    for _stream_name, entries in result:
+        for env_id, raw_fields in entries:
+            try:
+                fields = _decode_fields(raw_fields)
+                env = Envelope.from_redis_fields(fields)
+                await self.process_one(env)
+                await self._redis.xack(stream, group, env_id)
+                handled += 1
+            except Exception:
+                log.exception("triage failed for %s; leaving on PEL", env_id)
+    return handled
+
+
+async def _consume_forever(self, *, group: str, consumer: str, stream: str,
+                            block_ms: int, batch: int) -> None:
+    while True:
+        try:
+            await self.consume_once(group=group, consumer=consumer,
+                                     stream=stream, block_ms=block_ms,
+                                     batch=batch)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("consume_forever iteration crashed")
+            await asyncio.sleep(1)
+
+
+Triage.consume_once = _consume_once             # type: ignore[attr-defined]
+Triage.consume_forever = _consume_forever       # type: ignore[attr-defined]
+
+
+# ----------------------------------------------------------------------
+# Systemd entry point
+# ----------------------------------------------------------------------
+
+def _main() -> None:
+    logging.basicConfig(level=logging.INFO)
+    from tradingagents.default_config import DEFAULT_CONFIG as C
+    from tradingagents.persistence.db import connect
+    from tradingagents.persistence.store import get_active_watchlist
+    from tradingagents.sensing.embeddings import SentenceTransformerEmbedder
+    from tradingagents.sensing.redis_client import make_redis, ensure_consumer_group
+
+    redis = make_redis(C["sensing_redis_url"])
+    conn = connect(C["iic_db_path"])
+
+    # Build the LLM caller from the existing factory.
+    from tradingagents.llm_clients.factory import create_llm_client
+    quick_client = create_llm_client(
+        provider=C["llm_provider"], model=C["quick_think_llm"],
+        base_url=C.get("backend_url"),
+    )
+    llm = quick_client.get_llm()
+    def call_llm(prompt: str) -> str:
+        # LangChain chat models expose .invoke for str-or-message input.
+        out = llm.invoke(prompt)
+        return getattr(out, "content", str(out))
+
+    t = Triage(
+        conn=conn, redis=redis,
+        embedder=SentenceTransformerEmbedder(C["sensing_embedder_model"]),
+        llm_call=call_llm,
+        data_dir=C["iic_data_dir"],
+        cosine_threshold=C["sensing_dedupe_cosine_threshold"],
+        window_hours=C["sensing_dedupe_window_hours"],
+        fingerprint_ttl_hours=C["sensing_fingerprint_ttl_hours"],
+        salience_threshold=C["sensing_watchlist_salience_threshold"],
+        confidence_threshold=C["sensing_watchlist_confidence_threshold"],
+        salience_cache_ttl_seconds=C["sensing_salience_cache_ttl_seconds"],
+        ttl_days=C["sensing_watchlist_ttl_days"],
+    )
+
+    async def run() -> None:
+        await ensure_consumer_group(
+            redis, stream=C["sensing_ingest_stream"], group=C["sensing_consumer_group"],
+        )
+        # Watchlist refresher: every N seconds, refresh in-process cache.
+        async def refresher():
+            while True:
+                try:
+                    t.set_active_watchlist(get_active_watchlist(conn))
+                except Exception:
+                    log.exception("watchlist refresh failed")
+                await asyncio.sleep(C["sensing_watchlist_refresh_seconds"])
+
+        # Dead-letter sweep every minute.
+        async def reaper():
+            while True:
+                try:
+                    await dead_letter_sweep(
+                        redis,
+                        src_stream=C["sensing_ingest_stream"],
+                        group=C["sensing_consumer_group"],
+                        dead_stream=C["sensing_dead_stream"],
+                        max_deliveries=C["sensing_triage_max_failures"],
+                    )
+                except Exception:
+                    log.exception("dead-letter sweep failed")
+                await asyncio.sleep(60)
+
+        # N consumers + refresher + reaper.
+        tasks = [refresher(), reaper()]
+        for i in range(C["sensing_triage_consumers"]):
+            tasks.append(t.consume_forever(
+                group=C["sensing_consumer_group"],
+                consumer=f"c{i}",
+                stream=C["sensing_ingest_stream"],
+                block_ms=5000, batch=10,
+            ))
+        await asyncio.gather(*tasks)
+
+    asyncio.run(run())
+
+
+if __name__ == "__main__":
+    _main()
