@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly watchlist TTL prune
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=iic-watchlist-sweep.service
+
+[Install]
+WantedBy=timers.target
