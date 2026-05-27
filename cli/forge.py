@@ -77,3 +77,42 @@ def watchlist_remove(ticker: str) -> None:
         console.print(f"[yellow]removed[/yellow] {ticker.upper()}")
     else:
         console.print(f"[dim]{ticker.upper()} not on watchlist[/dim]")
+
+
+# ---------------------------------------------------------------------
+# sense sub-app
+# ---------------------------------------------------------------------
+
+from tradingagents.sensing.seed_tickers import seed_all, seed_crypto
+from tradingagents.sensing.watchlist import sweep_expired
+
+
+sense_app = typer.Typer(name="sense", help="Sensing operational commands")
+app.add_typer(sense_app, name="sense")
+
+
+@sense_app.command("reseed-tickers")
+def sense_reseed_tickers(
+    no_polygon: bool = typer.Option(False, "--no-polygon",
+                                     help="Skip Polygon equity seed (crypto only)"),
+) -> None:
+    """Repopulate the `tickers` reference table.
+
+    Without `--no-polygon`, calls Polygon `/v3/reference/tickers` (requires
+    POLYGON_API_KEY). With `--no-polygon`, only seeds the crypto static list.
+    """
+    conn = _conn()
+    if no_polygon:
+        n = seed_crypto(conn)
+        console.print(f"crypto: {n} rows")
+    else:
+        result = seed_all(conn)
+        console.print(f"crypto: {result['crypto']} rows; polygon: {result['polygon']} rows")
+
+
+@sense_app.command("sweep-watchlist")
+def sense_sweep_watchlist() -> None:
+    """One-shot prune of expired auto-watchlist entries."""
+    conn = _conn()
+    n = sweep_expired(conn)
+    console.print(f"pruned {n} expired watchlist row(s)")
