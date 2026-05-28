@@ -157,6 +157,18 @@ For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
 
+### Optional APIs
+
+```bash
+export AGENTKEY_API_KEY=ak_...        # AgentKey — Chinese / international social sentiment
+export AGENTKEY_BASE_URL=...          # optional, defaults to https://api.agentkey.app
+```
+
+- **What it does:** When set, the sentiment analyst enriches its report with Chinese / international social platforms via [AgentKey](https://agentkey.app/) — **Weibo** and **Zhihu** for every stock, plus **Xiaohongshu** and **Douyin** for consumer-brand sectors. This is most valuable for A-share / Hong Kong / China-listed or China-exposed tickers, whose sentiment the default US sources (StockTwits, Reddit) miss. Crypto tickers are unaffected.
+- **Impact if unset:** Fully optional. With no key, the analyst silently skips these channels and runs exactly as before — no extra latency, no network calls, no cost. Existing US-only workflows are unchanged.
+- **Cost:** AgentKey bills per successful call, so enabling this adds a small per-run cost (typically a few cents per analyzed ticker).
+- **Where to get a key:** Sign up at [agentkey.app](https://agentkey.app/) and create an API key (format `ak_...`).
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
