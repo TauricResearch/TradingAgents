@@ -146,13 +146,15 @@ class ZhihuParsingTests(unittest.TestCase):
 class SectionAssemblyTests(unittest.TestCase):
     def test_unconfigured_returns_empty(self):
         with patch.object(agentkey_social, "is_configured", return_value=False):
-            self.assertEqual(build_agentkey_social_section("Apple", "Technology", "Consumer Electronics"), "")
+            self.assertEqual(
+                build_agentkey_social_section("AAPL", "Apple Inc.", "Technology", "Consumer Electronics"), ""
+            )
 
     def test_configured_consumer_includes_all_four_blocks(self):
         with patch.object(agentkey_social, "is_configured", return_value=True), patch.object(
             agentkey_social, "dispatch", side_effect=AgentKeyError("upstream down")
         ):
-            section = build_agentkey_social_section("Apple", "Technology", "Consumer Electronics")
+            section = build_agentkey_social_section("AAPL", "Apple Inc.", "Technology", "Consumer Electronics")
         for channel in ("weibo", "zhihu", "xiaohongshu", "douyin"):
             self.assertIn(f"<start_of_{channel}>", section)
             self.assertIn(f"<end_of_{channel}>", section)
@@ -161,11 +163,56 @@ class SectionAssemblyTests(unittest.TestCase):
         with patch.object(agentkey_social, "is_configured", return_value=True), patch.object(
             agentkey_social, "dispatch", side_effect=AgentKeyError("upstream down")
         ):
-            section = build_agentkey_social_section("Boeing", "Industrials", "Aerospace & Defense")
+            section = build_agentkey_social_section("BA", "Boeing Company", "Industrials", "Aerospace & Defense")
         self.assertIn("<start_of_weibo>", section)
         self.assertIn("<start_of_zhihu>", section)
         self.assertNotIn("<start_of_xiaohongshu>", section)
         self.assertNotIn("<start_of_douyin>", section)
+
+
+class CnNameResolutionTests(unittest.TestCase):
+    def setUp(self):
+        agentkey_social._cn_name_cache.clear()
+
+    def test_detects_cn_market_tickers(self):
+        self.assertTrue(agentkey_social.is_cn_market_ticker("0700.HK"))
+        self.assertTrue(agentkey_social.is_cn_market_ticker("600519.SS"))
+        self.assertTrue(agentkey_social.is_cn_market_ticker("000001.SZ"))
+        self.assertFalse(agentkey_social.is_cn_market_ticker("AAPL"))
+        self.assertFalse(agentkey_social.is_cn_market_ticker("BTC-USD"))
+
+    def test_numeric_code_extraction(self):
+        self.assertEqual(agentkey_social._ticker_numeric_code("0700.HK"), "0700")
+        self.assertEqual(agentkey_social._ticker_numeric_code("600519.SS"), "600519")
+
+    def test_extracts_chinese_name_before_padded_code(self):
+        # "0700" → matched as zero-padded 00700, name captured before the paren.
+        self.assertEqual(agentkey_social._extract_cn_name("腾讯控股(00700)股价分析", "0700"), "腾讯控股")
+        self.assertEqual(agentkey_social._extract_cn_name("贵州茅台（600519）一季报", "600519"), "贵州茅台")
+
+    def test_rejects_stopword_only_match(self):
+        self.assertIsNone(agentkey_social._extract_cn_name("港股(00700)", "0700"))
+
+    def test_resolve_picks_most_frequent_and_caches(self):
+        payload = {
+            "results": [
+                {"title": "腾讯控股(00700)财报", "snippet": ""},
+                {"title": "港股 00700", "snippet": "腾讯控股（00700）回购"},
+            ]
+        }
+        with patch.object(agentkey_social, "search", return_value=payload) as mock_search:
+            first = agentkey_social.resolve_cn_name("0700.HK", "Tencent")
+            second = agentkey_social.resolve_cn_name("0700.HK", "Tencent")  # cached
+        self.assertEqual(first, "腾讯控股")
+        self.assertEqual(second, "腾讯控股")
+        mock_search.assert_called_once()  # second call served from cache
+
+    def test_resolve_falls_back_on_search_error(self):
+        with patch.object(agentkey_social, "search", side_effect=AgentKeyError("down")):
+            self.assertEqual(agentkey_social.resolve_cn_name("0700.HK", "Tencent"), "Tencent")
+
+    def test_resolve_search_query_non_cn_uses_brand(self):
+        self.assertEqual(agentkey_social.resolve_search_query("AAPL", "Apple Inc."), "Apple")
 
 
 class ClientConfigTests(unittest.TestCase):

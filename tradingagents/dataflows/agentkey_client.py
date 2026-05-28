@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://api.agentkey.app"
 _DISPATCH_PATH = "/v1/social/dispatch"
+_SEARCH_PATH = "/v1/search"
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 
 
@@ -72,22 +73,19 @@ def is_configured() -> bool:
     return bool(get_api_key())
 
 
-def dispatch(path: str, params: Optional[Dict[str, Any]] = None, timeout: float = 15.0) -> Dict[str, Any]:
-    """Call one AgentKey social endpoint and return the parsed JSON body.
+def _post(endpoint: str, body: Dict[str, Any], label: str, timeout: float) -> Dict[str, Any]:
+    """POST a JSON body to an AgentKey endpoint and return the parsed response.
 
-    ``path`` is the TikHub-style relative path (e.g. ``weibo/app/fetch_search_all``)
-    and ``params`` are forwarded upstream verbatim. Raises :class:`AgentKeyError`
-    on any failure so callers can degrade gracefully.
+    Raises :class:`AgentKeyError` on missing credentials, network error, non-2xx,
+    or an unparseable / non-object body so callers can degrade gracefully.
     """
     api_key = get_api_key()
     if not api_key:
         raise AgentKeyError("no AGENTKEY_API_KEY configured")
 
-    url = get_base_url() + _DISPATCH_PATH
-    body = json.dumps({"path": path, "params": params or {}}).encode("utf-8")
     req = Request(
-        url,
-        data=body,
+        get_base_url() + endpoint,
+        data=json.dumps(body).encode("utf-8"),
         method="POST",
         headers={
             "Authorization": f"Bearer {api_key}",
@@ -100,12 +98,29 @@ def dispatch(path: str, params: Optional[Dict[str, Any]] = None, timeout: float 
         with urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read())
     except HTTPError as exc:  # non-2xx: upstream status passed through
-        raise AgentKeyError(f"HTTP {exc.code} for {path}") from exc
+        raise AgentKeyError(f"HTTP {exc.code} for {label}") from exc
     except (URLError, TimeoutError) as exc:
-        raise AgentKeyError(f"network error for {path}: {exc}") from exc
+        raise AgentKeyError(f"network error for {label}: {exc}") from exc
     except (json.JSONDecodeError, ValueError) as exc:
-        raise AgentKeyError(f"unparseable response for {path}: {exc}") from exc
+        raise AgentKeyError(f"unparseable response for {label}: {exc}") from exc
 
     if not isinstance(payload, dict):
-        raise AgentKeyError(f"unexpected response shape for {path}")
+        raise AgentKeyError(f"unexpected response shape for {label}")
     return payload
+
+
+def dispatch(path: str, params: Optional[Dict[str, Any]] = None, timeout: float = 15.0) -> Dict[str, Any]:
+    """Call one AgentKey social endpoint and return the parsed JSON body.
+
+    ``path`` is the TikHub-style relative path (e.g. ``weibo/app/fetch_search_all``)
+    and ``params`` are forwarded upstream verbatim.
+    """
+    return _post(_DISPATCH_PATH, {"path": path, "params": params or {}}, path, timeout)
+
+
+def search(query: str, type: str = "web", num: int = 10, timeout: float = 15.0) -> Dict[str, Any]:
+    """Run an AgentKey web search and return the parsed JSON body.
+
+    Response shape: ``{"results": [{"title", "url", "snippet", ...}], ...}``.
+    """
+    return _post(_SEARCH_PATH, {"query": query, "type": type, "num": num}, f"search({query!r})", timeout)

@@ -24,7 +24,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from tradingagents.dataflows.agentkey_client import AgentKeyError, dispatch, is_configured
+from tradingagents.dataflows.agentkey_client import AgentKeyError, dispatch, is_configured, search
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,92 @@ def normalize_search_name(name: str) -> str:
             break
     cleaned = " ".join(tokens).strip(" ,.")
     return cleaned or (name or "").strip()
+
+
+# ---------------------------------------------------------------------------
+# Chinese-name resolution for CN-market tickers
+# ---------------------------------------------------------------------------
+# yfinance only knows CN/HK listings by their English legal name, but Chinese
+# social platforms index the Chinese short name (腾讯控股, 贵州茅台). Searching
+# the English name gives poor, dated recall, so for CN-market tickers we resolve
+# the Chinese name from a web search before querying the platforms.
+_CN_MARKET_SUFFIXES = (".hk", ".ss", ".sh", ".sz", ".bj")
+_HAN = r"一-鿿"
+# Generic finance words that show up next to a code but are not company names.
+_CN_NAME_STOPWORDS = {
+    "港股", "美股", "股票", "代码", "行情", "股吧", "基金", "指数", "新浪", "雪球",
+    "东方财富", "同花顺", "腾讯财经", "公司", "集团", "控股", "有限公司", "股份",
+}
+_cn_name_cache: Dict[str, str] = {}
+
+
+def is_cn_market_ticker(ticker: str) -> bool:
+    """Whether a ticker is listed on a mainland-China / HK exchange."""
+    t = (ticker or "").strip().lower()
+    return t.endswith(_CN_MARKET_SUFFIXES)
+
+
+def _ticker_numeric_code(ticker: str) -> str:
+    """Extract the numeric listing code from a CN ticker ('0700.HK' → '0700')."""
+    head = (ticker or "").split(".")[0]
+    digits = re.sub(r"\D", "", head)
+    return digits
+
+
+def _extract_cn_name(text: str, code: str) -> Optional[str]:
+    """Pull a Chinese short name appearing right before the listing code.
+
+    Chinese finance content overwhelmingly writes "腾讯控股(00700)" /
+    "贵州茅台（600519）", so the Han run immediately preceding the (zero-padded)
+    code is a high-precision signal.
+    """
+    pattern = re.compile(rf"([{_HAN}A-Za-z·]{{2,8}})[\s（(]+0*{int(code)}\b")
+    for cand in pattern.findall(text or ""):
+        if re.search(rf"[{_HAN}]", cand) and cand not in _CN_NAME_STOPWORDS:
+            return cand
+    return None
+
+
+def resolve_cn_name(ticker: str, fallback: str, timeout: float = 15.0) -> str:
+    """Resolve a CN ticker's Chinese short name, falling back to ``fallback``.
+
+    Cached per ticker for the process. Any failure (no code, search error, no
+    match) degrades to the fallback — callers always get a usable query.
+    """
+    if ticker in _cn_name_cache:
+        return _cn_name_cache[ticker]
+
+    code = _ticker_numeric_code(ticker)
+    result = fallback
+    if code:
+        try:
+            # Query = code + English brand + a mainland simplified stock-forum
+            # anchor (东方财富股吧). The brand disambiguates code collisions across
+            # exchanges (e.g. 000001 = both 上证指数 and 平安银行); the anchor pulls
+            # the short name back in simplified, not traditional. Most-frequent
+            # match wins; falls back to the English brand if nothing matches.
+            payload = search(f"{code} {fallback} 股吧 东方财富", num=10, timeout=timeout)
+            counts: Dict[str, int] = {}
+            for item in payload.get("results", []) or []:
+                blob = f"{item.get('title', '')} {item.get('snippet', '')}"
+                name = _extract_cn_name(blob, code)
+                if name:
+                    counts[name] = counts.get(name, 0) + 1
+            if counts:
+                result = max(counts, key=counts.get)
+        except AgentKeyError as exc:
+            logger.warning("CN name resolution failed for %s: %s", ticker, exc)
+
+    _cn_name_cache[ticker] = result
+    return result
+
+
+def resolve_search_query(ticker: str, name: str) -> str:
+    """Best social-search query for an instrument: Chinese name for CN-market
+    tickers, otherwise the suffix-stripped brand name."""
+    if is_cn_market_ticker(ticker):
+        return resolve_cn_name(ticker, normalize_search_name(name))
+    return normalize_search_name(name)
 
 
 # ---------------------------------------------------------------------------
@@ -319,20 +405,22 @@ _CHANNEL_TITLES = {
 
 
 def build_agentkey_social_section(
-    query: str,
+    ticker: str,
+    name: str,
     sector: Optional[str] = None,
     industry: Optional[str] = None,
 ) -> str:
     """Assemble the AgentKey social section for prompt injection.
 
     Returns ``""`` when AgentKey is not configured, so existing (US-only) runs are
-    unchanged and incur no cost. Otherwise fetches the industry-selected channels
-    and wraps each in a ``<start_of_{channel}>…<end_of_{channel}>`` block.
+    unchanged and incur no cost. Otherwise resolves the best search query (Chinese
+    name for CN-market tickers, else the brand name), fetches the industry-selected
+    channels, and wraps each in a ``<start_of_{channel}>…<end_of_{channel}>`` block.
     """
     if not is_configured():
         return ""
 
-    query = normalize_search_name(query)
+    query = resolve_search_query(ticker, name)
     channels = select_channels(sector, industry)
     parts = [
         "### Chinese / international social platforms — via AgentKey",

@@ -68,7 +68,7 @@ def create_sentiment_analyst(llm):
         if agentkey_configured() and state.get("asset_type", "stock") != "crypto":
             profile = get_instrument_profile(ticker)
             agentkey_block = build_agentkey_social_section(
-                profile["name"], profile["sector"], profile["industry"]
+                ticker, profile["name"], profile["sector"], profile["industry"]
             )
 
         system_message = _build_system_message(
