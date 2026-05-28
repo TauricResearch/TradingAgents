@@ -25,7 +25,8 @@ from tradingagents.agents.utils.options_tools import (
     get_options_data
 )
 from tradingagents.agents.utils.search_tools import (
-    search_web
+    search_web,
+    get_crypto_fear_and_greed_index
 )
 from tradingagents.agents.utils.quant_tools import (
     get_quant_data

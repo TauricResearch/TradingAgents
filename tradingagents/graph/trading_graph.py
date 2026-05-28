@@ -41,6 +41,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_options_data,
     get_quant_data,
     search_web,
+    get_crypto_fear_and_greed_index,
 )
 from tradingagents.agents.utils.review_tools import get_past_performance_data
 
@@ -175,6 +176,7 @@ class TradingAgentsGraph:
                 [
                     # News tools for social media analysis
                     get_news,
+                    get_crypto_fear_and_greed_index,
                 ]
             ),
             "news": ToolNode(
@@ -183,6 +185,7 @@ class TradingAgentsGraph:
                     get_news,
                     get_global_news,
                     get_insider_transactions,
+                    get_crypto_fear_and_greed_index,
                 ]
             ),
             "fundamentals": ToolNode(

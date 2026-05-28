@@ -90,11 +90,12 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
-        # Start with the first analyst
-        workflow.add_edge(START, plan.specs[0].agent_node)
+        # Start all selected analysts in parallel from START
+        for spec in plan.specs:
+            workflow.add_edge(START, spec.agent_node)
 
-        # Connect analysts in sequence
-        for i, spec in enumerate(plan.specs):
+        # Connect each analyst to its tool node, and fan-in to Bull Researcher upon clearing
+        for spec in plan.specs:
             current_analyst = spec.agent_node
             current_tools = spec.tool_node
             current_clear = spec.clear_node
@@ -107,11 +108,8 @@ class GraphSetup:
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(plan.specs) - 1:
-                workflow.add_edge(current_clear, plan.specs[i + 1].agent_node)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+            # Direct to Bull Researcher fan-in point
+            workflow.add_edge(current_clear, "Bull Researcher")
 
         # Add remaining edges
         workflow.add_conditional_edges(

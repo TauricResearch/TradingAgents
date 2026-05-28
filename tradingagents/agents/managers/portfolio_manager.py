@@ -33,11 +33,18 @@ def create_portfolio_manager(llm):
         trader_plan = state["trader_investment_plan"]
 
         past_context = state.get("past_context", "")
-        lessons_line = (
-            f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
-            if past_context
-            else ""
-        )
+        if past_context:
+            lessons_line = f"- Lessons from prior decisions and outcomes:\n{past_context}\n"
+            conviction_instructions = (
+                "---\n\n"
+                "**Crucial Sizing & Conviction Instructions:**\n"
+                "- Carefully evaluate the \"Lessons from prior decisions and outcomes\" listed above.\n"
+                "- Identify which analysts or strategies were noted as over-optimistic or prone to error in prior hindsight reviews, and dynamically discount or adjust their conviction scores in your current thesis.\n"
+                "- Ground your final position sizing and entry target in these empirical learning adjustments.\n"
+            )
+        else:
+            lessons_line = ""
+            conviction_instructions = ""
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
@@ -59,7 +66,7 @@ def create_portfolio_manager(llm):
 **Risk Analysts Debate History:**
 {history}
 
----
+{conviction_instructions}---
 
 Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
 

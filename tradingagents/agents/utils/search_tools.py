@@ -61,3 +61,29 @@ def search_web(query: str, num_results: int = 5) -> str:
         formatted_results.append(f"{i}. {res['title']}\n   URL: {res['link']}\n   Snippet: {res['snippet']}")
         
     return "\n\n".join(formatted_results)
+
+@tool
+def get_crypto_fear_and_greed_index() -> str:
+    """
+    Retrieve the current Crypto Fear and Greed Index.
+    This index provides a score from 0 (Extreme Fear) to 100 (Extreme Greed) which acts as a key sentiment indicator for cryptocurrency analysis.
+    Returns:
+        str: A formatted string describing the current Fear and Greed Index score, classification, and change over the last day.
+    """
+    try:
+        response = requests.get("https://api.alternative.me/fng/", timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        fng_data = data.get("data", [{}])[0]
+        value = fng_data.get("value", "N/A")
+        classification = fng_data.get("value_classification", "Unknown")
+        
+        report = (
+            "### Crypto Fear & Greed Index\n"
+            f"- **Current Value**: `{value}` / 100\n"
+            f"- **Classification**: **{classification}**\n"
+            f"- **Analysis Note**: Extreme Fear can be a sign that investors are too worried (buying opportunity), whereas Extreme Greed implies the market is due for a correction."
+        )
+        return report
+    except Exception as e:
+        return f"Failed to retrieve Crypto Fear and Greed Index: {str(e)}"

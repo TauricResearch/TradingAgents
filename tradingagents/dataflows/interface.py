@@ -109,6 +109,87 @@ VENDOR_METHODS = {
     },
 }
 
+import os
+import json
+import time
+import threading
+from pathlib import Path
+
+class APICache:
+    _lock = threading.Lock()
+
+    @classmethod
+    def get_cache_path(cls) -> Path:
+        config = get_config()
+        cache_dir = Path(config.get("data_cache_dir", os.path.join(os.path.expanduser("~"), ".tradingagents", "cache")))
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir / "api_cache.json"
+
+    @classmethod
+    def load_cache(cls) -> dict:
+        path = cls.get_cache_path()
+        if not path.exists():
+            return {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    @classmethod
+    def save_cache(cls, cache_data: dict) -> None:
+        path = cls.get_cache_path()
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f, indent=4)
+        except Exception:
+            pass
+
+    @classmethod
+    def get_ttl(cls, method: str) -> float:
+        try:
+            category = get_category_for_method(method)
+        except ValueError:
+            return 3600.0
+
+        if category == "core_stock_apis" or category == "technical_indicators":
+            return 600.0  # 10 minutes
+        elif category == "fundamental_data":
+            return 43200.0  # 12 hours
+        elif category == "news_data":
+            return 1800.0  # 30 minutes
+        return 3600.0
+
+    @classmethod
+    def get(cls, method: str, *args, **kwargs):
+        key = f"{method}:{json.dumps(args, sort_keys=True)}:{json.dumps(kwargs, sort_keys=True)}"
+        with cls._lock:
+            cache = cls.load_cache()
+            entry = cache.get(key)
+            if entry:
+                timestamp = entry.get("timestamp", 0)
+                ttl = cls.get_ttl(method)
+                if time.time() - timestamp < ttl:
+                    return entry.get("data")
+        return None
+
+    @classmethod
+    def set(cls, method: str, data, *args, **kwargs) -> None:
+        key = f"{method}:{json.dumps(args, sort_keys=True)}:{json.dumps(kwargs, sort_keys=True)}"
+        with cls._lock:
+            cache = cls.load_cache()
+            cache[key] = {
+                "timestamp": time.time(),
+                "data": data
+            }
+            now = time.time()
+            pruned_cache = {
+                k: v for k, v in cache.items()
+                if now - v.get("timestamp", 0) < 86400.0
+            }
+            cls.save_cache(pruned_cache)
+
+
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""
     for category, info in TOOLS_CATEGORIES.items():
@@ -133,6 +214,10 @@ def get_vendor(category: str, method: str = None) -> str:
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
+    cached_val = APICache.get(method, *args, **kwargs)
+    if cached_val is not None:
+        return cached_val
+
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
@@ -155,7 +240,9 @@ def route_to_vendor(method: str, *args, **kwargs):
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
-            return impl_func(*args, **kwargs)
+            val = impl_func(*args, **kwargs)
+            APICache.set(method, val, *args, **kwargs)
+            return val
         except AlphaVantageRateLimitError:
             continue  # Only rate limits trigger fallback
 
