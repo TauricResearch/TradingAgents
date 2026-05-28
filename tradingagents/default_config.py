@@ -90,6 +90,13 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "ECB Bank of England BOJ central bank policy",
         "oil commodities supply chain energy",
     ],
+    # AgentKey (https://agentkey.app/) — optional. When AGENTKEY_API_KEY is set,
+    # the sentiment analyst also pulls Chinese / international social channels
+    # (Weibo, Zhihu, and — for consumer-brand sectors — Xiaohongshu, Douyin).
+    # Leave the key empty to disable; existing US-only runs are unaffected.
+    # Note: AgentKey bills per successful call, so enabling this adds per-run cost.
+    "agentkey_api_key": os.getenv("AGENTKEY_API_KEY", ""),
+    "agentkey_base_url": os.getenv("AGENTKEY_BASE_URL", "https://api.agentkey.app"),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {

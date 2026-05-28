@@ -27,8 +27,11 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_news,
 )
+from tradingagents.dataflows.agentkey_client import is_configured as agentkey_configured
+from tradingagents.dataflows.agentkey_social import build_agentkey_social_section
 from tradingagents.dataflows.reddit import fetch_reddit_posts
 from tradingagents.dataflows.stocktwits import fetch_stocktwits_messages
+from tradingagents.dataflows.y_finance import get_instrument_profile
 
 
 def _seven_days_back(trade_date: str) -> str:
@@ -56,6 +59,18 @@ def create_sentiment_analyst(llm):
         stocktwits_block = fetch_stocktwits_messages(ticker, limit=30)
         reddit_block = fetch_reddit_posts(ticker)
 
+        # Chinese / international social channels via AgentKey. Stock-only:
+        # CN-platform chatter is noise for crypto (whose sentiment is global /
+        # English-Twitter driven). Returns "" when AgentKey is unconfigured, so
+        # existing US-only runs are unchanged and incur no cost. Channels are
+        # industry-selected (consumer brands also get Xiaohongshu/Douyin).
+        agentkey_block = ""
+        if agentkey_configured() and state.get("asset_type", "stock") != "crypto":
+            profile = get_instrument_profile(ticker)
+            agentkey_block = build_agentkey_social_section(
+                profile["name"], profile["sector"], profile["industry"]
+            )
+
         system_message = _build_system_message(
             ticker=ticker,
             start_date=start_date,
@@ -63,6 +78,7 @@ def create_sentiment_analyst(llm):
             news_block=news_block,
             stocktwits_block=stocktwits_block,
             reddit_block=reddit_block,
+            agentkey_block=agentkey_block,
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -104,9 +120,21 @@ def _build_system_message(
     news_block: str,
     stocktwits_block: str,
     reddit_block: str,
+    agentkey_block: str = "",
 ) -> str:
     """Assemble the sentiment-analyst system message with structured data blocks."""
-    return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on three complementary data sources that have already been collected for you.
+    agentkey_section = f"\n\n{agentkey_block}\n" if agentkey_block else ""
+    agentkey_guidance = (
+        "\n\n9. **Weight the Chinese / international platforms by relevance.** Weibo and Zhihu "
+        "capture China-market and China-exposed sentiment that US sources miss — high signal for "
+        "A-share / HK / China-listed names, often sparse for names with little Chinese coverage "
+        "(say so when sparse). Treat Xiaohongshu / Douyin as consumer-demand alt-data (product buzz), "
+        "not direct stock opinion. These are matched by company name, so watch for off-topic results "
+        "(name collisions) and discount them."
+        if agentkey_block
+        else ""
+    )
+    return f"""You are a financial market sentiment analyst. Your task is to produce a comprehensive sentiment report for {ticker} covering the period from {start_date} to {end_date}, drawing on the complementary data sources that have already been collected for you.
 
 ## Data sources (pre-fetched, in this prompt)
 
@@ -130,7 +158,7 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 <start_of_reddit>
 {reddit_block}
 <end_of_reddit>
-
+{agentkey_section}
 ## How to analyze this data (best practices)
 
 1. **Read the StockTwits Bullish/Bearish ratio as a leading retail-sentiment signal.** A 70/30 bullish/bearish split is moderately bullish; ≥90/10 may indicate over-extension and contrarian risk; 50/50 is uncertainty. Sample size matters — base rates on the actual message count, not percentages alone.
@@ -147,14 +175,14 @@ Community discussion. Engagement signal via upvote score and comment count. Subr
 
 7. **Identify catalysts and risks** that emerge across sources — news of upcoming earnings, product launches, competitive threats, macro headlines, etc.
 
-8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.
+8. **Past sentiment is not predictive.** Frame your conclusions as signal for the trader to weigh alongside fundamentals and technicals, not as a price call.{agentkey_guidance}
 
 ## Output
 
 Produce a sentiment report covering, in order:
 
 1. **Overall sentiment direction** — Bullish / Bearish / Neutral / Mixed — with a brief confidence note based on data quality and sample size.
-2. **Source-by-source breakdown** — what each of news / StockTwits / Reddit is telling you, with specific evidence (cite message counts, ratios, notable posts).
+2. **Source-by-source breakdown** — what each available source is telling you (news, StockTwits, Reddit, and any Chinese-platform sources included above), with specific evidence (cite message counts, ratios, notable posts).
 3. **Divergences, alignments, and key narratives** across sources.
 4. **Catalysts and risks** surfaced by the data.
 5. **Markdown table** at the end summarizing key sentiment signals, their direction, source, and supporting evidence.
