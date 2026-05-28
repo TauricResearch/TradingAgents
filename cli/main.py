@@ -32,6 +32,7 @@ from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
+from cli.mock_trading_commands import mock_trading_app
 
 console = Console()
 
@@ -1298,6 +1299,10 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     run_analysis(checkpoint=checkpoint, max_recur_limit=max_recur_limit)
+
+
+# Add mock trading subcommands
+app.add_typer(mock_trading_app, name="mock-trade", help="Mock trading system")
 
 
 if __name__ == "__main__":
