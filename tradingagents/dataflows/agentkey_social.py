@@ -145,12 +145,16 @@ def resolve_cn_name(ticker: str, fallback: str, timeout: float = 15.0) -> str:
             # the short name back in simplified, not traditional. Most-frequent
             # match wins; falls back to the English brand if nothing matches.
             payload = search(f"{code} {fallback} 股吧 东方财富", num=10, timeout=timeout)
+            results = payload.get("results")
             counts: Dict[str, int] = {}
-            for item in payload.get("results", []) or []:
-                blob = f"{item.get('title', '')} {item.get('snippet', '')}"
-                name = _extract_cn_name(blob, code)
-                if name:
-                    counts[name] = counts.get(name, 0) + 1
+            if isinstance(results, list):
+                for item in results:
+                    if not isinstance(item, dict):
+                        continue
+                    blob = f"{item.get('title', '')} {item.get('snippet', '')}"
+                    name = _extract_cn_name(blob, code)
+                    if name:
+                        counts[name] = counts.get(name, 0) + 1
             if counts:
                 result = max(counts, key=counts.get)
         except AgentKeyError as exc:
@@ -202,9 +206,12 @@ def _clean(text: Any, max_len: int = 280) -> str:
 
 
 def _unix_to_date(value: Any) -> str:
-    """Best-effort unix-seconds → YYYY-MM-DD; pass through anything else."""
+    """Best-effort unix seconds-or-milliseconds → YYYY-MM-DD; pass through else."""
     try:
-        return datetime.fromtimestamp(int(value), tz=timezone.utc).strftime("%Y-%m-%d")
+        ts = int(value)
+        if ts > 9999999999:  # 11+ digits → milliseconds (10-digit seconds last to 2286)
+            ts //= 1000
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
     except (TypeError, ValueError, OSError):
         return str(value or "")
 
@@ -428,7 +435,14 @@ def build_agentkey_social_section(
         "or China-exposed names; may be sparse for names with little Chinese-language coverage.",
     ]
     for channel in channels:
-        block = _FETCHERS[channel](query)
+        # Fetchers already degrade AgentKeyError to a placeholder; this guard is
+        # defense-in-depth so an unexpected parsing error (e.g. a changed upstream
+        # shape) in one channel can't crash the whole sentiment node.
+        try:
+            block = _FETCHERS[channel](query)
+        except Exception as exc:
+            logger.error("Unexpected error fetching %s for %s: %s", channel, query, exc, exc_info=True)
+            block = f"<{channel} unavailable: unexpected error>"
         parts.append(
             f"\n#### {_CHANNEL_TITLES[channel]}\n"
             f"<start_of_{channel}>\n{block}\n<end_of_{channel}>"

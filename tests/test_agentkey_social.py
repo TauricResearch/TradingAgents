@@ -105,6 +105,18 @@ class SearchNameTests(unittest.TestCase):
         self.assertEqual(normalize_search_name(""), "")
 
 
+class HelperTests(unittest.TestCase):
+    def test_unix_to_date_seconds(self):
+        self.assertEqual(agentkey_social._unix_to_date(1777356615), "2026-04-28")
+
+    def test_unix_to_date_milliseconds(self):
+        # 13-digit ms timestamp normalizes to the same date as its seconds form.
+        self.assertEqual(agentkey_social._unix_to_date(1777356615000), "2026-04-28")
+
+    def test_unix_to_date_passthrough_on_garbage(self):
+        self.assertEqual(agentkey_social._unix_to_date("not-a-ts"), "not-a-ts")
+
+
 class WeiboParsingTests(unittest.TestCase):
     def test_extracts_status_skips_containers(self):
         with patch.object(agentkey_social, "dispatch", return_value=_WEIBO_PAYLOAD):
@@ -149,6 +161,19 @@ class SectionAssemblyTests(unittest.TestCase):
             self.assertEqual(
                 build_agentkey_social_section("AAPL", "Apple Inc.", "Technology", "Consumer Electronics"), ""
             )
+
+    def test_fetcher_exception_does_not_crash_section(self):
+        # An unexpected (non-AgentKeyError) failure in one channel must degrade to
+        # a placeholder, not propagate and crash the sentiment node.
+        def boom(_query):
+            raise TypeError("upstream shape changed")
+
+        with patch.object(agentkey_social, "is_configured", return_value=True), patch.dict(
+            agentkey_social._FETCHERS, {"weibo": boom, "zhihu": lambda q: "ok"}
+        ):
+            section = build_agentkey_social_section("AAPL", "Apple Inc.", "Technology", "Software")
+        self.assertIn("<weibo unavailable: unexpected error>", section)
+        self.assertIn("<start_of_zhihu>\nok", section)
 
     def test_unconfigured_makes_no_network_call(self):
         # AgentKey is opt-in: with no key, the section must short-circuit BEFORE
@@ -220,6 +245,13 @@ class CnNameResolutionTests(unittest.TestCase):
     def test_resolve_falls_back_on_search_error(self):
         with patch.object(agentkey_social, "search", side_effect=AgentKeyError("down")):
             self.assertEqual(agentkey_social.resolve_cn_name("0700.HK", "Tencent"), "Tencent")
+
+    def test_resolve_tolerates_malformed_results(self):
+        # results not a list / items not dicts must not raise — fall back to brand.
+        for payload in ({"results": "oops"}, {"results": ["str", 123, None]}, {}):
+            agentkey_social._cn_name_cache.clear()
+            with patch.object(agentkey_social, "search", return_value=payload):
+                self.assertEqual(agentkey_social.resolve_cn_name("0700.HK", "Tencent"), "Tencent")
 
     def test_resolve_search_query_non_cn_uses_brand(self):
         self.assertEqual(agentkey_social.resolve_search_query("AAPL", "Apple Inc."), "Apple")
