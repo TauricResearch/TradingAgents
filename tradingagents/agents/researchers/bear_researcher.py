@@ -8,17 +8,34 @@ def create_bear_researcher(llm):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
         asset_type = state.get("asset_type", "stock")
         target_label = "stock" if asset_type == "stock" else "asset"
         fundamentals_label = (
             "Company fundamentals report"
             if asset_type == "stock"
-            else "Asset fundamentals report (may be unavailable for crypto)"
+            else "Asset fundamentals report"
         )
+        
+        # Dynamically discover all active reports in AgentState
+        report_fields = {
+            "market_report": "Market Research Report",
+            "sentiment_report": "Social Media Sentiment Report",
+            "news_report": "Latest World Affairs News",
+            "fundamentals_report": fundamentals_label,
+            "macro_report": "Macroeconomic Indicators Report",
+            "options_report": "Options Market Derivatives Report",
+            "quant_report": "Quantitative Metrics Report",
+            "earnings_report": "Corporate Guidance & Earnings Report",
+            "review_report": "Hindsight Performance Review Report",
+        }
+        
+        resources = []
+        for field, label in report_fields.items():
+            content = state.get(field, "")
+            if content and content.strip():
+                resources.append(f"{label}:\n{content.strip()}")
+                
+        resources_text = "\n\n".join(resources)
 
         prompt = f"""You are a Bear Analyst making the case against investing in the {target_label}. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
@@ -32,10 +49,8 @@ Key points to focus on:
 
 Resources available:
 
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-{fundamentals_label}: {fundamentals_report}
+{resources_text}
+
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.

@@ -17,19 +17,22 @@ def create_review_analyst(llm):
     
     def review_analyst(state: AgentState, config: RunnableConfig):
         """Analyze past predictions and compare with current performance."""
-        context_str = build_instrument_context(state)
         ticker = state.get("company_of_interest", "Unknown")
+        asset_type = state.get("asset_type", "stock")
+        context_str = build_instrument_context(ticker, asset_type)
+        curr_date = state.get("trade_date")
 
         system_message = (
             "You are a Performance Review Analyst for a hedge fund. Your job is to evaluate the system's past predictions (hindsight analysis).\n"
-            f"You MUST use the 'get_past_performance_data' tool with the ticker '{ticker}' to retrieve the system's previous analysis and the actual stock price performance since that date.\n\n"
+            f"You MUST use the 'get_past_performance_data' tool with the ticker '{ticker}' and the current simulated date '{curr_date}' (as the 'curr_date' parameter) to retrieve the system's previous analysis and the actual stock price performance since that date.\n\n"
             "If the tool returns no past data, simply state: 'No past analysis data available for hindsight review.' and stop.\n"
             "If past data is found:\n"
             "1. Read the past Trader Plan and final decision.\n"
             "2. Compare it with the actual Return (%) since that date.\n"
             "3. Provide a critical critique: Was the system right or wrong? What risks did it miss or correctly identify?\n"
             "4. Conclude with a 'Lessons Learned' section for the current trading day.\n"
-            "Do NOT provide a new trading decision for today, ONLY review the past.\n"
+            "Do NOT provide a new trading decision for today, ONLY review the past.\n\n"
+            f"{context_str}\n"
             + get_language_instruction()
         )
         

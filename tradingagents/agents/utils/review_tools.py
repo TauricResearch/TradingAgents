@@ -8,13 +8,14 @@ from langchain_core.tools import tool
 from tradingagents.default_config import DEFAULT_CONFIG
 
 @tool
-def get_past_performance_data(ticker: str) -> str:
+def get_past_performance_data(ticker: str, curr_date: str | None = None) -> str:
     """
     Search the local results directory for the most recent past analysis report of this ticker.
     Extract the date of that report, the system's past decision, and calculate the actual price performance since then.
     
     Args:
         ticker (str): The stock ticker symbol.
+        curr_date (str | None): Optional current simulated trading date in YYYY-MM-DD format.
     
     Returns:
         str: A summary of the past prediction, past price, current price, and return percentage.
@@ -63,16 +64,19 @@ def get_past_performance_data(ticker: str) -> str:
 
         # Fetch prices
         try:
-            stock = yf.Ticker(ticker)
-            # Fetch from past_date to today + 1 day to ensure we get both
-            # If past_date is today, this will just get today's price
-            hist = stock.history(start=past_date)
-            
-            if hist.empty:
-                return f"Found past report from {past_date}, but could not fetch price history from Yahoo Finance."
+            from tradingagents.dataflows.stockstats_utils import load_ohlcv
+            if not curr_date:
+                curr_date = datetime.now().strftime("%Y-%m-%d")
                 
-            past_price = hist.iloc[0]['Close']
-            current_price = hist.iloc[-1]['Close']
+            hist = load_ohlcv(ticker, curr_date)
+            # Filter hist to rows >= past_date
+            hist_filtered = hist[hist['Date'] >= pd.to_datetime(past_date)]
+            
+            if hist_filtered.empty:
+                return f"Found past report from {past_date}, but could not fetch price history from local cache."
+                
+            past_price = hist_filtered.iloc[0]['Close']
+            current_price = hist_filtered.iloc[-1]['Close']
             
             return_pct = ((current_price - past_price) / past_price) * 100
             
@@ -83,7 +87,7 @@ def get_past_performance_data(ticker: str) -> str:
                 f"--- PAST PERFORMANCE DATA FOR {ticker} ---\n"
                 f"Past Analysis Date: {past_date}\n"
                 f"Price on that date: ${past_price:.2f}\n"
-                f"Current Price: ${current_price:.2f}\n"
+                f"Current Price (as of {curr_date}): ${current_price:.2f}\n"
                 f"Actual Return Since Then: {return_pct:.2f}%\n"
                 f"\n--- EXCERPT OF PAST TRADER PLAN ---\n"
                 f"{brief_report}\n"
