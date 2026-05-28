@@ -540,7 +540,8 @@ def get_user_selections():
         )
     )
     selected_ticker = get_ticker()
-    asset_type = detect_asset_type(selected_ticker)
+    first_ticker = selected_ticker[0] if selected_ticker else "SPY"
+    asset_type = detect_asset_type(first_ticker)
     console.print(
         f"[green]Detected asset type:[/green] {asset_type.value}"
     )
@@ -1103,8 +1104,9 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
 
         with Live(layout, refresh_per_second=4) as live:
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
+            current_asset_type = detect_asset_type(current_ticker)
             message_buffer.add_message("System", f"Selected ticker: {current_ticker}")
-            message_buffer.add_message("System", f"Detected asset type: {selections.get('asset_type', 'stock')}")
+            message_buffer.add_message("System", f"Detected asset type: {current_asset_type.value}")
             message_buffer.add_message("System", f"Analysis date: {selections['analysis_date']}")
             message_buffer.add_message("System", f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}")
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
@@ -1120,7 +1122,7 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
             init_agent_state = graph.propagator.create_initial_state(
                 current_ticker,
                 selections["analysis_date"],
-                asset_type=selections.get("asset_type", "stock"),
+                asset_type=current_asset_type.value,
             )
             args = graph.propagator.get_graph_args(callbacks=[stats_handler])
 
