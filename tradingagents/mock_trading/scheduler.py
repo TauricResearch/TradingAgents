@@ -78,10 +78,18 @@ class TradingScheduler:
             replace_existing=True, misfire_grace_time=60
         )
         
+        next_run = getattr(job, "next_run_time", None)
+        if next_run is None:
+            try:
+                if hasattr(job, 'trigger') and hasattr(job.trigger, 'get_next_fire_time'):
+                    next_run = job.trigger.get_next_fire_time(None, datetime.now(self.timezone))
+            except Exception:
+                pass
+
         self.trading_sessions[job_id] = {
             "function": trading_func.__name__,
             "schedule": f"{hour:02d}:{minute:02d}",
-            "next_run": job.next_run_time,
+            "next_run": next_run,
             "job": job,
         }
         
@@ -140,7 +148,15 @@ class TradingScheduler:
         """
         session = self.trading_sessions.get(job_id)
         if session and session["job"]:
-            return session["job"].next_run_time
+            job = session["job"]
+            next_run = getattr(job, "next_run_time", None)
+            if next_run is None:
+                try:
+                    if hasattr(job, 'trigger') and hasattr(job.trigger, 'get_next_fire_time'):
+                        next_run = job.trigger.get_next_fire_time(None, datetime.now(self.timezone))
+                except Exception:
+                    pass
+            return next_run
         return None
     
     def get_all_jobs(self) -> List[Dict]:
@@ -209,19 +225,37 @@ class TradingScheduler:
         Returns:
             Scheduler status dictionary
         """
+        jobs_info = []
+        for job_id, info in self.trading_sessions.items():
+            next_run = None
+            try:
+                job = info.get("job")
+                next_run_val = None
+                if job:
+                    next_run_val = getattr(job, 'next_run_time', None)
+                    if next_run_val is None:
+                        if hasattr(job, 'trigger') and hasattr(job.trigger, 'get_next_fire_time'):
+                            next_run_val = job.trigger.get_next_fire_time(None, datetime.now(self.timezone))
+                
+                if next_run_val:
+                    next_run = next_run_val.isoformat()
+                elif info.get("next_run"):
+                    next_run = info["next_run"].isoformat()
+            except Exception:
+                pass
+            
+            jobs_info.append({
+                "job_id": job_id,
+                "function": info.get("function"),
+                "schedule": info.get("schedule"),
+                "next_run": next_run,
+            })
+        
         return {
             "running": self.is_running,
             "timezone": self.timezone.zone,
             "num_jobs": len(self.trading_sessions),
-            "jobs": [
-                {
-                    "job_id": job_id,
-                    "function": info["function"],
-                    "schedule": info["schedule"],
-                    "next_run": info["next_run"].isoformat() if info["next_run"] else None,
-                }
-                for job_id, info in self.trading_sessions.items()
-            ]
+            "jobs": jobs_info
         }
     
     def __enter__(self):

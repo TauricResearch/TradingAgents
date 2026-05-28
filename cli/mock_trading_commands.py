@@ -26,7 +26,7 @@ def start(
     initial_capital: float = typer.Option(1000.0, "--capital", help="Initial capital in USD"),
     analysis_time: str = typer.Option("09:30", "--analysis-time", help="Time for AI analysis (HH:MM)"),
     execution_time: str = typer.Option("14:00", "--execution-time", help="Time for trade execution (HH:MM)"),
-    watchlist: Optional[str] = typer.Option(None, "--watchlist", help="Comma-separated tickers (e.g., NVDA,AAPL)"),
+    tickers: Optional[str] = typer.Option(None, "--tickers", help="Comma-separated tickers (e.g., NVDA,AAPL)"),
     db_path: Optional[str] = typer.Option(None, "--db", help="Database path (default: ~/.tradingagents/mock_trading.db)"),
 ):
     """Start mock trading system with daily scheduling."""
@@ -56,10 +56,10 @@ def start(
         console.print(f"[green]✓[/green] Trading engine ready (capital: ${initial_capital:,.2f})")
         
         # Parse watchlist
-        tickers = []
-        if watchlist:
-            tickers = [t.strip().upper() for t in watchlist.split(",")]
-            console.print(f"[green]✓[/green] Watchlist: {', '.join(tickers)}")
+        ticker_list = []
+        if tickers:
+            ticker_list = [t.strip().upper() for t in tickers.split(",")]
+            console.print(f"[green]✓[/green] Tickers: {', '.join(ticker_list)}")
         
         # Initialize scheduler
         try:
@@ -81,7 +81,7 @@ def start(
             status = scheduler.get_scheduler_status()
             console.print(Panel(
                 f"[green]✓ Scheduler ready[/green]\n"
-                f"  • Analysis: {analysis_time} ({tickers[0] if tickers else 'all'})\n"
+                f"  • Analysis: {analysis_time} ({ticker_list[0] if ticker_list else 'all'})\n"
                 f"  • Execution: {execution_time}\n"
                 f"  • Jobs: {status['num_jobs']}",
                 title="Scheduler Status",
@@ -201,7 +201,8 @@ def status(db_path: Optional[str] = typer.Option(None, "--db", help="Database pa
 def report(
     db_path: Optional[str] = typer.Option(None, "--db", help="Database path"),
     days: int = typer.Option(7, "--days", help="Days to report (default 7)"),
-    output: Optional[str] = typer.Option(None, "--output", help="Output CSV file"),
+    output: Optional[str] = typer.Option(None, "--output", help="Output file (for CSV export)"),
+    format: str = typer.Option("text", "--format", help="Output format: text, csv, json, html"),
 ):
     """Generate performance report."""
     console.print(Panel.fit("[bold cyan]📊 Performance Report[/bold cyan]"))
