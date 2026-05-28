@@ -1,1 +1,3 @@
-.
+# Editable install of TradingAgents from local source.
+# This automatically reads all dependencies defined in pyproject.toml.
+-e .

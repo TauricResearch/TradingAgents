@@ -45,9 +45,29 @@ class TradingMemoryLog:
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
-        with open(self._log_path, "a", encoding="utf-8") as f:
-            f.write(entry)
+        new_block = f"{tag}\n\nDECISION:\n{final_trade_decision}"
+
+        # If rotation is enabled, write atomically with rotation applied
+        if self._max_entries and self._max_entries > 0:
+            if self._log_path.exists():
+                text = self._log_path.read_text(encoding="utf-8")
+                blocks = [b.strip() for b in text.split(self._SEPARATOR) if b.strip()]
+            else:
+                blocks = []
+            
+            blocks.append(new_block)
+            blocks = self._apply_rotation(blocks)
+            
+            # Reconstruct trailing separator
+            new_text = self._SEPARATOR.join(blocks) + self._SEPARATOR
+            tmp_path = self._log_path.with_suffix(".tmp")
+            tmp_path.write_text(new_text, encoding="utf-8")
+            tmp_path.replace(self._log_path)
+        else:
+            # Just append normally
+            entry = f"{new_block}{self._SEPARATOR}"
+            with open(self._log_path, "a", encoding="utf-8") as f:
+                f.write(entry)
 
     # --- Read path (Phase A) ---
 

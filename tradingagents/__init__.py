@@ -15,6 +15,14 @@ try:
 except ImportError:
     pass
 
+# Initialize centralized unified logging system
+try:
+    from tradingagents.agents.utils.logging_config import setup_unified_logging
+    setup_unified_logging()
+except Exception as exc:
+    import sys
+    sys.stderr.write(f"Warning: Failed to set up unified logging: {exc}\n")
+
 # langchain-core 1.3.3 calls surface_langchain_deprecation_warnings() in
 # its own __init__, which prepends default-action filters for its
 # subclassed warning categories. To suppress a specific warning we must

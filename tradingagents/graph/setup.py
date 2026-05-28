@@ -89,27 +89,52 @@ class GraphSetup:
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        # Define edges
-        # Start all selected analysts in parallel from START
-        for spec in plan.specs:
-            workflow.add_edge(START, spec.agent_node)
+        # Define edges based on concurrency limit
+        if self.analyst_concurrency_limit == 1:
+            # Sequential execution: chain analysts one after another
+            for i, spec in enumerate(plan.specs):
+                if i == 0:
+                    workflow.add_edge(START, spec.agent_node)
+                else:
+                    prev_spec = plan.specs[i - 1]
+                    workflow.add_edge(prev_spec.clear_node, spec.agent_node)
 
-        # Connect each analyst to its tool node, and fan-in to Bull Researcher upon clearing
-        for spec in plan.specs:
-            current_analyst = spec.agent_node
-            current_tools = spec.tool_node
-            current_clear = spec.clear_node
+                current_analyst = spec.agent_node
+                current_tools = spec.tool_node
+                current_clear = spec.clear_node
 
-            # Add conditional edges for current analyst
-            workflow.add_conditional_edges(
-                current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{spec.key}"),
-                [current_tools, current_clear],
-            )
-            workflow.add_edge(current_tools, current_analyst)
+                # Add conditional edges for current analyst
+                workflow.add_conditional_edges(
+                    current_analyst,
+                    getattr(self.conditional_logic, f"should_continue_{spec.key}"),
+                    [current_tools, current_clear],
+                )
+                workflow.add_edge(current_tools, current_analyst)
 
-            # Direct to Bull Researcher fan-in point
-            workflow.add_edge(current_clear, "Bull Researcher")
+            # Direct the final analyst's clear node to the Bull Researcher fan-in point
+            if plan.specs:
+                workflow.add_edge(plan.specs[-1].clear_node, "Bull Researcher")
+        else:
+            # Parallel execution: start all selected analysts in parallel from START
+            for spec in plan.specs:
+                workflow.add_edge(START, spec.agent_node)
+
+            # Connect each analyst to its tool node, and fan-in to Bull Researcher upon clearing
+            for spec in plan.specs:
+                current_analyst = spec.agent_node
+                current_tools = spec.tool_node
+                current_clear = spec.clear_node
+
+                # Add conditional edges for current analyst
+                workflow.add_conditional_edges(
+                    current_analyst,
+                    getattr(self.conditional_logic, f"should_continue_{spec.key}"),
+                    [current_tools, current_clear],
+                )
+                workflow.add_edge(current_tools, current_analyst)
+
+                # Direct to Bull Researcher fan-in point
+                workflow.add_edge(current_clear, "Bull Researcher")
 
         # Add remaining edges
         workflow.add_conditional_edges(
