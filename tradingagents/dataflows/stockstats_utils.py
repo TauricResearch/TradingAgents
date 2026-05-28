@@ -59,21 +59,28 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
 
-    # Cache uses a fixed window (15y to today) so one file per symbol
-    today_date = pd.Timestamp.today()
-    start_date = today_date - pd.DateOffset(years=5)
-    start_str = start_date.strftime("%Y-%m-%d")
-    end_str = today_date.strftime("%Y-%m-%d")
-
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
         config["data_cache_dir"],
-        f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
+        f"{safe_symbol}-YFin-data-cache.csv",
     )
 
+    import time
+    should_download = True
     if os.path.exists(data_file):
-        data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
-    else:
+        try:
+            file_age = time.time() - os.path.getmtime(data_file)
+            if file_age < 86400:  # 24 hours TTL
+                should_download = False
+        except Exception:
+            pass
+
+    if should_download:
+        today_date = pd.Timestamp.today()
+        start_date = today_date - pd.DateOffset(years=5)
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = today_date.strftime("%Y-%m-%d")
+
         data = yf_retry(lambda: yf.download(
             symbol,
             start=start_str,
@@ -84,6 +91,8 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         ))
         data = data.reset_index()
         data.to_csv(data_file, index=False, encoding="utf-8")
+    else:
+        data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
 
     data = _clean_dataframe(data)
 

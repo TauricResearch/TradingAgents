@@ -4,23 +4,40 @@ import numpy as np
 from langchain_core.tools import tool
 
 @tool
-def get_quant_data(ticker: str) -> str:
-    """Calculate quantitative metrics like Beta, Sharpe Ratio, and Volatility for a given ticker compared to SPY over a 1-year period."""
+def get_quant_data(
+    ticker: str,
+    curr_date: str | None = None
+) -> str:
+    """Calculate quantitative metrics like Beta, Sharpe Ratio, and Volatility for a given ticker compared to SPY over a 1-year period. You MUST provide the exact stock ticker as the 'ticker' parameter."""
     try:
-        # Fetch 1 year of daily data
-        stock = yf.Ticker(ticker)
-        spy = yf.Ticker("SPY")
+        from tradingagents.dataflows.stockstats_utils import load_ohlcv
+        import pandas as pd
         
-        hist = stock.history(period="1y")
-        spy_hist = spy.history(period="1y")
+        if not curr_date:
+            curr_date = pd.Timestamp.today().strftime("%Y-%m-%d")
+            
+        # Fetch data up to curr_date using cache and avoiding look-ahead bias
+        hist = load_ohlcv(ticker, curr_date)
+        spy_hist = load_ohlcv("SPY", curr_date)
+        
+        # Ensure we filter to 1 year back from curr_date
+        curr_date_dt = pd.to_datetime(curr_date)
+        one_year_ago = curr_date_dt - pd.DateOffset(years=1)
+        
+        hist = hist[hist['Date'] >= one_year_ago]
+        spy_hist = spy_hist[spy_hist['Date'] >= one_year_ago]
         
         if len(hist) < 20 or len(spy_hist) < 20:
             return f"Not enough historical data to calculate quant metrics for {ticker}."
             
+        # Set Date as index for joining
+        hist_indexed = hist.set_index('Date')
+        spy_indexed = spy_hist.set_index('Date')
+            
         # Ensure dates align
         data = pd.DataFrame({
-            'Stock': hist['Close'],
-            'SPY': spy_hist['Close']
+            'Stock': hist_indexed['Close'],
+            'SPY': spy_indexed['Close']
         }).dropna()
         
         # Calculate daily returns

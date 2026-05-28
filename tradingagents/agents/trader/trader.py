@@ -29,8 +29,20 @@ def create_trader(llm):
         investment_plan = state["investment_plan"]
         
         # Run historical backtests to inform the trader
-        macd_results = run_strategy_backtest.invoke({"ticker": company_name, "strategy_type": "macd_crossover"})
-        rsi_results = run_strategy_backtest.invoke({"ticker": company_name, "strategy_type": "rsi_oversold"})
+        macd_args = {
+            "ticker": company_name,
+            "strategy_type": "macd_crossover"
+        }
+        rsi_args = {
+            "ticker": company_name,
+            "strategy_type": "rsi_oversold"
+        }
+        if state.get("trade_date"):
+            macd_args["curr_date"] = state["trade_date"]
+            rsi_args["curr_date"] = state["trade_date"]
+            
+        macd_results = run_strategy_backtest.invoke(macd_args)
+        rsi_results = run_strategy_backtest.invoke(rsi_args)
 
         messages = [
             {

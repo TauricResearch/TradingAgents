@@ -3,13 +3,19 @@ import pandas as pd
 from langchain_core.tools import tool
 
 @tool
-def run_strategy_backtest(ticker: str, strategy_type: str) -> str:
+def run_strategy_backtest(ticker: str, strategy_type: str, curr_date: str | None = None) -> str:
     """Run a historical backtest for the given ticker over the past 5 years. 
     strategy_type must be either 'macd_crossover' or 'rsi_oversold'.
     Returns the win rate, total return, and max drawdown of the strategy."""
     
     try:
-        data = yf.Ticker(ticker).history(period="5y")
+        from tradingagents.dataflows.stockstats_utils import load_ohlcv
+        import pandas as pd
+        
+        if not curr_date:
+            curr_date = pd.Timestamp.today().strftime("%Y-%m-%d")
+            
+        data = load_ohlcv(ticker, curr_date)
         if len(data) < 200:
             return f"Not enough data to backtest {ticker}."
             
