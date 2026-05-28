@@ -19,6 +19,7 @@ from tradingagents.dataflows.agentkey_social import (
     fetch_weibo_posts,
     fetch_zhihu_discussions,
     is_consumer_brand,
+    normalize_search_name,
     select_channels,
 )
 
@@ -81,6 +82,27 @@ class ChannelSelectionTests(unittest.TestCase):
 
     def test_missing_sector_industry_is_not_consumer(self):
         self.assertFalse(is_consumer_brand("", ""))
+
+
+class SearchNameTests(unittest.TestCase):
+    def test_strips_common_corporate_suffixes(self):
+        self.assertEqual(normalize_search_name("Tencent Holdings Limited"), "Tencent")
+        self.assertEqual(normalize_search_name("NVIDIA Corporation"), "NVIDIA")
+        self.assertEqual(normalize_search_name("Apple Inc."), "Apple")
+        self.assertEqual(normalize_search_name("Kweichow Moutai Co., Ltd."), "Kweichow Moutai")
+
+    def test_strips_trailing_share_class(self):
+        self.assertEqual(normalize_search_name("Alphabet Inc. Class C"), "Alphabet")
+
+    def test_preserves_multiword_core_name(self):
+        self.assertEqual(normalize_search_name("China Petroleum & Chemical Corporation"), "China Petroleum & Chemical")
+
+    def test_never_collapses_to_empty(self):
+        # The loop keeps the last token, so an all-suffix name never empties.
+        self.assertTrue(normalize_search_name("Holdings Group"))
+
+    def test_handles_empty(self):
+        self.assertEqual(normalize_search_name(""), "")
 
 
 class WeiboParsingTests(unittest.TestCase):

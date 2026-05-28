@@ -52,6 +52,35 @@ _CONSUMER_INDUSTRY_KEYWORDS = (
 _HTML_TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"\s+")
 
+# Trailing corporate-form tokens stripped from a company name before searching.
+# yfinance returns full legal names ("Tencent Holdings Limited", "NVIDIA
+# Corporation"); social platforms index the bare brand, so the legal suffix
+# tanks recall and pulls in registry/compliance noise. Stripping it is a
+# general win for every ticker, CN and US alike.
+_CORP_SUFFIX_TOKENS = {
+    "inc", "incorporated", "corp", "corporation", "co", "company", "ltd",
+    "limited", "holdings", "holding", "group", "plc", "llc", "lp", "sa",
+    "ag", "nv", "se", "kgaa", "adr", "ads", "class", "cl", "the",
+}
+
+
+def normalize_search_name(name: str) -> str:
+    """Strip trailing corporate-form tokens to get a searchable brand name.
+
+    E.g. ``"Tencent Holdings Limited" → "Tencent"``,
+    ``"Kweichow Moutai Co., Ltd." → "Kweichow Moutai"``. Falls back to the
+    original name if stripping would empty it.
+    """
+    tokens = _WS.split((name or "").strip())
+    while len(tokens) > 1:
+        bare = re.sub(r"[^\w&]", "", tokens[-1]).lower()
+        if bare in _CORP_SUFFIX_TOKENS or (len(bare) == 1 and bare.isalpha()):
+            tokens.pop()
+        else:
+            break
+    cleaned = " ".join(tokens).strip(" ,.")
+    return cleaned or (name or "").strip()
+
 
 # ---------------------------------------------------------------------------
 # Industry-adaptive channel selection
@@ -303,6 +332,7 @@ def build_agentkey_social_section(
     if not is_configured():
         return ""
 
+    query = normalize_search_name(query)
     channels = select_channels(sector, industry)
     parts = [
         "### Chinese / international social platforms — via AgentKey",
