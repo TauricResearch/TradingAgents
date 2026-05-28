@@ -150,6 +150,16 @@ class SectionAssemblyTests(unittest.TestCase):
                 build_agentkey_social_section("AAPL", "Apple Inc.", "Technology", "Consumer Electronics"), ""
             )
 
+    def test_unconfigured_makes_no_network_call(self):
+        # AgentKey is opt-in: with no key, the section must short-circuit BEFORE
+        # touching the network, so an unconfigured install runs fully unaffected.
+        with patch.object(agentkey_social, "is_configured", return_value=False), patch.object(
+            agentkey_social, "dispatch", side_effect=AssertionError("dispatch must not be called")
+        ), patch.object(
+            agentkey_social, "search", side_effect=AssertionError("search must not be called")
+        ):
+            self.assertEqual(build_agentkey_social_section("0700.HK", "Tencent Holdings Limited"), "")
+
     def test_configured_consumer_includes_all_four_blocks(self):
         with patch.object(agentkey_social, "is_configured", return_value=True), patch.object(
             agentkey_social, "dispatch", side_effect=AgentKeyError("upstream down")
