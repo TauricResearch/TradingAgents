@@ -74,6 +74,7 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 1000,
+    "analyst_concurrency_limit": 1,
     # Super Portfolio Manager Prompt Configuration
     "super_portfolio_manager_prompt": (
         "You are a Super Portfolio Manager advising a new investor with a $100,000 portfolio. "

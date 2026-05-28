@@ -21,6 +21,12 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.graph.analyst_execution import (
+    AnalystWallTimeTracker,
+    build_analyst_execution_plan,
+    get_initial_analyst_node,
+    sync_analyst_tracker_from_chunk,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
@@ -534,6 +540,10 @@ def get_user_selections():
         )
     )
     selected_ticker = get_ticker()
+    asset_type = detect_asset_type(selected_ticker)
+    console.print(
+        f"[green]Detected asset type:[/green] {asset_type.value}"
+    )
 
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -561,7 +571,7 @@ def get_user_selections():
             "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
         )
     )
-    selected_analysts = select_analysts()
+    selected_analysts = select_analysts(asset_type)
     console.print(
         f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
@@ -644,6 +654,7 @@ def get_user_selections():
 
     return {
         "ticker": selected_ticker,
+        "asset_type": asset_type.value,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
@@ -871,7 +882,7 @@ ANALYST_REPORT_MAP = {
 }
 
 
-def update_analyst_statuses(message_buffer, chunk):
+def update_analyst_statuses(message_buffer, chunk, wall_time_tracker=None):
     """Update analyst statuses based on accumulated report state.
 
     Logic:
@@ -884,6 +895,9 @@ def update_analyst_statuses(message_buffer, chunk):
     """
     selected = message_buffer.selected_analysts
     found_active = False
+
+    if wall_time_tracker is not None:
+        sync_analyst_tracker_from_chunk(wall_time_tracker, chunk)
 
     for analyst_key in ANALYST_ORDER:
         if analyst_key not in selected:
@@ -1012,11 +1026,19 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
     
     all_ticker_reports = {}
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     for current_ticker in selections["ticker"]:
         console.print(f"\n[bold cyan]Starting analysis for {current_ticker}...[/bold cyan]\n")
         
         stats_handler = StatsCallbackHandler()
+        
+        analyst_execution_plan = build_analyst_execution_plan(
+            selected_analyst_keys,
+            concurrency_limit=config["analyst_concurrency_limit"],
+        )
+        analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
+
         graph = TradingAgentsGraph(
             selected_analyst_keys,
             config=config,
@@ -1040,10 +1062,10 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
             @wraps(func)
             def wrapper(*args, **kwargs):
                 func(*args, **kwargs)
-                timestamp, message_type, content = obj.messages[-1]
+                timestamp_msg, message_type, content = obj.messages[-1]
                 content = content.replace("\n", " ")
                 with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(f"{timestamp} [{message_type}] {content}\n")
+                    f.write(f"{timestamp_msg} [{message_type}] {content}\n")
             return wrapper
         
         def save_tool_call_decorator(obj, func_name):
@@ -1052,10 +1074,10 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
             @wraps(func)
             def wrapper(*args, **kwargs):
                 func(*args, **kwargs)
-                timestamp, tool_name, args = obj.tool_calls[-1]
+                timestamp_msg, tool_name, args = obj.tool_calls[-1]
                 args_str = ", ".join(f"{k}={v}" for k, v in args.items())
                 with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+                    f.write(f"{timestamp_msg} [Tool Call] {tool_name}({args_str})\n")
             return wrapper
 
         def save_report_section_decorator(obj, func_name):
@@ -1082,18 +1104,24 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
         with Live(layout, refresh_per_second=4) as live:
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
             message_buffer.add_message("System", f"Selected ticker: {current_ticker}")
+            message_buffer.add_message("System", f"Detected asset type: {selections.get('asset_type', 'stock')}")
             message_buffer.add_message("System", f"Analysis date: {selections['analysis_date']}")
             message_buffer.add_message("System", f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}")
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
-            first_analyst = f"{selections['analysts'][0].value.capitalize()} Analyst"
+            first_analyst = get_initial_analyst_node(analyst_execution_plan)
             message_buffer.update_agent_status(first_analyst, "in_progress")
+            analyst_wall_time_tracker.mark_started(selected_analyst_keys[0])
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
             spinner_text = f"Analyzing {current_ticker} on {selections['analysis_date']}..."
             update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-            init_agent_state = graph.propagator.create_initial_state(current_ticker, selections["analysis_date"])
+            init_agent_state = graph.propagator.create_initial_state(
+                current_ticker,
+                selections["analysis_date"],
+                asset_type=selections.get("asset_type", "stock"),
+            )
             args = graph.propagator.get_graph_args(callbacks=[stats_handler])
 
             trace = []
@@ -1116,7 +1144,11 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
                             else:
                                 message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
-                update_analyst_statuses(message_buffer, chunk)
+                update_analyst_statuses(
+                    message_buffer,
+                    chunk,
+                    wall_time_tracker=analyst_wall_time_tracker,
+                )
 
                 if chunk.get("investment_debate_state"):
                     debate_state = chunk["investment_debate_state"]
@@ -1177,12 +1209,13 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
             final_state = {}
             for chunk in trace:
                 final_state.update(chunk)
-            decision = graph.process_signal(final_state["final_trade_decision"])
+            decision = graph.process_signal(final_state.get("final_trade_decision", ""))
 
             for agent in message_buffer.agent_status:
                 message_buffer.update_agent_status(agent, "completed")
 
             message_buffer.add_message("System", f"Completed analysis for {selections['analysis_date']}")
+            message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
 
             for section in message_buffer.report_sections.keys():
                 if section in final_state:
@@ -1191,6 +1224,7 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         console.print(f"\n[bold cyan]Analysis Complete for {current_ticker}![/bold cyan]\n")
+        console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
         
         # Save to all_ticker_reports for super portfolio manager
         all_ticker_reports[current_ticker] = {
@@ -1198,7 +1232,6 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
             "portfolio_decision": final_state.get("risk_debate_state", {}).get("judge_decision", "")
         }
 
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         default_path = Path.cwd() / "reports" / f"{current_ticker}_{timestamp}"
         try:
             report_file = save_report_to_disk(final_state, current_ticker, default_path)
@@ -1231,6 +1264,12 @@ def run_analysis(checkpoint: bool = False, max_recur_limit: Optional[int] = None
         with open(spm_path, "w", encoding="utf-8") as f:
             f.write(f"# Super Portfolio Manager Final Allocation\n\n{spm_result['super_portfolio_report']}")
         console.print(f"\n[green]✓ Portfolio allocation saved to:[/green] {spm_path.resolve()}")
+
+    elif len(selections["ticker"]) == 1:
+        # Prompt to display full report (only for single ticker runs)
+        display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+        if display_choice in ("Y", "YES", ""):
+            display_complete_report(final_state)
 
 
 @app.command()
