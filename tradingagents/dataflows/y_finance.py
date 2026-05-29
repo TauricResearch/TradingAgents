@@ -2,9 +2,14 @@ from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import numpy as np
 import yfinance as yf
 import os
+import logging
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from .config import get_config
+
+logger = logging.getLogger(__name__)
 
 
 def _is_historical_curr_date(curr_date: str | None) -> bool:
@@ -516,3 +521,393 @@ def get_insider_transactions(
         
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+
+
+# --- Options chain ---------------------------------------------------------
+
+_OPTIONS_CACHE_VERSION = 1
+_OPTIONS_NEAR_EXPIRIES = 4  # number of nearest expiries to pull
+_OPTIONS_ATM_BAND_PCT = 0.05  # ±5% of spot defines "near-the-money" for skew
+
+
+def _options_cache_dir() -> str:
+    """Resolve the options-chain cache directory under the configured data dir."""
+    base = get_config().get("data_cache_dir") or os.path.join(
+        os.path.dirname(__file__), "data_cache"
+    )
+    path = os.path.join(base, "options")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _options_cache_path(ticker: str, snapshot_date: str) -> str:
+    return os.path.join(
+        _options_cache_dir(), f"{ticker.upper()}-options-{snapshot_date}.parquet"
+    )
+
+
+def _load_options_snapshot(ticker: str, snapshot_date: str) -> pd.DataFrame | None:
+    path = _options_cache_path(ticker, snapshot_date)
+    if not os.path.exists(path):
+        return None
+    try:
+        return pd.read_parquet(path)
+    except Exception:
+        return None
+
+
+def _previous_options_snapshot(
+    ticker: str, snapshot_date: str, max_lookback: int = 10
+) -> tuple[pd.DataFrame, str] | tuple[None, None]:
+    """Find the most recent cached snapshot strictly before snapshot_date."""
+    target = pd.to_datetime(snapshot_date).normalize()
+    cache_dir = _options_cache_dir()
+    prefix = f"{ticker.upper()}-options-"
+    candidates: list[tuple[pd.Timestamp, str]] = []
+    for fn in os.listdir(cache_dir):
+        if not fn.startswith(prefix) or not fn.endswith(".parquet"):
+            continue
+        date_part = fn[len(prefix) : -len(".parquet")]
+        try:
+            ts = pd.to_datetime(date_part).normalize()
+        except Exception:
+            continue
+        if ts < target and (target - ts).days <= max_lookback:
+            candidates.append((ts, os.path.join(cache_dir, fn)))
+    if not candidates:
+        return None, None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    ts, path = candidates[0]
+    try:
+        return pd.read_parquet(path), ts.strftime("%Y-%m-%d")
+    except Exception:
+        return None, None
+
+
+def _fetch_options_chain_live(ticker_obj: yf.Ticker, max_expiries: int) -> pd.DataFrame:
+    """Fetch and stack puts/calls across the nearest N expiries into one frame."""
+    # Retry on empty: Yahoo's options endpoint returns an empty tuple (rather
+    # than raising) when throttled, so an empty list here is usually transient.
+    expirations = list(yf_retry(lambda: ticker_obj.options, retry_on_empty=True) or [])
+    if not expirations:
+        return pd.DataFrame()
+    selected = expirations[:max_expiries]
+    frames: list[pd.DataFrame] = []
+    last_error: Exception | None = None
+    for expiry in selected:
+        try:
+            chain = yf_retry(lambda e=expiry: ticker_obj.option_chain(e))
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Failed to fetch option chain for expiry {expiry}: {e}")
+            continue
+        for side, df in (("call", chain.calls), ("put", chain.puts)):
+            if df is None or df.empty:
+                continue
+            df = df.copy()
+            df["expiration"] = expiry
+            df["side"] = side
+            frames.append(df)
+    if not frames:
+        # We had expiries but pulled zero rows. If every expiry raised, surface
+        # the real cause instead of returning empty (which the caller reports as
+        # "no options data" and masks a throttle/network failure).
+        if last_error is not None:
+            raise last_error
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True)
+    # Normalize column presence — yfinance fields vary across versions.
+    for col in ("strike", "lastPrice", "bid", "ask", "volume",
+                "openInterest", "impliedVolatility"):
+        if col not in out.columns:
+            out[col] = np.nan
+    out["volume"] = pd.to_numeric(out["volume"], errors="coerce").fillna(0).astype(int)
+    out["openInterest"] = (
+        pd.to_numeric(out["openInterest"], errors="coerce").fillna(0).astype(int)
+    )
+    out["impliedVolatility"] = pd.to_numeric(out["impliedVolatility"], errors="coerce")
+    out["strike"] = pd.to_numeric(out["strike"], errors="coerce")
+    return out
+
+
+def _get_spot_price(ticker_obj: yf.Ticker) -> float | None:
+    """Best-effort spot price for IV/skew anchoring."""
+    try:
+        hist = yf_retry(lambda: ticker_obj.history(period="5d"))
+        if hist is not None and not hist.empty:
+            return float(hist["Close"].iloc[-1])
+    except Exception:
+        pass
+    try:
+        info = yf_retry(lambda: ticker_obj.fast_info)
+        price = getattr(info, "last_price", None)
+        if price is not None:
+            return float(price)
+    except Exception:
+        pass
+    return None
+
+
+def _pc_ratio(chain: pd.DataFrame, field: str) -> float | None:
+    calls = chain.loc[chain["side"] == "call", field].sum()
+    puts = chain.loc[chain["side"] == "put", field].sum()
+    if calls <= 0:
+        return None
+    return float(puts) / float(calls)
+
+
+def _near_atm_iv(chain: pd.DataFrame, spot: float, expiry: str) -> dict:
+    """Average IV in the ±band around spot, plus put-call IV skew at that band."""
+    band_lo = spot * (1 - _OPTIONS_ATM_BAND_PCT)
+    band_hi = spot * (1 + _OPTIONS_ATM_BAND_PCT)
+    near = chain[(chain["expiration"] == expiry) & chain["strike"].between(band_lo, band_hi)]
+    if near.empty:
+        return {"atm_iv": None, "put_iv": None, "call_iv": None, "skew": None}
+    call_iv = near.loc[near["side"] == "call", "impliedVolatility"].mean()
+    put_iv = near.loc[near["side"] == "put", "impliedVolatility"].mean()
+    atm_iv = near["impliedVolatility"].mean()
+    skew = None
+    if pd.notna(put_iv) and pd.notna(call_iv):
+        skew = float(put_iv - call_iv)
+    return {
+        "atm_iv": None if pd.isna(atm_iv) else float(atm_iv),
+        "put_iv": None if pd.isna(put_iv) else float(put_iv),
+        "call_iv": None if pd.isna(call_iv) else float(call_iv),
+        "skew": skew,
+    }
+
+
+def _max_pain(chain: pd.DataFrame, expiry: str) -> float | None:
+    """Strike that minimizes total option holder payoff at expiration."""
+    exp_chain = chain[chain["expiration"] == expiry]
+    strikes = sorted(exp_chain["strike"].dropna().unique())
+    if not strikes:
+        return None
+    calls = exp_chain[exp_chain["side"] == "call"][["strike", "openInterest"]]
+    puts = exp_chain[exp_chain["side"] == "put"][["strike", "openInterest"]]
+    best_strike, best_pain = None, None
+    for s in strikes:
+        call_pain = ((s - calls["strike"]).clip(lower=0) * calls["openInterest"]).sum()
+        put_pain = ((puts["strike"] - s).clip(lower=0) * puts["openInterest"]).sum()
+        total = float(call_pain + put_pain)
+        if best_pain is None or total < best_pain:
+            best_pain, best_strike = total, float(s)
+    return best_strike
+
+
+def _top_oi_strikes(chain: pd.DataFrame, expiry: str, side: str, n: int = 5) -> pd.DataFrame:
+    sub = chain[
+        (chain["expiration"] == expiry) & (chain["side"] == side)
+    ][["strike", "openInterest", "volume", "impliedVolatility"]]
+    return sub.sort_values("openInterest", ascending=False).head(n).reset_index(drop=True)
+
+
+def _unusual_contracts(chain: pd.DataFrame, n: int = 10) -> pd.DataFrame:
+    """Contracts where today's volume materially exceeds open interest."""
+    sub = chain[(chain["openInterest"] > 0) & (chain["volume"] > chain["openInterest"])].copy()
+    if sub.empty:
+        return sub
+    sub["vol_oi_ratio"] = sub["volume"] / sub["openInterest"]
+    return sub.sort_values("volume", ascending=False).head(n)[
+        ["expiration", "side", "strike", "volume", "openInterest", "vol_oi_ratio", "impliedVolatility"]
+    ].reset_index(drop=True)
+
+
+def _snapshot_deltas(
+    current: pd.DataFrame, previous: pd.DataFrame, n: int = 5
+) -> pd.DataFrame:
+    """Day-over-day OI / Volume / IV changes per contract."""
+    if previous is None or previous.empty or current.empty:
+        return pd.DataFrame()
+    key = ["expiration", "side", "strike"]
+    merged = current.merge(
+        previous[key + ["openInterest", "volume", "impliedVolatility"]],
+        on=key,
+        how="inner",
+        suffixes=("", "_prev"),
+    )
+    if merged.empty:
+        return merged
+    merged["oi_delta"] = merged["openInterest"] - merged["openInterest_prev"]
+    merged["vol_delta"] = merged["volume"] - merged["volume_prev"]
+    merged["iv_delta"] = merged["impliedVolatility"] - merged["impliedVolatility_prev"]
+    merged["abs_oi_delta"] = merged["oi_delta"].abs()
+    return merged.sort_values("abs_oi_delta", ascending=False).head(n)[
+        ["expiration", "side", "strike", "openInterest_prev", "openInterest",
+         "oi_delta", "volume", "vol_delta", "impliedVolatility", "iv_delta"]
+    ].reset_index(drop=True)
+
+
+def _df_to_md(df: pd.DataFrame, float_cols: list[str] | None = None) -> str:
+    """Render a small DataFrame as a pipe-table without requiring tabulate."""
+    if df is None or df.empty:
+        return "_(none)_\n"
+    out = df.copy()
+    if float_cols:
+        for c in float_cols:
+            if c in out.columns:
+                out[c] = pd.to_numeric(out[c], errors="coerce").round(4)
+    cols = list(out.columns)
+    header = "| " + " | ".join(str(c) for c in cols) + " |"
+    sep = "| " + " | ".join("---" for _ in cols) + " |"
+    rows = []
+    for _, r in out.iterrows():
+        rows.append("| " + " | ".join(_cell(r[c]) for c in cols) + " |")
+    return "\n".join([header, sep, *rows]) + "\n"
+
+
+def _cell(v) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, float):
+        if pd.isna(v):
+            return ""
+        return f"{v:g}"
+    return str(v)
+
+
+def get_options_chain(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
+):
+    """Options-chain snapshot with P/C ratio, ATM IV/skew, max pain, and unusual activity.
+
+    yfinance only exposes the live option chain — there is no historical
+    endpoint. We cache each snapshot to parquet so subsequent live calls can
+    surface day-over-day deltas, and so a backtest that previously cached
+    data can still read it. For historical dates with no cached snapshot we
+    refuse to fall back to the live chain (look-ahead bias).
+    """
+    if not curr_date:
+        curr_date = pd.Timestamp.today().strftime("%Y-%m-%d")
+    is_historical = _is_historical_curr_date(curr_date)
+
+    cached = _load_options_snapshot(ticker, curr_date)
+    chain: pd.DataFrame | None = None
+    spot: float | None = None
+    source_note = ""
+
+    ticker_obj = yf.Ticker(ticker.upper())
+
+    if cached is not None and not cached.empty:
+        chain = cached
+        spot = _get_spot_price(ticker_obj) if not is_historical else None
+        if spot is None and "underlying_price" in cached.columns:
+            try:
+                spot = float(cached["underlying_price"].dropna().iloc[0])
+            except Exception:
+                spot = None
+        source_note = f"loaded cached snapshot for {curr_date}"
+    elif is_historical:
+        return (
+            f"# Options chain for {ticker.upper()}\n"
+            f"# As-of date: {curr_date}\n\n"
+            "NOTE: yfinance does not expose historical option chains and no cached "
+            f"snapshot exists for {curr_date}. To enable historical options signals, "
+            "run this tool live and let the cache accumulate, or wire a paid vendor "
+            "(Polygon / ORATS / Unusual Whales) into the options_data category.\n"
+        )
+    else:
+        try:
+            chain = _fetch_options_chain_live(ticker_obj, _OPTIONS_NEAR_EXPIRIES)
+        except Exception as e:
+            return f"Error retrieving options chain for {ticker}: {e}"
+        if chain is None or chain.empty:
+            return f"No options data found for symbol '{ticker}'"
+        spot = _get_spot_price(ticker_obj)
+        if spot is not None:
+            chain["underlying_price"] = spot
+        chain["snapshot_date"] = curr_date
+        try:
+            chain.to_parquet(_options_cache_path(ticker, curr_date), index=False)
+            source_note = f"fetched live and cached to {curr_date}.parquet"
+        except Exception as e:
+            source_note = f"fetched live (cache write failed: {e})"
+
+    if chain is None or chain.empty:
+        return f"No options data found for symbol '{ticker}'"
+
+    # ---- Signals ----------------------------------------------------------
+    pc_vol = _pc_ratio(chain, "volume")
+    pc_oi = _pc_ratio(chain, "openInterest")
+
+    expiries = sorted(chain["expiration"].dropna().unique())
+    near_expiry = expiries[0] if expiries else None
+
+    iv_block = (
+        _near_atm_iv(chain, spot, near_expiry)
+        if (spot is not None and near_expiry is not None)
+        else {"atm_iv": None, "put_iv": None, "call_iv": None, "skew": None}
+    )
+    pc_vol_near = (
+        _pc_ratio(chain[chain["expiration"] == near_expiry], "volume")
+        if near_expiry else None
+    )
+    pc_oi_near = (
+        _pc_ratio(chain[chain["expiration"] == near_expiry], "openInterest")
+        if near_expiry else None
+    )
+
+    max_pain = _max_pain(chain, near_expiry) if near_expiry else None
+    top_call_oi = _top_oi_strikes(chain, near_expiry, "call") if near_expiry else pd.DataFrame()
+    top_put_oi = _top_oi_strikes(chain, near_expiry, "put") if near_expiry else pd.DataFrame()
+    unusual = _unusual_contracts(chain)
+
+    prev_chain, prev_date = _previous_options_snapshot(ticker, curr_date)
+    deltas = _snapshot_deltas(chain, prev_chain) if prev_chain is not None else pd.DataFrame()
+
+    # ---- Format report ----------------------------------------------------
+    lines: list[str] = []
+    lines.append(f"# Options chain signals for {ticker.upper()}")
+    lines.append(f"# As-of date: {curr_date}")
+    lines.append(f"# Source: {source_note}")
+    lines.append(f"# Spot: {spot:.2f}" if spot is not None else "# Spot: unknown")
+    lines.append(f"# Expiries covered: {', '.join(expiries) if expiries else 'none'}")
+    lines.append(f"# Near-expiry used for IV/max-pain: {near_expiry or 'n/a'}")
+    lines.append("")
+
+    def _fmt(v, digits=2):
+        return f"{v:.{digits}f}" if isinstance(v, (int, float)) and v is not None else "n/a"
+
+    lines.append("## 1. Put/Call ratios")
+    lines.append(f"- All expiries — Volume P/C: {_fmt(pc_vol)} | OI P/C: {_fmt(pc_oi)}")
+    lines.append(
+        f"- Near-expiry ({near_expiry}) — Volume P/C: {_fmt(pc_vol_near)} | "
+        f"OI P/C: {_fmt(pc_oi_near)}"
+    )
+    lines.append(
+        "- Interpretation: vol P/C >1.2 is put-heavy (bearish/hedging); <0.7 is "
+        "call-heavy (bullish/speculative); ~1.0 is balanced."
+    )
+    lines.append("")
+
+    lines.append(f"## 2. Near-expiry ATM IV / skew  (band ±{int(_OPTIONS_ATM_BAND_PCT*100)}% of spot)")
+    lines.append(f"- ATM IV: {_fmt(iv_block['atm_iv'], 4)}")
+    lines.append(f"- Call-leg IV: {_fmt(iv_block['call_iv'], 4)}  |  Put-leg IV: {_fmt(iv_block['put_iv'], 4)}")
+    lines.append(
+        f"- Put-Call IV skew: {_fmt(iv_block['skew'], 4)} "
+        "(positive = puts more expensive → downside fear)"
+    )
+    lines.append("")
+
+    lines.append(f"## 3. Max pain & high-OI strikes  (expiry {near_expiry})")
+    lines.append(f"- Max pain: {_fmt(max_pain)}")
+    lines.append("- Top call OI strikes (resistance magnets):")
+    lines.append(_df_to_md(top_call_oi, ["impliedVolatility"]))
+    lines.append("- Top put OI strikes (support magnets):")
+    lines.append(_df_to_md(top_put_oi, ["impliedVolatility"]))
+
+    lines.append("## 4. Unusual activity (today's volume > open interest)")
+    lines.append(_df_to_md(unusual, ["impliedVolatility", "vol_oi_ratio"]))
+
+    if not deltas.empty:
+        lines.append(f"## 5. Day-over-day deltas vs cached snapshot {prev_date}")
+        lines.append(_df_to_md(deltas, ["impliedVolatility", "iv_delta"]))
+    else:
+        lines.append("## 5. Day-over-day deltas")
+        lines.append(
+            "_(no prior cached snapshot within 10 days — deltas unavailable; "
+            "run again tomorrow to start the time series)_\n"
+        )
+
+    return "\n".join(lines)

@@ -26,6 +26,11 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 2,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Per-analyst tool-call round cap. When an analyst exceeds its cap and is
+    # still requesting tools, the graph routes to a Force Finalize node that
+    # re-prompts the LLM with no tools bound to produce the report from data
+    # already collected. None preserves ConditionalLogic.DEFAULT_ANALYST_TOOL_CAP.
+    "max_analyst_tool_calls": None,
     # Backtest-only state-first portfolio policy knobs. Leave empty to use
     # PortfolioStatePolicyConfig defaults, including ^GSPC market context.
     # Override market_context_ticker or set market_context_enabled=False as needed.
@@ -37,6 +42,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "options_data": "yfinance",          # Options: yfinance (no historical chain)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

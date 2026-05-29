@@ -106,6 +106,14 @@ class GraphSetup:
         analyst_nodes = {}
         delete_nodes = {}
         tool_nodes = {}
+        force_finalize_nodes = {}
+
+        analyst_report_keys = {
+            "market": ("market_report", "market analyst"),
+            "social": ("sentiment_report", "social media analyst"),
+            "news": ("news_report", "news analyst"),
+            "fundamentals": ("fundamentals_report", "fundamentals analyst"),
+        }
 
         if "market" in selected_analysts:
             analyst_nodes["market"] = create_market_analyst(
@@ -135,6 +143,12 @@ class GraphSetup:
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
+        for analyst_type in analyst_nodes:
+            report_key, label = analyst_report_keys[analyst_type]
+            force_finalize_nodes[analyst_type] = create_force_finalize(
+                self.quick_thinking_llm, report_key, label
+            )
+
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(
             self.quick_thinking_llm, self.bull_memory
@@ -162,17 +176,30 @@ class GraphSetup:
                 self.deep_thinking_llm, self.portfolio_manager_memory
             )
 
+        # Cross-factor conflict detector (P0.1) runs after analysts, before the
+        # debate. Live-only: backtest already captures contradictions inside the
+        # MarketState classifier, and we avoid adding an LLM call per backtest day.
+        conflict_enabled = self.trading_mode != "backtest"
+        conflict_detector_node = (
+            create_conflict_detector(self.quick_thinking_llm) if conflict_enabled else None
+        )
+
         # Create workflow
         workflow = StateGraph(AgentState)
 
         # Add analyst nodes to the graph
         for analyst_type, node in analyst_nodes.items():
             node_name = f"{analyst_type.capitalize()} Analyst"
+            force_name = f"Force Finalize {analyst_type.capitalize()}"
             workflow.add_node(node_name, self._timed_agent_node(node_name, node))
             workflow.add_node(
                 f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
             )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+            workflow.add_node(
+                force_name,
+                self._timed_agent_node(force_name, force_finalize_nodes[analyst_type]),
+            )
 
         # Add other nodes
         workflow.add_node(
@@ -204,6 +231,11 @@ class GraphSetup:
             "Portfolio Manager",
             self._timed_agent_node("Portfolio Manager", portfolio_manager_node),
         )
+        if conflict_enabled:
+            workflow.add_node(
+                "Conflict Detector",
+                self._timed_agent_node("Conflict Detector", conflict_detector_node),
+            )
 
         # Define edges
         # Start with the first analyst
@@ -215,19 +247,25 @@ class GraphSetup:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
+            current_force = f"Force Finalize {analyst_type.capitalize()}"
 
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
                 current_analyst,
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                [current_tools, current_clear],
+                [current_tools, current_force, current_clear],
             )
             workflow.add_edge(current_tools, current_analyst)
+            workflow.add_edge(current_force, current_clear)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
+            # Connect to next analyst, or to the Conflict Detector / Bull Researcher
+            # if this is the last analyst.
             if i < len(selected_analysts) - 1:
                 next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
+            elif conflict_enabled:
+                workflow.add_edge(current_clear, "Conflict Detector")
+                workflow.add_edge("Conflict Detector", "Bull Researcher")
             else:
                 workflow.add_edge(current_clear, "Bull Researcher")
 

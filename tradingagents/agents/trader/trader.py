@@ -1,12 +1,17 @@
 import functools
 
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_capital_context,
+    build_instrument_context,
+    get_language_instruction,
+)
 
 
 def create_trader(llm, memory):
     def trader_node(state, name):
         company_name = state["company_of_interest"]
         instrument_context = build_instrument_context(company_name)
+        capital_context = build_capital_context(state.get("holdings_info"))
         investment_plan = state["investment_plan"]
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
@@ -32,9 +37,10 @@ def create_trader(llm, memory):
             if past_memory_str else ""
         )
 
+        capital_block = f"\n\n{capital_context}" if capital_context else ""
         context = {
             "role": "user",
-            "content": f"Investment plan for {company_name}. {instrument_context}\n\nProposed Investment Plan: {investment_plan}",
+            "content": f"Investment plan for {company_name}. {instrument_context}{capital_block}\n\nProposed Investment Plan: {investment_plan}",
         }
 
         messages = [

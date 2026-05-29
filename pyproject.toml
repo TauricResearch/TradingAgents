@@ -33,6 +33,7 @@ dependencies = [
     "yfinance>=0.2.63",
     "matplotlib>=3.8.0",
     "pydantic>=2.0.0",
+    "pyarrow>=15.0.0",
 ]
 
 [project.scripts]

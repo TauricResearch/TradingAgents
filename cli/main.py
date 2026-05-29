@@ -546,7 +546,7 @@ def get_user_selections():
         )
         review_cadence_trading_days = select_review_cadence()
     else:
-        # Live: ask for the single analysis date and current holdings.
+        # Live: ask for the single analysis date, total portfolio NAV, then current holdings.
         default_date = datetime.datetime.now().strftime("%Y-%m-%d")
         console.print(
             create_question_box(
@@ -559,11 +559,14 @@ def get_user_selections():
 
         console.print(
             create_question_box(
-                "Step 4: Current Holdings (Optional)",
-                "If you already hold this stock, enter quantity and average buy price"
+                "Step 4: Portfolio Context",
+                "Enter your total portfolio NAV (cash + market value of all holdings), "
+                "then optionally specify any existing position in this ticker"
             )
         )
+        portfolio_nav = get_portfolio_nav()
         holdings_info = get_holdings_info()
+        holdings_info["nav"] = portfolio_nav
 
     # Step 5: Output language
     console.print(
@@ -656,6 +659,24 @@ def get_analysis_date():
             console.print(
                 "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
             )
+
+
+def get_portfolio_nav():
+    """Get total portfolio NAV (cash + market value of all positions) from the user.
+
+    NAV is required in live mode so downstream managers/trader/risk debators can
+    size every recommendation as a percent of real capital rather than guessing.
+    """
+    while True:
+        nav_str = typer.prompt("Enter total portfolio NAV", default="100000").strip()
+        try:
+            nav = float(nav_str)
+            if nav <= 0:
+                console.print("[red]Error: NAV must be greater than 0[/red]")
+                continue
+            return nav
+        except ValueError:
+            console.print("[red]Error: NAV must be a number[/red]")
 
 
 def get_holdings_info():
@@ -1054,13 +1075,93 @@ def _previous_trading_date(trading_dates, date: str) -> str | None:
     return max(prior).strftime("%Y-%m-%d")
 
 
+def _trading_history_window_days(cadence_trading_days: int) -> int:
+    """Map review cadence to a calendar-day rolling window for PnL summaries.
+
+    1-day cadence → 1 week, 2-day → 2 weeks, longer cadences cap at 4 weeks.
+    """
+    return min(max(int(cadence_trading_days or 1), 1), 4) * 7
+
+
+def _summarize_trading_history(
+    trades: list,
+    as_of: str,
+    window_days: int,
+    last_n: int = 5,
+) -> dict:
+    """Aggregate realized PnL for trades that closed within the trailing window.
+
+    `as_of` is the inclusive right edge of the window (typically the trading
+    day before the next strategy's as_of_date).
+    """
+    if not trades or not as_of:
+        return {
+            "window_days": window_days,
+            "as_of": as_of,
+            "n_trades": 0,
+            "n_wins": 0,
+            "win_rate": None,
+            "total_pnl": 0.0,
+            "avg_pnl": None,
+            "last_n_pnl": [],
+        }
+
+    right = pd.Timestamp(as_of)
+    left = right - pd.Timedelta(days=window_days)
+    in_window = []
+    for t in trades:
+        exit_date = t.get("exit_date") or t.get("entry_date")
+        if not exit_date:
+            continue
+        try:
+            d = pd.Timestamp(exit_date)
+        except Exception:
+            continue
+        if left <= d <= right:
+            in_window.append(t)
+
+    in_window.sort(key=lambda t: t.get("exit_date") or t.get("entry_date") or "")
+    pnls = [float(t.get("pnl") or 0.0) for t in in_window]
+    n = len(pnls)
+    n_wins = sum(1 for p in pnls if p > 0)
+    last_n_records = [
+        {
+            "exit_date": t.get("exit_date"),
+            "entry_date": t.get("entry_date"),
+            "pnl": float(t.get("pnl") or 0.0),
+            "reason": t.get("reason"),
+        }
+        for t in in_window[-last_n:]
+    ]
+    return {
+        "window_days": window_days,
+        "as_of": as_of,
+        "n_trades": n,
+        "n_wins": n_wins,
+        "win_rate": (n_wins / n) if n else None,
+        "total_pnl": sum(pnls),
+        "avg_pnl": (sum(pnls) / n) if n else None,
+        "last_n_pnl": last_n_records,
+    }
+
+
 def _simulate_backtest_holdings(
     ticker: str,
     start: str,
     end: str,
     initial_capital: float = 100_000.0,
-) -> dict:
-    """Replay generated strategies through `end` and return current holdings."""
+    cadence_trading_days: int = 5,
+    prior_strategy_date: Optional[str] = None,
+) -> tuple[dict, dict, list]:
+    """Replay generated strategies through `end` and return state for the next decision.
+
+    Returns:
+        holdings_info: position/cash snapshot at `end`.
+        trading_history_summary: rolling-window realized PnL aggregate.
+        prior_pending_orders: orders still unfilled at `end` that originated
+            from the strategy dated `prior_strategy_date`. Empty when
+            `prior_strategy_date` is None.
+    """
     engine = BacktestEngine(
         ticker=ticker,
         start_date=start,
@@ -1068,22 +1169,42 @@ def _simulate_backtest_holdings(
         initial_capital=initial_capital,
     )
     result = engine.run()
+    window_days = _trading_history_window_days(cadence_trading_days)
     if result.equity_curve.empty:
-        return {"quantity": 0.0, "cash": initial_capital}
+        return (
+            {"quantity": 0.0, "cash": initial_capital},
+            _summarize_trading_history([], end, window_days),
+            [],
+        )
 
     last = result.equity_curve.iloc[-1]
+    last_date = (
+        last["Date"].strftime("%Y-%m-%d")
+        if hasattr(last["Date"], "strftime")
+        else end
+    )
     holdings = {
         "quantity": float(last["Position"]),
         "cash": float(last["Cash"]),
         "mark_price": float(last["MarkPrice"]),
         "equity": float(last["Equity"]),
-        "as_of_date": last["Date"].strftime("%Y-%m-%d") if hasattr(last["Date"], "strftime") else end,
+        "as_of_date": last_date,
     }
     if result.final_position:
         holdings["avg_buy_price"] = float(result.final_position["entry_price"])
         if result.final_position.get("stop_loss") is not None:
             holdings["stop_loss"] = float(result.final_position["stop_loss"])
-    return holdings
+
+    history_summary = _summarize_trading_history(
+        result.trades or [], last_date, window_days
+    )
+    prior_pending = []
+    if prior_strategy_date and result.final_pending_orders:
+        prior_pending = [
+            o for o in result.final_pending_orders
+            if o.get("strategy_as_of") == prior_strategy_date
+        ]
+    return holdings, history_summary, prior_pending
 
 
 def run_backtest_analysis(selections: dict) -> None:
@@ -1152,6 +1273,8 @@ def run_backtest_analysis(selections: dict) -> None:
     overall_start = time.time()
     prev_stats = stats_handler.get_stats()
     simulated_holdings = selections.get("holdings_info") or {}
+    trading_history_summary: dict = {}
+    prior_pending_orders: list = []
 
     for i, date in enumerate(dates, 1):
         console.print(
@@ -1164,6 +1287,8 @@ def run_backtest_analysis(selections: dict) -> None:
                 date,
                 holdings_info=simulated_holdings,
                 trading_mode="backtest",
+                trading_history_summary=trading_history_summary,
+                prior_pending_orders=prior_pending_orders,
             )
             report_dir = (
                 Path(config["results_dir"])
@@ -1201,11 +1326,17 @@ def run_backtest_analysis(selections: dict) -> None:
                     simulated_holdings = selections.get("holdings_info") or {}
                     simulated_holdings.setdefault("cash", 100_000.0)
                     simulated_holdings["as_of_date"] = "pre-start"
+                    trading_history_summary = {}
+                    prior_pending_orders = []
                 else:
-                    simulated_holdings = _simulate_backtest_holdings(
-                        selections["ticker"],
-                        effective_start,
-                        holdings_as_of,
+                    simulated_holdings, trading_history_summary, prior_pending_orders = (
+                        _simulate_backtest_holdings(
+                            selections["ticker"],
+                            effective_start,
+                            holdings_as_of,
+                            cadence_trading_days=cadence,
+                            prior_strategy_date=date,
+                        )
                     )
                 as_of_label = simulated_holdings.get("as_of_date") or holdings_as_of or "pre-start"
                 if simulated_holdings.get("quantity", 0.0) > 0:
@@ -1222,6 +1353,23 @@ def run_backtest_analysis(selections: dict) -> None:
                         f"cash {simulated_holdings.get('cash', 0.0):.2f}, "
                         f"equity {simulated_holdings.get('equity', 0.0):.2f}, "
                         "no open position[/dim]"
+                    )
+                if trading_history_summary.get("n_trades"):
+                    wr = trading_history_summary.get("win_rate")
+                    wr_str = f"{wr:.0%}" if wr is not None else "n/a"
+                    console.print(
+                        f"  [dim]history ({trading_history_summary['window_days']}d window): "
+                        f"{trading_history_summary['n_trades']} closed, "
+                        f"win {wr_str}, "
+                        f"PnL {trading_history_summary['total_pnl']:.2f}[/dim]"
+                    )
+                if prior_pending_orders:
+                    types = ", ".join(
+                        f"{o['order_type']}@{o.get('limit_price')}"
+                        for o in prior_pending_orders
+                    )
+                    console.print(
+                        f"  [dim]prior unfilled orders from {date}: {types}[/dim]"
                     )
         except Exception as e:
             step_elapsed = time.time() - step_start

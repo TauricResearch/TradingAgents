@@ -10,7 +10,21 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict, dataclass, field, fields
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
+
+
+def _opt(default, low, high, dtype="float"):
+    """Helper: mark a dataclass field as optimizable with continuous bounds.
+
+    metadata keys:
+        optimizable: True ⇒ included in to_vector / from_vector
+        bounds:      (low, high) inclusive, used to clip from_vector input
+        dtype:       "float" or "int" (ints are rounded in from_vector)
+    """
+    return field(
+        default=default,
+        metadata={"optimizable": True, "bounds": (low, high), "dtype": dtype},
+    )
 
 
 _DEFAULT_VOLUME_MULTIPLIER = {
@@ -37,7 +51,7 @@ _DEFAULT_PHASE_MODIFIER: dict[str, dict] = {
     # in long bull markets "approaching resistance" is the norm, not a reason to exit.
     "overextended_bull":      {"cap": 0.55, "tp_size": 30.0, "allow_add": True},
     "bull_pullback":          {"floor": 0.35, "cap": 0.85, "tp_size": 15.0, "allow_add": True,  "pullback_buy": True},
-    "late_bull_distribution": {"cap": 0.25, "tp_size": 50.0, "allow_add": False},
+    "late_bull_distribution": {"cap": 0.25, "tp_size": 50.0, "allow_add": False, "block_new_position": True},
     # ----- Bear (force SELL existing, block new) -----
     "early_bear_reversal":    {"force_sell_if_position": True, "block_new_position": True},
     "healthy_bear_trend":     {"force_sell_if_position": True, "block_new_position": True},
@@ -58,34 +72,34 @@ class PortfolioStatePolicyConfig:
     """Tunable deterministic policy parameters for backtest PortfolioState mode."""
 
     # 趋势方向对目标仓位的贡献权重。
-    trend_score_weight: float = 0.25
+    trend_score_weight: float = _opt(0.25, 0.0, 1.0)
     # 动量强弱对目标仓位的贡献权重。
-    momentum_score_weight: float = 0.125
+    momentum_score_weight: float = _opt(0.125, 0.0, 1.0)
     # 事件影响对目标仓位的贡献权重。
-    event_score_weight: float = 0.075
+    event_score_weight: float = _opt(0.075, 0.0, 1.0)
     # 风险压力对目标仓位的扣减权重。
-    risk_score_weight: float = 0.48
+    risk_score_weight: float = _opt(0.48, 0.0, 1.0)
 
     # 强上升趋势中的最低目标仓位。
-    strong_uptrend_floor: float = 0.60
+    strong_uptrend_floor: float = _opt(0.60, 0.0, 1.0)
     # 强上升趋势中的最高目标仓位。
-    strong_uptrend_cap: float = 1.00
+    strong_uptrend_cap: float = _opt(1.00, 0.0, 1.0)
     # 弱上升趋势中的最低目标仓位。
-    weak_uptrend_floor: float = 0.15
+    weak_uptrend_floor: float = _opt(0.15, 0.0, 1.0)
     # 弱上升趋势中的最高目标仓位。
-    weak_uptrend_cap: float = 0.30
+    weak_uptrend_cap: float = _opt(0.30, 0.0, 1.0)
     # 震荡或不明朗状态中的最高目标仓位。
-    range_cap: float = 0.30
+    range_cap: float = _opt(0.30, 0.0, 1.0)
     # 事件驱动状态中的最高目标仓位。
-    event_driven_cap: float = 0.60
+    event_driven_cap: float = _opt(0.60, 0.0, 1.0)
     # 成交量数据不可用时的最高目标仓位。
-    unavailable_volume_cap: float = 0.35
+    unavailable_volume_cap: float = _opt(0.35, 0.0, 1.0)
     # 所有修正后的绝对最高目标仓位。
-    max_target_weight: float = 0.80
+    max_target_weight: float = _opt(0.80, 0.0, 1.0)
     # 触发交易所需的最低目标仓位。
-    min_trade_weight: float = 0.02
+    min_trade_weight: float = _opt(0.02, 0.0, 0.5)
     # 对最终订单大小应用的整体乘数。
-    order_size_multiplier: float = 0.80
+    order_size_multiplier: float = _opt(0.80, 0.0, 2.0)
 
     # 不同成交量状态下的目标仓位乘数。
     volume_multipliers: dict[str, float] = field(
@@ -101,41 +115,45 @@ class PortfolioStatePolicyConfig:
     phase_modifiers: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # 用于滞后确认的历史阶段数量。
-    recent_phase_lookback: int = 2
+    recent_phase_lookback: int = _opt(2, 1, 10, dtype="int")
     # 确认突变阶段所需的次数。
-    hysteresis_confirmation_count: int = 0
-    # 判定过度上涨所需的 ATR 距离。
-    overextended_sma20_atr_threshold: float = 1.25
+    hysteresis_confirmation_count: int = _opt(0, 0, 5, dtype="int")
+    # 判定过度上涨所需的 ATR 距离。值越小越尊重 LLM 的 overextended_bull 判断
+    # （只有非常贴近 EMA5 时才降级到 healthy_bull_trend）。
+    overextended_sma20_atr_threshold: float = _opt(0.8, 0.0, 5.0)
+    # 上一笔以 stop_loss 退出后的冷却天数；空仓状态下在该窗口内不重新开仓。
+    # 0 = 关闭。基于策略 as_of_date 与 trading_history 中最近一次 exit_date 的日历日差。
+    post_stop_cooldown_days: int = _opt(3, 0, 30, dtype="int")
 
     # 回调买入时的单次最高加仓比例。
-    pullback_entry_add_max_pct: float = 12.0
+    pullback_entry_add_max_pct: float = _opt(12.0, 0.0, 100.0)
     # 将目标仓位转换为回调加仓比例的乘数。
-    pullback_entry_add_weight_multiplier: float = 60.0
+    pullback_entry_add_weight_multiplier: float = _opt(60.0, 0.0, 200.0)
     # 普通加仓订单的单次最高加仓比例。
-    default_add_max_pct: float = 12.0
+    default_add_max_pct: float = _opt(12.0, 0.0, 100.0)
     # 将目标仓位转换为普通加仓比例的乘数。
-    default_add_weight_multiplier: float = 50.0
+    default_add_weight_multiplier: float = _opt(50.0, 0.0, 200.0)
     # 弱上升趋势且量能偏软时的最高加仓比例。
-    weak_uptrend_soft_volume_add_max_pct: float = 4.0
+    weak_uptrend_soft_volume_add_max_pct: float = _opt(4.0, 0.0, 100.0)
 
     # 出现 bearish 成交量背离时的减仓比例。
-    bearish_divergence_reduce_pct: float = 30.0
+    bearish_divergence_reduce_pct: float = _opt(30.0, 0.0, 100.0)
     # bearish 背离保护止损使用的 ATR 倍数。
-    bearish_divergence_stop_atr: float = 1.5
+    bearish_divergence_stop_atr: float = _opt(1.5, 0.1, 10.0)
     # bearish 背离且无支撑位时的备用 ATR 倍数。
-    bearish_divergence_fallback_stop_atr: float = 2.0
+    bearish_divergence_fallback_stop_atr: float = _opt(2.0, 0.1, 10.0)
     # 标准止损位置使用的 ATR 倍数。
-    stop_loss_atr_multiple: float = 1.3
+    stop_loss_atr_multiple: float = _opt(1.3, 0.1, 10.0)
     # 趋势止盈位置使用的 ATR 倍数。
-    trend_take_profit_atr_multiple: float = 2.2
+    trend_take_profit_atr_multiple: float = _opt(2.2, 0.1, 10.0)
     # 用近期高点上浮来拉远趋势止盈的位置。
-    trend_take_profit_recent_high_multiplier: float = 1.01
+    trend_take_profit_recent_high_multiplier: float = _opt(1.01, 1.0, 2.0)
     # 非趋势止盈位置使用的 ATR 倍数。
-    default_take_profit_atr_multiple: float = 1.8
+    default_take_profit_atr_multiple: float = _opt(1.8, 0.1, 10.0)
     # 强上升趋势中的止盈卖出比例。
-    strong_uptrend_take_profit_size_pct: float = 25.0
+    strong_uptrend_take_profit_size_pct: float = _opt(25.0, 0.0, 100.0)
     # 默认止盈卖出比例。
-    default_take_profit_size_pct: float = 40.0
+    default_take_profit_size_pct: float = _opt(40.0, 0.0, 100.0)
     # 是否用大盘状态修正个股决策。
     market_context_enabled: bool = True
     # 作为大盘上下文来源的 ticker。
@@ -147,6 +165,68 @@ class PortfolioStatePolicyConfig:
             base = merged.setdefault(phase, {})
             base.update(values)
         return merged
+
+
+def optimizable_field_names() -> list[str]:
+    """Names of dataclass fields marked optimizable, in declaration order.
+
+    Stable across runs as long as the dataclass definition doesn't change —
+    safe to use as the canonical index for to_vector / from_vector vectors.
+    """
+    return [f.name for f in fields(PortfolioStatePolicyConfig)
+            if f.metadata.get("optimizable")]
+
+
+def optimizable_bounds() -> list[tuple[float, float]]:
+    """(low, high) pairs aligned with optimizable_field_names()."""
+    return [f.metadata["bounds"] for f in fields(PortfolioStatePolicyConfig)
+            if f.metadata.get("optimizable")]
+
+
+def optimizable_dtypes() -> list[str]:
+    """"float" / "int" tags aligned with optimizable_field_names()."""
+    return [f.metadata["dtype"] for f in fields(PortfolioStatePolicyConfig)
+            if f.metadata.get("optimizable")]
+
+
+def to_vector(cfg: PortfolioStatePolicyConfig) -> list[float]:
+    """Extract optimizable params as a flat list[float] in declaration order.
+
+    Returned as plain list so callers can wrap in numpy / torch / jax without
+    pulling those into this module.
+    """
+    return [float(getattr(cfg, name)) for name in optimizable_field_names()]
+
+
+def from_vector(
+    vec: Iterable[float],
+    base: Optional[PortfolioStatePolicyConfig] = None,
+) -> PortfolioStatePolicyConfig:
+    """Build a config from a flat vector of optimizable values.
+
+    - Values are clipped into each field's declared bounds.
+    - Fields tagged dtype="int" are rounded.
+    - Non-optimizable fields (volume_multipliers, phase_modifiers,
+      market_context_enabled, market_context_ticker) are copied from `base`,
+      or take dataclass defaults if `base` is None.
+    """
+    values = list(vec)
+    names = optimizable_field_names()
+    if len(values) != len(names):
+        raise ValueError(
+            f"from_vector expected {len(names)} values, got {len(values)}"
+        )
+
+    base_dict = asdict(base) if base is not None else asdict(PortfolioStatePolicyConfig())
+    overrides: dict[str, Any] = {}
+    for name, raw, (low, high), dtype in zip(
+        names, values, optimizable_bounds(), optimizable_dtypes()
+    ):
+        clipped = min(max(float(raw), low), high)
+        overrides[name] = int(round(clipped)) if dtype == "int" else clipped
+
+    base_dict.update(overrides)
+    return PortfolioStatePolicyConfig(**base_dict)
 
 
 def default_portfolio_state_policy_config() -> dict[str, Any]:

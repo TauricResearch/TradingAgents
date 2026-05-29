@@ -1,5 +1,6 @@
-from .utils.agent_utils import create_msg_delete
+from .utils.agent_utils import create_force_finalize, create_msg_delete
 from .utils.agent_states import AgentState, InvestDebateState, RiskDebateState
+from .utils.conflict_detector import create_conflict_detector
 from .utils.memory import FinancialSituationMemory
 
 from .analysts.fundamentals_analyst import create_fundamentals_analyst
@@ -27,7 +28,9 @@ from .trader.trader import create_trader
 __all__ = [
     "FinancialSituationMemory",
     "AgentState",
+    "create_force_finalize",
     "create_msg_delete",
+    "create_conflict_detector",
     "InvestDebateState",
     "RiskDebateState",
     "create_bear_researcher",

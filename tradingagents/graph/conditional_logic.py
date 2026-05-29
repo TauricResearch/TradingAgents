@@ -1,47 +1,66 @@
 # TradingAgents/graph/conditional_logic.py
 
+from langchain_core.messages import AIMessage
+
 from tradingagents.agents.utils.agent_states import AgentState
 
 
 class ConditionalLogic:
     """Handles conditional logic for determining graph flow."""
 
-    def __init__(self, max_debate_rounds=1, max_risk_discuss_rounds=1):
-        """Initialize with configuration parameters."""
+    DEFAULT_ANALYST_TOOL_CAP = {
+        "market": 3,
+        "social": 3,
+        "news": 3,
+        "fundamentals": 4,
+    }
+
+    def __init__(
+        self,
+        max_debate_rounds=1,
+        max_risk_discuss_rounds=1,
+        max_analyst_tool_calls=None,
+    ):
+        """Initialize with configuration parameters.
+
+        max_analyst_tool_calls bounds how many tool-calling rounds each
+        analyst may perform before being forced to finalize without tools.
+        Without this, a misbehaving LLM can loop until the global
+        recursion_limit fires and the whole graph crashes mid-backtest.
+        """
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
+        self.max_analyst_tool_calls = {
+            **self.DEFAULT_ANALYST_TOOL_CAP,
+            **(max_analyst_tool_calls or {}),
+        }
+
+    def _route_analyst(self, state: AgentState, analyst_type: str) -> str:
+        capitalized = analyst_type.capitalize()
+        last_message = state["messages"][-1]
+        if not getattr(last_message, "tool_calls", None):
+            return f"Msg Clear {capitalized}"
+
+        cap = self.max_analyst_tool_calls.get(analyst_type, 3)
+        rounds = sum(
+            1 for m in state["messages"]
+            if isinstance(m, AIMessage) and getattr(m, "tool_calls", None)
+        )
+        if rounds > cap:
+            return f"Force Finalize {capitalized}"
+        return f"tools_{analyst_type}"
 
     def should_continue_market(self, state: AgentState):
-        """Determine if market analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_market"
-        return "Msg Clear Market"
+        return self._route_analyst(state, "market")
 
     def should_continue_social(self, state: AgentState):
-        """Determine if social media analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_social"
-        return "Msg Clear Social"
+        return self._route_analyst(state, "social")
 
     def should_continue_news(self, state: AgentState):
-        """Determine if news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_news"
-        return "Msg Clear News"
+        return self._route_analyst(state, "news")
 
     def should_continue_fundamentals(self, state: AgentState):
-        """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
+        return self._route_analyst(state, "fundamentals")
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""

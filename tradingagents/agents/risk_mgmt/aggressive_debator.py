@@ -1,5 +1,10 @@
 
-from tradingagents.agents.utils.agent_utils import truncate_history
+from tradingagents.agents.utils.agent_utils import (
+    DEBATE_EVIDENCE_GUARDRAIL,
+    build_capital_context,
+    truncate_history,
+    get_language_instruction,
+)
 
 
 def create_aggressive_debator(llm):
@@ -12,14 +17,16 @@ def create_aggressive_debator(llm):
         current_neutral_response = risk_debate_state.get("current_neutral_response", "")
 
         trader_decision = state["trader_investment_plan"]
+        capital_context = build_capital_context(state.get("holdings_info"))
+        capital_block = f"\n\n{capital_context}" if capital_context else ""
 
         prompt = f"""You are the Aggressive Risk Analyst. Champion the trader's decision by arguing for its upside potential and countering conservative/neutral objections with specific rebuttals. Speak conversationally.
 
-Trader's decision: {trader_decision}
+Trader's decision: {trader_decision}{capital_block}
 
 Debate history: {history}
 Last conservative argument: {current_conservative_response}
-Last neutral argument: {current_neutral_response}"""
+Last neutral argument: {current_neutral_response}{DEBATE_EVIDENCE_GUARDRAIL}{get_language_instruction()}"""
 
         response = llm.invoke(prompt)
 

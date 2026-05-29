@@ -20,6 +20,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
         ],
         "deep": [
+            ("GPT-5.5 - Premium frontier reasoning", "gpt-5.5"),
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
             ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),
             ("GPT-5.4 Mini - Fast, strong coding and tool use", "gpt-5.4-mini"),
@@ -126,7 +127,7 @@ MODEL_TIERS: Dict[str, List[ModelTier]] = {
     "openai": [
         ("Budget   — gpt-5.4-nano (quick) + gpt-5.4-mini (deep)",  "budget",   "gpt-5.4-nano",               "gpt-5.4-mini"),
         ("Standard — gpt-5.4-mini (quick) + gpt-5.4 (deep)",       "standard", "gpt-5.4-mini",               "gpt-5.4"),
-        ("Premium  — gpt-5.4 (quick) + gpt-5.4-pro (deep)",        "premium",  "gpt-5.4",                    "gpt-5.4-pro"),
+        ("Premium  — gpt-5.4 (quick) + gpt-5.5 (deep)",            "premium",  "gpt-5.4",                    "gpt-5.5"),
     ],
     "anthropic": [
         ("Budget   — haiku-4-5 (quick) + sonnet-4-6 (deep)",       "budget",   "claude-haiku-4-5",           "claude-sonnet-4-6"),

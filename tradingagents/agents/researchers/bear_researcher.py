@@ -1,5 +1,10 @@
 
-from tradingagents.agents.utils.agent_utils import get_language_instruction, truncate_history
+from tradingagents.agents.utils.agent_utils import (
+    DEBATE_EVIDENCE_GUARDRAIL,
+    get_language_instruction,
+    truncate_history,
+)
+from tradingagents.agents.utils.conflict_detector import format_conflict_report_for_prompt
 
 
 def create_bear_researcher(llm, memory):
@@ -26,6 +31,8 @@ def create_bear_researcher(llm, memory):
             if past_memory_str else ""
         )
 
+        conflict_block = format_conflict_report_for_prompt(state.get("conflict_report"))
+
         prompt = f"""You are a Bear Analyst. Make a concise, evidence-based case against investing in the stock, directly countering the bull's latest argument. Speak conversationally.
 
 Market report: {market_research_report}
@@ -33,8 +40,8 @@ Sentiment report: {sentiment_report}
 News report: {news_report}
 Fundamentals report: {fundamentals_report}
 Debate history: {history}
-Last bull argument: {current_response}
-{memory_section}{get_language_instruction()}"""
+Last bull argument: {current_response}{conflict_block}
+{memory_section}{DEBATE_EVIDENCE_GUARDRAIL}{get_language_instruction()}"""
 
         response = llm.invoke(prompt)
 

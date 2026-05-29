@@ -7,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_language_instruction,
 )
+from tradingagents.agents.utils.conflict_detector import format_conflict_report_for_prompt
 
 
 BROAD_INDEX_TICKERS = {
@@ -211,6 +212,40 @@ def create_portfolio_manager(llm, memory):
         )
         constraints = _derive_short_term_rule_constraints(anchors, holdings_info, ticker)
         constraints_block = "\n\n" + _format_short_term_rule_constraints(constraints)
+        conflict_block = format_conflict_report_for_prompt(state.get("conflict_report"))
+
+        # P0.4 — required-data degradation gate. Core technical anchors must be
+        # present to make a directional short-term call; without them the LLM
+        # would be guessing levels from prose. Force HOLD instead of fabricating.
+        required_anchors = ("current_price", "atr14", "ema10", "ema20")
+        missing_required = (
+            list(required_anchors)
+            if anchors is None
+            else [k for k in required_anchors if anchors.get(k) is None]
+        )
+        if missing_required:
+            forced = (
+                "**Decision**: HOLD\n\n"
+                "**Rationale**: FORCED HOLD — required market anchors "
+                f"{missing_required} were unavailable for {ticker} on {trade_date}. "
+                "System policy: no directional short-term recommendation when core "
+                "technical anchors are missing; re-run once the data feed is restored.\n\n"
+                "**Decision Audit**:\n"
+                "- Data-supported: none (anchor computation failed)\n"
+                "- Inferred: none\n"
+                f"- Missing data: {', '.join(missing_required)}\n"
+                "- Invalidation triggers: n/a\n"
+                "- Watch-list: restore OHLCV / indicator data feed, then re-run analysis."
+            )
+            return {
+                "risk_debate_state": {
+                    **risk_debate_state,
+                    "judge_decision": forced,
+                    "latest_speaker": "Judge",
+                },
+                "final_trade_decision": forced,
+                "structured_strategy": None,
+            }
 
         curr_situation = (
             f"{state['market_report']}\n\n{state['sentiment_report']}\n\n"
@@ -263,7 +298,7 @@ def create_portfolio_manager(llm, memory):
 {lessons_section}
 {holdings_section}
 **Risk Analysts Debate:**
-{history}{anchors_block}{constraints_block}
+{history}{anchors_block}{constraints_block}{conflict_block}
 
 Use the precomputed market anchors verbatim — do not re-derive prices, ATR, support/resistance, or volume_ratio from the analyst reports. Treat the rule constraints as hard caps: position sizing and allowed_actions must respect them even when the debate suggests otherwise; note any constraint that overrode the debate wording in your rationale.
 
@@ -273,7 +308,13 @@ Be decisive and ground every parameter in specific evidence from the debate.{get
 1. **Decision**: BUY / HOLD / SELL
 2. **Trade Parameters**: Initial entry, add-position level, take-profit level, reduce-stop level, stop-loss level, expected holding period (days to weeks)
 3. **Position Sizing**: Suggested allocation as % of portfolio and rationale
-4. **Rationale**: Key reasoning grounded in the analysts' debate"""
+4. **Rationale**: Key reasoning grounded in the analysts' debate
+5. **Decision Audit** (be honest — if you cannot cite specific evidence for a claim, list it under Inferred, not Data-supported):
+   - **Data-supported**: conclusions backed by a specific anchor or report citation; include the number or date
+   - **Inferred**: conclusions reached by reasoning over signals rather than direct evidence
+   - **Missing data**: required inputs that were unavailable or returned a NOTICE (e.g. options chain, volume_ratio)
+   - **Invalidation triggers**: specific observable events that would flip this recommendation
+   - **Watch-list**: the top 3 things to monitor before the next review"""
 
         response = llm.invoke(prompt)
         decision_text = response.content

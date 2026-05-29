@@ -17,7 +17,7 @@ class StaticPriceBacktestEngine(BacktestEngine):
     def load_prices(self) -> pd.DataFrame:
         return self._prices.copy()
 
-    def load_index_context_prices(self, _effective_end_date):
+    def load_index_context_prices(self, _effective_start_date, _effective_end_date):
         return {ticker: df.copy() for ticker, df in self._index_prices.items()}
 
 
@@ -760,6 +760,133 @@ class BacktestEngineTest(unittest.TestCase):
         self.assertEqual(result.report["tp_downgrades_blocked"], 1)
         non_eob = [t for t in result.trades if t["reason"] != "end_of_backtest"]
         self.assertEqual(non_eob, [])
+
+    def test_take_profit_upgrade_is_applied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            # Strategy 1 opens the position.
+            write_strategy(
+                strategy_dir, ticker, "2024-12-31",
+                valid_until="2025-01-01",
+                action="BUY",
+                entry={"price": 10.0, "size_pct": 100.0},
+                stop_loss={"price": 5.0},
+            )
+            # Strategy 2 registers a pending TP at 12.
+            write_strategy(
+                strategy_dir, ticker, "2025-01-01",
+                valid_until="2025-01-02",
+                action="HOLD",
+                entry={"price": None, "size_pct": 0.0},
+                add_position={"price": None, "size_pct": 0.0},
+                take_profit={"price": 12.0, "size_pct": 100.0},
+                stop_loss={"price": 5.0},
+            )
+            # Strategy 3 raises TP from 12 -> 15.
+            write_strategy(
+                strategy_dir, ticker, "2025-01-02",
+                valid_until="2025-01-08",
+                action="HOLD",
+                entry={"price": None, "size_pct": 0.0},
+                add_position={"price": None, "size_pct": 0.0},
+                take_profit={"price": 15.0, "size_pct": 100.0},
+                stop_loss={"price": 5.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 11.0, "High": 11.0, "Low": 10.5, "Close": 11.0},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 12.5, "High": 13.0, "Low": 12.5, "Close": 13.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker, "2025-01-01", "2025-01-03",
+                initial_capital=100.0, strategies_dir=strategy_dir, prices=prices,
+            ).run()
+
+        self.assertEqual(result.report["tp_upgrades_applied"], 1)
+        non_eob = [t for t in result.trades if t["reason"] != "end_of_backtest"]
+        self.assertEqual(non_eob, [])
+
+    def test_pending_entry_stop_downgrade_is_blocked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            # Strategy 1 leaves an entry pending with stop 8.
+            write_strategy(
+                strategy_dir, ticker, "2024-12-31",
+                valid_until="2025-01-10",
+                action="BUY",
+                entry={"price": 10.0, "size_pct": 100.0},
+                take_profit={"price": None, "size_pct": 0.0},
+                stop_loss={"price": 8.0},
+            )
+            # Strategy 2 replaces the pending entry but tries to lower stop 8 -> 7.
+            write_strategy(
+                strategy_dir, ticker, "2025-01-01",
+                valid_until="2025-01-10",
+                action="BUY",
+                entry={"price": 10.0, "size_pct": 100.0},
+                take_profit={"price": None, "size_pct": 0.0},
+                stop_loss={"price": 7.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 11.0, "High": 11.0, "Low": 10.5, "Close": 11.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.5, "Low": 10.0, "Close": 10.2},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 8.2, "High": 8.5, "Low": 7.5, "Close": 8.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker, "2025-01-01", "2025-01-03",
+                initial_capital=100.0, strategies_dir=strategy_dir, prices=prices,
+            ).run()
+
+        self.assertEqual(result.report["stop_downgrades_blocked"], 1)
+        self.assertEqual(result.trades[0]["reason"], "stop_loss")
+        self.assertEqual(result.trades[0]["raw_exit_price"], 8.0)
+
+    def test_pending_entry_stop_upgrade_is_applied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            # Strategy 1 leaves an entry pending with stop 8.
+            write_strategy(
+                strategy_dir, ticker, "2024-12-31",
+                valid_until="2025-01-10",
+                action="BUY",
+                entry={"price": 10.0, "size_pct": 100.0},
+                take_profit={"price": None, "size_pct": 0.0},
+                stop_loss={"price": 8.0},
+            )
+            # Strategy 2 replaces the pending entry and raises stop 8 -> 9.
+            write_strategy(
+                strategy_dir, ticker, "2025-01-01",
+                valid_until="2025-01-10",
+                action="BUY",
+                entry={"price": 10.0, "size_pct": 100.0},
+                take_profit={"price": None, "size_pct": 0.0},
+                stop_loss={"price": 9.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 11.0, "High": 11.0, "Low": 10.5, "Close": 11.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.5, "Low": 10.0, "Close": 10.2},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 9.2, "High": 9.4, "Low": 8.5, "Close": 9.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker, "2025-01-01", "2025-01-03",
+                initial_capital=100.0, strategies_dir=strategy_dir, prices=prices,
+            ).run()
+
+        self.assertEqual(result.report["stop_upgrades_applied"], 1)
+        self.assertEqual(result.trades[0]["reason"], "stop_loss")
+        self.assertEqual(result.trades[0]["raw_exit_price"], 9.0)
 
     def test_min_stop_distance_widens_tight_stops(self):
         with tempfile.TemporaryDirectory() as tmp:

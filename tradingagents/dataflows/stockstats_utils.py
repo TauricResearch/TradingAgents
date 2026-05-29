@@ -12,23 +12,50 @@ from .config import get_config
 logger = logging.getLogger(__name__)
 
 
-def yf_retry(func, max_retries=3, base_delay=2.0):
+def _is_empty_result(result) -> bool:
+    """True for results yfinance returns when it is throttled rather than erroring."""
+    if result is None:
+        return True
+    if isinstance(result, pd.DataFrame):
+        return result.empty
+    if isinstance(result, (list, tuple)):
+        return len(result) == 0
+    return False
+
+
+def yf_retry(func, max_retries=3, base_delay=2.0, retry_on_empty=False):
     """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
     retry them internally. This wrapper adds retry logic specifically
     for rate limits. Other exceptions propagate immediately.
+
+    When ``retry_on_empty`` is True, an empty result (None, empty
+    tuple/list, or empty DataFrame) is also retried with backoff. Yahoo's
+    options endpoint in particular tends to return an empty tuple instead
+    of raising when throttled, so retrying recovers transient failures
+    that would otherwise look like "no data". The empty result is still
+    returned after the final attempt so callers can distinguish a genuine
+    empty from a hard error.
     """
     for attempt in range(max_retries + 1):
         try:
-            return func()
+            result = func()
         except YFRateLimitError:
-            if attempt < max_retries:
-                delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
-                time.sleep(delay)
-            else:
+            if attempt >= max_retries:
                 raise
+            delay = base_delay * (2 ** attempt)
+            logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+            time.sleep(delay)
+            continue
+
+        if retry_on_empty and _is_empty_result(result) and attempt < max_retries:
+            delay = base_delay * (2 ** attempt)
+            logger.warning(f"Yahoo Finance returned empty result, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+            time.sleep(delay)
+            continue
+
+        return result
 
 
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:

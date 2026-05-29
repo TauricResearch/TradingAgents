@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, List
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
 from typing import Dict
@@ -58,6 +58,11 @@ class AgentState(MessagesState):
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
 
+    # Cross-factor conflict report computed after analysts, before the debate (P0.1)
+    conflict_report: Annotated[
+        Dict[str, Any], "Cross-factor divergence signals/conflicts/notes for downstream agents"
+    ]
+
     # researcher team discussion step
     investment_debate_state: Annotated[
         InvestDebateState, "Current state of the debate on if to invest or not"
@@ -77,6 +82,15 @@ class AgentState(MessagesState):
 
     # Optional current position context for the analyzed ticker
     holdings_info: Annotated[Dict[str, float], "Current holdings context: quantity and avg_buy_price"]
+
+    # Backtest-only: rolling-window realized PnL summary from prior strategies
+    trading_history_summary: Annotated[
+        Dict[str, Any], "Rolling-window PnL summary of prior backtest trades"
+    ]
+    # Backtest-only: orders from the previous strategy that never filled
+    prior_pending_orders: Annotated[
+        List[Dict[str, Any]], "Unfilled orders carried over from the previous strategy"
+    ]
 
     # Trading mode: 'live' for real-time analysis or 'backtest' for historical replay
     trading_mode: Annotated[str, "Trading mode: 'live' or 'backtest'"]

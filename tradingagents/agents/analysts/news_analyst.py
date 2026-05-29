@@ -4,6 +4,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news,
     get_language_instruction,
     get_news,
+    get_options_chain,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -16,10 +17,14 @@ def create_news_analyst(llm):
         tools = [
             get_news,
             get_global_news,
+            get_options_chain,
         ]
 
         system_message = (
             "You are a news analyst. Use get_news for company-specific searches and get_global_news for macroeconomic coverage. "
+            "Also call get_options_chain once and cross-check its unusual-activity rows and day-over-day OI deltas against the news you collected: "
+            "large positioning shifts that precede or coincide with a specific headline are stronger signals than either source alone — "
+            "flag such confirmations (and contradictions) explicitly in the report. "
             "Write a report on recent news relevant to trading. Append a Markdown summary table at the end."
             + get_language_instruction()
         )

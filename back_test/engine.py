@@ -90,6 +90,11 @@ class BacktestResult:
     report: Optional[dict] = None
     final_cash: Optional[float] = None
     final_position: Optional[dict] = None
+    # Orders still unfilled at the end of the replay window, tagged by the
+    # strategy_as_of date they originated from. Consumed by the iterative
+    # backtest loop to feed prior-strategy unfilled orders into the next
+    # decision cycle.
+    final_pending_orders: List[dict] = None
 
 
 class BacktestEngine:
@@ -100,7 +105,7 @@ class BacktestEngine:
         ticker: str,
         start_date: str,
         end_date: str,
-        initial_capital: float = 22_000.0,
+        initial_capital: float = 1_000_000.0,
         strategies_dir: Optional[Path] = None,
         commission: float = 0.0,
         slippage_bps: float = 0.0,
@@ -122,7 +127,10 @@ class BacktestEngine:
         self.entry_promoted_to_add = 0
         self.tp_below_cost_blocked = 0
         self.tp_downgrades_blocked = 0
+        self.tp_upgrades_applied = 0
         self.stop_widened = 0
+        self.stop_downgrades_blocked = 0
+        self.stop_upgrades_applied = 0
 
     # ----------------------------------------------------------- load helpers
     def load_strategies(self) -> List[dict]:
@@ -154,24 +162,39 @@ class BacktestEngine:
         ]
 
     def load_prices(self) -> pd.DataFrame:
-        """Daily OHLCV filtered to the effective trading-day window."""
+        """Daily OHLCV filtered to the effective trading-day window.
+
+        Returns an empty DataFrame (preserving columns) if the requested
+        window contains no trading days, so callers can short-circuit instead
+        of needing to catch ValueError.
+        """
         df = load_ohlcv(self.ticker, self.end_date.strftime("%Y-%m-%d"))
-        effective_start, effective_end = adjust_backtest_window(
-            df["Date"],
-            self.start_date.strftime("%Y-%m-%d"),
-            self.end_date.strftime("%Y-%m-%d"),
-        )
+        try:
+            effective_start, effective_end = adjust_backtest_window(
+                df["Date"],
+                self.start_date.strftime("%Y-%m-%d"),
+                self.end_date.strftime("%Y-%m-%d"),
+            )
+        except ValueError:
+            return df.iloc[0:0].reset_index(drop=True)
         start = pd.to_datetime(effective_start)
         end = pd.to_datetime(effective_end)
         df = df[(df["Date"] >= start) & (df["Date"] <= end)]
         return df.sort_values("Date").reset_index(drop=True)
 
-    def load_index_context_prices(self, effective_end_date: Optional[str]) -> dict[str, pd.DataFrame]:
+    def load_index_context_prices(
+        self,
+        effective_start_date: Optional[str],
+        effective_end_date: Optional[str],
+    ) -> dict[str, pd.DataFrame]:
         """Load index OHLCV used only to annotate trade_route output."""
-        if self.ticker.upper() == "TEST" or effective_end_date is None:
+        if (
+            self.ticker.upper() == "TEST"
+            or effective_start_date is None
+            or effective_end_date is None
+        ):
             return {}
-
-        start = pd.to_datetime(self.start_date)
+        start = pd.to_datetime(effective_start_date)
         end = pd.to_datetime(effective_end_date)
         index_prices: dict[str, pd.DataFrame] = {}
         for ticker in INDEX_CONTEXT_TICKERS:
@@ -188,13 +211,25 @@ class BacktestEngine:
     # ----------------------------------------------------------- main loop
     def run(self) -> BacktestResult:
         prices = self.load_prices()
-        effective_start_date = None
-        effective_end_date = None
-        effective_end = self.end_date
-        if not prices.empty:
-            effective_start_date = prices.iloc[0]["Date"].strftime("%Y-%m-%d")
-            effective_end_date = prices.iloc[-1]["Date"].strftime("%Y-%m-%d")
-            effective_end = pd.to_datetime(effective_end_date)
+        if prices.empty:
+            return BacktestResult(
+                equity_curve=pd.DataFrame(
+                    columns=["Date", "Equity", "Cash", "Position", "MarkPrice"]
+                ),
+                trades=[],
+                executions=[],
+                strategies_loaded=0,
+                effective_start_date=None,
+                effective_end_date=None,
+                report=None,
+                final_cash=self.initial_capital,
+                final_position=None,
+                final_pending_orders=[],
+            )
+
+        effective_start_date = prices.iloc[0]["Date"].strftime("%Y-%m-%d")
+        effective_end_date = prices.iloc[-1]["Date"].strftime("%Y-%m-%d")
+        effective_end = pd.to_datetime(effective_end_date)
 
         strategies = [
             s for s in self.load_strategies()
@@ -265,8 +300,12 @@ class BacktestEngine:
                             fill_basis="next_open",
                         )
                         position = None
-                    elif position is not None:
-                        self._update_position_risk(position, active_strategy)
+                    # Note: position.stop_loss is intentionally not refreshed
+                    # from active_strategy.stop_loss here. The pending order
+                    # is the single source of truth for sl — when an
+                    # entry/add order fills, its snapshot sl is propagated
+                    # to the position. A strategy that wants to change sl
+                    # must do so by issuing a new order with that sl.
                     new_orders = self._build_pending_orders(active_strategy, cash, position)
                     expired_count, pending_orders = self._merge_pending_orders(
                         pending_orders,
@@ -409,6 +448,17 @@ class BacktestEngine:
                 "stop_loss_as_of": position.stop_loss_as_of,
             }
 
+        final_pending_orders = [
+            {
+                "order_type": o.order_type,
+                "strategy_as_of": o.strategy_as_of,
+                "limit_price": o.limit_price,
+                "size_pct": o.size_pct,
+                "stop_loss": o.stop_loss,
+            }
+            for o in pending_orders
+        ]
+
         # Close any leftover open position at final close (mark-to-market exit, not a real fill).
         if position is not None and equity_rows:
             final_price = equity_rows[-1]["MarkPrice"]
@@ -419,7 +469,7 @@ class BacktestEngine:
         expired_orders += len(pending_orders)
 
         equity_df = pd.DataFrame(equity_rows)
-        index_prices = self.load_index_context_prices(effective_end_date)
+        index_prices = self.load_index_context_prices(effective_start_date, effective_end_date)
         self._attach_trade_route_price_context(trades, executions, prices, index_prices)
         audit = self._audit_bias(strategies, executions, prices, equity_df)
         report = {
@@ -435,7 +485,10 @@ class BacktestEngine:
             "entry_promoted_to_add": self.entry_promoted_to_add,
             "tp_below_cost_blocked": self.tp_below_cost_blocked,
             "tp_downgrades_blocked": self.tp_downgrades_blocked,
+            "tp_upgrades_applied": self.tp_upgrades_applied,
             "stop_widened": self.stop_widened,
+            "stop_downgrades_blocked": self.stop_downgrades_blocked,
+            "stop_upgrades_applied": self.stop_upgrades_applied,
             "commission": self.commission,
             "slippage_bps": self.slippage_bps,
             "min_stop_distance_pct": self.min_stop_distance_pct,
@@ -451,6 +504,7 @@ class BacktestEngine:
             report=report,
             final_cash=final_cash,
             final_position=final_position,
+            final_pending_orders=final_pending_orders,
         )
 
     # ----------------------------------------------------------- helpers
@@ -596,25 +650,11 @@ class BacktestEngine:
         if not new_orders:
             return BacktestEngine._prune_pending_orders(pending_orders, existing_position)
 
-        # Block TP downgrades: if a new TP would replace an existing pending TP
-        # at a lower limit price, keep the higher TP instead.
-        existing_tp = next(
-            (o for o in pending_orders
-             if o.order_type == "take_profit" and o.limit_price is not None),
-            None,
+        self._preserve_non_decreasing_pending_stops(pending_orders, new_orders)
+        new_orders = self._preserve_non_decreasing_take_profits(
+            pending_orders,
+            new_orders,
         )
-        filtered_new: List[PendingOrder] = []
-        for order in new_orders:
-            if (
-                order.order_type == "take_profit"
-                and order.limit_price is not None
-                and existing_tp is not None
-                and order.limit_price < existing_tp.limit_price
-            ):
-                self.tp_downgrades_blocked += 1
-                continue
-            filtered_new.append(order)
-        new_orders = filtered_new
 
         replacement_types = {order.order_type for order in new_orders}
         kept = [
@@ -625,6 +665,65 @@ class BacktestEngine:
         kept.extend(new_orders)
         prune_expired, pruned = BacktestEngine._prune_pending_orders(kept, existing_position)
         return expired + prune_expired, pruned
+
+    def _preserve_non_decreasing_take_profits(
+        self,
+        pending_orders: List[PendingOrder],
+        new_orders: List[PendingOrder],
+    ) -> List[PendingOrder]:
+        """Keep pending take-profit targets unless the new strategy raises them."""
+        existing_tp = next(
+            (
+                order
+                for order in pending_orders
+                if order.order_type == "take_profit" and order.limit_price is not None
+            ),
+            None,
+        )
+        if existing_tp is None:
+            return new_orders
+
+        filtered_new: List[PendingOrder] = []
+        for order in new_orders:
+            if order.order_type != "take_profit" or order.limit_price is None:
+                filtered_new.append(order)
+                continue
+            if order.limit_price < existing_tp.limit_price:
+                self.tp_downgrades_blocked += 1
+                continue
+            if order.limit_price > existing_tp.limit_price:
+                self.tp_upgrades_applied += 1
+            filtered_new.append(order)
+        return filtered_new
+
+    def _preserve_non_decreasing_pending_stops(
+        self,
+        pending_orders: List[PendingOrder],
+        new_orders: List[PendingOrder],
+    ) -> None:
+        """Carry forward pending buy-order stops unless the new strategy raises them."""
+        existing_stops = {
+            order.order_type: order.stop_loss
+            for order in pending_orders
+            if order.order_type in {"entry", "add"} and order.stop_loss is not None
+        }
+        if not existing_stops:
+            return
+
+        for order in new_orders:
+            if order.order_type not in {"entry", "add"}:
+                continue
+            previous_stop = existing_stops.get(order.order_type)
+            if previous_stop is None:
+                continue
+            if order.stop_loss is None:
+                order.stop_loss = previous_stop
+                self.stop_downgrades_blocked += 1
+            elif order.stop_loss < previous_stop:
+                order.stop_loss = previous_stop
+                self.stop_downgrades_blocked += 1
+            elif order.stop_loss > previous_stop:
+                self.stop_upgrades_applied += 1
 
     @staticmethod
     def _prune_pending_orders(
@@ -641,14 +740,6 @@ class BacktestEngine:
             if order.order_type in valid_types
         ]
         return len(pending_orders) - len(kept), kept
-
-    def _update_position_risk(self, position: Position, strategy: dict) -> None:
-        """Update an open position's stop-loss from a non-null strategy field."""
-        sl = strategy.get("stop_loss") or {}
-        if sl.get("price") is not None:
-            new_stop = self._widen_stop(float(sl["price"]), position.entry_price)
-            position.stop_loss = new_stop
-            position.stop_loss_as_of = strategy["as_of_date"]
 
     def _widen_stop(
         self,

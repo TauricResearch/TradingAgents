@@ -4,7 +4,11 @@
 from __future__ import annotations
 
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_capital_context,
+    build_instrument_context,
+    get_language_instruction,
+)
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -16,6 +20,7 @@ def create_research_manager(llm, memory):
 
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
+        capital_context = build_capital_context(state.get("holdings_info"))
         history = state["investment_debate_state"].get("history", "")
         investment_debate_state = state["investment_debate_state"]
 
@@ -34,9 +39,10 @@ def create_research_manager(llm, memory):
             if past_memory_str else ""
         )
 
+        capital_block = f"\n\n{capital_context}" if capital_context else ""
         prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
 
-{memory_section}{instrument_context}
+{memory_section}{instrument_context}{capital_block}
 
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position

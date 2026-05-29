@@ -10,6 +10,7 @@ from .y_finance import (
     get_cashflow as get_yfinance_cashflow,
     get_income_statement as get_yfinance_income_statement,
     get_insider_transactions as get_yfinance_insider_transactions,
+    get_options_chain as get_yfinance_options_chain,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
 from .alpha_vantage import (
@@ -57,6 +58,12 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+        ]
+    },
+    "options_data": {
+        "description": "Options chain snapshots and derived signals",
+        "tools": [
+            "get_options_chain",
         ]
     }
 }
@@ -107,6 +114,10 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # options_data
+    "get_options_chain": {
+        "yfinance": get_yfinance_options_chain,
     },
 }
 

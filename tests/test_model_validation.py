@@ -2,7 +2,7 @@ import unittest
 import warnings
 
 from tradingagents.llm_clients.base_client import BaseLLMClient
-from tradingagents.llm_clients.model_catalog import get_known_models
+from tradingagents.llm_clients.model_catalog import get_known_models, get_model_tiers
 from tradingagents.llm_clients.validators import validate_model
 
 
@@ -28,6 +28,17 @@ class ModelValidationTests(unittest.TestCase):
             for model in models:
                 with self.subTest(provider=provider, model=model):
                     self.assertTrue(validate_model(provider, model))
+
+    def test_model_tier_models_are_in_known_catalog(self):
+        known_models = get_known_models()
+
+        for provider, models in known_models.items():
+            known = set(models)
+            for _, tier, quick_model, deep_model in get_model_tiers(provider):
+                with self.subTest(provider=provider, tier=tier, model=quick_model):
+                    self.assertIn(quick_model, known)
+                with self.subTest(provider=provider, tier=tier, model=deep_model):
+                    self.assertIn(deep_model, known)
 
     def test_unknown_model_emits_warning_for_strict_provider(self):
         client = DummyLLMClient("openai", "not-a-real-openai-model")

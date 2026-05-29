@@ -1,5 +1,10 @@
 
-from tradingagents.agents.utils.agent_utils import truncate_history, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    DEBATE_EVIDENCE_GUARDRAIL,
+    build_capital_context,
+    get_language_instruction,
+    truncate_history,
+)
 
 
 def create_neutral_debator(llm):
@@ -12,14 +17,16 @@ def create_neutral_debator(llm):
         current_conservative_response = risk_debate_state.get("current_conservative_response", "")
 
         trader_decision = state["trader_investment_plan"]
+        capital_context = build_capital_context(state.get("holdings_info"))
+        capital_block = f"\n\n{capital_context}" if capital_context else ""
 
         prompt = f"""You are the Neutral Risk Analyst. Provide a balanced assessment of the trader's decision, challenging both the aggressive and conservative arguments where each is one-sided. Speak conversationally.
 
-Trader's decision: {trader_decision}
+Trader's decision: {trader_decision}{capital_block}
 
 Debate history: {history}
 Last aggressive argument: {current_aggressive_response}
-Last conservative argument: {current_conservative_response}{get_language_instruction()}"""
+Last conservative argument: {current_conservative_response}{DEBATE_EVIDENCE_GUARDRAIL}{get_language_instruction()}"""
 
         response = llm.invoke(prompt)
 

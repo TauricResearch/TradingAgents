@@ -1136,6 +1136,7 @@ def policy_from_market_state(
     policy_config: Optional[PortfolioStatePolicyConfig] = None,
     market_context_state: Optional[MarketState] = None,
     market_context_ticker: Optional[str] = None,
+    trading_history_summary: Optional[dict] = None,
 ) -> PortfolioStrategy:
     """Deterministically convert MarketState → PortfolioStrategy.
 
@@ -1405,6 +1406,45 @@ def policy_from_market_state(
                 [f"market_phase={effective_phase} forces SELL on existing position."]
             ),
         )
+
+    # B'½. Post-stop cooldown. After a stop_loss exit, prevent immediate re-entry
+    # into the same name even if regime classification still looks bullish — the
+    # typical whipsaw pattern is "stop → next-bar BUY at higher price → stop
+    # again". Only triggers when we are currently flat (existing positions stay
+    # managed by the usual trim/exit logic).
+    if (
+        config.post_stop_cooldown_days > 0
+        and not has_position
+        and trading_history_summary
+    ):
+        last_records = trading_history_summary.get("last_n_pnl") or []
+        if last_records:
+            last = last_records[-1]
+            exit_date_str = last.get("exit_date")
+            reason = (last.get("reason") or "").lower()
+            if exit_date_str and "stop" in reason:
+                try:
+                    gap_days = (
+                        pd.Timestamp(state.as_of_date) - pd.Timestamp(exit_date_str)
+                    ).days
+                except Exception:
+                    gap_days = None
+                if gap_days is not None and 0 <= gap_days <= config.post_stop_cooldown_days:
+                    return PortfolioStrategy(
+                        ticker=state.ticker,
+                        as_of_date=state.as_of_date,
+                        action="HOLD",
+                        entry=PriceSizeBlock(),
+                        add_position=PriceSizeBlock(),
+                        take_profit=PriceSizeBlock(),
+                        reduce_stop=PriceSizeBlock(),
+                        stop_loss=StopLossBlock(price=None),
+                        rationale_summary=_rationale([
+                            f"post_stop_cooldown: {gap_days}d since {exit_date_str} "
+                            f"{reason} exit (<= {config.post_stop_cooldown_days}d threshold) "
+                            f"blocks new entry."
+                        ]),
+                    )
 
     # B''. Phase blocks new positions (bear phases, oversold_bear, bear_rally,
     # high_volatility_range, macro_event_regime). Without an existing position,
@@ -1705,6 +1745,52 @@ def policy_from_market_state(
     )
 
 
+def _format_trading_history_section(summary: dict) -> str:
+    if not summary or not summary.get("n_trades"):
+        return ""
+    window_days = summary.get("window_days")
+    win_rate = summary.get("win_rate")
+    win_rate_str = f"{win_rate:.0%}" if win_rate is not None else "n/a"
+    avg_pnl = summary.get("avg_pnl")
+    avg_pnl_str = f"{avg_pnl:.2f}" if avg_pnl is not None else "n/a"
+    lines = [
+        "- Recent realized PnL (read-only, do not chase or revenge-trade):",
+        f"    window={window_days}d as_of={summary.get('as_of')}",
+        f"    n_trades={summary['n_trades']}, win_rate={win_rate_str}, "
+        f"total_pnl={summary.get('total_pnl', 0.0):.2f}, avg_pnl={avg_pnl_str}",
+    ]
+    recent = summary.get("last_n_pnl") or []
+    if recent:
+        compact = "; ".join(
+            f"{r.get('exit_date', '?')}:{float(r.get('pnl', 0.0)):+.2f}"
+            f"({r.get('reason', '?')})"
+            for r in recent
+        )
+        lines.append(f"    recent: {compact}")
+    return "\n".join(lines) + "\n"
+
+
+def _format_prior_pending_orders_section(pending: list) -> str:
+    if not pending:
+        return ""
+    lines = [
+        "- Prior strategy's unfilled orders (from the immediately preceding "
+        "review; left unfilled because price did not trigger). They will be "
+        "cancelled when this strategy activates — treat as context, not as "
+        "open exposure:",
+    ]
+    for o in pending:
+        parts = [
+            f"type={o.get('order_type')}",
+            f"limit={o.get('limit_price')}",
+            f"size_pct={o.get('size_pct')}",
+        ]
+        if o.get("stop_loss") is not None:
+            parts.append(f"stop_loss={o.get('stop_loss')}")
+        lines.append("    " + ", ".join(parts))
+    return "\n".join(lines) + "\n"
+
+
 def _format_holdings_section(holdings_info: dict) -> str:
     if not holdings_info:
         return ""
@@ -1786,6 +1872,8 @@ def create_portfolio_state_manager(
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
         holdings_info = state.get("holdings_info") or {}
+        trading_history_summary = state.get("trading_history_summary") or {}
+        prior_pending_orders = state.get("prior_pending_orders") or []
         ticker = state["company_of_interest"]
         trade_date = state["trade_date"]
 
@@ -1847,6 +1935,8 @@ def create_portfolio_state_manager(
         anchors_block = "\n\n" + _format_short_term_market_anchors(anchors)
         as_of_date = anchors["as_of_close_date"]
         holdings_section = _format_holdings_section(holdings_info)
+        trading_history_section = _format_trading_history_section(trading_history_summary)
+        prior_pending_section = _format_prior_pending_orders_section(prior_pending_orders)
 
         state_prompt = f"""You are the MarketState classifier for a multi-agent quantitative trading architecture. In backtest mode your job is NOT to create executable orders. You only classify the latent market environment.
 
@@ -1948,7 +2038,7 @@ def create_portfolio_state_manager(
         **Context:**
         - Research Manager's plan: {research_plan}
         - Trader's proposal: {trader_plan}
-        {lessons_section}{holdings_section}**Risk Analysts Debate:**
+        {lessons_section}{holdings_section}{trading_history_section}{prior_pending_section}**Risk Analysts Debate:**
         {history}
         {anchors_block}
 
@@ -2002,6 +2092,7 @@ def create_portfolio_state_manager(
             policy_config=resolved_policy_config,
             market_context_state=market_context_state,
             market_context_ticker=resolved_policy_config.market_context_ticker,
+            trading_history_summary=trading_history_summary,
         ).model_dump()
         strategy_dict = _enforce_strategy_rules(
             strategy_dict, anchors, constraints, holdings_info

@@ -3,6 +3,7 @@ from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_indicators,
     get_language_instruction,
+    get_options_chain,
     get_stock_data,
 )
 from tradingagents.dataflows.config import get_config
@@ -17,6 +18,7 @@ def create_market_analyst(llm):
         tools = [
             get_stock_data,
             get_indicators,
+            get_options_chain,
         ]
 
         system_message = (
@@ -29,11 +31,15 @@ def create_market_analyst(llm):
             "Always pull volume and volume_20_sma when judging breakouts, breakdowns, or 'holding above key level' setups: "
             "compute today's volume / volume_20_sma ratio and explicitly state whether a move is on expanding (>1.5x), normal (~1x), or shrinking (<0.7x) participation. "
             "A breakout or 放量站稳 (holding above resistance) reading should only be called valid when price action and volume confirmation align. "
-            "Structure your report in three sections: "
+            "Also call get_options_chain once to obtain near-expiry max pain, top-OI strikes, ATM IV, and IV skew — "
+            "treat these as supplemental price-magnet / volatility-regime context, not as primary triggers. "
+            "Structure your report in four sections: "
             "(1) Short-term signals — what the short-period indicators reveal about near-term direction, momentum, and optimal entry/exit timing; "
             "(2) Short-term levels — compare price against 5/10/20 EMA, recent 5-10 day support/resistance, "
             "and assess whether the short-term signal aligns with or diverges from the broader trend, and what that divergence implies for risk; "
-            "(3) Volume confirmation — today's volume vs volume_20_sma, whether the recent move is backed by participation, and any divergence between price and volume. "
+            "(3) Volume confirmation — today's volume vs volume_20_sma, whether the recent move is backed by participation, and any divergence between price and volume; "
+            "(4) Options-implied levels & volatility — note max pain and the nearest high-OI call/put strikes as candidate magnets or resistance/support, "
+            "report ATM IV (rich vs cheap relative to recent realized volatility if knowable) and IV skew (a strongly positive put-call skew implies the market is paying up for downside hedges). "
             "Append a Markdown summary table at the end."
             + get_language_instruction()
         )

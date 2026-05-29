@@ -122,6 +122,7 @@ class TradingAgentsGraph:
         self.conditional_logic = ConditionalLogic(
             max_debate_rounds=self.config["max_debate_rounds"],
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
+            max_analyst_tool_calls=self.config.get("max_analyst_tool_calls"),
         )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
@@ -216,6 +217,8 @@ class TradingAgentsGraph:
         trade_date,
         holdings_info: Optional[Dict[str, float]] = None,
         trading_mode: str = "live",
+        trading_history_summary: Optional[Dict[str, Any]] = None,
+        prior_pending_orders: Optional[List[Dict[str, Any]]] = None,
     ):
         """Run the trading agents graph for a company on a specific date."""
 
@@ -249,6 +252,8 @@ class TradingAgentsGraph:
                 trade_date,
                 holdings_info=holdings_info,
                 trading_mode=trading_mode,
+                trading_history_summary=trading_history_summary,
+                prior_pending_orders=prior_pending_orders,
             )
             args = self.propagator.get_graph_args()
             if self.config.get("checkpoint_enabled"):
