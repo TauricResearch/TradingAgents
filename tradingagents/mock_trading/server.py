@@ -94,10 +94,14 @@ def get_stock_price(ticker: str) -> float:
     if HAS_YFINANCE and yf:
         try:
             stock = yf.Ticker(ticker_upper)
-            # Try fast info
-            price_val = stock.fast_info.get('last_price', None)
-            if price_val:
-                return float(price_val)
+            # Try fast info safely as it is a custom FastInfo object, not a dict
+            if hasattr(stock, 'fast_info'):
+                try:
+                    price_val = stock.fast_info.last_price
+                    if price_val is not None:
+                        return float(price_val)
+                except Exception:
+                    pass
             
             # Fallback to history
             hist = stock.history(period="1d")
@@ -299,7 +303,7 @@ async def serve_dashboard():
 
 
 @app.get("/api/status")
-async def get_status():
+def get_status():
     """Retrieve portfolio metrics, available capital, and system parameters."""
     global db, active_portfolio_id
     if not db:
@@ -343,7 +347,7 @@ async def get_status():
 
 
 @app.get("/api/holdings")
-async def get_holdings():
+def get_holdings():
     """Retrieve a detailed list of current active stock holdings with real-time profits."""
     global db, active_portfolio_id
     if not db:
@@ -379,7 +383,7 @@ async def get_holdings():
 
 
 @app.get("/api/transactions")
-async def get_transactions(limit: int = 50):
+def get_transactions(limit: int = 50):
     """Retrieve transaction logs for the active portfolio."""
     global db, active_portfolio_id
     if not db:
@@ -394,7 +398,7 @@ async def get_transactions(limit: int = 50):
 
 
 @app.get("/api/scheduler")
-async def get_scheduler_info():
+def get_scheduler_info():
     """Get status and configured job parameters for the cron scheduler."""
     global scheduler
     if not scheduler:
@@ -404,7 +408,7 @@ async def get_scheduler_info():
 
 
 @app.post("/api/scheduler/{action}")
-async def control_scheduler(action: str, job_id: Optional[str] = None):
+def control_scheduler(action: str, background_tasks: BackgroundTasks, job_id: Optional[str] = None):
     """Control the scheduler: pause, resume, or trigger daily jobs immediately."""
     global scheduler
     if not scheduler:
@@ -427,9 +431,9 @@ async def control_scheduler(action: str, job_id: Optional[str] = None):
         if not session:
             raise HTTPException(status_code=404, detail="Job not found")
             
-        # Execute the job function asynchronously in background
+        # Execute the job function asynchronously in background via FastAPI's background_tasks
         func = session.get("job").func
-        func()
+        background_tasks.add_task(func)
         return {"status": "success", "message": f"Manually triggered job {job_id} successfully."}
         
     else:
@@ -438,13 +442,13 @@ async def control_scheduler(action: str, job_id: Optional[str] = None):
 
 # Watchlist and Schedule Rescheduling Endpoints
 @app.get("/api/watchlist")
-async def get_watchlist():
+def get_watchlist():
     """Retrieve the current daily active watchlist."""
     return {"watchlist": watchlist}
 
 
 @app.post("/api/watchlist/add")
-async def add_to_watchlist(request: WatchlistRequest):
+def add_to_watchlist(request: WatchlistRequest):
     """Add a stock ticker to the daily active watchlist."""
     ticker = request.ticker.strip().upper()
     if not ticker:
@@ -456,7 +460,7 @@ async def add_to_watchlist(request: WatchlistRequest):
 
 
 @app.post("/api/watchlist/remove")
-async def remove_from_watchlist(request: WatchlistRequest):
+def remove_from_watchlist(request: WatchlistRequest):
     """Remove a stock ticker from the daily active watchlist."""
     ticker = request.ticker.strip().upper()
     if ticker in watchlist:
@@ -466,7 +470,7 @@ async def remove_from_watchlist(request: WatchlistRequest):
 
 
 @app.post("/api/scheduler-edit")
-async def edit_scheduler_time(request: SchedulerEditRequest):
+def edit_scheduler_time(request: SchedulerEditRequest):
     """Dynamically modify the daily cron hour/minute configuration for a job."""
     global scheduler
     if not scheduler:
@@ -499,7 +503,7 @@ async def edit_scheduler_time(request: SchedulerEditRequest):
 
 
 @app.post("/api/analyze")
-async def run_analysis(request: AnalysisRequest):
+def run_analysis(request: AnalysisRequest):
     """Run a dynamic multi-agent simulation that produces a trading signal."""
     global db, active_portfolio_id
     if not db:
@@ -584,7 +588,7 @@ async def run_analysis(request: AnalysisRequest):
 
 
 @app.post("/api/execute")
-async def execute_trade(request: ExecutionRequest):
+def execute_trade(request: ExecutionRequest):
     """Execute a recorded AI decision immediately, updating holdings and cash balances."""
     global db, active_portfolio_id
     if not db:
@@ -724,7 +728,7 @@ async def execute_trade(request: ExecutionRequest):
 
 
 @app.get("/api/history")
-async def get_history():
+def get_history():
     """Retrieve portfolio snapshot history for plotting performance charts."""
     global db, active_portfolio_id
     if not db:
@@ -747,7 +751,7 @@ async def get_history():
             val = base_value + (i * 12.5) + random.uniform(-15.0, 15.0)
             if i == 10:
                 # Sync final point with status balance
-                status_res = await get_status()
+                status_res = get_status()
                 val = status_res["current_balance"]
                 
             history.append({

@@ -60,7 +60,19 @@ class MockTradingEngine:
                 self.add_to_watchlist(ticker)
             
             ticker_obj = self.watchlist[ticker]
-            price = ticker_obj.info.get("currentPrice")
+            
+            # Try lightweight fast info first to avoid slow profile scraping
+            price = None
+            if hasattr(ticker_obj, 'fast_info'):
+                try:
+                    price_val = ticker_obj.fast_info.last_price
+                    if price_val is not None:
+                        price = float(price_val)
+                except Exception:
+                    pass
+            
+            if price is None:
+                price = ticker_obj.info.get("currentPrice")
             
             if price is None:
                 # Fallback to last close

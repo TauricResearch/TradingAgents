@@ -1,6 +1,7 @@
 """SQLite database schema and operations for mock trading system."""
 
 import sqlite3
+import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -20,28 +21,70 @@ class TradingDatabase:
         """
         if db_path is None:
             db_path = Path.home() / ".tradingagents" / "mock_trading.db"
+        elif db_path == ":memory:":
+            db_path = ":memory:"
         else:
             db_path = Path(db_path)
         
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.db_path = str(db_path)
-        self.conn = None
-        self.cursor = None
-        self.connect()
+        if db_path != ":memory:":
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            self.db_path = str(db_path)
+        else:
+            self.db_path = ":memory:"
+            
+        self._local = threading.local()
         self.init_schema()
+        logger.info(f"Database schema initialized (path: {self.db_path})")
+
+    @property
+    def conn(self):
+        """Thread-safe connection getter. Uses shared connection for :memory: database to support tests."""
+        if self.db_path == ":memory:":
+            if not hasattr(self, "_shared_conn") or self._shared_conn is None:
+                self._shared_conn = sqlite3.connect(self.db_path, check_same_thread=False)
+                self._shared_conn.row_factory = sqlite3.Row
+            return self._shared_conn
+            
+        if not hasattr(self._local, "conn") or self._local.conn is None:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            self._local.conn = conn
+        return self._local.conn
+
+    @property
+    def cursor(self):
+        """Thread-safe cursor getter."""
+        if self.db_path == ":memory:":
+            if not hasattr(self, "_shared_cursor") or self._shared_cursor is None:
+                self._shared_cursor = self.conn.cursor()
+            return self._shared_cursor
+            
+        if not hasattr(self._local, "cursor") or self._local.cursor is None:
+            self._local.cursor = self.conn.cursor()
+        return self._local.cursor
     
     def connect(self):
-        """Connect to SQLite database."""
-        self.conn = sqlite3.connect(self.db_path)
-        self.conn.row_factory = sqlite3.Row
-        self.cursor = self.conn.cursor()
-        logger.info(f"Connected to database: {self.db_path}")
+        """No-op for backward compatibility. Connections are created lazily per thread."""
+        pass
     
     def close(self):
-        """Close database connection."""
-        if self.conn:
-            self.conn.close()
-            logger.info("Database connection closed")
+        """Close database connection for the current thread."""
+        if self.db_path == ":memory:":
+            if hasattr(self, "_shared_conn") and self._shared_conn is not None:
+                self._shared_conn.close()
+                self._shared_conn = None
+                self._shared_cursor = None
+                logger.info("Shared database connection closed")
+            return
+            
+        if hasattr(self._local, "conn") and self._local.conn is not None:
+            try:
+                self._local.conn.close()
+            except Exception:
+                pass
+            self._local.conn = None
+            self._local.cursor = None
+            logger.info("Thread database connection closed")
     
     def init_schema(self):
         """Initialize database schema with all tables."""

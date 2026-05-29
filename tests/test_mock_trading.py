@@ -128,15 +128,13 @@ def test_all_modules():
         print("\nDocumentation: MOCK_TRADING_GUIDE.md")
         print("="*70 + "\n")
         
-        return True
-    
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        raise e
 
 
 if __name__ == "__main__":
-    success = test_all_modules()
-    sys.exit(0 if success else 1)
+    test_all_modules()
+    sys.exit(0)
