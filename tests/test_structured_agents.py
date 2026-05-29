@@ -1,23 +1,27 @@
-"""Tests for structured-output agents (Trader and Research Manager).
+"""Tests for structured-output agents (Trader, Research Manager, Sentiment Analyst).
 
 The Portfolio Manager has its own coverage in tests/test_memory_log.py
 (which exercises the full memory-log → PM injection cycle).  This file
 covers the parallel schemas, render functions, and graceful-fallback
-behavior we added for the Trader and Research Manager so all three
-decision-making agents share the same shape.
+behavior we added for the Trader, Research Manager, and Sentiment Analyst
+so all decision-making agents share the same deterministic output shape.
 """
 
 from unittest.mock import MagicMock
 
 import pytest
 
+from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.agents.schemas import (
     PortfolioRating,
     ResearchPlan,
+    SentimentBand,
+    SentimentReport,
     TraderAction,
     TraderProposal,
     render_research_plan,
+    render_sentiment_report,
     render_trader_proposal,
 )
 from tradingagents.agents.trader.trader import create_trader
@@ -230,3 +234,151 @@ class TestResearchManagerAgent:
         rm = create_research_manager(llm)
         result = rm(_make_rm_state())
         assert result["investment_plan"] == plain_response
+
+
+# ---------------------------------------------------------------------------
+# Sentiment Analyst: schema, render, structured happy path + fallback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestRenderSentimentReport:
+    def test_header_contains_band_and_score(self):
+        report = SentimentReport(
+            overall_band=SentimentBand.BULLISH,
+            overall_score=7.2,
+            confidence="high",
+            narrative="Source breakdown here.",
+        )
+        md = render_sentiment_report(report)
+        assert "**Overall Sentiment:** **Bullish**" in md
+        assert "(Score: 7.2/10)" in md
+
+    def test_header_contains_confidence(self):
+        report = SentimentReport(
+            overall_band=SentimentBand.NEUTRAL,
+            overall_score=5.0,
+            confidence="low",
+            narrative="Limited data.",
+        )
+        md = render_sentiment_report(report)
+        assert "**Confidence:** Low" in md
+
+    def test_narrative_preserved_in_output(self):
+        narrative = "## Breakdown\n\nStockTwits: 70% bullish.\n\n| Signal | Direction |\n|---|---|\n| News | Neutral |"
+        report = SentimentReport(
+            overall_band=SentimentBand.MILDLY_BULLISH,
+            overall_score=6.0,
+            confidence="medium",
+            narrative=narrative,
+        )
+        md = render_sentiment_report(report)
+        assert narrative in md
+
+    def test_all_six_bands_render(self):
+        for band in SentimentBand:
+            report = SentimentReport(
+                overall_band=band,
+                overall_score=5.0,
+                confidence="medium",
+                narrative="n",
+            )
+            md = render_sentiment_report(report)
+            assert band.value in md
+
+    def test_score_out_of_range_rejected(self):
+        import pytest as _pytest
+        with _pytest.raises(Exception):
+            SentimentReport(
+                overall_band=SentimentBand.BULLISH,
+                overall_score=11.0,
+                confidence="high",
+                narrative="n",
+            )
+
+
+def _make_sentiment_state():
+    return {
+        "company_of_interest": "NVDA",
+        "trade_date": "2026-01-15",
+        "asset_type": "stock",
+        "messages": [],
+    }
+
+
+def _structured_sentiment_llm(captured: dict, report: SentimentReport | None = None):
+    """Build a MagicMock LLM whose with_structured_output binding captures
+    the prompt and returns a real SentimentReport so render_sentiment_report works.
+    """
+    if report is None:
+        report = SentimentReport(
+            overall_band=SentimentBand.BULLISH,
+            overall_score=7.5,
+            confidence="high",
+            narrative="StockTwits 75% bullish. News constructive. Reddit upbeat.",
+        )
+    structured = MagicMock()
+    structured.invoke.side_effect = lambda prompt: (
+        captured.__setitem__("prompt", prompt) or report
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = structured
+    return llm
+
+
+@pytest.mark.unit
+class TestSentimentAnalystAgent:
+    def test_structured_path_produces_rendered_markdown(self):
+        captured = {}
+        report = SentimentReport(
+            overall_band=SentimentBand.MILDLY_BEARISH,
+            overall_score=4.0,
+            confidence="medium",
+            narrative="Mixed signals across sources.",
+        )
+        llm = _structured_sentiment_llm(captured, report)
+        analyst = create_sentiment_analyst(llm)
+        result = analyst(_make_sentiment_state())
+        sr = result["sentiment_report"]
+        assert "**Overall Sentiment:** **Mildly Bearish**" in sr
+        assert "(Score: 4.0/10)" in sr
+        assert "Mixed signals across sources." in sr
+
+    def test_sentiment_report_also_in_messages(self):
+        captured = {}
+        llm = _structured_sentiment_llm(captured)
+        analyst = create_sentiment_analyst(llm)
+        result = analyst(_make_sentiment_state())
+        assert len(result["messages"]) == 1
+        assert result["sentiment_report"] == result["messages"][0].content
+
+    def test_prompt_contains_ticker(self):
+        captured = {}
+        llm = _structured_sentiment_llm(captured)
+        analyst = create_sentiment_analyst(llm)
+        analyst(_make_sentiment_state())
+        prompt = captured["prompt"]
+        assert any("NVDA" in str(m) for m in prompt)
+
+    def test_falls_back_to_freetext_when_structured_unavailable(self):
+        plain_response = (
+            "**Overall Sentiment:** **Bearish** (Score: 3.0/10)\n"
+            "**Confidence:** Low\n\nLimited data available."
+        )
+        llm = MagicMock()
+        llm.with_structured_output.side_effect = NotImplementedError("provider unsupported")
+        llm.invoke.return_value = MagicMock(content=plain_response)
+        analyst = create_sentiment_analyst(llm)
+        result = analyst(_make_sentiment_state())
+        assert result["sentiment_report"] == plain_response
+
+    def test_falls_back_to_freetext_when_structured_call_fails(self):
+        plain_response = "Fallback free-text sentiment."
+        structured = MagicMock()
+        structured.invoke.side_effect = ValueError("bad JSON from model")
+        llm = MagicMock()
+        llm.with_structured_output.return_value = structured
+        llm.invoke.return_value = MagicMock(content=plain_response)
+        analyst = create_sentiment_analyst(llm)
+        result = analyst(_make_sentiment_state())
+        assert result["sentiment_report"] == plain_response
