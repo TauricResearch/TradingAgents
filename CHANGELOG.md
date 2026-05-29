@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- Native Kimi (Moonshot AI) provider support (`kimi`) with correct reasoning_content round-tripping for K2 models.
+
+### Fixed
+
+- **MiniMax M2.x reasoning models**: `reasoning_split` is now placed under
+  `extra_body` in the request payload instead of as a top-level key. This
+  prevents `TypeError: Completions.create() got an unexpected keyword
+  argument 'reasoning_split'` (and the "did you mean reasoning_effort?"
+  suggestion) when using any `MiniMax-M2.*` model. The capability guard added
+  in #826 only prevented the parameter for non-reasoning MiniMax models; the
+  actual payload construction for reasoning models was still broken because
+  langchain_openai unpacks the dict from `_get_request_payload` directly
+  into the OpenAI SDK client. Follow-up to #826.
+
 ## [0.2.5] — 2026-05-11
 
 ### Added

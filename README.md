@@ -143,6 +143,7 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export DEEPSEEK_API_KEY=...        # DeepSeek
+export MOONSHOT_API_KEY=...        # Kimi (Moonshot AI) — https://platform.kimi.com/console/api-keys
 export DASHSCOPE_API_KEY=...       # Qwen — International (dashscope-intl.aliyuncs.com)
 export DASHSCOPE_CN_API_KEY=...    # Qwen — China (dashscope.aliyuncs.com)
 export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
@@ -153,9 +154,17 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
+> **Important for Kimi users**:
+> - Keys from different Moonshot/Kimi consoles (e.g. `platform.moonshot.ai`, `platform.kimi.com`) are **not interchangeable**.
+> - The provider defaults to `https://api.moonshot.ai/v1`.
+> - If your key only works with a different endpoint (e.g. `https://api.moonshot.cn/v1`), set the `KIMI_BASE_URL` environment variable.
+> - Generate your key from the console that matches your account.
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
+
+For Kimi (Moonshot AI), the provider defaults to `https://api.moonshot.ai/v1`. If your API key only works with a different endpoint (e.g. the China portal), set `KIMI_BASE_URL=https://api.moonshot.cn/v1`. Keys from different Moonshot/Kimi consoles are not interchangeable.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -213,7 +222,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, kimi, qwen, qwen-cn, glm, glm-cn, minimax, minimax-cn, openrouter, ollama, azure
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
