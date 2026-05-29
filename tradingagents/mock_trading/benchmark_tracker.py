@@ -31,6 +31,18 @@ class BenchmarkTracker:
         Returns:
             Dictionary of date -> daily return %
         """
+        if start_date == end_date:
+            try:
+                # Add 1 day to make the end date inclusive in yfinance
+                dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_date = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
+            except Exception:
+                try:
+                    dt = datetime.fromisoformat(start_date)
+                    end_date = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+
         try:
             ticker = yf.Ticker(self.benchmark_ticker)
             hist = ticker.history(start=start_date, end=end_date)
@@ -85,6 +97,9 @@ class BenchmarkTracker:
                 return 0.0
             
             start_price = hist.iloc[0]["Close"]
+            if start_price <= 0:
+                return 0.0
+                
             end_price = hist.iloc[-1]["Close"]
             
             return ((end_price - start_price) / start_price) * 100

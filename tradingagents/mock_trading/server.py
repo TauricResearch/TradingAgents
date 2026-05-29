@@ -4,13 +4,14 @@ import os
 import sys
 import logging
 import random
+import time
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,17 @@ except ImportError:
     from portfolio_manager import PortfolioManager
     from order_manager import OrderManager, PriceType
 
+try:
+    from tradingagents.mock_trading.exceptions import (
+        MockTradingError, InsufficientFundsError, PositionNotFoundError,
+        MarketDataUnavailableError, InvalidTickerError
+    )
+except ImportError:
+    from exceptions import (
+        MockTradingError, InsufficientFundsError, PositionNotFoundError,
+        MarketDataUnavailableError, InvalidTickerError
+    )
+
 # Attempt yfinance import for real-time stock prices
 try:
     import yfinance as yf
@@ -45,6 +57,10 @@ scheduler: Optional[TradingScheduler] = None
 active_portfolio_id: int = 1
 watchlist: List[str] = ["NVDA", "AAPL", "TSLA"]
 
+# Stock Price TTL Cache
+PRICE_CACHE: Dict[str, tuple] = {}  # ticker -> (price, timestamp)
+CACHE_TTL = 15.0  # 15 seconds cache expiration
+
 
 app = FastAPI(
     title="TradingAgents Mock Trading Terminal",
@@ -53,9 +69,19 @@ app = FastAPI(
 )
 
 
-# Input models
+# Exception handler for Mock Trading errors
+@app.exception_handler(MockTradingError)
+def mock_trading_exception_handler(request: Request, exc: MockTradingError):
+    logger.warning(f"Mock trading operation error: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content={"status": "error", "message": str(exc)},
+    )
+
+
+# Input models with strong regex validation
 class AnalysisRequest(BaseModel):
-    ticker: str
+    ticker: str = Field(..., pattern=r"^[A-Z0-9.-]{1,10}$", description="Stock symbol (1-10 uppercase alphanumeric chars)")
     model: str = "gemini-1.5-flash"
 
 
@@ -64,7 +90,7 @@ class ExecutionRequest(BaseModel):
 
 
 class WatchlistRequest(BaseModel):
-    ticker: str
+    ticker: str = Field(..., pattern=r"^[A-Z0-9.-]{1,10}$", description="Stock symbol (1-10 uppercase alphanumeric chars)")
 
 
 class SchedulerEditRequest(BaseModel):
@@ -76,6 +102,13 @@ def get_stock_price(ticker: str) -> float:
     """Fetch live price of a stock using yfinance or return a simulated price."""
     ticker_upper = ticker.strip().upper()
     
+    # Check Price TTL Cache first
+    now = time.time()
+    if ticker_upper in PRICE_CACHE:
+        cached_price, cached_time = PRICE_CACHE[ticker_upper]
+        if now - cached_time < CACHE_TTL:
+            return cached_price
+
     # Static fallbacks for offline or fails
     default_prices = {
         "NVDA": 122.45,
@@ -90,6 +123,7 @@ def get_stock_price(ticker: str) -> float:
     }
     
     price = default_prices.get(ticker_upper, 100.0)
+    fetched_from_yf = False
     
     if HAS_YFINANCE and yf:
         try:
@@ -99,20 +133,28 @@ def get_stock_price(ticker: str) -> float:
                 try:
                     price_val = stock.fast_info.last_price
                     if price_val is not None:
-                        return float(price_val)
+                        price = float(price_val)
+                        fetched_from_yf = True
                 except Exception:
                     pass
             
-            # Fallback to history
-            hist = stock.history(period="1d")
-            if not hist.empty:
-                return float(hist['Close'].iloc[-1])
+            if not fetched_from_yf:
+                # Fallback to history
+                hist = stock.history(period="1d")
+                if not hist.empty:
+                    price = float(hist['Close'].iloc[-1])
+                    fetched_from_yf = True
         except Exception as e:
             logger.warning(f"Failed to fetch live price for {ticker_upper}: {e}")
             
-    # Add minor fluctuation to simulated prices to make it feel alive
-    fluctuation = random.uniform(-0.005, 0.005)
-    return round(price * (1 + fluctuation), 2)
+    if not fetched_from_yf:
+        # Add minor fluctuation to simulated prices to make it feel alive
+        fluctuation = random.uniform(-0.005, 0.005)
+        price = round(price * (1 + fluctuation), 2)
+    
+    # Cache the computed/fetched price
+    PRICE_CACHE[ticker_upper] = (price, now)
+    return price
 
 
 def morning_analysis_task():
@@ -271,10 +313,13 @@ def startup_event():
 @app.on_event("shutdown")
 def shutdown_event():
     """Stop the background scheduler on shutdown."""
-    global scheduler
+    global scheduler, db
     if scheduler:
         scheduler.stop()
         logger.info("Background trading scheduler shut down.")
+    if db:
+        db.close()
+        logger.info("Database connection closed gracefully on shutdown.")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -610,9 +655,8 @@ def execute_trade(request: ExecutionRequest):
     confidence = d["confidence_score"]
     
     if decision_type == "HOLD":
-        # Mark as executed in DB and return
-        db.cursor.execute("UPDATE ai_decisions SET executed = 1, execution_status = 'FILLED' WHERE id = ?", (decision_id,))
-        db.conn.commit()
+        with db.transaction():
+            db.cursor.execute("UPDATE ai_decisions SET executed = 1, execution_status = 'FILLED' WHERE id = ?", (decision_id,))
         return {"status": "success", "message": "HOLD signal recorded. No transactions needed."}
         
     # Get current price
@@ -622,54 +666,54 @@ def execute_trade(request: ExecutionRequest):
     
     # Determine sizing based on confidence and capital
     if decision_type == "BUY":
-        # Allocate up to 10% of cash balance on BUY
+        # Allocate up to 15% of cash balance on BUY
         allocation = cash * 0.15 * confidence
         qty = round(allocation / price, 4)
         total_cost = round(qty * price, 2)
         
         if qty <= 0 or total_cost > cash:
-            raise HTTPException(status_code=400, detail=f"Insufficient cash available to buy {ticker}.")
+            raise InsufficientFundsError(f"Insufficient cash available to buy {ticker} (need ${total_cost:.2f}, have ${cash:.2f}).")
             
-        # Deduct cash, add transaction, update holding
-        new_cash = round(cash - total_cost, 2)
-        db.update_portfolio_balance(active_portfolio_id, portfolio["current_balance"], new_cash)
-        
-        tx_id = db.add_transaction(
-            portfolio_id=active_portfolio_id,
-            transaction_type="BUY",
-            ticker=ticker,
-            quantity_requested=qty,
-            quantity_filled=qty,
-            order_status="FILLED",
-            price_type="LAST",
-            price_per_share=price,
-            total_value=total_cost,
-            ai_decision_id=decision_id,
-            notes=f"Interactive BUY signal via Web UI with confidence {confidence}"
-        )
-        
-        # Add to holdings
-        holdings = db.execute_query(
-            "SELECT quantity_held, avg_buy_price FROM holdings WHERE portfolio_id = ? AND ticker = ?",
-            (active_portfolio_id, ticker)
-        )
-        if holdings:
-            old_qty = holdings[0]["quantity_held"]
-            old_avg = holdings[0]["avg_buy_price"]
-            new_qty = old_qty + qty
-            new_avg = round(((old_qty * old_avg) + (qty * price)) / new_qty, 2)
-        else:
-            new_qty = qty
-            new_avg = price
+        with db.transaction():
+            # Deduct cash, add transaction, update holding
+            new_cash = round(cash - total_cost, 2)
+            db.update_portfolio_balance(active_portfolio_id, portfolio["current_balance"], new_cash)
             
-        db.add_holding(active_portfolio_id, ticker, new_qty, new_avg, price)
-        
-        # Update decision state in database
-        db.cursor.execute(
-            "UPDATE ai_decisions SET executed = 1, execution_status = 'FILLED', execution_price = ? WHERE id = ?",
-            (price, decision_id)
-        )
-        db.conn.commit()
+            tx_id = db.add_transaction(
+                portfolio_id=active_portfolio_id,
+                transaction_type="BUY",
+                ticker=ticker,
+                quantity_requested=qty,
+                quantity_filled=qty,
+                order_status="FILLED",
+                price_type="LAST",
+                price_per_share=price,
+                total_value=total_cost,
+                ai_decision_id=decision_id,
+                notes=f"Interactive BUY signal via Web UI with confidence {confidence}"
+            )
+            
+            # Add to holdings
+            holdings = db.execute_query(
+                "SELECT quantity_held, avg_buy_price FROM holdings WHERE portfolio_id = ? AND ticker = ?",
+                (active_portfolio_id, ticker)
+            )
+            if holdings:
+                old_qty = holdings[0]["quantity_held"]
+                old_avg = holdings[0]["avg_buy_price"]
+                new_qty = old_qty + qty
+                new_avg = round(((old_qty * old_avg) + (qty * price)) / new_qty, 2)
+            else:
+                new_qty = qty
+                new_avg = price
+                
+            db.add_holding(active_portfolio_id, ticker, new_qty, new_avg, price)
+            
+            # Update decision state in database
+            db.cursor.execute(
+                "UPDATE ai_decisions SET executed = 1, execution_status = 'FILLED', execution_price = ? WHERE id = ?",
+                (price, decision_id)
+            )
         
         return {
             "status": "success",
@@ -684,40 +728,40 @@ def execute_trade(request: ExecutionRequest):
         )
         
         if not holdings or holdings[0]["quantity_held"] <= 0:
-            raise HTTPException(status_code=400, detail=f"No active holdings of {ticker} available to sell.")
+            raise PositionNotFoundError(f"No active holdings of {ticker} available to sell.")
             
         qty = holdings[0]["quantity_held"]
         avg_price = holdings[0]["avg_buy_price"]
         total_value = round(qty * price, 2)
         realized_pl = round(total_value - (qty * avg_price), 2)
         
-        # Add to cash
-        new_cash = round(cash + total_value, 2)
-        db.update_portfolio_balance(active_portfolio_id, portfolio["current_balance"], new_cash)
-        
-        tx_id = db.add_transaction(
-            portfolio_id=active_portfolio_id,
-            transaction_type="SELL",
-            ticker=ticker,
-            quantity_requested=qty,
-            quantity_filled=qty,
-            order_status="FILLED",
-            price_type="LAST",
-            price_per_share=price,
-            total_value=total_value,
-            ai_decision_id=decision_id,
-            notes=f"Interactive SELL signal via Web UI with confidence {confidence}"
-        )
-        
-        # Set holding to zero
-        db.add_holding(active_portfolio_id, ticker, 0, 0, price)
-        
-        # Update decision state
-        db.cursor.execute(
-            "UPDATE ai_decisions SET executed = 1, execution_status = 'FILLED', execution_price = ?, realized_pl = ? WHERE id = ?",
-            (price, realized_pl, decision_id)
-        )
-        db.conn.commit()
+        with db.transaction():
+            # Add to cash
+            new_cash = round(cash + total_value, 2)
+            db.update_portfolio_balance(active_portfolio_id, portfolio["current_balance"], new_cash)
+            
+            tx_id = db.add_transaction(
+                portfolio_id=active_portfolio_id,
+                transaction_type="SELL",
+                ticker=ticker,
+                quantity_requested=qty,
+                quantity_filled=qty,
+                order_status="FILLED",
+                price_type="LAST",
+                price_per_share=price,
+                total_value=total_value,
+                ai_decision_id=decision_id,
+                notes=f"Interactive SELL signal via Web UI with confidence {confidence}"
+            )
+            
+            # Set holding to zero
+            db.add_holding(active_portfolio_id, ticker, 0, 0, price)
+            
+            # Update decision state
+            db.cursor.execute(
+                "UPDATE ai_decisions SET executed = 1, execution_status = 'FILLED', execution_price = ?, realized_pl = ? WHERE id = ?",
+                (price, realized_pl, decision_id)
+            )
         
         return {
             "status": "success",

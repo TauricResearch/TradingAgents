@@ -95,7 +95,7 @@ class CorporateActionsHandler:
         holding_copy["unrealized_pl"] = (holding_copy["current_price"] - holding_copy["avg_buy_price"]) * holding_copy["quantity_held"]
         
         # Track adjustment
-        holding_copy["quantity_adjusted"] += abs(holding_copy["quantity_held"] - holding["quantity_held"])
+        holding_copy["quantity_adjusted"] = holding_copy.get("quantity_adjusted", 0.0) + abs(holding_copy["quantity_held"] - holding["quantity_held"])
         holding_copy["split_ratio"] = split_ratio
         holding_copy["last_split_date"] = datetime.now().isoformat()
         

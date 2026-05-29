@@ -70,7 +70,7 @@ class Order:
             True if order executed (fully or partially), False if rejected
         """
         # Calculate slippage
-        self.actual_slippage_pct = abs(execution_price - self.reference_price) / self.reference_price * 100
+        self.actual_slippage_pct = abs(execution_price - self.reference_price) / self.reference_price * 100 if self.reference_price > 0 else 0.0
         
         # Reject if slippage exceeds tolerance
         if self.actual_slippage_pct > self.slippage_tolerance_pct:

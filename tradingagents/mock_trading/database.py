@@ -5,6 +5,7 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+from contextlib import contextmanager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,18 @@ class TradingDatabase:
             self._local.conn = None
             self._local.cursor = None
             logger.info("Thread database connection closed")
+            
+    @contextmanager
+    def transaction(self):
+        """SQL transaction context manager that commits on success or rolls back on error."""
+        conn = self.conn
+        try:
+            yield self.cursor
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Database transaction rolled back due to error: {e}")
+            raise e
     
     def init_schema(self):
         """Initialize database schema with all tables."""

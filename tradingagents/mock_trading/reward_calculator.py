@@ -71,6 +71,9 @@ class RewardCalculator:
         entry = outcome["entry_price"]
         exit_price = outcome["exit_price"]
         
+        if entry <= 0:
+            return 0.0
+            
         if outcome["decision_type"] == "BUY":
             return ((exit_price - entry) / entry) * 100
         else:  # SELL (short)
@@ -248,6 +251,24 @@ class RewardCalculator:
         decision_return = self.calculate_absolute_return(decision_id)
         outperformed = decision_return > benchmark_return if decision_return else None
         
+        # Safely parse dates to datetime objects if they are strings
+        def to_dt(d):
+            if isinstance(d, str):
+                try:
+                    return datetime.fromisoformat(d)
+                except ValueError:
+                    pass
+            return d
+
+        entry_dt = to_dt(outcome["entry_date"])
+        exit_dt = to_dt(outcome["exit_date"])
+        duration_days = None
+        if entry_dt and exit_dt:
+            try:
+                duration_days = (exit_dt - entry_dt).days
+            except Exception:
+                pass
+        
         return {
             "decision_id": decision_id,
             "decision_type": outcome["decision_type"],
@@ -257,8 +278,7 @@ class RewardCalculator:
             "excess_return_pct": (decision_return - benchmark_return) if decision_return else None,
             "entry_price": outcome["entry_price"],
             "exit_price": outcome["exit_price"],
-            "position_duration_days": (datetime.fromisoformat(outcome["exit_date"]) - 
-                                       datetime.fromisoformat(outcome["entry_date"])).days if outcome["exit_date"] else None,
+            "position_duration_days": duration_days,
         }
     
     def get_summary_stats(self) -> Dict:

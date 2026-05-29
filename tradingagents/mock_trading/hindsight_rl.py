@@ -80,18 +80,32 @@ class HindsightRLDatasetBuilder:
             "analysis_duration_sec": None,
         }
         
-        # Calculate analysis duration
-        if decision["analysis_start_time"] and decision["analysis_end_time"]:
-            from datetime import datetime
-            start = datetime.fromisoformat(decision["analysis_start_time"])
-            end = datetime.fromisoformat(decision["analysis_end_time"])
-            metrics["analysis_duration_sec"] = (end - start).total_seconds()
+        # Calculate analysis duration safely supporting both strings and datetime objects
+        def to_dt(d):
+            if isinstance(d, str):
+                try:
+                    from datetime import datetime
+                    return datetime.fromisoformat(d)
+                except ValueError:
+                    pass
+            return d
+
+        start_time = to_dt(decision["analysis_start_time"])
+        end_time = to_dt(decision["analysis_end_time"])
+        if start_time and end_time:
+            try:
+                metrics["analysis_duration_sec"] = (end_time - start_time).total_seconds()
+            except Exception:
+                pass
         
-        # Calculate return %
-        if decision["execution_price"] and decision["realized_pl"]:
-            total_value = decision["quantity_filled"] * decision["execution_price"]
+        # Calculate return % safely checking for NoneType values to prevent TypeErrors
+        qty = decision.get("quantity_filled")
+        price = decision.get("execution_price")
+        pl = decision.get("realized_pl")
+        if qty is not None and price is not None and pl is not None:
+            total_value = qty * price
             if total_value > 0:
-                metrics["realized_pl_pct"] = (decision["realized_pl"] / total_value) * 100
+                metrics["realized_pl_pct"] = (pl / total_value) * 100
         
         return metrics
     
@@ -234,10 +248,11 @@ class HindsightRLDatasetBuilder:
             "return_max_pct": max(returns_pct) if returns_pct else None,
             
             # Analysis latency
-            "avg_analysis_duration_sec": sum(
-                s["analysis_duration_sec"] for s in training_data 
-                if s["analysis_duration_sec"]
-            ) / sum(1 for s in training_data if s["analysis_duration_sec"]),
+            "avg_analysis_duration_sec": (
+                sum(s["analysis_duration_sec"] for s in training_data if s["analysis_duration_sec"] is not None) /
+                sum(1 for s in training_data if s["analysis_duration_sec"] is not None)
+                if any(s["analysis_duration_sec"] is not None for s in training_data) else 0.0
+            ),
             
             # Slippage
             "avg_slippage_pct": sum(s["slippage_pct"] for s in training_data) / len(training_data),
