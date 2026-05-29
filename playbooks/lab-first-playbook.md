@@ -55,7 +55,7 @@ Examples:
 
 ### Rules
 
-1. **No imports from `server/` or `cli/` or `tradingagents/`.** Lab scripts are
+1. **No imports from `src/server/` or `cli/` or `tradingagents/`.** Lab scripts are
    self-contained. If you need a shared function, inline it or copy it.
 2. **No test files.** Labs are for manual exploration, not CI.
 3. **Named experiments.** Each block is a hypothesis: "Experiment 1: Bun.spawn
