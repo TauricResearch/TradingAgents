@@ -189,9 +189,24 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "nvidia": {
         "quick": [
+            ("Nemotron 3 Nano 30B - Free, fast, 262K ctx", "nvidia/nemotron-3-nano-30b-a3b"),
+            ("Llama 3.1 8B - Free, strong baseline", "meta/llama-3.1-8b-instruct"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
+            ("Nemotron 3 Super 120B - Free, MoE, 1M ctx, SOTA", "nvidia/nemotron-3-super-120b-a12b"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "opencode": {
+        "quick": [
+            ("Big Pickle - Free, stealth model, 200K ctx", "big-pickle"),
+            ("DeepSeek V4 Flash Free - Free, fast", "deepseek-v4-flash-free"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Big Pickle - Free, stealth model, 200K ctx", "big-pickle"),
+            ("DeepSeek V4 Flash Free - Free, fast", "deepseek-v4-flash-free"),
             ("Custom model ID", "custom"),
         ],
     },

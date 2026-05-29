@@ -279,6 +279,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Groq", "groq", "https://api.groq.com/openai/v1"),
+        ("OpenCode Zen", "opencode", "https://opencode.ai/zen/v1"),
         ("NVIDIA", "nvidia", "https://integrate.api.nvidia.com/v1"),
         ("Ollama", "ollama", ollama_url),
         ("Llama.cpp", "llamacpp", llamacpp_url),
