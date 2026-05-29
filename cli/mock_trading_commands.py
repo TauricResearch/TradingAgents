@@ -283,3 +283,35 @@ def stop():
     """Stop mock trading scheduler."""
     console.print("[yellow]⏹ Stopping mock trading system...[/yellow]")
     console.print("[green]✓ Scheduler stopped[/green]")
+
+
+@mock_trading_app.command()
+def ui(
+    port: int = typer.Option(8000, "--port", help="Port to run the UI server"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host interface to bind"),
+    db_path: Optional[str] = typer.Option(None, "--db", help="Database path"),
+):
+    """Start the mock trading Web UI and API server."""
+    console.print(Panel.fit("[bold cyan]🚀 Starting Mock Trading Web Terminal[/bold cyan]"))
+    
+    try:
+        import uvicorn
+        import os
+        
+        # Set database path in environment so server.py can pick it up
+        if db_path:
+            os.environ["TRADING_DB_PATH"] = str(Path(db_path).resolve())
+            
+        console.print(f"[green]✓[/green] Web UI served at: [bold cyan]http://{host}:{port}[/bold cyan]")
+        console.print("[yellow]Press Ctrl+C to stop the server[/yellow]\n")
+        
+        # Run Uvicorn server inline (referencing server.py's app)
+        uvicorn.run("tradingagents.mock_trading.server:app", host=host, port=port, log_level="warning")
+        
+    except ImportError:
+        console.print("[red]❌ Error: Uvicorn or FastAPI not installed.[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]❌ Error: {e}[/red]")
+        logger.exception("Failed to run mock trading Web UI")
+        raise typer.Exit(1)
