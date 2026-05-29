@@ -46,7 +46,22 @@ def _apply_env_overrides(config: dict) -> dict:
     return config
 
 
-DEFAULT_CONFIG = _apply_env_overrides({
+def _apply_nested_env_overrides(config: dict) -> dict:
+    """Custom (non-flat) env overrides that don't fit the _ENV_OVERRIDES table.
+
+    Currently handles TELEGRAM_BOT_ALLOWED_CHAT_IDS: a comma-separated list of
+    numeric Telegram chat ids supplied via .env (never committed). Parses into
+    telegram_bot.allowed_chat_ids as a list[int]. Empty/unset → leave the
+    committed default ([] = deny-all) untouched.
+    """
+    raw = os.environ.get("TELEGRAM_BOT_ALLOWED_CHAT_IDS")
+    if raw is not None and raw.strip() != "":
+        chat_ids = [int(tok.strip()) for tok in raw.split(",") if tok.strip()]
+        config.setdefault("telegram_bot", {})["allowed_chat_ids"] = chat_ids
+    return config
+
+
+DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
@@ -198,10 +213,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
         },
     },
     "telegram_bot": {
-        "enabled": False,
+        "enabled": True,
+        # Committed default is empty = deny-all (restricted). Populate at
+        # runtime from the TELEGRAM_BOT_ALLOWED_CHAT_IDS env var (.env), a
+        # comma-separated list of numeric chat ids — see the override applied
+        # after _apply_env_overrides below. Never commit real chat ids here.
         "allowed_chat_ids": [],
         "poll_interval_seconds": 1,
     },
+    # F5 delivery: how long a pending Telegram/email action (e.g. an awaiting
+    # confirmation) stays valid before the delivery agent expires it.
+    "brief_action_ttl_hours": 24,
     "smtp": {
         "enabled": False,
         "host": "smtp.gmail.com",
@@ -234,4 +256,4 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "enabled": False,
         "max_in_tokens": 500_000,
     },
-})
+}))

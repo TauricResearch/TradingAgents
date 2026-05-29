@@ -61,6 +61,15 @@ class SentenceTransformerEmbedder:
             from sentence_transformers import SentenceTransformer  # heavy import
             self._model = SentenceTransformer(self._model_name)
 
+    def load(self) -> None:
+        """Eagerly load the model.
+
+        Public API so callers (e.g. triage startup) can force a fail-fast,
+        loud failure if sentence-transformers is missing or the model can't
+        download — instead of silently zeroing out every event mid-soak.
+        """
+        self._ensure_loaded()
+
     def embed(self, text: str) -> List[float]:
         self._ensure_loaded()
         vec = self._model.encode(text, normalize_embeddings=True)

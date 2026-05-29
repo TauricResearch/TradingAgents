@@ -16,7 +16,7 @@ _TEMPLATE_ROOT = Path(__file__).parent / "templates"
 
 _env = Environment(
     loader=FileSystemLoader(str(_TEMPLATE_ROOT)),
-    autoescape=select_autoescape(enabled_extensions=("j2",)),
+    autoescape=select_autoescape(disabled_extensions=("j2",)),
     keep_trailing_newline=True,
 )
 

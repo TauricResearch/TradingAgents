@@ -4,8 +4,9 @@ After=network.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/ziwei-huang/TradingAgents
-ExecStart=/home/ziwei-huang/TradingAgents/.venv/bin/forge morning-digest now
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m cli.main forge morning-digest now
 StandardOutput=journal
 StandardError=journal
-EnvironmentFile=/home/ziwei-huang/TradingAgents/.env
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env

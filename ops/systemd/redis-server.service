@@ -1,0 +1,27 @@
+# /etc/systemd/system/redis-server.service
+#
+# IIC-FORGE Redis alias unit.
+# On this host Redis is NOT a native redis-server install — it runs as the
+# Docker container `iic-redis` (started: redis-server --appendonly yes,
+# host volume /srv/iic/redis -> /data in-container). The F3/F4 sensing and
+# triage units declare Requires=redis-server.service / After=redis-server.service.
+# This oneshot alias makes that dependency satisfiable: it starts/stops the
+# container and, via ExecStartPost, blocks until Redis answers PING so
+# dependents never start before Redis accepts connections (which would
+# crash-loop the adapters and trip the NRestarts=0 exit gate).
+
+[Unit]
+Description=IIC-FORGE Redis (docker container iic-redis) alias
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/docker start iic-redis
+ExecStop=/usr/bin/docker stop iic-redis
+TimeoutStartSec=60
+ExecStartPost=/usr/bin/timeout 30 sh -c 'until docker exec iic-redis redis-cli ping | grep -q PONG; do sleep 0.5; done'
+
+[Install]
+WantedBy=multi-user.target

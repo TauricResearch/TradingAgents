@@ -13,7 +13,7 @@ import asyncio
 import os
 from typing import Any, Dict
 
-from tradingagents.delivery.base import DeliveryChannel
+from tradingagents.delivery.base import DeliveryChannel, DeliveryError
 from tradingagents.persistence import store
 
 
@@ -62,7 +62,13 @@ class TelegramOutbound(DeliveryChannel):
         if not token:
             raise RuntimeError("IIC_TELEGRAM_BOT_TOKEN not set")
 
-        chat_id = self._config["telegram_bot"]["allowed_chat_ids"][0]
+        allowed = self._config["telegram_bot"].get("allowed_chat_ids") or []
+        if not allowed:
+            raise DeliveryError(
+                "no Telegram target chat configured; "
+                "set TELEGRAM_BOT_ALLOWED_CHAT_IDS"
+            )
+        chat_id = allowed[0]
         bot = _get_bot(token)
 
         keyboard = _make_event_alert_keyboard(brief["brief_id"]) if mode == "event_alert" else None

@@ -15,11 +15,17 @@ from __future__ import annotations
 
 import sqlite3
 from abc import ABC, abstractmethod
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any, Dict, Optional
 
 from tradingagents.delivery.quiet_hours import is_quiet_hours
 from tradingagents.persistence import store
+
+
+class DeliveryError(Exception):
+    """Raised by a channel's ``_send_impl`` for a non-transient send failure
+    (e.g. missing configuration). Caught by ``send()`` and recorded as a
+    'failed' delivery row, so it never crashes the delivery loop."""
 
 
 def _utc_now_iso() -> str:
@@ -62,7 +68,7 @@ class DeliveryChannel(ABC):
 
         try:
             channel_ref, _err = self._send_impl(brief, mode, body)
-            return store.insert_delivery(
+            delivery_id = store.insert_delivery(
                 self._conn,
                 brief_id=brief["brief_id"],
                 channel=self.channel_name,
@@ -71,6 +77,14 @@ class DeliveryChannel(ABC):
                 channel_ref=channel_ref,
                 skip_reason=None,
             )
+            # S-8: on event_alert delivery, create EXACTLY ONE pending
+            # brief_action (matching the [Run Backtest]/[Dismiss] keyboard) so
+            # an ignored alert can lapse to 'expired' organically (gate G5).
+            # base.send() is per-channel, so guard on existing rows for this
+            # brief_id — re-delivery or multiple channels create no duplicates.
+            if mode == "event_alert":
+                self._ensure_pending_action(brief["brief_id"])
+            return delivery_id
         except Exception as exc:  # noqa: BLE001
             return store.insert_delivery(
                 self._conn,
@@ -81,3 +95,20 @@ class DeliveryChannel(ABC):
                 channel_ref=str(exc)[:500],
                 skip_reason=None,
             )
+
+    def _ensure_pending_action(self, brief_id: str) -> None:
+        """Idempotently create one pending 'run_backtest' brief_action for an
+        event_alert brief. No-op if any action already exists for this brief."""
+        if store.count_brief_actions(self._conn, brief_id=brief_id) > 0:
+            return
+        ttl_hours = self._config.get("brief_action_ttl_hours", 24)
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
+        ).isoformat()
+        store.insert_brief_action(
+            self._conn,
+            brief_id=brief_id,
+            action_type="run_backtest",
+            action_params={},
+            expires_at=expires_at,
+        )

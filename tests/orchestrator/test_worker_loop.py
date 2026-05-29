@@ -1,4 +1,5 @@
 import json
+import threading
 import pytest
 from pathlib import Path
 from datetime import datetime, timezone
@@ -105,3 +106,61 @@ def test_drain_one_skipped_when_budget_blocks(setup):
         "payload LIKE '%AAPL%'"
     ).fetchone()
     assert row["state"] == "queued"
+
+
+@pytest.mark.unit
+def test_main_loop_processes_one_job_on_pool_thread(tmp_path, monkeypatch):
+    """End-to-end guard for the S-4 cross-thread fix: worker.main() runs the
+    drain on a pool thread that must build its OWN sqlite connection. A
+    main-thread connection used on the pool thread raises
+    sqlite3.ProgrammingError, which the loop's broad except would swallow,
+    leaving the job unprocessed and wedging the worker forever. If that
+    regression returns, compose_event_alert never fires, _shutdown is never
+    set, and the join() below times out → t.is_alive() asserts False."""
+    from tradingagents.orchestrator import worker as worker_mod
+
+    db = str(tmp_path / "iic.db")
+    conn = connect(db)
+    store.insert_event(conn, event_id="ev1", source="rss", ingested_ts=_now(),
+                       salience=0.9, raw_path=None, status="triaged",
+                       deduped_of=None)
+    store.insert_brief(conn, brief_id="b1", mode="event_alert", scope="AAPL",
+                       generated_ts=_now(), content_path="briefs/b1.md",
+                       run_ids=[], parent_brief_id=None, trigger_event_id="ev1")
+    queue_store.insert_queue_job(conn, job_type="event_alert",
+                                 payload=json.dumps({"event_id": "ev1",
+                                                     "ticker": "AAPL"}),
+                                 trigger_event_id="ev1")
+    conn.close()
+
+    sec = MagicMock()
+
+    def _compose(**kwargs):
+        worker_mod._shutdown = True   # stop the loop after this one job
+        return "b1"
+
+    sec.compose_event_alert.side_effect = _compose
+    # _build_secretary would need real LLM creds; substitute the mock. It is
+    # invoked on the pool thread inside _drain_once, exactly where the conn is
+    # also created — proving thread-affinity is satisfied.
+    monkeypatch.setattr(worker_mod, "_build_secretary", lambda cfg, c: sec)
+    # signal.signal() only works on the main thread; main() runs in a thread here.
+    monkeypatch.setattr(worker_mod, "_install_signal_handlers", lambda: None)
+
+    cfg = {"iic_db_path": db, "worker_poll_interval_s": 0,
+           "worker_job_timeout_min": 1, "daily_budget_enabled": False}
+
+    worker_mod._shutdown = False
+    t = threading.Thread(target=worker_mod.main, kwargs={"config": cfg},
+                         daemon=True)
+    t.start()
+    t.join(timeout=15)
+    worker_mod._shutdown = False   # reset module global for other tests
+
+    assert not t.is_alive(), ("worker.main did not exit — likely a cross-thread "
+                              "sqlite ProgrammingError wedged the loop")
+    verify = connect(db)
+    row = verify.execute("SELECT state, brief_id FROM queue_jobs "
+                         "WHERE trigger_event_id='ev1'").fetchone()
+    assert row["state"] == "done"
+    assert row["brief_id"] == "b1"

@@ -15,7 +15,9 @@ def fetch_daily_cost_trend(conn: sqlite3.Connection, *, days: int = 30) -> list[
                SUM(c.out_tokens) AS out_tokens
         FROM costs c
         JOIN runs r ON r.run_id = c.run_id
-        WHERE r.started_ts > datetime('now', ?)
+        -- datetime(r.started_ts): ISO 'T'+offset must be normalized before
+        -- comparing to datetime('now', ?), else same-day rows are mis-filtered.
+        WHERE datetime(r.started_ts) > datetime('now', ?)
         GROUP BY day, c.model
         ORDER BY day ASC, c.model ASC
         """,

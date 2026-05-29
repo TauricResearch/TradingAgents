@@ -13,16 +13,16 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=iic
-WorkingDirectory=/home/iic/TradingAgents/TradingAgents
-EnvironmentFile=/home/iic/TradingAgents/TradingAgents/.env
-ExecStart=/home/iic/TradingAgents/TradingAgents/.venv/bin/python -m tradingagents.orchestrator.promoter
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m tradingagents.orchestrator.promoter
 Restart=on-failure
 RestartSec=30
 MemoryMax=256M
 CPUQuota=25%
-StandardOutput=append:/var/log/iic/promoter.log
-StandardError=append:/var/log/iic/promoter.log
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

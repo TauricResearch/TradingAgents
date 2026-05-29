@@ -346,6 +346,39 @@ def resolve_brief_id_by_channel_ref(
     return row[0] if row else None
 
 
+def count_brief_actions(conn: sqlite3.Connection, *, brief_id: str) -> int:
+    """Number of brief_actions rows for a brief. Used as an idempotency guard
+    so event_alert delivery creates at most one pending action per brief."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM brief_actions WHERE brief_id = ?", (brief_id,)
+    ).fetchone()
+    return row[0]
+
+
+def get_pending_action_by_brief(
+    conn: sqlite3.Connection, *, brief_id: str, action_type: Optional[str] = None,
+) -> Optional[dict]:
+    """Most recent pending brief_action for a brief (optionally by type).
+
+    Returns None when no pending action exists — callers fall back to inserting.
+    """
+    if action_type is None:
+        row = conn.execute(
+            "SELECT * FROM brief_actions "
+            "WHERE brief_id = ? AND state = 'pending' "
+            "ORDER BY action_id DESC LIMIT 1",
+            (brief_id,),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT * FROM brief_actions "
+            "WHERE brief_id = ? AND action_type = ? AND state = 'pending' "
+            "ORDER BY action_id DESC LIMIT 1",
+            (brief_id, action_type),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def fetch_actions(conn: sqlite3.Connection, *, state: str) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM brief_actions WHERE state = ? ORDER BY action_id",
@@ -393,7 +426,10 @@ def mark_action_done(
 def expire_lapsed_actions(conn: sqlite3.Connection) -> int:
     cur = conn.execute(
         "UPDATE brief_actions SET state = 'expired' "
-        "WHERE state = 'pending' AND expires_at < datetime('now')"
+        # datetime(expires_at) normalizes the ISO 'T'+offset string to SQLite's
+        # space form so same-day expiries actually fire; a raw compare silently
+        # never expires anything within the current year (S-8 hazard).
+        "WHERE state = 'pending' AND datetime(expires_at) < datetime('now')"
     )
     conn.commit()
     return cur.rowcount

@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import signal
 import sqlite3
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from typing import Optional
@@ -98,44 +99,118 @@ def main(config: Optional[dict] = None) -> None:
     if config:
         cfg.update(config)
 
+    # Main-thread connection: used ONLY by this (the main) thread, for the boot
+    # and in-loop stale-lease sweeps. Job execution runs on a separate pool
+    # thread and uses its OWN connection (see _drain_once) — a sqlite3
+    # connection is bound to the thread that created it (check_same_thread), so
+    # the worker's connection can never be shared with drain_one's thread (doing
+    # so raises ProgrammingError, which the loop's broad except would swallow,
+    # silently wedging the worker forever).
     conn = connect(cfg["iic_db_path"])
     swept = boot_sweep(conn, max_age_seconds=3600)
     if swept:
         log.warning("boot sweep marked %d stale lease(s) as error", swept)
 
-    secretary = _build_secretary(cfg, conn)
     budget = DailyBudgetGuard(
         enabled=cfg["daily_budget_enabled"],
         daily_usd=cfg["daily_budget_usd"],
     )
     job_timeout = cfg["worker_job_timeout_min"] * 60
 
-    _install_signal_handlers()
-    log.info("worker started: poll=%ss timeout=%dm budget_enabled=%s",
-             cfg["worker_poll_interval_s"], cfg["worker_job_timeout_min"],
-             budget.enabled)
+    # Stale-lease reclamation must run INSIDE the loop, not only at boot
+    # (R-F4-2 / S-4). A job whose lease went stale — because the worker died
+    # OR because the job blew past its wall-clock cap and its future was
+    # abandoned — is recovered to 'error' here without ever needing a restart.
+    # max_age must comfortably exceed the per-job timeout so we never reclaim
+    # a job that is still legitimately running; we add a margin on top.
+    sweep_max_age = max(job_timeout * 2, job_timeout + 300)
+    # How often to run the in-loop sweep, in seconds of wall-clock. We track
+    # this against time rather than a cycle count so a slow/blocked iteration
+    # can't starve the sweep.
+    sweep_interval = max(cfg["worker_poll_interval_s"], 30)
+    last_sweep = time.monotonic()
 
-    while not _shutdown:
-        try:
-            with ThreadPoolExecutor(max_workers=1) as ex:
-                fut = ex.submit(drain_one, conn,
-                                 secretary=secretary, budget_guard=budget)
+    # Per-drain-thread resources. The connection (and the Secretary that holds
+    # it) can only be used on the thread that created them, so we build them
+    # lazily ON the drain thread and cache them in thread-local storage. Built
+    # once and reused across jobs; a fresh drain thread (after a timeout, below)
+    # rebuilds its own — no connection is ever shared across threads.
+    tls = threading.local()
+
+    def _drain_once() -> bool:
+        if getattr(tls, "conn", None) is None:
+            tls.conn = connect(cfg["iic_db_path"])
+            tls.secretary = _build_secretary(cfg, tls.conn)
+        return drain_one(
+            tls.conn, secretary=tls.secretary, budget_guard=budget,
+        )
+
+    # Single-slot executor (max_concurrent_jobs is 1). On a per-job timeout we
+    # cannot kill the runaway LangGraph thread (Python has no thread-kill), so
+    # we abandon it AND replace the executor: the next job gets a fresh thread
+    # + connection, and abandoned work-items can't pile up in the old
+    # executor's unbounded internal queue (which would never be GC'd and would
+    # hold connection references).
+    ex = ThreadPoolExecutor(max_workers=1, thread_name_prefix="drain")
+
+    _install_signal_handlers()
+    log.info("worker started: poll=%ss timeout=%dm budget_enabled=%s "
+             "sweep_max_age=%ds sweep_interval=%ds",
+             cfg["worker_poll_interval_s"], cfg["worker_job_timeout_min"],
+             budget.enabled, sweep_max_age, sweep_interval)
+
+    try:
+        while not _shutdown:
+            # Periodic in-loop stale-lease sweep (S-4a).
+            now = time.monotonic()
+            if now - last_sweep >= sweep_interval:
+                try:
+                    n = queue_store.sweep_stale_leases(
+                        conn, max_age_seconds=sweep_max_age,
+                        reason="stale_lease_swept_in_loop",
+                    )
+                    if n:
+                        log.warning(
+                            "in-loop sweep reclaimed %d stale lease(s) "
+                            "to 'error'", n,
+                        )
+                except Exception:
+                    log.exception("in-loop stale-lease sweep failed")
+                last_sweep = now
+
+            try:
+                fut = ex.submit(_drain_once)
                 try:
                     ran = fut.result(timeout=job_timeout)
                 except FuturesTimeout:
-                    log.exception("job timed out after %ds (cannot abort "
-                                  "in-flight LangGraph; relying on "
-                                  "stale-lease sweep on next worker boot)",
-                                  job_timeout)
+                    # Non-blocking timeout (S-4b): we do NOT join the runaway
+                    # thread. Abandon the future, replace the wedged executor
+                    # (the runaway thread permanently holds its only slot), and
+                    # proceed; the job's lease is reclaimed by the periodic
+                    # sweep above — no restart required.
+                    log.error("job timed out after %ds; abandoning the "
+                              "in-flight run (cannot abort LangGraph) and "
+                              "replacing the worker thread — stale-lease sweep "
+                              "will mark it 'error' without a restart",
+                              job_timeout)
+                    ex.shutdown(wait=False, cancel_futures=True)
+                    ex = ThreadPoolExecutor(
+                        max_workers=1, thread_name_prefix="drain",
+                    )
                     ran = True   # sleep less aggressively after a timeout
-        except KeyboardInterrupt:
-            break
-        except Exception:
-            log.exception("worker loop failure; sleeping 5s and continuing")
-            time.sleep(5)
-            continue
-        if not ran:
-            time.sleep(cfg["worker_poll_interval_s"])
+            except KeyboardInterrupt:
+                break
+            except Exception:
+                log.exception("worker loop failure; sleeping 5s and continuing")
+                time.sleep(5)
+                continue
+            if not ran:
+                time.sleep(cfg["worker_poll_interval_s"])
+    finally:
+        # Do NOT wait on abandoned/runaway drain threads during shutdown —
+        # that would reintroduce the blocking behavior S-4 removed. Cancel
+        # what we can and return; signal-based shutdown stays responsive.
+        ex.shutdown(wait=False, cancel_futures=True)
 
     log.info("worker stopped")
 

@@ -247,7 +247,10 @@ class Secretary:
         if watchlist is None:
             rows = self._conn.execute(
                 "SELECT ticker FROM watchlist "
-                "WHERE ttl_until IS NULL OR ttl_until > datetime('now') "
+                # datetime(ttl_until) wrap: raw ISO 'T'+offset vs datetime('now')
+                # space-form silently mis-filters same-day rows. Matches the
+                # canonical query in persistence/store.get_active_watchlist.
+                "WHERE ttl_until IS NULL OR datetime(ttl_until) > datetime('now') "
                 "ORDER BY ticker"
             ).fetchall()
             watchlist = [r[0] for r in rows]

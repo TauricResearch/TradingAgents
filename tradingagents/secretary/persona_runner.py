@@ -10,10 +10,14 @@ dependency to run personas.
 
 from __future__ import annotations
 
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
 from tradingagents.personas.loader import Persona
+
+
+log = logging.getLogger(__name__)
 
 
 def _run_one_persona(
@@ -66,28 +70,75 @@ def run_personas_parallel(
     event_context: Optional[str] = None,
     queue_job_id: Optional[int] = None,
 ) -> List[str]:
-    """Run each persona, return run_ids in completion order.
+    """Run each persona, return the run_ids of the SURVIVING runs.
 
     With ``parallel=True`` (default), uses a ThreadPoolExecutor sized to the
     persona count. With ``parallel=False``, runs sequentially (used by tests
     and for deterministic debugging).
+
+    Error isolation (S-3): a single persona raising (e.g. a transient LLM
+    error) must not discard the whole brief. We collect every successful
+    PersonaRun's run_id and log each failure. We only raise — failing the
+    whole job — when ZERO personas succeed (quorum of >=1, which is what the
+    downstream brief synthesis needs to produce anything). The non-parallel
+    branch isolates per-persona identically so behavior stays consistent.
     """
     if not personas:
         raise RuntimeError("run_personas_parallel: empty personas list")
 
+    run_ids: List[str] = []
+    failures = 0
+
     if parallel:
         with ThreadPoolExecutor(max_workers=len(personas)) as ex:
-            futures = [
+            # Map each future back to its persona so failure logs are useful.
+            future_to_persona = {
                 ex.submit(
                     _run_one_persona, p, ticker, trade_date, config,
                     event_context, queue_job_id,
-                )
+                ): p
                 for p in personas
-            ]
-            return [f.result() for f in futures]
-    return [
-        _run_one_persona(
-            p, ticker, trade_date, config, event_context, queue_job_id,
+            }
+            for fut, persona in future_to_persona.items():
+                try:
+                    run_ids.append(fut.result())
+                except Exception:
+                    failures += 1
+                    log.exception(
+                        "persona %s failed for %s on %s; "
+                        "isolating and continuing",
+                        persona.id, ticker, trade_date,
+                    )
+    else:
+        for persona in personas:
+            try:
+                run_ids.append(
+                    _run_one_persona(
+                        persona, ticker, trade_date, config,
+                        event_context, queue_job_id,
+                    )
+                )
+            except Exception:
+                failures += 1
+                log.exception(
+                    "persona %s failed for %s on %s; "
+                    "isolating and continuing",
+                    persona.id, ticker, trade_date,
+                )
+
+    if not run_ids:
+        # Quorum not met: every persona failed, so there is nothing to
+        # synthesize a brief from. Surface this so the job is marked error.
+        raise RuntimeError(
+            f"run_personas_parallel: all {len(personas)} persona(s) failed "
+            f"for {ticker} on {trade_date}; no surviving runs"
         )
-        for p in personas
-    ]
+
+    if failures:
+        log.warning(
+            "run_personas_parallel: %d/%d persona(s) failed for %s on %s; "
+            "proceeding with %d surviving run(s)",
+            failures, len(personas), ticker, trade_date, len(run_ids),
+        )
+
+    return run_ids

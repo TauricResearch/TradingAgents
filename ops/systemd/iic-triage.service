@@ -5,16 +5,16 @@ Requires=redis-server.service
 
 [Service]
 Type=simple
-User=iic
-WorkingDirectory=/home/iic/TradingAgents/TradingAgents
-EnvironmentFile=/home/iic/TradingAgents/TradingAgents/.env
-ExecStart=/home/iic/TradingAgents/TradingAgents/.venv/bin/python -m tradingagents.sensing.triage
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m tradingagents.sensing.triage
 Restart=on-failure
 RestartSec=30
 MemoryMax=2G
 CPUQuota=100%
-StandardOutput=append:/var/log/iic/triage.log
-StandardError=append:/var/log/iic/triage.log
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

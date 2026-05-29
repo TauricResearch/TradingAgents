@@ -14,8 +14,9 @@ def test_default_config_has_f5_keys():
     assert C["delivery"]["digest_modes"]["email"] == "full"
     assert C["delivery"]["digest_modes"]["cli"] == "full"
 
-    # Telegram bot — opt-in
-    assert C["telegram_bot"]["enabled"] is False
+    # Telegram bot — enabled, but restricted (deny-all until chat ids are
+    # supplied via the TELEGRAM_BOT_ALLOWED_CHAT_IDS env var in .env)
+    assert C["telegram_bot"]["enabled"] is True
     assert C["telegram_bot"]["allowed_chat_ids"] == []
     assert C["telegram_bot"]["poll_interval_seconds"] == 1
 

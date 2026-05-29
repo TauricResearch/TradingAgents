@@ -46,8 +46,16 @@ app = typer.Typer(
 try:
     from cli.forge import app as _forge_app
     app.add_typer(_forge_app, name="forge")
-except ImportError:
-    pass
+except (ImportError, ModuleNotFoundError) as e:
+    # Don't let a broken transitive import silently drop the whole `forge`
+    # sub-app (which then surfaces as an opaque "No such command 'forge'").
+    # Surface the cause on stderr but still start the CLI degraded.
+    import sys
+    print(
+        f"[TradingAgents] Warning: `forge` subcommand unavailable due to import "
+        f"error: {e!r}",
+        file=sys.stderr,
+    )
 
 
 # Create a deque to store recent messages with a maximum length

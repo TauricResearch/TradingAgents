@@ -100,7 +100,7 @@ def daily_enqueue_count(conn: sqlite3.Connection) -> int:
     """Jobs enqueued in the last 24h (regardless of current state)."""
     return conn.execute(
         "SELECT COUNT(*) FROM queue_jobs "
-        "WHERE enqueued_ts > datetime('now', '-1 day')"
+        "WHERE datetime(enqueued_ts) > datetime('now', '-1 day')"
     ).fetchone()[0]
 
 
@@ -114,18 +114,27 @@ def daily_cost_total(conn: sqlite3.Connection) -> float:
 
 
 def sweep_stale_leases(
-    conn: sqlite3.Connection, *, max_age_seconds: int = 3600
+    conn: sqlite3.Connection, *, max_age_seconds: int = 3600,
+    reason: str = "stale_lease_swept_on_boot",
 ) -> int:
     """Mark any 'running' job older than max_age_seconds as 'error'.
 
-    Used by the worker at boot to clean up unclean shutdowns.
+    Used by the worker at boot AND periodically in-loop (S-4) to recover jobs
+    left 'running' by an unclean shutdown or a blown wall-clock cap. ``reason``
+    is recorded in the error column for post-mortems.
     Returns the number of rows swept.
+
+    NOTE: ``started_ts`` is stored as an ISO-8601 string with a 'T' separator
+    and a '+00:00' offset, so it MUST be wrapped in ``datetime(...)`` before
+    comparison with SQLite's space-separated ``datetime('now', ?)``. A raw
+    string compare silently fails for same-calendar-date rows ('T' 0x54 >
+    ' ' 0x20), which made this sweep a no-op for any job that went stale today.
     """
     n = conn.execute(
         "UPDATE queue_jobs SET state = 'error', finished_ts = ?, "
-        "error = 'stale_lease_swept_on_boot' "
-        "WHERE state = 'running' AND started_ts < datetime('now', ?)",
-        (_now_iso(), f"-{max_age_seconds} seconds"),
+        "error = ? "
+        "WHERE state = 'running' AND datetime(started_ts) < datetime('now', ?)",
+        (_now_iso(), reason, f"-{max_age_seconds} seconds"),
     ).rowcount
     conn.commit()
     return n

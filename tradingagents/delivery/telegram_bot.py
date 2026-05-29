@@ -51,11 +51,20 @@ def handle_callback(*, update: Any, conn: sqlite3.Connection) -> None:
         return
 
     state = "accepted" if answer == "yes" else "declined"
-    expires = _expires_at(24)
-    aid = store.insert_brief_action(
+    # Prefer transitioning the pending action created at delivery time (S-8),
+    # so a click does NOT create a duplicate row. Fall back to insert only when
+    # no pending action exists (edge case: legacy brief delivered pre-S-8).
+    pending = store.get_pending_action_by_brief(
         conn, brief_id=brief_id, action_type=action_type,
-        action_params={}, expires_at=expires,
     )
+    if pending is not None:
+        aid = pending["action_id"]
+    else:
+        expires = _expires_at(24)
+        aid = store.insert_brief_action(
+            conn, brief_id=brief_id, action_type=action_type,
+            action_params={}, expires_at=expires,
+        )
     store.update_action_state(
         conn, action_id=aid, state=state, responded_at=_utc_now_iso(),
     )
@@ -122,12 +131,21 @@ def main() -> None:
 
     app = ApplicationBuilder().token(token).build()
 
+    def _allowed_chat_ids() -> set[str]:
+        # str-normalize so both [123] (int) and ["123"] (str) entries match the
+        # numeric chat.id. An empty set means deny-all by design (restricted).
+        return {str(x) for x in config["telegram_bot"]["allowed_chat_ids"]}
+
     async def _on_callback(update, context):
+        allowed = _allowed_chat_ids()
+        chat = update.callback_query.message.chat
+        if str(chat.id) not in allowed:
+            return
         handle_callback(update=update, conn=conn)
 
     async def _on_message(update, context):
-        allowed = set(config["telegram_bot"]["allowed_chat_ids"])
-        if update.message.chat.id not in allowed:
+        allowed = _allowed_chat_ids()
+        if str(update.message.chat.id) not in allowed:
             return
         handle_message(update=update, conn=conn, config=config)
 

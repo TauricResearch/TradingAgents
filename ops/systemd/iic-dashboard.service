@@ -4,15 +4,16 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/ziwei-huang/TradingAgents
-ExecStart=/home/ziwei-huang/TradingAgents/.venv/bin/streamlit run tradingagents/dashboard/app.py --server.port=8501 --server.address=127.0.0.1 --server.headless=true
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+ExecStart=/home/ziwei-huang/miniconda3/bin/streamlit run tradingagents/dashboard/app.py --server.port=8501 --server.address=127.0.0.1 --server.headless=true
 Restart=on-failure
 RestartSec=5
 MemoryMax=1G
 CPUQuota=50%
 StandardOutput=journal
 StandardError=journal
-EnvironmentFile=/home/ziwei-huang/TradingAgents/.env
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
 
 [Install]
 WantedBy=multi-user.target

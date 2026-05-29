@@ -6,7 +6,7 @@ during the window to drive checks G4 / G5 / G6.
 ## Pre-flight checklist
 
 - [ ] **Branch state.** On `feat/iic-forge-08-f5`, all 22 tasks committed,
-      full test suite green: `pytest -v`.
+      full test suite green: `/home/ziwei-huang/miniconda3/bin/python -m pytest -v`.
 - [ ] **Secrets.** `.env` contains:
         - `IIC_TELEGRAM_BOT_TOKEN=<your bot token>`
         - `IIC_SMTP_USER=<gmail address>`
@@ -18,18 +18,18 @@ during the window to drive checks G4 / G5 / G6.
         - `TRADINGAGENTS_DELIVERY_ENABLED_CHANNELS=telegram,email,cli`
         - `TRADINGAGENTS_ORCHESTRATOR_ENABLED=1` (from F4)
 - [ ] **Test email** sent and received:
-        `forge morning-digest now --dry-run` then manually inspect
-        `data/briefs/<latest>.md`. Then full send (no `--dry-run`) and
-        confirm receipt in Gmail.
+        `/home/ziwei-huang/miniconda3/bin/python -m cli.main forge morning-digest now --dry-run`
+        then manually inspect `data/briefs/<latest>.md`. Then full send
+        (no `--dry-run`) and confirm receipt in Gmail.
 - [ ] **Test Telegram** message: from any Telegram chat to the bot, send
       `/start`. Bot does not respond to commands (V1), but the connection
       should log `iic-telegram-bot polling started` in `journalctl -u iic-telegram-bot`.
 - [ ] **Dashboard reachable**: `curl -fs http://127.0.0.1:8501/_stcore/health` returns 200.
 - [ ] **F3 sensing** running and producing events:
-        `sqlite3 data/iic.db "SELECT COUNT(*) FROM events WHERE ingested_ts > datetime('now', '-1 hour')"`
+        `sqlite3 /home/ziwei-huang/.tradingagents/iic.db "SELECT COUNT(*) FROM events WHERE ingested_ts > datetime('now', '-1 hour')"`
       returns >= 1.
 - [ ] **F4 worker + promoter** running, queue depth = 0:
-        `sqlite3 data/iic.db "SELECT state, COUNT(*) FROM queue_jobs GROUP BY state"`
+        `sqlite3 /home/ziwei-huang/.tradingagents/iic.db "SELECT state, COUNT(*) FROM queue_jobs GROUP BY state"`
 - [ ] **systemd-inhibit** holding sleep off:
         `systemd-inhibit --what=sleep:idle --who=iic-soak --why="F5 72h soak" --mode=block sleep infinity &`
 
@@ -39,7 +39,11 @@ during the window to drive checks G4 / G5 / G6.
 2. **Enable + start F5 units.**
 
    ```bash
-   sudo cp ops/systemd/iic-*.service ops/systemd/iic-*.timer /etc/systemd/system/
+   # Install all corrected units, including the redis-server.service docker
+   # alias the sensing/triage units depend on. This replaces any older
+   # iic-user units that pointed at /home/iic and /var/log/iic.
+   sudo cp ops/systemd/redis-server.service \
+           ops/systemd/iic-*.service ops/systemd/iic-*.timer /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now iic-telegram-bot.service \
                                 iic-action-handler.service \
@@ -51,8 +55,10 @@ during the window to drive checks G4 / G5 / G6.
      (Briefs may be empty if no event_alerts yet).
    - Confirm `iic-telegram-bot` and `iic-action-handler` are `active (running)`.
 4. **Drive G3 (deep-dive delivered).** Run on the soak host:
-        `forge deepdive AAPL` and complete the interactive prompts —
-        decline the backtest, decline refinement.
+        `/home/ziwei-huang/miniconda3/bin/python -m cli.main deepdive AAPL`
+        (deepdive is a TOP-LEVEL command, not a `forge` subcommand) and
+        complete the interactive prompts — decline the backtest, decline
+        refinement.
 5. **Drive G4 (backtest prompt accepted → backtest completes).** When the
    next event_alert lands on Telegram, click **Run Backtest**. Within
    `tick_interval_seconds` (default 5s) the action moves to `done` with
@@ -72,7 +78,7 @@ The evaluator script `scripts/f5_exit_gate.py` enforces criteria G1–G9.
 Run it at `SOAK_START + 72h`:
 
 ```bash
-python scripts/f5_exit_gate.py --since "$SOAK_START"
+/home/ziwei-huang/miniconda3/bin/python scripts/f5_exit_gate.py --since "$SOAK_START"
 ```
 
 Output is `data/exit_gates/f5-<date>.md`. Pass = all 9 checks green.

@@ -55,6 +55,14 @@ def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
+    # Block (rather than immediately error) for up to 5s when another process
+    # holds the write lock. The single iic.db is written by sensing, promoter,
+    # worker, and dashboard concurrently; without this, writers crash with
+    # "database is locked" on any Python whose build default busy_timeout is 0
+    # (the conda build happens to default to 5000ms, but we must not rely on
+    # that). Idempotent — setting the same PRAGMA repeatedly is harmless.
+    conn.execute("PRAGMA busy_timeout=5000")
+
     # Load the sqlite-vec extension. Must happen before CREATE VIRTUAL TABLE.
     conn.enable_load_extension(True)
     sqlite_vec.load(conn)

@@ -142,17 +142,33 @@ def test_brief_actions_pending_and_dispatch(tmp_path):
 
 @pytest.mark.unit
 def test_expire_lapsed_actions(tmp_path):
+    from datetime import datetime, timezone, timedelta
     conn = iic_connect(str(tmp_path / "iic.db"))
     _seed_brief(conn)
-    # Already past expires_at
+    # Already past expires_at — use a CURRENT, ISO-8601 'T'+offset timestamp one
+    # hour in the past. A static 2020 sentinel would mask the T-vs-space
+    # datetime() comparison hazard (the year digits resolve the compare long
+    # before the separator mismatch is reached); a current-year value exercises
+    # it for real.
+    past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     aid = store.insert_brief_action(
         conn, brief_id="b1", action_type="run_backtest", action_params={},
-        expires_at="2020-01-01T00:00:00+00:00",
+        expires_at=past,
     )
     n = store.expire_lapsed_actions(conn)
     assert n == 1
     row = conn.execute("SELECT state FROM brief_actions WHERE action_id = ?", (aid,)).fetchone()
     assert row[0] == "expired"
+
+    # And a not-yet-expired action (one hour in the future) must be left pending.
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    aid2 = store.insert_brief_action(
+        conn, brief_id="b1", action_type="run_backtest", action_params={},
+        expires_at=future,
+    )
+    assert store.expire_lapsed_actions(conn) == 0
+    row2 = conn.execute("SELECT state FROM brief_actions WHERE action_id = ?", (aid2,)).fetchone()
+    assert row2[0] == "pending"
 
 
 @pytest.mark.unit
