@@ -72,6 +72,19 @@ _MINIMAX_MODELS: Dict[str, List[ModelOption]] = {
     ],
 }
 
+# Kimi (Moonshot AI) — single endpoint, excellent long-context + tool use.
+# kimi-k2.6 is the current flagship (256K context). Thinking is enabled by default
+# on K2 models and emits reasoning_content (must be round-tripped).
+_KIMI_MODELS: Dict[str, List[ModelOption]] = {
+    "quick": [
+        ("Kimi K2.5 - Fast, strong agentic performance", "kimi-k2.5"),
+        ("Custom model ID", "custom"),
+    ],
+    "deep": [
+        ("Kimi K2.6 - Flagship, 256K context, best reasoning & tool use", "kimi-k2.6"),
+        ("Custom model ID", "custom"),
+    ],
+}
 
 MODEL_OPTIONS: ProviderModeOptions = {
     "openai": {
@@ -153,6 +166,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # so the two provider keys share one model list.
     "minimax": _MINIMAX_MODELS,
     "minimax-cn": _MINIMAX_MODELS,
+    "kimi": _KIMI_MODELS,
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     # Ollama display labels intentionally omit a "local" marker — the
     # endpoint is now configurable via OLLAMA_BASE_URL, so the same labels

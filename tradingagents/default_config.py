@@ -51,6 +51,9 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Pending entries are never pruned. None disables rotation entirely.
     "memory_log_max_entries": None,
     # LLM settings
+    # Supported llm_provider values (see also CLI and factory):
+    # openai, google, anthropic, xai, deepseek, kimi, qwen, qwen-cn, glm, glm-cn,
+    # minimax, minimax-cn, openrouter, ollama, azure
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.4",
     "quick_think_llm": "gpt-5.4-mini",

@@ -33,15 +33,17 @@ class ModelValidationTests(unittest.TestCase):
                     self.assertTrue(validate_model(provider, model))
 
     def test_unknown_model_emits_warning_for_strict_provider(self):
-        client = DummyLLMClient("openai", "not-a-real-openai-model")
+        for provider in ("openai", "kimi"):
+            with self.subTest(provider=provider):
+                client = DummyLLMClient(provider, f"not-a-real-{provider}-model")
 
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client.get_llm()
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    client.get_llm()
 
-        self.assertEqual(len(caught), 1)
-        self.assertIn("not-a-real-openai-model", str(caught[0].message))
-        self.assertIn("openai", str(caught[0].message))
+                self.assertEqual(len(caught), 1)
+                self.assertIn(f"not-a-real-{provider}-model", str(caught[0].message))
+                self.assertIn(provider, str(caught[0].message))
 
     def test_openrouter_and_ollama_accept_custom_models_without_warning(self):
         for provider in ("openrouter", "ollama"):
