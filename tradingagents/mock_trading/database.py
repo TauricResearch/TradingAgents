@@ -240,6 +240,12 @@ class TradingDatabase:
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
+            -- Watchlist: Persist active stock symbols for morning analyses
+            CREATE TABLE IF NOT EXISTS watchlist (
+                ticker TEXT PRIMARY KEY,
+                date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
             -- Create indexes for common queries
             CREATE INDEX IF NOT EXISTS idx_transactions_portfolio ON transactions(portfolio_id);
             CREATE INDEX IF NOT EXISTS idx_transactions_ticker ON transactions(ticker);
@@ -503,3 +509,36 @@ class TradingDatabase:
                 WHERE job_id = ?
             """, (hour, minute, job_id))
             self.conn.commit()
+            
+    def get_watchlist(self) -> List[str]:
+        """Retrieve all active stock symbols from the watchlist.
+        
+        Returns:
+            List of ticker symbols
+        """
+        rows = self.execute_query("SELECT ticker FROM watchlist ORDER BY date_added ASC")
+        return [r["ticker"] for r in rows]
+        
+    def add_to_watchlist(self, ticker: str):
+        """Add a ticker to the watchlist.
+        
+        Args:
+            ticker: Stock ticker symbol
+        """
+        try:
+            self.cursor.execute("INSERT OR IGNORE INTO watchlist (ticker) VALUES (?)", (ticker.upper(),))
+            self.conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to add {ticker} to watchlist in DB: {e}")
+            
+    def remove_from_watchlist(self, ticker: str):
+        """Remove a ticker from the watchlist.
+        
+        Args:
+            ticker: Stock ticker symbol
+        """
+        try:
+            self.cursor.execute("DELETE FROM watchlist WHERE ticker = ?", (ticker.upper(),))
+            self.conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to remove {ticker} from watchlist in DB: {e}")

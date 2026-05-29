@@ -297,6 +297,22 @@ def startup_event():
         active_portfolio_id = db.create_portfolio(1000.0)
         logger.info(f"Created new default portfolio ID: {active_portfolio_id}")
         
+    # Load watchlist from DB, or populate with defaults if empty
+    global watchlist
+    try:
+        db_watchlist = db.get_watchlist()
+        if db_watchlist:
+            watchlist = db_watchlist
+            logger.info(f"Loaded active watchlist from DB: {watchlist}")
+        else:
+            watchlist = ["NVDA", "AAPL", "TSLA"]
+            for ticker in watchlist:
+                db.add_to_watchlist(ticker)
+            logger.info(f"Watchlist in DB empty. Initialized with defaults: {watchlist}")
+    except Exception as e:
+        logger.warning(f"Failed to load watchlist from DB, using memory defaults: {e}")
+        watchlist = ["NVDA", "AAPL", "TSLA"]
+        
     # Start the scheduler
     try:
         scheduler = TradingScheduler()
@@ -519,9 +535,16 @@ def add_to_watchlist(request: WatchlistRequest):
     ticker = request.ticker.strip().upper()
     if not ticker:
         raise HTTPException(status_code=400, detail="Ticker symbol required")
+    
+    global watchlist
     if ticker not in watchlist:
         watchlist.append(ticker)
-        logger.info(f"Added {ticker} to active watchlist")
+        try:
+            db.add_to_watchlist(ticker)
+            logger.info(f"Added {ticker} to active watchlist (persisted to DB)")
+        except Exception as e:
+            logger.error(f"Failed to persist watchlist add to DB: {e}")
+            
     return {"status": "success", "watchlist": watchlist}
 
 
@@ -529,9 +552,16 @@ def add_to_watchlist(request: WatchlistRequest):
 def remove_from_watchlist(request: WatchlistRequest):
     """Remove a stock ticker from the daily active watchlist."""
     ticker = request.ticker.strip().upper()
+    
+    global watchlist
     if ticker in watchlist:
         watchlist.remove(ticker)
-        logger.info(f"Removed {ticker} from active watchlist")
+        try:
+            db.remove_from_watchlist(ticker)
+            logger.info(f"Removed {ticker} from active watchlist (removed from DB)")
+        except Exception as e:
+            logger.error(f"Failed to persist watchlist remove to DB: {e}")
+            
     return {"status": "success", "watchlist": watchlist}
 
 
