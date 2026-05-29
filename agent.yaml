@@ -1,0 +1,51 @@
+spec_version: "0.1.0"
+name: trading-agents
+version: 0.2.5
+description: >
+  TradingAgents is a multi-agent LLM financial trading framework that mirrors
+  the dynamics of real-world trading firms. Specialized agents — Fundamentals
+  Analyst, Sentiment Analyst, News Analyst, Technical Analyst, Bull/Bear
+  Researchers, Trader, Risk Management team (aggressive/conservative/neutral
+  debators), and Portfolio Manager — collaborate via structured debates to
+  evaluate market conditions and produce a final BUY / HOLD / SELL decision
+  with position-sizing guidance. Supports OpenAI, Anthropic, Google Gemini,
+  xAI Grok, DeepSeek, Qwen, GLM, MiniMax, OpenRouter, Ollama, and Azure
+  OpenAI as LLM backends.
+license: Apache-2.0
+model:
+  preferred: openai:gpt-4o
+  alternates:
+    - anthropic:claude-sonnet-4-6
+    - google:gemini-2.0-flash
+    - xai:grok-3
+    - deepseek:deepseek-chat
+    - openrouter:auto
+skills:
+  - name: fundamentals-analysis
+    description: Evaluates company financials, balance sheets, cash-flow statements, and income statements to identify intrinsic value and red flags.
+  - name: sentiment-analysis
+    description: Aggregates StockTwits, Reddit, and news sentiment to gauge short-term market mood.
+  - name: news-analysis
+    description: Monitors global news and macroeconomic indicators to interpret event-driven market impact.
+  - name: technical-analysis
+    description: Applies MACD, RSI, and other technical indicators to detect trading patterns and price forecasts.
+  - name: investment-debate
+    description: Structured bull/bear researcher debate that critically weighs analyst insights and balances risk vs reward.
+  - name: risk-management
+    description: Three-way risk debate (aggressive/conservative/neutral debators) evaluating volatility, liquidity, and position limits before the Portfolio Manager makes the final call.
+  - name: trade-execution
+    description: Trader agent translates the research plan into a concrete BUY/HOLD/SELL proposal with sizing.
+  - name: memory-reflection
+    description: Persists past decisions and realised returns to a memory log; injects prior same-ticker lessons into the Portfolio Manager on each new run.
+runtime:
+  max_turns: 100
+  environment: python
+  entrypoint: "python -m cli.main"
+compliance:
+  risk_tier: standard
+  supervision:
+    human_in_the_loop: destructive
+  notes: >
+    Designed for research purposes only. Not financial, investment, or trading
+    advice. Trading performance varies with model choice, temperature, data
+    quality, and market conditions. See https://tauric.ai/disclaimer/
