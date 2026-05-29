@@ -8,17 +8,34 @@ def create_bull_researcher(llm):
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
         asset_type = state.get("asset_type", "stock")
         target_label = "stock" if asset_type == "stock" else "asset"
         fundamentals_label = (
             "Company fundamentals report"
             if asset_type == "stock"
-            else "Asset fundamentals report (may be unavailable for crypto)"
+            else "Asset fundamentals report"
         )
+        
+        # Dynamically discover all active reports in AgentState
+        report_fields = {
+            "market_report": "Market Research Report",
+            "sentiment_report": "Social Media Sentiment Report",
+            "news_report": "Latest World Affairs News",
+            "fundamentals_report": fundamentals_label,
+            "macro_report": "Macroeconomic Indicators Report",
+            "options_report": "Options Market Derivatives Report",
+            "quant_report": "Quantitative Metrics Report",
+            "earnings_report": "Corporate Guidance & Earnings Report",
+            "review_report": "Hindsight Performance Review Report",
+        }
+        
+        resources = []
+        for field, label in report_fields.items():
+            content = state.get(field, "")
+            if content and content.strip():
+                resources.append(f"{label}:\n{content.strip()}")
+                
+        resources_text = "\n\n".join(resources)
 
         prompt = f"""You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
@@ -30,10 +47,8 @@ Key points to focus on:
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 
 Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-{fundamentals_label}: {fundamentals_report}
+{resources_text}
+
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.

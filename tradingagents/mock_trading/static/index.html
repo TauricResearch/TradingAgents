@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradingAgents | AI Multi-Agent Terminal</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --bg-color: #060913;
+            --surface-color: rgba(13, 20, 38, 0.45);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-glow: rgba(147, 51, 234, 0.15);
+            
+            --color-primary: #a855f7;
+            --color-primary-dark: #7e22ce;
+            --color-secondary: #06b6d4;
+            --color-success: #10b981;
+            --color-success-bg: rgba(16, 185, 129, 0.1);
+            --color-danger: #ef4444;
+            --color-danger-bg: rgba(239, 68, 68, 0.1);
+            --color-warning: #f59e0b;
+            --color-info: #3b82f6;
+            
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-dark: #6b7280;
+            
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+            
+            --glass-blur: blur(20px);
+            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            padding-bottom: 40px;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Helper Classes */
+        .glass-card {
+            background: var(--surface-color);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: var(--transition-smooth);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px 0 rgba(147, 51, 234, 0.05);
+        }
+
+        /* Layout Container */
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header Area */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 16px 24px;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            color: var(--color-primary);
+            background: rgba(168, 85, 247, 0.12);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        .header-logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 30%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--color-success);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--color-success);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--color-success);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Portfolio Stats Cards Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stat-content h3 {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-content .value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .stat-content .change {
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .change.up { color: var(--color-success); }
+        .change.down { color: var(--color-danger); }
+        
+        .stat-icon {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 12px;
+            color: var(--color-primary);
+        }
+        
+        .stat-card:nth-child(2) .stat-icon { color: var(--color-secondary); }
+        .stat-card:nth-child(3) .stat-icon { color: var(--color-success); }
+        .stat-card:nth-child(4) .stat-icon { color: var(--color-warning); }
+
+        /* Main Workspace Grid Layout */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .left-workspace, .right-workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Section Titles */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 0 4px;
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-header h2 i {
+            color: var(--color-primary);
+        }
+
+        /* Portfolio Value Chart Box */
+        .chart-box {
+            padding: 24px;
+            height: 380px;
+        }
+
+        /* AI Analysis Console terminal */
+        .terminal-box {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .analysis-inputs {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .custom-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: var(--font-main);
+            outline: none;
+            transition: var(--transition-smooth);
+        }
+
+        .custom-input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: #fff;
+            font-family: var(--font-main);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: var(--transition-smooth);
+            align-self: flex-end;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.35);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: var(--text-dark);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Rolling terminal styling */
+        .terminal-console {
+            background: rgba(4, 6, 12, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 16px;
+            height: 180px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .terminal-line {
+            color: #fff;
+            opacity: 0.85;
+            animation: text-reveal 0.15s ease-out forwards;
+        }
+
+        .terminal-line.success { color: var(--color-success); }
+        .terminal-line.info { color: var(--color-info); }
+        .terminal-line.warning { color: var(--color-warning); }
+
+        /* Dynamic Signal Result Panel */
+        .signal-result-panel {
+            display: flex;
+            gap: 20px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+            margin-top: 4px;
+        }
+
+        .signal-badge-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            border-radius: 12px;
+            width: 140px;
+            text-align: center;
+            gap: 6px;
+        }
+
+        .signal-badge-box.buy {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--color-success);
+        }
+
+        .signal-badge-box.sell {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--color-danger);
+        }
+
+        .signal-badge-box.hold {
+            background: rgba(156, 163, 175, 0.08);
+            border: 1px solid rgba(156, 163, 175, 0.2);
+            color: var(--text-muted);
+        }
+
+        .signal-action-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        .signal-value {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .signal-confidence {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .signal-details {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .signal-reasoning {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+
+        .execute-btn-container {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .execute-btn {
+            background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-info) 100%);
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition-smooth);
+        }
+
+        .execute-btn:hover {
+            opacity: 0.95;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .execute-btn:disabled {
+            background: var(--text-dark);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Holdings & Tables styling */
+        .holdings-box, .transactions-box {
+            padding: 24px;
+        }
+
+        .custom-table-container {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .custom-table th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .custom-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+        }
+
+        .custom-table tbody tr {
+            transition: var(--transition-smooth);
+        }
+
+        .custom-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .badge.buy { background: var(--color-success-bg); color: var(--color-success); }
+        .badge.sell { background: var(--color-danger-bg); color: var(--color-danger); }
+        .badge.hold { background: rgba(156, 163, 175, 0.1); color: var(--text-muted); }
+
+        /* Right Workspace Scheduler Cards */
+        .scheduler-box {
+            padding: 24px;
+        }
+
+        .job-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: var(--transition-smooth);
+        }
+
+        .job-card:hover {
+            border-color: rgba(147, 51, 234, 0.15);
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .job-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .job-schedule {
+            font-size: 12px;
+            color: var(--color-secondary);
+            font-weight: 500;
+            background: rgba(6, 182, 212, 0.08);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .job-details {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .job-details span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .job-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .action-icon-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-main);
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-smooth);
+        }
+
+        .action-icon-btn:hover {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--color-primary);
+        }
+
+        .action-icon-btn.trigger:hover {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--color-secondary);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 10px rgba(168, 85, 247, 0.15); }
+            to { box-shadow: 0 0 20px rgba(168, 85, 247, 0.35); }
+        }
+
+        @keyframes text-reveal {
+            from { opacity: 0; transform: translateY(2px); }
+            to { opacity: 0.85; transform: translateY(0); }
+        }
+
+        /* Watchlist styles */
+        .watchlist-box {
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .watchlist-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .watchlist-tag {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            color: var(--color-secondary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.05);
+            transition: var(--transition-smooth);
+        }
+
+        .watchlist-tag:hover {
+            border-color: var(--color-secondary);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
+        }
+
+        .watchlist-tag-remove {
+            cursor: pointer;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-smooth);
+        }
+
+        .watchlist-tag-remove:hover {
+            color: var(--color-danger);
+            transform: scale(1.15);
+        }
+
+        .watchlist-input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .watchlist-input-row input {
+            flex: 1;
+        }
+
+        /* Scheduler Time Picker */
+        .job-reschedule-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .job-reschedule-row label {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .time-picker-input {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: var(--font-main);
+            outline: none;
+            width: 75px;
+        }
+
+        .save-time-btn {
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            color: var(--color-primary);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .save-time-btn:hover {
+            background: var(--color-primary);
+            color: #fff;
+        }
+
+        /* Custom LLM Model Manager styles */
+        .model-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        
+        .model-list-item span {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #fff;
+        }
+
+        .model-delete-btn {
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: var(--transition-smooth);
+            display: flex;
+            align-items: center;
+        }
+
+        .model-delete-btn:hover {
+            color: var(--color-danger);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Header -->
+        <header class="glass-card">
+            <div class="header-logo">
+                <i data-lucide="cpu" class="logo-icon"></i>
+                <div>
+                    <h1>Antigravity AI Trading Terminal</h1>
+                </div>
+            </div>
+            <div class="system-status">
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    <span>TERMINAL ONLINE</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Portfolio Dashboard Grid -->
+        <div class="stats-grid">
+            <!-- Metric 1 -->
+            <div class="glass-card stat-card">
+                <div class="stat-content">
+                    <h3>Net Asset Value (NAV)</h3>
+                    <div class="value" id="nav-val">$1,000.00</div>
+                    <div class="change" id="roi-pct">0.00% Total Return</div>
+                </div>
+                <div class="stat-icon"><i data-lucide="line-chart"></i></div>
+            </div>
+            
+            <!-- Metric 2 -->
+            <div class="glass-card stat-card">
+                <div class="stat-content">
+                    <h3>Available Cash</h3>
+                    <div class="value" id="cash-val">$1,000.00</div>
+                    <div class="change" style="color: var(--text-muted)">Liquid Reserve</div>
+                </div>
+                <div class="stat-icon"><i data-lucide="wallet"></i></div>
+            </div>
+            
+            <!-- Metric 3 -->
+            <div class="glass-card stat-card">
+                <div class="stat-content">
+                    <h3>Assets in Holdings</h3>
+                    <div class="value" id="holdings-val">$0.00</div>
+                    <div class="change" id="unrealized-pnl" style="color: var(--text-muted)">0.00 Unrealized P&L</div>
+                </div>
+                <div class="stat-icon"><i data-lucide="briefcase"></i></div>
+            </div>
+            
+            <!-- Metric 4 -->
+            <div class="glass-card stat-card">
+                <div class="stat-content">
+                    <h3>Active System Config</h3>
+                    <div class="value" style="font-size: 20px; font-weight: 600; padding-top: 4px;">NVDA Mode</div>
+                    <div class="change" style="color: var(--text-muted)">Multi-Agent active</div>
+                </div>
+                <div class="stat-icon"><i data-lucide="settings"></i></div>
+            </div>
+        </div>
+
+        <!-- Middle Grid Workspaces -->
+        <div class="workspace-grid">
+            
+            <!-- Left Area -->
+            <div class="left-workspace">
+                
+                <!-- Performance Line Chart -->
+                <div class="glass-card chart-box">
+                    <div class="section-header">
+                        <h2><i data-lucide="activity"></i>Portfolio Equity Curve</h2>
+                    </div>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="equityChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- AI Analyst Terminal -->
+                <div class="glass-card terminal-box">
+                    <div class="section-header">
+                        <h2><i data-lucide="terminal"></i>AI Agent Trading Terminal</h2>
+                    </div>
+                    
+                    <div class="analysis-inputs">
+                        <div class="input-group">
+                            <label for="ticker-select">STOCK TICKER</label>
+                            <input type="text" id="ticker-select" class="custom-input" value="NVDA" placeholder="e.g. NVDA, AAPL">
+                        </div>
+                        
+                        <div class="input-group">
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <label for="model-select">LLM ENGINE</label>
+                                <span onclick="toggleModelManager()" style="font-size: 11px; color: var(--color-secondary); cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                    <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i>Manage
+                                </span>
+                            </div>
+                            <select id="model-select" class="custom-input">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        
+                        <button class="btn" id="analyze-btn" onclick="startAIAnalysis()">
+                            <i data-lucide="play"></i>Run AI Analysis
+                        </button>
+                    </div>
+                    
+                    <!-- Inline Custom Model Manager Drawer -->
+                    <div id="model-manager-drawer" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; margin-top: 4px;">
+                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <i data-lucide="settings" style="width: 14px; height: 14px; color: var(--color-secondary);"></i>Custom LLM Engines
+                        </h4>
+                        
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <input type="text" id="custom-model-input" class="custom-input" placeholder="e.g. deepseek-reasoner" style="flex: 1; padding: 6px 12px; font-size: 13px;">
+                            <button class="btn" onclick="addNewModel()" style="padding: 6px 14px; font-size: 13px; align-self: center;">
+                                <i data-lucide="plus"></i>Add
+                            </button>
+                        </div>
+                        
+                        <div id="models-list-container" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; padding-right: 4px;">
+                            <!-- List of models with delete buttons -->
+                        </div>
+                    </div>
+                    
+                    <!-- Scrolling Terminal -->
+                    <div class="terminal-console" id="terminal-console">
+                        <div class="terminal-line info">[System] AI Multi-Agent Trading Terminal ready. Select ticker and click 'Run AI Analysis'.</div>
+                    </div>
+                    
+                    <!-- Dynamic Result Panel -->
+                    <div class="signal-result-panel" id="signal-result-panel" style="display: none;">
+                        <div class="signal-badge-box" id="signal-badge-box">
+                            <span class="signal-action-title">Signal</span>
+                            <span class="signal-value" id="signal-val">BUY</span>
+                            <span class="signal-confidence" id="confidence-val">87% Conf.</span>
+                        </div>
+                        
+                        <div class="signal-details">
+                            <div>
+                                <h4 style="margin-bottom: 4px; font-size: 14px; font-weight: 600;">Agent Reasoning:</h4>
+                                <p class="signal-reasoning" id="reasoning-text">The multi-agent network detected strong bullish crossover...</p>
+                            </div>
+                            
+                            <div class="execute-btn-container">
+                                <button class="execute-btn" id="execute-btn" onclick="executeDecision()">
+                                    <i data-lucide="zap"></i>Execute Trade Signal
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Live Stock Holdings Grid -->
+                <div class="glass-card holdings-box">
+                    <div class="section-header">
+                        <h2><i data-lucide="trending-up"></i>Current Stock Positions</h2>
+                    </div>
+                    
+                    <div class="custom-table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th>Shares Held</th>
+                                    <th>Avg Price</th>
+                                    <th>Current Price</th>
+                                    <th>Market Value</th>
+                                    <th>Profit / Loss</th>
+                                </tr>
+                            </thead>
+                            <tbody id="holdings-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                        Loading positions...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Area -->
+            <div class="right-workspace">
+                
+                <!-- Watchlist Manager Box -->
+                <div class="glass-card watchlist-box">
+                    <div class="section-header">
+                        <h2><i data-lucide="eye"></i>Active Watchlist</h2>
+                    </div>
+                    
+                    <div class="watchlist-tags" id="watchlist-tags-container">
+                        <!-- Tickers will go here -->
+                        <div style="text-align: center; color: var(--text-muted); padding: 10px; width: 100%;">
+                            Loading watchlist...
+                        </div>
+                    </div>
+                    
+                    <div class="watchlist-input-row">
+                        <input type="text" id="watchlist-add-input" class="custom-input" placeholder="e.g. MSFT, TSLA" style="padding: 8px 12px; font-size: 13px;">
+                        <button class="btn" onclick="addToWatchlist()" style="padding: 8px 14px; font-size: 13px; align-self: center;">
+                            <i data-lucide="plus"></i>Add
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scheduler Control Panel -->
+                <div class="glass-card scheduler-box">
+                    <div class="section-header">
+                        <h2><i data-lucide="calendar"></i>Cron Scheduler</h2>
+                    </div>
+                    
+                    <div id="scheduler-jobs-list">
+                        <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                            Loading schedules...
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <!-- Bottom Area: Transactions -->
+        <div class="glass-card transactions-box">
+            <div class="section-header">
+                <h2><i data-lucide="history"></i>Order Transaction History</h2>
+            </div>
+            
+            <div class="custom-table-container">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>Ticker</th>
+                            <th>Shares</th>
+                            <th>Price</th>
+                            <th>Total Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactions-table-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                Loading transaction log...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global variables for state and Chart
+        let equityChart = null;
+        let activeDecisionId = null;
+
+        // Initialize icons and render everything on load
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            loadPortfolioData();
+            loadHoldingsData();
+            loadTransactionsData();
+            loadSchedulerData();
+            loadWatchlistData();
+            loadModelsData();
+            initEquityChart();
+            
+            // Periodically refresh data to keep it dynamic
+            setInterval(silentRefresh, 5000);
+        });
+
+        // Initialize empty Chart
+        function initEquityChart() {
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(168, 85, 247, 0.3)');
+            gradient.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+
+            equityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Portfolio Balance',
+                        data: [],
+                        borderColor: '#a855f7',
+                        borderWidth: 2,
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#a855f7',
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } }
+                        }
+                    }
+                }
+            });
+            
+            loadChartHistory();
+        }
+
+        // Silent background refresh for data
+        function silentRefresh() {
+            loadPortfolioData(true);
+            loadHoldingsData(true);
+            loadTransactionsData(true);
+            loadSchedulerData(true);
+            loadWatchlistData(true);
+        }
+
+        // Load Portfolio Header Stats
+        function loadPortfolioData(silent = false) {
+            fetch('/api/status')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('nav-val').textContent = `$${data.current_balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('cash-val').textContent = `$${data.cash_available.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('holdings-val').textContent = `$${data.holdings_value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    
+                    const roiEl = document.getElementById('roi-pct');
+                    const sign = data.total_roi_pct >= 0 ? '+' : '';
+                    roiEl.textContent = `${sign}${data.total_roi_pct.toFixed(2)}% Total Return`;
+                    
+                    if (data.total_roi_pct >= 0) {
+                        roiEl.className = "change up";
+                    } else {
+                        roiEl.className = "change down";
+                    }
+                    
+                    const pnlEl = document.getElementById('unrealized-pnl');
+                    const pnlSign = data.unrealized_pnl >= 0 ? '+' : '';
+                    pnlEl.textContent = `${pnlSign}$${data.unrealized_pnl.toFixed(2)} Unrealized P&L`;
+                    if (data.unrealized_pnl >= 0) {
+                        pnlEl.style.color = "var(--color-success)";
+                    } else {
+                        pnlEl.style.color = "var(--color-danger)";
+                    }
+                })
+                .catch(err => console.error("Error loading portfolio metrics:", err));
+        }
+
+        // Load Equity curve history
+        function loadChartHistory() {
+            fetch('/api/history')
+                .then(res => res.json())
+                .then(data => {
+                    const labels = data.map(item => item.date);
+                    const values = data.map(item => item.total_portfolio_value);
+                    
+                    equityChart.data.labels = labels;
+                    equityChart.data.datasets[0].data = values;
+                    equityChart.update();
+                })
+                .catch(err => console.error("Error loading chart logs:", err));
+        }
+
+        // Load Stock Holdings Grid
+        function loadHoldingsData(silent = false) {
+            fetch('/api/holdings')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('holdings-table-body');
+                    
+                    if (data.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    No active stock positions held in this portfolio.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.forEach(h => {
+                        const pnlClass = h.pnl >= 0 ? 'up' : 'down';
+                        const pnlSign = h.pnl >= 0 ? '+' : '';
+                        const color = h.pnl >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                        
+                        html += `
+                            <tr>
+                                <td style="font-weight: 700; color: #fff;">${h.ticker}</td>
+                                <td>${h.shares.toFixed(4)}</td>
+                                <td>$${h.avg_buy_price.toFixed(2)}</td>
+                                <td>$${h.current_price.toFixed(2)}</td>
+                                <td style="font-weight: 600;">$${h.market_value.toFixed(2)}</td>
+                                <td style="color: ${color}; font-weight: 600;">
+                                    ${pnlSign}$${h.pnl.toFixed(2)} (${pnlSign}${h.pnl_pct.toFixed(2)}%)
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tbody.innerHTML = html;
+                })
+                .catch(err => console.error("Error loading holdings:", err));
+        }
+
+        // Load Transactions Log
+        function loadTransactionsData(silent = false) {
+            fetch('/api/transactions')
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('transactions-table-body');
+                    
+                    if (data.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    No transaction logs available for this portfolio.
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.forEach(tx => {
+                        const typeBadge = tx.transaction_type === 'BUY' ? 'badge buy' : 'badge sell';
+                        const time = tx.timestamp.replace('T', ' ').substring(0, 19);
+                        html += `
+                            <tr>
+                                <td style="color: var(--text-muted); font-size: 13px;">${time}</td>
+                                <td><span class="${typeBadge}">${tx.transaction_type}</span></td>
+                                <td style="font-weight: 700; color: #fff;">${tx.ticker}</td>
+                                <td>${tx.quantity_filled.toFixed(4)}</td>
+                                <td>$${tx.price_per_share.toFixed(2)}</td>
+                                <td style="font-weight: 600;">$${tx.total_value.toFixed(2)}</td>
+                                <td><span class="badge hold" style="background: rgba(16, 185, 129, 0.08); color: var(--color-success);">${tx.order_status}</span></td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tbody.innerHTML = html;
+                })
+                .catch(err => console.error("Error loading transactions:", err));
+        }
+
+        // Load Scheduler Cron Jobs
+        function loadSchedulerData(silent = false) {
+            fetch('/api/scheduler')
+                .then(res => res.json())
+                .then(data => {
+                    const listContainer = document.getElementById('scheduler-jobs-list');
+                    
+                    if (!data.jobs || data.jobs.length === 0) {
+                        listContainer.innerHTML = `
+                            <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                                No scheduled cron tasks found.
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.jobs.forEach(job => {
+                        const runTime = job.next_run ? job.next_run.replace('T', ' ').substring(0, 16) : 'PAUSED / INACTIVE';
+                        const runColor = job.next_run ? 'var(--text-main)' : 'var(--color-danger)';
+                        
+                        html += `
+                            <div class="job-card">
+                                <div class="job-header">
+                                    <span class="job-title">${job.job_id.replace('_', ' ').toUpperCase()}</span>
+                                    <span class="job-schedule">${job.schedule}</span>
+                                </div>
+                                <div class="job-details">
+                                    <span><i data-lucide="cpu" style="width: 13px; height: 13px;"></i> Function: ${job.function}</span>
+                                    <span style="color: ${runColor};"><i data-lucide="clock" style="width: 13px; height: 13px;"></i> Next Fire: ${runTime}</span>
+                                </div>
+                                <div class="job-reschedule-row">
+                                    <label for="time-${job.job_id}">Set Time:</label>
+                                    <input type="time" id="time-${job.job_id}" class="time-picker-input" value="${job.schedule}">
+                                    <button class="save-time-btn" onclick="saveSchedulerTime('${job.job_id}')">Update</button>
+                                </div>
+                                <div class="job-actions">
+                                    <button class="action-icon-btn trigger" onclick="triggerJob('${job.job_id}')" title="Trigger Job Now">
+                                        <i data-lucide="play-circle" style="width: 16px; height: 16px;"></i>
+                                    </button>
+                                    ${job.next_run ? `
+                                        <button class="action-icon-btn" onclick="pauseJob('${job.job_id}')" title="Pause Schedule">
+                                            <i data-lucide="pause" style="width: 16px; height: 16px;"></i>
+                                        </button>
+                                    ` : `
+                                        <button class="action-icon-btn" onclick="resumeJob('${job.job_id}')" title="Resume Schedule">
+                                            <i data-lucide="play" style="width: 16px; height: 16px;"></i>
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    listContainer.innerHTML = html;
+                    lucide.createIcons();
+                })
+                .catch(err => console.error("Error loading scheduler info:", err));
+        }
+
+        // Trigger Scheduler job
+        function triggerJob(jobId) {
+            fetch(`/api/scheduler/trigger?job_id=${jobId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    alert(`Scheduler Job ${jobId} triggered successfully.`);
+                    silentRefresh();
+                })
+                .catch(err => console.error("Error triggering job:", err));
+        }
+
+        // Pause Scheduler job
+        function pauseJob(jobId) {
+            fetch(`/api/scheduler/pause?job_id=${jobId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    silentRefresh();
+                })
+                .catch(err => console.error("Error pausing job:", err));
+        }
+
+        // Resume Scheduler job
+        function resumeJob(jobId) {
+            fetch(`/api/scheduler/resume?job_id=${jobId}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    silentRefresh();
+                })
+                .catch(err => console.error("Error resuming job:", err));
+        }
+
+        // Run multi-agent AI Analysis simulation
+        function startAIAnalysis() {
+            const ticker = document.getElementById('ticker-select').value.trim().upper();
+            const model = document.getElementById('model-select').value;
+            const btn = document.getElementById('analyze-btn');
+            const consoleEl = document.getElementById('terminal-console');
+            const resultPanel = document.getElementById('signal-result-panel');
+            
+            if (!ticker) {
+                alert("Please enter a stock ticker symbol!");
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="animation: spin 1s linear infinite;"></i>Analyzing...`;
+            lucide.createIcons();
+            
+            // Hide previous results
+            resultPanel.style.display = 'none';
+            activeDecisionId = null;
+            
+            // Clear terminal & print initial lines
+            consoleEl.innerHTML = `<div class="terminal-line info">[System] Initializing Multi-Agent Terminal pipeline for ${ticker}...</div>`;
+            
+            fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker, model: model })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Analysis failed");
+                return res.json();
+            })
+            .then(data => {
+                // Stream terminal lines dynamically using timers to make it look active
+                let lineIdx = 0;
+                
+                function printNextLine() {
+                    if (lineIdx < data.logs.length) {
+                        const line = document.createElement('div');
+                        line.className = 'terminal-line';
+                        
+                        const logText = data.logs[lineIdx];
+                        if (logText.includes('BUY') || logText.includes('SELL') || logText.includes('completed')) {
+                            line.className += ' success';
+                        } else if (logText.includes('📊') || logText.includes('📰') || logText.includes('⚖️')) {
+                            line.className += ' info';
+                        }
+                        
+                        line.textContent = logText;
+                        consoleEl.appendChild(line);
+                        consoleEl.scrollTop = consoleEl.scrollHeight;
+                        
+                        lineIdx++;
+                        setTimeout(printNextLine, 350 + (randomFluc() * 150));
+                    } else {
+                        // All lines printed, show signal card
+                        btn.disabled = false;
+                        btn.innerHTML = `<i data-lucide="play"></i>Run AI Analysis`;
+                        lucide.createIcons();
+                        
+                        showSignalResult(data);
+                    }
+                }
+                
+                printNextLine();
+            })
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="play"></i>Run AI Analysis`;
+                lucide.createIcons();
+                consoleEl.innerHTML += `<div class="terminal-line" style="color: var(--color-danger);">[Error] Failed to connect to server backend analysis service.</div>`;
+            });
+        }
+
+        // Helper randomizer for streaming delays
+        function randomFluc() {
+            return Math.random();
+        }
+
+        // Render Generated Signal Results Card
+        function showSignalResult(data) {
+            const panel = document.getElementById('signal-result-panel');
+            const badge = document.getElementById('signal-badge-box');
+            const signalVal = document.getElementById('signal-val');
+            const confVal = document.getElementById('confidence-val');
+            const reasoning = document.getElementById('reasoning-text');
+            const executeBtn = document.getElementById('execute-btn');
+            
+            activeDecisionId = data.decision_id;
+            
+            signalVal.textContent = data.decision;
+            confVal.textContent = `${Math.round(data.confidence * 100)}% Conf.`;
+            reasoning.textContent = data.reasoning;
+            
+            // Set styles based on action
+            badge.className = 'signal-badge-box';
+            if (data.decision === 'BUY') {
+                badge.className += ' buy';
+                executeBtn.style.display = 'flex';
+                executeBtn.innerHTML = `<i data-lucide="zap"></i>Execute BUY Trade`;
+            } else if (data.decision === 'SELL') {
+                badge.className += ' sell';
+                executeBtn.style.display = 'flex';
+                executeBtn.innerHTML = `<i data-lucide="zap"></i>Execute SELL Trade`;
+            } else {
+                badge.className += ' hold';
+                executeBtn.style.display = 'none';  // Hide execute button on HOLD
+            }
+            
+            executeBtn.disabled = false;
+            panel.style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        // Send instant transaction order execution to server
+        function executeDecision() {
+            if (!activeDecisionId) return;
+            
+            const btn = document.getElementById('execute-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="animation: spin 1s linear infinite;"></i>Executing...`;
+            lucide.createIcons();
+            
+            fetch('/api/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ decision_id: activeDecisionId })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail || "Trade rejected"); });
+                return res.json();
+            })
+            .then(data => {
+                alert(data.message);
+                
+                // Refresh all states
+                silentRefresh();
+                loadChartHistory();
+                
+                // Clear active decision card state
+                document.getElementById('signal-result-panel').style.display = 'none';
+                activeDecisionId = null;
+            })
+            .catch(err => {
+                alert(`Trade Execution Failed: ${err.message}`);
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="zap"></i>Execute Trade Signal`;
+                lucide.createIcons();
+            });
+        }
+
+        // Load active watchlist data
+        function loadWatchlistData(silent = false) {
+            fetch('/api/watchlist')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('watchlist-tags-container');
+                    if (!data.watchlist || data.watchlist.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align: center; color: var(--text-muted); padding: 10px; width: 100%;">
+                                Watchlist is empty. Add a stock ticker symbol below.
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.watchlist.forEach(ticker => {
+                        html += `
+                            <div class="watchlist-tag">
+                                <span>${ticker}</span>
+                                <span class="watchlist-tag-remove" onclick="removeFromWatchlist('${ticker}')" title="Remove Stock">
+                                    <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                                </span>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                    lucide.createIcons();
+                })
+                .catch(err => console.error("Error loading watchlist:", err));
+        }
+
+        // Add stock to active watchlist
+        function addToWatchlist() {
+            const input = document.getElementById('watchlist-add-input');
+            const ticker = input.value.trim().toUpperCase();
+            if (!ticker) {
+                alert("Please enter a stock ticker symbol!");
+                return;
+            }
+            
+            fetch('/api/watchlist/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to add stock");
+                return res.json();
+            })
+            .then(data => {
+                input.value = '';
+                loadWatchlistData();
+            })
+            .catch(err => alert(`Error: ${err.message}`));
+        }
+
+        // Remove stock from active watchlist
+        function removeFromWatchlist(ticker) {
+            fetch('/api/watchlist/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticker: ticker })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to remove stock");
+                return res.json();
+            })
+            .then(data => {
+                loadWatchlistData();
+            })
+            .catch(err => alert(`Error: ${err.message}`));
+        }
+
+        // Reschedule a daily cron job schedule time
+        function saveSchedulerTime(jobId) {
+            const input = document.getElementById(`time-${jobId}`);
+            const timeStr = input.value;
+            if (!timeStr) {
+                alert("Please select a valid time!");
+                return;
+            }
+            fetch('/api/scheduler-edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ job_id: jobId, time: timeStr })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(err => { throw new Error(err.detail || "Reschedule failed"); });
+                return res.json();
+            })
+            .then(data => {
+                alert(data.message);
+                silentRefresh();
+            })
+            .catch(err => alert(`Failed to reschedule job: ${err.message}`));
+        }
+
+        // Global models state
+        let availableModels = [
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gpt-4o",
+            "claude-3-5-sonnet"
+        ];
+
+        // Load models list from localStorage or use default
+        function loadModelsData() {
+            const saved = localStorage.getItem('tradingagents_custom_models');
+            if (saved) {
+                try {
+                    availableModels = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Error parsing saved models, resetting to default:", e);
+                }
+            }
+            
+            renderModelsDropdown();
+            renderModelsManagerList();
+        }
+
+        // Render models into select dropdown
+        function renderModelsDropdown() {
+            const select = document.getElementById('model-select');
+            let html = '';
+            availableModels.forEach(model => {
+                let label = model;
+                if (model === "gemini-1.5-flash") label = "Gemini 1.5 Flash (Medium)";
+                if (model === "gemini-1.5-pro") label = "Gemini 1.5 Pro";
+                if (model === "gpt-4o") label = "GPT-4o";
+                if (model === "claude-3-5-sonnet") label = "Claude 3.5 Sonnet";
+                
+                html += `<option value="${model}">${label}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
+        // Render models list in the manager drawer
+        function renderModelsManagerList() {
+            const container = document.getElementById('models-list-container');
+            let html = '';
+            availableModels.forEach(model => {
+                html += `
+                    <div class="model-list-item">
+                        <span>${model}</span>
+                        <span class="model-delete-btn" onclick="deleteModel('${model}')" title="Delete Model">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        </span>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Toggle Model Manager Drawer visibility
+        function toggleModelManager() {
+            const drawer = document.getElementById('model-manager-drawer');
+            if (drawer.style.display === 'none') {
+                drawer.style.display = 'block';
+            } else {
+                drawer.style.display = 'none';
+            }
+            lucide.createIcons();
+        }
+
+        // Add a new custom model
+        function addNewModel() {
+            const input = document.getElementById('custom-model-input');
+            const model = input.value.trim().toLowerCase();
+            if (!model) {
+                alert("Please enter a model name!");
+                return;
+            }
+            
+            if (availableModels.includes(model)) {
+                alert("This model is already in the list!");
+                return;
+            }
+            
+            availableModels.push(model);
+            localStorage.setItem('tradingagents_custom_models', JSON.stringify(availableModels));
+            
+            input.value = '';
+            renderModelsDropdown();
+            renderModelsManagerList();
+        }
+
+        // Delete a model from the list
+        function deleteModel(model) {
+            if (availableModels.length <= 1) {
+                alert("You must keep at least one LLM model!");
+                return;
+            }
+            
+            availableModels = availableModels.filter(m => m !== model);
+            localStorage.setItem('tradingagents_custom_models', JSON.stringify(availableModels));
+            
+            renderModelsDropdown();
+            renderModelsManagerList();
+        }
+    </script>
+</body>
+</html>

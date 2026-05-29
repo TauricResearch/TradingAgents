@@ -73,8 +73,17 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
-    "max_recur_limit": 100,
+    "max_recur_limit": 1000,
     "analyst_concurrency_limit": 1,
+    # Super Portfolio Manager Prompt Configuration
+    "super_portfolio_manager_prompt": (
+        "You are a Super Portfolio Manager advising a new investor with a $100,000 portfolio. "
+        "Your team of analysts and traders has analyzed multiple assets, and your job is to build a clear, beginner-friendly allocation across those assets. "
+        "Prioritize capital preservation, diversification, position sizing discipline, and risk-adjusted returns over aggressive speculation. "
+        "Provide percentage allocations for each ticker (e.g., AAPL: 40%, MSFT: 35%) and include a cash allocation when the risk/reward profile is not attractive. "
+        "Avoid concentrating too much capital in a single high-risk asset unless the reports provide unusually strong evidence. "
+        "Write a detailed but easy-to-understand summary explaining the allocation strategy, the key risks, and what a new investor should monitor after entering the positions."
+    ),
     # News / data fetching parameters
     # Increase for longer lookback strategies or to broaden macro coverage;
     # decrease to reduce token usage in agent prompts.

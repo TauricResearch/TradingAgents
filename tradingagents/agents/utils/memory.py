@@ -45,9 +45,29 @@ class TradingMemoryLog:
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-        entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
-        with open(self._log_path, "a", encoding="utf-8") as f:
-            f.write(entry)
+        new_block = f"{tag}\n\nDECISION:\n{final_trade_decision}"
+
+        # If rotation is enabled, write atomically with rotation applied
+        if self._max_entries and self._max_entries > 0:
+            if self._log_path.exists():
+                text = self._log_path.read_text(encoding="utf-8")
+                blocks = [b.strip() for b in text.split(self._SEPARATOR) if b.strip()]
+            else:
+                blocks = []
+            
+            blocks.append(new_block)
+            blocks = self._apply_rotation(blocks)
+            
+            # Reconstruct trailing separator
+            new_text = self._SEPARATOR.join(blocks) + self._SEPARATOR
+            tmp_path = self._log_path.with_suffix(".tmp")
+            tmp_path.write_text(new_text, encoding="utf-8")
+            tmp_path.replace(self._log_path)
+        else:
+            # Just append normally
+            entry = f"{new_block}{self._SEPARATOR}"
+            with open(self._log_path, "a", encoding="utf-8") as f:
+                f.write(entry)
 
     # --- Read path (Phase A) ---
 
@@ -188,24 +208,25 @@ class TradingMemoryLog:
             tag_line = lines[0].strip()
 
             matched = False
-            for (trade_date, ticker), upd in list(update_map.items()):
-                pending_prefix = f"[{trade_date} | {ticker} |"
-                if tag_line.startswith(pending_prefix) and tag_line.endswith("| pending]"):
-                    fields = [f.strip() for f in tag_line[1:-1].split("|")]
-                    rating = fields[2]
-                    raw_pct = f"{upd['raw_return']:+.1%}"
-                    alpha_pct = f"{upd['alpha_return']:+.1%}"
-                    new_tag = (
-                        f"[{trade_date} | {ticker} | {rating}"
-                        f" | {raw_pct} | {alpha_pct} | {upd['holding_days']}d]"
-                    )
-                    rest = "\n".join(lines[1:])
-                    new_blocks.append(
-                        f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
-                    )
-                    del update_map[(trade_date, ticker)]
-                    matched = True
-                    break
+            if tag_line.startswith("[") and tag_line.endswith("| pending]"):
+                fields = [f.strip() for f in tag_line[1:-1].split("|")]
+                if len(fields) >= 4:
+                    trade_date, ticker = fields[0], fields[1]
+                    upd = update_map.get((trade_date, ticker))
+                    if upd:
+                        rating = fields[2]
+                        raw_pct = f"{upd['raw_return']:+.1%}"
+                        alpha_pct = f"{upd['alpha_return']:+.1%}"
+                        new_tag = (
+                            f"[{trade_date} | {ticker} | {rating}"
+                            f" | {raw_pct} | {alpha_pct} | {upd['holding_days']}d]"
+                        )
+                        rest = "\n".join(lines[1:])
+                        new_blocks.append(
+                            f"{new_tag}\n\n{rest.lstrip()}\n\nREFLECTION:\n{upd['reflection']}"
+                        )
+                        del update_map[(trade_date, ticker)]
+                        matched = True
 
             if not matched:
                 new_blocks.append(block)

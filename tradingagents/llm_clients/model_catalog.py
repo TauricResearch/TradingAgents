@@ -175,6 +175,28 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "nvidia": {
+        "quick": [
+            ("Llama-3.1 8B Instruct", "meta/llama-3.1-8b-instruct"),
+            ("Llama-3.2 3B Instruct", "meta/llama-3.2-3b-instruct"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Llama-3.1 70B Instruct", "meta/llama-3.1-70b-instruct"),
+            ("Llama-3.1 405B Instruct", "meta/llama-3.1-405b-instruct"),
+            ("Custom model ID", "custom"),
+        ],
+    },
+    "litellm": {
+        "quick": [
+            ("Default Quick Model (e.g. gpt-3.5-turbo)", "gpt-3.5-turbo"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("Default Deep Model (e.g. gpt-4)", "gpt-4"),
+            ("Custom model ID", "custom"),
+        ],
+    },
 }
 
 

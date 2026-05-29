@@ -19,15 +19,24 @@ ANALYST_ORDER = [
     ("Sentiment Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Macro Analyst", AnalystType.MACRO),
+    ("Options Analyst", AnalystType.OPTIONS),
+    ("Quantitative Analyst", AnalystType.QUANT),
+    ("Earnings Analyst", AnalystType.EARNINGS),
+    ("Review Analyst", AnalystType.REVIEW),
 ]
 
 CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
 
 
-def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
-    ticker = questionary.text(
-        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
+def get_ticker() -> List[str]:
+    """Prompt the user to enter ticker symbol(s)."""
+    prefs = load_prefs()
+    default_ticker = prefs.get("last_ticker", "SPY")
+
+    ticker_input = questionary.text(
+        f"Enter the exact ticker symbol(s) to analyze, separated by commas ({TICKER_INPUT_EXAMPLES}) [Default: {default_ticker}]:",
+        default=default_ticker,
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
@@ -37,12 +46,17 @@ def get_ticker() -> str:
         ),
     ).ask()
 
-    if not ticker:
+    if not ticker_input:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker)
+    # Save to prefs
+    prefs["last_ticker"] = ticker_input.strip()
+    save_prefs(prefs)
 
+    # Split by comma and normalize
+    tickers = [normalize_ticker_symbol(t) for t in ticker_input.split(",") if t.strip()]
+    return tickers
 
 def normalize_ticker_symbol(ticker: str) -> str:
     """Normalize ticker input while preserving exchange suffixes."""
@@ -69,11 +83,15 @@ def filter_analysts_for_asset_type(
 
 
 def get_analysis_date() -> str:
-    """Prompt the user to enter a date in YYYY-MM-DD format."""
+    """Prompt the user to enter a date in YYYY-MM-DD format. Defaults to today."""
     import re
     from datetime import datetime
 
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
     def validate_date(date_str: str) -> bool:
+        if not date_str.strip():
+            return True # Allow empty, will default to today
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
             return False
         try:
@@ -83,7 +101,8 @@ def get_analysis_date() -> str:
             return False
 
     date = questionary.text(
-        "Enter the analysis date (YYYY-MM-DD):",
+        "Enter the analysis date (YYYY-MM-DD) [Press Enter for today]:",
+        default=today_str,
         validate=lambda x: validate_date(x.strip())
         or "Please enter a valid date in YYYY-MM-DD format.",
         style=questionary.Style(
@@ -98,7 +117,8 @@ def get_analysis_date() -> str:
         console.print("\n[red]No date provided. Exiting...[/red]")
         exit(1)
 
-    return date.strip()
+    date = date.strip()
+    return date if date else today_str
 
 
 def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType]:
@@ -178,16 +198,27 @@ def _fetch_openrouter_models() -> List[Tuple[str, str]]:
         return []
 
 
-def select_openrouter_model() -> str:
+def select_openrouter_model(default_choice: str = None) -> str:
     """Select an OpenRouter model from the newest available, or enter a custom ID."""
     models = _fetch_openrouter_models()
 
     choices = [questionary.Choice(name, value=mid) for name, mid in models[:5]]
     choices.append(questionary.Choice("Custom model ID", value="custom"))
 
+    default_index = 0
+    if default_choice:
+        for idx, choice_obj in enumerate(choices[:-1]):
+            if choice_obj.value == default_choice:
+                default_index = idx
+                break
+        else:
+            if default_choice != "custom":
+                default_index = len(choices) - 1
+
     choice = questionary.select(
         "Select OpenRouter Model (latest available):",
         choices=choices,
+        default=choices[default_index] if choices else None,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style([
             ("selected", "fg:magenta noinherit"),
@@ -197,26 +228,35 @@ def select_openrouter_model() -> str:
     ).ask()
 
     if choice is None or choice == "custom":
+        custom_default = default_choice if default_choice and default_choice != "custom" else ""
         return questionary.text(
             "Enter OpenRouter model ID (e.g. google/gemma-4-26b-a4b-it):",
+            default=custom_default,
             validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
         ).ask().strip()
 
     return choice
 
 
-def _prompt_custom_model_id() -> str:
+def _prompt_custom_model_id(default_id: str = "") -> str:
     """Prompt user to type a custom model ID."""
     return questionary.text(
         "Enter model ID:",
+        default=default_id,
         validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
     ).ask().strip()
 
 
+from cli.user_prefs import load_prefs, save_prefs
+
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
+    prefs = load_prefs()
+    pref_key = f"{provider}_{mode}_model"
+    default_choice = prefs.get(pref_key)
+
     if provider.lower() == "openrouter":
-        return select_openrouter_model()
+        return select_openrouter_model(default_choice)
 
     if provider.lower() == "azure":
         return questionary.text(
@@ -224,12 +264,31 @@ def _select_model(provider: str, mode: str) -> str:
             validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
         ).ask().strip()
 
+    # Find the default index if we have a saved preference
+    default_index = 0
+    model_options = get_model_options(provider, mode)
+    if default_choice:
+        for idx, (_, val) in enumerate(model_options):
+            if val == default_choice:
+                default_index = idx
+                break
+        else:
+            # If default_choice is custom but not in standard options, we should select 'Custom model ID'
+            if default_choice != "custom": # To avoid selecting custom if the saved was actually 'custom' literally (rare but possible)
+                for idx, (_, val) in enumerate(model_options):
+                    if val == "custom":
+                        default_index = idx
+                        break
+
+    choices = [
+        questionary.Choice(display, value=value)
+        for display, value in model_options
+    ]
+
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
-        ],
+        choices=choices,
+        default=choices[default_index] if choices else None,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -245,9 +304,14 @@ def _select_model(provider: str, mode: str) -> str:
         exit(1)
 
     if choice == "custom":
-        return _prompt_custom_model_id()
-
-    return choice
+        custom_default = default_choice if default_choice and default_choice != "custom" else ""
+        final_choice = _prompt_custom_model_id(custom_default)
+    else:
+        final_choice = choice
+        
+    prefs[pref_key] = final_choice
+    save_prefs(prefs)
+    return final_choice
 
 
 def select_shallow_thinking_agent(provider) -> str:
@@ -278,14 +342,28 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
+        ("NVIDIA NIM", "nvidia", "https://integrate.api.nvidia.com/v1"),
+        ("LiteLLM", "litellm", "http://localhost:4000/v1"),
+    ]
+
+    prefs = load_prefs()
+    default_provider = prefs.get("default_provider", "openai")
+    
+    default_index = 0
+    for idx, (_, p_key, _) in enumerate(PROVIDERS):
+        if p_key == default_provider:
+            default_index = idx
+            break
+
+    choices = [
+        questionary.Choice(display, value=(provider_key, url))
+        for display, provider_key, url in PROVIDERS
     ]
 
     choice = questionary.select(
         "Select your LLM Provider:",
-        choices=[
-            questionary.Choice(display, value=(provider_key, url))
-            for display, provider_key, url in PROVIDERS
-        ],
+        choices=choices,
+        default=choices[default_index] if choices else None,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -301,6 +379,9 @@ def select_llm_provider() -> tuple[str, str | None]:
         exit(1)
 
     provider, url = choice
+    prefs["default_provider"] = provider
+    save_prefs(prefs)
+    
     return provider, url
 
 

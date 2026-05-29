@@ -20,7 +20,7 @@ class AnalystExecutionPlanTests(unittest.TestCase):
 
     def test_rejects_unknown_analyst_keys(self):
         with self.assertRaises(ValueError):
-            build_analyst_execution_plan(["market", "macro"])
+            build_analyst_execution_plan(["market", "invalid"])
 
     def test_requires_positive_concurrency_limit(self):
         with self.assertRaises(ValueError):
