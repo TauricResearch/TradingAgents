@@ -276,9 +276,10 @@ class SentimentReport(BaseModel):
         description=(
             "Numeric sentiment intensity on a 0–10 scale. "
             "0 = maximally bearish, 5 = neutral, 10 = maximally bullish. "
-            "Must be consistent with overall_band: Bullish ≥ 6.5, "
-            "Mildly Bullish 5.5–6.4, Neutral/Mixed 4.5–5.5, "
-            "Mildly Bearish 3.5–4.4, Bearish ≤ 3.4."
+            "As a guideline for consistency with overall_band: "
+            "Bullish ~6.5–10, Mildly Bullish ~5.5–6.4, Neutral/Mixed ~4.5–5.5, "
+            "Mildly Bearish ~3.5–4.4, Bearish ~0–3.4. "
+            "These are prompt-level guidelines; only the 0–10 bounds are enforced."
         ),
     )
     confidence: Literal["low", "medium", "high"] = Field(

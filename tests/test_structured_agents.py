@@ -10,6 +10,7 @@ so all decision-making agents share the same deterministic output shape.
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 
 from tradingagents.agents.analysts.sentiment_analyst import create_sentiment_analyst
 from tradingagents.agents.managers.research_manager import create_research_manager
@@ -287,8 +288,7 @@ class TestRenderSentimentReport:
             assert band.value in md
 
     def test_score_out_of_range_rejected(self):
-        import pytest as _pytest
-        with _pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SentimentReport(
                 overall_band=SentimentBand.BULLISH,
                 overall_score=11.0,
