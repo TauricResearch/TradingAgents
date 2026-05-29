@@ -66,12 +66,11 @@ def create_msg_delete():
         trade_date = state.get("trade_date", "the requested date")
         asset_type = state.get("asset_type", "stock")
 
+        instrument_context = build_instrument_context(ticker, asset_type)
         placeholder = HumanMessage(
             content=(
-                "Proceed with your assigned analysis for this workflow. "
-                f"The instrument to analyze is `{ticker}`. "
-                "Use this exact ticker in every tool call, report, and recommendation. "
-                f"The asset type is {asset_type}. "
+                f"Proceed with your assigned analysis for this workflow. "
+                f"{instrument_context} "
                 f"The analysis date is {trade_date}."
             )
         )
