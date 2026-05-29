@@ -59,8 +59,22 @@ def create_msg_delete():
         # Remove all messages
         removal_operations = [RemoveMessage(id=m.id) for m in messages]
 
-        # Add a minimal placeholder message
-        placeholder = HumanMessage(content="Continue")
+        # Anchor the next analyst to the actual workflow context so that
+        # providers which interpret the placeholder literally still produce
+        # relevant output instead of reacting to the bare word "Continue".
+        ticker = state.get("company_of_interest", "the requested instrument")
+        trade_date = state.get("trade_date", "the requested date")
+        asset_type = state.get("asset_type", "stock")
+
+        placeholder = HumanMessage(
+            content=(
+                "Proceed with your assigned analysis for this workflow. "
+                f"The instrument to analyze is `{ticker}`. "
+                "Use this exact ticker in every tool call, report, and recommendation. "
+                f"The asset type is {asset_type}. "
+                f"The analysis date is {trade_date}."
+            )
+        )
 
         return {"messages": removal_operations + [placeholder]}
 
