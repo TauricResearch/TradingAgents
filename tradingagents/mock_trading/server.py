@@ -301,9 +301,30 @@ def startup_event():
     try:
         scheduler = TradingScheduler()
         
-        # Schedule daily tasks
-        scheduler.schedule_daily_execution(9, 30, morning_analysis_task, job_id="morning_analysis")
-        scheduler.schedule_daily_execution(14, 0, afternoon_execution_task, job_id="afternoon_execution")
+        # Schedule daily tasks (load from database settings if available)
+        morning_hour, morning_minute = 9, 30
+        afternoon_hour, afternoon_minute = 14, 0
+        
+        try:
+            m_set = db.get_scheduler_setting("morning_analysis")
+            if m_set:
+                morning_hour = m_set["hour"]
+                morning_minute = m_set["minute"]
+                logger.info(f"Loaded custom morning_analysis time from DB: {morning_hour:02d}:{morning_minute:02d}")
+        except Exception as e:
+            logger.warning(f"Failed to load morning_analysis time from DB, using default: {e}")
+            
+        try:
+            a_set = db.get_scheduler_setting("afternoon_execution")
+            if a_set:
+                afternoon_hour = a_set["hour"]
+                afternoon_minute = a_set["minute"]
+                logger.info(f"Loaded custom afternoon_execution time from DB: {afternoon_hour:02d}:{afternoon_minute:02d}")
+        except Exception as e:
+            logger.warning(f"Failed to load afternoon_execution time from DB, using default: {e}")
+            
+        scheduler.schedule_daily_execution(morning_hour, morning_minute, morning_analysis_task, job_id="morning_analysis")
+        scheduler.schedule_daily_execution(afternoon_hour, afternoon_minute, afternoon_execution_task, job_id="afternoon_execution")
         scheduler.start()
         logger.info("Background trading scheduler started successfully.")
     except Exception as e:
@@ -542,8 +563,13 @@ def edit_scheduler_time(request: SchedulerEditRequest):
         
     func = TASK_FUNCTIONS[job_id]
     scheduler.schedule_daily_execution(hour, minute, func, job_id=job_id)
-    logger.info(f"Rescheduled job '{job_id}' to daily at {hour:02d}:{minute:02d}")
     
+    try:
+        db.set_scheduler_setting(job_id, hour, minute)
+        logger.info(f"Persisted rescheduled job '{job_id}' to daily at {hour:02d}:{minute:02d} in DB")
+    except Exception as e:
+        logger.error(f"Failed to persist rescheduled job '{job_id}' to DB: {e}")
+        
     return {"status": "success", "message": f"Rescheduled job '{job_id}' to {time_str} daily."}
 
 

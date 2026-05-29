@@ -232,6 +232,14 @@ class TradingDatabase:
                 UNIQUE(benchmark_ticker, date)
             );
             
+            -- Scheduler Settings: Persist user-configured daily cron timings
+            CREATE TABLE IF NOT EXISTS scheduler_settings (
+                job_id TEXT PRIMARY KEY,
+                hour INTEGER NOT NULL,
+                minute INTEGER NOT NULL,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
             -- Create indexes for common queries
             CREATE INDEX IF NOT EXISTS idx_transactions_portfolio ON transactions(portfolio_id);
             CREATE INDEX IF NOT EXISTS idx_transactions_ticker ON transactions(ticker);
@@ -453,3 +461,45 @@ class TradingDatabase:
         else:
             self.cursor.execute(query)
         return [dict(row) for row in self.cursor.fetchall()]
+        
+    def get_scheduler_settings(self) -> List[Dict]:
+        """Retrieve all persisted scheduler settings.
+        
+        Returns:
+            List of scheduler setting dictionaries
+        """
+        return self.execute_query("SELECT * FROM scheduler_settings")
+        
+    def get_scheduler_setting(self, job_id: str) -> Optional[Dict]:
+        """Retrieve a persisted scheduler setting by job_id.
+        
+        Args:
+            job_id: Job ID (e.g. 'morning_analysis')
+            
+        Returns:
+            Scheduler setting dictionary or None
+        """
+        res = self.execute_query("SELECT * FROM scheduler_settings WHERE job_id = ?", (job_id,))
+        return res[0] if res else None
+        
+    def set_scheduler_setting(self, job_id: str, hour: int, minute: int):
+        """Insert or update a scheduler setting.
+        
+        Args:
+            job_id: Job ID
+            hour: Hour (0-23)
+            minute: Minute (0-59)
+        """
+        try:
+            self.cursor.execute("""
+                INSERT INTO scheduler_settings (job_id, hour, minute, last_updated)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            """, (job_id, hour, minute))
+            self.conn.commit()
+        except sqlite3.IntegrityError:
+            self.cursor.execute("""
+                UPDATE scheduler_settings
+                SET hour = ?, minute = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE job_id = ?
+            """, (hour, minute, job_id))
+            self.conn.commit()
