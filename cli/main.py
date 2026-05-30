@@ -1098,11 +1098,18 @@ def run_analysis(checkpoint: bool = False):
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # Initialize state and get graph args with callbacks
+        # Initialize state and get graph args with callbacks.
+        # Resolve the instrument identity once here so all agents anchor to
+        # the real company (#814); the CLI builds state directly rather than
+        # going through propagate(), so this must happen on the CLI path too.
+        instrument_context = graph.resolve_instrument_context(
+            selections["ticker"], selections["asset_type"]
+        )
         init_agent_state = graph.propagator.create_initial_state(
             selections["ticker"],
             selections["analysis_date"],
             asset_type=selections["asset_type"],
+            instrument_context=instrument_context,
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)

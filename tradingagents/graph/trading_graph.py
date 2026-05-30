@@ -28,6 +28,8 @@ from tradingagents.dataflows.config import set_config
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    resolve_instrument_identity,
     get_stock_data,
     get_indicators,
     get_fundamentals,
@@ -292,6 +294,18 @@ class TradingAgentsGraph:
         if updates:
             self.memory_log.batch_update_with_outcomes(updates)
 
+    def resolve_instrument_context(self, ticker: str, asset_type: str = "stock") -> str:
+        """Resolve ticker identity once and return the full instrument context.
+
+        Deterministic yfinance lookup (cached, fail-open) injected into a
+        context string so every agent anchors to the real company instead of
+        hallucinating one from the price chart (#814). Both the propagate()
+        path and the CLI call this so the resolved identity reaches the whole
+        graph regardless of entry point.
+        """
+        identity = resolve_instrument_identity(ticker)
+        return build_instrument_context(ticker, asset_type, identity)
+
     def propagate(self, company_name, trade_date, asset_type: str = "stock"):
         """Run the trading agents graph for a company on a specific date.
 
@@ -335,10 +349,16 @@ class TradingAgentsGraph:
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock"):
         """Execute the graph and write the resulting state to disk and memory log."""
-        # Initialize state — inject memory log context for PM.
+        # Initialize state — inject memory log context for PM and the
+        # deterministically resolved instrument identity for all agents.
         past_context = self.memory_log.get_past_context(company_name)
+        instrument_context = self.resolve_instrument_context(company_name, asset_type)
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date, asset_type=asset_type, past_context=past_context
+            company_name,
+            trade_date,
+            asset_type=asset_type,
+            past_context=past_context,
+            instrument_context=instrument_context,
         )
         args = self.propagator.get_graph_args()
 
