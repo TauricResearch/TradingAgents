@@ -2,8 +2,15 @@ import pytest
 
 
 @pytest.mark.unit
-def test_default_config_has_f5_keys():
-    from tradingagents.default_config import DEFAULT_CONFIG as C
+def test_default_config_has_f5_keys(monkeypatch):
+    import importlib
+    import tradingagents.default_config as _dc
+    # Assert the COMMITTED defaults, independent of the developer's local .env
+    # (which may set TELEGRAM_BOT_ALLOWED_CHAT_IDS / TELEGRAM_SENSING_CHANNELS
+    # via the nested-env overrides). Clear them, then reload.
+    monkeypatch.delenv("TELEGRAM_BOT_ALLOWED_CHAT_IDS", raising=False)
+    monkeypatch.delenv("TELEGRAM_SENSING_CHANNELS", raising=False)
+    C = importlib.reload(_dc).DEFAULT_CONFIG
 
     # Delivery channels + quiet hours
     assert C["delivery"]["enabled_channels"] == ["email", "cli"]

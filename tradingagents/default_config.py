@@ -49,15 +49,25 @@ def _apply_env_overrides(config: dict) -> dict:
 def _apply_nested_env_overrides(config: dict) -> dict:
     """Custom (non-flat) env overrides that don't fit the _ENV_OVERRIDES table.
 
-    Currently handles TELEGRAM_BOT_ALLOWED_CHAT_IDS: a comma-separated list of
-    numeric Telegram chat ids supplied via .env (never committed). Parses into
-    telegram_bot.allowed_chat_ids as a list[int]. Empty/unset → leave the
-    committed default ([] = deny-all) untouched.
+    Handles:
+    - TELEGRAM_BOT_ALLOWED_CHAT_IDS: comma-separated numeric Telegram chat ids
+      (.env, never committed) → telegram_bot.allowed_chat_ids as list[int].
+      Empty/unset → leave the committed default ([] = deny-all) untouched.
+    - TELEGRAM_SENSING_CHANNELS: comma-separated public channel usernames the
+      sensing telegram adapter listens to (.env) → telegram_channels as
+      list[str]. A leading '@' is stripped from each. Empty/unset → leave the
+      committed default ([] = listen to nothing) untouched.
     """
     raw = os.environ.get("TELEGRAM_BOT_ALLOWED_CHAT_IDS")
     if raw is not None and raw.strip() != "":
         chat_ids = [int(tok.strip()) for tok in raw.split(",") if tok.strip()]
         config.setdefault("telegram_bot", {})["allowed_chat_ids"] = chat_ids
+
+    chans = os.environ.get("TELEGRAM_SENSING_CHANNELS")
+    if chans is not None and chans.strip() != "":
+        config["telegram_channels"] = [
+            tok.strip().lstrip("@") for tok in chans.split(",") if tok.strip()
+        ]
     return config
 
 

@@ -96,3 +96,20 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in dc.DEFAULT_CONFIG
+
+
+def test_telegram_sensing_channels_override(monkeypatch):
+    """TELEGRAM_SENSING_CHANNELS (.env) populates telegram_channels: comma-split,
+    whitespace-trimmed, leading '@' stripped, empty tokens dropped."""
+    dc = _reload_with_env(
+        monkeypatch,
+        TELEGRAM_SENSING_CHANNELS=" @FirstSquawk, DeItaone ,@WatcherGuru,",
+    )
+    assert dc.DEFAULT_CONFIG["telegram_channels"] == [
+        "FirstSquawk", "DeItaone", "WatcherGuru",
+    ]
+
+    # Unset → committed default ([] = listen to nothing).
+    monkeypatch.delenv("TELEGRAM_SENSING_CHANNELS", raising=False)
+    dc = importlib.reload(default_config_module)
+    assert dc.DEFAULT_CONFIG["telegram_channels"] == []
