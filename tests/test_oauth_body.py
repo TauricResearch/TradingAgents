@@ -14,6 +14,11 @@ def _body(request) -> dict:
     return json.loads(request.content)
 
 
+def _wire_body(request) -> dict:
+    """Body come lo legge il transport reale di httpx: iterando request.stream."""
+    return json.loads(b"".join(request.stream))
+
+
 def test_forces_store_false_and_stream_true():
     req = _request({"model": "gpt-5.3-codex", "store": True, "stream": False,
                     "instructions": "x", "input": []})
@@ -22,6 +27,18 @@ def test_forces_store_false_and_stream_true():
     assert payload["store"] is False
     assert payload["stream"] is True
     assert req.headers["Content-Length"] == str(len(req.content))
+
+
+def test_modifies_the_actual_wire_stream_not_just_content():
+    # Regression: httpx invia request.stream, non _content. L'hook DEVE
+    # aggiornare entrambi o il body vecchio finisce sul filo.
+    req = _request({"model": "m", "store": True, "stream": False, "input": []})
+    enforce_codex_constraints(req)
+    wire = _wire_body(req)
+    assert wire["store"] is False
+    assert wire["stream"] is True
+    assert wire["instructions"].strip()
+    assert req.content == b"".join(req.stream)
 
 
 def test_fills_missing_instructions():

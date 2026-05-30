@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 
+import httpx
+
 # Istruzioni di default minime quando il payload non ne ha (il backend le esige
 # non vuote). Restano neutre per non alterare il comportamento degli agenti.
 _DEFAULT_INSTRUCTIONS = "You are a helpful assistant."
@@ -47,5 +49,9 @@ def enforce_codex_constraints(request) -> None:
         return
     if _coerce_constraints(payload):
         new_body = json.dumps(payload).encode("utf-8")
+        # Aggiorna SIA _content SIA stream: il transport reale di httpx invia
+        # request.stream (un ByteStream creato al build), non _content, quindi
+        # modificare solo _content non cambierebbe i byte sul filo.
         request._content = new_body
+        request.stream = httpx.ByteStream(new_body)
         request.headers["Content-Length"] = str(len(new_body))
