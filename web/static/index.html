@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TroddeAgents</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #00070f;
+    --surface: #010e1c;
+    --border:  #0b2d46;
+    --text:    #c8eeff;
+    --muted:   #2a6a8a;
+    --blue:    #00d4ff;
+    --purple:  #9d64ff;
+    --orange:  #ff8c00;
+    --red:     #ff2d55;
+    --green:   #00ffcc;
+    --yellow:  #ff8c00;
+    --s1: #00d4ff; --s2: #9d64ff; --s3: #ff8c00; --s4: #00ffcc; --s5: #e8f8ff;
+  }
+
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(rgba(0,212,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    background: rgba(0,8,18,.95);
+    border-bottom: 1px solid var(--blue);
+    box-shadow: 0 0 40px rgba(0,212,255,.12), 0 1px 0 rgba(0,212,255,.2);
+    padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  header h1 { font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-family: monospace; }
+  header h1 span { color: var(--blue); text-shadow: 0 0 12px rgba(0,212,255,.9), 0 0 30px rgba(0,212,255,.4); }
+  .header-tabs { display:flex; gap:4px; margin-left:16px; }
+  .htab { background:none; border:1px solid transparent; border-radius:4px; color:var(--muted); padding:5px 14px; font-size:12px; cursor:pointer; letter-spacing:.04em; text-transform:uppercase; font-family:monospace; }
+  .htab:hover { border-color:var(--border); color:var(--text); }
+  .htab.active { border-color:var(--blue); color:var(--blue); background:rgba(0,212,255,.07); box-shadow:0 0 10px rgba(0,212,255,.15); }
+  #status-dot { width:7px; height:7px; border-radius:50%; background:var(--border); margin-left:auto; transition:background .3s; }
+  #status-dot.running { background:var(--blue); animation:pulse 1.4s infinite; box-shadow:0 0 8px var(--blue); }
+  #status-dot.done    { background:var(--green); box-shadow:0 0 8px var(--green); }
+  #status-dot.error   { background:var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.35} }
+  #status-label { font-size:11px; color:var(--muted); font-family:monospace; letter-spacing:.04em; }
+
+  /* ── Layout ── */
+  .layout { display:flex; flex:1; overflow:hidden; }
+
+  /* ── Sidebar ── */
+  aside { width:280px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  .sidebar-top { padding:16px; flex-shrink:0; }
+  .section-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:10px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=date], select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:13px; padding:7px 10px; outline:none; transition:border-color .15s; margin-bottom:10px; }
+  input[type=text]:focus, input[type=date]:focus, select:focus { border-color:var(--blue); }
+  select { cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 9px center; padding-right:26px; }
+  select option { background:var(--surface); }
+  .checkbox-group { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:10px; }
+  .checkbox-group label { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text); cursor:pointer; margin:0; }
+  input[type=checkbox] { accent-color:var(--blue); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
+  #run-btn { width:100%; background:var(--green); color:#000; border:none; border-radius:6px; padding:9px; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .15s; margin-bottom:16px; }
+  #run-btn:hover { opacity:.85; }
+  #run-btn:disabled { opacity:.4; cursor:not-allowed; }
+  .form-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .form-row2 > div { display:flex; flex-direction:column; }
+  .form-row2 label { margin-bottom:3px; }
+  .form-row2 select { margin-bottom:0; }
+
+  /* Tron overrides — inputs, selects, buttons */
+  input[type=text], input[type=date], select {
+    background: rgba(0,10,20,.8);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: inset 0 1px 0 rgba(0,212,255,.04);
+  }
+  input[type=text]:focus, input[type=date]:focus, select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(0,212,255,.12), inset 0 1px 0 rgba(0,212,255,.04);
+  }
+  #run-btn {
+    background: transparent;
+    color: var(--green);
+    border: 1px solid var(--green);
+    box-shadow: 0 0 14px rgba(0,255,204,.18), inset 0 0 10px rgba(0,255,204,.04);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  #run-btn:hover:not(:disabled) {
+    background: rgba(0,255,204,.10);
+    box-shadow: 0 0 22px rgba(0,255,204,.30), inset 0 0 14px rgba(0,255,204,.07);
+    opacity: 1;
+  }
+
+  /* Sidebar tron */
+  aside {
+    background: rgba(0,5,12,.92);
+    border-right-color: var(--border);
+    box-shadow: inset -1px 0 0 rgba(0,212,255,.06);
+  }
+  .report-item.active { background:rgba(0,212,255,.06); border-left-color:var(--blue); box-shadow:inset 0 0 20px rgba(0,212,255,.04); }
+  .sidebar-reports { border-top-color: var(--border); }
+
+  /* Progress tracker tron */
+  .pt-bar-fill { background: linear-gradient(90deg, var(--blue), var(--green)); box-shadow: 0 0 10px rgba(0,212,255,.4); }
+  .pt-bar-fill.done { background: var(--blue); box-shadow: 0 0 14px rgba(0,212,255,.5); }
+  .pt-step.running  .pt-step-orb { border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,212,255,.18), 0 0 14px rgba(0,212,255,.3); background:rgba(0,212,255,.07); }
+  .pt-step.complete .pt-step-orb { border-color:var(--green); background:rgba(0,255,204,.07); box-shadow:0 0 8px rgba(0,255,204,.2); }
+  .pt-step-badge.running  { color:var(--blue); border-color:rgba(0,212,255,.4); background:rgba(0,212,255,.08); animation:ajp-pulse 1.4s infinite; }
+  .pt-step-badge.complete { color:var(--green); border-color:rgba(0,255,204,.3); background:rgba(0,255,204,.06); }
+  #pt-view-report { background:transparent; color:var(--blue); border:1px solid var(--blue); box-shadow:0 0 14px rgba(0,212,255,.18); font-family:monospace; letter-spacing:.04em; text-transform:uppercase; font-size:11px; }
+  #pt-view-report:hover { background:rgba(0,212,255,.1); box-shadow:0 0 22px rgba(0,212,255,.28); opacity:1; }
+
+  /* Compact sidebar pipeline */
+  .sidebar-pipeline { padding:12px 16px 14px; flex-shrink:0; border-top:1px solid var(--border); }
+  .pip-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:10px; }
+  .pip-track { display:flex; align-items:center; gap:0; }
+  .pip-node  { display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; position:relative; }
+  .pip-num   { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; font-family:monospace; color:var(--muted); transition:all .3s; }
+  .pip-node.running  .pip-num { border-color:var(--blue); color:var(--blue); box-shadow:0 0 8px rgba(0,212,255,.4); background:rgba(0,212,255,.08); animation:ajp-pulse 1.4s infinite; }
+  .pip-node.complete .pip-num { border-color:var(--green); color:var(--green); background:rgba(0,255,204,.06); box-shadow:0 0 6px rgba(0,255,204,.25); }
+  .pip-lbl   { font-size:8px; color:var(--muted); text-align:center; line-height:1.2; max-width:38px; }
+  .pip-node.running  .pip-lbl { color:var(--blue); }
+  .pip-node.complete .pip-lbl { color:var(--green); }
+  .pip-arrow { flex:0 0 10px; align-self:flex-start; margin-top:7px; color:var(--border); font-size:9px; text-align:center; }
+  .pip-node.running  ~ .pip-arrow,
+  .pip-node.complete ~ .pip-arrow { color:var(--border); }
+
+  /* Pipeline stages (legacy, kept for JS compat — hidden) */
+  .stages { display:none; }
+
+  /* Prior analyses */
+  .sidebar-reports { flex:1; overflow-y:auto; border-top:1px solid var(--border); }
+  .sidebar-reports-header { padding:12px 16px 8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); position:sticky; top:0; background:var(--surface); z-index:1; }
+  .report-item { display:flex; align-items:center; gap:10px; padding:9px 16px; cursor:pointer; border-left:2px solid transparent; transition:background .15s; }
+  .report-item:hover { background:rgba(255,255,255,.04); }
+  .report-item.active { background:rgba(88,166,255,.08); border-left-color:var(--blue); }
+  .ri-ticker { font-weight:600; font-size:13px; min-width:44px; }
+  .ri-date   { font-size:11px; color:var(--muted); flex:1; }
+  .ri-badge  { font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px; border:1px solid; white-space:nowrap; }
+  .badge-buy  { color:var(--green);  border-color:var(--green);  background:rgba(63,185,80,.12); }
+  .badge-sell { color:var(--red);    border-color:var(--red);    background:rgba(248,81,73,.12); }
+  .badge-hold { color:var(--yellow); border-color:var(--yellow); background:rgba(210,153,34,.12); }
+  .badge-neu  { color:var(--muted);  border-color:var(--border); background:transparent; }
+
+  /* ── Main ── */
+  main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* ── PANEL: Analysis Feed ── */
+  #panel-feed { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* Decision banner (live) */
+  #decision-banner { display:none; padding:14px 20px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  #decision-banner.buy  { background:rgba(63,185,80,.1); }
+  #decision-banner.sell { background:rgba(248,81,73,.1); }
+  #decision-banner.hold { background:rgba(210,153,34,.1); }
+  .dec-header { display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+  .dec-signal { font-size:24px; font-weight:700; padding:3px 14px; border-radius:6px; }
+  .buy  .dec-signal { color:var(--green);  border:1px solid var(--green); }
+  .sell .dec-signal { color:var(--red);    border:1px solid var(--red); }
+  .hold .dec-signal { color:var(--yellow); border:1px solid var(--yellow); }
+  .dec-ticker { font-size:16px; font-weight:600; }
+  .dec-date   { font-size:12px; color:var(--muted); }
+  #show-full-btn { margin-left:auto; background:none; border:1px solid var(--border); color:var(--muted); border-radius:4px; padding:4px 10px; font-size:12px; cursor:pointer; }
+  #show-full-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .report-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .report-card { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:9px 11px; cursor:pointer; transition:border-color .15s; }
+  .report-card:hover { border-color:var(--blue); }
+  .report-card h4 { font-size:10px; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:.06em; }
+  .report-card p  { font-size:12px; line-height:1.5; max-height:48px; overflow:hidden; }
+  #full-decision { display:none; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:12px; margin-top:10px; font-size:13px; line-height:1.7; white-space:pre-wrap; max-height:180px; overflow-y:auto; }
+
+  /* Feed */
+  #feed { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; }
+  #empty-state { margin:auto; text-align:center; color:var(--muted); }
+  #empty-state h2 { font-size:18px; font-weight:500; margin-bottom:6px; }
+  .msg-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .msg-header { display:flex; align-items:center; gap:8px; padding:7px 12px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; }
+  .msg-header:hover { background:rgba(255,255,255,.03); }
+  .agent-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; border:1px solid; white-space:nowrap; }
+  .s1{color:var(--s1);border-color:var(--s1);background:rgba(88,166,255,.1);}
+  .s2{color:var(--s2);border-color:var(--s2);background:rgba(188,140,255,.1);}
+  .s3{color:var(--s3);border-color:var(--s3);background:rgba(240,136,62,.1);}
+  .s4{color:var(--s4);border-color:var(--s4);background:rgba(248,81,73,.1);}
+  .s5{color:var(--s5);border-color:var(--s5);background:rgba(63,185,80,.1);}
+  .s0{color:var(--muted);border-color:var(--border);}
+  .msg-type-badge { font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:3px; padding:1px 5px; }
+  .msg-chevron { margin-left:auto; color:var(--muted); font-size:11px; transition:transform .2s; }
+  .msg-card.collapsed .msg-chevron { transform:rotate(-90deg); }
+  .msg-body { padding:10px 12px; font-size:13px; line-height:1.7; color:#c9d1d9; white-space:pre-wrap; word-break:break-word; max-height:400px; overflow-y:auto; }
+  .msg-card.collapsed .msg-body { display:none; }
+  .tool-body { font-family:"SFMono-Regular",Consolas,monospace; font-size:12px; background:var(--bg); color:var(--muted); max-height:200px; }
+
+  /* ── PANEL: Report View ── */
+  #panel-report { flex:1; display:none; flex-direction:column; overflow-y:auto; }
+
+  /* Top banner */
+  #report-banner { flex-shrink:0; border-bottom:1px solid var(--border); padding:14px 20px; }
+  #report-chart-wrap { flex-shrink:0; height:270px; padding:0 20px 0; background:var(--bg); border-bottom:1px solid var(--border); position:relative; }
+  #report-chart { width:100%; height:100%; display:block; }
+  #chart-no-data { position:absolute; inset:0; display:none; align-items:center; justify-content:center; color:var(--dim); font-size:12px; font-family:monospace; }
+  .banner-row1 { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .br-signal { font-size:22px; font-weight:700; padding:3px 14px; border-radius:6px; }
+  .br-signal.buy  { color:var(--green);  border:1px solid var(--green);  background:rgba(63,185,80,.1); }
+  .br-signal.sell { color:var(--red);    border:1px solid var(--red);    background:rgba(248,81,73,.1); }
+  .br-signal.hold { color:var(--yellow); border:1px solid var(--yellow); background:rgba(210,153,34,.1); }
+  .br-title    { font-size:18px; font-weight:600; }
+  .br-company  { font-size:14px; font-weight:400; color:var(--muted); }
+  .br-date     { font-size:12px; color:var(--muted); }
+  .btn-export-pdf { margin-left:auto; font-size:11px; font-family:monospace; background:none; border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:4px; cursor:pointer; transition:all .15s; flex-shrink:0; }
+  .btn-export-pdf:hover { border-color:var(--blue); color:var(--blue); }
+
+  #llm-usage-row { display:none; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:10px;
+    font-size:11px; font-family:monospace; color:var(--muted); }
+  #llm-usage-row .lu-item { display:flex; flex-direction:column; gap:1px; }
+  #llm-usage-row .lu-label { font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:var(--border); }
+  #llm-usage-row .lu-val   { color:var(--text); }
+  #llm-usage-row .lu-cost  { color:var(--blue); }
+  #llm-usage-row .lu-sep   { color:var(--border); }
+
+  .banner-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
+  .bf { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:8px 10px; }
+  .bf-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:3px; }
+  .bf-value { font-size:12px; line-height:1.4; }
+
+  /* Summary bar */
+  .summary-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .sb-label { font-size:11px; color:var(--muted); }
+  .sb-pill { font-size:12px; font-weight:600; padding:3px 10px; border-radius:4px; border:1px solid; }
+  .sb-pill.action-buy  { color:var(--green);  border-color:var(--green);  background:rgba(63,185,80,.12); }
+  .sb-pill.action-sell { color:var(--red);    border-color:var(--red);    background:rgba(248,81,73,.12); }
+  .sb-pill.action-hold { color:var(--yellow); border-color:var(--yellow); background:rgba(210,153,34,.12); }
+  .sb-item { font-size:12px; color:var(--text); padding:3px 10px; border:1px solid var(--border); border-radius:4px; }
+  .sb-sep  { color:var(--border); }
+
+  /* Report tabs + content */
+  .report-tabs { display:flex; gap:2px; padding:0 20px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; overflow-x:auto; }
+  .rtab { background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); padding:10px 14px; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .rtab:hover { color:var(--text); }
+  .rtab.active { border-bottom-color:var(--blue); color:var(--blue); }
+  #report-content { padding:20px; }
+  #chart-legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; padding:7px 28px; background:var(--bg); border-bottom:1px solid var(--border); flex-shrink:0; }
+  .cleg-item { display:flex; align-items:center; gap:7px; font-size:10px; font-family:monospace; color:rgba(0,212,255,0.6); cursor:default; transition:opacity .15s; white-space:nowrap; user-select:none; }
+  .cleg-item:hover { color:rgba(0,212,255,1); }
+  .cleg-note { margin-left:auto; font-size:9px; font-family:monospace; color:rgba(0,212,255,0.3); white-space:nowrap; }
+
+  /* Markdown styles */
+  .md-body h1,h2,h3,h4 { margin:1.2em 0 .5em; font-weight:600; line-height:1.3; }
+  .md-body h1 { font-size:1.5em; border-bottom:1px solid var(--border); padding-bottom:.4em; }
+  .md-body h2 { font-size:1.25em; }
+  .md-body h3 { font-size:1.1em; }
+  .md-body p  { margin:.6em 0; line-height:1.8; color:#c9d1d9; }
+  .md-body ul,.md-body ol { margin:.6em 0 .6em 1.6em; }
+  .md-body li { margin:.3em 0; line-height:1.7; color:#c9d1d9; }
+  .md-body strong { color:var(--text); }
+  .md-body em { color:#a5d6ff; }
+  .md-body code { background:rgba(110,118,129,.4); border-radius:3px; padding:.1em .4em; font-family:"SFMono-Regular",Consolas,monospace; font-size:.9em; }
+  .md-body pre  { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:12px; overflow-x:auto; margin:.8em 0; }
+  .md-body hr   { border:none; border-top:1px solid var(--border); margin:1.2em 0; }
+  .md-body table { border-collapse:collapse; width:100%; margin:.8em 0; }
+  .md-body th,.md-body td { border:1px solid var(--border); padding:6px 12px; text-align:left; }
+  .md-body th { background:var(--surface); font-weight:600; }
+  .md-body blockquote { border-left:3px solid var(--blue); padding:.4em 1em; margin:.6em 0; color:var(--muted); }
+
+  /* Report modal */
+  #modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; align-items:center; justify-content:center; }
+  #modal-overlay.open { display:flex; }
+  #modal { background:var(--surface); border:1px solid var(--border); border-radius:10px; width:min(800px,90vw); max-height:80vh; display:flex; flex-direction:column; }
+  #modal-header { display:flex; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border); }
+  #modal-title  { font-weight:600; flex:1; }
+  #modal-close  { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; }
+  #modal-close:hover { color:var(--text); }
+  #modal-body   { padding:16px 18px; overflow-y:auto; font-size:13px; line-height:1.8; white-space:pre-wrap; color:#c9d1d9; }
+
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* ── Active job pill ── */
+  #active-job-pill { display:none; align-items:center; gap:7px; background:rgba(63,185,80,.12); border:1px solid rgba(63,185,80,.35); border-radius:20px; padding:5px 12px 5px 10px; cursor:pointer; color:var(--green); font-size:12px; font-weight:600; margin-right:auto; }
+  #active-job-pill:hover { background:rgba(63,185,80,.22); }
+  .ajp-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:ajp-pulse 1.4s ease-in-out infinite; flex-shrink:0; }
+  @keyframes ajp-pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.8);} }
+
+  /* ── Progress tracker ── */
+  #panel-feed { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  #empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--muted); text-align:center; }
+  #empty-state h2 { font-size:18px; font-weight:500; color:var(--text); margin-bottom:8px; }
+  #empty-state p  { font-size:13px; line-height:1.7; }
+  #progress-tracker { flex:1; overflow-y:auto; padding:32px 40px; display:none; flex-direction:column; }
+  .pt-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+  .pt-title { font-size:22px; font-weight:700; }
+  .pt-title-date { font-size:14px; font-weight:400; color:var(--muted); margin-top:3px; }
+  .pt-status-pill { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 11px; border-radius:12px; }
+  .pt-status-pill.running  { background:rgba(63,185,80,.15); color:var(--green); }
+  .pt-status-pill.complete { background:rgba(88,166,255,.15); color:var(--blue); }
+  .pt-status-pill.error    { background:rgba(248,81,73,.15);  color:var(--red); }
+  .pt-bar-wrap { height:6px; background:var(--border); border-radius:3px; margin-bottom:6px; overflow:hidden; }
+  .pt-bar-fill { height:100%; background:var(--green); border-radius:3px; transition:width .7s cubic-bezier(.4,0,.2,1); }
+  .pt-bar-fill.done { background:var(--blue); }
+  .pt-pct-row { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:28px; }
+  .pt-steps { display:flex; flex-direction:column; }
+  .pt-step { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .pt-step:last-child { border-bottom:none; }
+  .pt-step-orb { width:36px; height:36px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; transition:all .3s; }
+  .pt-step.running  .pt-step-orb { border-color:var(--green); box-shadow:0 0 0 3px rgba(63,185,80,.18); background:rgba(63,185,80,.07); }
+  .pt-step.complete .pt-step-orb { border-color:var(--blue); background:rgba(88,166,255,.1); font-size:14px; }
+  .pt-step.pending  .pt-step-orb { opacity:.3; }
+  .pt-step-text { flex:1; min-width:0; }
+  .pt-step-name { font-size:13px; font-weight:600; }
+  .pt-step.pending .pt-step-name { color:var(--muted); }
+  .pt-step-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
+  .pt-step-badge { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:8px; flex-shrink:0; }
+  .pt-step-badge.pending  { color:var(--muted);  border:1px solid var(--border); }
+  .pt-step-badge.running  { color:var(--green);  border:1px solid rgba(63,185,80,.4);  background:rgba(63,185,80,.08); animation:ajp-pulse 1.4s infinite; }
+  .pt-step-badge.complete { color:var(--blue);   border:1px solid rgba(88,166,255,.3); background:rgba(88,166,255,.07); }
+  .pt-tokens { display:none; margin-top:18px; font-size:12px; color:var(--muted); gap:20px; align-items:center; }
+  .pt-tok { display:flex; align-items:center; gap:5px; }
+  .pt-tok-val { font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+  .pt-result { display:none; margin-top:24px; padding:20px 24px; border-radius:10px; }
+  .pt-result.buy  { background:rgba(63,185,80,.07);  border:1px solid rgba(63,185,80,.28); }
+  .pt-result.sell { background:rgba(248,81,73,.07);  border:1px solid rgba(248,81,73,.28); }
+  .pt-result.hold { background:rgba(210,153,34,.07); border:1px solid rgba(210,153,34,.28); }
+  .pt-result-signal { font-size:38px; font-weight:800; margin-bottom:3px; }
+  .pt-result.buy  .pt-result-signal { color:var(--green); }
+  .pt-result.sell .pt-result-signal { color:var(--red); }
+  .pt-result.hold .pt-result-signal { color:var(--yellow); }
+  .pt-result-sub { font-size:13px; color:var(--muted); margin-bottom:14px; }
+  #pt-view-report { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:9px 18px; font-size:13px; font-weight:600; cursor:pointer; transition:opacity .15s; }
+  #pt-view-report:hover { opacity:.85; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Trodde<span>Agents</span></h1>
+  <button id="active-job-pill" onclick="switchPanel('feed')">
+    <div class="ajp-dot"></div>
+    <span id="ajp-label">—</span>
+  </button>
+  <div class="header-tabs">
+    <button class="htab active" onclick="switchPanel('feed')">New Analysis</button>
+    <button class="htab" onclick="switchPanel('report')" id="tab-report" style="display:none">Report View</button>
+  </div>
+  <span id="status-label">Idle</span>
+  <div id="status-dot"></div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside>
+    <div class="sidebar-top">
+      <div class="section-title">Analysis Setup</div>
+      <label for="ticker">Ticker Symbol</label>
+      <input type="text" id="ticker" placeholder="e.g. NVDA" maxlength="20">
+      <label for="trade-date">Analysis Date</label>
+      <input type="date" id="trade-date">
+
+      <label>Analysts</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" value="market"       checked> Market</label>
+        <label><input type="checkbox" value="social"       checked> Social</label>
+        <label><input type="checkbox" value="news"         checked> News</label>
+        <label><input type="checkbox" value="fundamentals" checked> Fundamentals</label>
+      </div>
+
+      <div class="form-row2" style="margin-bottom:10px">
+        <div>
+          <label for="research-depth">Research Depth</label>
+          <select id="research-depth">
+            <option value="1">Shallow</option>
+            <option value="3" selected>Medium</option>
+            <option value="5">Deep</option>
+          </select>
+        </div>
+        <div>
+          <label for="output-lang">Language</label>
+          <select id="output-lang">
+            <option value="English" selected>English</option>
+            <option value="Chinese">Chinese</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Korean">Korean</option>
+            <option value="Spanish">Spanish</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Arabic">Arabic</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="Russian">Russian</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="llm-provider">LLM Provider</label>
+      <select id="llm-provider" onchange="onProviderChange()">
+        <option value="anthropic" selected>Anthropic</option>
+        <option value="openai">OpenAI</option>
+        <option value="google">Google</option>
+        <option value="xai">xAI</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="ollama">Ollama (local)</option>
+      </select>
+
+      <div class="form-row2" style="margin-bottom:10px">
+        <div>
+          <label for="quick-llm">Quick LLM</label>
+          <select id="quick-llm" onchange="updateEffortVisibility()"></select>
+        </div>
+        <div>
+          <label for="deep-llm">Deep LLM</label>
+          <select id="deep-llm" onchange="updateEffortVisibility()"></select>
+        </div>
+      </div>
+
+      <div id="effort-row" style="margin-bottom:10px">
+        <label for="llm-effort">Effort Level</label>
+        <select id="llm-effort">
+          <option value="high" selected>High (recommended)</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low (faster)</option>
+        </select>
+      </div>
+
+      <button id="run-btn" onclick="runAnalysis()">Run Analysis</button>
+    </div>
+
+    <!-- Prior analyses list -->
+    <div class="sidebar-reports">
+      <div class="sidebar-reports-header">Prior Analyses</div>
+      <div id="report-list"><div style="padding:12px 16px;font-size:12px;color:var(--muted)">Loading…</div></div>
+    </div>
+
+    <!-- Compact pipeline indicator -->
+    <div class="sidebar-pipeline">
+      <div class="pip-label">Pipeline</div>
+      <div class="pip-track" id="pip-track">
+        <div class="pip-node" id="pip-1"><div class="pip-num">01</div><div class="pip-lbl">Analyst</div></div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-node" id="pip-2"><div class="pip-num">02</div><div class="pip-lbl">Research</div></div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-node" id="pip-3"><div class="pip-num">03</div><div class="pip-lbl">Trader</div></div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-node" id="pip-4"><div class="pip-num">04</div><div class="pip-lbl">Risk</div></div>
+        <div class="pip-arrow">›</div>
+        <div class="pip-node" id="pip-5"><div class="pip-num">05</div><div class="pip-lbl">Portfolio</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main>
+
+    <!-- PANEL: Live feed -->
+    <div id="panel-feed">
+      <div id="empty-state">
+        <h2>Ready to analyse</h2>
+        <p>Enter a ticker and date, then click Run Analysis.<br>Or click a prior analysis on the left.</p>
+      </div>
+      <div id="progress-tracker">
+        <div class="pt-head">
+          <div>
+            <div class="pt-title"><span id="pt-ticker"></span></div>
+            <div class="pt-title-date" id="pt-date"></div>
+          </div>
+          <div class="pt-status-pill running" id="pt-status-pill">Running</div>
+        </div>
+        <div class="pt-bar-wrap"><div class="pt-bar-fill" id="pt-bar" style="width:0%"></div></div>
+        <div class="pt-pct-row"><span id="pt-pct">0%</span><span id="pt-elapsed">00:00</span></div>
+        <div class="pt-steps" id="pt-steps"></div>
+        <div class="pt-tokens" id="pt-tokens">
+          <div class="pt-tok">↑ <span class="pt-tok-val" id="pt-tok-in">0</span> in</div>
+          <div class="pt-tok">↓ <span class="pt-tok-val" id="pt-tok-out">0</span> out</div>
+        </div>
+        <div class="pt-result" id="pt-result">
+          <div class="pt-result-signal" id="pt-result-signal"></div>
+          <div class="pt-result-sub" id="pt-result-sub"></div>
+          <button id="pt-view-report" onclick="viewCompletedReport()">View Full Report →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL: Report view -->
+    <div id="panel-report">
+      <div id="report-banner">
+        <div class="banner-row1">
+          <div class="br-signal" id="br-signal">—</div>
+          <div>
+            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+              <div class="br-title"   id="br-title"></div>
+              <div class="br-company" id="br-company"></div>
+            </div>
+            <div class="br-date" id="br-date"></div>
+          </div>
+          <button class="btn-export-pdf" onclick="exportToPDF()" title="Export to PDF">&#8595; Export PDF</button>
+        </div>
+        <div id="llm-usage-row"></div>
+        <div class="banner-fields" id="banner-fields"></div>
+        <div class="summary-bar"  id="summary-bar"></div>
+      </div>
+      <!-- Price chart -->
+      <div id="report-chart-wrap">
+        <canvas id="report-chart"></canvas>
+        <div id="chart-no-data" style="display:none">No price data available</div>
+      </div>
+      <div id="chart-legend"></div>
+      <div class="report-tabs" id="report-tabs"></div>
+      <div id="report-content"><div class="md-body" id="report-md"></div></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <div id="modal-header">
+      <div id="modal-title"></div>
+      <button id="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ── Globals ────────────────────────────────────────────────────────────────
+let currentReportData = null;
+let jobState    = null;
+let activeES    = null;
+let elapsedTimer = null;
+let _chartData = null, _chartSigClass = null;
+
+// ── Model catalog ──────────────────────────────────────────────────────────
+const MODEL_CATALOG = {
+  anthropic: {
+    quick: [
+      ["Claude Sonnet 4.6 — speed + intelligence", "claude-sonnet-4-6"],
+      ["Claude Haiku 4.5 — fastest",               "claude-haiku-4-5"],
+      ["Claude Sonnet 4.5 — agents & coding",      "claude-sonnet-4-5"],
+    ],
+    deep: [
+      ["Claude Opus 4.7 — latest frontier",        "claude-opus-4-7"],
+      ["Claude Opus 4.6 — frontier intelligence",  "claude-opus-4-6"],
+      ["Claude Sonnet 4.6 — best balance",         "claude-sonnet-4-6"],
+    ],
+    effort: true,
+  },
+  openai: {
+    quick: [
+      ["GPT-5.4 Mini — fast, strong tool use",  "gpt-5.4-mini"],
+      ["GPT-5.4 Nano — cheapest",               "gpt-5.4-nano"],
+      ["GPT-4.1 — non-reasoning flagship",      "gpt-4.1"],
+    ],
+    deep: [
+      ["GPT-5.5 — latest frontier, 1M ctx",     "gpt-5.5"],
+      ["GPT-5.4 — cost-effective frontier",     "gpt-5.4"],
+      ["GPT-5.2 — strong reasoning",            "gpt-5.2"],
+    ],
+    effort: true, effortLabel: "Reasoning Effort",
+  },
+  google: {
+    quick: [
+      ["Gemini 3 Flash — next-gen fast",        "gemini-3-flash-preview"],
+      ["Gemini 2.5 Flash — balanced, stable",   "gemini-2.5-flash"],
+      ["Gemini 2.5 Flash Lite — low-cost",      "gemini-2.5-flash-lite"],
+    ],
+    deep: [
+      ["Gemini 3.1 Pro — reasoning-first",      "gemini-3.1-pro-preview"],
+      ["Gemini 3 Flash — next-gen fast",        "gemini-3-flash-preview"],
+      ["Gemini 2.5 Pro — stable pro",           "gemini-2.5-pro"],
+    ],
+    effort: true, effortLabel: "Thinking Mode",
+    effortOptions: [["Enable Thinking (recommended)", "high"], ["Minimal Thinking", "minimal"]],
+  },
+  xai: {
+    quick: [
+      ["Grok 4.20 Non-Reasoning — fast",        "grok-4.20-non-reasoning"],
+      ["Grok 4 Fast Reasoning",                 "grok-4-fast-reasoning"],
+    ],
+    deep: [
+      ["Grok 4.20 Reasoning — latest frontier", "grok-4.20-reasoning"],
+      ["Grok 4 Fast Reasoning",                 "grok-4-fast-reasoning"],
+    ],
+    effort: false,
+  },
+  deepseek: {
+    quick: [
+      ["DeepSeek V4 Flash — latest fast",       "deepseek-v4-flash"],
+      ["DeepSeek V3.2",                         "deepseek-chat"],
+    ],
+    deep: [
+      ["DeepSeek V4 Pro — latest flagship",     "deepseek-v4-pro"],
+      ["DeepSeek V3.2 (thinking)",              "deepseek-reasoner"],
+    ],
+    effort: false,
+  },
+  ollama: {
+    quick: [
+      ["Qwen3:latest (8B)",                     "qwen3:latest"],
+      ["GPT-OSS:latest (20B)",                  "gpt-oss:latest"],
+      ["GLM-4.7-Flash:latest (30B)",            "glm-4.7-flash:latest"],
+    ],
+    deep: [
+      ["GLM-4.7-Flash:latest (30B)",            "glm-4.7-flash:latest"],
+      ["GPT-OSS:latest (20B)",                  "gpt-oss:latest"],
+      ["Qwen3:latest (8B)",                     "qwen3:latest"],
+    ],
+    effort: false,
+  },
+};
+
+function updateEffortVisibility() {
+  const provider  = document.getElementById('llm-provider').value;
+  const cat       = MODEL_CATALOG[provider] || MODEL_CATALOG.anthropic;
+  const effortRow = document.getElementById('effort-row');
+  if (!cat.effort) { effortRow.style.display = 'none'; return; }
+
+  // For Anthropic, effort is only supported when BOTH models are Opus-class.
+  if (provider === 'anthropic') {
+    const q = document.getElementById('quick-llm').value || '';
+    const d = document.getElementById('deep-llm').value  || '';
+    if (!q.includes('opus') || !d.includes('opus')) {
+      effortRow.style.display = 'none'; return;
+    }
+  }
+
+  effortRow.style.display = '';
+  const effortSel = document.getElementById('llm-effort');
+  const label = effortRow.querySelector('label');
+  label.textContent = cat.effortLabel || 'Effort Level';
+  const opts = cat.effortOptions || [
+    ["High (recommended)", "high"],
+    ["Medium", "medium"],
+    ["Low (faster)", "low"],
+  ];
+  effortSel.innerHTML = opts.map(([l, v]) => `<option value="${v}">${l}</option>`).join('');
+}
+
+function onProviderChange() {
+  const provider = document.getElementById('llm-provider').value;
+  const cat = MODEL_CATALOG[provider] || MODEL_CATALOG.anthropic;
+
+  function populate(selId, options) {
+    const sel = document.getElementById(selId);
+    sel.innerHTML = options.map(([label, val]) =>
+      `<option value="${val}">${label}</option>`).join('');
+  }
+  populate('quick-llm', cat.quick);
+  populate('deep-llm',  cat.deep);
+  updateEffortVisibility();
+}
+
+// ── Stage definitions ──────────────────────────────────────────────────────
+const STAGE_DEFS = [
+  { id:1, icon:'📊', label:'I. Analyst Team',      sub:'Market · Social · News · Fundamentals' },
+  { id:2, icon:'🔬', label:'II. Research Team',    sub:'Bull · Bear · Research Manager' },
+  { id:3, icon:'💼', label:'III. Trader',           sub:'Investment decision' },
+  { id:4, icon:'⚖️', label:'IV. Risk Management',  sub:'Aggressive · Neutral · Conservative' },
+  { id:5, icon:'🎯', label:'V. Portfolio Manager', sub:'Final decision' },
+];
+const STAGE_WEIGHTS = [35, 25, 15, 15, 10];
+
+// ── Job state ──────────────────────────────────────────────────────────────
+function initJobState(job_id, ticker, date, meta={}) {
+  jobState = { job_id, ticker, date, started_at: Date.now(),
+    stages: {1:'pending',2:'pending',3:'pending',4:'pending',5:'pending'},
+    tokens_in:0, tokens_out:0, done:false, error:false, signal:null, meta };
+  saveJobState();
+}
+function saveJobState() {
+  if (!jobState) return;
+  localStorage.setItem('ta_active_job', JSON.stringify(jobState));
+}
+function loadJobState() {
+  try { const r = localStorage.getItem('ta_active_job'); return r ? JSON.parse(r) : null; }
+  catch { return null; }
+}
+function clearJobState() { localStorage.removeItem('ta_active_job'); jobState = null; }
+
+function calcPct() {
+  if (!jobState) return 0;
+  if (jobState.done) return 100;
+  let t = 0;
+  for (let i = 1; i <= 5; i++) {
+    const s = jobState.stages[i];
+    if (s === 'complete') t += STAGE_WEIGHTS[i-1];
+    else if (s === 'running') t += Math.round(STAGE_WEIGHTS[i-1] * 0.4);
+  }
+  return Math.min(98, t);
+}
+
+// ── Progress tracker UI ────────────────────────────────────────────────────
+function renderProgressTracker() {
+  if (!jobState) return;
+  document.getElementById('empty-state').style.display      = 'none';
+  document.getElementById('progress-tracker').style.display = 'flex';
+
+  document.getElementById('pt-ticker').textContent = jobState.ticker;
+  document.getElementById('pt-date').textContent   = jobState.date;
+
+  const pct = calcPct();
+  const bar = document.getElementById('pt-bar');
+  bar.style.width = pct + '%';
+  if (jobState.done) bar.classList.add('done'); else bar.classList.remove('done');
+  document.getElementById('pt-pct').textContent = pct + '%';
+
+  const pill = document.getElementById('pt-status-pill');
+  if (jobState.error) {
+    pill.textContent = 'Error';    pill.className = 'pt-status-pill error';
+  } else if (jobState.done) {
+    pill.textContent = 'Complete'; pill.className = 'pt-status-pill complete';
+  } else {
+    pill.textContent = 'Running';  pill.className = 'pt-status-pill running';
+  }
+
+  document.getElementById('pt-steps').innerHTML = STAGE_DEFS.map(s => {
+    const status = jobState.stages[s.id] || 'pending';
+    const icon   = status === 'complete' ? '✓' : s.icon;
+    const badge  = status === 'complete' ? 'Done' : status === 'running' ? 'Running…' : 'Pending';
+    return `<div class="pt-step ${status}">
+      <div class="pt-step-orb">${icon}</div>
+      <div class="pt-step-text">
+        <div class="pt-step-name">${s.label}</div>
+        <div class="pt-step-sub">${s.sub}</div>
+      </div>
+      <div class="pt-step-badge ${status}">${badge}</div>
+    </div>`;
+  }).join('');
+
+  const tokRow = document.getElementById('pt-tokens');
+  if (jobState.tokens_in > 0 || jobState.tokens_out > 0) {
+    tokRow.style.display = 'flex';
+    document.getElementById('pt-tok-in').textContent  = jobState.tokens_in.toLocaleString();
+    document.getElementById('pt-tok-out').textContent = jobState.tokens_out.toLocaleString();
+  }
+
+  const res = document.getElementById('pt-result');
+  if (jobState.error) {
+    res.className = 'pt-result'; res.style.display = 'block';
+    res.style.background = 'rgba(255,45,85,.07)'; res.style.border = '1px solid rgba(255,45,85,.28)';
+    const msg    = (jobState.errorMsg    || 'Unknown error').replace(/</g,'&lt;');
+    const detail = (jobState.errorDetail || '').replace(/</g,'&lt;');
+    res.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px">Analysis Failed</div>
+      <div style="font-size:12px;color:var(--muted);font-family:monospace;white-space:pre-wrap;max-height:120px;overflow-y:auto">${msg}</div>
+      ${detail ? `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--muted);cursor:pointer;font-family:monospace">Full traceback</summary><pre style="font-size:10px;color:var(--muted);margin-top:6px;overflow-x:auto;max-height:200px">${detail}</pre></details>` : ''}
+      <button onclick="clearJobState();document.getElementById('empty-state').style.display='flex';document.getElementById('progress-tracker').style.display='none';"
+        style="margin-top:12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:monospace">
+        Dismiss</button>`;
+  } else if (jobState.done && jobState.signal) {
+    const sig = (jobState.signal || '').toUpperCase().trim();
+    const cls = sig.includes('BUY') ? 'buy' : sig.includes('SELL') ? 'sell' : 'hold';
+    res.className = 'pt-result ' + cls; res.style.display = 'block';
+    res.style.background = ''; res.style.border = '';
+    res.innerHTML = `<div class="pt-result-signal" id="pt-result-signal">${sig}</div>
+      <div class="pt-result-sub" id="pt-result-sub">${jobState.ticker} · ${jobState.date}</div>
+      <button id="pt-view-report" onclick="viewCompletedReport()">View Full Report →</button>`;
+  } else {
+    res.style.display = 'none';
+  }
+  // Update compact sidebar pipeline
+  for (let i = 1; i <= 5; i++) {
+    const node = document.getElementById('pip-' + i);
+    if (node) {
+      const s = jobState.stages[i] || 'pending';
+      node.className = 'pip-node ' + s;
+    }
+  }
+  updateActiveJobPill();
+}
+
+function updateActiveJobPill() {
+  const pill = document.getElementById('active-job-pill');
+  if (!jobState || jobState.done || jobState.error) { pill.style.display = 'none'; return; }
+  pill.style.display = 'flex';
+  document.getElementById('ajp-label').textContent = `${jobState.ticker} · ${calcPct()}%`;
+}
+
+function startElapsedTimer() {
+  clearElapsedTimer();
+  elapsedTimer = setInterval(() => {
+    if (!jobState || jobState.done || jobState.error) { clearElapsedTimer(); return; }
+    const secs = Math.floor((Date.now() - jobState.started_at) / 1000);
+    const el = document.getElementById('pt-elapsed');
+    if (el) el.textContent = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
+    updateActiveJobPill();
+  }, 1000);
+}
+function clearElapsedTimer() { if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; } }
+
+function setFormDisabled(disabled) {
+  ['ticker','trade-date','llm-provider','quick-llm','deep-llm',
+   'research-depth','output-lang','llm-effort'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.disabled = disabled;
+  });
+  document.querySelectorAll('.checkbox-group input').forEach(el => el.disabled = disabled);
+  const btn = document.getElementById('run-btn');
+  if (btn) { btn.disabled = disabled; btn.textContent = disabled ? 'Analysis running…' : 'Run Analysis'; }
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('trade-date').value = new Date().toISOString().slice(0, 10);
+  onProviderChange();
+  loadReportList();
+  // Reconnect via URL params: ?job_id=...&ticker=...&date=...
+  const qp = new URLSearchParams(window.location.search);
+  if (qp.get('job_id')) {
+    const state = { job_id: qp.get('job_id'), ticker: qp.get('ticker') || '?',
+      date: qp.get('date') || new Date().toISOString().slice(0,10),
+      started_at: Date.now(),
+      stages: {1:'pending',2:'pending',3:'pending',4:'pending',5:'pending'},
+      tokens_in:0, tokens_out:0, done:false, error:false, signal:null };
+    localStorage.setItem('ta_active_job', JSON.stringify(state));
+    window.history.replaceState({}, '', '/');
+  }
+  reconnectActiveJob();
+});
+
+// ── Panel switching ────────────────────────────────────────────────────────
+function switchPanel(name) {
+  document.getElementById('panel-feed').style.display   = name === 'feed'   ? 'flex' : 'none';
+  document.getElementById('panel-report').style.display = name === 'report' ? 'flex' : 'none';
+  document.querySelectorAll('.htab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector(`.htab[onclick="switchPanel('${name}')"]`);
+  if (tab) tab.classList.add('active');
+}
+
+function setStatus(cls, text) {
+  document.getElementById('status-dot').className = cls;
+  document.getElementById('status-label').textContent = text;
+}
+
+// ── Prior analyses list ────────────────────────────────────────────────────
+async function loadReportList() {
+  try {
+    const data = await fetch('/api/reports').then(r => r.json());
+    const el = document.getElementById('report-list');
+    if (!data.length) { el.innerHTML = '<div style="padding:12px 16px;font-size:12px;color:var(--muted)">No analyses yet.</div>'; return; }
+    el.innerHTML = data.map(r => {
+      const cls = badgeClass(r.action || r.rating);
+      return `<div class="report-item" onclick="openReport('${r.ticker}','${r.date}',this)">
+        <span class="ri-ticker">${esc(r.ticker)}</span>
+        <span class="ri-date">${esc(r.date)}</span>
+        <span class="ri-badge ${cls}">${esc(r.action || r.rating || '—')}</span>
+      </div>`;
+    }).join('');
+  } catch { document.getElementById('report-list').innerHTML = '<div style="padding:12px 16px;font-size:12px;color:var(--red)">Failed to load.</div>'; }
+}
+
+function badgeClass(text) {
+  if (!text) return 'badge-neu';
+  const t = text.toLowerCase();
+  if (t.includes('buy') || t.includes('overweight'))   return 'badge-buy';
+  if (t.includes('sell') || t.includes('underweight')) return 'badge-sell';
+  if (t.includes('hold') || t.includes('neutral'))     return 'badge-hold';
+  return 'badge-neu';
+}
+
+// ── Open a saved report ────────────────────────────────────────────────────
+async function openReport(ticker, date, el) {
+  document.querySelectorAll('.report-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  // Show loading state in report panel before fetch
+  document.getElementById('br-signal').textContent = '—';
+  document.getElementById('br-signal').className   = 'br-signal';
+  document.getElementById('br-title').textContent  = ticker;
+  document.getElementById('br-date').textContent   = date;
+  document.getElementById('llm-usage-row').style.display = 'none';
+  document.getElementById('banner-fields').innerHTML = '';
+  document.getElementById('summary-bar').innerHTML   = '';
+  document.getElementById('report-tabs').innerHTML   = '';
+  document.getElementById('report-md').innerHTML     = '<div style="color:var(--muted);padding:20px">Loading…</div>';
+  try {
+    const res = await fetch(`/api/reports/${ticker}/${date}`);
+    if (!res.ok) { const t = await res.text(); throw new Error(`${res.status}: ${t.slice(0,120)}`); }
+    currentReportData = await res.json();
+    // Only switch panel on success
+    document.getElementById('tab-report').style.display = '';
+    switchPanel('report');
+    renderReport(currentReportData);
+  } catch(e) {
+    // Stay on current panel, show error in report area but don't navigate away
+    document.getElementById('tab-report').style.display = '';
+    switchPanel('report');
+    document.getElementById('report-md').innerHTML =
+      `<div style="color:var(--red);padding:16px;font-family:monospace">
+        <div style="font-weight:700;margin-bottom:8px">No report available for ${esc(ticker)} ${esc(date)}</div>
+        <div style="font-size:12px;color:var(--muted)">${esc(String(e))}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px">The analysis may have failed or been interrupted before writing log files.</div>
+      </div>`;
+  }
+}
+
+const LLM_PRICING = {
+  'claude-opus-4-7':           { in: 15,   out: 75  },
+  'claude-opus-4-5':           { in: 15,   out: 75  },
+  'claude-sonnet-4-6':         { in: 3,    out: 15  },
+  'claude-sonnet-4-5':         { in: 3,    out: 15  },
+  'claude-haiku-4-5':          { in: 0.80, out: 4   },
+  'claude-haiku-4-5-20251001': { in: 0.80, out: 4   },
+};
+const DEPTH_LABELS = { 1:'Low', 2:'Medium', 3:'High', 4:'Ultra' };
+
+function estimateCost(deepLlm, quickLlm, tokensIn, tokensOut) {
+  const r = LLM_PRICING[deepLlm] || LLM_PRICING[quickLlm] || { in: 15, out: 75 };
+  return (tokensIn / 1e6) * r.in + (tokensOut / 1e6) * r.out;
+}
+
+function fmtModel(id) {
+  if (!id) return '—';
+  return id.replace('claude-','').replace(/-20\d{6}$/,'');
+}
+
+function renderLLMUsageRow(meta) {
+  const row = document.getElementById('llm-usage-row');
+  if (!meta || (!meta.tokens_in && !meta.research_depth)) { row.style.display = 'none'; return; }
+  const { research_depth, llm_provider, quick_llm, deep_llm,
+          tokens_in = 0, tokens_out = 0 } = meta;
+  const cost = estimateCost(deep_llm, quick_llm, tokens_in, tokens_out);
+  const costStr = cost > 0 ? `~$${cost.toFixed(2)}` : '—';
+  const depthStr = DEPTH_LABELS[research_depth] || research_depth || '—';
+
+  const items = [
+    { label:'Provider',  val: (llm_provider||'—') },
+    { label:'Quick LLM', val: fmtModel(quick_llm) },
+    { label:'Deep LLM',  val: fmtModel(deep_llm)  },
+    { label:'Depth',     val: depthStr             },
+    { label:'Tokens In', val: tokens_in ? tokens_in.toLocaleString() : '—' },
+    { label:'Tokens Out',val: tokens_out ? tokens_out.toLocaleString() : '—' },
+    { label:'Est. Cost', val: costStr, cost: true  },
+  ];
+  row.innerHTML = items.map((it, i) =>
+    (i > 0 ? '<span class="lu-sep">·</span>' : '') +
+    `<span class="lu-item"><span class="lu-label">${it.label}</span>` +
+    `<span class="lu-val${it.cost ? ' lu-cost' : ''}">${it.val}</span></span>`
+  ).join('');
+  row.style.display = 'flex';
+}
+
+function renderReport(data) {
+  const { ticker, date, banner, summary, reports } = data;
+  const action = (summary.action || '').toLowerCase();
+  const sigClass = action.includes('buy') || action.includes('overweight') ? 'buy'
+                 : action.includes('sell') || action.includes('underweight') ? 'sell' : 'hold';
+  const sigEl = document.getElementById('br-signal');
+  sigEl.textContent = summary.action || '—'; sigEl.className = `br-signal ${sigClass}`;
+  document.getElementById('br-title').textContent   = ticker;
+  document.getElementById('br-company').textContent = '';
+  document.getElementById('br-date').textContent    = date;
+  fetch(`/api/info/${encodeURIComponent(ticker)}`)
+    .then(r => r.json())
+    .then(d => { if (d.name) document.getElementById('br-company').textContent = d.name; })
+    .catch(() => {});
+
+  // LLM usage: prefer jobState meta (has live token counts) over API meta
+  const apiMeta = data.meta || {};
+  const jsMeta  = (jobState && jobState.ticker === ticker && jobState.date === date && jobState.meta) || {};
+  const liveTokens = (jobState && jobState.ticker === ticker && jobState.date === date)
+    ? { tokens_in: jobState.tokens_in, tokens_out: jobState.tokens_out } : {};
+  renderLLMUsageRow({ ...apiMeta, ...jsMeta, ...liveTokens });
+
+  const fields = [
+    { label:'Last Price',    value:banner.last_price },
+    { label:'Sentiment',     value:banner.sentiment },
+    { label:'Bull View',     value:banner.bull },
+    { label:'Bear View',     value:banner.bear },
+    { label:'Research Mgr',  value:banner.research_mgr },
+    { label:'Trader Action', value:banner.trader_action },
+    { label:'Risk Mgmt',     value:banner.risk_mgmt },
+    { label:'Portfolio Mgr', value:banner.portfolio_mgr },
+  ];
+  document.getElementById('banner-fields').innerHTML = fields.map(f =>
+    `<div class="bf"><div class="bf-label">${esc(f.label)}</div><div class="bf-value">${esc(f.value||'—')}</div></div>`
+  ).join('');
+  const s = summary;
+  let sh = `<span class="sb-label">Decision:</span><span class="sb-pill action-${sigClass}">${esc(s.action||'—')}</span>`;
+  if (s.entry  && s.entry  !== '—') sh += `<span class="sb-sep">|</span><span class="sb-item">Entry $${esc(s.entry)}</span>`;
+  if (s.stop   && s.stop   !== '—') sh += `<span class="sb-sep">|</span><span class="sb-item">Stop $${esc(s.stop)}</span>`;
+  if (s.target && s.target !== '—') sh += `<span class="sb-sep">|</span><span class="sb-item">Target $${esc(s.target)}</span>`;
+  if (s.horizon && s.horizon !== '—') sh += `<span class="sb-sep">|</span><span class="sb-item">${esc(s.horizon)}</span>`;
+  document.getElementById('summary-bar').innerHTML = sh;
+  const names = Object.keys(reports).filter(k => reports[k]);
+  document.getElementById('report-tabs').innerHTML = names.map((n, i) =>
+    `<button class="rtab${i===0?' active':''}" onclick="showTab('${esc(n)}',this)">${esc(n)}</button>`
+  ).join('');
+  if (names.length) showReportContent(reports[names[0]]);
+
+  // Load and render price chart
+  document.getElementById('report-chart-wrap').style.display = '';
+  document.getElementById('chart-no-data').style.display = 'none';
+  fetch(`/api/chart/${encodeURIComponent(ticker)}/${encodeURIComponent(date)}`)
+    .then(r => r.json())
+    .then(cd => { _chartData = cd; _chartSigClass = sigClass; drawPriceChart(cd, sigClass, null); buildChartLegend(); })
+    .catch(() => { document.getElementById('chart-no-data').style.display = 'flex'; });
+}
+
+function exportToPDF() {
+  const data = currentReportData;
+  if (!data) return;
+  const { ticker, date, banner, summary, reports } = data;
+  const h = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const companyName = document.getElementById('br-company').textContent || '';
+
+  // Capture chart canvas as PNG (dark chart embeds fine on white page)
+  let chartHtml = '';
+  const canvas = document.getElementById('report-chart');
+  if (canvas && canvas.width > 0 && canvas.style.display !== 'none') {
+    const dateRange = (_chartData && _chartData.dates && _chartData.dates.length)
+      ? `${_chartData.dates[0]} — ${_chartData.dates[_chartData.dates.length - 1]}`
+      : date;
+    chartHtml = `
+      <div class="chart-wrap">
+        <img src="${canvas.toDataURL('image/png')}" class="chart-img">
+        <div class="chart-caption">Price &amp; RSI · ${h(dateRange)} · Colour = price vs 20-day MA (technical momentum only)</div>
+      </div>`;
+  }
+
+  const action = (summary.action || '').toLowerCase();
+  const sigColor = action.includes('buy') || action.includes('overweight') ? '#16a34a'
+                 : action.includes('sell') || action.includes('underweight') ? '#dc2626' : '#d97706';
+
+  const fields = [
+    { label:'Last Price',    value: banner.last_price },
+    { label:'Sentiment',     value: banner.sentiment },
+    { label:'Bull View',     value: banner.bull },
+    { label:'Bear View',     value: banner.bear },
+    { label:'Research Mgr',  value: banner.research_mgr },
+    { label:'Trader Action', value: banner.trader_action },
+    { label:'Risk Mgmt',     value: banner.risk_mgmt },
+    { label:'Portfolio Mgr', value: banner.portfolio_mgr },
+  ].filter(f => f.value && f.value !== '—');
+
+  const pills = [
+    `<span class="pill-action">${h(summary.action || '—')}</span>`,
+    summary.entry  && summary.entry  !== '—' ? `<span class="pill">Entry $${h(summary.entry)}</span>`   : '',
+    summary.stop   && summary.stop   !== '—' ? `<span class="pill">Stop $${h(summary.stop)}</span>`     : '',
+    summary.target && summary.target !== '—' ? `<span class="pill">Target $${h(summary.target)}</span>` : '',
+    summary.horizon && summary.horizon !== '—' ? `<span class="pill">${h(summary.horizon)}</span>`      : '',
+  ].filter(Boolean).join('');
+
+  const allSections = Object.entries(reports).filter(([, html]) => html && html.trim());
+  const sectionsHtml = allSections.map(([name, html], i) =>
+    `<div class="section${i > 0 ? ' page-break' : ''}">
+      <div class="section-label">${h(name)}</div>
+      <div class="section-body">${html}</div>
+    </div>`
+  ).join('');
+
+  const doc = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>${h(ticker)} · ${h(date)} · TradingAgents</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.55;color:#111827;background:#fff;padding:36px 44px}
+@page{margin:18mm 16mm}
+.header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:2.5px solid #111827;margin-bottom:18px}
+.h-ticker{font-size:26px;font-weight:800;letter-spacing:.4px}
+.h-company{font-size:16px;font-weight:400;color:#6b7280;align-self:flex-end;padding-bottom:2px}
+.h-sub{font-size:12px;color:#6b7280;margin-top:3px}
+.h-signal{font-size:16px;font-weight:700;padding:6px 20px;border-radius:5px;color:#fff;background:${sigColor};white-space:nowrap;align-self:center}
+.pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px}
+.pill-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em}
+.pill-action{font-size:12px;font-weight:700;padding:3px 13px;border-radius:4px;color:#fff;background:${sigColor}}
+.pill{font-size:12px;padding:3px 13px;border-radius:4px;border:1px solid #d1d5db;color:#374151;background:#f9fafb}
+.fields{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.field{background:#f9fafb;border:1px solid #e5e7eb;border-radius:5px;padding:8px 11px}
+.field-label{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#9ca3af;margin-bottom:3px}
+.field-value{font-size:11px;color:#111827;font-weight:500;line-height:1.4}
+.chart-wrap{margin-bottom:6px}
+.chart-img{width:100%;border:1px solid #e5e7eb;border-radius:5px;display:block}
+.chart-caption{font-size:9px;color:#9ca3af;text-align:right;margin-top:4px;margin-bottom:20px}
+.section{margin-top:22px}
+.page-break{page-break-before:always;margin-top:0;padding-top:22px}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-bottom:12px}
+.section-body h1{font-size:17px;font-weight:700;margin:14px 0 7px;color:#111827}
+.section-body h2{font-size:14px;font-weight:600;margin:12px 0 5px;color:#1f2937;border-bottom:1px solid #f3f4f6;padding-bottom:3px}
+.section-body h3{font-size:13px;font-weight:600;margin:10px 0 4px;color:#374151}
+.section-body h4{font-size:12px;font-weight:600;margin:8px 0 3px;color:#4b5563}
+.section-body p{margin:5px 0}
+.section-body ul,.section-body ol{margin:5px 0 5px 18px}
+.section-body li{margin:2px 0}
+.section-body strong{font-weight:600}
+.section-body em{font-style:italic}
+.section-body table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px}
+.section-body th{background:#f3f4f6;font-weight:600;text-align:left;padding:5px 9px;border:1px solid #d1d5db;font-size:11px}
+.section-body td{padding:4px 9px;border:1px solid #e5e7eb;vertical-align:top}
+.section-body tr:nth-child(even) td{background:#f9fafb}
+.section-body code{background:#f3f4f6;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:11px}
+.section-body pre{background:#f3f4f6;padding:10px 12px;border-radius:4px;font-size:11px;margin:6px 0;white-space:pre-wrap;word-break:break-word}
+.section-body blockquote{border-left:3px solid #d1d5db;padding:3px 10px;color:#6b7280;margin:6px 0}
+.section-body hr{border:none;border-top:1px solid #e5e7eb;margin:10px 0}
+.section-body a{color:#2563eb}
+.footer{margin-top:30px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:9px;color:#9ca3af;display:flex;justify-content:space-between}
+</style>
+</head><body>
+<div class="header">
+  <div>
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+      <div class="h-ticker">${h(ticker)}</div>
+      ${companyName ? `<div class="h-company">${h(companyName)}</div>` : ''}
+    </div>
+    <div class="h-sub">${h(date)} &nbsp;·&nbsp; TradingAgents Analysis Report</div>
+  </div>
+  <div class="h-signal">${h(summary.action || '—')}</div>
+</div>
+<div class="pills">
+  <span class="pill-label">Decision &nbsp;</span>
+  ${pills}
+</div>
+<div class="fields">
+  ${fields.map(f => `<div class="field"><div class="field-label">${h(f.label)}</div><div class="field-value">${h(f.value)}</div></div>`).join('')}
+</div>
+${chartHtml}
+${sectionsHtml}
+<div class="footer">
+  <span>Generated by TradingAgents &nbsp;·&nbsp; ${h(date)}</span>
+  <span>For informational purposes only &nbsp;·&nbsp; Not financial advice</span>
+</div>
+<script>window.addEventListener('load',function(){window.print()})<\/script>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Pop-up blocked — allow pop-ups for this page and try again.'); return; }
+  win.document.open(); win.document.write(doc); win.document.close();
+}
+
+function drawPriceChart(cd, sigClass, hl) {
+  const canvas = document.getElementById('report-chart');
+  const noData = document.getElementById('chart-no-data');
+  noData.style.display = 'none';
+
+  if (!cd.prices || cd.prices.length < 5) {
+    canvas.style.display = 'none'; noData.style.display = 'flex'; return;
+  }
+  canvas.style.display = 'block';
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width  = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const prices = cd.prices, dates = cd.dates;
+  const ma20   = cd.ma20  || [];
+  const rsi    = cd.rsi   || [];
+  const n = prices.length;
+
+  // ── Layout ──────────────────────────────────────────────────────────────
+  const PAD   = { top:22, right:52, bottom:20, left:8 };
+  const GAP   = 14; // gap between price and RSI panels
+  const RSI_H = 58; // RSI panel height
+  const totalInner = H - PAD.top - PAD.bottom;
+  const priceH = totalInner - GAP - RSI_H;
+  const rsiTop = PAD.top + priceH + GAP;
+
+  const cW = W - PAD.left - PAD.right;
+  const xOf  = i => PAD.left + (i / (n - 1)) * cW;
+
+  // Price y-scale
+  const pMin = Math.min(...prices) * 0.996;
+  const pMax = Math.max(...prices) * 1.004;
+  const yP   = v => PAD.top + (1 - (v - pMin) / (pMax - pMin)) * priceH;
+
+  // RSI y-scale (fixed 0-100)
+  const yR = v => rsiTop + (1 - v / 100) * RSI_H;
+
+  // ── Background ──────────────────────────────────────────────────────────
+  ctx.fillStyle = '#00070f';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Price grid ──────────────────────────────────────────────────────────
+  ctx.strokeStyle = 'rgba(0,212,255,0.06)';
+  ctx.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const y = PAD.top + t * priceH;
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+    const val = pMax - t * (pMax - pMin);
+    ctx.fillStyle = 'rgba(0,212,255,0.4)';
+    ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('$' + val.toFixed(val >= 100 ? 0 : 2), W - PAD.right + 3, y + 3);
+  });
+
+  // ── X-axis date labels (shared) ─────────────────────────────────────────
+  ctx.fillStyle = 'rgba(0,212,255,0.3)';
+  ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  [0, Math.floor(n/3), Math.floor(2*n/3), n-1].forEach(i => {
+    ctx.fillText((dates[i] || '').slice(5), xOf(i), H - 4);
+  });
+
+  // ── 20-MA line ──────────────────────────────────────────────────────────
+  ctx.globalAlpha = (!hl || hl === 'ma20') ? 1 : 0.1;
+  ctx.strokeStyle = 'rgba(157,100,255,0.7)';
+  ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  let started = false;
+  ma20.forEach((v, i) => {
+    if (v == null) return;
+    if (!started) { ctx.moveTo(xOf(i), yP(v)); started = true; }
+    else ctx.lineTo(xOf(i), yP(v));
+  });
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
+  // ── Price line — green above MA, red below MA ───────────────────────────
+  // Gradient fill first (single colour based on end position)
+  const endAbove = ma20[n-1] != null && prices[n-1] > ma20[n-1];
+  const fillTopC = endAbove ? 'rgba(0,255,204,0.13)' : 'rgba(255,45,85,0.10)';
+  const gradFill = ctx.createLinearGradient(0, PAD.top, 0, PAD.top + priceH);
+  gradFill.addColorStop(0, fillTopC);
+  gradFill.addColorStop(1, 'rgba(0,7,15,0)');
+  ctx.globalAlpha = (!hl || hl === 'bull' || hl === 'bear') ? 1 : 0.06;
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yP(prices[0]));
+  prices.forEach((v, i) => ctx.lineTo(xOf(i), yP(v)));
+  ctx.lineTo(xOf(n-1), PAD.top + priceH);
+  ctx.lineTo(xOf(0),   PAD.top + priceH);
+  ctx.closePath();
+  ctx.fillStyle = gradFill; ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Segmented price line — colour changes at MA crossovers
+  ctx.lineWidth = 2;
+  for (let i = 1; i < n; i++) {
+    const above = ma20[i] != null ? prices[i] >= ma20[i] : null;
+    const isBull = above === true, isBear = above === false;
+    const active = !hl || (hl === 'bull' && isBull) || (hl === 'bear' && isBear);
+    ctx.globalAlpha = active ? 1 : 0.08;
+    const col   = above === null ? '#00d4ff' : isBull ? '#00ffcc' : '#ff2d55';
+    ctx.strokeStyle = col;
+    ctx.shadowColor = col; ctx.shadowBlur = active ? 5 : 0;
+    ctx.beginPath();
+    ctx.moveTo(xOf(i-1), yP(prices[i-1]));
+    ctx.lineTo(xOf(i),   yP(prices[i]));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  // ── Analysis date marker ─────────────────────────────────────────────────
+  const adIdx = dates.indexOf(cd.analysis_date);
+  const mIdx  = adIdx >= 0 ? adIdx : n - 1;
+  const mx    = xOf(mIdx);
+  ctx.strokeStyle = 'rgba(0,212,255,0.4)';
+  ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(mx, PAD.top); ctx.lineTo(mx, PAD.top + priceH); ctx.stroke();
+  ctx.setLineDash([]);
+  // dot
+  const dotC = (ma20[mIdx] != null && prices[mIdx] >= ma20[mIdx]) ? '#00ffcc' : '#ff2d55';
+  ctx.fillStyle = dotC; ctx.shadowColor = dotC; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.arc(mx, yP(prices[mIdx]), 4, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // ── RSI panel ────────────────────────────────────────────────────────────
+  ctx.globalAlpha = (!hl || hl === 'rsi') ? 1 : 0.1;
+  // Label
+  ctx.fillStyle = 'rgba(0,212,255,0.35)';
+  ctx.font = '9px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('RSI(14)', PAD.left, rsiTop - 3);
+
+  // Overbought / oversold zones
+  ctx.fillStyle = 'rgba(255,45,85,0.06)';
+  ctx.fillRect(PAD.left, yR(100), cW, yR(70) - yR(100));
+  ctx.fillStyle = 'rgba(0,255,204,0.06)';
+  ctx.fillRect(PAD.left, yR(30), cW, yR(0) - yR(30));
+
+  // 70 / 30 / 50 lines
+  [[70,'rgba(255,45,85,0.45)'],[50,'rgba(0,212,255,0.15)'],[30,'rgba(0,255,204,0.45)']].forEach(([v,c]) => {
+    ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(PAD.left, yR(v)); ctx.lineTo(W - PAD.right, yR(v)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = c; ctx.font = '8px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(v, W - PAD.right + 3, yR(v) + 3);
+  });
+
+  // RSI line — coloured by overbought/oversold
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < n; i++) {
+    if (rsi[i] == null || rsi[i-1] == null) continue;
+    const col = rsi[i] >= 70 ? '#ff2d55' : rsi[i] <= 30 ? '#00ffcc' : 'rgba(0,212,255,0.8)';
+    ctx.strokeStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(xOf(i-1), yR(rsi[i-1]));
+    ctx.lineTo(xOf(i),   yR(rsi[i]));
+    ctx.stroke();
+  }
+
+  // RSI value at analysis date
+  if (rsi[mIdx] != null) {
+    const rv = rsi[mIdx];
+    const rc = rv >= 70 ? '#ff2d55' : rv <= 30 ? '#00ffcc' : '#00d4ff';
+    ctx.fillStyle = rc; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('RSI ' + rv.toFixed(0), W - PAD.right - 2, rsiTop + 10);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function buildChartLegend() {
+  const wrap = document.getElementById('chart-legend');
+  if (!wrap) return;
+  const cd = _chartData;
+  const items = [
+    { key:'bull', color:'#00ffcc', dash:false, label:'Bull – price above 20-MA' },
+    { key:'bear', color:'#ff2d55', dash:false, label:'Bear – price below 20-MA' },
+    { key:'ma20', color:'rgba(157,100,255,0.9)', dash:true,  label:'20-day moving average' },
+    { key:'rsi',  color:'rgba(0,212,255,0.8)',  dash:false, label:'RSI(14) momentum' },
+  ];
+  const dateRange = (cd && cd.dates && cd.dates.length)
+    ? `${cd.dates[0]} → ${cd.dates[cd.dates.length-1]}`
+    : '';
+  wrap.innerHTML = items.map(({ key, color, dash, label }) =>
+    `<div class="cleg-item" data-key="${key}">
+      <svg width="22" height="8" style="flex-shrink:0">
+        ${dash
+          ? `<line x1="0" y1="4" x2="22" y2="4" stroke="${color}" stroke-width="1.5" stroke-dasharray="3,3"/>`
+          : `<line x1="0" y1="4" x2="22" y2="4" stroke="${color}" stroke-width="2.5"/>`}
+      </svg>
+      <span>${label}</span>
+    </div>`
+  ).join('') +
+  `<span class="cleg-note">Technical momentum only · not a trade signal${dateRange ? ' · ' + dateRange : ''}</span>`;
+  wrap.querySelectorAll('.cleg-item').forEach(item => {
+    const key = item.dataset.key;
+    item.addEventListener('mouseenter', () => {
+      wrap.querySelectorAll('.cleg-item').forEach(el => el.style.opacity = el === item ? '1' : '0.25');
+      if (_chartData) drawPriceChart(_chartData, _chartSigClass, key);
+    });
+    item.addEventListener('mouseleave', () => {
+      wrap.querySelectorAll('.cleg-item').forEach(el => el.style.opacity = '1');
+      if (_chartData) drawPriceChart(_chartData, _chartSigClass, null);
+    });
+  });
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.rtab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  showReportContent(currentReportData.reports[name] || '');
+}
+
+function showReportContent(html) {
+  const el = document.getElementById('report-md');
+  el.className = 'md-body';
+  el.innerHTML = html || '<em>No content.</em>';
+}
+
+// ── Run analysis ───────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const ticker   = document.getElementById('ticker').value.trim().toUpperCase();
+  const date     = document.getElementById('trade-date').value;
+  const analysts = [...document.querySelectorAll('.checkbox-group input:checked')].map(c => c.value);
+  if (!ticker || !date)  return alert('Please enter a ticker and date.');
+  if (!analysts.length)  return alert('Select at least one analyst.');
+
+  const llm_provider   = document.getElementById('llm-provider').value;
+  const quick_llm      = document.getElementById('quick-llm').value;
+  const deep_llm       = document.getElementById('deep-llm').value;
+  const research_depth = parseInt(document.getElementById('research-depth').value);
+  const language       = document.getElementById('output-lang').value;
+  const effortRow      = document.getElementById('effort-row');
+  const effort         = effortRow.style.display !== 'none' ? document.getElementById('llm-effort').value : null;
+
+  const res = await fetch('/api/analyze', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ticker, date, analysts, language, research_depth,
+                          llm_provider, quick_llm, deep_llm, effort}),
+  }).catch(() => null);
+  if (!res) { setStatus('error','Connection failed'); return; }
+
+  const { job_id } = await res.json();
+  initJobState(job_id, ticker, date, { research_depth, llm_provider, quick_llm, deep_llm });
+  setFormDisabled(true);
+  setStatus('running', 'Running…');
+  switchPanel('feed');
+  renderProgressTracker();
+  startElapsedTimer();
+
+  _sseCursor = 0; _sseRetries = 0;
+  attachSSE(job_id);
+}
+
+let _sseRetryTimer = null;
+let _sseRetries = 0;
+let _sseCursor  = 0;  // tracks events received; passed as ?since= on reconnect
+
+function attachSSE(job_id) {
+  if (activeES) { try { activeES.close(); } catch(_){} activeES = null; }
+
+  activeES = new EventSource(`/api/stream/${job_id}?since=${_sseCursor}`);
+  activeES.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type !== 'heartbeat' && msg.type !== 'complete') _sseCursor++;
+    _sseRetries = 0;
+    handleEvent(msg, activeES);
+  };
+  activeES.onerror   = () => {
+    activeES.close(); activeES = null;
+    if (!jobState || jobState.done || jobState.error) return;
+    // Auto-reconnect with backoff; verify job still alive first
+    const delay = Math.min(2000 * Math.pow(1.8, _sseRetries), 30000);
+    _sseRetries++;
+    setStatus('running', `Reconnecting in ${Math.round(delay/1000)}s…`);
+    clearTimeout(_sseRetryTimer);
+    _sseRetryTimer = setTimeout(async () => {
+      try {
+        const jobs = await fetch('/api/jobs').then(r => r.json());
+        if (!jobs.active_jobs.includes(job_id)) {
+          setStatus('idle', 'Idle'); setFormDisabled(false);
+          loadReportList(); updateActiveJobPill(); return;
+        }
+      } catch(_) {}
+      setStatus('running', 'Reconnecting…');
+      attachSSE(job_id);
+    }, delay);
+  };
+}
+
+async function reconnectActiveJob() {
+  const saved = loadJobState();
+  if (!saved) return;
+  jobState = saved;
+  // Errored or completed jobs: just render, don't attempt SSE reconnect
+  if (saved.done || saved.error) { renderProgressTracker(); return; }
+
+  renderProgressTracker();
+  switchPanel('feed');
+  setFormDisabled(true);
+  setStatus('running', 'Reconnecting…');
+  startElapsedTimer();
+
+  _sseCursor = 0; _sseRetries = 0;
+  attachSSE(saved.job_id);
+}
+
+// ── SSE event handler ──────────────────────────────────────────────────────
+function handleEvent(msg, es) {
+  if (msg.type === 'heartbeat' || msg.type === 'complete') return;
+
+  if (msg.type === 'agent_update') {
+    if (!jobState) return;
+    const stage = msg.stage || 0;
+    if (stage) {
+      for (let s = 1; s < stage; s++) if (jobState.stages[s] !== 'complete') jobState.stages[s] = 'complete';
+      if (jobState.stages[stage] !== 'complete') jobState.stages[stage] = 'running';
+    }
+    if (msg.tokens_in  !== undefined) jobState.tokens_in  = msg.tokens_in;
+    if (msg.tokens_out !== undefined) jobState.tokens_out = msg.tokens_out;
+    saveJobState(); renderProgressTracker();
+    return;
+  }
+
+  if (msg.type === 'done') {
+    if (!jobState) return;
+    for (let s = 1; s <= 5; s++) jobState.stages[s] = 'complete';
+    jobState.done = true; jobState.signal = msg.signal;
+    saveJobState(); clearElapsedTimer();
+    setStatus('done', 'Complete'); setFormDisabled(false);
+    renderProgressTracker(); updateActiveJobPill(); loadReportList();
+    es.close(); return;
+  }
+
+  if (msg.type === 'error') {
+    if (jobState) {
+      jobState.error = true;
+      jobState.errorMsg = msg.message || 'Unknown error';
+      // Append full traceback if present so it shows in the dismissed state too
+      if (msg.detail) jobState.errorDetail = msg.detail;
+      saveJobState();
+    }
+    clearElapsedTimer(); setStatus('error', 'Error'); setFormDisabled(false);
+    renderProgressTracker(); updateActiveJobPill();
+    es.close(); return;
+  }
+}
+
+function viewCompletedReport() {
+  if (!jobState) return;
+  for (const item of document.querySelectorAll('.report-item')) {
+    if (item.querySelector('.ri-ticker')?.textContent === jobState.ticker &&
+        item.querySelector('.ri-date')?.textContent   === jobState.date) {
+      openReport(jobState.ticker, jobState.date, item); return;
+    }
+  }
+  openReport(jobState.ticker, jobState.date, {classList:{add:()=>{},remove:()=>{}}});
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openModal(title, text) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = text;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay') || e.currentTarget.id === 'modal-close')
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// ── Util ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
