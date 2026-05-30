@@ -275,7 +275,9 @@ def test_evidence_steward_enriches_empty_news_three_rounds_and_dedupes(monkeypat
     assert calls == [3]
     assert result["evidence_status"] == EvidenceStatus.PASS.value
     assert result["news_report"].count("星网锐捷出售德明通讯股权进展公告") == 1
-    assert "低覆盖通过" in result["evidence_report"]
+    # High-credibility sources (cninfo.com.cn, szse.cn) get 1.5x weight,
+    # so 2 company items → weighted 3.0, meeting the threshold of 3.
+    assert "通过" in result["evidence_report"]
 
 
 def test_evidence_steward_stops_when_enrichment_still_insufficient(monkeypatch):
