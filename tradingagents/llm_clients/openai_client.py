@@ -136,6 +136,56 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
         return payload
 
 
+def _install_codex_responses_output_shim() -> None:
+    """Tolerate Codex ``response.completed`` events that omit ``output``.
+
+    The ChatGPT-Codex backend streams text via ``response.output_text.delta``
+    events and ends with a ``response.completed`` event that — unlike
+    api.openai.com — carries NO ``output`` array. langchain's
+    ``_construct_lc_result_from_responses_api`` does ``for output in
+    response.output`` and raises ``TypeError: 'NoneType' object is not
+    iterable``. We coerce a missing ``output`` to ``[]`` (the text has already
+    been delivered by the deltas). This is a strict no-op for standard OpenAI
+    responses — whose completed events always include ``output`` — so it is safe
+    process-wide. Installed lazily (only when the OAuth path is built) and
+    idempotently, so non-OAuth users are unaffected.
+    """
+    import langchain_openai.chat_models.base as _lc_base
+
+    current = _lc_base._construct_lc_result_from_responses_api
+    if getattr(current, "_codex_output_shim", False):
+        return
+
+    def shimmed(response, *args, **kwargs):
+        if getattr(response, "output", None) is None:
+            try:
+                response.output = []
+            except Exception:  # pragma: no cover - defensive
+                pass
+        return current(response, *args, **kwargs)
+
+    shimmed._codex_output_shim = True
+    _lc_base._construct_lc_result_from_responses_api = shimmed
+
+
+class CodexChatOpenAI(NormalizedChatOpenAI):
+    """ChatOpenAI for the ChatGPT-Codex backend (provider ``openai-oauth``).
+
+    Rewrites the outgoing Responses payload to satisfy the Codex backend
+    (store=false, stream=true, non-empty ``instructions``, system/developer
+    messages hoisted out of ``input``, ``max_output_tokens`` stripped). Doing
+    this in ``_get_request_payload`` — the single method langchain calls on
+    both the sync and async paths before serialization — guarantees the
+    constraints reach the wire, unlike an httpx event-hook.
+    """
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        from .oauth import apply_codex_payload_constraints
+
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        return apply_codex_payload_constraints(payload)
+
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
@@ -254,10 +304,17 @@ class OpenAIClient(BaseLLMClient):
         - base_url = chatgpt.com/backend-api/codex, path /responses;
         - auth via a custom httpx client (CodexOAuth) so the bearer is always
           fresh and a 401 triggers one refresh+retry;
-        - an httpx request event-hook forces store=false / stream=true /
-          non-empty instructions on the outgoing body;
-        - ``streaming=True`` so langchain sends stream:true AND parses the SSE
-          response (the backend only streams);
+        - the Responses payload is rewritten in CodexChatOpenAI to satisfy the
+          backend: store=false, stream=true, non-empty ``instructions`` (the
+          system prompt), system/developer messages hoisted out of ``input``
+          (the backend 400s on "System messages are not allowed"), and
+          ``max_output_tokens`` stripped. This happens in
+          ``_get_request_payload`` so it works identically sync and async —
+          unlike an httpx event-hook, which would not modify the sent
+          ``request.stream`` and would crash the async path;
+        - ``store=False`` / ``streaming=True`` are also set as native langchain
+          params (langchain emits them into the payload); the payload rewrite
+          is the guaranteeing layer and the only source of ``instructions``;
         - ChatGPT-Account-ID / originator (+ conditional fedramp/residency)
           default headers.
         """
@@ -269,14 +326,14 @@ class OpenAIClient(BaseLLMClient):
             CodexOAuth,
             OAuthTokenStore,
             ensure_token,
-            enforce_codex_constraints,
         )
+
+        _install_codex_responses_output_shim()
 
         store = OAuthTokenStore()
         tokens = ensure_token(store)  # raises OAuthNotLoggedIn if absent
 
         auth = CodexOAuth(store)
-        hooks = {"request": [enforce_codex_constraints]}
 
         headers = dict(CODEX_DEFAULT_HEADERS)
         if tokens.account_id:
@@ -290,15 +347,18 @@ class OpenAIClient(BaseLLMClient):
         llm_kwargs["api_key"] = "oauth"  # placeholder; real auth via httpx
         llm_kwargs["use_responses_api"] = True
         llm_kwargs["streaming"] = True
+        llm_kwargs["store"] = False
         llm_kwargs["default_headers"] = headers
-        llm_kwargs["http_client"] = httpx.Client(auth=auth, event_hooks=hooks)
-        llm_kwargs["http_async_client"] = httpx.AsyncClient(auth=auth, event_hooks=hooks)
+        # No event_hooks: the body rewrite lives in CodexChatOpenAI so it works
+        # on both sync and async paths and modifies the actually-sent payload.
+        llm_kwargs["http_client"] = httpx.Client(auth=auth)
+        llm_kwargs["http_async_client"] = httpx.AsyncClient(auth=auth)
 
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs and key not in llm_kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
-        return NormalizedChatOpenAI(**llm_kwargs)
+        return CodexChatOpenAI(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""

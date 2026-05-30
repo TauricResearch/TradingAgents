@@ -27,7 +27,7 @@ from .store import (
     default_store_path,
 )
 from .auth import CodexOAuth
-from .body import enforce_codex_constraints
+from .payload import apply_codex_payload_constraints
 from .flow import login, exchange_code, OAuthLoginError
 
 
@@ -60,7 +60,7 @@ __all__ = [
     "OAuthRefreshFailed",
     "default_store_path",
     "CodexOAuth",
-    "enforce_codex_constraints",
+    "apply_codex_payload_constraints",
     "login",
     "exchange_code",
     "OAuthLoginError",
