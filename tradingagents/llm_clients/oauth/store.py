@@ -11,6 +11,8 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,8 +76,17 @@ def _auth_claims(token: str) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+# Claims dell'id_token (NON verificato in firma) finiscono in header HTTP:
+# validiamo la forma per evitare header injection / valori malformati.
+_HEADER_CLAIM_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
+
+
+def _clean_header_claim(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) and _HEADER_CLAIM_RE.match(value) else None
+
+
 def account_id_from_id_token(id_token: str) -> Optional[str]:
-    return _auth_claims(id_token).get("chatgpt_account_id")
+    return _clean_header_claim(_auth_claims(id_token).get("chatgpt_account_id"))
 
 
 def is_fedramp_from_id_token(id_token: str) -> bool:
@@ -84,7 +95,9 @@ def is_fedramp_from_id_token(id_token: str) -> bool:
 
 def residency_from_id_token(id_token: str) -> Optional[str]:
     claims = _auth_claims(id_token)
-    return claims.get("chatgpt_data_residency") or claims.get("chatgpt_compute_residency")
+    return _clean_header_claim(
+        claims.get("chatgpt_data_residency") or claims.get("chatgpt_compute_residency")
+    )
 
 
 def _expiry_from_access_token(access_token: str) -> float:
@@ -140,17 +153,25 @@ class OAuthTokenStore:
             "expires_at": _expiry_from_access_token(tokens["access_token"]),
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(record))
-        os.chmod(tmp, 0o600)
-        os.replace(tmp, self.path)
-        os.chmod(self.path, 0o600)
+        # mkstemp crea il file già a 0600 con nome unico: nessuna finestra
+        # world-readable (TOCTOU) e nessuna collisione sul nome .tmp.
+        fd, tmp_name = tempfile.mkstemp(dir=str(self.path.parent), prefix=".oauth_", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(json.dumps(record))
+            os.replace(tmp_name, self.path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
         return self._to_tokens(record)
 
     def load(self) -> StoredTokens:
         try:
             record = json.loads(self.path.read_text())
-        except (FileNotFoundError, json.JSONDecodeError, KeyError) as exc:
+        except (FileNotFoundError, json.JSONDecodeError) as exc:
             raise OAuthNotLoggedIn(
                 "Nessun login OAuth trovato. Esegui 'tradingagents login'."
             ) from exc
@@ -176,9 +197,30 @@ class OAuthTokenStore:
             timeout=30,
         )
         if resp.status_code != 200:
+            # Estrai il codice d'errore (formato {"error": {...}} o {"detail": ...})
+            # per distinguere gli errori permanenti dal refresh token.
+            err_code = ""
+            try:
+                body = resp.json()
+                if isinstance(body, dict):
+                    err = body.get("error")
+                    if isinstance(err, dict):
+                        err_code = err.get("code") or err.get("type") or ""
+                    elif isinstance(err, str):
+                        err_code = err
+                    elif isinstance(body.get("detail"), str):
+                        err_code = body["detail"]
+            except (ValueError, json.JSONDecodeError):
+                pass
+            permanent = {"refresh_token_expired", "refresh_token_reused", "refresh_token_invalidated"}
+            hint = (
+                " Il refresh token non è più valido."
+                if str(err_code) in permanent
+                else ""
+            )
             raise OAuthRefreshFailed(
-                f"Refresh del token fallito (HTTP {resp.status_code}). "
-                f"Esegui di nuovo 'tradingagents login'."
+                f"Refresh del token fallito (HTTP {resp.status_code}{', ' + str(err_code) if err_code else ''})."
+                f"{hint} Esegui di nuovo 'tradingagents login'."
             )
         data = resp.json()
         # access_token sempre atteso; refresh_token ruota solo se presente;

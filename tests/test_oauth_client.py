@@ -44,3 +44,27 @@ def test_oauth_client_requires_login(tmp_path, monkeypatch):
     from tradingagents.llm_clients.oauth import OAuthNotLoggedIn
     with pytest.raises(OAuthNotLoggedIn):
         OpenAIClient("gpt-5.3-codex", provider="openai-oauth").get_llm()
+
+
+def test_oauth_client_sets_fedramp_and_residency_headers(tmp_path, monkeypatch):
+    monkeypatch.setenv("TRADINGAGENTS_OAUTH_PATH", str(tmp_path / "o.json"))
+    OAuthTokenStore().save({
+        "id_token": _jwt({"https://api.openai.com/auth": {
+            "chatgpt_account_id": "acct_fed",
+            "chatgpt_account_is_fedramp": True,
+            "chatgpt_data_residency": "us-gov",
+        }}),
+        "access_token": _jwt({"exp": int(time.time()) + 3600}),
+        "refresh_token": "R",
+    })
+    llm = OpenAIClient("gpt-5.4-mini", provider="openai-oauth").get_llm()
+    headers = llm.default_headers or {}
+    assert headers.get("X-OpenAI-Fedramp") == "true"
+    assert headers.get("x-openai-internal-codex-residency") == "us-gov"
+
+
+def test_oauth_client_uses_codex_subclass(logged_in):
+    from tradingagents.llm_clients.openai_client import CodexChatOpenAI
+    llm = OpenAIClient("gpt-5.4-mini", provider="openai-oauth").get_llm()
+    assert isinstance(llm, CodexChatOpenAI)
+    assert llm.store is False

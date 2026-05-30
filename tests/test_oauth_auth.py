@@ -63,3 +63,18 @@ def test_no_retry_on_200():
     except StopIteration:
         pass
     assert store.refresh_calls == 0
+
+
+def test_retry_once_only_on_repeated_401():
+    # Un secondo 401 NON deve scatenare un secondo refresh: il generator termina.
+    store = FakeStore(_tok("OLD"), _tok("FRESH"))
+    auth = CodexOAuth(store)
+    flow = auth.auth_flow(httpx.Request("GET", "https://x"))
+    first = next(flow)
+    retried = flow.send(httpx.Response(401, request=first))
+    assert store.refresh_calls == 1
+    # secondo 401 -> nessun ulteriore yield (StopIteration), nessun refresh extra
+    import pytest
+    with pytest.raises(StopIteration):
+        flow.send(httpx.Response(401, request=retried))
+    assert store.refresh_calls == 1

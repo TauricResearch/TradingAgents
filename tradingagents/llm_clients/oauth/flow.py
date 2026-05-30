@@ -6,7 +6,7 @@ il code per i token. Allineato a openai/codex/login/src/server.rs.
 """
 from __future__ import annotations
 
-import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Optional
@@ -26,10 +26,13 @@ from .pkce import (
 )
 from .store import OAuthError, OAuthTokenStore, StoredTokens
 
-_SUCCESS_HTML = (
+# Pagina neutra: il browser riceve il code PRIMA dello scambio token, quindi
+# non possiamo ancora affermare che il login sia riuscito. L'esito reale viene
+# stampato nel terminale dopo exchange_code().
+_RECEIVED_HTML = (
     b"<!doctype html><html><head><meta charset='utf-8'>"
-    b"<title>TradingAgents - Login</title></head><body style='font-family:sans-serif'>"
-    b"<h2>Login completato.</h2>"
+    b"<title>TradingAgents</title></head><body style='font-family:sans-serif'>"
+    b"<h2>Richiesta ricevuta.</h2>"
     b"<p>Puoi chiudere questa scheda e tornare al terminale.</p></body></html>"
 )
 _ERROR_HTML = (
@@ -61,50 +64,70 @@ def exchange_code(code: str, code_verifier: str, *, port: int = OAUTH_REDIRECT_P
     return resp.json()
 
 
-class _CallbackHandler(BaseHTTPRequestHandler):
-    """Handler che cattura code/state da /auth/callback in un dict condiviso."""
+def _make_handler(result_slot: dict):
+    """Crea un handler che scrive il callback in ``result_slot`` (stato per-login).
 
-    # Impostati da login() prima di servire.
-    result: dict = {}
+    Niente attributo di classe condiviso: ogni ``login()`` ha il suo slot,
+    quindi è rientrante e una GET di loopback spuria non può iniettare stato in
+    un altro login.
+    """
 
-    def do_GET(self):  # noqa: N802 (firma BaseHTTPRequestHandler)
-        parsed = urlparse(self.path)
-        if parsed.path != "/auth/callback":
-            self.send_response(404)
+    class _CallbackHandler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 (firma BaseHTTPRequestHandler)
+            parsed = urlparse(self.path)
+            if parsed.path != "/auth/callback":
+                self.send_response(404)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                return
+            params = parse_qs(parsed.query)
+            result_slot.update(
+                code=params.get("code", [None])[0],
+                state=params.get("state", [None])[0],
+                error=params.get("error", [None])[0],
+            )
+            body = _RECEIVED_HTML if result_slot.get("code") and not result_slot.get("error") else _ERROR_HTML
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
             self.send_header("Connection", "close")
             self.end_headers()
-            return
-        params = parse_qs(parsed.query)
-        captured = {
-            "code": params.get("code", [None])[0],
-            "state": params.get("state", [None])[0],
-            "error": params.get("error", [None])[0],
-        }
-        type(self).result = captured
-        body = _SUCCESS_HTML if captured.get("code") and not captured.get("error") else _ERROR_HTML
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.wfile.write(body)
+            self.wfile.write(body)
 
-    def log_message(self, *args):  # silenzia il logging su stderr
-        pass
+        def log_message(self, *args):  # silenzia il logging su stderr
+            pass
+
+    return _CallbackHandler
 
 
-def _bind_callback_server() -> tuple[HTTPServer, int]:
+def _bind_callback_server(handler_cls) -> tuple[HTTPServer, int]:
     """Apre il server sulla 1455, altrimenti sulla 1457; errore se entrambe occupate."""
     last_exc: Optional[OSError] = None
     for port in (OAUTH_REDIRECT_PORT, OAUTH_REDIRECT_FALLBACK_PORT):
         try:
-            return HTTPServer(("localhost", port), _CallbackHandler), port
+            return HTTPServer(("localhost", port), handler_cls), port
         except OSError as exc:  # porta occupata
             last_exc = exc
     raise OAuthLoginError(
         f"Porte {OAUTH_REDIRECT_PORT}/{OAUTH_REDIRECT_FALLBACK_PORT} occupate: "
         f"chiudi il processo che le usa (es. Codex CLI) e riprova."
     ) from last_exc
+
+
+def _collect_callback(server: HTTPServer, result: dict, timeout: int) -> None:
+    """Serve richieste finché ``result`` è popolato dal callback o scade il tempo.
+
+    Deadline su tempo reale (``time.monotonic``): una richiesta spuria (es.
+    ``/favicon``, 404) non deve consumare l'intero budget, quindi il timeout per
+    iterazione si restringe verso la scadenza e il loop ricicla fino al callback.
+    """
+    try:
+        deadline = time.monotonic() + timeout
+        while not result and time.monotonic() < deadline:
+            server.timeout = max(0.0, deadline - time.monotonic())
+            server.handle_request()
+    finally:
+        server.server_close()
 
 
 def login(
@@ -117,8 +140,8 @@ def login(
     verifier, challenge = generate_pkce_pair()
     state = generate_state()
 
-    _CallbackHandler.result = {}
-    server, port = _bind_callback_server()
+    result: dict = {}
+    server, port = _bind_callback_server(_make_handler(result))
     url = build_authorize_url(challenge, state, port=port)
 
     if open_browser:
@@ -126,18 +149,8 @@ def login(
     else:
         print(f"Apri questo URL nel browser per autenticarti:\n{url}")
 
-    try:
-        server.timeout = timeout
-        waited = 0
-        # handle_request() ritorna dopo ogni connessione o dopo `timeout`.
-        # Continua finché non arriva il callback con code/error o scade il tempo.
-        while not _CallbackHandler.result and waited < timeout:
-            server.handle_request()
-            waited += server.timeout or timeout
-    finally:
-        server.server_close()
+    _collect_callback(server, result, timeout)
 
-    result = _CallbackHandler.result
     if not result or result.get("error"):
         raise OAuthLoginError(
             "Login annullato o fallito" + (f": {result.get('error')}" if result.get("error") else ".")

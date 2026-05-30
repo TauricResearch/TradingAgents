@@ -144,3 +144,58 @@ def test_refresh_failure_raises(tmp_path, monkeypatch):
 def test_default_store_path_env_override(monkeypatch, tmp_path):
     monkeypatch.setenv("TRADINGAGENTS_OAUTH_PATH", str(tmp_path / "custom.json"))
     assert store_mod.default_store_path() == tmp_path / "custom.json"
+
+
+def test_refresh_preserves_claims_when_id_token_absent(tmp_path, monkeypatch):
+    # Se il refresh non rinvia id_token, account_id/fedramp/residency vengono
+    # riderivati dall'id_token precedente (riusato), quindi sopravvivono.
+    s = OAuthTokenStore(path=tmp_path / "t.json")
+    s.save(_tokens(exp_offset=1, account_id="acct_keep", fedramp=True, residency="eu"))
+
+    class FakeResp:
+        status_code = 200
+
+        def json(self):
+            return {"access_token": _access_token(3600)}  # niente id_token
+
+    monkeypatch.setattr(store_mod.httpx, "post", lambda *a, **k: FakeResp())
+    tok = s.refresh()
+    assert tok.account_id == "acct_keep"
+    assert tok.is_fedramp is True
+    assert tok.residency == "eu"
+
+
+def test_refresh_permanent_error_code_in_message(tmp_path, monkeypatch):
+    s = OAuthTokenStore(path=tmp_path / "t.json")
+    s.save(_tokens(exp_offset=1))
+
+    class FakeResp:
+        status_code = 400
+
+        def json(self):
+            return {"error": {"code": "refresh_token_expired"}}
+
+    monkeypatch.setattr(store_mod.httpx, "post", lambda *a, **k: FakeResp())
+    with pytest.raises(store_mod.OAuthRefreshFailed) as exc:
+        s.refresh()
+    assert "refresh_token_expired" in str(exc.value)
+
+
+def test_header_claims_reject_malformed_values():
+    # Un account_id con caratteri non validi (es. newline/inietta header) -> None
+    bad = _jwt({"https://api.openai.com/auth": {"chatgpt_account_id": "acct\r\nX-Inject: 1"}})
+    assert store_mod.account_id_from_id_token(bad) is None
+    good = _jwt({"https://api.openai.com/auth": {"chatgpt_account_id": "acct_123"}})
+    assert store_mod.account_id_from_id_token(good) == "acct_123"
+
+
+def test_save_uses_unique_tmp_even_if_path_ends_tmp(tmp_path):
+    # Path che termina in .tmp non deve auto-collidere col file temporaneo.
+    p = tmp_path / "store.tmp"
+    s = OAuthTokenStore(path=p)
+    s.save(_tokens())
+    assert p.exists()
+    assert stat.S_IMODE(p.stat().st_mode) == 0o600
+    # nessun file .tmp residuo nella dir
+    leftovers = [f for f in tmp_path.iterdir() if f.name.startswith(".oauth_")]
+    assert leftovers == []
