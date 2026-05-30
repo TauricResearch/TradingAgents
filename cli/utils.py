@@ -564,6 +564,7 @@ def ask_output_language() -> str:
             questionary.Choice("Spanish (Español)", "Spanish"),
             questionary.Choice("Portuguese (Português)", "Portuguese"),
             questionary.Choice("French (Français)", "French"),
+            questionary.Choice("Italian (Italiano)", "Italian"),
             questionary.Choice("German (Deutsch)", "German"),
             questionary.Choice("Arabic (العربية)", "Arabic"),
             questionary.Choice("Russian (Русский)", "Russian"),
