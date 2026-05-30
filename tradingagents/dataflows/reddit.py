@@ -12,9 +12,13 @@ never have to special-case missing data.
 
 from __future__ import annotations
 
+import html
 import json
 import logging
+import re
 import time
+import xml.etree.ElementTree as ET
+from datetime import datetime
 from typing import Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -29,6 +33,91 @@ _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 # discussion. wallstreetbets has the most volume but most noise; stocks /
 # investing trend more measured. Caller can override.
 DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
+
+
+def _parse_iso_to_timestamp(iso_str: str | None) -> float:
+    if not iso_str:
+        return 0.0
+    try:
+        if iso_str.endswith("Z"):
+            iso_str = iso_str[:-1] + "+00:00"
+        dt = datetime.fromisoformat(iso_str)
+        return dt.timestamp()
+    except Exception:
+        return 0.0
+
+
+def _clean_html(html_content: str) -> str:
+    if not html_content:
+        return ""
+    # Extract between <!-- SC_OFF --> and <!-- SC_ON -->
+    if "<!-- SC_OFF -->" in html_content and "<!-- SC_ON -->" in html_content:
+        html_content = html_content.split("<!-- SC_OFF -->")[1].split("<!-- SC_ON -->")[0]
+
+    # Strip HTML tags
+    text = re.sub(r"<[^>]+>", " ", html_content)
+    # Unescape HTML entities
+    text = html.unescape(text)
+    # Clean up whitespace
+    text = " ".join(text.split())
+    return text
+
+
+def _fetch_subreddit_rss(
+    ticker: str,
+    sub: str,
+    limit: int,
+    timeout: float,
+) -> list[dict]:
+    qs = urlencode({
+        "q": ticker,
+        "restrict_sr": "on",
+        "sort": "new",
+        "t": "week",
+        "limit": limit,
+    })
+    url = f"https://www.reddit.com/r/{sub}/search.rss?{qs}"
+    # Use a standard browser User-Agent because Reddit's WAF blocks standard
+    # Python urllib and custom app-specific headers on the RSS search stream.
+    ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    req = Request(url, headers={"User-Agent": ua})
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            xml_data = resp.read()
+    except Exception as exc:
+        logger.warning("Reddit RSS fetch failed for r/%s · %s: %s", sub, ticker, exc)
+        return []
+
+    try:
+        root = ET.fromstring(xml_data)
+    except Exception as exc:
+        logger.warning("Reddit RSS XML parsing failed for r/%s: %s", sub, exc)
+        return []
+
+    ns = {"atom": "http://www.w3.org/2005/Atom"}
+    entries = root.findall("atom:entry", ns)
+
+    posts = []
+    for entry in entries[:limit]:
+        title_el = entry.find("atom:title", ns)
+        title = title_el.text if title_el is not None else ""
+
+        published_el = entry.find("atom:published", ns)
+        published_str = published_el.text if published_el is not None else ""
+        created_utc = _parse_iso_to_timestamp(published_str)
+
+        content_el = entry.find("atom:content", ns)
+        content_html = content_el.text if content_el is not None else ""
+        selftext = _clean_html(content_html)
+
+        posts.append({
+            "title": title,
+            "score": 0,
+            "num_comments": 0,
+            "created_utc": created_utc,
+            "selftext": selftext,
+        })
+    return posts
 
 
 def _fetch_subreddit(
@@ -49,11 +138,16 @@ def _fetch_subreddit(
     try:
         with urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read())
+        children = (payload.get("data") or {}).get("children") or []
+        return [c.get("data", {}) for c in children if isinstance(c, dict)]
     except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
-        logger.warning("Reddit fetch failed for r/%s · %s: %s", sub, ticker, exc)
-        return []
-    children = (payload.get("data") or {}).get("children") or []
-    return [c.get("data", {}) for c in children if isinstance(c, dict)]
+        logger.warning(
+            "Reddit JSON fetch failed for r/%s · %s: %s. Falling back to RSS feed.",
+            sub,
+            ticker,
+            exc,
+        )
+        return _fetch_subreddit_rss(ticker, sub, limit, timeout)
 
 
 def fetch_reddit_posts(
