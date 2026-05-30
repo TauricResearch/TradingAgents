@@ -172,6 +172,8 @@ Only Codex catalog models are available here (e.g. `gpt-5.3-codex`, `gpt-5.4`,
 > undocumented backend that can change without notice. Whether using it from a
 > non-Codex app complies with OpenAI's Terms is your responsibility.
 
+See [`docs/openai-oauth.md`](docs/openai-oauth.md) for the full technical reference.
+
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
 For local models, configure Ollama with `llm_provider: "ollama"`. The default endpoint is `http://localhost:11434/v1`; set `OLLAMA_BASE_URL` to point at a remote `ollama-serve`. Pull models with `ollama pull <name>`, and pick "Custom model ID" in the CLI for any model not listed by default.
