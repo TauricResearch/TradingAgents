@@ -149,7 +149,13 @@ class TradingAgentsGraph:
 
         elif provider == "anthropic":
             effort = self.config.get("anthropic_effort")
-            if effort:
+            # effort kwargs are shared across both quick and deep clients, so
+            # only pass effort if BOTH models support it. Haiku/Sonnet reject
+            # the effort parameter with a 400 error; only Opus supports it.
+            quick_model = self.config.get("quick_think_llm", "").lower()
+            deep_model  = self.config.get("deep_think_llm",  "").lower()
+            both_support = all("opus" in m for m in (quick_model, deep_model))
+            if effort and both_support:
                 kwargs["effort"] = effort
 
         return kwargs
