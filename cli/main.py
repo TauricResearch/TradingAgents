@@ -582,6 +582,10 @@ def get_user_selections():
     # doesn't fail later at the first API call.
     ensure_api_key(selected_llm_provider)
 
+    # ChatGPT OAuth provider: ensure a valid OAuth token (browser login on
+    # first use) instead of an API key.
+    ensure_oauth_login(selected_llm_provider)
+
     # Step 7: Thinking agents
     console.print(
         create_question_box(
@@ -605,7 +609,7 @@ def get_user_selections():
             )
         )
         thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
+    elif provider_lower in ("openai", "openai-oauth"):
         console.print(
             create_question_box(
                 "Step 8: Reasoning Effort",
@@ -1263,6 +1267,38 @@ def run_analysis(checkpoint: bool = False):
         display_complete_report(final_state)
 
 
+def _run_analysis_command(checkpoint: bool, clear_checkpoints: bool) -> None:
+    """Shared body for the default invocation and the explicit ``analyze`` command."""
+    if clear_checkpoints:
+        from tradingagents.graph.checkpointer import clear_all_checkpoints
+        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
+        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+    run_analysis(checkpoint=checkpoint)
+
+
+# invoke_without_command keeps the historical bare ``tradingagents`` (no
+# subcommand) running the interactive analysis, even though the app now has
+# subcommands (analyze, login). When a subcommand is given, the callback is a
+# no-op and the subcommand runs instead.
+@app.callback(invoke_without_command=True)
+def _default(
+    ctx: typer.Context,
+    checkpoint: bool = typer.Option(
+        False,
+        "--checkpoint",
+        help="Enable checkpoint/resume: save state after each node so a crashed run can resume.",
+    ),
+    clear_checkpoints: bool = typer.Option(
+        False,
+        "--clear-checkpoints",
+        help="Delete all saved checkpoints before running (force fresh start).",
+    ),
+):
+    if ctx.invoked_subcommand is not None:
+        return
+    _run_analysis_command(checkpoint, clear_checkpoints)
+
+
 @app.command()
 def analyze(
     checkpoint: bool = typer.Option(
@@ -1276,11 +1312,29 @@ def analyze(
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
 ):
-    if clear_checkpoints:
-        from tradingagents.graph.checkpointer import clear_all_checkpoints
-        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
-        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+    """Run the multi-agent trading analysis (same as the bare command)."""
+    _run_analysis_command(checkpoint, clear_checkpoints)
+
+
+@app.command()
+def login(
+    no_browser: bool = typer.Option(
+        False,
+        "--no-browser",
+        help="Print the authorization URL instead of opening a browser.",
+    ),
+):
+    """Sign in with ChatGPT (OAuth) for the 'openai-oauth' provider.
+
+    Opens the browser, runs the OAuth PKCE flow and stores the tokens in
+    ~/.tradingagents/oauth_openai.json. Then pick "OpenAI (ChatGPT OAuth)"
+    in the provider menu.
+    """
+    from tradingagents.llm_clients.oauth import login as do_login
+
+    tokens = do_login(open_browser=not no_browser)
+    acct = tokens.account_id or "(unknown)"
+    typer.echo(f"Login completato. Account: {acct}")
 
 
 if __name__ == "__main__":

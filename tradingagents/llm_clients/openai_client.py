@@ -201,6 +201,10 @@ class OpenAIClient(BaseLLMClient):
         self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
 
+        # ChatGPT OAuth (Codex backend): bearer OAuth + Responses API streaming.
+        if self.provider == "openai-oauth":
+            return self._build_oauth_llm(llm_kwargs)
+
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
@@ -241,6 +245,60 @@ class OpenAIClient(BaseLLMClient):
         else:
             chat_cls = NormalizedChatOpenAI
         return chat_cls(**llm_kwargs)
+
+    def _build_oauth_llm(self, llm_kwargs: dict) -> Any:
+        """Build a ChatOpenAI bound to the Codex ChatGPT backend via OAuth.
+
+        Differences from the API-key path (all required by the backend, see
+        docs/superpowers/specs):
+        - base_url = chatgpt.com/backend-api/codex, path /responses;
+        - auth via a custom httpx client (CodexOAuth) so the bearer is always
+          fresh and a 401 triggers one refresh+retry;
+        - an httpx request event-hook forces store=false / stream=true /
+          non-empty instructions on the outgoing body;
+        - ``streaming=True`` so langchain sends stream:true AND parses the SSE
+          response (the backend only streams);
+        - ChatGPT-Account-ID / originator (+ conditional fedramp/residency)
+          default headers.
+        """
+        import httpx
+
+        from .oauth import (
+            CODEX_BASE_URL,
+            CODEX_DEFAULT_HEADERS,
+            CodexOAuth,
+            OAuthTokenStore,
+            ensure_token,
+            enforce_codex_constraints,
+        )
+
+        store = OAuthTokenStore()
+        tokens = ensure_token(store)  # raises OAuthNotLoggedIn if absent
+
+        auth = CodexOAuth(store)
+        hooks = {"request": [enforce_codex_constraints]}
+
+        headers = dict(CODEX_DEFAULT_HEADERS)
+        if tokens.account_id:
+            headers["ChatGPT-Account-ID"] = tokens.account_id
+        if tokens.is_fedramp:
+            headers["X-OpenAI-Fedramp"] = "true"
+        if tokens.residency:
+            headers["x-openai-internal-codex-residency"] = tokens.residency
+
+        llm_kwargs["base_url"] = self.base_url or CODEX_BASE_URL
+        llm_kwargs["api_key"] = "oauth"  # placeholder; real auth via httpx
+        llm_kwargs["use_responses_api"] = True
+        llm_kwargs["streaming"] = True
+        llm_kwargs["default_headers"] = headers
+        llm_kwargs["http_client"] = httpx.Client(auth=auth, event_hooks=hooks)
+        llm_kwargs["http_async_client"] = httpx.AsyncClient(auth=auth, event_hooks=hooks)
+
+        for key in _PASSTHROUGH_KWARGS:
+            if key in self.kwargs and key not in llm_kwargs:
+                llm_kwargs[key] = self.kwargs[key]
+
+        return NormalizedChatOpenAI(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""

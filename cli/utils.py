@@ -9,6 +9,12 @@ from rich.console import Console
 from cli.models import AnalystType, AssetType
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
+from tradingagents.llm_clients.oauth import (
+    login as oauth_login,
+    ensure_token,
+    OAuthNotLoggedIn,
+    OAuthError,
+)
 
 console = Console()
 
@@ -268,6 +274,7 @@ def select_llm_provider() -> tuple[str, str | None]:
     # (display_name, provider_key, base_url)
     PROVIDERS = [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
+        ("OpenAI (ChatGPT OAuth)", "openai-oauth", None),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
@@ -515,6 +522,33 @@ def ensure_api_key(provider: str) -> Optional[str]:
     os.environ[env_var] = key
     console.print(f"[green]Saved {env_var} to {env_path}[/green]")
     return key
+
+
+def ensure_oauth_login(provider: str):
+    """Garantisce un token OAuth valido per 'openai-oauth', altrimenti fa login.
+
+    Per gli altri provider è un no-op. Se l'utente annulla il login, esce.
+    Ritorna gli StoredTokens (con account_id) o None per provider non-OAuth.
+    """
+    if provider.lower() != "openai-oauth":
+        return None
+    try:
+        return ensure_token()
+    except OAuthNotLoggedIn:
+        console.print(
+            "\n[yellow]Nessun login ChatGPT trovato. Apro il browser per "
+            "l'autenticazione OAuth (Sign in with ChatGPT)...[/yellow]"
+        )
+    except OAuthError as exc:
+        console.print(f"[yellow]Token OAuth non utilizzabile ({exc}). Rifaccio il login...[/yellow]")
+    try:
+        tokens = oauth_login()
+    except Exception as exc:  # OAuthLoginError e simili
+        console.print(f"[red]Login OAuth fallito: {exc}[/red]")
+        exit(1)
+    acct = getattr(tokens, "account_id", None) or "(account sconosciuto)"
+    console.print(f"[green]Login ChatGPT completato. Account: {acct}[/green]")
+    return tokens
 
 
 def ask_output_language() -> str:
