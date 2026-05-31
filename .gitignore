@@ -218,6 +218,8 @@ __marimo__/
 # Cache
 **/data_cache/
 
+# Generated trading reports (TRADINGAGENTS_REPORTS_DIR default)
+/reports/
+
 # Enterprise env file (secrets) and generated run reports
 .env.enterprise
-reports/
