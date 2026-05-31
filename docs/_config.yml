@@ -1,4 +1,4 @@
-remote_theme: just-the-docs/just-the-docs
+remote_theme: just-the-docs/just-the-docs@v0.5.4
 
 title: Investment Reports
 description: Multi-agent LLM trading analysis runs
