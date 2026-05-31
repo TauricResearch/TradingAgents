@@ -9,6 +9,7 @@ from typing import Annotated
 import os
 from .config import get_config
 from .utils import safe_ticker_component
+from .symbol_utils import normalize_symbol, NoMarketDataError
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,11 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
     subsequent calls the cache is reused. Rows after curr_date are
     filtered out so backtests never see future prices.
     """
-    # Reject ticker values that would escape the cache directory when
+    # Resolve broker/forex symbols (XAUUSD+ -> GC=F) to Yahoo's convention,
+    # then reject values that would escape the cache directory when
     # interpolated into the cache filename (e.g. ``../../tmp/x``).
-    safe_symbol = safe_ticker_component(symbol)
+    canonical = normalize_symbol(symbol)
+    safe_symbol = safe_ticker_component(canonical)
 
     config = get_config()
     curr_date_dt = pd.to_datetime(curr_date)
@@ -87,19 +90,32 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
         f"{safe_symbol}-YFin-data-{start_str}-{end_str}.csv",
     )
 
+    # A cached file may be empty if a prior fetch failed (unknown symbol,
+    # transient rate limit). Treat an empty/columnless cache as a miss and
+    # re-fetch rather than serving the poisoned file forever.
+    data = None
     if os.path.exists(data_file):
-        data = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
-    else:
-        data = yf_retry(lambda: yf.download(
-            symbol,
+        cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
+        if not cached.empty and "Close" in cached.columns:
+            data = cached
+
+    if data is None:
+        downloaded = yf_retry(lambda: yf.download(
+            canonical,
             start=start_str,
             end=end_str,
             multi_level_index=False,
             progress=False,
             auto_adjust=True,
         ))
-        data = _ensure_date_column(data.reset_index())
-        data.to_csv(data_file, index=False, encoding="utf-8")
+        downloaded = _ensure_date_column(downloaded.reset_index())
+        # Only cache real data — never persist an empty frame.
+        if downloaded.empty or "Close" not in downloaded.columns:
+            raise NoMarketDataError(
+                symbol, canonical, "Yahoo Finance returned no rows"
+            )
+        downloaded.to_csv(data_file, index=False, encoding="utf-8")
+        data = downloaded
 
     data = _clean_dataframe(data)
 

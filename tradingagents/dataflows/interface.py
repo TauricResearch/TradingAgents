@@ -23,6 +23,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .symbol_utils import NoMarketDataError
 
 # Configuration and routing logic
 from .config import get_config
@@ -147,6 +148,8 @@ def route_to_vendor(method: str, *args, **kwargs):
         if vendor not in fallback_vendors:
             fallback_vendors.append(vendor)
 
+    last_no_data: NoMarketDataError | None = None
+    first_error: Exception | None = None
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             continue
@@ -157,6 +160,37 @@ def route_to_vendor(method: str, *args, **kwargs):
         try:
             return impl_func(*args, **kwargs)
         except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+            continue  # Rate limits: try the next vendor
+        except NoMarketDataError as e:
+            last_no_data = e  # No data here; another vendor may have it
+            continue
+        except Exception as e:
+            # A fallback vendor failing for an incidental reason (e.g. no API
+            # key configured) must not crash the call when another vendor
+            # already determined the symbol simply has no data. Remember the
+            # first error so a genuine primary-vendor failure still surfaces.
+            if first_error is None:
+                first_error = e
+            continue
+
+    # If any vendor reported "no data", the symbol is genuinely unavailable.
+    # Return one explicit, instructive sentinel rather than a vendor-specific
+    # empty string, so the agent reports "unavailable" instead of inventing a
+    # value. This takes precedence over incidental fallback errors.
+    if last_no_data is not None:
+        sym = last_no_data.symbol
+        canonical = last_no_data.canonical
+        resolved = "" if canonical == sym else f" (resolved to '{canonical}')"
+        return (
+            f"NO_DATA_AVAILABLE: No market data found for '{sym}'{resolved} from "
+            f"any configured vendor. The symbol may be invalid, delisted, or not "
+            f"covered by Yahoo Finance / Alpha Vantage. Do not estimate or "
+            f"fabricate values — report that data is unavailable for this symbol."
+        )
+
+    # No vendor returned data and none reported clean "no data" — surface the
+    # first real error (e.g. the primary vendor's network failure).
+    if first_error is not None:
+        raise first_error
 
     raise RuntimeError(f"No available vendor for '{method}'")

@@ -7,11 +7,24 @@ from io import StringIO
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
+
+class AlphaVantageNotConfiguredError(ValueError):
+    """Raised when Alpha Vantage is selected but no API key is configured.
+
+    Subclasses ValueError for backward compatibility with callers that
+    already catch ValueError, while letting the routing layer distinguish a
+    "vendor unavailable" condition from a genuine data error.
+    """
+    pass
+
+
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
     api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
     if not api_key:
-        raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
+        raise AlphaVantageNotConfiguredError(
+            "ALPHA_VANTAGE_API_KEY environment variable is not set."
+        )
     return api_key
 
 def format_datetime_for_api(date_input) -> str:
