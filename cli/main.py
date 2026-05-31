@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import json
 import typer
 import questionary
 from pathlib import Path
@@ -462,6 +463,28 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
+CONFIG_DIR = Path.home() / ".tradingagents"
+CONFIG_FILE = CONFIG_DIR / "default_config.json"
+
+
+def load_default_config():
+    if not CONFIG_FILE.exists():
+        return None
+
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def save_default_config(cfg):
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2)
+
+
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
@@ -492,6 +515,21 @@ def get_user_selections():
     # Fetch and display announcements (silent on failure)
     announcements = fetch_announcements()
     display_announcements(console, announcements)
+
+    saved_config = load_default_config()
+
+    if saved_config:
+        use_saved = questionary.select(
+            "Configuration found:",
+            choices=[
+                questionary.Choice("Use saved configuration", value=True),
+                questionary.Choice("Configure manually", value=False),
+            ],
+        ).ask()
+
+        if use_saved:
+            console.print("[green]Using saved configuration[/green]")
+            return saved_config
 
     # Create a boxed questionnaire for each step
     def create_question_box(title, prompt, default=None):
@@ -622,11 +660,11 @@ def get_user_selections():
         )
         anthropic_effort = ask_anthropic_effort()
 
-    return {
+    config_data = {
         "ticker": selected_ticker,
         "asset_type": asset_type.value,
         "analysis_date": analysis_date,
-        "analysts": selected_analysts,
+        "analysts": [analyst.value for analyst in selected_analysts],
         "research_depth": selected_research_depth,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
@@ -637,6 +675,10 @@ def get_user_selections():
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
+
+    save_default_config(config_data)
+
+    return config_data
 
 
 def get_ticker():
@@ -997,7 +1039,10 @@ def run_analysis(checkpoint: bool = False):
     stats_handler = StatsCallbackHandler()
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
-    selected_set = {analyst.value for analyst in selections["analysts"]}
+    selected_set = {
+        analyst.value if hasattr(analyst, "value") else analyst
+        for analyst in selections["analysts"]
+    }
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
     analyst_execution_plan = build_analyst_execution_plan(
         selected_analyst_keys,
@@ -1082,7 +1127,7 @@ def run_analysis(checkpoint: bool = False):
         )
         message_buffer.add_message(
             "System",
-            f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
+            f"Selected analysts: {', '.join(analyst.value if hasattr(analyst, 'value') else analyst for analyst in selections['analysts'])}",
         )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
