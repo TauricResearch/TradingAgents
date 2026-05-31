@@ -26,8 +26,16 @@ Only Codex-catalog models are accepted by the backend; generic API model IDs
 (`gpt-4.1`, `gpt-5`, `*-mini`/`*-nano`) are rejected with HTTP 400
 `"... not supported when using Codex with a ChatGPT account."`. `gpt-5.4-mini`
 and `gpt-5.5` work broadly (incl. the free plan); `gpt-5.3-codex`, `gpt-5.4`,
-`gpt-5.2` require Plus/Pro. The exact list per account is served by
-`GET .../codex/models?client_version=...`.
+`gpt-5.2` require Plus/Pro.
+
+**The CLI auto-discovers the models your account can actually use** so the
+dropdown only offers valid choices (`oauth/models.py`). It first queries
+`GET .../codex/models?client_version=...`; that endpoint is authoritative for
+Plus/Pro but returns an empty list on the free plan, so as a fallback it probes
+the catalog candidates with a minimal `/responses` request (concurrent, ~1–2s)
+and keeps the ones that return 200. The result is cached per account in
+`~/.tradingagents/oauth_models.json` (24h TTL, refreshed on `tradingagents
+login`). If discovery fails (e.g. offline), the full catalog is shown.
 
 ## Architecture
 

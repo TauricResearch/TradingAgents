@@ -12,6 +12,8 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.llm_clients.oauth import (
     login as oauth_login,
     ensure_token,
+    available_models as oauth_available_models,
+    OAuthTokenStore,
     OAuthNotLoggedIn,
     OAuthError,
 )
@@ -219,6 +221,25 @@ def _prompt_custom_model_id() -> str:
     ).ask().strip()
 
 
+def _oauth_available_model_ids(refresh: bool = False):
+    """Modelli usabili dall'account ChatGPT, o None se non scopribili.
+
+    Sonda una sola volta (con cache): il primo _select_model fa la scoperta, il
+    secondo legge la cache. In caso di errore ritorna None -> catalogo completo.
+    """
+    candidates = [
+        value
+        for mode in ("quick", "deep")
+        for _, value in get_model_options("openai-oauth", mode)
+    ]
+    try:
+        with console.status("[cyan]Rilevo i modelli disponibili per il tuo account ChatGPT...[/cyan]"):
+            models = oauth_available_models(OAuthTokenStore(), candidates, refresh=refresh)
+        return set(models) if models else None
+    except Exception:
+        return None
+
+
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
@@ -230,11 +251,27 @@ def _select_model(provider: str, mode: str) -> str:
             validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
         ).ask().strip()
 
+    options = get_model_options(provider, mode)
+
+    # ChatGPT OAuth: mostra solo i modelli realmente abilitati per il piano
+    # dell'utente (gli altri verrebbero rifiutati dal backend con HTTP 400).
+    if provider.lower() == "openai-oauth":
+        available = _oauth_available_model_ids()
+        if available:
+            filtered = [(d, v) for d, v in options if v in available or v == "custom"]
+            if filtered:
+                options = filtered
+        else:
+            console.print(
+                "[yellow]Impossibile rilevare i modelli abilitati; mostro l'intero "
+                "catalogo (alcuni potrebbero non essere disponibili sul tuo piano).[/yellow]"
+            )
+
     choice = questionary.select(
         f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, mode)
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -548,6 +585,8 @@ def ensure_oauth_login(provider: str):
         exit(1)
     acct = getattr(tokens, "account_id", None) or "(account sconosciuto)"
     console.print(f"[green]Login ChatGPT completato. Account: {acct}[/green]")
+    # Aggiorna la cache dei modelli disponibili per il nuovo account.
+    _oauth_available_model_ids(refresh=True)
     return tokens
 
 

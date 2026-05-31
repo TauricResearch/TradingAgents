@@ -54,6 +54,42 @@ def test_ensure_oauth_login_triggers_login_when_missing(monkeypatch):
     assert result.account_id == "acct_1"
 
 
+def test_select_model_filters_to_available_for_oauth(monkeypatch):
+    captured = {}
+
+    class FakeQ:
+        def ask(self):
+            return "gpt-5.4-mini"
+
+    def fake_select(message, choices=None, **kwargs):
+        captured["values"] = [c.value for c in choices]
+        return FakeQ()
+
+    monkeypatch.setattr(cli_utils.questionary, "select", fake_select)
+    # solo gpt-5.4-mini è "disponibile"
+    monkeypatch.setattr(cli_utils, "_oauth_available_model_ids", lambda refresh=False: {"gpt-5.4-mini"})
+    cli_utils._select_model("openai-oauth", "quick")
+    # gpt-5.3-codex / gpt-5.2 (non disponibili) filtrati via
+    assert "gpt-5.4-mini" in captured["values"]
+    assert "gpt-5.3-codex" not in captured["values"]
+    assert "gpt-5.2" not in captured["values"]
+
+
+def test_select_model_shows_full_catalog_when_discovery_fails(monkeypatch):
+    captured = {}
+
+    class FakeQ:
+        def ask(self):
+            return "gpt-5.4-mini"
+
+    monkeypatch.setattr(cli_utils.questionary, "select",
+                        lambda message, choices=None, **k: captured.update(values=[c.value for c in choices]) or FakeQ())
+    monkeypatch.setattr(cli_utils, "_oauth_available_model_ids", lambda refresh=False: None)
+    cli_utils._select_model("openai-oauth", "deep")
+    # fallback: catalogo completo (include i modelli Plus/Pro)
+    assert "gpt-5.3-codex" in captured["values"]
+
+
 def test_ensure_oauth_login_exits_on_login_failure(monkeypatch):
     def fake_ensure_token():
         raise OAuthNotLoggedIn("no token")

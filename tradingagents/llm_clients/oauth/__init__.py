@@ -29,6 +29,11 @@ from .store import (
 from .auth import CodexOAuth
 from .payload import apply_codex_payload_constraints
 from .flow import login, exchange_code, OAuthLoginError
+from .models import (
+    available_models,
+    discover_available_models,
+    ModelAvailabilityCache,
+)
 
 
 def ensure_token(store: "OAuthTokenStore | None" = None) -> "StoredTokens":
@@ -65,4 +70,7 @@ __all__ = [
     "exchange_code",
     "OAuthLoginError",
     "ensure_token",
+    "available_models",
+    "discover_available_models",
+    "ModelAvailabilityCache",
 ]
