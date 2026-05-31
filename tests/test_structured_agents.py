@@ -219,8 +219,11 @@ class TestResearchManagerAgent:
         rm = create_research_manager(llm)
         rm(_make_rm_state())
         prompt = captured["prompt"]
+        # The RM prompt is a system+user message pair; the rating scale lives
+        # in the (byte-identical) system message. Join contents to assert.
+        prompt_text = "".join(m["content"] for m in prompt)
         for tier in ("Buy", "Overweight", "Hold", "Underweight", "Sell"):
-            assert f"**{tier}**" in prompt, f"missing {tier} in prompt"
+            assert f"**{tier}**" in prompt_text, f"missing {tier} in prompt"
 
     def test_falls_back_to_freetext_when_structured_unavailable(self):
         plain_response = "**Recommendation**: Sell\n\n**Rationale**: ...\n\n**Strategic Actions**: ..."

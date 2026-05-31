@@ -20,8 +20,12 @@ def test_callback_accumulates_tokens_per_model():
     cb.on_llm_end(result2)
     cb.on_llm_end(result1)  # second call to deep model
     totals = cb.totals_by_model()
-    assert totals["deepseek-v4-pro"] == {"in_tokens": 200, "out_tokens": 100}
-    assert totals["deepseek-v4-flash"] == {"in_tokens": 30, "out_tokens": 20}
+    # in/out token accounting (cache_hit/miss default to 0 when the provider
+    # doesn't report DeepSeek's prompt-cache fields — see test_cache_token_capture).
+    assert totals["deepseek-v4-pro"]["in_tokens"] == 200
+    assert totals["deepseek-v4-pro"]["out_tokens"] == 100
+    assert totals["deepseek-v4-flash"]["in_tokens"] == 30
+    assert totals["deepseek-v4-flash"]["out_tokens"] == 20
 
 
 @pytest.mark.unit

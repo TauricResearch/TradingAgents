@@ -11,10 +11,11 @@ import re
 from typing import Any, Dict, Optional
 
 
+# STABLE prefix: the fully-static instruction body (task, overrides
+# enumeration, JSON-keys spec, interpretation guidance) is byte-identical
+# across every call and so comes FIRST for DeepSeek prefix-cache reuse. The
+# VARIABLE brief scope + user reply are appended at the TAIL below.
 _PROMPT_TEMPLATE = """You are extracting refinement parameters from a user reply to an investment brief.
-The original brief was about ticker(s): {scope}.
-
-User reply: "{reply_text}"
 
 Available overrides (set null if user didn't address them):
   - personas: subset of ["macro", "value", "momentum"] to keep for the refined run
@@ -30,6 +31,10 @@ earnings?"), still extract what you can — V1 treats all replies as refinements
 
 Also write a one-sentence interpretation in the user's voice that will be echoed
 back (e.g. "Got it — re-running with momentum dropped and a shorter horizon.").
+
+The original brief was about ticker(s): {scope}.
+
+User reply: "{reply_text}"
 """
 
 

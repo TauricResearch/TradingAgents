@@ -246,3 +246,16 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_brief
     ON deliveries(brief_id);
 CREATE INDEX IF NOT EXISTS idx_brief_actions_pending_expires
     ON brief_actions(state, expires_at) WHERE state = 'pending';
+
+-- ============================================================
+-- P0 instrumentation: DeepSeek prompt-cache token capture
+-- ============================================================
+-- DeepSeek's API reports per-call cache usage (prompt_cache_hit_tokens /
+-- prompt_cache_miss_tokens). We persist the per-(run, model) totals next to
+-- the existing in/out token counts so a cache hit ratio can be computed from
+-- the DB. Both nullable: other providers don't report them, and rows written
+-- before this migration keep NULL. Same idempotent-ALTER pattern as above —
+-- db.py swallows the "duplicate column name" error on re-run; no IF NOT EXISTS
+-- (sqlite does not support it on ALTER TABLE).
+ALTER TABLE costs ADD COLUMN cache_hit_tokens  INTEGER;
+ALTER TABLE costs ADD COLUMN cache_miss_tokens INTEGER;

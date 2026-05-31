@@ -64,11 +64,15 @@ def record_cost(
     in_tokens: int,
     out_tokens: int,
     usd_estimate: Optional[float] = None,
+    cache_hit_tokens: Optional[int] = None,
+    cache_miss_tokens: Optional[int] = None,
 ) -> None:
     conn.execute(
         "INSERT INTO costs (run_id, provider, model, in_tokens, out_tokens, "
-        "usd_estimate) VALUES (?, ?, ?, ?, ?, ?)",
-        (run_id, provider, model, in_tokens, out_tokens, usd_estimate),
+        "usd_estimate, cache_hit_tokens, cache_miss_tokens) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (run_id, provider, model, in_tokens, out_tokens, usd_estimate,
+         cache_hit_tokens, cache_miss_tokens),
     )
     conn.commit()
 
