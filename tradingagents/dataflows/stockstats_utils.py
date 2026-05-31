@@ -32,8 +32,24 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
                 raise
 
 
+def _ensure_date_column(data: pd.DataFrame) -> pd.DataFrame:
+    """Normalize the date column to ``Date``.
+
+    Some yfinance builds leave the index unnamed (so ``reset_index()`` yields
+    ``index``) or use ``Datetime`` for intraday data. Rename the first
+    date-like column so indicators don't silently drop when it isn't ``Date``.
+    """
+    if "Date" in data.columns:
+        return data
+    for candidate in ("index", "Datetime", "date"):
+        if candidate in data.columns:
+            return data.rename(columns={candidate: "Date"})
+    return data
+
+
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
+    data = _ensure_date_column(data)
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     data = data.dropna(subset=["Date"])
 
@@ -82,7 +98,7 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             progress=False,
             auto_adjust=True,
         ))
-        data = data.reset_index()
+        data = _ensure_date_column(data.reset_index())
         data.to_csv(data_file, index=False, encoding="utf-8")
 
     data = _clean_dataframe(data)
