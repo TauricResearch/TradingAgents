@@ -143,6 +143,7 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export DEEPSEEK_API_KEY=...        # DeepSeek
+export MISTRAL_API_KEY=...         # Mistral AI
 export DASHSCOPE_API_KEY=...       # Qwen — International (dashscope-intl.aliyuncs.com)
 export DASHSCOPE_CN_API_KEY=...    # Qwen — China (dashscope.aliyuncs.com)
 export ZHIPU_API_KEY=...           # GLM via Z.AI (international)
