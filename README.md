@@ -162,6 +162,16 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+#### Driving the CLI from `.env` (env-only routing)
+
+Setting any of the LLM-routing env vars in `.env` makes the CLI skip the corresponding interactive prompt and use the env value:
+
+- `TRADINGAGENTS_LLM_PROVIDER` — must be a registered provider key (`anthropic`, `openai`, `google`, `xai`, `deepseek`, `qwen`/`qwen-cn`, `glm`/`glm-cn`, `minimax`/`minimax-cn`, `openrouter`, `azure`, `ollama`).
+- `TRADINGAGENTS_DEEP_THINK_LLM`, `TRADINGAGENTS_QUICK_THINK_LLM` — model IDs.
+- `TRADINGAGENTS_LLM_BACKEND_URL` — base URL.
+
+For an Anthropic-compatible proxy (internal LLM gateways, Bedrock-fronting gateways, etc.), use `TRADINGAGENTS_LLM_PROVIDER=anthropic` plus `TRADINGAGENTS_LLM_BACKEND_URL=<gateway-root>` and `ANTHROPIC_API_KEY=<gateway-key>`. The Anthropic SDK appends `/v1/messages` to the base URL, so set the gateway *root* (no trailing `/v1`).
+
 ### CLI Usage
 
 Launch the interactive CLI:

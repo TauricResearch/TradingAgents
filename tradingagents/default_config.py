@@ -46,6 +46,12 @@ DEFAULT_CONFIG = _apply_env_overrides({
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
+    # Where the post-run "Save report?" prompt writes by default. Lives
+    # under TRADINGAGENTS_HOME so it is persisted by the docker-compose
+    # volume mount (same as logs/cache) and is platform-agnostic — the
+    # previous default of cwd/reports left files in /home/appuser/app
+    # inside the container (not mounted) and polluted cwd on the host.
+    "reports_dir": os.getenv("TRADINGAGENTS_REPORTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "reports")),
     "memory_log_path": os.getenv("TRADINGAGENTS_MEMORY_LOG_PATH", os.path.join(_TRADINGAGENTS_HOME, "memory", "trading_memory.md")),
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.

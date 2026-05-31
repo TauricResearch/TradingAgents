@@ -1,5 +1,7 @@
 from typing import Optional
 import datetime
+import os
+import tempfile
 import typer
 import questionary
 from pathlib import Path
@@ -962,10 +964,18 @@ def run_analysis(checkpoint: bool = False):
     config = DEFAULT_CONFIG.copy()
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
-    config["quick_think_llm"] = selections["shallow_thinker"]
-    config["deep_think_llm"] = selections["deep_thinker"]
-    config["backend_url"] = selections["backend_url"]
-    config["llm_provider"] = selections["llm_provider"].lower()
+    # When TRADINGAGENTS_* env vars are set, they win over the interactive
+    # selection. This lets users drive a non-menu setup (e.g. an internal
+    # Anthropic-compatible proxy) entirely from .env without the CLI
+    # clobbering provider / model / backend_url with the menu defaults.
+    env_provider = os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+    env_deep = os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM")
+    env_quick = os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM")
+    env_backend_url = os.environ.get("TRADINGAGENTS_LLM_BACKEND_URL")
+    config["quick_think_llm"] = env_quick or selections["shallow_thinker"]
+    config["deep_think_llm"] = env_deep or selections["deep_thinker"]
+    config["backend_url"] = env_backend_url or selections["backend_url"]
+    config["llm_provider"] = (env_provider or selections["llm_provider"]).lower()
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
@@ -1232,12 +1242,40 @@ def run_analysis(checkpoint: bool = False):
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        # Default lives under config["reports_dir"] (which expands to
+        # ~/.tradingagents/reports unless TRADINGAGENTS_REPORTS_DIR is set)
+        # so the path is platform-agnostic and persisted by the docker
+        # volume mount. Pre-create the parent here — instead of leaving
+        # save_report_to_disk to fail later — and fall back to the OS
+        # temp dir if the configured location isn't writable.
+        reports_root = Path(config["reports_dir"])
+        try:
+            reports_root.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as e:
+            fallback = Path(tempfile.gettempdir()) / "tradingagents_reports"
+            console.print(
+                f"[yellow]Cannot write to {reports_root} ({e}); "
+                f"falling back to {fallback}[/yellow]"
+            )
+            reports_root = fallback
+            reports_root.mkdir(parents=True, exist_ok=True)
+        # Folder name follows <TICKER>_<DATE>_<MODEL>_<RUN_TIMESTAMP> so the
+        # listing sorts naturally by ticker → analysis date → model, and the
+        # run timestamp keeps repeated runs of the same combination from
+        # colliding. Sanitize ``:`` (ollama tags) and ``/`` (openrouter
+        # slugs like ``google/gemma``) to filesystem-safe ``-``; compact
+        # the analysis date so the slug stays cleanly underscore-delimited.
+        model_slug = config["deep_think_llm"].replace("/", "-").replace(":", "-")
+        date_slug = selections["analysis_date"].replace("-", "")
+        default_path = (
+            reports_root
+            / f"{selections['ticker']}_{date_slug}_{model_slug}_{timestamp}"
+        )
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",
             default=str(default_path)
         ).strip()
-        save_path = Path(save_path_str)
+        save_path = Path(save_path_str).expanduser()
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")

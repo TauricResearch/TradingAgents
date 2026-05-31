@@ -145,11 +145,12 @@ def select_analysts(asset_type: AssetType = AssetType.STOCK) -> List[AnalystType
 def select_research_depth() -> int:
     """Select research depth using an interactive selection."""
 
-    # Define research depth options with their corresponding values
+    # Define research depth options with their corresponding values.
+    # Listed deepest-first so the most thorough option is the top default.
     DEPTH_OPTIONS = [
-        ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
-        ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
         ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
+        ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
+        ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
     ]
 
     choice = questionary.select(
@@ -275,10 +276,12 @@ def select_llm_provider() -> tuple[str, str | None]:
     # localhost default when unset.
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
     # (display_name, provider_key, base_url)
+    # Listed with Anthropic first as the top default — matches the
+    # max-power configuration documented in the README.
     PROVIDERS = [
+        ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
-        ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
@@ -315,9 +318,11 @@ def select_llm_provider() -> tuple[str, str | None]:
 
 def ask_openai_reasoning_effort() -> str:
     """Ask for OpenAI reasoning effort level."""
+    # High is the top default to match the max-power recipe; Medium is
+    # the OpenAI API default and remains available one row down.
     choices = [
-        questionary.Choice("Medium (Default)", "medium"),
-        questionary.Choice("High (More thorough)", "high"),
+        questionary.Choice("High (recommended, more thorough)", "high"),
+        questionary.Choice("Medium (OpenAI default)", "medium"),
         questionary.Choice("Low (Faster)", "low"),
     ]
     return questionary.select(

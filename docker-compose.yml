@@ -3,8 +3,15 @@ services:
     build: .
     env_file:
       - .env
+    environment:
+      - SSL_CERT_FILE=/etc/ssl/certs/sfdc-ca.pem
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/sfdc-ca.pem
     volumes:
       - tradingagents_data:/home/appuser/.tradingagents
+      - /Users/bichengwang/.aisuite/conf/npm-sfdc-certs.pem:/etc/ssl/certs/sfdc-ca.pem:ro
+      # Bind-mount the host reports dir so TRADINGAGENTS_REPORTS_DIR resolves
+      # to the same absolute path inside the container as on the host.
+      - /Users/bichengwang/my-code/other/TradingAgents/reports:/Users/bichengwang/my-code/other/TradingAgents/reports
     tty: true
     stdin_open: true
 
