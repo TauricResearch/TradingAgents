@@ -413,6 +413,27 @@ class TestMcpBridgeOptions:
         assert "tradingagents" not in (opts.mcp_servers or {})
         # No permission mode override when nothing is bound.
         assert opts.permission_mode is None
+        # Silence-during-tools directive only fires when tools are bound.
+        assert "Tool-use output rules" not in opts.system_prompt
+
+    def test_silence_directive_appended_when_bound(self, monkeypatch):
+        captured: dict[str, Any] = {}
+
+        async def fake_query(prompt, options):
+            captured["options"] = options
+            yield _assistant("ok")
+            yield _result()
+
+        _patch_query(monkeypatch, fake_query)
+        llm = mod.ClaudeCodeChatModel().bind_tools([_fake_tool("t")])
+        asyncio.run(llm._aquery("Be an analyst.", "q"))
+
+        prompt = captured["options"].system_prompt
+        # Caller's prompt preserved verbatim at the head.
+        assert prompt.startswith("Be an analyst.")
+        # Directive appended below — any of the load-bearing phrases works.
+        assert "Tool-use output rules" in prompt
+        assert "do not narrate" in prompt
 
 
 @pytest.mark.unit

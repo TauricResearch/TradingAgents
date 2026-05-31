@@ -41,6 +41,22 @@ _KNOWN_MODELS = {
 }
 
 
+# Appended to the system prompt only when ``bound_tools`` is set. Without
+# this, the SDK loop returns the model's running commentary (e.g.
+# "I'll fetch X", "Data retrieved, now computing Y") concatenated with
+# the final answer because every intermediate ``AssistantMessage`` carries
+# narration text. Routing through analyst nodes that expect a single
+# polished report otherwise pollutes the report header.
+_TOOL_SILENCE_INSTRUCTION = (
+    "\n\n## Tool-use output rules\n"
+    "When you call tools, do not narrate or pre-announce them. No "
+    "\"I'll fetch X\", \"Data retrieved\", or \"Now computing Y\" prose. "
+    "Stay silent across all intermediate tool turns; emit text only in "
+    "your final turn, and emit ONLY the polished final response — no "
+    "preamble describing the work you just did."
+)
+
+
 def _flatten_messages(messages: List[BaseMessage]) -> tuple[Optional[str], str]:
     """Collapse a LangChain message list into ``(system_prompt, user_text)``.
 
@@ -143,12 +159,17 @@ class ClaudeCodeChatModel(BaseChatModel):
         # to the model via an in-process SDK MCP server.
         # ``bypassPermissions`` auto-allows MCP tool calls without
         # prompting; built-in tools stay disabled by ``tools=[]`` above so
-        # this only loosens MCP scope.
+        # this only loosens MCP scope. The silence-during-tools directive
+        # keeps intermediate "I'll fetch X / Data retrieved" narration out
+        # of the final AssistantMessage text downstream nodes consume.
         if self.bound_tools:
             options_kwargs["mcp_servers"] = {
                 "tradingagents": self._build_mcp_server(self.bound_tools),
             }
             options_kwargs["permission_mode"] = "bypassPermissions"
+            options_kwargs["system_prompt"] = (
+                options_kwargs["system_prompt"] + _TOOL_SILENCE_INSTRUCTION
+            )
 
         parts: list[str] = []
         last_result: Any = None
