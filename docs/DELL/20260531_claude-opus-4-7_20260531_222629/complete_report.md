@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:26:29 &middot; claude-opus-4-7"
+parent: DELL
+layout: default
+---
 # Trading Analysis Report: DELL
 
 Generated: 2026-05-31 22:26:29

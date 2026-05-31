@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:28:05 &middot; claude-opus-4-7"
+parent: NU
+layout: default
+---
 # Trading Analysis Report: NU
 
 Generated: 2026-05-31 22:28:06

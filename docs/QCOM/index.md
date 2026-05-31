@@ -1,7 +1,7 @@
 ---
 title: QCOM
 layout: default
-nav_order: 19
+nav_order: 36
 has_children: true
 ---
 

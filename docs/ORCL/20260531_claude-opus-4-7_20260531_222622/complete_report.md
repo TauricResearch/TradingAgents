@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:26:22 &middot; claude-opus-4-7"
+parent: ORCL
+layout: default
+---
 # Trading Analysis Report: ORCL
 
 Generated: 2026-05-31 22:26:23

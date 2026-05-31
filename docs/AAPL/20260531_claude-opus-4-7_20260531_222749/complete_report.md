@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:27:49 &middot; claude-opus-4-7"
+parent: AAPL
+layout: default
+---
 # Trading Analysis Report: AAPL
 
 Generated: 2026-05-31 22:27:50

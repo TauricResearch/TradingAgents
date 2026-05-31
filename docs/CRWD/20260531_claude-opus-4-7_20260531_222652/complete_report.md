@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:26:52 &middot; claude-opus-4-7"
+parent: CRWD
+layout: default
+---
 # Trading Analysis Report: CRWD
 
 Generated: 2026-05-31 22:26:52

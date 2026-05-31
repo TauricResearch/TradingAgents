@@ -4,7 +4,8 @@ Each run lives at ``docs/<TICKER>/<DATE>_<MODEL>_<TS>/complete_report.md``.
 
 Layout produced by this script:
 
-* ``docs/index.md`` -- nav root, links to one hub page per ticker.
+* ``docs/index.md`` -- nav root, latest-decision summary, links to one hub
+  page per ticker, and regeneration instructions.
 * ``docs/<TICKER>/index.md`` -- per-ticker hub page (nav parent), table of
   runs.
 * Each run's ``complete_report.md`` is given just-the-docs front matter
@@ -21,6 +22,7 @@ the front matter blocks of each ``complete_report.md`` in place.
 
 from __future__ import annotations
 
+import math
 import re
 import sys
 from collections import defaultdict
@@ -59,6 +61,19 @@ class Run(NamedTuple):
     folder_name: str     # used in URLs
 
 
+class SummaryRow(NamedTuple):
+    ticker: str
+    report_link: str
+    rating: str
+    action: str
+    current_price: float | None
+    price_target: float | None
+    target_uplift: float | None
+    annualized_uplift: float | None
+    confidence: str
+    horizon: str
+
+
 def parse_run_folder(ticker_dir: Path, run_path: Path) -> Run | None:
     """Parse ``docs/<TICKER>/<RUN>``; ticker comes from the parent dir."""
     if not run_path.is_dir():
@@ -84,7 +99,234 @@ def parse_run_folder(ticker_dir: Path, run_path: Path) -> Run | None:
     )
 
 
-def build_home(by_ticker: dict[str, list[Run]], total_runs: int) -> str:
+def read_text(path: Path) -> str:
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def field(text: str, name: str) -> str:
+    m = re.search(rf"^\*\*{re.escape(name)}\*\*:\s*(.+)$", text, flags=re.M)
+    return m.group(1).strip() if m else ""
+
+
+def parse_money(value: str) -> float | None:
+    value = value.strip().replace(",", "")
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+CURRENT_PRICE_PATTERNS = [
+    r"closed\s+Friday,\s*\*\*\d{4}-\d{2}-\d{2}\s+at\s+\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Most recent close[^$\n]*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Latest close[^$\n]*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Latest trading day[^\n$]*(?:Last close|close)\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"last trading day[^\n$]*close\s+\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"\*\*Last Close:\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Last Close\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"\*\*Last close:\*\*\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Last close\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Current close\s*\([^)]*\)\*{0,2}\s*:?\s*\*{0,2}\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"Close\s*\(5/29\)\s*:?\s*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"ending\s+the\s+week\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"(?:close|closing)\s+of\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"closed\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"closed\s+May\s+29\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"May\s+29\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"to\s+\$([0-9][0-9,]*(?:\.\d+)?)\s+close\s+on\s+\d{4}-\d{2}-\d{2}",
+    r"recent close is\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"May\s+29,\s+\d{4}:\*\*\s+[^\n]*?closing\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"May\s+29:\*\*\s+[^\n]*?close\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"May\s+29\)\s+closed\s+at\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"May\s+29\s+close\s+\(\$([0-9][0-9,]*(?:\.\d+)?)\)",
+    r"last\s+printing\s+a\s+close\s+of\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+\d{4}-05-29",
+    r"5/29\s+\(price\s+down[^$]*\$([0-9][0-9,]*(?:\.\d+)?)\)",
+    r"then\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"closing\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"closing\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+\d{4}-\d{2}-\d{2}",
+    r"closed\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+\d{4}-\d{2}-\d{2}",
+    r"closed\s+\$([0-9][0-9,]*(?:\.\d+)?)\s+on\s+\d{4}-\d{2}-\d{2}",
+    r"Close\s+rose\s+from[^\n]+?to\s+\*\*\$?([0-9][0-9,]*(?:\.\d+)?)\s+\(May\s+29\)",
+    r"Close\s+\$[0-9][0-9,]*(?:\.\d+)?[^\n]+?→\s+\*\*\$([0-9][0-9,]*(?:\.\d+)?)",
+    r"closing\s+\*\*([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29",
+    r"new\s+high\s+\(([0-9][0-9,]*(?:\.\d+)?)\s+on\s+May\s+29\)",
+    r"\|\s*\d{4}-05-29\s*\|\s*\*\*\$([0-9][0-9,]*(?:\.\d+)?)\*\*",
+    r"\|\s*Close\s*\|\s*\*?\*?\$([0-9][0-9,]*(?:\.\d+)?)\*?\*?",
+]
+
+CURRENT_PRICE_FALLBACK_PATTERNS = [
+    r"\bat\s+~\$([0-9][0-9,]*(?:\.\d+)?)\b",
+    r"near\s+current\s+~?\$([0-9][0-9,]*(?:\.\d+)?)\b",
+    r"current\s+~?\$([0-9][0-9,]*(?:\.\d+)?)\s+(?:strength|level|levels|print)",
+]
+
+
+def extract_current_price(report_text: str, decision_text: str, trader_text: str) -> float | None:
+    # Current means the report-time latest close, not a live quote.
+    market_text = report_text.split("### Sentiment Analyst", 1)[0]
+    for pattern in CURRENT_PRICE_PATTERNS:
+        m = re.search(pattern, market_text[:35000], flags=re.I)
+        if m:
+            return parse_money(m.group(1))
+    decision_and_trader = f"{decision_text}\n{trader_text}"
+    for pattern in CURRENT_PRICE_FALLBACK_PATTERNS:
+        m = re.search(pattern, decision_and_trader, flags=re.I)
+        if m:
+            return parse_money(m.group(1))
+    return parse_money(field(trader_text, "Entry Price"))
+
+
+def extract_confidence(report_text: str) -> str:
+    for pattern in (
+        r"^\*\*Confidence:\*\*\s*([A-Za-z]+)",
+        r"Confidence is \*\*([A-Za-z]+)\*\*",
+        r"Confidence:\s*([A-Za-z]+)",
+    ):
+        m = re.search(pattern, report_text, flags=re.I | re.M)
+        if m:
+            return m.group(1).capitalize()
+    return "n/a"
+
+
+def horizon_months(horizon: str) -> float | None:
+    h = horizon.lower()
+    if "4 quarters" in h:
+        return 12.0
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*days?", h)
+    if m:
+        return ((float(m.group(1)) + float(m.group(2))) / 2.0) / 30.4375
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*weeks?", h)
+    if m:
+        return ((float(m.group(1)) + float(m.group(2))) / 2.0) * 12.0 / 52.0
+    m = re.search(r"(\d+)\s*-\s*(\d+)\s*months?", h)
+    if m:
+        return (float(m.group(1)) + float(m.group(2))) / 2.0
+    m = re.search(r"(\d+)\s*months?", h)
+    if m:
+        return float(m.group(1))
+    return None
+
+
+def build_summary_row(run: Run) -> SummaryRow:
+    run_dir = DOCS_DIR / run.ticker / run.folder_name
+    decision_text = read_text(run_dir / "5_portfolio" / "decision.md")
+    trader_text = read_text(run_dir / "3_trading" / "trader.md")
+    report_text = read_text(run_dir / "complete_report.md")
+
+    current = extract_current_price(report_text, decision_text, trader_text)
+    target = parse_money(field(decision_text, "Price Target"))
+    target_uplift = None
+    annualized_uplift = None
+    if current and target:
+        target_uplift = target / current - 1.0
+        months = horizon_months(field(decision_text, "Time Horizon"))
+        if months and months > 0 and 1.0 + target_uplift > 0:
+            annualized_uplift = math.pow(1.0 + target_uplift, 12.0 / months) - 1.0
+
+    return SummaryRow(
+        ticker=run.ticker,
+        report_link=f"./{run.ticker}/{run.folder_name}/complete_report.html",
+        rating=field(decision_text, "Rating") or "n/a",
+        action=field(trader_text, "Action") or "n/a",
+        current_price=current,
+        price_target=target,
+        target_uplift=target_uplift,
+        annualized_uplift=annualized_uplift,
+        confidence=extract_confidence(report_text),
+        horizon=field(decision_text, "Time Horizon") or "n/a",
+    )
+
+
+def latest_runs(by_ticker: dict[str, list[Run]]) -> list[Run]:
+    runs = []
+    for ticker_runs in by_ticker.values():
+        runs.append(
+            sorted(
+                ticker_runs,
+                key=lambda r: (r.analysis_date, r.run_started),
+                reverse=True,
+            )[0]
+        )
+    return runs
+
+
+def summary_sort_key(row: SummaryRow) -> tuple[int, float]:
+    action_rank = {"Buy": 0, "Hold": 1, "Sell": 2}
+    return (
+        action_rank.get(row.action, 9),
+        -(row.target_uplift if row.target_uplift is not None else -999.0),
+    )
+
+
+def format_price(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    if value >= 1000:
+        return f"${value:,.0f}"
+    if value >= 100:
+        return f"${value:,.2f}"
+    return f"${value:.2f}"
+
+
+def format_percent(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value * 100:+.1f}%"
+
+
+def short_horizon(horizon: str) -> str:
+    return (
+        horizon.replace(" months", "m")
+        .replace(" month", "m")
+        .replace(" weeks", "w")
+        .replace(" week", "w")
+        .replace(" days", "d")
+        .replace(" day", "d")
+    )
+
+
+def build_decision_summary(rows: list[SummaryRow]) -> list[str]:
+    lines = [
+        "## Latest Decision Summary",
+        "",
+        "_Uses the latest run folder for each ticker. Current price is the report-time latest close parsed from the report, not a live quote. Target uplift is target/current. 1Y uplift is annualized from the midpoint of the stated horizon, so short-horizon rows can look extreme._",
+        "",
+        "| Ticker | Suggestion | Current | Target | Target uplift | 1Y uplift | Confidence | Horizon |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- | --- |",
+    ]
+    for row in sorted(rows, key=summary_sort_key):
+        suggestion = f"{row.action} / {row.rating}"
+        lines.append(
+            f"| [{row.ticker}]({row.report_link}) | {suggestion} | "
+            f"{format_price(row.current_price)} | {format_price(row.price_target)} | "
+            f"{format_percent(row.target_uplift)} | {format_percent(row.annualized_uplift)} | "
+            f"{row.confidence} | {short_horizon(row.horizon)} |"
+        )
+    lines.append("")
+    return lines
+
+
+def build_regeneration_skill() -> list[str]:
+    return [
+        "## Regeneration Skill",
+        "",
+        "When ticker folders are upgraded with newer report data, regenerate this homepage instead of editing the table by hand:",
+        "",
+        "1. Add each completed run under `docs/<TICKER>/<YYYYMMDD>_<MODEL>_<YYYYMMDD>_<HHMMSS>/` with `complete_report.md`, `3_trading/trader.md`, and `5_portfolio/decision.md` present.",
+        "2. Run `python scripts/build_reports_site.py` from the repository root.",
+        "3. Review `docs/index.md` and the affected `docs/<TICKER>/index.md` files in `git diff`.",
+        "4. If a row shows `n/a`, check that the new report includes `**Rating**`, `**Price Target**`, `**Time Horizon**`, `**Action**`, and a latest close/current price line in the market report.",
+        "",
+        "The generator always chooses the newest run per ticker by analysis date and run-start timestamp.",
+        "",
+    ]
+
+
+def build_home(
+    by_ticker: dict[str, list[Run]], total_runs: int, summary_rows: list[SummaryRow]
+) -> str:
     tickers = sorted(by_ticker)
     lines = [
         "---",
@@ -99,6 +341,8 @@ def build_home(by_ticker: dict[str, list[Run]], total_runs: int) -> str:
         "",
         DISCLAIMER,
         "",
+        *build_decision_summary(summary_rows),
+        *build_regeneration_skill(),
         "## Tickers",
         "",
     ]
@@ -200,8 +444,11 @@ def main() -> int:
     for r in runs:
         by_ticker[r.ticker].append(r)
 
+    summary_rows = [build_summary_row(r) for r in latest_runs(by_ticker)]
+
     (DOCS_DIR / "index.md").write_text(
-        build_home(by_ticker, total_runs=len(runs)), encoding="utf-8"
+        build_home(by_ticker, total_runs=len(runs), summary_rows=summary_rows),
+        encoding="utf-8",
     )
 
     for nav_order, ticker in enumerate(sorted(by_ticker), start=2):

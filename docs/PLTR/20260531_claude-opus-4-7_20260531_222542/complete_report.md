@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:25:42 &middot; claude-opus-4-7"
+parent: PLTR
+layout: default
+---
 # Trading Analysis Report: PLTR
 
 Generated: 2026-05-31 22:25:43

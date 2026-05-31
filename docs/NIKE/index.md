@@ -1,7 +1,7 @@
 ---
 title: NIKE
 layout: default
-nav_order: 16
+nav_order: 28
 has_children: true
 ---
 

@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 22:25:07 &middot; claude-opus-4-7"
+parent: COIN
+layout: default
+---
 # Trading Analysis Report: COIN
 
 Generated: 2026-05-31 22:25:11

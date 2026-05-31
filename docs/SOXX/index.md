@@ -1,7 +1,7 @@
 ---
 title: SOXX
 layout: default
-nav_order: 22
+nav_order: 40
 has_children: true
 ---
 
