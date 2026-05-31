@@ -8,8 +8,9 @@
 
 IIC-FORGE wraps the TradingAgents research framework (a multi-agent LLM
 stock-analysis graph) in a production pipeline: ingest → triage → promote →
-analyze → compose → deliver. The full architecture is in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+analyze → compose → deliver. The program design and per-phase specs are under
+[`docs/superpowers/specs/`](docs/superpowers/specs/) (start with the program
+design spec).
 
 ```
    sensing (F3)         orchestration (F4)       secretary + delivery (F5)
@@ -203,10 +204,12 @@ secretary, delivery, and operations layers around it.
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
       title={TradingAgents: Multi-Agents LLM Financial Trading Framework},
-      author={Yijia Xiao and Yiqiao Jin and Yushi Bai and Yue Zhao and Yizhou Sun and Tao Lin},
-      archivePrefix={arXiv},
+      author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
+      year={2025},
       eprint={2412.20138},
-      primaryClass={q-fin.TR}
+      archivePrefix={arXiv},
+      primaryClass={q-fin.TR},
+      url={https://arxiv.org/abs/2412.20138},
 }
 ```
 
