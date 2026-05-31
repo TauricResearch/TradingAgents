@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "reports/**"
+      - "docs/**"
       - "scripts/build_reports_site.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: docs
 
   deploy:
     needs: build
