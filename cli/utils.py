@@ -12,7 +12,7 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
 
-TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+TICKER_INPUT_EXAMPLES = "SPY, 0700.HK, BTC-USD"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -25,10 +25,19 @@ CRYPTO_SUFFIXES = ("-USD", "-USDT", "-USDC", "-BTC", "-ETH")
 
 
 def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
+    """Prompt the user to enter a ticker symbol, preserving exchange suffixes.
+
+    Uses questionary.text (not typer.prompt, which strips trailing dot-suffixes
+    like ``000404.SH`` on some shells) and validates the symbol charset so an
+    obvious typo is caught before the run starts.
+    """
     ticker = questionary.text(
-        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+        f"Enter ticker symbol (e.g. {TICKER_INPUT_EXAMPLES}):",
+        validate=lambda x: (
+            not x.strip()
+            or (all(ch.isalnum() or ch in "._-^" for ch in x.strip()) and len(x.strip()) <= 32)
+            or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK."
+        ),
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -37,11 +46,11 @@ def get_ticker() -> str:
         ),
     ).ask()
 
-    if not ticker:
+    if ticker is None:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
-    return normalize_ticker_symbol(ticker)
+    return normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
 
 
 def normalize_ticker_symbol(ticker: str) -> str:

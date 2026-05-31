@@ -505,15 +505,18 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
             "SPY",
         )
     )
     selected_ticker = get_ticker()
     asset_type = detect_asset_type(selected_ticker)
-    console.print(
-        f"[green]Detected asset type:[/green] {asset_type.value}"
-    )
+    # Only announce when it's not the default stock path, to avoid printing
+    # "stock" on every run.
+    if asset_type.value != "stock":
+        console.print(
+            f"[green]Detected asset type:[/green] {asset_type.value}"
+        )
 
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -637,29 +640,6 @@ def get_user_selections():
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
     }
-
-
-def get_ticker():
-    """Get ticker symbol from user input, preserving exchange suffixes."""
-    # typer.prompt strips trailing dot-suffixes on some shells (e.g. 000404.SH
-    # collapses to 000404). questionary.text reads the raw line.
-    ticker = questionary.text(
-        "",
-        validate=lambda value: (
-            not value.strip()
-            or (
-                all(ch.isalnum() or ch in "._-^" for ch in value.strip())
-                and len(value.strip()) <= 32
-            )
-        )
-        or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK.",
-    ).ask()
-
-    if ticker is None:
-        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
-        raise typer.Exit(1)
-
-    return (ticker.strip() or "SPY").upper()
 
 
 def get_analysis_date():
@@ -1076,7 +1056,8 @@ def run_analysis(checkpoint: bool = False):
 
         # Add initial messages
         message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
-        message_buffer.add_message("System", f"Detected asset type: {selections['asset_type']}")
+        if selections["asset_type"] != "stock":
+            message_buffer.add_message("System", f"Detected asset type: {selections['asset_type']}")
         message_buffer.add_message(
             "System", f"Analysis date: {selections['analysis_date']}"
         )
