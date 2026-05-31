@@ -4,9 +4,14 @@ Bridges the Claude Code subscription (no ANTHROPIC_API_KEY required) into
 the LangChain ``BaseChatModel`` surface that TradingAgents expects from
 ``tradingagents.llm_clients.factory.create_llm_client``.
 
-Phase 1 scope: pure chat. ``bind_tools`` is intentionally NOT supported
-— analyst nodes that call LangChain tools must stay on a key-based
-provider until a LangChain-tool -> MCP bridge is added in phase 2.
+Phase 2b adds a LangChain-tool -> SDK-MCP bridge: ``bind_tools`` returns
+a model wrapper that registers the tools as an in-process MCP server, and
+the SDK runs the full tool-use loop inside ``_aquery``. The final
+AIMessage carries no ``tool_calls`` so LangGraph's ToolNode never fires
+for analyst nodes — they receive one complete report.
+``with_structured_output`` still raises so the existing
+``bind_structured`` helper falls back to free-text for
+manager/trader/portfolio.
 """
 
 from __future__ import annotations
@@ -84,8 +89,12 @@ class ClaudeCodeChatModel(BaseChatModel):
     """
 
     model: str = "claude-sonnet-4-6"
+    # Set by ``bind_tools(tools)``; when non-None each ``_aquery`` call
+    # spins up an SDK MCP server exposing these LangChain tools so the
+    # model can call them inside its agent loop.
+    bound_tools: Optional[List[Any]] = None
 
-    model_config = {"protected_namespaces": ()}
+    model_config = {"protected_namespaces": (), "arbitrary_types_allowed": True}
 
     @property
     def _llm_type(self) -> str:
@@ -129,6 +138,17 @@ class ClaudeCodeChatModel(BaseChatModel):
             "system_prompt": system_prompt
             or "You are a helpful assistant. Reply with the requested content directly.",
         }
+
+        # Phase 2b: when tools were bound via ``bind_tools()``, expose them
+        # to the model via an in-process SDK MCP server.
+        # ``bypassPermissions`` auto-allows MCP tool calls without
+        # prompting; built-in tools stay disabled by ``tools=[]`` above so
+        # this only loosens MCP scope.
+        if self.bound_tools:
+            options_kwargs["mcp_servers"] = {
+                "tradingagents": self._build_mcp_server(self.bound_tools),
+            }
+            options_kwargs["permission_mode"] = "bypassPermissions"
 
         parts: list[str] = []
         last_result: Any = None
@@ -215,14 +235,87 @@ class ClaudeCodeChatModel(BaseChatModel):
         )
 
     def bind_tools(self, tools, **kwargs):
-        # Phase 1 deliberately refuses tool binding. Analyst nodes that
-        # call yfinance/Reddit/etc. need a LangChain tool -> MCP server
-        # bridge before they can ride the subscription.
-        raise NotImplementedError(
-            "ClaudeCodeChatModel does not support LangChain bind_tools() in "
-            "phase 1. Route tool-using analysts through a key-based provider "
-            "(anthropic / openai / deepseek / ...) until the MCP tool bridge lands."
+        # Phase 2b: copy the model with ``bound_tools`` so the next
+        # ``_aquery`` registers them as an SDK MCP server. Empty input
+        # clears a prior binding (matches LangChain's convention).
+        return self.__class__(
+            model=self.model,
+            bound_tools=list(tools) if tools else None,
         )
+
+    @staticmethod
+    def _build_mcp_server(tools: List[Any]) -> Any:
+        """Wrap each LangChain tool as an ``SdkMcpTool`` and create an
+        in-process MCP server exposing the lot under one namespace.
+        """
+        from claude_agent_sdk import create_sdk_mcp_server
+
+        return create_sdk_mcp_server(
+            name="tradingagents",
+            version="0.1.0",
+            tools=[ClaudeCodeChatModel._wrap_langchain_tool(t) for t in tools],
+        )
+
+    @staticmethod
+    def _wrap_langchain_tool(tool: Any) -> Any:
+        """Convert a LangChain ``BaseTool`` into an ``SdkMcpTool``.
+
+        The handler routes the model's arg dict through ``tool.ainvoke``
+        (which transparently runs sync ``_run`` implementations in a
+        worker thread) and wraps the return value in MCP's
+        ``{"content":[{"type":"text","text":...}]}`` envelope. Exceptions
+        surface as ``is_error=True`` so the model sees the failure and
+        can self-recover instead of hanging.
+        """
+        from claude_agent_sdk import SdkMcpTool
+
+        name = tool.name
+        description = getattr(tool, "description", "") or ""
+        input_schema = ClaudeCodeChatModel._extract_input_schema(tool)
+
+        async def handler(args: dict) -> dict:
+            try:
+                result = await tool.ainvoke(args)
+            except Exception as exc:
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"{name} failed: {type(exc).__name__}: {exc}",
+                        }
+                    ],
+                    "is_error": True,
+                }
+            text = result if isinstance(result, str) else str(result)
+            return {"content": [{"type": "text", "text": text}]}
+
+        return SdkMcpTool(
+            name=name,
+            description=description,
+            input_schema=input_schema,
+            handler=handler,
+        )
+
+    @staticmethod
+    def _extract_input_schema(tool: Any) -> dict:
+        """Pull a JSON-Schema dict from a LangChain tool's Pydantic model.
+
+        Prefers ``tool_call_schema`` (LangChain's normalized schema used
+        for tool-call formatting on Anthropic / OpenAI), then falls back
+        to ``args_schema``. Returns an empty object schema when neither
+        is defined so tools without arguments still register cleanly.
+        """
+        schema_cls = (
+            getattr(tool, "tool_call_schema", None)
+            or getattr(tool, "args_schema", None)
+        )
+        if schema_cls is None:
+            return {"type": "object", "properties": {}}
+        if hasattr(schema_cls, "model_json_schema"):
+            return schema_cls.model_json_schema()
+        if hasattr(schema_cls, "schema"):
+            return schema_cls.schema()  # Pydantic v1 fallback
+        return {"type": "object", "properties": {}}
 
     def with_structured_output(self, schema, **kwargs):
         # Phase 1 has no JSON-schema/tool-calling support. The project's

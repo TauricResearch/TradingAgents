@@ -1,17 +1,21 @@
-"""Unit tests for the claude-code provider adapter (phase-1 scope).
+"""Unit tests for the claude-code provider adapter.
 
 Mocks ``claude_agent_sdk.query`` so the suite runs in CI without
-touching the subscription or the local ``claude`` CLI.
+touching the subscription or the local ``claude`` CLI. Phase-2b tests
+exercise the LangChain-tool -> SDK-MCP bridge using lightweight tool
+stubs — the real SDK MCP plumbing runs in-process so no Claude calls
+are made even when ``_build_mcp_server`` fires for real.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Callable, Optional
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from pydantic import BaseModel
 
 import claude_agent_sdk as sdk
 from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
@@ -62,6 +66,34 @@ def _result(
 def _patch_query(monkeypatch, fake) -> None:
     """Replace ``claude_agent_sdk.query`` for the duration of one test."""
     monkeypatch.setattr(sdk, "query", fake)
+
+
+def _fake_tool(
+    name: str,
+    *,
+    description: str = "test tool",
+    side_effect: Optional[Callable[[dict], Any]] = None,
+    tool_call_schema: Optional[type] = None,
+    args_schema: Optional[type] = None,
+) -> Any:
+    """Minimal LangChain-style tool stub: name, description, schemas, ainvoke."""
+
+    class _Tool:
+        pass
+
+    t = _Tool()
+    t.name = name
+    t.description = description
+    t.tool_call_schema = tool_call_schema
+    t.args_schema = args_schema
+
+    async def _ainvoke(args: dict):
+        if side_effect is None:
+            return f"default-result-for-{name}"
+        return side_effect(args)
+
+    t.ainvoke = _ainvoke
+    return t
 
 
 # ---------------------------------------------------------------------------
@@ -151,18 +183,43 @@ class TestFactoryWiring:
 
 @pytest.mark.unit
 class TestPhase1Contracts:
-    """``bind_structured`` catches both NotImplementedError below; verify the
-    adapter still refuses them so the fall-back path actually fires."""
-
-    def test_bind_tools_raises(self):
-        llm = mod.ClaudeCodeChatModel()
-        with pytest.raises(NotImplementedError, match="bind_tools"):
-            llm.bind_tools([])
+    """``with_structured_output`` still raises so ``bind_structured`` keeps
+    falling back to free-text for the manager/trader/portfolio agents."""
 
     def test_with_structured_output_raises(self):
         llm = mod.ClaudeCodeChatModel()
         with pytest.raises(NotImplementedError, match="structured_output"):
             llm.with_structured_output(dict)
+
+
+@pytest.mark.unit
+class TestBindTools:
+    """Phase-2b ``bind_tools`` returns a new instance carrying the tools.
+    Original instance must stay untouched (LangChain pipelines build
+    multiple bound variants from the same base model)."""
+
+    def test_bind_tools_returns_new_instance(self):
+        base = mod.ClaudeCodeChatModel(model="claude-sonnet-4-6")
+        bound = base.bind_tools([_fake_tool("echo")])
+        assert isinstance(bound, mod.ClaudeCodeChatModel)
+        assert bound is not base
+        assert base.bound_tools is None
+        assert bound.bound_tools and bound.bound_tools[0].name == "echo"
+        assert bound.model == "claude-sonnet-4-6"
+
+    def test_bind_tools_empty_list_clears_binding(self):
+        base = mod.ClaudeCodeChatModel()
+        assert base.bind_tools([]).bound_tools is None
+
+    def test_bind_tools_none_clears_binding(self):
+        base = mod.ClaudeCodeChatModel()
+        assert base.bind_tools(None).bound_tools is None
+
+    def test_bind_tools_supports_multiple_tools(self):
+        base = mod.ClaudeCodeChatModel()
+        bound = base.bind_tools([_fake_tool("a"), _fake_tool("b")])
+        names = [t.name for t in bound.bound_tools]
+        assert names == ["a", "b"]
 
 
 # ---------------------------------------------------------------------------
@@ -306,3 +363,144 @@ class TestUsageLogging:
         assert not [
             r for r in caplog.records if "claude-code usage" in r.getMessage()
         ]
+
+
+# ---------------------------------------------------------------------------
+# Phase-2b: MCP bridge
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestMcpBridgeOptions:
+    """Verify ``_aquery`` wires MCP server + bypassPermissions only when
+    tools are bound, and keeps host isolation intact in both modes."""
+
+    def test_bound_tools_inject_mcp_server_and_bypass_perms(self, monkeypatch):
+        captured: dict[str, Any] = {}
+
+        async def fake_query(prompt, options):
+            captured["options"] = options
+            yield _assistant("ok")
+            yield _result()
+
+        _patch_query(monkeypatch, fake_query)
+        llm = mod.ClaudeCodeChatModel().bind_tools([_fake_tool("calc")])
+        asyncio.run(llm._aquery(None, "ask"))
+
+        opts = captured["options"]
+        assert "tradingagents" in opts.mcp_servers
+        assert opts.permission_mode == "bypassPermissions"
+        # Host isolation must remain in place when tools are bound.
+        assert opts.tools == []
+        assert opts.skills == []
+        assert opts.setting_sources == []
+        assert opts.strict_mcp_config is True
+
+    def test_unbound_skips_mcp_server_and_permission_mode(self, monkeypatch):
+        captured: dict[str, Any] = {}
+
+        async def fake_query(prompt, options):
+            captured["options"] = options
+            yield _assistant("ok")
+            yield _result()
+
+        _patch_query(monkeypatch, fake_query)
+        llm = mod.ClaudeCodeChatModel()
+        asyncio.run(llm._aquery(None, "ask"))
+
+        opts = captured["options"]
+        # Default dict is fine — must not contain our namespace.
+        assert "tradingagents" not in (opts.mcp_servers or {})
+        # No permission mode override when nothing is bound.
+        assert opts.permission_mode is None
+
+
+@pytest.mark.unit
+class TestWrapLangchainTool:
+    """Handler envelope, error containment, and result stringification."""
+
+    def test_string_result_wrapped_as_text_content(self):
+        tool = _fake_tool("echo", side_effect=lambda args: f"got {args['x']}")
+        wrapped = mod.ClaudeCodeChatModel._wrap_langchain_tool(tool)
+        assert wrapped.name == "echo"
+        result = asyncio.run(wrapped.handler({"x": 42}))
+        assert result == {"content": [{"type": "text", "text": "got 42"}]}
+        assert "is_error" not in result
+
+    def test_non_string_result_is_stringified(self):
+        tool = _fake_tool("dict_tool", side_effect=lambda args: {"key": "val"})
+        wrapped = mod.ClaudeCodeChatModel._wrap_langchain_tool(tool)
+        result = asyncio.run(wrapped.handler({}))
+        body = result["content"][0]["text"]
+        assert "'key'" in body and "'val'" in body
+
+    def test_tool_exception_yields_is_error(self):
+        def boom(_args):
+            raise ValueError("boom")
+
+        tool = _fake_tool("fail", side_effect=boom)
+        wrapped = mod.ClaudeCodeChatModel._wrap_langchain_tool(tool)
+        result = asyncio.run(wrapped.handler({}))
+        assert result["is_error"] is True
+        assert "fail failed" in result["content"][0]["text"]
+        assert "ValueError: boom" in result["content"][0]["text"]
+
+    def test_handler_invokes_tool_with_provided_args(self):
+        seen: dict[str, Any] = {}
+
+        def remember(args):
+            seen.update(args)
+            return "ok"
+
+        tool = _fake_tool("spy", side_effect=remember)
+        wrapped = mod.ClaudeCodeChatModel._wrap_langchain_tool(tool)
+        asyncio.run(wrapped.handler({"a": 1, "b": "two"}))
+        assert seen == {"a": 1, "b": "two"}
+
+
+@pytest.mark.unit
+class TestExtractInputSchema:
+    """Schema source precedence: tool_call_schema > args_schema > fallback."""
+
+    class _Schema1(BaseModel):
+        x: int
+
+    class _Schema2(BaseModel):
+        y: str
+
+    def test_prefers_tool_call_schema(self):
+        tool = _fake_tool("t", tool_call_schema=self._Schema1, args_schema=self._Schema2)
+        schema = mod.ClaudeCodeChatModel._extract_input_schema(tool)
+        assert schema["type"] == "object"
+        assert "x" in schema["properties"]
+        assert "y" not in schema["properties"]
+
+    def test_falls_back_to_args_schema(self):
+        tool = _fake_tool("t", tool_call_schema=None, args_schema=self._Schema2)
+        schema = mod.ClaudeCodeChatModel._extract_input_schema(tool)
+        assert "y" in schema["properties"]
+
+    def test_empty_object_when_no_schema(self):
+        tool = _fake_tool("t")
+        assert mod.ClaudeCodeChatModel._extract_input_schema(tool) == {
+            "type": "object", "properties": {}
+        }
+
+
+@pytest.mark.unit
+class TestBuildMcpServer:
+    """``create_sdk_mcp_server`` is in-process so this exercises the real
+    SDK side without touching Claude."""
+
+    def test_returns_non_none_config(self):
+        server = mod.ClaudeCodeChatModel._build_mcp_server(
+            [_fake_tool("a"), _fake_tool("b")]
+        )
+        assert server is not None
+
+    def test_empty_tool_list_still_constructs(self):
+        # Edge case — bind_tools clears bound_tools when called with [],
+        # so this shouldn't fire in practice, but the helper should not
+        # crash if called directly.
+        server = mod.ClaudeCodeChatModel._build_mcp_server([])
+        assert server is not None
