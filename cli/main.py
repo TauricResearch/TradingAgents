@@ -1293,17 +1293,19 @@ def run_analysis(checkpoint: bool = False):
             )
             reports_root = fallback
             reports_root.mkdir(parents=True, exist_ok=True)
-        # Folder name follows <TICKER>_<DATE>_<MODEL>_<RUN_TIMESTAMP> so the
-        # listing sorts naturally by ticker → analysis date → model, and the
-        # run timestamp keeps repeated runs of the same combination from
-        # colliding. Sanitize ``:`` (ollama tags) and ``/`` (openrouter
-        # slugs like ``google/gemma``) to filesystem-safe ``-``; compact
-        # the analysis date so the slug stays cleanly underscore-delimited.
+        # Layout: <reports_dir>/<TICKER>/<DATE>_<MODEL>_<RUN_TIMESTAMP>/.
+        # The per-ticker parent folder is what the Just-the-Docs site uses
+        # as a nav group; the run-folder name keeps date → model → ts so
+        # repeated runs of the same combination don't collide. Sanitize
+        # ``:`` (ollama tags) and ``/`` (openrouter slugs like
+        # ``google/gemma``) to filesystem-safe ``-``; compact the analysis
+        # date so the slug stays cleanly underscore-delimited.
         model_slug = config["deep_think_llm"].replace("/", "-").replace(":", "-")
         date_slug = selections["analysis_date"].replace("-", "")
         default_path = (
             reports_root
-            / f"{selections['ticker']}_{date_slug}_{model_slug}_{timestamp}"
+            / selections["ticker"]
+            / f"{date_slug}_{model_slug}_{timestamp}"
         )
         save_path_str = typer.prompt(
             "Save path (press Enter for default)",

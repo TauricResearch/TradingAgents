@@ -45,7 +45,9 @@ def main() -> int:
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     model_slug = cfg["deep_think_llm"].replace("/", "-").replace(":", "-")
     date_slug = args.date.replace("-", "")
-    out = Path(cfg["reports_dir"]) / f"{args.ticker}_{date_slug}_{model_slug}_{ts}"
+    # Layout: <reports_dir>/<TICKER>/<DATE>_<MODEL>_<TS>/. The per-ticker
+    # parent folder is what the Just-the-Docs site uses as a nav group.
+    out = Path(cfg["reports_dir"]) / args.ticker / f"{date_slug}_{model_slug}_{ts}"
     save_report_to_disk(final_state, args.ticker, out)
     print(f"OK {args.ticker} -> {out}", file=sys.stderr)
     return 0

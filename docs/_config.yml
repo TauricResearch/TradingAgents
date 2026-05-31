@@ -1,9 +1,9 @@
 remote_theme: just-the-docs/just-the-docs
 
-title: TradingAgents Reports
+title: Investment Reports
 description: Multi-agent LLM trading analysis runs
 url: https://bichengwang.github.io
-baseurl: /TradingAgents
+baseurl: /trading-reports
 
 plugins:
   - jekyll-remote-theme
@@ -21,11 +21,6 @@ search:
 heading_anchors: true
 color_scheme: light
 
-aux_links:
-  "GitHub":
-    - "https://github.com/BichengWang/TradingAgents"
-aux_links_new_tab: true
-
 # Hide per-stage subfiles (1_analysts/, 2_research/, etc.) from the left nav
 # so each run shows up once via complete_report.md. They remain reachable via
 # direct link and stay in search results.
@@ -36,7 +31,7 @@ defaults:
     values:
       layout: default
   - scope:
-      path: "*/[1-5]_*"
+      path: "**/[1-5]_*"
     values:
       nav_exclude: true
 

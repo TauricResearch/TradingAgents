@@ -1,11 +1,12 @@
 """Build a just-the-docs Jekyll site for GitHub Pages from docs/ runs.
 
-Each run lives at ``docs/<TICKER>_<DATE>_<MODEL>_<TS>/complete_report.md``.
+Each run lives at ``docs/<TICKER>/<DATE>_<MODEL>_<TS>/complete_report.md``.
 
 Layout produced by this script:
 
 * ``docs/index.md`` -- nav root, links to one hub page per ticker.
-* ``docs/<TICKER>.md`` -- per-ticker hub page (nav parent), table of runs.
+* ``docs/<TICKER>/index.md`` -- per-ticker hub page (nav parent), table of
+  runs.
 * Each run's ``complete_report.md`` is given just-the-docs front matter
   (``parent: <TICKER>``, ``title: <run-started>``) so it slots into the
   left sidebar under its ticker. Existing front matter is replaced.
@@ -14,8 +15,8 @@ Run locally:
 
     python scripts/build_reports_site.py
 
-Idempotent: rewrites ``docs/index.md``, ``docs/<TICKER>.md``, and the
-front matter blocks of each ``complete_report.md`` in place.
+Idempotent: rewrites ``docs/index.md``, ``docs/<TICKER>/index.md``, and
+the front matter blocks of each ``complete_report.md`` in place.
 """
 
 from __future__ import annotations
@@ -31,8 +32,13 @@ from typing import NamedTuple
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 
+TICKER_DIR_RE = re.compile(r"^[A-Za-z0-9.\-]+$")
+
+# Run folder name is <DATE>_<MODEL>[_<RUN_DATE>_<RUN_TIME>]. The optional
+# RUN_DATE/RUN_TIME tail records when the run started (vs. the analysis
+# date). MODEL is non-greedy so it doesn't swallow the trailing timestamp.
 RUN_DIR_RE = re.compile(
-    r"^(?P<ticker>[A-Za-z0-9.\-]+)_(?P<date>\d{8})_(?P<model>.+?)"
+    r"^(?P<date>\d{8})_(?P<model>.+?)"
     r"(?:_(?P<run_date>\d{8})_(?P<run_time>\d{6}))?$"
 )
 
@@ -53,10 +59,11 @@ class Run(NamedTuple):
     folder_name: str     # used in URLs
 
 
-def parse_run_folder(path: Path) -> Run | None:
-    if not path.is_dir():
+def parse_run_folder(ticker_dir: Path, run_path: Path) -> Run | None:
+    """Parse ``docs/<TICKER>/<RUN>``; ticker comes from the parent dir."""
+    if not run_path.is_dir():
         return None
-    m = RUN_DIR_RE.match(path.name)
+    m = RUN_DIR_RE.match(run_path.name)
     if not m:
         return None
     date = m.group("date")
@@ -65,15 +72,15 @@ def parse_run_folder(path: Path) -> Run | None:
     if rd and rt:
         run_started = f"{rd[:4]}-{rd[4:6]}-{rd[6:8]} {rt[:2]}:{rt[2:4]}:{rt[4:6]}"
     else:
-        run_started = datetime.fromtimestamp(path.stat().st_mtime).strftime(
+        run_started = datetime.fromtimestamp(run_path.stat().st_mtime).strftime(
             "%Y-%m-%d %H:%M:%S"
         )
     return Run(
-        ticker=m.group("ticker").upper(),
+        ticker=ticker_dir.name.upper(),
         analysis_date=analysis_date,
         model=m.group("model"),
         run_started=run_started,
-        folder_name=path.name,
+        folder_name=run_path.name,
     )
 
 
@@ -98,7 +105,7 @@ def build_home(by_ticker: dict[str, list[Run]], total_runs: int) -> str:
     for ticker in tickers:
         n = len(by_ticker[ticker])
         suffix = "run" if n == 1 else "runs"
-        lines.append(f"- [{ticker}](./{ticker.lower()}.html) &middot; {n} {suffix}")
+        lines.append(f"- [{ticker}](./{ticker}/) &middot; {n} {suffix}")
     lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -149,7 +156,7 @@ def write_report_front_matter(run: Run) -> bool:
 
     Returns True if the file was rewritten.
     """
-    path = DOCS_DIR / run.folder_name / "complete_report.md"
+    path = DOCS_DIR / run.ticker / run.folder_name / "complete_report.md"
     if not path.is_file():
         return False
     body = path.read_text(encoding="utf-8")
@@ -172,11 +179,18 @@ def main() -> int:
         return 1
 
     runs: list[Run] = []
-    for child in sorted(DOCS_DIR.iterdir()):
-        run = parse_run_folder(child)
-        if run is None:
+    for ticker_dir in sorted(DOCS_DIR.iterdir()):
+        if not ticker_dir.is_dir():
             continue
-        runs.append(run)
+        if not TICKER_DIR_RE.match(ticker_dir.name):
+            continue
+        if ticker_dir.name == "assets":
+            continue
+        for run_dir in sorted(ticker_dir.iterdir()):
+            run = parse_run_folder(ticker_dir, run_dir)
+            if run is None:
+                continue
+            runs.append(run)
 
     if not runs:
         print("No run folders found under docs/.", file=sys.stderr)
@@ -191,7 +205,8 @@ def main() -> int:
     )
 
     for nav_order, ticker in enumerate(sorted(by_ticker), start=2):
-        hub_path = DOCS_DIR / f"{ticker.lower()}.md"
+        hub_path = DOCS_DIR / ticker / "index.md"
+        hub_path.parent.mkdir(parents=True, exist_ok=True)
         hub_path.write_text(
             build_ticker_hub(ticker, by_ticker[ticker], nav_order),
             encoding="utf-8",
