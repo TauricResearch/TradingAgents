@@ -48,6 +48,7 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from yfinance.exceptions import YFRateLimitError
+from .symbol_utils import NoMarketDataError
 
 try:
     from curl_cffi.requests.exceptions import RequestException as CurlCffiRequestException
@@ -219,6 +220,8 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     recoverable_errors = []
     incomplete_primary: tuple[str, Any, str] | None = None
+    last_no_data: NoMarketDataError | None = None
+    first_error: Exception | None = None
 
     for index, vendor in enumerate(fallback_vendors):
         if vendor not in VENDOR_METHODS[method]:
@@ -232,10 +235,17 @@ def route_to_vendor(method: str, *args, **kwargs):
         _emit_data_progress("start", method, vendor, args)
         try:
             result = impl_func(*args, **kwargs)
+        except NoMarketDataError as e:
+            last_no_data = e
+            _emit_data_progress("failure", method, vendor, args, str(e))
+            recoverable_errors.append((vendor, e))
+            continue
         except Exception as exc:
             if _is_recoverable_vendor_error(vendor, exc):
                 _emit_data_progress("failure", method, vendor, args, _summarize_vendor_error(exc))
                 recoverable_errors.append((vendor, exc))
+                if first_error is None:
+                    first_error = exc
                 continue
             raise
 
@@ -267,6 +277,21 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         _emit_data_progress("success", method, vendor, args, _summarize_data_result(method, result))
         return result
+
+    # If any vendor reported "no data", the symbol is genuinely unavailable.
+    # Return one explicit, instructive sentinel rather than a vendor-specific
+    # empty string, so the agent reports "unavailable" instead of inventing a
+    # value. This takes precedence over incidental fallback errors.
+    if last_no_data is not None:
+        sym = last_no_data.symbol
+        canonical = last_no_data.canonical
+        resolved = "" if canonical == sym else f" (resolved to '{canonical}')"
+        return (
+            f"NO_DATA_AVAILABLE: No market data found for '{sym}'{resolved} from "
+            f"any configured vendor. The symbol may be invalid, delisted, or not "
+            f"covered by Yahoo Finance / Alpha Vantage. Do not estimate or "
+            f"fabricate values — report that data is unavailable for this symbol."
+        )
 
     if incomplete_primary:
         message = _format_incomplete_primary_result(
