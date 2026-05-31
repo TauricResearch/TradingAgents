@@ -218,8 +218,12 @@ __marimo__/
 # Cache
 **/data_cache/
 
-# Generated trading reports (TRADINGAGENTS_REPORTS_DIR default)
-/reports/
+# Generated trading reports are tracked on git so they can be published
+# via GitHub Pages. Add new runs with `git add reports/<run>` after the
+# run finishes; the Pages workflow rebuilds the static site on push.
 
-# Enterprise env file (secrets) and generated run reports
+# Locally rendered Pages build (built fresh in CI; not committed).
+/site/
+
+# Enterprise env file (secrets)
 .env.enterprise
