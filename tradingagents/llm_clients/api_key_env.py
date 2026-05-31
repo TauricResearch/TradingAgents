@@ -32,6 +32,9 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "openrouter": "OPENROUTER_API_KEY",
     # Local runtimes do not authenticate.
     "ollama":     None,
+    # Subscription-backed: auth comes from the local `claude` CLI's
+    # OAuth session, not an env-var API key.
+    "claude-code": None,
 }
 
 
