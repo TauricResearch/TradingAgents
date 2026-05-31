@@ -322,6 +322,9 @@ class TradingAgentsGraph:
             structure_analysis = final_state.get("structure_analysis")
             if structure_analysis:
                 strategy["structure_analysis"] = structure_analysis
+            feature_snapshot = final_state.get("feature_snapshot")
+            if feature_snapshot:
+                strategy["feature_snapshot"] = feature_snapshot
         except StructuredStrategyError as e:
             # Persist a sentinel so the operator knows the run failed extraction.
             as_of = datetime.strptime(str(trade_date), "%Y-%m-%d")
@@ -338,10 +341,16 @@ class TradingAgentsGraph:
         safe_ticker = safe_ticker_component(ticker)
         strategy_dir = Path(__file__).resolve().parents[2] / "back_test" / "strategy" / safe_ticker
         strategy_dir.mkdir(parents=True, exist_ok=True)
+        feature_dir = Path(__file__).resolve().parents[2] / "back_test" / "features" / safe_ticker
+        feature_dir.mkdir(parents=True, exist_ok=True)
 
         out_path = strategy_dir / f"{safe_ticker}_{trade_date}.json"
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(strategy, f, indent=2, ensure_ascii=False)
+        if strategy.get("feature_snapshot"):
+            feature_path = feature_dir / f"{safe_ticker}_{trade_date}.json"
+            with open(feature_path, "w", encoding="utf-8") as f:
+                json.dump(strategy["feature_snapshot"], f, indent=2, ensure_ascii=False)
         return out_path
 
     def _remember_backtest_portfolio_decision(self, trade_date: str, final_state: Dict[str, Any]) -> None:

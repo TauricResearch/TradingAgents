@@ -177,6 +177,55 @@ class EvidenceAggregation(BaseModel):
     contradictory_signals: list[str] = Field(default_factory=list)
 
 
+class FeatureScores(BaseModel):
+    """LLM-derived normalized features for offline policy search, not direct orders."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    trend_continuation: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Likelihood that current directional structure persists over the horizon.",
+    )
+    reversal_risk: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Likelihood of material reversal or failed continuation.",
+    )
+    breakout_quality: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Quality of breakout/reclaim evidence independent of order intent.",
+    )
+    pullback_quality: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Quality of pullback/mean-reversion structure as lower-risk context.",
+    )
+    volume_support: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="How strongly volume/liquidity confirms the price structure.",
+    )
+    event_risk: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Unsigned risk from scheduled or surprise events.",
+    )
+    reward_risk_quality: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Quality of observed setup reward/risk before execution rules.",
+    )
+
+
 class MarketState(BaseModel):
     """Latent market environment state, deliberately separated from trade intent."""
 
@@ -265,6 +314,7 @@ class MarketState(BaseModel):
     timeframe_hierarchy: TimeframeHierarchy
     invalidation: InvalidationCondition
     evidence: EvidenceAggregation
+    feature_scores: FeatureScores = Field(default_factory=FeatureScores)
     state_summary: str
     key_risks: list[str] = Field(default_factory=list)
 
@@ -392,6 +442,15 @@ class MarketState(BaseModel):
                 "event_modifiers": [],
                 "narrative_residual": [value.get("thesis", "")] if value.get("thesis") else [],
                 "contradictory_signals": value.get("key_risks") or [],
+            },
+            "feature_scores": {
+                "trend_continuation": max(0.0, min(1.0, 0.5 + trend_score * 0.5)),
+                "reversal_risk": max(0.0, min(1.0, risk_score)),
+                "breakout_quality": 0.5,
+                "pullback_quality": 0.5,
+                "volume_support": 0.5,
+                "event_risk": min(1.0, abs(event_score)),
+                "reward_risk_quality": max(0.0, min(1.0, confidence - risk_score * 0.25)),
             },
             "state_summary": value.get("thesis") or "Migrated legacy market state.",
             "key_risks": value.get("key_risks") or [],
@@ -728,6 +787,141 @@ def _format_short_term_market_anchors(anchors: dict) -> str:
     )
 
 
+def _safe_jsonable(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    if isinstance(value, dict):
+        return {str(k): _safe_jsonable(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_safe_jsonable(v) for v in value]
+    if isinstance(value, tuple):
+        return [_safe_jsonable(v) for v in value]
+    if isinstance(value, pd.Timestamp):
+        return value.strftime("%Y-%m-%d")
+    return value
+
+
+def _build_feature_snapshot(
+    *,
+    ticker: str,
+    trade_date: str,
+    anchors: dict,
+    market_state: MarketState,
+    volume_regime: str,
+    constraints: dict,
+    holdings_info: dict,
+    trading_history_summary: dict,
+    prior_pending_orders: list[dict],
+    strategy_dict: dict,
+    market_context_state: Optional[MarketState],
+    market_context_ticker: Optional[str],
+    market_context_volume_regime: str,
+    recent_phases: list[str],
+) -> dict[str, Any]:
+    """Persist machine-readable inputs for offline parameter search.
+
+    This is intentionally redundant with strategy fields: optimizers should
+    consume one stable feature object instead of parsing rationale text.
+    """
+    structure = anchors.get("structure_analysis") or {}
+    short = structure.get("short_term_structure") or {}
+    long_term = structure.get("long_term_structure") or {}
+    detected = structure.get("detected_patterns") or []
+    feature_columns = {
+        "llm": [
+            "trend_regime",
+            "volatility_regime",
+            "momentum_regime",
+            "liquidity_regime",
+            "event_regime",
+            "structure_quality",
+            "exhaustion_state",
+            "breadth_state",
+            "trend_direction_score",
+            "trend_strength",
+            "momentum_score_value",
+            "risk_pressure_score",
+            "event_impact_score",
+            "confidence",
+            "feature_scores.*",
+            "confidence_components.*",
+            "timeframe_hierarchy.*",
+            "invalidation.*",
+        ],
+        "ohlcv": [
+            "current_price",
+            "atr5",
+            "atr14",
+            "atr14_pct",
+            "ema5",
+            "ema10",
+            "ema20",
+            "sma5",
+            "sma10",
+            "sma20",
+            "sma50",
+            "recent_high_5d",
+            "recent_low_5d",
+            "recent_high_10d",
+            "recent_low_10d",
+            "recent_high_20d",
+            "recent_low_20d",
+            "nearest_resistance",
+            "nearest_support",
+            "volume_ratio",
+            "volume_ratio_3d",
+        ],
+        "structure": [
+            "short_term_structure.*",
+            "long_term_structure.*",
+            "detected_patterns[].name",
+            "detected_patterns[].direction",
+            "detected_patterns[].confidence",
+        ],
+        "execution_context": [
+            "holdings_info.*",
+            "trading_history_summary.*",
+            "prior_pending_orders[]",
+            "constraints.*",
+        ],
+    }
+    return {
+        "schema_version": "feature_snapshot_v1",
+        "ticker": ticker,
+        "trade_date": trade_date,
+        "as_of_close_date": anchors.get("as_of_close_date"),
+        "feature_columns": feature_columns,
+        "llm_market_state": market_state.model_dump(),
+        "market_context": {
+            "ticker": market_context_ticker,
+            "volume_regime": market_context_volume_regime,
+            "state": market_context_state.model_dump() if market_context_state else None,
+        },
+        "ohlcv_anchors": {
+            key: _safe_jsonable(value)
+            for key, value in anchors.items()
+            if key != "structure_analysis"
+        },
+        "structure_features": {
+            "short_term_structure": _safe_jsonable(short),
+            "long_term_structure": _safe_jsonable(long_term),
+            "detected_patterns": _safe_jsonable(detected),
+            "conflicts": _safe_jsonable(structure.get("conflicts") or []),
+        },
+        "derived_regimes": {
+            "volume_regime": volume_regime,
+            "recent_phases": recent_phases,
+        },
+        "execution_context": {
+            "constraints": _safe_jsonable(constraints),
+            "holdings_info": _safe_jsonable(holdings_info),
+            "trading_history_summary": _safe_jsonable(trading_history_summary),
+            "prior_pending_orders": _safe_jsonable(prior_pending_orders),
+        },
+        "policy_output": _safe_jsonable(strategy_dict),
+    }
+
+
 def _is_short_term_uptrend(anchors: dict) -> bool:
     current = anchors.get("current_price")
     ema5 = anchors.get("ema5") or anchors.get("sma20")
@@ -972,6 +1166,20 @@ def _fallback_market_state(
             event_modifiers=[],
             narrative_residual=[],
             contradictory_signals=[],
+        ),
+        feature_scores=FeatureScores(
+            trend_continuation=round(max(0.0, min(1.0, 0.5 + trend_score * 0.5)), 2),
+            reversal_risk=round(max(0.0, min(1.0, risk_score)), 2),
+            breakout_quality=0.70 if structure_quality == "breakout_attempt" else 0.50,
+            pullback_quality=0.60 if momentum_regime == "mean_reverting" else 0.45,
+            volume_support=(
+                0.75 if liquidity_regime == "volume_expansion"
+                else 0.35 if liquidity_regime == "volume_contraction"
+                else 0.55 if liquidity_regime == "normal"
+                else 0.50
+            ),
+            event_risk=0.10,
+            reward_risk_quality=round(max(0.0, min(1.0, confidence - risk_score * 0.25)), 2),
         ),
         state_summary=(
             "LLM MarketState JSON was unavailable; fallback latent-state classification "
@@ -2122,6 +2330,7 @@ def create_portfolio_state_manager(
                 "final_trade_decision": decision_text,
                 "market_state": None,
                 "structure_analysis": None,
+                "feature_snapshot": None,
                 "structured_strategy": empty,
             }
 
@@ -2204,6 +2413,12 @@ def create_portfolio_state_manager(
         - evidence:
             hard_anchors, event_modifiers, narrative_residual, contradictory_signals.
             Put analyst rhetoric in narrative_residual only after extracting anchor-grounded content.
+        - feature_scores:
+            trend_continuation, reversal_risk, breakout_quality, pullback_quality,
+            volume_support, event_risk, reward_risk_quality. Each must be a
+            normalized [0, 1] feature for offline policy search, not a trade
+            instruction. Use hard anchors first, event modifiers second, and
+            narrative residuals only as low-weight modifiers.
         - state_summary: neutral description of the environment. Do not include trade recommendations.
         - key_risks: short state-instability phrases, not execution advice.
 
@@ -2333,6 +2548,23 @@ def create_portfolio_state_manager(
             f"Structured strategy schema_version={strategy_dict['schema_version']}"
         )
 
+        feature_snapshot = _build_feature_snapshot(
+            ticker=ticker,
+            trade_date=trade_date,
+            anchors=anchors,
+            market_state=market_state,
+            volume_regime=volume_regime,
+            constraints=constraints,
+            holdings_info=holdings_info,
+            trading_history_summary=trading_history_summary,
+            prior_pending_orders=prior_pending_orders,
+            strategy_dict=strategy_dict,
+            market_context_state=market_context_state,
+            market_context_ticker=resolved_policy_config.market_context_ticker,
+            market_context_volume_regime=market_context_volume_regime,
+            recent_phases=recent_phases,
+        )
+
         return {
             "risk_debate_state": _passthrough_debate_state(risk_debate_state, decision_text),
             "final_trade_decision": decision_text,
@@ -2343,6 +2575,7 @@ def create_portfolio_state_manager(
                 if market_context_state is not None
                 else None
             ),
+            "feature_snapshot": feature_snapshot,
             "structured_strategy": strategy_dict,
         }
 
