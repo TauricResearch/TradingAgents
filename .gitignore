@@ -157,6 +157,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local Docker Compose overrides (cert mounts, host-specific binds, etc.)
+docker-compose.override.yml
+docker-compose.override.yaml
+
 # Spyder project settings
 .spyderproject
 .spyproject

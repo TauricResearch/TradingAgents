@@ -3,12 +3,10 @@ services:
     build: .
     env_file:
       - .env
-    environment:    volumes:
-      - tradingagents_data:/home/appuser/.tradingagents      # Bind-mount the host docs dir so TRADINGAGENTS_REPORTS_DIR resolves
-      # to the same absolute path inside the container as on the host.
-      # docs/ is also the GitHub Pages source, so reports land where Pages
-      # serves them — no extra copy step.
-      - /Users/bichengwang/my-code/other/TradingAgents/docs:/Users/bichengwang/my-code/other/TradingAgents/docs
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+      # docs/ is the GitHub Pages source, so reports land where Pages serves them.
+      - ./docs:/workspace/docs
     tty: true
     stdin_open: true
 
