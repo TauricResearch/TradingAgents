@@ -15,10 +15,10 @@ fix before continuing.
 - [ ] Display sleep disabled (`gsettings set org.gnome.desktop.session idle-delay 0`).
 - [ ] Unattended-upgrades disabled for the window (`sudo systemctl mask unattended-upgrades.service`). Re-enable after the gate.
 - [ ] All six adapters' env vars set: POLYGON_API_KEY, TELEGRAM_API_ID/HASH/SESSION (sensing), X_BEARER_TOKEN (if enabling x), FRED_API_KEY, RSS_FEEDS, GDELT_QUERY.
-- [ ] Telegram **sensing** session pre-authenticated: `python -m tradingagents.sensing.adapters.telegram` once, complete any 2FA prompts, Ctrl+C, then start under systemd.
-- [ ] Redis running (`systemctl status redis-server`), AOF on (`redis-cli config get appendonly` → `yes`).
-- [ ] `tickers` table seeded: `python -m cli.main forge sense reseed-tickers` → at least 8000 rows in `tickers` (or skip the gate and re-seed).
-- [ ] Baseline watchlist set: `forge watchlist add` for each of the user's standing tickers.
+- [ ] Telegram **sensing** session pre-authenticated: `/home/ziwei-huang/miniconda3/bin/python -m tradingagents.sensing.adapters.telegram` once, complete any 2FA prompts, Ctrl+C, then start under systemd.
+- [ ] Redis running (`docker ps --filter name=iic-redis`), AOF on (`docker exec iic-redis redis-cli config get appendonly` → `yes`).
+- [ ] `tickers` table seeded: `/home/ziwei-huang/miniconda3/bin/python -m cli.main forge sense reseed-tickers` → at least 8000 rows in `tickers` (or skip the gate and re-seed).
+- [ ] Baseline watchlist set: `/home/ziwei-huang/miniconda3/bin/python -m cli.main forge watchlist add` for each of the user's standing tickers.
 - [ ] **Pre-soak**: each adapter individually for 1 hour. Each must produce ≥1 event with `NRestarts=0`:
   ```bash
   for unit in iic-sense-{polygon,telegram,rss,gdelt,macro}; do
@@ -36,6 +36,19 @@ fix before continuing.
 START=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "START=$START" | tee /tmp/f3-gate-start.txt
 
+# Install the corrected units (includes the redis-server.service docker alias
+# that the sensing/triage units now Require). This replaces any older
+# iic-user units that pointed at /home/iic and /var/log/iic.
+sudo cp ops/systemd/redis-server.service ops/systemd/iic-sense-*.service \
+        ops/systemd/iic-triage.service ops/systemd/iic-watchlist-sweep.service \
+        ops/systemd/iic-watchlist-sweep.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Redis alias (starts the iic-redis docker container + blocks until it answers
+# PING). The sensing/triage units pull this in via Requires=, but start it
+# explicitly first so the readiness gate is satisfied up front.
+sudo systemctl start redis-server.service
+
 # Enable all systemd units.
 sudo systemctl start \
   iic-sense-polygon iic-sense-telegram iic-sense-rss \
@@ -52,7 +65,7 @@ systemctl status iic-sense-* iic-triage
 ## During the run
 
 - Do not touch any service unit. Do not run `systemctl restart`.
-- Spot-check log volume every few hours: `tail /var/log/iic/sense-*.log`.
+- Spot-check log volume every few hours: `journalctl -u 'iic-sense-*' -f`.
 - If a service dies, the gate is invalidated. Note the time; the evaluator
   will flag it. Fix the root cause before re-attempting.
 
@@ -60,7 +73,7 @@ systemctl status iic-sense-* iic-triage
 
 ```bash
 START=$(cat /tmp/f3-gate-start.txt | cut -d= -f2)
-python scripts/f3_exit_gate.py --since "$START"
+/home/ziwei-huang/miniconda3/bin/python scripts/f3_exit_gate.py --since "$START"
 # Output: docs/superpowers/artifacts/2026-MM-DD-f3-exit-gate-report.md
 ```
 

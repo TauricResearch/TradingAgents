@@ -39,9 +39,7 @@ def create_portfolio_manager(llm):
             else ""
         )
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
-
-{instrument_context}
+        system_prompt = """As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 ---
 
@@ -52,21 +50,26 @@ def create_portfolio_manager(llm):
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
 
+Be decisive and ground every conclusion in specific evidence from the analysts.""" + get_language_instruction()
+
+        user_prompt = f"""{instrument_context}
+
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
 **Risk Analysts Debate History:**
-{history}
+{history}"""
 
----
-
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
 
         final_trade_decision = invoke_structured_or_freetext(
             structured_llm,
             llm,
-            prompt,
+            messages,
             render_pm_decision,
             "Portfolio Manager",
         )

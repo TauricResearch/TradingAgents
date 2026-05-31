@@ -39,7 +39,12 @@ class GdeltAdapter:
                     "mode": "ArtList",
                     "format": "json",
                     "maxrecords": 250,
-                    "sort": "DateAsc",
+                    # DateDesc (newest-first): a news SENSOR must track the
+                    # freshest articles. DateAsc returns the OLDEST 250 of the
+                    # rolling window, so once the cursor passes them every later
+                    # poll re-returns the same old set and emits 0 — gdelt would
+                    # go silent after its first poll.
+                    "sort": "DateDesc",
                 },
                 timeout=30,
             )
@@ -91,7 +96,14 @@ def _main() -> None:
 
     if not C["sensing_adapters_enabled"].get(NAME, True):
         log.info("%s disabled; exiting 0", NAME); return
-    query = os.environ.get("GDELT_QUERY", "earnings OR \"federal reserve\" OR M&A")
+    # GDELT DOC 2.0 query rules: an OR-list MUST be wrapped in parentheses, and
+    # keywords may not contain illegal chars like '&' (so "M&A" is rejected).
+    # The override comes from GDELT_QUERY in .env (single-quote the whole value
+    # there so the inner double-quotes survive .env parsing).
+    query = os.environ.get(
+        "GDELT_QUERY",
+        '(earnings OR "federal reserve" OR "mergers and acquisitions")',
+    )
     redis = make_redis(C["sensing_redis_url"])
     conn = connect(C["iic_db_path"])
     staging = os.path.join(C["iic_data_dir"], "events", "staging")

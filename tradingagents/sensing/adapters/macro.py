@@ -66,6 +66,13 @@ class MacroAdapter:
             await writer.write(env, raw_payload=rel, cursor=str(rid))
             emitted += 1
             new_max = max(new_max, rid)
+        # FRED releases iterate newest->oldest (release_id DESC), and
+        # EnvelopeWriter.write persists the cursor after EVERY XADD, so the
+        # value left behind is the SMALLEST emitted rid — the cursor would crawl
+        # forward by only one release per poll and re-emit the rest every cycle.
+        # Persist the true max ONCE here so the next poll only sees new releases.
+        if emitted:
+            cs.set(NAME, str(new_max))
         return emitted
 
     async def poll_once(self, *, redis: aioredis.Redis, conn: sqlite3.Connection) -> int:

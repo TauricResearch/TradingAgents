@@ -1,0 +1,19 @@
+[Unit]
+Description=IIC-FORGE action handler — brief_actions sweep + dispatch
+After=network.target
+
+[Service]
+Type=simple
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m cli.main forge action-handler run
+Restart=on-failure
+RestartSec=5
+MemoryMax=1G
+CPUQuota=50%
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
+
+[Install]
+WantedBy=multi-user.target

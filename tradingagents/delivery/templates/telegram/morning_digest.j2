@@ -1,0 +1,8 @@
+☀️ *Morning Digest* — {{ generated_ts[:10] }}
+{{ tickers | length }} ticker(s)
+
+{% for t in tickers -%}
+*{{ t.ticker }}*: {{ t.recommendation | truncate(80) }}
+{% endfor %}
+
+_brief: `{{ brief_id }}`_

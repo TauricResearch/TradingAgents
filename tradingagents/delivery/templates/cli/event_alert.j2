@@ -1,0 +1,13 @@
+==================================================================
+EVENT ALERT — {{ scope }}  ({{ generated_ts }})
+brief_id: {{ brief_id }}
+==================================================================
+{% if trigger_event %}
+Trigger:
+{{ trigger_event.summary }}
+{% endif %}
+{% for t in tickers %}
+--- {{ t.ticker }} ---
+{{ t.recommendation }}
+{% endfor %}
+==================================================================

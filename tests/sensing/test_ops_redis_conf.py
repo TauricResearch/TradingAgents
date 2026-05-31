@@ -19,7 +19,7 @@ def test_backup_script_is_executable_and_handles_both_stores():
     path = Path("ops/backup.sh")
     text = path.read_text()
     assert ".backup" in text                     # SQLite
-    assert "BGREWRITEAOF" in text                # Redis
-    assert "appendonly.aof" in text              # the artifact being copied
+    assert "BGREWRITEAOF" in text                # Redis rewrite (inside container)
+    assert "docker cp" in text                   # AOF pulled from the iic-redis volume
     mode = path.stat().st_mode
     assert mode & stat.S_IXUSR

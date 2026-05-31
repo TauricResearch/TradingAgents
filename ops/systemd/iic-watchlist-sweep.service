@@ -4,9 +4,9 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-User=iic
-WorkingDirectory=/home/iic/TradingAgents/TradingAgents
-EnvironmentFile=/home/iic/TradingAgents/TradingAgents/.env
-ExecStart=/home/iic/TradingAgents/TradingAgents/.venv/bin/python -m cli.main forge sense sweep-watchlist
-StandardOutput=append:/var/log/iic/watchlist-sweep.log
-StandardError=append:/var/log/iic/watchlist-sweep.log
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m cli.main forge sense sweep-watchlist
+StandardOutput=journal
+StandardError=journal

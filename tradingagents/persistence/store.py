@@ -23,11 +23,13 @@ def insert_run(
     started_ts: str,
     artifact_dir: str,
     trigger_id: Optional[str] = None,
+    queue_job_id: Optional[int] = None,
 ) -> None:
     conn.execute(
         "INSERT INTO runs (run_id, ticker, persona_id, started_ts, status, "
-        "trigger_id, artifact_dir) VALUES (?, ?, ?, ?, 'running', ?, ?)",
-        (run_id, ticker, persona_id, started_ts, trigger_id, artifact_dir),
+        "trigger_id, artifact_dir, queue_job_id) VALUES (?, ?, ?, ?, 'running', ?, ?, ?)",
+        (run_id, ticker, persona_id, started_ts, trigger_id, artifact_dir,
+         queue_job_id),
     )
     conn.commit()
 
@@ -62,11 +64,15 @@ def record_cost(
     in_tokens: int,
     out_tokens: int,
     usd_estimate: Optional[float] = None,
+    cache_hit_tokens: Optional[int] = None,
+    cache_miss_tokens: Optional[int] = None,
 ) -> None:
     conn.execute(
         "INSERT INTO costs (run_id, provider, model, in_tokens, out_tokens, "
-        "usd_estimate) VALUES (?, ?, ?, ?, ?, ?)",
-        (run_id, provider, model, in_tokens, out_tokens, usd_estimate),
+        "usd_estimate, cache_hit_tokens, cache_miss_tokens) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (run_id, provider, model, in_tokens, out_tokens, usd_estimate,
+         cache_hit_tokens, cache_miss_tokens),
     )
     conn.commit()
 
@@ -85,12 +91,13 @@ def insert_brief(
     content_path: str,
     run_ids: Iterable[str],
     parent_brief_id: Optional[str] = None,
+    trigger_event_id: Optional[str] = None,
 ) -> None:
     conn.execute(
         "INSERT INTO briefs (brief_id, mode, scope, generated_ts, content_path, "
-        "run_ids, parent_brief_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "run_ids, parent_brief_id, trigger_event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (brief_id, mode, scope, generated_ts, content_path,
-         json.dumps(list(run_ids)), parent_brief_id),
+         json.dumps(list(run_ids)), parent_brief_id, trigger_event_id),
     )
     conn.commit()
 
@@ -265,5 +272,189 @@ def insert_event_embedding(
         "INSERT INTO event_embeddings (event_id, vec_id, created_ts) "
         "VALUES (?, ?, ?)",
         (event_id, vec_id, _now_iso()),
+    )
+    conn.commit()
+
+
+# --------------------------------------------------------------------
+# F4 helpers — events lookup / suppression / briefs lookup
+# --------------------------------------------------------------------
+
+def get_event(
+    conn: sqlite3.Connection, *, event_id: str
+) -> Optional[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM events WHERE event_id = ?", (event_id,)
+    ).fetchone()
+
+
+def upsert_suppression(
+    conn: sqlite3.Connection,
+    *,
+    key: str,
+    until_ts: str,
+    reason: Optional[str],
+    created_by: str,
+) -> None:
+    conn.execute(
+        "INSERT INTO suppression (key, until_ts, reason, created_by) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET "
+        "until_ts = excluded.until_ts, "
+        "reason = excluded.reason, "
+        "created_by = excluded.created_by",
+        (key, until_ts, reason, created_by),
+    )
+    conn.commit()
+
+
+def get_brief(
+    conn: sqlite3.Connection, *, brief_id: str
+) -> Optional[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM briefs WHERE brief_id = ?", (brief_id,)
+    ).fetchone()
+
+
+# --------------------------------------------------------------------
+# F5 deliveries + brief_actions helpers
+# --------------------------------------------------------------------
+
+def insert_delivery(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    channel: str,
+    status: str,
+    sent_ts: Optional[str],
+    channel_ref: Optional[str],
+    skip_reason: Optional[str],
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO deliveries (brief_id, channel, status, sent_ts, channel_ref, skip_reason) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (brief_id, channel, status, sent_ts, channel_ref, skip_reason),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def resolve_brief_id_by_channel_ref(
+    conn: sqlite3.Connection, *, channel: str, channel_ref: str,
+) -> Optional[str]:
+    row = conn.execute(
+        "SELECT brief_id FROM deliveries WHERE channel = ? AND channel_ref = ? "
+        "ORDER BY delivery_id DESC LIMIT 1",
+        (channel, channel_ref),
+    ).fetchone()
+    return row[0] if row else None
+
+
+def count_brief_actions(conn: sqlite3.Connection, *, brief_id: str) -> int:
+    """Number of brief_actions rows for a brief. Used as an idempotency guard
+    so event_alert delivery creates at most one pending action per brief."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM brief_actions WHERE brief_id = ?", (brief_id,)
+    ).fetchone()
+    return row[0]
+
+
+def get_pending_action_by_brief(
+    conn: sqlite3.Connection, *, brief_id: str, action_type: Optional[str] = None,
+) -> Optional[dict]:
+    """Most recent pending brief_action for a brief (optionally by type).
+
+    Returns None when no pending action exists — callers fall back to inserting.
+    """
+    if action_type is None:
+        row = conn.execute(
+            "SELECT * FROM brief_actions "
+            "WHERE brief_id = ? AND state = 'pending' "
+            "ORDER BY action_id DESC LIMIT 1",
+            (brief_id,),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT * FROM brief_actions "
+            "WHERE brief_id = ? AND action_type = ? AND state = 'pending' "
+            "ORDER BY action_id DESC LIMIT 1",
+            (brief_id, action_type),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def fetch_actions(conn: sqlite3.Connection, *, state: str) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM brief_actions WHERE state = ? ORDER BY action_id",
+        (state,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def fetch_accepted_undispatched(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM brief_actions "
+        "WHERE state = 'accepted' "
+        "  AND result_backtest_id IS NULL "
+        "  AND result_brief_id IS NULL "
+        "ORDER BY action_id"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_action_state(
+    conn: sqlite3.Connection, *, action_id: int, state: str, responded_at: Optional[str] = None,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET state = ?, responded_at = ? WHERE action_id = ?",
+        (state, responded_at, action_id),
+    )
+    conn.commit()
+
+
+def mark_action_done(
+    conn: sqlite3.Connection,
+    *,
+    action_id: int,
+    result_backtest_id: Optional[int] = None,
+    result_brief_id: Optional[str] = None,
+) -> None:
+    conn.execute(
+        "UPDATE brief_actions SET result_backtest_id = ?, result_brief_id = ? "
+        "WHERE action_id = ?",
+        (result_backtest_id, result_brief_id, action_id),
+    )
+    conn.commit()
+
+
+def expire_lapsed_actions(conn: sqlite3.Connection) -> int:
+    cur = conn.execute(
+        "UPDATE brief_actions SET state = 'expired' "
+        # datetime(expires_at) normalizes the ISO 'T'+offset string to SQLite's
+        # space form so same-day expiries actually fire; a raw compare silently
+        # never expires anything within the current year (S-8 hazard).
+        "WHERE state = 'pending' AND datetime(expires_at) < datetime('now')"
+    )
+    conn.commit()
+    return cur.rowcount
+
+
+def load_brief(conn: sqlite3.Connection, brief_id: str) -> Optional[dict]:
+    row = conn.execute(
+        "SELECT * FROM briefs WHERE brief_id = ?", (brief_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def update_brief_refine_metadata(
+    conn: sqlite3.Connection,
+    *,
+    brief_id: str,
+    refine_depth: int,
+    refine_overrides: dict,
+) -> None:
+    conn.execute(
+        "UPDATE briefs SET refine_depth = ?, refine_overrides = ? WHERE brief_id = ?",
+        (refine_depth, json.dumps(refine_overrides), brief_id),
     )
     conn.commit()

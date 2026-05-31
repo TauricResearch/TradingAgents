@@ -220,44 +220,138 @@ def _decode_fields(raw_fields):
 
 
 # Attach to Triage as methods.
+async def _process_entry(self, *, env_id, raw_fields, group: str,
+                         stream: str) -> bool:
+    """Decode + run one PEL/stream entry through the pipeline.
+
+    Returns True if the entry was handled (and XACKed). On failure the
+    message is left on the PEL so its delivery count keeps climbing toward
+    max_deliveries (where dead_letter_sweep / reclaim dead-letters it).
+    """
+    try:
+        fields = _decode_fields(raw_fields)
+        env = Envelope.from_redis_fields(fields)
+        await self.process_one(env)
+        await self._redis.xack(stream, group, env_id)
+        return True
+    except Exception:
+        log.exception("triage failed for %s; leaving on PEL", env_id)
+        return False
+
+
+async def _reclaim_pending(self, *, group: str, consumer: str, stream: str,
+                           batch: int, min_idle_ms: int,
+                           dead_stream: Optional[str],
+                           max_deliveries: int) -> int:
+    """Re-read THIS consumer's stuck pending entries so they actually retry.
+
+    XREADGROUP with `>` only ever delivers brand-new messages, so a message
+    that throws in process_one sits on the PEL with times_delivered=1 and is
+    never re-read — dead_letter_sweep (which only moves entries with
+    times_delivered >= max_deliveries) can therefore never fire. XAUTOCLAIM
+    re-claims our own idle pending entries (incrementing delivery count) and
+    hands them back for reprocessing. Entries already at/over max_deliveries
+    are dead-lettered immediately rather than re-run.
+
+    Fully defensive: any error here is logged and swallowed so a reclaim
+    failure can never crash the consume loop.
+    """
+    handled = 0
+    try:
+        # XAUTOCLAIM returns (next_cursor, claimed_entries, deleted_ids).
+        # Older redis-py returns just (next_cursor, claimed_entries).
+        res = await self._redis.xautoclaim(
+            name=stream, groupname=group, consumername=consumer,
+            min_idle_time=min_idle_ms, start_id="0-0", count=batch,
+        )
+    except Exception:
+        log.exception("xautoclaim failed (reclaim skipped this tick)")
+        return 0
+
+    try:
+        claimed = res[1] if isinstance(res, (list, tuple)) and len(res) >= 2 else []
+    except Exception:
+        log.exception("could not parse xautoclaim result"); return 0
+    if not claimed:
+        return 0
+
+    for env_id, raw_fields in claimed:
+        try:
+            # Has this entry already been delivered too many times? If so,
+            # dead-letter it now instead of re-running a poison message.
+            over_limit = False
+            try:
+                info = await self._redis.xpending_range(
+                    stream, group, min=env_id, max=env_id, count=1,
+                )
+                if info and int(info[0]["times_delivered"]) >= max_deliveries:
+                    over_limit = True
+            except Exception:
+                log.exception("xpending_range failed for %s", env_id)
+
+            if over_limit and dead_stream:
+                if raw_fields:
+                    await self._redis.xadd(dead_stream, _decode_fields(raw_fields))
+                await self._redis.xack(stream, group, env_id)
+                log.warning("dead-lettered %s after >= %d deliveries",
+                            env_id, max_deliveries)
+                continue
+
+            if await self._process_entry(env_id=env_id, raw_fields=raw_fields,
+                                         group=group, stream=stream):
+                handled += 1
+        except Exception:
+            log.exception("reclaim of %s crashed; leaving on PEL", env_id)
+    return handled
+
+
 async def _consume_once(self, *, group: str, consumer: str, stream: str,
-                         block_ms: int, batch: int) -> int:
+                         block_ms: int, batch: int,
+                         min_idle_ms: int = 60000,
+                         dead_stream: Optional[str] = None,
+                         max_deliveries: int = 5) -> int:
     """Read one XREADGROUP batch and process each envelope.
 
-    Successful envelopes are XACKed. Failures leave the message on the
-    Pending Entries List, where dead_letter_sweep picks them up after
-    max_deliveries retries.
+    First reclaims this consumer's own stuck pending entries (so failed
+    messages actually retry and eventually dead-letter), then reads new
+    messages. Successful envelopes are XACKed. Failures stay on the PEL.
     """
+    # Reclaim our own idle pending entries first so delivery counts climb.
+    handled = await self._reclaim_pending(
+        group=group, consumer=consumer, stream=stream, batch=batch,
+        min_idle_ms=min_idle_ms, dead_stream=dead_stream,
+        max_deliveries=max_deliveries,
+    )
+
     try:
         result = await self._redis.xreadgroup(
             groupname=group, consumername=consumer,
             streams={stream: ">"}, count=batch, block=block_ms,
         )
     except Exception:
-        log.exception("XREADGROUP failed"); return 0
+        log.exception("XREADGROUP failed"); return handled
     if not result:
-        return 0
-    handled = 0
+        return handled
     for _stream_name, entries in result:
         for env_id, raw_fields in entries:
-            try:
-                fields = _decode_fields(raw_fields)
-                env = Envelope.from_redis_fields(fields)
-                await self.process_one(env)
-                await self._redis.xack(stream, group, env_id)
+            if await self._process_entry(env_id=env_id, raw_fields=raw_fields,
+                                         group=group, stream=stream):
                 handled += 1
-            except Exception:
-                log.exception("triage failed for %s; leaving on PEL", env_id)
     return handled
 
 
 async def _consume_forever(self, *, group: str, consumer: str, stream: str,
-                            block_ms: int, batch: int) -> None:
+                            block_ms: int, batch: int,
+                            min_idle_ms: int = 60000,
+                            dead_stream: Optional[str] = None,
+                            max_deliveries: int = 5) -> None:
     while True:
         try:
             await self.consume_once(group=group, consumer=consumer,
                                      stream=stream, block_ms=block_ms,
-                                     batch=batch)
+                                     batch=batch, min_idle_ms=min_idle_ms,
+                                     dead_stream=dead_stream,
+                                     max_deliveries=max_deliveries)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -265,6 +359,8 @@ async def _consume_forever(self, *, group: str, consumer: str, stream: str,
             await asyncio.sleep(1)
 
 
+Triage._process_entry = _process_entry          # type: ignore[attr-defined]
+Triage._reclaim_pending = _reclaim_pending      # type: ignore[attr-defined]
 Triage.consume_once = _consume_once             # type: ignore[attr-defined]
 Triage.consume_forever = _consume_forever       # type: ignore[attr-defined]
 
@@ -296,9 +392,19 @@ def _main() -> None:
         out = llm.invoke(prompt)
         return getattr(out, "content", str(out))
 
+    # Eagerly load the embedder model so a missing dep / failed download
+    # fails FAST and LOUD at startup, before the soak clock starts —
+    # instead of every event silently zeroing out inside the consume loop
+    # (NRestarts=0, events=0 → false-FAIL gate). MockEmbedder has no load(),
+    # but _main always builds the real SentenceTransformerEmbedder.
+    embedder = SentenceTransformerEmbedder(C["sensing_embedder_model"])
+    _load = getattr(embedder, "load", None)
+    if callable(_load):
+        _load()
+
     t = Triage(
         conn=conn, redis=redis,
-        embedder=SentenceTransformerEmbedder(C["sensing_embedder_model"]),
+        embedder=embedder,
         llm_call=call_llm,
         data_dir=C["iic_data_dir"],
         cosine_threshold=C["sensing_dedupe_cosine_threshold"],
@@ -346,6 +452,11 @@ def _main() -> None:
                 consumer=f"c{i}",
                 stream=C["sensing_ingest_stream"],
                 block_ms=5000, batch=10,
+                # Reclaim our own stuck PEL entries so failures actually retry
+                # and eventually dead-letter instead of leaking forever.
+                min_idle_ms=60000,
+                dead_stream=C["sensing_dead_stream"],
+                max_deliveries=C["sensing_triage_max_failures"],
             ))
         await asyncio.gather(*tasks)
 

@@ -210,3 +210,52 @@ CREATE TABLE IF NOT EXISTS event_embeddings (
     created_ts TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_event_embeddings_vec ON event_embeddings(vec_id);
+
+-- ============================================================
+-- F4 orchestrator append-only columns (added by IIC-FORGE-07)
+-- ============================================================
+-- NOTE: ALTER TABLE ADD COLUMN is NOT idempotent in SQLite. The db.py
+-- migration layer wraps these statements to swallow "duplicate column
+-- name" errors, allowing connect() to be called repeatedly. Do NOT add
+-- IF NOT EXISTS — sqlite does not support it on ALTER TABLE.
+
+ALTER TABLE queue_jobs ADD COLUMN trigger_event_id  TEXT REFERENCES events(event_id);
+ALTER TABLE queue_jobs ADD COLUMN run_ids           TEXT;
+ALTER TABLE queue_jobs ADD COLUMN brief_id          TEXT REFERENCES briefs(brief_id);
+ALTER TABLE queue_jobs ADD COLUMN cost_usd          REAL;
+ALTER TABLE queue_jobs ADD COLUMN error             TEXT;
+
+ALTER TABLE briefs     ADD COLUMN trigger_event_id  TEXT REFERENCES events(event_id);
+
+ALTER TABLE runs       ADD COLUMN queue_job_id      INTEGER REFERENCES queue_jobs(job_id);
+
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_trigger_event
+    ON queue_jobs(trigger_event_id);
+CREATE INDEX IF NOT EXISTS idx_queue_jobs_state_enqueued
+    ON queue_jobs(state, enqueued_ts);
+
+-- ============================================================
+-- F5 delivery + operations append-only columns (added by IIC-FORGE-08)
+-- ============================================================
+ALTER TABLE deliveries ADD COLUMN skip_reason       TEXT;
+ALTER TABLE deliveries ADD COLUMN channel_ref       TEXT;
+ALTER TABLE briefs     ADD COLUMN refine_depth      INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE briefs     ADD COLUMN refine_overrides  TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_deliveries_brief
+    ON deliveries(brief_id);
+CREATE INDEX IF NOT EXISTS idx_brief_actions_pending_expires
+    ON brief_actions(state, expires_at) WHERE state = 'pending';
+
+-- ============================================================
+-- P0 instrumentation: DeepSeek prompt-cache token capture
+-- ============================================================
+-- DeepSeek's API reports per-call cache usage (prompt_cache_hit_tokens /
+-- prompt_cache_miss_tokens). We persist the per-(run, model) totals next to
+-- the existing in/out token counts so a cache hit ratio can be computed from
+-- the DB. Both nullable: other providers don't report them, and rows written
+-- before this migration keep NULL. Same idempotent-ALTER pattern as above —
+-- db.py swallows the "duplicate column name" error on re-run; no IF NOT EXISTS
+-- (sqlite does not support it on ALTER TABLE).
+ALTER TABLE costs ADD COLUMN cache_hit_tokens  INTEGER;
+ALTER TABLE costs ADD COLUMN cache_miss_tokens INTEGER;

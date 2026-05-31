@@ -156,7 +156,11 @@ class DedupeStage2:
             FROM knn
             JOIN event_embeddings ee ON ee.vec_id = knn.rowid
             JOIN events ev ON ev.event_id = ee.event_id
-            WHERE ev.ingested_ts > datetime('now', ?)
+            -- datetime() normalizes ISO `T` + `+00:00` to SQLite's
+            -- `YYYY-MM-DD HH:MM:SS` form so same-day comparisons work; raw
+            -- string compare silently fails ('T' 0x54 > ' ' 0x20). Mirrors
+            -- persistence/store.py and watchlist.py.
+            WHERE datetime(ev.ingested_ts) > datetime('now', ?)
               AND ev.status != 'duplicate'
             ORDER BY knn.distance ASC
             LIMIT 1

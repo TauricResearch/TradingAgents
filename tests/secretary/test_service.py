@@ -66,12 +66,3 @@ HOLD — low-confidence call.
     assert "Divergence" in text
 
 
-@pytest.mark.unit
-def test_compose_morning_digest_and_event_alert_are_stubs(db_and_dirs):
-    from tradingagents.secretary.service import Secretary
-    conn, data_dir = db_and_dirs
-    sec = Secretary(conn=conn, data_dir=data_dir, llm=MagicMock())
-    with pytest.raises(NotImplementedError):
-        sec.compose_morning_digest(watchlist=["AAPL"], ts="2026-05-25T00:00:00Z")
-    with pytest.raises(NotImplementedError):
-        sec.compose_event_alert(event_id="x")

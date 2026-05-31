@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Deep-Dive: {{ scope }}</title></head>
+<body style="font-family: -apple-system, sans-serif; max-width: 720px; margin: 2em auto;">
+  <h1>Deep-Dive — {{ scope }}</h1>
+  <p style="color: #666;">{{ generated_ts }} · brief <code>{{ brief_id }}</code></p>
+  {% for t in tickers %}
+    <hr>
+    <h2>{{ t.ticker }}</h2>
+    <h3>Consensus</h3>
+    <p>{{ t.consensus }}</p>
+    <h3>Divergence</h3>
+    <p>{{ t.divergence }}</p>
+    <h3>Recommendation</h3>
+    <p><strong>{{ t.recommendation }}</strong></p>
+    <p><a href="http://127.0.0.1:8501/action_form?brief_id={{ brief_id }}">
+      Refine or run backtest →
+    </a></p>
+  {% endfor %}
+</body>
+</html>

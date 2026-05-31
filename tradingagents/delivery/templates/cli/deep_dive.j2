@@ -1,0 +1,16 @@
+==================================================================
+Deep-Dive: {{ scope }}  ({{ generated_ts }})
+brief_id: {{ brief_id }}
+==================================================================
+{% for t in tickers %}
+--- {{ t.ticker }} ---
+CONSENSUS:
+{{ t.consensus }}
+
+DIVERGENCE:
+{{ t.divergence }}
+
+RECOMMENDATION:
+{{ t.recommendation }}
+{% endfor %}
+==================================================================

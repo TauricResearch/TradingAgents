@@ -1,0 +1,35 @@
+# Event Alert — {{ ticker }}
+
+**Triggered:** {{ event.ingested_ts }} · **Source:** {{ event.source }}
+
+## Trigger Event
+
+{{ event.raw_text }}
+
+---
+
+## Consensus
+
+{{ synthesis.consensus }}
+
+## Divergence
+
+{{ synthesis.divergence }}
+
+## Recommendation
+
+**{{ synthesis.recommendation }}**
+
+---
+
+## Per-persona reads
+
+| Persona | Decision |
+|---|---|
+{%- for r in persona_runs %}
+| `{{ r.persona_id }}` | `{{ r.decision }}` |
+{%- endfor %}
+
+---
+
+*Event id: `{{ event.event_id }}`. See `data/runs/<run_id>/pm_synthesis.md` for each persona's full reasoning.*

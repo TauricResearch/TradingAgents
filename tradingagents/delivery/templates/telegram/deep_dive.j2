@@ -1,0 +1,10 @@
+🔍 *Deep-Dive* — {{ scope }}
+{{ generated_ts[:10] }}
+
+{% for t in tickers -%}
+*{{ t.ticker }}*
+• {{ t.consensus | truncate(140) }}
+• {{ t.recommendation | truncate(100) }}
+{% endfor %}
+
+_brief: `{{ brief_id }}`_

@@ -21,6 +21,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_IIC_DB_PATH":          "iic_db_path",
     "TRADINGAGENTS_IIC_DATA_DIR":         "iic_data_dir",
     "TRADINGAGENTS_COST_GUARD_ENABLED":   "cost_guard_enabled",
+    "TRADINGAGENTS_ORCHESTRATOR_ENABLED": "orchestrator_enabled",
 }
 
 
@@ -45,7 +46,32 @@ def _apply_env_overrides(config: dict) -> dict:
     return config
 
 
-DEFAULT_CONFIG = _apply_env_overrides({
+def _apply_nested_env_overrides(config: dict) -> dict:
+    """Custom (non-flat) env overrides that don't fit the _ENV_OVERRIDES table.
+
+    Handles:
+    - TELEGRAM_BOT_ALLOWED_CHAT_IDS: comma-separated numeric Telegram chat ids
+      (.env, never committed) → telegram_bot.allowed_chat_ids as list[int].
+      Empty/unset → leave the committed default ([] = deny-all) untouched.
+    - TELEGRAM_SENSING_CHANNELS: comma-separated public channel usernames the
+      sensing telegram adapter listens to (.env) → telegram_channels as
+      list[str]. A leading '@' is stripped from each. Empty/unset → leave the
+      committed default ([] = listen to nothing) untouched.
+    """
+    raw = os.environ.get("TELEGRAM_BOT_ALLOWED_CHAT_IDS")
+    if raw is not None and raw.strip() != "":
+        chat_ids = [int(tok.strip()) for tok in raw.split(",") if tok.strip()]
+        config.setdefault("telegram_bot", {})["allowed_chat_ids"] = chat_ids
+
+    chans = os.environ.get("TELEGRAM_SENSING_CHANNELS")
+    if chans is not None and chans.strip() != "":
+        config["telegram_channels"] = [
+            tok.strip().lstrip("@") for tok in chans.split(",") if tok.strip()
+        ]
+    return config
+
+
+DEFAULT_CONFIG = _apply_nested_env_overrides(_apply_env_overrides({
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
@@ -80,6 +106,23 @@ DEFAULT_CONFIG = _apply_env_overrides({
         "macro": True,
         "x": False,   # off by default per spec D8 / R-F3-3
     },
+    # IIC-FORGE F4 — autonomous trigger loop (orchestrator)
+    "orchestrator_enabled": False,
+    "promoter_poll_interval_s": 10,
+    "promoter_batch_size": 50,
+    "alert_cooldown_min": 60,
+    "alert_salience_threshold": 0.7,
+    "alert_ticker_confidence_threshold": 0.8,
+    "worker_poll_interval_s": 2,
+    "worker_job_timeout_min": 20,
+    "max_concurrent_jobs": 1,
+    # Cost guards (program-spec Appendix A: enabled=False during F0–F5)
+    "trigger_backpressure_enabled": False,
+    "trigger_backpressure_max_pending": 20,
+    "trigger_daily_rate_enabled": False,
+    "trigger_daily_rate_max_jobs": 200,
+    "daily_budget_enabled": False,
+    "daily_budget_usd": 10.0,
     # Optional cap on the number of resolved memory log entries. When set,
     # the oldest resolved entries are pruned once this limit is exceeded.
     # Pending entries are never pruned. None disables rotation entirely.
@@ -163,4 +206,64 @@ DEFAULT_CONFIG = _apply_env_overrides({
         ".AX":  "^AXJO",    # Australia (ASX 200)
         "":     "SPY",      # default for US-listed tickers (no suffix)
     },
-})
+    # ============================================================
+    # F5 — Delivery + operations
+    # ============================================================
+    "delivery": {
+        "enabled_channels": ["email", "cli"],
+        "quiet_hours": {
+            "enabled": True,
+            "start": "22:00",
+            "end": "07:00",
+        },
+        "digest_modes": {
+            "telegram": "terse",
+            "email": "full",
+            "cli": "full",
+        },
+    },
+    "telegram_bot": {
+        "enabled": True,
+        # Committed default is empty = deny-all (restricted). Populate at
+        # runtime from the TELEGRAM_BOT_ALLOWED_CHAT_IDS env var (.env), a
+        # comma-separated list of numeric chat ids — see the override applied
+        # after _apply_env_overrides below. Never commit real chat ids here.
+        "allowed_chat_ids": [],
+        "poll_interval_seconds": 1,
+    },
+    # F5 delivery: how long a pending Telegram/email action (e.g. an awaiting
+    # confirmation) stays valid before the delivery agent expires it.
+    "brief_action_ttl_hours": 24,
+    "smtp": {
+        "enabled": False,
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "from_addr": "watter008@gmail.com",
+        "to_addrs": ["watter008@gmail.com"],
+    },
+    "morning_digest": {
+        "schedule_local_time": "07:00",
+        "watchlist_source": "db",
+    },
+    "refinement": {
+        "max_depth": 3,
+        "classifier_llm": "quick_think_llm",
+        "action_expires_hours": 24,
+    },
+    "action_handler": {
+        "tick_interval_seconds": 5,
+    },
+    "dashboard": {
+        "enabled": False,
+        "port": 8501,
+        "bind_address": "127.0.0.1",
+    },
+    "refinement_chain_budget": {
+        "enabled": False,
+        "max_usd_per_chain": 10.0,
+    },
+    "morning_digest_token_ceiling": {
+        "enabled": False,
+        "max_in_tokens": 500_000,
+    },
+}))

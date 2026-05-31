@@ -1,0 +1,19 @@
+[Unit]
+Description=IIC-FORGE Telegram bot — callbacks + replies
+After=network.target
+
+[Service]
+Type=simple
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m tradingagents.delivery.telegram_bot
+Restart=on-failure
+RestartSec=10
+MemoryMax=512M
+CPUQuota=30%
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
+
+[Install]
+WantedBy=multi-user.target

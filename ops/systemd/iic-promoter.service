@@ -1,0 +1,28 @@
+# /etc/systemd/system/iic-promoter.service
+#
+# IIC-FORGE F4 — promoter service
+# Polls events table every 10s, enqueues event_alert jobs into queue_jobs.
+# Defensive retry-internal: see tradingagents/orchestrator/promoter.py
+# The exit-gate evaluator (scripts/f4_exit_gate.py) fails the gate if this
+# unit's NRestarts > 0 during the observation window.
+
+[Unit]
+Description=IIC-FORGE — F4 promoter (events → queue_jobs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ziwei-huang
+WorkingDirectory=/home/ziwei-huang/TradingAgents/TradingAgents
+EnvironmentFile=/home/ziwei-huang/TradingAgents/TradingAgents/.env
+ExecStart=/home/ziwei-huang/miniconda3/bin/python -m tradingagents.orchestrator.promoter
+Restart=on-failure
+RestartSec=30
+MemoryMax=256M
+CPUQuota=25%
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
