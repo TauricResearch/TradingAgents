@@ -133,6 +133,17 @@ For local models with Ollama:
 docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
+By default, generated reports, caches, and the decision log are persisted in a
+Docker named volume (`tradingagents_data`), which is not directly browsable
+from the host. To have reports appear on your host filesystem instead — e.g.
+under `./tradingagents_data/logs/<TICKER>/<DATE>/reports/` — set
+`TRADINGAGENTS_DATA_DIR` in `.env` to a host path before bringing the stack up:
+```bash
+mkdir -p ./tradingagents_data
+echo "TRADINGAGENTS_DATA_DIR=./tradingagents_data" >> .env
+docker compose run --rm tradingagents
+```
+
 ### Required APIs
 
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
