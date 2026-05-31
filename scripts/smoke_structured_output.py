@@ -4,7 +4,7 @@ Runs the three decision-making agents (Research Manager, Trader, Portfolio
 Manager) directly with their structured-output bindings and prints the
 typed Pydantic instance + the rendered markdown for each.  Use this to
 verify a provider's native structured-output mode (json_schema for
-OpenAI / xAI / DeepSeek / Qwen / GLM, response_schema for Gemini, tool-use
+OpenAI / xAI / DeepSeek / Mistral / Qwen / GLM, response_schema for Gemini, tool-use
 for Anthropic) returns clean instances on the schemas we ship.
 
 Usage:
@@ -39,6 +39,7 @@ PROVIDER_DEFAULTS = {
     "qwen": ("qwen-plus", None),
     "glm": ("glm-5", None),
     "xai": ("grok-4", None),
+    "mistral": ("mistral-small-2603", None),
 }
 
 
