@@ -53,6 +53,63 @@ def main() -> None:
         "--min-stop-distance-pct", type=float, default=0.0,
         help="Floor stop-loss distance as fraction of reference price (e.g. 0.025 = 2.5%%). 0 disables.",
     )
+    parser.add_argument(
+        "--max-trade-risk-pct", type=float, default=0.020,
+        help="Maximum whole-trade risk as a fraction of equity after risk-capped stop recalculation (default 0.020).",
+    )
+    parser.add_argument(
+        "--max-entry-gap-above-plan-pct", type=float, default=0.010,
+        help="Cancel entry limit orders when the open gaps above plan by more than this fraction (default 0.010).",
+    )
+    parser.add_argument(
+        "--max-add-gap-above-plan-pct", type=float, default=0.008,
+        help="Cancel add limit orders when the open gaps above plan by more than this fraction (default 0.008).",
+    )
+    parser.add_argument(
+        "--obvious-bull-max-entry-gap-pct", type=float, default=0.015,
+        help="Maximum market-entry gap allowed for obvious bull strategies (default 0.015).",
+    )
+    parser.add_argument(
+        "--obvious-bull-max-add-gap-pct", type=float, default=0.005,
+        help="Maximum market-add gap allowed for obvious bull strategies (default 0.005).",
+    )
+    parser.add_argument(
+        "--entry-signal-ttl-trading-days", type=int, default=2,
+        help="Trading-day TTL for pending entry signals (default 2).",
+    )
+    parser.add_argument(
+        "--add-signal-ttl-trading-days", type=int, default=1,
+        help="Trading-day TTL for pending add signals (default 1).",
+    )
+    parser.add_argument(
+        "--max-adds-per-trade", type=int, default=2,
+        help="Maximum number of adds per open trade (default 2).",
+    )
+    parser.add_argument(
+        "--min-days-between-adds", type=int, default=2,
+        help="Minimum trading-day distance between add fills (default 2).",
+    )
+    parser.add_argument(
+        "--max-single-add-pct", type=float, default=8.0,
+        help="Maximum equity percent spent by one add order (default 8).",
+    )
+    parser.add_argument(
+        "--max-position-after-add-pct", type=float, default=0.60,
+        help="Maximum position value as a fraction of equity after an add (default 0.60).",
+    )
+    parser.add_argument(
+        "--allow-shrinking-volume-adds",
+        action="store_true",
+        help="Allow add orders during shrinking volume without close-hold confirmation (default blocks them).",
+    )
+    parser.add_argument(
+        "--shrinking-volume-close-hold-days", type=int, default=2,
+        help="Required consecutive closes above key level before a shrinking-volume add can fill (default 2).",
+    )
+    parser.add_argument(
+        "--add-key-level-tolerance-pct", type=float, default=0.005,
+        help="Tolerance below key level for add close-hold confirmation (default 0.005).",
+    )
     args = parser.parse_args()
 
     engine = BacktestEngine(
@@ -63,6 +120,20 @@ def main() -> None:
         commission=args.commission,
         slippage_bps=args.slippage_bps,
         min_stop_distance_pct=args.min_stop_distance_pct,
+        max_trade_risk_pct=args.max_trade_risk_pct,
+        max_single_add_pct=args.max_single_add_pct,
+        max_position_after_add_pct=args.max_position_after_add_pct,
+        max_adds_per_trade=args.max_adds_per_trade,
+        min_days_between_adds=args.min_days_between_adds,
+        max_entry_gap_above_plan_pct=args.max_entry_gap_above_plan_pct,
+        max_add_gap_above_plan_pct=args.max_add_gap_above_plan_pct,
+        obvious_bull_max_entry_gap_pct=args.obvious_bull_max_entry_gap_pct,
+        obvious_bull_max_add_gap_pct=args.obvious_bull_max_add_gap_pct,
+        entry_signal_ttl_trading_days=args.entry_signal_ttl_trading_days,
+        add_signal_ttl_trading_days=args.add_signal_ttl_trading_days,
+        block_shrinking_volume_adds=not args.allow_shrinking_volume_adds,
+        shrinking_volume_close_hold_days=args.shrinking_volume_close_hold_days,
+        add_key_level_tolerance_pct=args.add_key_level_tolerance_pct,
     )
     try:
         result = engine.run()
@@ -88,6 +159,20 @@ def main() -> None:
         "commission": args.commission,
         "slippage_bps": args.slippage_bps,
         "min_stop_distance_pct": args.min_stop_distance_pct,
+        "max_trade_risk_pct": args.max_trade_risk_pct,
+        "max_single_add_pct": args.max_single_add_pct,
+        "max_position_after_add_pct": args.max_position_after_add_pct,
+        "max_adds_per_trade": args.max_adds_per_trade,
+        "min_days_between_adds": args.min_days_between_adds,
+        "max_entry_gap_above_plan_pct": args.max_entry_gap_above_plan_pct,
+        "max_add_gap_above_plan_pct": args.max_add_gap_above_plan_pct,
+        "obvious_bull_max_entry_gap_pct": args.obvious_bull_max_entry_gap_pct,
+        "obvious_bull_max_add_gap_pct": args.obvious_bull_max_add_gap_pct,
+        "entry_signal_ttl_trading_days": args.entry_signal_ttl_trading_days,
+        "add_signal_ttl_trading_days": args.add_signal_ttl_trading_days,
+        "block_shrinking_volume_adds": not args.allow_shrinking_volume_adds,
+        "shrinking_volume_close_hold_days": args.shrinking_volume_close_hold_days,
+        "add_key_level_tolerance_pct": args.add_key_level_tolerance_pct,
         "output_label": label,
         "output_path": str(out_path),
     }
@@ -101,12 +186,27 @@ def main() -> None:
         "commission": args.commission,
         "slippage_bps": args.slippage_bps,
         "min_stop_distance_pct": args.min_stop_distance_pct,
+        "max_trade_risk_pct": args.max_trade_risk_pct,
+        "max_single_add_pct": args.max_single_add_pct,
+        "max_position_after_add_pct": args.max_position_after_add_pct,
+        "max_adds_per_trade": args.max_adds_per_trade,
+        "min_days_between_adds": args.min_days_between_adds,
+        "max_entry_gap_above_plan_pct": args.max_entry_gap_above_plan_pct,
+        "max_add_gap_above_plan_pct": args.max_add_gap_above_plan_pct,
+        "obvious_bull_max_entry_gap_pct": args.obvious_bull_max_entry_gap_pct,
+        "obvious_bull_max_add_gap_pct": args.obvious_bull_max_add_gap_pct,
+        "entry_signal_ttl_trading_days": args.entry_signal_ttl_trading_days,
+        "add_signal_ttl_trading_days": args.add_signal_ttl_trading_days,
+        "block_shrinking_volume_adds": not args.allow_shrinking_volume_adds,
+        "shrinking_volume_close_hold_days": args.shrinking_volume_close_hold_days,
+        "add_key_level_tolerance_pct": args.add_key_level_tolerance_pct,
         "run_parameters": run_parameters,
         "strategies_loaded": result.strategies_loaded,
         "report": result.report or {},
         "metrics": metrics,
         "trades": result.trades,
         "executions": result.executions,
+        "final_pending_orders": result.final_pending_orders or [],
         "equity_curve": [
             {
                 "date": row.Date.strftime("%Y-%m-%d"),
@@ -132,11 +232,17 @@ def main() -> None:
     print(f"    commission:             {run_parameters['commission']:g}")
     print(f"    slippage_bps:           {run_parameters['slippage_bps']:g}")
     print(f"    min_stop_distance_pct:  {run_parameters['min_stop_distance_pct']:g}")
+    print(f"    max_trade_risk_pct:     {run_parameters['max_trade_risk_pct']:g}")
+    print(f"    add_signal_ttl_days:    {run_parameters['add_signal_ttl_trading_days']}")
+    print(f"    block_shrinking_adds:   {run_parameters['block_shrinking_volume_adds']}")
+    print(f"    obvious_bull_entry_gap: {run_parameters['obvious_bull_max_entry_gap_pct']:g}")
+    print(f"    obvious_bull_add_gap:   {run_parameters['obvious_bull_max_add_gap_pct']:g}")
     print(f"    output_label:           {run_parameters['output_label']}")
     if effective_start != args.start or effective_end != args.end:
         print(f"  Requested range:      {args.start} → {args.end}")
         print(f"  Trading range used:   {effective_start} → {effective_end}")
     print(f"  Strategies loaded:    {result.strategies_loaded}")
+    print(f"  Final pending orders: {len(result.final_pending_orders or [])}")
     if result.report:
         print(f"  Extraction failures:  {result.report['extraction_failures']}")
         print(f"  Schema migrations:    {result.report['schema_migrations']}")
@@ -144,6 +250,11 @@ def main() -> None:
         print(f"  Invalid SELL orders:  {result.report['invalid_sell_orders']}")
         print(f"  Empty strategies:     {result.report['empty_strategies']}")
         print(f"  Expired order rate:   {result.report['expired_order_rate']:.1%}")
+        print(f"  TTL expirations:      {result.report.get('signal_ttl_expired', 0)}")
+        print(f"  Gap buy rejected:     {result.report.get('gap_buy_rejected', 0)}")
+        print(f"  Shrinking adds rej.:  {result.report.get('add_rejected_shrinking_volume', 0)}")
+        print(f"  Risk-size caps:       {result.report.get('entry_capped_risk_size', 0)} entry / {result.report.get('add_capped_risk_size', 0)} add")
+        print(f"  Risk stop adjusted:   {result.report.get('risk_stop_adjusted', 0)}")
         audit = result.report.get("bias_audit", {})
         timing = audit.get("event_timing", {})
         execution = audit.get("execution_quality", {})

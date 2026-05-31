@@ -41,6 +41,25 @@ def write_strategy(strategy_dir, ticker, trade_date, **overrides):
     return path
 
 
+def structure_with_volume(volume, support=9.5, resistance=None):
+    resistance = support * 1.05 if resistance is None else resistance
+    return {
+        "short_term_structure": {
+            "trend": "ascending",
+            "structure_quality": "coherent",
+            "pattern": "Higher High Higher Low",
+            "support": support,
+            "resistance": resistance,
+            "volume_confirmation": volume,
+        },
+        "long_term_structure": {
+            "trend": "ascending",
+            "market_phase": "healthy_bull_trend",
+            "key_level": support,
+        },
+    }
+
+
 class BacktestEngineTest(unittest.TestCase):
     def test_valid_until_expires_pending_entry(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -110,6 +129,415 @@ class BacktestEngineTest(unittest.TestCase):
         self.assertEqual(result.executions[0]["signal_date"], "2025-01-01")
         self.assertEqual(result.executions[0]["fill_date"], "2025-01-02")
         self.assertEqual(result.report["bias_audit"]["event_timing"]["same_bar_signal_fills"], 0)
+
+    def test_entry_signal_ttl_expires_stale_limit_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-10",
+                entry={"price": 10.0, "size_pct": 100.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 11.0, "High": 11.0, "Low": 11.0, "Close": 11.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 11.0, "High": 11.0, "Low": 11.0, "Close": 11.0},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 11.0, "High": 11.0, "Low": 9.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-03",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                entry_signal_ttl_trading_days=1,
+            ).run()
+
+        self.assertEqual(result.executions, [])
+        self.assertEqual(result.report["signal_ttl_expired"], 1)
+
+    def test_gap_above_plan_rejects_buy_instead_of_chasing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 100.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.20, "High": 10.30, "Low": 9.80, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_entry_gap_above_plan_pct=0.01,
+            ).run()
+
+        self.assertEqual(result.executions, [])
+        self.assertEqual(result.report["gap_buy_rejected"], 1)
+
+    def test_gap_above_signal_close_rejects_market_buy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": None, "size_pct": 100.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.2, "High": 10.3, "Low": 10.1, "Close": 10.2},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_entry_gap_above_plan_pct=0.01,
+            ).run()
+
+        self.assertEqual(result.executions, [])
+        self.assertEqual(result.report["gap_buy_rejected"], 1)
+
+    def test_obvious_bull_market_entry_can_chase_small_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": None, "size_pct": 100.0},
+                rationale_summary="obvious bull trend-following override: relaxed add/chase/take-profit rules.",
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.1, "High": 10.3, "Low": 10.1, "Close": 10.2},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_entry_gap_above_plan_pct=0.01,
+            ).run()
+
+        self.assertEqual(result.report["gap_buy_rejected"], 0)
+        self.assertEqual(result.executions[0]["order_type"], "entry")
+
+    def test_obvious_bull_market_entry_rejects_large_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": None, "size_pct": 100.0},
+                rationale_summary="obvious bull trend-following override: relaxed add/chase/take-profit rules.",
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.2, "High": 10.3, "Low": 10.1, "Close": 10.2},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_entry_gap_above_plan_pct=0.01,
+            ).run()
+
+        self.assertEqual(result.executions, [])
+        self.assertEqual(result.report["gap_buy_rejected"], 1)
+
+    def test_obvious_bull_market_add_uses_stricter_gap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 50.0},
+                rationale_summary="seed",
+            )
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-02",
+                valid_until="2025-01-03",
+                entry={"price": None, "size_pct": 0.0},
+                add_position={"price": None, "size_pct": 20.0},
+                rationale_summary="obvious bull trend-following override: relaxed add/chase/take-profit rules.",
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 10.06, "High": 10.1, "Low": 10.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-03",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_add_gap_above_plan_pct=0.008,
+                obvious_bull_max_add_gap_pct=0.005,
+            ).run()
+
+        buy_executions = [e for e in result.executions if e["side"] == "BUY"]
+        self.assertEqual(len(buy_executions), 1)
+        self.assertEqual(result.report["gap_buy_rejected"], 1)
+
+    def test_risk_cap_recalculates_whole_position_stop_after_add(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 50.0},
+                stop_loss={"price": None},
+            )
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-02",
+                valid_until="2025-01-03",
+                entry={"price": None, "size_pct": 0.0},
+                add_position={"price": 10.0, "size_pct": 50.0},
+                stop_loss={"price": None},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-03",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_trade_risk_pct=0.02,
+            ).run()
+
+        self.assertAlmostEqual(result.final_position["stop_loss"], 9.8)
+        self.assertEqual(result.final_position["add_count"], 1)
+        self.assertEqual(result.report["risk_stop_adjusted"], 2)
+
+    def test_entry_size_is_capped_to_planned_trade_risk(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 100.0},
+                stop_loss={"price": 8.0},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                max_trade_risk_pct=0.02,
+            ).run()
+
+        self.assertAlmostEqual(result.executions[0]["shares"], 1.0)
+        self.assertAlmostEqual(result.equity_curve.iloc[-1]["Cash"], 90.0)
+        self.assertEqual(result.report["entry_capped_risk_size"], 1)
+        self.assertEqual(result.report["risk_stop_adjusted"], 0)
+
+    def test_shrinking_volume_add_is_rejected_without_close_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 50.0},
+                stop_loss={"price": 9.0},
+            )
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-02",
+                valid_until="2025-01-03",
+                entry={"price": None, "size_pct": 0.0},
+                add_position={"price": 10.0, "size_pct": 20.0},
+                stop_loss={"price": 9.0},
+                structure_analysis=structure_with_volume("shrinking", support=10.5),
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-03",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                block_shrinking_volume_adds=True,
+            ).run()
+
+        buy_executions = [e for e in result.executions if e["side"] == "BUY"]
+        self.assertEqual(len(buy_executions), 1)
+        self.assertEqual(result.report["add_rejected_shrinking_volume"], 1)
+
+    def test_shrinking_volume_add_can_fill_after_close_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-02",
+                entry={"price": 10.0, "size_pct": 50.0},
+                stop_loss={"price": 9.0},
+            )
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-02",
+                valid_until="2025-01-03",
+                entry={"price": None, "size_pct": 0.0},
+                add_position={"price": 10.0, "size_pct": 20.0},
+                stop_loss={"price": 9.0},
+                structure_analysis=structure_with_volume("shrinking", support=9.5, resistance=9.9),
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-03"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-03",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                block_shrinking_volume_adds=True,
+                shrinking_volume_close_hold_days=2,
+            ).run()
+
+        buy_executions = [e for e in result.executions if e["side"] == "BUY"]
+        self.assertEqual(len(buy_executions), 2)
+        self.assertEqual(result.report["add_rejected_shrinking_volume"], 0)
+
+    def test_valid_until_caps_pending_order_ttl_across_strategy_rotation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            strategy_dir = Path(tmp)
+            ticker = "TEST"
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2024-12-31",
+                valid_until="2025-01-01",
+                entry={"price": 9.0, "size_pct": 100.0},
+            )
+            write_strategy(
+                strategy_dir,
+                ticker,
+                "2025-01-01",
+                valid_until="2025-01-03",
+                action="HOLD",
+                entry={"price": None, "size_pct": 0.0},
+                take_profit={"price": None, "size_pct": 0.0},
+                stop_loss={"price": None},
+            )
+            prices = pd.DataFrame(
+                [
+                    {"Date": pd.Timestamp("2025-01-01"), "Open": 10.0, "High": 10.0, "Low": 10.0, "Close": 10.0},
+                    {"Date": pd.Timestamp("2025-01-02"), "Open": 10.0, "High": 10.0, "Low": 9.0, "Close": 10.0},
+                ]
+            )
+
+            result = StaticPriceBacktestEngine(
+                ticker,
+                "2025-01-01",
+                "2025-01-02",
+                initial_capital=100.0,
+                strategies_dir=strategy_dir,
+                prices=prices,
+                entry_signal_ttl_trading_days=5,
+            ).run()
+
+        self.assertEqual(result.executions, [])
+        self.assertEqual(result.report["signal_ttl_expired"], 1)
 
     def test_trade_route_records_stock_and_index_context_on_fills(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -919,7 +1347,6 @@ class BacktestEngineTest(unittest.TestCase):
         # Stop did not fire — only the end_of_backtest mark remains.
         reasons = [t["reason"] for t in result.trades]
         self.assertNotIn("stop_loss", reasons)
-
 
 if __name__ == "__main__":
     unittest.main()

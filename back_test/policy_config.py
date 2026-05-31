@@ -136,6 +136,62 @@ class PortfolioStatePolicyConfig:
     # 弱上升趋势且量能偏软时的最高加仓比例。
     weak_uptrend_soft_volume_add_max_pct: float = _opt(4.0, 0.0, 100.0)
 
+    # 加仓前是否要求“突破后回踩不破”或“连续收盘站稳关键位”等确认。
+    add_requires_confirmation: bool = True
+    # 加仓确认模式：pullback_or_close_hold / disabled。由策略生成端解释。
+    add_confirmation_mode: str = "pullback_or_close_hold"
+    # 回踩不破所需交易日数。
+    add_pullback_hold_days: int = _opt(1, 1, 10, dtype="int")
+    # 连续收盘站稳关键位所需交易日数。
+    add_close_hold_days: int = _opt(2, 1, 10, dtype="int")
+    # 关键位确认容忍度，0.005 = 允许 0.5% 噪声。
+    add_key_level_tolerance_pct: float = _opt(0.005, 0.0, 0.05)
+
+    # 整笔交易最大账户风险，0.020 = 账户权益 2%。
+    max_trade_risk_pct: float = _opt(0.020, 0.0, 0.10)
+    # 单次加仓最大权益占比。
+    max_single_add_pct: float = _opt(8.0, 0.0, 100.0)
+    # 加仓后总仓位最大权益占比。
+    max_position_after_add_pct: float = _opt(0.60, 0.0, 1.0)
+    # 每笔交易最多允许加仓次数。
+    max_adds_per_trade: int = _opt(2, 0, 20, dtype="int")
+    # 两次加仓之间至少间隔的交易日。
+    min_days_between_adds: int = _opt(2, 0, 20, dtype="int")
+
+    # 买入信号跳空追价保护。开盘高于计划买入价超过阈值则取消该订单。
+    max_entry_gap_above_plan_pct: float = _opt(0.010, 0.0, 0.20)
+    max_add_gap_above_plan_pct: float = _opt(0.008, 0.0, 0.20)
+    allow_market_entry_gap_chase: bool = False
+
+    # 旧信号有效期，按交易日计算。
+    entry_signal_ttl_trading_days: int = _opt(2, 1, 20, dtype="int")
+    add_signal_ttl_trading_days: int = _opt(1, 1, 20, dtype="int")
+    take_profit_signal_ttl_trading_days: int = _opt(5, 1, 60, dtype="int")
+    reduce_stop_signal_ttl_trading_days: int = _opt(3, 1, 60, dtype="int")
+
+    # 加仓/建仓后按整笔风险上限重新抬高止损。
+    recalculate_stop_after_add: bool = True
+    stop_policy_after_add: str = "risk_capped"
+
+    # 明显牛市时启用顺趋势覆盖：放宽追买、加仓和止盈距离，但执行层风险上限仍生效。
+    obvious_bull_trend_following_enabled: bool = True
+    obvious_bull_min_trend_direction: float = _opt(0.55, 0.0, 1.0)
+    obvious_bull_min_trend_strength: float = _opt(0.65, 0.0, 1.0)
+    obvious_bull_min_momentum: float = _opt(0.45, 0.0, 1.0)
+    obvious_bull_max_risk_pressure: float = _opt(0.45, 0.0, 1.0)
+    obvious_bull_min_confidence: float = _opt(0.60, 0.0, 1.0)
+    obvious_bull_add_max_pct: float = _opt(15.0, 0.0, 100.0)
+    obvious_bull_position_cap: float = _opt(0.85, 0.0, 1.0)
+    obvious_bull_take_profit_atr_multiple: float = _opt(3.5, 0.1, 10.0)
+    obvious_bull_take_profit_size_pct: float = _opt(10.0, 0.0, 100.0)
+    obvious_bull_recent_high_multiplier: float = _opt(1.03, 1.0, 2.0)
+    obvious_bull_relax_add_confirmation: bool = False
+    obvious_bull_allow_market_entry: bool = True
+    obvious_bull_allow_entry_gap_chase: bool = True
+    obvious_bull_allow_add_gap_chase: bool = False
+    obvious_bull_max_entry_gap_pct: float = _opt(0.015, 0.0, 0.20)
+    obvious_bull_max_add_gap_pct: float = _opt(0.005, 0.0, 0.20)
+
     # 出现 bearish 成交量背离时的减仓比例。
     bearish_divergence_reduce_pct: float = _opt(30.0, 0.0, 100.0)
     # bearish 背离保护止损使用的 ATR 倍数。
@@ -313,6 +369,24 @@ def add_portfolio_state_policy_args(parser) -> None:
         dest="ps_max_target_weight", help="覆盖全局最高目标仓位，例如 0.8。默认使用策略档位。")
     group.add_argument("--ps-add-max", type=float, default=None,
         dest="ps_add_max_pct", help="覆盖单次加仓上限百分比，同时作用于普通、回调和弱趋势软量能加仓。")
+    group.add_argument("--ps-max-trade-risk", type=float, default=None,
+        dest="ps_max_trade_risk_pct", help="整笔交易最大账户风险，例如 0.020 表示 2%。")
+    group.add_argument("--ps-add-ttl", type=int, default=None,
+        dest="ps_add_signal_ttl_trading_days", help="加仓信号有效交易日数，默认 1。")
+    group.add_argument("--ps-entry-ttl", type=int, default=None,
+        dest="ps_entry_signal_ttl_trading_days", help="建仓信号有效交易日数，默认 2。")
+    group.add_argument("--ps-add-gap", type=float, default=None,
+        dest="ps_max_add_gap_above_plan_pct", help="加仓开盘跳空高于计划价的放弃阈值，默认 0.008。")
+    group.add_argument("--ps-obvious-bull", action="store_true",
+        dest="ps_obvious_bull_trend_following_enabled", help="明显牛市时启用顺趋势覆盖，放宽追买、加仓和止盈。")
+    group.add_argument("--ps-obvious-bull-add-max", type=float, default=None,
+        dest="ps_obvious_bull_add_max_pct", help="明显牛市下单次加仓上限百分比，默认 15。")
+    group.add_argument("--ps-obvious-bull-cap", type=float, default=None,
+        dest="ps_obvious_bull_position_cap", help="明显牛市下目标仓位上限，默认 0.85。")
+    group.add_argument("--ps-obvious-bull-entry-gap", type=float, default=None,
+        dest="ps_obvious_bull_max_entry_gap_pct", help="明显牛市下建仓可追跳空阈值，默认 0.015。")
+    group.add_argument("--ps-obvious-bull-add-gap", type=float, default=None,
+        dest="ps_obvious_bull_max_add_gap_pct", help="明显牛市下加仓可接受跳空阈值，默认 0.005。")
 
     _add_legacy_portfolio_state_policy_args(group)
 
@@ -455,6 +529,14 @@ def portfolio_state_policy_config_from_args(args) -> dict[str, Any]:
         "ps_default_add_max_pct": "default_add_max_pct",
         "ps_pullback_entry_add_max_pct": "pullback_entry_add_max_pct",
         "ps_bearish_divergence_reduce_pct": "bearish_divergence_reduce_pct",
+        "ps_max_trade_risk_pct": "max_trade_risk_pct",
+        "ps_add_signal_ttl_trading_days": "add_signal_ttl_trading_days",
+        "ps_entry_signal_ttl_trading_days": "entry_signal_ttl_trading_days",
+        "ps_max_add_gap_above_plan_pct": "max_add_gap_above_plan_pct",
+        "ps_obvious_bull_add_max_pct": "obvious_bull_add_max_pct",
+        "ps_obvious_bull_position_cap": "obvious_bull_position_cap",
+        "ps_obvious_bull_max_entry_gap_pct": "obvious_bull_max_entry_gap_pct",
+        "ps_obvious_bull_max_add_gap_pct": "obvious_bull_max_add_gap_pct",
         "ps_market_context_ticker": "market_context_ticker",
     }
     for arg_name, config_name in legacy_mapping.items():
@@ -475,6 +557,9 @@ def portfolio_state_policy_config_from_args(args) -> dict[str, Any]:
 
     if getattr(args, "ps_disable_market_context", False):
         config["market_context_enabled"] = False
+
+    if getattr(args, "ps_obvious_bull_trend_following_enabled", False):
+        config["obvious_bull_trend_following_enabled"] = True
 
     return config
 

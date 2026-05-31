@@ -686,6 +686,8 @@ def _compute_short_term_market_anchors(
         "recent_low_10d": round(float(low.tail(10).min()), 4),
         "recent_high_20d": round(float(high.tail(20).max()), 4),
         "recent_low_20d": round(float(low.tail(20).min()), 4),
+        "recent_closes_5d": [round(float(v), 4) for v in close.tail(5).tolist()],
+        "recent_lows_5d": [round(float(v), 4) for v in low.tail(5).tolist()],
         "nearest_resistance": round(resistance, 4) if resistance is not None else None,
         "nearest_support": round(support, 4) if support is not None else None,
         "latest_volume": round(latest_volume, 4) if latest_volume is not None else None,
@@ -1126,6 +1128,130 @@ def _load_recent_phases(ticker: str, trade_date: str, n: int = 2) -> list[str]:
     return phases
 
 
+def _add_confirmation_passes(
+    anchors: dict,
+    config: PortfolioStatePolicyConfig,
+    support: Optional[float],
+) -> tuple[bool, str]:
+    if not config.add_requires_confirmation or config.add_confirmation_mode == "disabled":
+        return True, "add confirmation disabled."
+
+    current = float(anchors["current_price"])
+    key_level = support or anchors.get("ema10") or anchors.get("ema20")
+    if key_level is None:
+        return False, "add blocked: no key level available for confirmation."
+
+    key_level = float(key_level)
+    tolerance = float(config.add_key_level_tolerance_pct)
+    floor = key_level * (1.0 - tolerance)
+    recent_lows = [float(v) for v in anchors.get("recent_lows_5d") or []]
+    recent_closes = [float(v) for v in anchors.get("recent_closes_5d") or []]
+
+    pullback_days = max(1, int(config.add_pullback_hold_days))
+    if len(recent_lows) >= pullback_days:
+        pullback_lows = recent_lows[-pullback_days:]
+        if min(pullback_lows) >= floor and current >= floor:
+            return True, (
+                f"add confirmed: pullback held key level {key_level:.2f} "
+                f"for {pullback_days} trading day(s)."
+            )
+
+    close_days = max(1, int(config.add_close_hold_days))
+    if len(recent_closes) >= close_days:
+        close_window = recent_closes[-close_days:]
+        if min(close_window) >= floor:
+            return True, (
+                f"add confirmed: closes held key level {key_level:.2f} "
+                f"for {close_days} trading day(s)."
+            )
+
+    return False, (
+        f"add blocked: price has not held key level {key_level:.2f} by "
+        "pullback or consecutive close confirmation."
+    )
+
+
+def _close_hold_confirmation_passes(
+    anchors: dict,
+    config: PortfolioStatePolicyConfig,
+    support: Optional[float],
+) -> bool:
+    key_level = support or anchors.get("ema10") or anchors.get("ema20")
+    if key_level is None:
+        return False
+    key_level = float(key_level)
+    floor = key_level * (1.0 - float(config.add_key_level_tolerance_pct))
+    recent_closes = [float(v) for v in anchors.get("recent_closes_5d") or []]
+    close_days = max(1, int(config.add_close_hold_days))
+    if len(recent_closes) < close_days:
+        return False
+    return min(recent_closes[-close_days:]) >= floor
+
+
+def _obvious_bull_trend_following_override(
+    state: MarketState,
+    anchors: dict,
+    config: PortfolioStatePolicyConfig,
+    market_context_state: Optional[MarketState],
+    market_context_blocks_add: bool,
+    volume_regime: str,
+    support: Optional[float],
+) -> bool:
+    if not config.obvious_bull_trend_following_enabled:
+        return False
+    if not _is_short_term_uptrend(anchors):
+        return False
+    if state.regime not in {"strong_uptrend", "weak_uptrend"}:
+        return False
+    if state.market_phase not in _ANY_BULL_PHASE:
+        return False
+    if state.trend_direction_score < config.obvious_bull_min_trend_direction:
+        return False
+    if state.trend_strength < config.obvious_bull_min_trend_strength:
+        return False
+    if state.momentum_score_value < config.obvious_bull_min_momentum:
+        return False
+    if state.risk_pressure_score > config.obvious_bull_max_risk_pressure:
+        return False
+    if state.confidence < config.obvious_bull_min_confidence:
+        return False
+    if market_context_blocks_add:
+        return False
+    if market_context_state is not None:
+        if market_context_state.trend_direction_score < 0:
+            return False
+        if market_context_state.risk_pressure_score >= 0.65:
+            return False
+
+    structure = anchors.get("structure_analysis") or {}
+    short = structure.get("short_term_structure") or {}
+    long = structure.get("long_term_structure") or {}
+    if long.get("trend") != "ascending" or long.get("market_phase") != "healthy_bull_trend":
+        return False
+    if short.get("trend") in {"fragmented", "unclear"}:
+        return False
+    if short.get("structure_quality") in {"fragmented", "unclear"}:
+        return False
+
+    banned_patterns = {
+        "Lower High Lower Low",
+        "Bearish Engulfing",
+        "Head and Shoulders",
+    }
+    if short.get("pattern") in banned_patterns:
+        return False
+    for pattern in structure.get("detected_patterns") or []:
+        if pattern.get("name") in banned_patterns:
+            return False
+
+    volume_confirmation = short.get("volume_confirmation")
+    if (
+        volume_confirmation == "shrinking" or volume_regime == "shrinking"
+    ) and not _close_hold_confirmation_passes(anchors, config, support):
+        return False
+    return True
+
+
 def policy_from_market_state(
     state: MarketState,
     anchors: dict,
@@ -1272,6 +1398,25 @@ def policy_from_market_state(
     )
     if broad_uptrend_override:
         notes.append("broad-index strong uptrend: phase block_new bypassed.")
+
+    obvious_bull_override = _obvious_bull_trend_following_override(
+        state,
+        anchors,
+        config,
+        market_context_state,
+        market_context_blocks_add,
+        volume_regime,
+        support,
+    )
+    if obvious_bull_override:
+        notes.append(
+            "obvious bull trend-following override: relaxed add/chase/take-profit rules."
+        )
+        effective_phase = (
+            "accelerating_bull"
+            if effective_phase == "early_bull_reversal"
+            else effective_phase
+        )
 
     phase_mod = phase_modifiers.get(effective_phase, {})
 
@@ -1570,6 +1715,9 @@ def policy_from_market_state(
         volume_regime,
         _DEFAULT_VOLUME_MULTIPLIER["unavailable"],
     )
+    if obvious_bull_override:
+        multiplier = max(multiplier, 0.80)
+        notes.append("obvious bull: volume multiplier floor raised to 0.80.")
     target_weight *= multiplier
     if volume_regime == "unavailable":
         target_weight = min(target_weight, config.unavailable_volume_cap)
@@ -1584,6 +1732,13 @@ def policy_from_market_state(
         notes.append("bearish_volume_divergence: blocking new entries.")
         target_weight = 0.0
     
+    if obvious_bull_override:
+        target_weight = max(
+            target_weight,
+            min(config.strong_uptrend_floor, config.obvious_bull_position_cap),
+        )
+        target_weight = min(target_weight, config.obvious_bull_position_cap)
+
     target_weight = max(0.0, min(target_weight, config.max_target_weight))
 
     # Bearish divergence + has_position → defensive reduce_stop, not new orders.
@@ -1637,12 +1792,21 @@ def policy_from_market_state(
     trend_market_entry = (
         phase_mod.get("trend_market_entry") or effective_regime == "strong_uptrend"
     )
+    if obvious_bull_override and config.obvious_bull_allow_market_entry:
+        trend_market_entry = True
     pullback_buy = bool(phase_mod.get("pullback_buy"))
-    block_new = bool(phase_mod.get("block_new_position")) and not broad_uptrend_override
+    block_new = (
+        bool(phase_mod.get("block_new_position"))
+        and not broad_uptrend_override
+        and not obvious_bull_override
+    )
     # broad_uptrend_override only relaxes the new-entry block. It must NOT force
     # allow_add=True, otherwise overextended_bull / late_bull_distribution lose
     # their explicit "no add" semantics and the policy adds against LLM warnings.
-    allow_add = phase_mod.get("allow_add", True) and not market_context_blocks_add
+    allow_add = (
+        (phase_mod.get("allow_add", True) or obvious_bull_override)
+        and not market_context_blocks_add
+    )
 
     if block_new:
         # has_position branch — keep core, no new entry, no add. Stop and TP still set.
@@ -1656,7 +1820,11 @@ def policy_from_market_state(
         add_size = (
             round(
                 min(
-                    config.pullback_entry_add_max_pct,
+                    (
+                        config.obvious_bull_add_max_pct
+                        if obvious_bull_override
+                        else config.pullback_entry_add_max_pct
+                    ),
                     target_weight * config.pullback_entry_add_weight_multiplier,
                 ),
                 1,
@@ -1676,7 +1844,11 @@ def policy_from_market_state(
         add_size = (
             round(
                 min(
-                    config.default_add_max_pct,
+                    (
+                        config.obvious_bull_add_max_pct
+                        if obvious_bull_override
+                        else config.default_add_max_pct
+                    ),
                     target_weight * config.default_add_weight_multiplier,
                 ),
                 1,
@@ -1694,6 +1866,19 @@ def policy_from_market_state(
                 f"{config.weak_uptrend_soft_volume_add_max_pct:g}%."
             )
 
+    if add_size > 0:
+        if obvious_bull_override and config.obvious_bull_relax_add_confirmation:
+            notes.append("obvious bull: add confirmation relaxed.")
+        else:
+            confirmed, confirmation_note = _add_confirmation_passes(
+                anchors,
+                config,
+                support,
+            )
+            notes.append(confirmation_note)
+            if not confirmed:
+                add_size = 0.0
+
     # Stop loss: 2.5 ATR floor in trend regimes so normal volatility doesn't
     # whipsaw out. Use whichever (support or 2.5*ATR-below) is FURTHER, not closer.
     stop_base = support if support is not None else current - config.stop_loss_atr_multiple * atr
@@ -1703,7 +1888,15 @@ def policy_from_market_state(
     # 10-day high instead of taking profit too close to current price.
     recent_high_10d = anchors.get("recent_high_10d") or anchors.get("recent_high_20d")
     tp_far_phases = {"healthy_bull_trend", "accelerating_bull", "bull_pullback"}
-    if effective_phase in tp_far_phases or effective_regime == "strong_uptrend":
+    if obvious_bull_override:
+        atr_target = current + config.obvious_bull_take_profit_atr_multiple * atr
+        if recent_high_10d is not None:
+            atr_target = max(
+                atr_target,
+                float(recent_high_10d) * config.obvious_bull_recent_high_multiplier,
+            )
+        take_profit_price = round(atr_target, 2)
+    elif effective_phase in tp_far_phases or effective_regime == "strong_uptrend":
         atr_target = current + config.trend_take_profit_atr_multiple * atr
         if recent_high_10d is not None:
             atr_target = max(
@@ -1720,7 +1913,9 @@ def policy_from_market_state(
         )
 
     phase_tp_size = phase_mod.get("tp_size")
-    if phase_tp_size is not None:
+    if obvious_bull_override:
+        take_profit_size = config.obvious_bull_take_profit_size_pct
+    elif phase_tp_size is not None:
         take_profit_size = phase_tp_size
     elif effective_regime == "strong_uptrend":
         take_profit_size = config.strong_uptrend_take_profit_size_pct

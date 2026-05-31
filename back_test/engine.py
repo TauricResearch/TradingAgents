@@ -63,6 +63,8 @@ class Position:
     shares: float
     stop_loss: Optional[float] = None
     stop_loss_as_of: Optional[str] = None
+    add_count: int = 0
+    last_add_date: Optional[str] = None
     exit_date: Optional[str] = None
     exit_price: Optional[float] = None
     pnl: Optional[float] = None  # realized $
@@ -77,6 +79,12 @@ class PendingOrder:
     limit_price: Optional[float]
     size_pct: float
     stop_loss: Optional[float]
+    expires_after: Optional[pd.Timestamp] = None
+    valid_until: Optional[pd.Timestamp] = None
+    reference_price: Optional[float] = None
+    gap_chase_threshold_pct: Optional[float] = None
+    volume_confirmation: Optional[str] = None
+    key_level: Optional[float] = None
 
 
 @dataclass
@@ -110,6 +118,26 @@ class BacktestEngine:
         commission: float = 0.0,
         slippage_bps: float = 0.0,
         min_stop_distance_pct: float = 0.0,
+        max_trade_risk_pct: float = 0.0,
+        max_single_add_pct: float = 100.0,
+        max_position_after_add_pct: float = 1.0,
+        max_adds_per_trade: int = 999,
+        min_days_between_adds: int = 0,
+        max_entry_gap_above_plan_pct: float = 0.0,
+        max_add_gap_above_plan_pct: float = 0.0,
+        allow_market_entry_gap_chase: bool = False,
+        obvious_bull_allow_entry_gap_chase: bool = True,
+        obvious_bull_allow_add_gap_chase: bool = False,
+        obvious_bull_max_entry_gap_pct: float = 0.015,
+        obvious_bull_max_add_gap_pct: float = 0.005,
+        entry_signal_ttl_trading_days: int = 999,
+        add_signal_ttl_trading_days: int = 999,
+        take_profit_signal_ttl_trading_days: int = 999,
+        reduce_stop_signal_ttl_trading_days: int = 999,
+        recalculate_stop_after_add: bool = True,
+        block_shrinking_volume_adds: bool = False,
+        shrinking_volume_close_hold_days: int = 2,
+        add_key_level_tolerance_pct: float = 0.005,
     ):
         self.ticker = ticker
         self.start_date = pd.to_datetime(start_date)
@@ -119,6 +147,29 @@ class BacktestEngine:
         self.commission = float(commission)
         self.slippage_bps = float(slippage_bps)
         self.min_stop_distance_pct = float(min_stop_distance_pct)
+        self.max_trade_risk_pct = float(max_trade_risk_pct)
+        self.max_single_add_pct = float(max_single_add_pct)
+        self.max_position_after_add_pct = float(max_position_after_add_pct)
+        self.max_adds_per_trade = int(max_adds_per_trade)
+        self.min_days_between_adds = int(min_days_between_adds)
+        self.max_entry_gap_above_plan_pct = float(max_entry_gap_above_plan_pct)
+        self.max_add_gap_above_plan_pct = float(max_add_gap_above_plan_pct)
+        self.allow_market_entry_gap_chase = bool(allow_market_entry_gap_chase)
+        self.obvious_bull_allow_entry_gap_chase = bool(obvious_bull_allow_entry_gap_chase)
+        self.obvious_bull_allow_add_gap_chase = bool(obvious_bull_allow_add_gap_chase)
+        self.obvious_bull_max_entry_gap_pct = float(obvious_bull_max_entry_gap_pct)
+        self.obvious_bull_max_add_gap_pct = float(obvious_bull_max_add_gap_pct)
+        self.signal_ttl_trading_days = {
+            "entry": int(entry_signal_ttl_trading_days),
+            "add": int(add_signal_ttl_trading_days),
+            "take_profit": int(take_profit_signal_ttl_trading_days),
+            "reduce_stop": int(reduce_stop_signal_ttl_trading_days),
+        }
+        self.recalculate_stop_after_add = bool(recalculate_stop_after_add)
+        self.block_shrinking_volume_adds = bool(block_shrinking_volume_adds)
+        self.shrinking_volume_close_hold_days = int(shrinking_volume_close_hold_days)
+        self.add_key_level_tolerance_pct = float(add_key_level_tolerance_pct)
+        self._trading_days: Optional[pd.Series] = None
         self.extraction_failures = 0
         self.schema_migrations = 0
         self.schema_rejections = 0
@@ -131,6 +182,17 @@ class BacktestEngine:
         self.stop_widened = 0
         self.stop_downgrades_blocked = 0
         self.stop_upgrades_applied = 0
+        self.signal_ttl_expired = 0
+        self.gap_buy_rejected = 0
+        self.add_rejected_max_adds = 0
+        self.add_rejected_min_spacing = 0
+        self.add_capped_single_size = 0
+        self.add_capped_position_size = 0
+        self.entry_capped_risk_size = 0
+        self.add_capped_risk_size = 0
+        self.buy_rejected_risk_budget = 0
+        self.add_rejected_shrinking_volume = 0
+        self.risk_stop_adjusted = 0
 
     # ----------------------------------------------------------- load helpers
     def load_strategies(self) -> List[dict]:
@@ -249,6 +311,11 @@ class BacktestEngine:
         # pending orders, but it no longer cancels every older pending order
         # just because the weekly review rotated.
         trading_days = normalize_trading_days(prices["Date"])
+        self._trading_days = trading_days
+        close_by_date = {
+            row["Date"].strftime("%Y-%m-%d"): float(row["Close"])
+            for _, row in prices.iterrows()
+        }
         for strat in strategies:
             strat["_active_from"] = self._next_trading_day(trading_days, strat["as_of_date"])
 
@@ -307,6 +374,8 @@ class BacktestEngine:
                     # to the position. A strategy that wants to change sl
                     # must do so by issuing a new order with that sl.
                     new_orders = self._build_pending_orders(active_strategy, cash, position)
+                    self._assign_order_expiries(new_orders, trading_days)
+                    self._assign_order_reference_prices(new_orders, close_by_date)
                     expired_count, pending_orders = self._merge_pending_orders(
                         pending_orders,
                         new_orders,
@@ -314,6 +383,14 @@ class BacktestEngine:
                     )
                     expired_orders += expired_count
                     orders_created += len(new_orders)
+
+            # Drop stale orders before evaluating this bar. A 1-day add signal
+            # can only fill on the first trading day after it was generated.
+            expired_count, pending_orders = self._prune_expired_orders(
+                pending_orders,
+                date,
+            )
+            expired_orders += expired_count
 
             # 2) Check stop-loss on the open position FIRST (more conservative).
             # A position opened later in this same bar is not checked again until the next bar.
@@ -404,6 +481,12 @@ class BacktestEngine:
             if pending_orders:
                 still_pending = []
                 for order in pending_orders:
+                    if self._should_reject_shrinking_volume_add(order, close_by_date):
+                        self.add_rejected_shrinking_volume += 1
+                        continue
+                    if self._should_reject_gap_buy(day_open, order):
+                        self.gap_buy_rejected += 1
+                        continue
                     fill = self._buy_order_fill_price(day_open, day_low, order)
                     if order.order_type in {"entry", "add"} and fill is not None:
                         fill_price, fill_basis = fill
@@ -446,6 +529,8 @@ class BacktestEngine:
                 "shares": position.shares,
                 "stop_loss": position.stop_loss,
                 "stop_loss_as_of": position.stop_loss_as_of,
+                "add_count": position.add_count,
+                "last_add_date": position.last_add_date,
             }
 
         final_pending_orders = [
@@ -455,6 +540,20 @@ class BacktestEngine:
                 "limit_price": o.limit_price,
                 "size_pct": o.size_pct,
                 "stop_loss": o.stop_loss,
+                "expires_after": (
+                    o.expires_after.strftime("%Y-%m-%d")
+                    if o.expires_after is not None
+                    else None
+                ),
+                "valid_until": (
+                    o.valid_until.strftime("%Y-%m-%d")
+                    if o.valid_until is not None
+                    else None
+                ),
+                "reference_price": o.reference_price,
+                "gap_chase_threshold_pct": o.gap_chase_threshold_pct,
+                "volume_confirmation": o.volume_confirmation,
+                "key_level": o.key_level,
             }
             for o in pending_orders
         ]
@@ -489,9 +588,32 @@ class BacktestEngine:
             "stop_widened": self.stop_widened,
             "stop_downgrades_blocked": self.stop_downgrades_blocked,
             "stop_upgrades_applied": self.stop_upgrades_applied,
+            "signal_ttl_expired": self.signal_ttl_expired,
+            "gap_buy_rejected": self.gap_buy_rejected,
+            "add_rejected_max_adds": self.add_rejected_max_adds,
+            "add_rejected_min_spacing": self.add_rejected_min_spacing,
+            "add_capped_single_size": self.add_capped_single_size,
+            "add_capped_position_size": self.add_capped_position_size,
+            "entry_capped_risk_size": self.entry_capped_risk_size,
+            "add_capped_risk_size": self.add_capped_risk_size,
+            "buy_rejected_risk_budget": self.buy_rejected_risk_budget,
+            "add_rejected_shrinking_volume": self.add_rejected_shrinking_volume,
+            "risk_stop_adjusted": self.risk_stop_adjusted,
             "commission": self.commission,
             "slippage_bps": self.slippage_bps,
             "min_stop_distance_pct": self.min_stop_distance_pct,
+            "max_trade_risk_pct": self.max_trade_risk_pct,
+            "max_single_add_pct": self.max_single_add_pct,
+            "max_position_after_add_pct": self.max_position_after_add_pct,
+            "max_adds_per_trade": self.max_adds_per_trade,
+            "min_days_between_adds": self.min_days_between_adds,
+            "max_entry_gap_above_plan_pct": self.max_entry_gap_above_plan_pct,
+            "max_add_gap_above_plan_pct": self.max_add_gap_above_plan_pct,
+            "entry_signal_ttl_trading_days": self.signal_ttl_trading_days["entry"],
+            "add_signal_ttl_trading_days": self.signal_ttl_trading_days["add"],
+            "block_shrinking_volume_adds": self.block_shrinking_volume_adds,
+            "shrinking_volume_close_hold_days": self.shrinking_volume_close_hold_days,
+            "add_key_level_tolerance_pct": self.add_key_level_tolerance_pct,
             "bias_audit": audit,
         }
         return BacktestResult(
@@ -638,7 +760,164 @@ class BacktestEngine:
             limit_price=float(price) if price is not None else None,
             size_pct=float(size_pct),
             stop_loss=stop_loss,
+            valid_until=(
+                pd.to_datetime(strategy["valid_until"])
+                if strategy.get("valid_until")
+                else None
+            ),
+            gap_chase_threshold_pct=self._gap_threshold_for_order(order_type, strategy),
+            volume_confirmation=self._volume_confirmation_for_order(strategy),
+            key_level=self._key_level_for_order(strategy),
         )
+
+    @staticmethod
+    def _volume_confirmation_for_order(strategy: dict) -> Optional[str]:
+        structure = strategy.get("structure_analysis") or {}
+        short = structure.get("short_term_structure") or {}
+        volume = short.get("volume_confirmation")
+        if volume:
+            return str(volume)
+        rationale = strategy.get("rationale_summary") or ""
+        if "volume_regime=shrinking" in rationale:
+            return "shrinking"
+        market_state = strategy.get("market_state") or {}
+        if market_state.get("liquidity_regime") == "volume_contraction":
+            return "shrinking"
+        return None
+
+    @staticmethod
+    def _key_level_for_order(strategy: dict) -> Optional[float]:
+        structure = strategy.get("structure_analysis") or {}
+        short = structure.get("short_term_structure") or {}
+        long_term = structure.get("long_term_structure") or {}
+        for raw in (short.get("resistance"), short.get("support"), long_term.get("key_level")):
+            if raw is None:
+                continue
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    def _gap_threshold_for_order(self, order_type: str, strategy: dict) -> Optional[float]:
+        obvious_bull = (
+            "obvious bull trend-following override"
+            in (strategy.get("rationale_summary") or "")
+        )
+        if obvious_bull and order_type == "entry" and self.obvious_bull_allow_entry_gap_chase:
+            return self.obvious_bull_max_entry_gap_pct
+        if obvious_bull and order_type == "add":
+            if self.obvious_bull_allow_add_gap_chase:
+                return self.obvious_bull_max_add_gap_pct
+            return min(self.max_add_gap_above_plan_pct, self.obvious_bull_max_add_gap_pct)
+        if order_type == "entry":
+            return self.max_entry_gap_above_plan_pct
+        if order_type == "add":
+            return self.max_add_gap_above_plan_pct
+        return None
+
+    def _assign_order_expiries(
+        self,
+        orders: List[PendingOrder],
+        trading_days: pd.Series,
+    ) -> None:
+        for order in orders:
+            ttl = max(1, self.signal_ttl_trading_days.get(order.order_type, 1))
+            ttl_expiry = self._nth_trading_day_after(
+                trading_days,
+                order.strategy_as_of,
+                ttl,
+            )
+            if order.valid_until is not None and ttl_expiry is not None:
+                order.expires_after = min(ttl_expiry, order.valid_until)
+            else:
+                order.expires_after = ttl_expiry or order.valid_until
+
+    @staticmethod
+    def _assign_order_reference_prices(
+        orders: List[PendingOrder],
+        close_by_date: dict[str, float],
+    ) -> None:
+        for order in orders:
+            if order.limit_price is not None:
+                order.reference_price = order.limit_price
+            else:
+                order.reference_price = close_by_date.get(order.strategy_as_of)
+
+    @staticmethod
+    def _nth_trading_day_after(
+        trading_days: pd.Series,
+        date: str,
+        n: int,
+    ) -> Optional[pd.Timestamp]:
+        target = pd.to_datetime(date).normalize()
+        matches = trading_days[trading_days > target]
+        if matches.empty:
+            return None
+        index = min(max(0, n - 1), len(matches) - 1)
+        return matches.iloc[index]
+
+    def _prune_expired_orders(
+        self,
+        pending_orders: List[PendingOrder],
+        date: pd.Timestamp,
+    ) -> tuple[int, List[PendingOrder]]:
+        kept = [
+            order for order in pending_orders
+            if order.expires_after is None or date <= order.expires_after
+        ]
+        expired = len(pending_orders) - len(kept)
+        self.signal_ttl_expired += expired
+        return expired, kept
+
+    def _should_reject_gap_buy(self, day_open: float, order: PendingOrder) -> bool:
+        if order.order_type not in {"entry", "add"}:
+            return False
+        if order.limit_price is None and self.allow_market_entry_gap_chase:
+            return False
+        plan_price = order.limit_price if order.limit_price is not None else order.reference_price
+        if plan_price is None or plan_price <= 0:
+            return False
+        threshold = order.gap_chase_threshold_pct
+        if threshold is None or threshold <= 0:
+            return False
+        return day_open > plan_price * (1.0 + threshold)
+
+    def _should_reject_shrinking_volume_add(
+        self,
+        order: PendingOrder,
+        close_by_date: dict[str, float],
+    ) -> bool:
+        if (
+            not self.block_shrinking_volume_adds
+            or order.order_type != "add"
+            or str(order.volume_confirmation or "").lower() != "shrinking"
+        ):
+            return False
+        return not self._close_hold_confirmation_passes(order, close_by_date)
+
+    def _close_hold_confirmation_passes(
+        self,
+        order: PendingOrder,
+        close_by_date: dict[str, float],
+    ) -> bool:
+        if order.key_level is None or order.key_level <= 0:
+            return False
+        if self._trading_days is None:
+            return False
+        signal_date = pd.to_datetime(order.strategy_as_of).normalize()
+        days = self._trading_days[self._trading_days <= signal_date]
+        close_days = max(1, self.shrinking_volume_close_hold_days)
+        if len(days) < close_days:
+            return False
+        floor = order.key_level * (1.0 - self.add_key_level_tolerance_pct)
+        recent = []
+        for day in days.tail(close_days):
+            close = close_by_date.get(day.strftime("%Y-%m-%d"))
+            if close is None:
+                return False
+            recent.append(close)
+        return min(recent) >= floor
 
     def _merge_pending_orders(
         self,
@@ -741,6 +1020,14 @@ class BacktestEngine:
         ]
         return len(pending_orders) - len(kept), kept
 
+    def _trading_day_distance(self, start_date: str, end_date: str) -> int:
+        if self._trading_days is None:
+            return (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
+        start = pd.to_datetime(start_date).normalize()
+        end = pd.to_datetime(end_date).normalize()
+        days = self._trading_days
+        return int(((days > start) & (days <= end)).sum())
+
     def _widen_stop(
         self,
         stop_loss: Optional[float],
@@ -830,7 +1117,37 @@ class BacktestEngine:
         position_value = position.shares * fill_price if position else 0.0
         equity = cash + position_value
         target_spend = equity * (order.size_pct / 100.0)
+        if order.order_type == "add" and position is not None:
+            if self.max_adds_per_trade >= 0 and position.add_count >= self.max_adds_per_trade:
+                self.add_rejected_max_adds += 1
+                return cash, position
+            if (
+                self.min_days_between_adds > 0
+                and position.last_add_date is not None
+                and self._trading_day_distance(position.last_add_date, entry_date)
+                < self.min_days_between_adds
+            ):
+                self.add_rejected_min_spacing += 1
+                return cash, position
+            max_single_spend = equity * (self.max_single_add_pct / 100.0)
+            if target_spend > max_single_spend:
+                target_spend = max_single_spend
+                self.add_capped_single_size += 1
+            max_position_value = equity * self.max_position_after_add_pct
+            remaining_position_room = max(0.0, max_position_value - position_value)
+            if target_spend > remaining_position_room:
+                target_spend = remaining_position_room
+                self.add_capped_position_size += 1
         spend = min(cash, target_spend)
+        effective_stop = self._widen_stop(order.stop_loss, execution_price)
+        spend = self._cap_spend_to_trade_risk(
+            order=order,
+            execution_price=execution_price,
+            target_spend=spend,
+            equity=equity,
+            position=position,
+            effective_stop=effective_stop,
+        )
         notional = max(0.0, spend - self.commission)
         if notional <= 0 or execution_price <= 0:
             return cash, position
@@ -838,7 +1155,6 @@ class BacktestEngine:
         if shares <= 0:
             return cash, position
         cash -= shares * execution_price + self.commission
-        effective_stop = self._widen_stop(order.stop_loss, execution_price)
         if position is None:
             position = Position(
                 entry_date=entry_date,
@@ -848,6 +1164,7 @@ class BacktestEngine:
                 stop_loss_as_of=order.strategy_as_of if effective_stop is not None else None,
                 entry_commission=self.commission,
             )
+            self._apply_risk_capped_stop(position, equity, order.strategy_as_of)
             self._record_execution(
                 executions, "BUY", order.order_type, order.strategy_as_of, entry_date,
                 fill_price, execution_price, shares, self.commission, fill_basis
@@ -861,11 +1178,73 @@ class BacktestEngine:
         if effective_stop is not None:
             position.stop_loss = effective_stop
             position.stop_loss_as_of = order.strategy_as_of
+        position.add_count += 1
+        position.last_add_date = entry_date
+        self._apply_risk_capped_stop(position, equity, order.strategy_as_of)
         self._record_execution(
             executions, "BUY", order.order_type, order.strategy_as_of, entry_date,
             fill_price, execution_price, shares, self.commission, fill_basis
         )
         return cash, position
+
+    def _cap_spend_to_trade_risk(
+        self,
+        order: PendingOrder,
+        execution_price: float,
+        target_spend: float,
+        equity: float,
+        position: Optional[Position],
+        effective_stop: Optional[float],
+    ) -> float:
+        if (
+            self.max_trade_risk_pct <= 0
+            or equity <= 0
+            or execution_price <= 0
+            or target_spend <= 0
+            or effective_stop is None
+        ):
+            return target_spend
+        risk_per_share = execution_price - effective_stop
+        if risk_per_share <= 0:
+            return target_spend
+
+        max_risk_dollars = equity * self.max_trade_risk_pct
+        existing_risk = 0.0
+        if position is not None:
+            existing_risk = max(0.0, (position.entry_price - effective_stop) * position.shares)
+        remaining_risk = max_risk_dollars - existing_risk
+        if remaining_risk <= 0:
+            self.buy_rejected_risk_budget += 1
+            return 0.0
+
+        max_spend = (remaining_risk / risk_per_share) * execution_price
+        if target_spend <= max_spend:
+            return target_spend
+        if order.order_type == "entry":
+            self.entry_capped_risk_size += 1
+        elif order.order_type == "add":
+            self.add_capped_risk_size += 1
+        return max(0.0, max_spend)
+
+    def _apply_risk_capped_stop(
+        self,
+        position: Position,
+        equity: float,
+        signal_date: Optional[str],
+    ) -> None:
+        if (
+            not self.recalculate_stop_after_add
+            or self.max_trade_risk_pct <= 0
+            or equity <= 0
+            or position.shares <= 0
+        ):
+            return
+        max_risk_dollars = equity * self.max_trade_risk_pct
+        risk_capped_stop = position.entry_price - (max_risk_dollars / position.shares)
+        if position.stop_loss is None or position.stop_loss < risk_capped_stop:
+            position.stop_loss = risk_capped_stop
+            position.stop_loss_as_of = signal_date
+            self.risk_stop_adjusted += 1
 
     def _reduce_position_limit(
         self, position, fill_price, size_pct, exit_date, cash, trades, executions,

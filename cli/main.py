@@ -1167,6 +1167,20 @@ def _simulate_backtest_holdings(
         start_date=start,
         end_date=end,
         initial_capital=initial_capital,
+        max_trade_risk_pct=0.020,
+        max_single_add_pct=8.0,
+        max_position_after_add_pct=0.60,
+        max_adds_per_trade=2,
+        min_days_between_adds=2,
+        max_entry_gap_above_plan_pct=0.010,
+        max_add_gap_above_plan_pct=0.008,
+        obvious_bull_max_entry_gap_pct=0.015,
+        obvious_bull_max_add_gap_pct=0.005,
+        entry_signal_ttl_trading_days=2,
+        add_signal_ttl_trading_days=1,
+        block_shrinking_volume_adds=True,
+        shrinking_volume_close_hold_days=2,
+        add_key_level_tolerance_pct=0.005,
     )
     result = engine.run()
     window_days = _trading_history_window_days(cadence_trading_days)
