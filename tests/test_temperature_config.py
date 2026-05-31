@@ -20,6 +20,7 @@ class TestTemperatureForwarding:
             ("anthropic", "claude-sonnet-4-6"),
             ("google", "gemini-2.5-flash"),
             ("deepseek", "deepseek-chat"),
+            ("mistral", "mistral-small-2603"),
         ],
     )
     def test_temperature_reaches_client_when_set(self, provider, model):
