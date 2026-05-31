@@ -563,6 +563,16 @@ class TestDeferredReflection:
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "RELIANCE.NS") == "^NSEI"
         assert TradingAgentsGraph._resolve_benchmark(mock_graph, "AZN.L") == "^FTSE"
 
+    def test_resolve_benchmark_china_a_shares(self):
+        """A-share tickers route to their exchange composite (uses the real
+        default benchmark_map, since A-share support relies on it)."""
+        from tradingagents.default_config import DEFAULT_CONFIG
+        mock_graph = MagicMock(spec=TradingAgentsGraph)
+        mock_graph.config = {"benchmark_ticker": None,
+                             "benchmark_map": DEFAULT_CONFIG["benchmark_map"]}
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "600519.SS") == "000001.SS"
+        assert TradingAgentsGraph._resolve_benchmark(mock_graph, "000001.SZ") == "399001.SZ"
+
     def test_resolve_benchmark_us_ticker_defaults_to_spy(self):
         """US tickers (no dotted suffix) take the empty-suffix entry."""
         mock_graph = MagicMock(spec=TradingAgentsGraph)

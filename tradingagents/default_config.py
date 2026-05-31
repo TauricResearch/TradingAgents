@@ -116,13 +116,15 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
     "benchmark_map": {
-        ".NS":  "^NSEI",    # NSE India (Nifty 50)
-        ".BO":  "^BSESN",   # BSE India (Sensex)
-        ".T":   "^N225",    # Tokyo (Nikkei 225)
-        ".HK":  "^HSI",     # Hong Kong (Hang Seng)
-        ".L":   "^FTSE",    # London (FTSE 100)
-        ".TO":  "^GSPTSE",  # Toronto (TSX Composite)
-        ".AX":  "^AXJO",    # Australia (ASX 200)
-        "":     "SPY",      # default for US-listed tickers (no suffix)
+        ".NS":  "^NSEI",       # NSE India (Nifty 50)
+        ".BO":  "^BSESN",      # BSE India (Sensex)
+        ".T":   "^N225",       # Tokyo (Nikkei 225)
+        ".HK":  "^HSI",        # Hong Kong (Hang Seng)
+        ".L":   "^FTSE",       # London (FTSE 100)
+        ".TO":  "^GSPTSE",     # Toronto (TSX Composite)
+        ".AX":  "^AXJO",       # Australia (ASX 200)
+        ".SS":  "000001.SS",   # Shanghai (SSE Composite)
+        ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
+        "":     "SPY",         # default for US-listed tickers (no suffix)
     },
 })

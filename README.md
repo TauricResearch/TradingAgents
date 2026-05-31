@@ -171,6 +171,18 @@ python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
+### Markets and tickers
+
+TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
+
+- US: `AAPL`, `SPY`
+- Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
+- India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
+- China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
+- Crypto: `BTC-USD`, `ETH-USD`
+
+Yahoo Finance may be rate-limited or blocked from some mainland-China networks. For China-native data sources, community forks such as [tradingagent_a](https://github.com/michaelyuancb/tradingagent_a) (AKShare-based) target that environment specifically.
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
