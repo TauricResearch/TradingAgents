@@ -163,6 +163,21 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+Alpha Vantage and data-vendor selection can also be configured from `.env`:
+```bash
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
+TRADINGAGENTS_DATA_VENDOR=alpha_vantage
+
+# Optional per-category overrides:
+TRADINGAGENTS_CORE_STOCK_VENDOR=alpha_vantage
+TRADINGAGENTS_TECHNICAL_INDICATORS_VENDOR=alpha_vantage
+TRADINGAGENTS_FUNDAMENTAL_DATA_VENDOR=alpha_vantage
+TRADINGAGENTS_NEWS_DATA_VENDOR=alpha_vantage
+
+# Optional per-tool override:
+TRADINGAGENTS_TOOL_VENDOR_GET_STOCK_DATA=alpha_vantage
+```
+
 ### CLI Usage
 
 Launch the interactive CLI:

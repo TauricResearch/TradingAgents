@@ -2,6 +2,7 @@
 
 import copy
 import unittest
+from unittest.mock import patch
 
 import pytest
 
@@ -9,10 +10,22 @@ import tradingagents.default_config as default_config
 from tradingagents.dataflows.config import get_config, set_config
 
 
+def _base_default_config():
+    cfg = copy.deepcopy(default_config.DEFAULT_CONFIG)
+    cfg["data_vendors"] = {
+        "core_stock_apis": "yfinance",
+        "technical_indicators": "yfinance",
+        "fundamental_data": "yfinance",
+        "news_data": "yfinance",
+    }
+    cfg["tool_vendors"] = {}
+    return cfg
+
+
 @pytest.mark.unit
 class DataflowsConfigIsolationTests(unittest.TestCase):
     def setUp(self):
-        set_config(copy.deepcopy(default_config.DEFAULT_CONFIG))
+        set_config(_base_default_config())
 
     def test_get_config_returns_deep_copy(self):
         cfg = get_config()
@@ -59,3 +72,40 @@ class DataflowsConfigIsolationTests(unittest.TestCase):
         fresh = get_config()
         self.assertEqual(fresh["tool_vendors"]["get_stock_data"], "alpha_vantage")
         self.assertEqual(fresh["tool_vendors"]["get_news"], "alpha_vantage")
+
+    def test_data_vendor_env_override_applies_to_all_categories(self):
+        with patch.dict(
+            "os.environ",
+            {"TRADINGAGENTS_DATA_VENDOR": "alpha_vantage"},
+            clear=True,
+        ):
+            cfg = default_config._apply_env_overrides(_base_default_config())
+
+        self.assertEqual(cfg["data_vendors"]["core_stock_apis"], "alpha_vantage")
+        self.assertEqual(cfg["data_vendors"]["technical_indicators"], "alpha_vantage")
+        self.assertEqual(cfg["data_vendors"]["fundamental_data"], "alpha_vantage")
+        self.assertEqual(cfg["data_vendors"]["news_data"], "alpha_vantage")
+
+    def test_category_data_vendor_env_override_wins_over_global_vendor(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "TRADINGAGENTS_DATA_VENDOR": "alpha_vantage",
+                "TRADINGAGENTS_NEWS_DATA_VENDOR": "yfinance",
+            },
+            clear=True,
+        ):
+            cfg = default_config._apply_env_overrides(_base_default_config())
+
+        self.assertEqual(cfg["data_vendors"]["core_stock_apis"], "alpha_vantage")
+        self.assertEqual(cfg["data_vendors"]["news_data"], "yfinance")
+
+    def test_tool_vendor_env_override_uses_method_name_suffix(self):
+        with patch.dict(
+            "os.environ",
+            {"TRADINGAGENTS_TOOL_VENDOR_GET_STOCK_DATA": "alpha_vantage"},
+            clear=True,
+        ):
+            cfg = default_config._apply_env_overrides(_base_default_config())
+
+        self.assertEqual(cfg["tool_vendors"]["get_stock_data"], "alpha_vantage")

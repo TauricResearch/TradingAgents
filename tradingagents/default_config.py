@@ -19,6 +19,15 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
 }
 
+_DATA_VENDOR_ENV_OVERRIDES = {
+    "TRADINGAGENTS_CORE_STOCK_VENDOR":           "core_stock_apis",
+    "TRADINGAGENTS_TECHNICAL_INDICATORS_VENDOR": "technical_indicators",
+    "TRADINGAGENTS_FUNDAMENTAL_DATA_VENDOR":     "fundamental_data",
+    "TRADINGAGENTS_NEWS_DATA_VENDOR":            "news_data",
+}
+
+_TOOL_VENDOR_ENV_PREFIX = "TRADINGAGENTS_TOOL_VENDOR_"
+
 
 def _coerce(value: str, reference):
     """Coerce env-var string to the type of the existing default value."""
@@ -38,6 +47,23 @@ def _apply_env_overrides(config: dict) -> dict:
         if raw is None or raw == "":
             continue
         config[key] = _coerce(raw, config.get(key))
+
+    data_vendor = os.environ.get("TRADINGAGENTS_DATA_VENDOR")
+    if data_vendor:
+        for category in config.get("data_vendors", {}):
+            config["data_vendors"][category] = data_vendor
+
+    for env_var, category in _DATA_VENDOR_ENV_OVERRIDES.items():
+        raw = os.environ.get(env_var)
+        if raw:
+            config.setdefault("data_vendors", {})[category] = raw
+
+    tool_vendors = config.setdefault("tool_vendors", {})
+    for env_var, raw in os.environ.items():
+        if raw and env_var.startswith(_TOOL_VENDOR_ENV_PREFIX):
+            method = env_var[len(_TOOL_VENDOR_ENV_PREFIX):].lower()
+            tool_vendors[method] = raw
+
     return config
 
 
