@@ -99,14 +99,16 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, polaris
+        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance, polaris
+        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance, polaris
+        "news_data": "yfinance",             # Options: alpha_vantage, yfinance, polaris
+        "sentiment_analysis": "polaris",     # Polaris-exclusive: trading signals, sector analysis, news impact
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Example: "get_news": "polaris",  # Use Polaris for sentiment-scored news
     },
     # Benchmark for alpha calculation in the reflection layer.
     # ``benchmark_ticker`` (when set) overrides the suffix map for all
