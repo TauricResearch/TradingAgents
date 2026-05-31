@@ -1,13 +1,23 @@
-"""Build a static site from reports/ for GitHub Pages.
+"""Render every run under docs/ into a single docs/index.html for GitHub Pages.
 
-Walks every run folder under ``reports/`` (created by the CLI's "Save
-report?" prompt — format ``<TICKER>_<DATE>_<MODEL>_<RUN_TIMESTAMP>/``),
-renders ``complete_report.md`` to HTML, writes one
-``site/<run>/index.html`` per run, and a top-level ``site/index.html``
-listing every run grouped by ticker.
+Folder layout produced:
 
-Run via the GitHub Pages workflow (.github/workflows/pages.yml) or
-locally with ``python scripts/build_reports_site.py``.
+    docs/
+        index.html                                       ← single Pages entry
+        .nojekyll                                        ← serve raw, skip Jekyll
+        <TICKER>_<DATE>_<MODEL>_<TS>/
+            complete_report.md   (kept, source of truth)
+            1_analysts/, ...     (kept)
+
+The page has a sticky TOC grouped by ticker plus one collapsed
+``<details>`` block per run (browser-native, no JS). Pages source:
+main + /docs. URL: https://<user>.github.io/<repo>/
+
+Run locally:
+
+    python scripts/build_reports_site.py
+
+The script is idempotent — re-running rewrites docs/index.html in place.
 """
 
 from __future__ import annotations
@@ -27,12 +37,8 @@ except ImportError:
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REPORTS_DIR = REPO_ROOT / "reports"
-SITE_DIR = REPO_ROOT / "site"
+DOCS_DIR = REPO_ROOT / "docs"
 
-# Folder name format: <TICKER>_<YYYYMMDD>_<MODEL>_<YYYYMMDD>_<HHMMSS>
-# Some legacy folders may be missing the run timestamp suffix; we still
-# accept them and fall back to mtime for sort.
 RUN_DIR_RE = re.compile(
     r"^(?P<ticker>[A-Za-z0-9.\-]+)_(?P<date>\d{8})_(?P<model>.+?)"
     r"(?:_(?P<run_date>\d{8})_(?P<run_time>\d{6}))?$"
@@ -44,19 +50,38 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   max-width: 960px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6;
 }
-h1, h2, h3 { line-height: 1.3; }
-table { border-collapse: collapse; width: 100%; }
+h1, h2, h3, h4 { line-height: 1.3; }
+h2 { margin-top: 2.4rem; padding-top: .4rem; border-top: 1px solid rgba(127,127,127,.25); }
+table { border-collapse: collapse; width: 100%; margin: .8rem 0; }
 th, td { border: 1px solid rgba(127,127,127,.4); padding: .4rem .6rem; text-align: left; }
 code { background: rgba(127,127,127,.15); padding: .1rem .3rem; border-radius: 3px; }
 pre { background: rgba(127,127,127,.1); padding: .8rem; overflow-x: auto; border-radius: 6px; }
-nav.crumbs { font-size: .9rem; opacity: .8; margin-bottom: 1rem; }
-ul.runs { list-style: none; padding: 0; }
-ul.runs li { padding: .35rem 0; border-bottom: 1px solid rgba(127,127,127,.2); }
 .muted { opacity: .65; font-size: .9rem; }
 .disclaimer {
   border-left: 3px solid #d77; background: rgba(215,119,119,.08);
   padding: .6rem 1rem; font-size: .9rem; margin: 1rem 0;
 }
+.toc { background: rgba(127,127,127,.08); padding: .8rem 1rem; border-radius: 6px; }
+.toc ul { list-style: none; padding-left: 1rem; margin: .3rem 0; }
+.toc li { padding: .15rem 0; }
+.toc a { text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+details {
+  margin: .8rem 0;
+  border: 1px solid rgba(127,127,127,.25);
+  border-radius: 6px;
+  padding: .4rem .8rem;
+}
+details[open] { background: rgba(127,127,127,.04); }
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: .3rem 0;
+  list-style-position: outside;
+}
+details > summary > .meta { font-weight: 400; opacity: .65; margin-left: .6rem; font-size: .9rem; }
+details > .body { padding: .8rem 0 .4rem; }
+details > .body h1:first-of-type { display: none; }   /* dedupe: summary already names the run */
 """
 
 DISCLAIMER_HTML = (
@@ -71,13 +96,12 @@ class Run(NamedTuple):
     ticker: str
     analysis_date: str  # YYYY-MM-DD
     model: str
-    run_started: str    # ISO timestamp or empty
-    folder: Path        # original reports/<dir>
-    out_dir: Path       # site/<dir>
+    run_started: str    # YYYY-MM-DD HH:MM:SS
+    folder: Path        # docs/<run-folder>
+    anchor: str         # HTML id used by the TOC
 
 
 def parse_run_folder(path: Path) -> Run | None:
-    """Parse a reports/<dir> path. Returns None if the name doesn't match."""
     if not path.is_dir():
         return None
     m = RUN_DIR_RE.match(path.name)
@@ -85,13 +109,9 @@ def parse_run_folder(path: Path) -> Run | None:
         return None
     date = m.group("date")
     analysis_date = f"{date[:4]}-{date[4:6]}-{date[6:8]}"
-    run_started = ""
     rd, rt = m.group("run_date"), m.group("run_time")
     if rd and rt:
-        run_started = (
-            f"{rd[:4]}-{rd[4:6]}-{rd[6:8]} "
-            f"{rt[:2]}:{rt[2:4]}:{rt[4:6]}"
-        )
+        run_started = f"{rd[:4]}-{rd[4:6]}-{rd[6:8]} {rt[:2]}:{rt[2:4]}:{rt[4:6]}"
     else:
         run_started = datetime.fromtimestamp(path.stat().st_mtime).strftime(
             "%Y-%m-%d %H:%M:%S"
@@ -102,12 +122,11 @@ def parse_run_folder(path: Path) -> Run | None:
         model=m.group("model"),
         run_started=run_started,
         folder=path,
-        out_dir=SITE_DIR / path.name,
+        anchor=f"run-{path.name}",
     )
 
 
 def render_markdown(text: str) -> str:
-    """Render markdown to HTML, falling back to <pre> if the lib is missing."""
     if markdown is not None:
         return markdown.markdown(
             text, extensions=["tables", "fenced_code", "toc"]
@@ -115,96 +134,102 @@ def render_markdown(text: str) -> str:
     return f"<pre>{html.escape(text)}</pre>"
 
 
-def page(title: str, body: str, crumbs_html: str = "") -> str:
-    return (
-        "<!DOCTYPE html>\n"
-        '<html lang="en">\n<head>\n'
-        '<meta charset="utf-8">\n'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-        "<title>" + html.escape(title) + "</title>\n"
-        "<style>" + PAGE_CSS + "</style>\n"
-        "</head>\n<body>\n"
-        + (f'<nav class="crumbs">{crumbs_html}</nav>\n' if crumbs_html else "")
-        + DISCLAIMER_HTML + "\n"
-        + body
-        + "\n</body>\n</html>\n"
-    )
-
-
-def build_run_page(run: Run) -> None:
-    """Render the run's complete_report.md and any per-section markdown."""
-    run.out_dir.mkdir(parents=True, exist_ok=True)
-    body_parts = [
-        f"<h1>{html.escape(run.ticker)} — {run.analysis_date}</h1>",
-        f"<p class='muted'>Model: <code>{html.escape(run.model)}</code> · "
-        f"Run started: {html.escape(run.run_started)}</p>",
-    ]
+def render_run_block(run: Run) -> str:
     complete = run.folder / "complete_report.md"
     if complete.is_file():
-        body_parts.append(render_markdown(complete.read_text(encoding="utf-8")))
+        body_html = render_markdown(complete.read_text(encoding="utf-8"))
     else:
-        body_parts.append("<p><em>complete_report.md missing for this run.</em></p>")
+        body_html = "<p><em>complete_report.md missing for this run.</em></p>"
 
-    crumbs = '<a href="../index.html">← All runs</a>'
-    (run.out_dir / "index.html").write_text(
-        page(f"{run.ticker} {run.analysis_date}", "\n".join(body_parts), crumbs),
-        encoding="utf-8",
+    summary = (
+        f"<strong>{html.escape(run.ticker)}</strong> "
+        f"<span class='meta'>{html.escape(run.analysis_date)} "
+        f"· {html.escape(run.model)} "
+        f"· {html.escape(run.run_started)}</span>"
+    )
+    return (
+        f"<details id='{html.escape(run.anchor)}'>\n"
+        f"  <summary>{summary}</summary>\n"
+        f"  <div class='body'>\n{body_html}\n  </div>\n"
+        f"</details>"
     )
 
 
-def build_index(runs: list[Run]) -> None:
-    """Top-level site/index.html — runs grouped by ticker, newest first."""
+def render_toc(by_ticker: dict[str, list[Run]]) -> str:
+    parts = ["<nav class='toc'>", "<strong>Tickers</strong>"]
+    for ticker in sorted(by_ticker):
+        runs = by_ticker[ticker]
+        parts.append(f"<ul><li><a href='#ticker-{html.escape(ticker)}'>"
+                     f"{html.escape(ticker)}</a> "
+                     f"<span class='muted'>({len(runs)})</span><ul>")
+        for r in sorted(
+            runs, key=lambda r: (r.analysis_date, r.run_started), reverse=True
+        ):
+            parts.append(
+                f"<li><a href='#{html.escape(r.anchor)}'>"
+                f"{html.escape(r.analysis_date)} "
+                f"<code>{html.escape(r.model)}</code></a></li>"
+            )
+        parts.append("</ul></li></ul>")
+    parts.append("</nav>")
+    return "\n".join(parts)
+
+
+def build_page(runs: list[Run]) -> str:
     by_ticker: dict[str, list[Run]] = defaultdict(list)
     for r in runs:
         by_ticker[r.ticker].append(r)
 
-    sections = [
+    body = [
         "<h1>TradingAgents Reports</h1>",
-        f"<p class='muted'>{len(runs)} runs across {len(by_ticker)} tickers.</p>",
+        f"<p class='muted'>{len(runs)} runs across {len(by_ticker)} tickers. "
+        "Click a run to expand.</p>",
+        DISCLAIMER_HTML,
+        render_toc(by_ticker),
     ]
     for ticker in sorted(by_ticker):
+        body.append(f"<h2 id='ticker-{html.escape(ticker)}'>{html.escape(ticker)}</h2>")
         ticker_runs = sorted(
             by_ticker[ticker],
             key=lambda r: (r.analysis_date, r.run_started),
             reverse=True,
         )
-        sections.append(f"<h2 id='{html.escape(ticker)}'>{html.escape(ticker)}</h2>")
-        sections.append("<ul class='runs'>")
         for r in ticker_runs:
-            sections.append(
-                f"<li><a href='{html.escape(r.folder.name)}/index.html'>"
-                f"{html.escape(r.analysis_date)}</a> "
-                f"· <code>{html.escape(r.model)}</code> "
-                f"<span class='muted'>· {html.escape(r.run_started)}</span></li>"
-            )
-        sections.append("</ul>")
+            body.append(render_run_block(r))
 
-    SITE_DIR.mkdir(parents=True, exist_ok=True)
-    (SITE_DIR / "index.html").write_text(
-        page("TradingAgents Reports", "\n".join(sections)),
-        encoding="utf-8",
+    return (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n<head>\n'
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+        "<title>TradingAgents Reports</title>\n"
+        "<style>" + PAGE_CSS + "</style>\n"
+        "</head>\n<body>\n"
+        + "\n".join(body)
+        + "\n</body>\n</html>\n"
     )
 
 
 def main() -> int:
-    if not REPORTS_DIR.is_dir():
-        print(f"reports/ not found at {REPORTS_DIR}", file=sys.stderr)
+    if not DOCS_DIR.is_dir():
+        print(f"docs/ not found at {DOCS_DIR}", file=sys.stderr)
         return 1
 
+    (DOCS_DIR / ".nojekyll").touch()
+
     runs: list[Run] = []
-    for child in sorted(REPORTS_DIR.iterdir()):
+    for child in sorted(DOCS_DIR.iterdir()):
         run = parse_run_folder(child)
         if run is None:
             continue
-        build_run_page(run)
         runs.append(run)
 
     if not runs:
-        print("No runs found under reports/.", file=sys.stderr)
+        print("No run folders found under docs/.", file=sys.stderr)
         return 1
 
-    build_index(runs)
-    print(f"Built site at {SITE_DIR} ({len(runs)} run pages)")
+    (DOCS_DIR / "index.html").write_text(build_page(runs), encoding="utf-8")
+    print(f"Built single-page docs/index.html with {len(runs)} runs")
     return 0
 
 

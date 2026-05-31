@@ -218,12 +218,10 @@ __marimo__/
 # Cache
 **/data_cache/
 
-# Generated trading reports are tracked on git so they can be published
-# via GitHub Pages. Add new runs with `git add reports/<run>` after the
-# run finishes; the Pages workflow rebuilds the static site on push.
-
-# Locally rendered Pages build (built fresh in CI; not committed).
-/site/
+# docs/ holds the run folders + rendered HTML and is the GitHub Pages
+# source (Settings → Pages → Source: main + /docs). Add new runs with
+# `git add docs/<run>` after the CLI saves them, then rerun
+# `python scripts/build_reports_site.py` to refresh the HTML.
 
 # Enterprise env file (secrets)
 .env.enterprise
