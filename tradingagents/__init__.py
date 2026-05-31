@@ -1,5 +1,16 @@
 import warnings
 
+# Route Python's SSL through the OS native trust store so private CAs
+# already trusted by the system (corporate proxies, internal LLM
+# gateways) work without managing a separate certifi bundle. Must run
+# before httpx/urllib3/anthropic import their SSL contexts.
+try:
+    import truststore
+
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 # Load .env files at package import so DEFAULT_CONFIG's env-var overlay
 # (and every llm_clients consumer) sees the user's keys regardless of
 # which entry point started the process. find_dotenv(usecwd=True) walks
