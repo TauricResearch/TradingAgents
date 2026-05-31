@@ -1,0 +1,53 @@
+# This workflow automatically merges pull requests that have the "auto-merge" label,
+# as long as they are open and mergeable. It is triggered when a PR is labeled,
+# synchronized, or opened. The workflow checks if the PR meets the criteria and,
+# if so, uses the GitHub CLI to enable auto-merge with a squash commit.
+
+name: Auto Merge
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - synchronize
+      - opened
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  automerge:
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if PR is mergeable and has "auto-merge" label
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const labels = pr.data.labels.map(l => l.name);
+            if (!labels.includes('auto-merge')) {
+              core.info('PR does not have the "auto-merge" label. Skipping automerge.');
+              core.setOutput('should_automerge', 'false');
+              return;
+            }
+            if (!pr.data.mergeable) {
+              core.setFailed('PR is not mergeable.');
+            }
+            if (pr.data.state !== 'open') {
+              core.setFailed('PR is not open.');
+            }
+            core.setOutput('should_automerge', 'true')
+
+      - name: Enable automerge
+        if: steps.check.outputs.should_automerge == 'true'
+        shell: bash
+        run: gh pr merge -R "${{ github.repository }}" --auto --squash ${{ github.event.pull_request.number }} --delete-branch
+        env:
+          GH_TOKEN: ${{ github.token }}
