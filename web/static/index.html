@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TradingAgentsWeb</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="setup-panel" aria-labelledby="app-title">
+        <div class="panel-heading">
+          <h1 id="app-title">TradingAgentsWeb</h1>
+          <p>Run console</p>
+        </div>
+
+        <section class="saved-reports" aria-labelledby="saved-reports-title">
+          <div class="saved-reports-heading">
+            <h2 id="saved-reports-title">Saved Reports</h2>
+            <button id="refresh-reports" type="button" class="icon-button" title="Refresh saved reports">Refresh</button>
+          </div>
+          <div id="saved-reports-list" class="saved-reports-list empty-state">No saved reports loaded.</div>
+        </section>
+
+        <form id="analysis-form">
+          <label for="ticker">Ticker</label>
+          <input id="ticker" name="ticker" autocomplete="off" value="NVDA" required>
+
+          <label for="analysis-date">Analysis date</label>
+          <input id="analysis-date" name="analysis_date" type="date" required>
+
+          <label for="output-language">Output language</label>
+          <input id="output-language" name="output_language" value="English" required>
+
+          <fieldset>
+            <legend>Analysts</legend>
+            <label class="check-row">
+              <input type="checkbox" name="analysts" value="market" checked>
+              <span>Market</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" name="analysts" value="social" checked>
+              <span>Social</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" name="analysts" value="news" checked>
+              <span>News</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" name="analysts" value="fundamentals" checked>
+              <span>Fundamentals</span>
+            </label>
+          </fieldset>
+
+          <label for="research-depth">Research depth</label>
+          <select id="research-depth" name="research_depth">
+            <option value="1">1 - Shallow</option>
+            <option value="2">2</option>
+            <option value="3" selected>3 - Standard</option>
+            <option value="4">4</option>
+            <option value="5">5 - Deep</option>
+          </select>
+
+          <label for="llm-provider">LLM provider</label>
+          <select id="llm-provider" name="llm_provider">
+            <option value="openai">OpenAI</option>
+            <option value="google">Google Gemini</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="xai">xAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="qwen">Qwen International</option>
+            <option value="qwen-cn">Qwen China</option>
+            <option value="glm">GLM International</option>
+            <option value="glm-cn">GLM China</option>
+            <option value="minimax">MiniMax Global</option>
+            <option value="minimax-cn">MiniMax China</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="azure">Azure OpenAI</option>
+            <option value="ollama" selected>Ollama</option>
+          </select>
+
+          <label for="backend-url">Backend URL</label>
+          <input id="backend-url" name="backend_url" type="url" placeholder="http://localhost:11434/v1">
+
+          <label for="quick-model">Quick think model</label>
+          <input id="quick-model" name="quick_think_llm" value="qwen3:latest" required>
+
+          <label for="deep-model">Deep think model</label>
+          <input id="deep-model" name="deep_think_llm" value="qwen3:latest" required>
+
+          <label for="reasoning-effort">OpenAI reasoning effort</label>
+          <select id="reasoning-effort" name="openai_reasoning_effort">
+            <option value="">Default</option>
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+
+          <label for="google-thinking">Google thinking mode</label>
+          <select id="google-thinking" name="google_thinking_level">
+            <option value="">Default</option>
+            <option value="high">Enable thinking</option>
+            <option value="minimal">Minimal thinking</option>
+          </select>
+
+          <label for="anthropic-effort">Anthropic effort</label>
+          <select id="anthropic-effort" name="anthropic_effort">
+            <option value="">Default</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+
+          <label class="check-row checkpoint-row">
+            <input type="checkbox" name="checkpoint_enabled">
+            <span>Enable checkpoints</span>
+          </label>
+
+          <div class="actions">
+            <button id="run-button" type="submit">Run Analysis</button>
+            <button id="clear-checkpoints" type="button" class="secondary-button">Clear Checkpoints</button>
+          </div>
+        </form>
+      </aside>
+
+      <section class="dashboard" aria-label="Operations dashboard">
+        <header class="status-bar">
+          <div>
+            <span class="eyebrow">Status</span>
+            <strong id="status-text">Idle</strong>
+          </div>
+          <div class="run-meta" id="run-meta" aria-live="polite">No active run</div>
+        </header>
+
+        <section class="memo-panel" aria-labelledby="memo-title">
+          <header class="memo-header">
+            <div>
+              <span class="eyebrow">Investor memo</span>
+              <div class="memo-title-row">
+                <h2 id="memo-title">Awaiting analysis</h2>
+                <span id="memo-decision" class="decision-badge neutral">Pending</span>
+              </div>
+              <p id="memo-subtitle">Run an analysis to build the research memo.</p>
+            </div>
+          </header>
+
+          <section class="memo-summary" aria-labelledby="summary-title">
+            <h3 id="summary-title">Executive Summary</h3>
+            <p id="memo-thesis">The investment thesis will appear as report sections stream in.</p>
+            <ul id="memo-takeaways">
+              <li>No takeaways yet.</li>
+            </ul>
+          </section>
+
+          <div id="memo-sections" class="memo-sections empty-state">No research sections yet.</div>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel agents-panel" aria-labelledby="agents-title">
+            <h2 id="agents-title">Agents</h2>
+            <div id="agents" class="empty-state">Waiting for run.</div>
+          </section>
+
+          <section class="panel stats-panel" aria-labelledby="stats-title">
+            <h2 id="stats-title">Stats</h2>
+            <pre id="stats" class="empty-state">No stats yet.</pre>
+          </section>
+
+          <section class="panel report-panel" aria-labelledby="report-title">
+            <h2 id="report-title">Raw Report Audit</h2>
+            <div id="reports" class="report-list empty-state">No report sections yet.</div>
+          </section>
+
+          <section class="panel events-panel" aria-labelledby="events-title">
+            <h2 id="events-title">Messages &amp; Tool Calls</h2>
+            <div id="messages" class="empty-state">No events yet.</div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
