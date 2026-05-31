@@ -990,9 +990,24 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
-def run_analysis(checkpoint: bool = False):
+def run_analysis(
+    checkpoint: bool = False,
+    selections: Optional[dict] = None,
+    post_save: Optional[bool] = None,
+    post_save_path: Optional[str] = None,
+    post_display: Optional[bool] = None,
+):
+    """Run a full analysis.
+
+    When ``selections`` is None the interactive menu is used (original
+    behavior). When provided, the caller has already gathered everything
+    via flags and the menu is skipped. ``post_save`` / ``post_save_path``
+    / ``post_display`` likewise turn the post-run "Save report? / Display
+    full report?" prompts into no-ops when set explicitly.
+    """
     # First get all user selections
-    selections = get_user_selections()
+    if selections is None:
+        selections = get_user_selections()
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -1272,9 +1287,13 @@ def run_analysis(checkpoint: bool = False):
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
-    # Prompt to save report
-    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
-    if save_choice in ("Y", "YES", ""):
+    # Prompt to save report (skipped when caller passed an explicit choice)
+    if post_save is None:
+        save_choice = typer.prompt("Save report?", default="Y").strip().upper()
+        save_report = save_choice in ("Y", "YES", "")
+    else:
+        save_report = post_save
+    if save_report:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         # Default lives under config["reports_dir"] (which expands to
         # ~/.tradingagents/reports unless TRADINGAGENTS_REPORTS_DIR is set)
@@ -1307,10 +1326,15 @@ def run_analysis(checkpoint: bool = False):
             / selections["ticker"]
             / f"{date_slug}_{model_slug}_{timestamp}"
         )
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
+        if post_save_path is not None:
+            save_path_str = post_save_path
+        elif post_save is None:
+            save_path_str = typer.prompt(
+                "Save path (press Enter for default)",
+                default=str(default_path)
+            ).strip()
+        else:
+            save_path_str = str(default_path)
         save_path = Path(save_path_str).expanduser()
         try:
             report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
@@ -1319,9 +1343,13 @@ def run_analysis(checkpoint: bool = False):
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
-    # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
-    if display_choice in ("Y", "YES", ""):
+    # Prompt to display full report (skipped when caller passed an explicit choice)
+    if post_display is None:
+        display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+        show_report = display_choice in ("Y", "YES", "")
+    else:
+        show_report = post_display
+    if show_report:
         display_complete_report(final_state)
 
 
@@ -1343,6 +1371,157 @@ def analyze(
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
     run_analysis(checkpoint=checkpoint)
+
+
+_PROVIDER_DEFAULT_BACKENDS = {
+    "anthropic": "https://api.anthropic.com/",
+    "openai": "https://api.openai.com/v1",
+    "google": None,
+    "xai": "https://api.x.ai/v1",
+    "deepseek": "https://api.deepseek.com",
+    "qwen": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    "qwen-cn": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "glm": "https://api.z.ai/api/paas/v4/",
+    "glm-cn": "https://open.bigmodel.cn/api/paas/v4/",
+    "minimax": "https://api.minimax.io/v1",
+    "minimax-cn": "https://api.minimaxi.com/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "azure": None,
+    "ollama": None,  # resolved at runtime from OLLAMA_BASE_URL
+}
+
+
+@app.command()
+def run(
+    ticker: str = typer.Option(..., "--ticker", "-t", help="Ticker symbol, e.g. SPY, 0700.HK, BTC-USD."),
+    date: str = typer.Option(
+        None,
+        "--date",
+        "-d",
+        help="Analysis date (YYYY-MM-DD). Defaults to today.",
+    ),
+    analysts: str = typer.Option(
+        "market,social,news,fundamentals",
+        "--analysts",
+        "-a",
+        help="Comma-separated analyst keys: market,social,news,fundamentals.",
+    ),
+    depth: int = typer.Option(
+        1,
+        "--depth",
+        help="Research depth (debate / risk discussion rounds). 1=Shallow, 3=Medium, 5=Deep.",
+    ),
+    language: str = typer.Option(
+        "English",
+        "--language",
+        "-l",
+        help="Output language for analyst reports and final decision.",
+    ),
+    provider: str = typer.Option(
+        "anthropic",
+        "--provider",
+        "-p",
+        help="LLM provider key (anthropic, openai, google, xai, deepseek, qwen[-cn], glm[-cn], minimax[-cn], openrouter, azure, ollama).",
+    ),
+    deep_model: str = typer.Option(..., "--deep-model", help="Deep-thinking model id (e.g. claude-sonnet-4-6, gpt-5.5)."),
+    quick_model: str = typer.Option(..., "--quick-model", help="Quick-thinking model id (e.g. claude-haiku-4-5, gpt-5.4-mini)."),
+    google_thinking_level: str = typer.Option(None, "--google-thinking-level", help="Gemini thinking mode: high|minimal."),
+    openai_reasoning_effort: str = typer.Option(None, "--openai-reasoning-effort", help="OpenAI reasoning effort: low|medium|high."),
+    anthropic_effort: str = typer.Option(None, "--anthropic-effort", help="Claude effort level: low|medium|high."),
+    checkpoint: bool = typer.Option(False, "--checkpoint", help="Enable checkpoint/resume."),
+    clear_checkpoints: bool = typer.Option(False, "--clear-checkpoints", help="Delete saved checkpoints before running."),
+):
+    """One-shot non-interactive analysis. Flags mirror the interactive prompts.
+
+    Asset type is auto-detected from the ticker suffix; backend URL uses the
+    provider's canonical endpoint (use the ``-cn`` provider variants for the
+    mainland-China endpoint). The run always saves the report to the default
+    path and does not print the full report to the terminal.
+
+    Example:
+      tradingagents run -t NVDA -d 2024-05-10 -a market,news --depth 1 \\
+        -p anthropic --deep-model claude-sonnet-4-6 --quick-model claude-haiku-4-5
+    """
+    if clear_checkpoints:
+        from tradingagents.graph.checkpointer import clear_all_checkpoints
+        n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
+        console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+
+    # --- Validate / normalize inputs ---
+    norm_ticker = ticker.strip().upper()
+    if not norm_ticker:
+        console.print("[red]--ticker is required.[/red]")
+        raise typer.Exit(1)
+
+    analysis_date = (date or datetime.datetime.now().strftime("%Y-%m-%d")).strip()
+    try:
+        d = datetime.datetime.strptime(analysis_date, "%Y-%m-%d")
+        if d.date() > datetime.datetime.now().date():
+            console.print("[red]--date cannot be in the future.[/red]")
+            raise typer.Exit(1)
+    except ValueError:
+        console.print("[red]--date must be YYYY-MM-DD.[/red]")
+        raise typer.Exit(1)
+
+    asset_enum = detect_asset_type(norm_ticker)
+
+    # Analysts: parse comma list, validate against AnalystType, filter by asset type.
+    keys = [k.strip().lower() for k in analysts.split(",") if k.strip()]
+    if not keys:
+        console.print("[red]--analysts cannot be empty.[/red]")
+        raise typer.Exit(1)
+    analyst_objs = []
+    for k in keys:
+        try:
+            analyst_objs.append(AnalystType(k))
+        except ValueError:
+            valid = ", ".join(a.value for a in AnalystType)
+            console.print(f"[red]Unknown analyst {k!r}. Valid: {valid}.[/red]")
+            raise typer.Exit(1)
+    analyst_objs = filter_analysts_for_asset_type(analyst_objs, asset_enum)
+    if not analyst_objs:
+        console.print("[red]No analysts left after asset-type filter.[/red]")
+        raise typer.Exit(1)
+
+    provider_key = provider.strip().lower()
+    if provider_key not in _PROVIDER_DEFAULT_BACKENDS:
+        console.print(
+            f"[red]Unknown --provider {provider!r}. "
+            f"Valid: {', '.join(_PROVIDER_DEFAULT_BACKENDS)}.[/red]"
+        )
+        raise typer.Exit(1)
+
+    if provider_key == "ollama":
+        resolved_backend = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+    else:
+        resolved_backend = _PROVIDER_DEFAULT_BACKENDS[provider_key]
+
+    # API key check (interactive prompt only fires when the env var is missing)
+    ensure_api_key(provider_key)
+
+    selections = {
+        "ticker": norm_ticker,
+        "asset_type": asset_enum.value,
+        "analysis_date": analysis_date,
+        "analysts": analyst_objs,
+        "research_depth": depth,
+        "llm_provider": provider_key,
+        "backend_url": resolved_backend,
+        "shallow_thinker": quick_model,
+        "deep_thinker": deep_model,
+        "google_thinking_level": google_thinking_level,
+        "openai_reasoning_effort": openai_reasoning_effort,
+        "anthropic_effort": anthropic_effort,
+        "output_language": language,
+    }
+
+    run_analysis(
+        checkpoint=checkpoint,
+        selections=selections,
+        post_save=True,
+        post_save_path=None,
+        post_display=False,
+    )
 
 
 if __name__ == "__main__":

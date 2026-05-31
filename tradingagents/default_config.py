@@ -18,6 +18,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    "TRADINGAGENTS_LLM_TIMEOUT":          "llm_timeout",
+    "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
 }
 
 
@@ -76,6 +78,14 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # variation on models that honor it; reasoning models largely ignore it
     # and no setting makes LLM output bit-identical across runs (see README).
     "temperature": None,
+    # Per-request timeout (seconds) and retry count forwarded to every
+    # provider's underlying SDK. Defaults are tuned for long-running
+    # reasoning models on flaky links: a single ``APIConnectionError`` from
+    # a TLS / proxy blip during a depth>=5 run should retry instead of
+    # killing the whole graph. Override with TRADINGAGENTS_LLM_TIMEOUT /
+    # TRADINGAGENTS_LLM_MAX_RETRIES.
+    "llm_timeout": 600.0,
+    "llm_max_retries": 5,
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
