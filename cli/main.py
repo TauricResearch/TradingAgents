@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 import datetime
 import typer
 import questionary
@@ -529,14 +530,20 @@ def get_user_selections():
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Output language
-    console.print(
-        create_question_box(
-            "Step 3: Output Language",
-            "Select the language for analyst reports and final decision"
+    # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
+    if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
+        output_language = DEFAULT_CONFIG["output_language"]
+        console.print(
+            f"[green]✓ Output language from environment:[/green] {output_language}"
         )
-    )
-    output_language = ask_output_language()
+    else:
+        console.print(
+            create_question_box(
+                "Step 3: Output Language",
+                "Select the language for analyst reports and final decision"
+            )
+        )
+        output_language = ask_output_language()
 
     # Step 4: Select analysts
     console.print(
@@ -557,42 +564,62 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 6: LLM Provider
-    console.print(
-        create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+    # Step 6: LLM Provider (skipped when set via TRADINGAGENTS_LLM_PROVIDER).
+    # The backend URL comes from TRADINGAGENTS_LLM_BACKEND_URL when set,
+    # otherwise the provider's default endpoint — the same value the menu
+    # would have picked.
+    provider_from_env = bool(os.environ.get("TRADINGAGENTS_LLM_PROVIDER"))
+    if provider_from_env:
+        selected_llm_provider = DEFAULT_CONFIG["llm_provider"].lower()
+        backend_url = DEFAULT_CONFIG["backend_url"] or provider_default_url(selected_llm_provider)
+        console.print(f"[green]✓ LLM provider from environment:[/green] {selected_llm_provider}")
+        console.print(f"[green]✓ Backend URL:[/green] {backend_url}")
+        # Still confirm/persist the API key so the run doesn't fail later.
+        ensure_api_key(selected_llm_provider)
+    else:
+        console.print(
+            create_question_box(
+                "Step 6: LLM Provider", "Select your LLM provider"
+            )
         )
-    )
-    selected_llm_provider, backend_url = select_llm_provider()
+        selected_llm_provider, backend_url = select_llm_provider()
 
-    # Providers with regional endpoints prompt for the region as a secondary
-    # step so the main dropdown stays clean (mainland China and international
-    # accounts cannot share API keys).
-    if selected_llm_provider == "qwen":
-        selected_llm_provider, backend_url = ask_qwen_region()
-    elif selected_llm_provider == "minimax":
-        selected_llm_provider, backend_url = ask_minimax_region()
-    elif selected_llm_provider == "glm":
-        selected_llm_provider, backend_url = ask_glm_region()
+        # Providers with regional endpoints prompt for the region as a secondary
+        # step so the main dropdown stays clean (mainland China and international
+        # accounts cannot share API keys).
+        if selected_llm_provider == "qwen":
+            selected_llm_provider, backend_url = ask_qwen_region()
+        elif selected_llm_provider == "minimax":
+            selected_llm_provider, backend_url = ask_minimax_region()
+        elif selected_llm_provider == "glm":
+            selected_llm_provider, backend_url = ask_glm_region()
 
-    # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
-    # before model selection so it's obvious where we're connecting.
-    if selected_llm_provider == "ollama":
-        confirm_ollama_endpoint(backend_url)
+        # For Ollama, surface the resolved endpoint (OLLAMA_BASE_URL vs default)
+        # before model selection so it's obvious where we're connecting.
+        if selected_llm_provider == "ollama":
+            confirm_ollama_endpoint(backend_url)
 
-    # Confirm the provider's API key is present; prompt the user to paste
-    # one and persist it to .env if it's missing, so the analysis run
-    # doesn't fail later at the first API call.
-    ensure_api_key(selected_llm_provider)
+        # Confirm the provider's API key is present; prompt the user to paste
+        # one and persist it to .env if it's missing, so the analysis run
+        # doesn't fail later at the first API call.
+        ensure_api_key(selected_llm_provider)
 
-    # Step 7: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+    # Step 7: Thinking agents (skipped when either model is set via environment)
+    if os.environ.get("TRADINGAGENTS_QUICK_THINK_LLM") or os.environ.get("TRADINGAGENTS_DEEP_THINK_LLM"):
+        selected_shallow_thinker = DEFAULT_CONFIG["quick_think_llm"]
+        selected_deep_thinker = DEFAULT_CONFIG["deep_think_llm"]
+        console.print(
+            f"[green]✓ Thinking agents from environment:[/green] "
+            f"quick={selected_shallow_thinker}, deep={selected_deep_thinker}"
         )
-    )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    else:
+        console.print(
+            create_question_box(
+                "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            )
+        )
+        selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+        selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     # Step 8: Provider-specific thinking configuration
     thinking_level = None
@@ -600,7 +627,14 @@ def get_user_selections():
     anthropic_effort = None
 
     provider_lower = selected_llm_provider.lower()
-    if provider_lower == "google":
+    # When the provider is configured via environment we keep the run fully
+    # non-interactive and use the config defaults (None = each provider's own
+    # default reasoning/thinking behavior) instead of prompting.
+    if provider_from_env:
+        thinking_level = DEFAULT_CONFIG["google_thinking_level"]
+        reasoning_effort = DEFAULT_CONFIG["openai_reasoning_effort"]
+        anthropic_effort = DEFAULT_CONFIG["anthropic_effort"]
+    elif provider_lower == "google":
         console.print(
             create_question_box(
                 "Step 8: Thinking Mode",

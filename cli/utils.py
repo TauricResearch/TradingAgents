@@ -268,14 +268,17 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
     return _select_model(provider, "deep")
 
-def select_llm_provider() -> tuple[str, str | None]:
-    """Select the LLM provider and its API endpoint."""
-    # Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
-    # (convention from the broader Ollama ecosystem); falls back to the
-    # localhost default when unset.
+def _llm_provider_table() -> list[tuple[str, str, str | None]]:
+    """(display_name, provider_key, base_url) for every supported provider.
+
+    Shared by the interactive picker and by env-driven configuration so an
+    env-set provider resolves to the same default endpoint the menu uses.
+    Ollama users can point at a remote ollama-serve via OLLAMA_BASE_URL
+    (convention from the broader Ollama ecosystem); falls back to the
+    localhost default when unset.
+    """
     ollama_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
-    # (display_name, provider_key, base_url)
-    PROVIDERS = [
+    return [
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
@@ -288,6 +291,20 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Azure OpenAI", "azure", None),
         ("Ollama", "ollama", ollama_url),
     ]
+
+
+def provider_default_url(provider_key: str) -> str | None:
+    """Return the default backend URL for a provider key, or None if unknown."""
+    key = provider_key.lower()
+    for _, pk, url in _llm_provider_table():
+        if pk == key:
+            return url
+    return None
+
+
+def select_llm_provider() -> tuple[str, str | None]:
+    """Select the LLM provider and its API endpoint."""
+    PROVIDERS = _llm_provider_table()
 
     choice = questionary.select(
         "Select your LLM Provider:",
