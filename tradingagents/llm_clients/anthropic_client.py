@@ -7,7 +7,7 @@ from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
-    "timeout", "max_retries", "api_key", "max_tokens",
+    "timeout", "max_retries", "api_key", "max_tokens", "temperature",
     "callbacks", "http_client", "http_async_client", "effort",
 )
 
