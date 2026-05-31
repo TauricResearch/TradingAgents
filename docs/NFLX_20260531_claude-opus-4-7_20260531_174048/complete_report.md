@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 17:40:48 &middot; claude-opus-4-7"
+parent: NFLX
+layout: default
+---
 # Trading Analysis Report: NFLX
 
 Generated: 2026-05-31 17:40:49

@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 17:40:58 &middot; claude-opus-4-7"
+parent: QQQ
+layout: default
+---
 # Trading Analysis Report: QQQ
 
 Generated: 2026-05-31 17:40:58

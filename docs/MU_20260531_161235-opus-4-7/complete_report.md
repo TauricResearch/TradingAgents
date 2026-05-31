@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 12:33:08 &middot; 161235-opus-4-7"
+parent: MU
+layout: default
+---
 # Trading Analysis Report: MU
 
 Generated: 2026-05-31 16:12:36

@@ -1,4 +1,47 @@
-theme: jekyll-theme-minimal
+remote_theme: just-the-docs/just-the-docs
+
 title: TradingAgents Reports
 description: Multi-agent LLM trading analysis runs
-show_downloads: false
+url: https://bichengwang.github.io
+baseurl: /TradingAgents
+
+plugins:
+  - jekyll-remote-theme
+
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 2
+  preview_words_before: 3
+  preview_words_after: 3
+  tokenizer_separator: /[\s\-/]+/
+  rel_url: true
+  button: false
+
+heading_anchors: true
+color_scheme: light
+
+aux_links:
+  "GitHub":
+    - "https://github.com/BichengWang/TradingAgents"
+aux_links_new_tab: true
+
+# Hide per-stage subfiles (1_analysts/, 2_research/, etc.) from the left nav
+# so each run shows up once via complete_report.md. They remain reachable via
+# direct link and stay in search results.
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: default
+  - scope:
+      path: "*/[1-5]_*"
+    values:
+      nav_exclude: true
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor

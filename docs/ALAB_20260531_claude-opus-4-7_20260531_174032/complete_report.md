@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 17:40:32 &middot; claude-opus-4-7"
+parent: ALAB
+layout: default
+---
 # Trading Analysis Report: ALAB
 
 Generated: 2026-05-31 17:40:33

@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 12:33:08 &middot; 161248-opus-4-7"
+parent: ALAB
+layout: default
+---
 # Trading Analysis Report: ALAB
 
 Generated: 2026-05-31 16:12:49

@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 12:33:08 &middot; 161242-opus-4-7"
+parent: MRVL
+layout: default
+---
 # Trading Analysis Report: MRVL
 
 Generated: 2026-05-31 16:12:44

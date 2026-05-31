@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 17:40:18 &middot; claude-opus-4-7"
+parent: ARM
+layout: default
+---
 # Trading Analysis Report: ARM
 
 Generated: 2026-05-31 17:40:19

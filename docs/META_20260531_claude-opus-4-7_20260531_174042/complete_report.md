@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 17:40:42 &middot; claude-opus-4-7"
+parent: META
+layout: default
+---
 # Trading Analysis Report: META
 
 Generated: 2026-05-31 17:40:42

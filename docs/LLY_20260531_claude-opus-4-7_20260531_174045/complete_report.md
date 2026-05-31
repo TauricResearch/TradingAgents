@@ -1,3 +1,8 @@
+---
+title: "2026-05-31 17:40:45 &middot; claude-opus-4-7"
+parent: LLY
+layout: default
+---
 # Trading Analysis Report: LLY
 
 Generated: 2026-05-31 17:40:45
