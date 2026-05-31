@@ -102,6 +102,7 @@ class ClaudeCodeChatModel(BaseChatModel):
             from claude_agent_sdk import (
                 AssistantMessage,
                 ClaudeAgentOptions,
+                ResultMessage,
                 TextBlock,
                 query,
             )
@@ -130,6 +131,7 @@ class ClaudeCodeChatModel(BaseChatModel):
         }
 
         parts: list[str] = []
+        last_result: Any = None
         try:
             async for msg in query(
                 prompt=user_text,
@@ -139,21 +141,52 @@ class ClaudeCodeChatModel(BaseChatModel):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
                             parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    last_result = msg
         except Exception as exc:
-            # The CLI occasionally finalizes with ``is_error=True`` while the
-            # ResultMessage subtype is ``success`` (observed on trader-shaped
-            # calls in mini_graph #2). When that happens the assistant text
-            # was already streamed before the error fired — treat partial
-            # text as success and only re-raise on an empty response.
+            # ``is_error=True`` with ``subtype="success"`` is the documented
+            # signal for an upstream API failure (429/500/529) — see the
+            # ``api_error_status`` field on ResultMessage in SDK 0.2.87+.
+            # When that fires after assistant text has already streamed,
+            # treat the partial reply as success; only re-raise when we
+            # have nothing usable.
             if parts:
+                api_err = getattr(last_result, "api_error_status", None)
                 logger.warning(
                     "claude-code post-stream finalization error suppressed "
-                    "(%s); using %d-char partial text already received.",
-                    exc, sum(len(p) for p in parts),
+                    "(%s, api_error_status=%s); using %d-char partial text.",
+                    exc, api_err, sum(len(p) for p in parts),
                 )
             else:
                 raise
+
+        if last_result is not None:
+            self._log_usage(last_result)
+
         return "".join(parts).strip()
+
+    def _log_usage(self, result_msg: Any) -> None:
+        """Emit a structured per-call usage line so operators can size the
+        subscription against real traffic. ``cache_create`` is the most
+        important field — the agent-loop preamble dominates first-touch
+        cost and shrinks dramatically on cache hits within the same window.
+        """
+        usage = getattr(result_msg, "usage", None) or {}
+        api_err = getattr(result_msg, "api_error_status", None)
+        extra = f" api_error_status={api_err}" if api_err else ""
+        logger.info(
+            "claude-code usage: model=%s duration=%.2fs api_duration=%.2fs "
+            "turns=%s input=%s cache_create=%s cache_read=%s output=%s%s",
+            self.model,
+            (getattr(result_msg, "duration_ms", 0) or 0) / 1000,
+            (getattr(result_msg, "duration_api_ms", 0) or 0) / 1000,
+            getattr(result_msg, "num_turns", 0),
+            usage.get("input_tokens", 0),
+            usage.get("cache_creation_input_tokens", 0),
+            usage.get("cache_read_input_tokens", 0),
+            usage.get("output_tokens", 0),
+            extra,
+        )
 
     def _generate(
         self,
