@@ -1,4 +1,4 @@
-from .alpha_vantage_common import _make_api_request
+from .alpha_vantage_common import _make_api_request, AlphaVantageRateLimitError, AlphaVantageUnsupportedIndicatorError
 
 def get_indicator(
     symbol: str,
@@ -39,7 +39,8 @@ def get_indicator(
         "boll_ub": ("Bollinger Upper Band", "close"),
         "boll_lb": ("Bollinger Lower Band", "close"),
         "atr": ("ATR", None),
-        "vwma": ("VWMA", "close")
+        "vwma": (None, None),
+        "mfi": (None, None)
     }
 
     indicator_descriptions = {
@@ -58,15 +59,21 @@ def get_indicator(
     }
 
     if indicator not in supported_indicators:
-        raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(supported_indicators.keys())}"
+        raise AlphaVantageUnsupportedIndicatorError(
+            f"{indicator.upper()} is not available from Alpha Vantage API"
         )
 
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
 
     # Get the full data for the period instead of making individual calls
-    _, required_series_type = supported_indicators[indicator]
+    av_name, required_series_type = supported_indicators[indicator]
+
+    # If the indicator is in the dict but explicitly unsupported by Alpha Vantage
+    if av_name is None and required_series_type is None:
+        raise AlphaVantageUnsupportedIndicatorError(
+            f"{indicator.upper()} is not available from Alpha Vantage API"
+        )
 
     # Use the provided series_type or fall back to the required one
     if required_series_type:
@@ -142,10 +149,6 @@ def get_indicator(
                 "time_period": str(time_period),
                 "datatype": "csv"
             })
-        elif indicator == "vwma":
-            # Alpha Vantage doesn't have direct VWMA, so we'll return an informative message
-            # In a real implementation, this would need to be calculated from OHLCV data
-            return f"## VWMA (Volume Weighted Moving Average) for {symbol}:\n\nVWMA calculation requires OHLCV data and is not directly available from Alpha Vantage API.\nThis indicator would need to be calculated from the raw stock data using volume-weighted price averaging.\n\n{indicator_descriptions.get('vwma', 'No description available.')}"
         else:
             return f"Error: Indicator {indicator} not implemented yet."
 
@@ -217,6 +220,10 @@ def get_indicator(
 
         return result_str
 
+    except AlphaVantageRateLimitError:
+        raise  # let it propagate to route_to_vendor for fallback
+    # TODO: This broad except masks all errors (unlike other alpha_vantage modules).
+    # Consider removing it and letting errors propagate naturally for consistency.
     except Exception as e:
         print(f"Error getting Alpha Vantage indicator data for {indicator}: {e}")
         return f"Error retrieving {indicator} data: {str(e)}"
