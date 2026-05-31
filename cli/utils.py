@@ -270,6 +270,11 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+        (
+            "Tencent Cloud LKEAP",
+            "tencent",
+            "https://api.lkeap.cloud.tencent.com/plan/anthropic",
+        ),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
@@ -449,7 +454,7 @@ def confirm_ollama_endpoint(url: str) -> None:
 
     Surfaces three things the user benefits from seeing before model
     selection: which URL we'll actually hit, where it came from
-    (\`OLLAMA_BASE_URL\` vs default), and a soft warning if the URL is
+    (`OLLAMA_BASE_URL` vs default), and a soft warning if the URL is
     missing the scheme/port that ollama-serve expects. The warning is
     advisory only — we don't reject malformed input, since the user may
     be doing something deliberately unusual (e.g. a reverse-proxy path).

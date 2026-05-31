@@ -1,6 +1,11 @@
+import os
 from typing import Optional
 
 from .base_client import BaseLLMClient
+from .api_key_env import get_api_key_env
+
+
+TENCENT_ANTHROPIC_BASE_URL = "https://api.lkeap.cloud.tencent.com/plan/anthropic"
 
 # Providers that use the OpenAI-compatible chat completions API
 _OPENAI_COMPATIBLE = (
@@ -42,9 +47,22 @@ def create_llm_client(
         from .openai_client import OpenAIClient
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
 
-    if provider_lower == "anthropic":
+    if provider_lower in ("anthropic", "tencent"):
         from .anthropic_client import AnthropicClient
-        return AnthropicClient(model, base_url, **kwargs)
+        if provider_lower == "tencent":
+            base_url = base_url or TENCENT_ANTHROPIC_BASE_URL
+            api_key_env = get_api_key_env(provider_lower)
+            if not kwargs.get("api_key") and api_key_env:
+                api_key = os.environ.get(api_key_env)
+                if api_key:
+                    kwargs["api_key"] = api_key
+                else:
+                    raise ValueError(
+                        f"API key for provider '{provider_lower}' is not set. "
+                        f"Please set the {api_key_env} environment variable "
+                        f"(e.g. add {api_key_env}=your_key to your .env file)."
+                    )
+        return AnthropicClient(model, base_url, provider=provider_lower, **kwargs)
 
     if provider_lower == "google":
         from .google_client import GoogleClient
