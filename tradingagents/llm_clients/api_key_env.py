@@ -21,6 +21,7 @@ PROVIDER_API_KEY_ENV: dict[str, Optional[str]] = {
     "azure":      "AZURE_OPENAI_API_KEY",
     "xai":        "XAI_API_KEY",
     "deepseek":   "DEEPSEEK_API_KEY",
+    "mistral":  "MISTRAL_API_KEY",
     # Dual-region providers each carry their own account; keys are not
     # interchangeable between the international and China endpoints.
     "qwen":       "DASHSCOPE_API_KEY",

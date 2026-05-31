@@ -141,6 +141,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "mistral": {
+        "quick": [
+            ("Mistral Small 4 - Powerful small hybrid model", "mistral-small-2603"),
+        ],
+        "deep": [
+            ("Mistral Large 3 - latest large general-purpose multimodal model", "mistral-large-2512"),
+        ],
+    },
     # Qwen: same model IDs across global (dashscope-intl) and China
     # (dashscope) endpoints, so the two provider keys share one model list.
     "qwen": _QWEN_MODELS,
