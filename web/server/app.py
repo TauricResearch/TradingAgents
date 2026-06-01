@@ -95,7 +95,10 @@ async def lifespan(app: FastAPI):
 
     # start runner
     await runner.start(num_workers=1)
-    feed.start(broadcast=_broadcast)
+    # Prices are exposed to the frontend via HTTP /api/prices (polled).
+    # The runner emits WS events for runs; price events stay local to the
+    # PriceState in app.state.price_state.
+    feed.start()
     app.state.price_feed = feed
     app.state.price_state = state
     # Stash the running loop so `_broadcast` (called from worker threads)
