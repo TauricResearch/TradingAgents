@@ -18,6 +18,7 @@ _TARGETS = {
 }
 
 
+
 def rating_to_target(rating: str) -> float:
     return _TARGETS.get(rating, 0.5)
 
