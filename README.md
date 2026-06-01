@@ -283,6 +283,12 @@ config["temperature"] = 0.0
 
 What does not vary anymore: the analyzed company identity is resolved deterministically from the ticker before any agent runs, and the market analyst grounds exact price and indicator claims in a verified data snapshot. Earlier reports of "different companies" or fabricated price levels across runs are addressed by these two mechanisms.
 
+For historical experiments, also separate data cutoff from model knowledge cutoff.
+Pinning the analysis date constrains retrieved market data, but it does not make
+a newer LLM behave like a time-frozen model from that date. Treat those runs as
+historically grounded simulations unless the model, retrieval, memory, and
+evaluation stack are all aligned to the same cutoff.
+
 Backtest results are not guaranteed to match any published figure. Returns depend on the model, the temperature, the date range, data quality, and the sampling above. Treat the framework as a research scaffold for studying multi-agent analysis, not as a strategy with a fixed, replicable return.
 
 ## Contributing
